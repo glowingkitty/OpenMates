@@ -68,3 +68,22 @@ export function getEmbedDiffs(db: IDBDatabase, embedId: string): Promise<Encrypt
 		request.onerror = () => reject(request.error);
 	});
 }
+
+function readRequest<T>(request: IDBRequest<T>): Promise<T> {
+	return new Promise((resolve, reject) => {
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = () => reject(request.error ?? new Error('embed_write_read_failed'));
+	});
+}
+
+/** `embed_keys` wrapper rows of one embed (index `hashed_embed_id`, as embedStore.getEmbedKeyEntries). */
+export async function getEmbedKeyRows(db: IDBDatabase, hashedEmbedId: string): Promise<Record<string, unknown>[]> {
+	const tx = db.transaction(EMBED_KEYS_STORE, 'readonly');
+	return (await readRequest(tx.objectStore(EMBED_KEYS_STORE).index('hashed_embed_id').getAll(hashedEmbedId))) ?? [];
+}
+
+/** One stored `embeds` row by `contentRef`, or null. */
+export async function getEmbedEntry(db: IDBDatabase, contentRef: string): Promise<Record<string, unknown> | null> {
+	const tx = db.transaction(EMBEDS_STORE, 'readonly');
+	return ((await readRequest(tx.objectStore(EMBEDS_STORE).get(contentRef))) as Record<string, unknown> | undefined) ?? null;
+}

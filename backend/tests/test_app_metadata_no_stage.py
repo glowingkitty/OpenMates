@@ -33,6 +33,7 @@ def _walk_metadata(value: object, path: str = "") -> list[str]:
     return matches
 
 
+# contract-test: supporting surface=rest_api assertions=app-memories.catalog.no-typed-types
 def test_app_yml_files_do_not_contain_stage() -> None:
     offenders: list[str] = []
     for app_yml in sorted(APPS_DIR.glob("*/app.yml")):
@@ -43,6 +44,7 @@ def test_app_yml_files_do_not_contain_stage() -> None:
     assert offenders == []
 
 
+# contract-test: supporting surface=rest_api assertions=app-memories.catalog.no-typed-types
 def test_schema_rejects_stage_fields() -> None:
     with pytest.raises(ValidationError):
         AppSkillDefinition(
@@ -54,6 +56,7 @@ def test_schema_rejects_stage_fields() -> None:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=app-memories.catalog.no-typed-types
 def test_schema_rejects_default_enabled_true_noise() -> None:
     with pytest.raises(ValidationError):
         AppYAML(
@@ -63,6 +66,7 @@ def test_schema_rejects_default_enabled_true_noise() -> None:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=app-memories.catalog.no-typed-types
 def test_schema_accepts_sparse_default_enabled_false() -> None:
     app = AppYAML(
         name_translation_key="app_translations.projects.name",
@@ -73,11 +77,8 @@ def test_schema_accepts_sparse_default_enabled_false() -> None:
     assert app.default_enabled is False
 
 
-def test_health_memories_remain_disabled_pending_compliance_review() -> None:
-    health_app = yaml.safe_load((APPS_DIR / "health" / "app.yml").read_text(encoding="utf-8"))
-
-    assert {
-        memory["id"]
-        for memory in health_app["settings_and_memories"]
-        if memory.get("default_enabled") is False
-    } == {"appointments", "medical_history", "symptoms_log", "sleep_diary"}
+# contract-test: supporting surface=rest_api assertions=app-memories.catalog.no-typed-types,app-memories.typed.removed
+def test_no_app_declares_typed_memories() -> None:
+    for path in sorted(APPS_DIR.glob("*/app.yml")):
+        config = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert "settings_and_memories" not in config, path

@@ -458,14 +458,12 @@ final class ChatStore: ObservableObject {
                 $0[$1.id] = $1
             }
             let pendingIds = pendingAssistantRecoveryLookup(chatId)
-            let pendingUserIds = bridge?.pendingUserMessageIds(in: chatId) ?? []
             let pendingReplies = (messagesByChat[chatId] ?? []).filter {
-                $0.chatId == chatId && !incomingIds.contains($0.id) &&
-                    (($0.role == .assistant && pendingIds.contains($0.id))
-                     || ($0.role == .user && pendingUserIds.contains($0.id)))
+                $0.chatId == chatId && !incomingIds.contains($0.id)
+                    && $0.role == .assistant && pendingIds.contains($0.id)
             }
             // Server rows win once available. Only explicitly pending recovery
-            // replies or queued offline sends survive an absent row; this never resurrects deleted history
+            // replies survive an absent row; this never resurrects deleted history
             // or changes the authoritative messages_v advertised to the server.
             let resolved = messages.map { preserveLocalEmbedRefs($0, local: $0.localBodySource(canonical: localById[$0.id], alias: $0.serverMessageId.flatMap { localById[$0] })) }
             nextMessages[chatId] = (resolved + pendingReplies).sorted { $0.createdAt < $1.createdAt }

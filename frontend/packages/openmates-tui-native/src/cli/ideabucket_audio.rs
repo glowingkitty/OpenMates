@@ -1,5 +1,6 @@
 //! `openmates ideabucket audio <file>` adapter: local path resolution, the
-//! npm error/exit mapping and the metadata-removal warning on stderr. The
+//! npm error/exit mapping (a missing or unreadable file is a runtime failure,
+//! exit 1, like npm; not a usage error) and the metadata-removal warning on stderr. The
 //! capture itself (classification, upload, transcription, encryption) is
 //! shared Rust in `openmates_sdk::account::ideabucket_audio`.
 use super::{CliError, CliOutput, Invocation};
@@ -17,15 +18,19 @@ const METADATA_WARNING: &str =
 fn resolve(raw: &str) -> Result<PathBuf, CliError> {
     if let Some(rest) = raw.strip_prefix("~/") {
         let home = std::env::var_os("HOME")
-            .ok_or_else(|| CliError::Invalid(format!("{raw}: File not found")))?;
+            .ok_or_else(|| file_error(format!("{raw}: File not found")))?;
         return Ok(PathBuf::from(home).join(rest));
     }
-    std::path::absolute(raw).map_err(|_| CliError::Invalid(format!("{raw}: File not found")))
+    std::path::absolute(raw).map_err(|_| file_error(format!("{raw}: File not found")))
+}
+
+fn file_error(message: String) -> CliError {
+    CliError::Contract { code: "command_failed", message }
 }
 
 fn cli_error(error: AudioCaptureError) -> CliError {
     match error {
-        AudioCaptureError::File(message) => CliError::Invalid(message),
+        AudioCaptureError::File(message) => file_error(message),
         AudioCaptureError::Rejected(message) => CliError::Contract {
             code: "ideabucket_audio_failed",
             message,

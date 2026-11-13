@@ -33,6 +33,9 @@ import {
   getKeyFromStorage,
 } from "../services/cryptoService";
 import { chatSyncService } from "../services/chatSyncService";
+import {
+  decidePrivacyEntry, decidePrivacyEntrySync, privacyEntryPlanIsAsync,
+} from "../services/appSettingsRequestDecisions";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -269,6 +272,31 @@ async function ensureEnhancementReady(): Promise<void> {
 }
 
 /**
+ * Resolve once the current owner's preferences are hydrated. After a reload the
+ * profile (which defines the owner) and the encrypted preferences arrive
+ * asynchronously; a send that captured its privacy snapshot earlier would see
+ * the owner change and abort silently. Waits on store changes, never on time.
+ * A recorded persistence failure resolves immediately so the caller's own
+ * fences reject the send instead of waiting on state that cannot recover.
+ */
+async function waitForEnhancementReady(): Promise<void> {
+  for (;;) {
+    await ensureEnhancementReady();
+    const owner = getWorkspaceCacheIdentity();
+    if (enhancementOwner !== undefined && get(enhancementReadyStore) && isEnhancementOwnerCurrent(enhancementOwner)) return;
+    if (privacyPersistenceError?.scope === owner) return;
+    await new Promise<void>((resolve) => {
+      let first = true;
+      const unsubscribe = derived([enhancementReadyStore, authStore, userProfile], () => ({})).subscribe(() => {
+        if (first) { first = false; return; }
+        queueMicrotask(() => unsubscribe());
+        resolve();
+      });
+    });
+  }
+}
+
+/**
  * Load all privacy entries from IndexedDB, decrypt them, and populate the stores.
  * Called when privacy settings are opened or after a sync event.
  *
@@ -334,7 +362,17 @@ async function performLoadFromStorage(privacyOwner: string | null): Promise<void
 
         const data = JSON.parse(decryptedJson);
 
-        if (entry.item_type === PII_SETTINGS_ITEM_TYPE) {
+        // Defaults per item type (privacyEntryPolicy.ts). Flag-off stays
+        // synchronous; flag-on awaits the Rust unit and re-checks ownership.
+        let plan;
+        if (privacyEntryPlanIsAsync) {
+          plan = await decidePrivacyEntry(entry.item_type, data, DEFAULT_PII_CATEGORIES);
+          if (!current()) return;
+        } else {
+          plan = decidePrivacyEntrySync(entry.item_type, data, DEFAULT_PII_CATEGORIES);
+        }
+
+        if (plan.kind === "pii") {
           // PII detection settings singleton
           piiSettingsEntryId = entry.id;
           piiSettingsItemKey = entry.item_key;
@@ -342,18 +380,15 @@ async function performLoadFromStorage(privacyOwner: string | null): Promise<void
           piiSettingsCreatedAt = entry.created_at;
 
           piiDetectionSettings.set({
-            masterEnabled: data.masterEnabled ?? true,
-            enhancedEnabled: data.enhancedEnabled ?? true,
-            categories: {
-              ...DEFAULT_PII_CATEGORIES,
-              ...(data.categories || {}),
-            },
+            masterEnabled: plan.masterEnabled as boolean,
+            enhancedEnabled: plan.enhancedEnabled as boolean,
+            categories: plan.categories as Record<string, boolean>,
           });
 
           console.debug(
             "[PersonalDataStore] Loaded PII detection settings from storage",
           );
-        } else if (entry.item_type === LOCATION_SETTINGS_ITEM_TYPE) {
+        } else if (plan.kind === "location") {
           // Location precision settings singleton
           locationSettingsEntryId = entry.id;
           locationSettingsItemKey = entry.item_key;
@@ -361,22 +396,22 @@ async function performLoadFromStorage(privacyOwner: string | null): Promise<void
           locationSettingsCreatedAt = entry.created_at;
 
           locationSettingsStore.set({
-            impreciseByDefault: data.impreciseByDefault ?? true,
+            impreciseByDefault: plan.impreciseByDefault as boolean,
           });
 
           console.debug(
             "[PersonalDataStore] Loaded location settings from storage",
           );
-        } else if (entry.item_type === PERSONAL_DATA_ITEM_TYPE) {
+        } else if (plan.kind === "personal") {
           // Personal data entry (name, address, birthday, custom)
           const personalEntry: PersonalDataEntry = {
             id: entry.id,
-            type: data.type || "custom",
-            title: data.title || "",
-            textToHide: data.textToHide || "",
-            replaceWith: data.replaceWith || "",
-            enabled: data.enabled ?? true,
-            addressLines: data.addressLines,
+            type: plan.type as PersonalDataType,
+            title: plan.title as string,
+            textToHide: plan.textToHide as string,
+            replaceWith: plan.replaceWith as string,
+            enabled: plan.enabled as boolean,
+            addressLines: plan.addressLines as PersonalDataEntry["addressLines"],
             createdAt: entry.created_at,
             updatedAt: entry.updated_at,
           };
@@ -1056,6 +1091,7 @@ export const personalDataStore = {
   enhancementReady: derived([enhancementReadyStore, authStore, userProfile], ([ready]) =>
     ready && enhancementOwner !== undefined && isEnhancementOwnerCurrent(enhancementOwner)),
   ensureEnhancementReady,
+  waitForEnhancementReady,
 
   /**
    * Subscribe to location precision settings.

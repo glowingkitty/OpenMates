@@ -1,0 +1,53 @@
+# UniFFI binding of the shared OpenMates client core for the Apple apps (iOS,
+# iPadOS, macOS, watchOS). Bindings only marshal; logic lives in openmates-sdk.
+# The Xcode script phase builds one static library per build with
+# build-xcframework.sh --xcode-phase; the generated Swift, C header and
+# modulemap are committed under apple/OpenMatesCore and checked for freshness
+# in CI (plan apple-client-core-migration D-3).
+[package]
+name = "openmates-apple-bindings"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98.1"
+license = "MIT"
+publish = false
+
+[lib]
+name = "openmates_apple_bindings"
+crate-type = ["staticlib", "lib"]
+
+# Host-only Swift generator (`cargo run --features bindgen --bin uniffi-bindgen`).
+# The feature keeps uniffi's generator out of every Apple target build.
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+bindgen = ["uniffi/cli"]
+# Test fixtures (`test_support_seed_cached_account`, the C entry
+# `openmates_test_support_seed_chat_list` of the Swift UI-test glue). Off in
+# product builds; binding generation and the test build enable it together.
+test-support = []
+
+[dependencies]
+# Without workflow-yaml (plan F-6): the Apple framework needs no YAML serializer.
+openmates-sdk = { path = "../openmates-rust", default-features = false }
+# Pinned exactly: generated Swift and the Rust scaffolding must come from one release.
+uniffi = "=0.32.2"
+tokio = { version = "=1.54.1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tokio-util = "0.7"
+futures-util = "0.3"
+thiserror = "2"
+serde_json = "1"
+zeroize = "1"
+base64 = "0.22"
+
+[dev-dependencies]
+tempfile = "3"
+# The synthetic pair authorizer of the pair-cancel test seals the key bundle
+# (AES-256-GCM, HKDF salt SHA-256) as the web authorizer does.
+aes-gcm = "0.10"
+sha2 = "0.10"
+# Loopback session-validation server in the chat window tests.
+tokio = { version = "=1.54.1", features = ["net", "io-util"] }

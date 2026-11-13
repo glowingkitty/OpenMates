@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -186,16 +187,23 @@ def git_summary(root: Path, since: datetime, gaps: list[str]) -> dict:
     }
 
 
-def task_snapshot(gaps: list[str]) -> list[dict] | None:
+def task_snapshot(gaps: list[str], status: dict | None = None) -> list[dict] | None:
     """All of the account's Tasks: agents often create Tasks without linking the
-    OpenMates project, so a --project filter would hide them from the meeting."""
-    try:
-        run = subprocess.run(["openmates", "tasks", "list", "--json"],
-                             capture_output=True, text=True, timeout=180)
-        data = json.loads(run.stdout)
-    except (OSError, subprocess.TimeoutExpired, ValueError) as error:
-        gaps.append(f"OpenMates Tasks unavailable ({type(error).__name__})")
+    OpenMates project, so a --project filter would hide them from the meeting.
+    Read live and refresh the private copy; when the live read fails the copy is used and
+    `status` (source, fetched_at, age_hours, fresh) says how old it is."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import daily_meeting_tasks_cache  # noqa: E402 - sibling script, path set just above
+
+    data, info = daily_meeting_tasks_cache.load()
+    if status is not None:
+        status.update(info)
+    if data is None:
+        gaps.append(f"OpenMates Tasks UNAVAILABLE and no earlier copy exists ({info['error']})")
         return None
+    if info["source"] == "cache":
+        gaps.append(f"OpenMates Tasks NOT up to date: live read failed ({info['error']}); "
+                    f"using the copy from {info['fetched_at'][:16]} UTC ({info['age_hours']} h old)")
     if not data.get("complete", True):
         gaps.append("OpenMates Tasks list reported an incomplete page")
     return [{
@@ -204,6 +212,7 @@ def task_snapshot(gaps: list[str]) -> list[dict] | None:
         "blocked": t.get("blocked_reason_code") or "", "due": t.get("due_at") or "",
         "assignee": t.get("assignee_type") or "",
         "chat": _chat_ref(t.get("external_chat")),
+        "labels": [str(label) for label in t.get("labels") or []],
     } for t in data.get("tasks", [])]
 
 
@@ -382,6 +391,26 @@ def alerts(gaps: list[str]) -> dict:
     return daily_meeting_health.collect_alerts(gaps)
 
 
+def growth(root: Path, out: Path, since: datetime, day: str, gaps: list[str]) -> dict | None:
+    """Production growth counts, aggregate only (scripts/daily_meeting_growth.py)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import daily_meeting_growth  # noqa: E402 - sibling script, path set just above
+
+    return daily_meeting_growth.collect(root, out, since, day, gaps)
+
+
+def waiting(tasks: list[dict] | None, out: Path, now: datetime) -> dict:
+    """Dev-server Claude chats whose last message came from the assistant (scripts/daily_meeting_waiting.py)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import daily_meeting_issues  # noqa: E402 - sibling scripts, path set just above
+    import daily_meeting_waiting  # noqa: E402
+
+    reviewed = daily_meeting_issues.load_reviewed(out / "waiting-reviewed.json")
+    chats = daily_meeting_waiting.waiting_chats(TRANSCRIPTS, now, tasks, reviewed,
+                                                os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
+    return daily_meeting_waiting.waiting_summary(chats)
+
+
 def reminders(gaps: list[str]) -> dict | None:
     """Live from the Mac when it is online, else the copy synced every 30 minutes."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -476,6 +505,14 @@ def product_overview(root: Path) -> dict:
     return {"tagline": tagline, "description": description, "features": features}
 
 
+def goals(root: Path, out: Path, tasks: list[dict] | None, today: date) -> dict:
+    """GOALS.md, milestone progress from Task labels, drift warnings and agreed meeting adjustments."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import daily_meeting_goals  # noqa: E402 - sibling script, path set just above
+
+    return daily_meeting_goals.collect(root, out, tasks, today)
+
+
 def focus(root: Path) -> str:
     path = root / "FOCUS.md"
     return path.read_text()[:12000] if path.exists() else ""
@@ -500,7 +537,8 @@ def previous_meeting(root: Path, today: str) -> dict | None:
 def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict, list | None]:
     gaps: list[str] = []
     today = now.astimezone(TZ).date().isoformat()
-    tasks = task_snapshot(gaps)
+    tasks_status: dict = {}
+    tasks = task_snapshot(gaps, tasks_status)
     snapshots = sorted(p for p in out.glob("*-tasks.json") if p.name[:10] < today)
     previous = json.loads(snapshots[-1].read_text()) if snapshots else None
     issues = issue_trackers(gaps)
@@ -523,7 +561,11 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "marketing": marketing(since),
         "tasks": task_summary(tasks, previous, {c["session"] for c in chats}),
         "nightly": nightly(root, since),
+        "tasks_status": tasks_status,
+        "waiting_chats": waiting(tasks, out, now),
         "alerts": alerts(gaps),
+        "growth": growth(root, out, since, today, gaps),
+        "goals": goals(root, out, tasks, now.astimezone(TZ).date()),
         "issues": issues,
         "cleanup": cleanup,
         "reminders": reminders(gaps),

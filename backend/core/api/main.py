@@ -47,6 +47,7 @@ from backend.core.api.app.routes import admin  # noqa: E402 # Import admin route
 from backend.core.api.app.routes.push import router as push_router, notifications_router  # noqa: E402 # Push notification routes
 from backend.core.api.app.services.push_notification_service import push_notification_service  # noqa: E402
 from backend.core.api.app.routes import admin_debug  # noqa: E402 # Import admin debug router for remote debugging
+from backend.core.api.app.routes import admin_growth_metrics  # noqa: E402 # Aggregate growth counts for the daily meeting (admin API key)
 from backend.core.api.app.routes import admin_newsletter_campaigns  # noqa: E402 # Hidden admin newsletter campaign scheduler
 from backend.core.api.app.routes import admin_client_logs  # noqa: E402 # Import admin client log forwarding router
 from backend.core.api.app.routes import client_logs_ephemeral  # noqa: E402 # Import ephemeral client log forwarding (all users, anonymized)
@@ -65,11 +66,13 @@ from backend.core.api.app.routes import email_block  # noqa: E402 # Import email
 from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode proxy router (avoids browser CORS/425 on Nominatim)
 from backend.core.api.app.routes import generated_assets_api  # noqa: E402 # Generated media asset download links
 from backend.core.api.app.routes import design_icons  # noqa: E402 # Design app Iconify SVG fetch route
-from backend.core.api.app.routes import video_remotion  # noqa: E402 # Remotion videos.create render endpoints
 from backend.core.api.app.routes import features  # noqa: E402 # Feature availability endpoint
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
 from backend.core.api.app.routes import projects  # noqa: E402 # Import projects workspace router
 from backend.core.api.app.routes import project_authoring  # noqa: E402 # Owner-scoped background Project authoring
+from backend.core.api.app.routes import project_commits  # noqa: E402 # Native Project commits (first-party, client-encrypted)
+from backend.core.api.app.routes import project_item_links  # noqa: E402 # Project embed adopt/rename/delete (first-party, client-encrypted)
+from backend.core.api.app.routes import embed_user_revisions  # noqa: E402 # User-made embed versions and pending chat notices (first-party, client-encrypted)
 from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # Import user daily inspirations persistence endpoints
 from backend.core.api.app.routes import analytics_beacon  # noqa: E402 # Import analytics beacon router (privacy-preserving first-party analytics)
 from backend.core.api.app.routes import status_routes  # noqa: E402 # Import status page API v3 (grouped health + tests)
@@ -88,6 +91,8 @@ from backend.core.api.app.routes import teams  # noqa: E402 # Teams V1 endpoints
 from backend.core.api.app.routes import workflows  # noqa: E402 # Server-side Workflows V1 endpoints
 from backend.core.api.app.routes import user_plans  # noqa: E402 # User-facing Plans V1 endpoints
 from backend.core.api.app.routes import user_specifications  # noqa: E402
+from backend.core.api.app.routes import memory_suggestions  # noqa: E402 # Transient memory/workflow suggestion preview
+from backend.core.api.app.routes import images_enhance  # noqa: E402 # Image Enhance (first-party, carries file keys)
 from backend.core.api.app.routes import user_tasks  # noqa: E402 # User-facing Tasks V1 endpoints
 from backend.core.api.app.routes import developer_metadata_api  # noqa: E402 # Safe developer metadata for encrypted product objects
 from backend.core.api.app.routes import workspace_history  # noqa: E402 # Workspace history and undo endpoints
@@ -1420,6 +1425,7 @@ def create_app() -> FastAPI:
     app.include_router(share.router, include_in_schema=False)  # Share router - web app only
     app.include_router(admin.router, include_in_schema=False)  # Admin router - authenticated admin only
     app.include_router(admin_debug.router, include_in_schema=False)  # Admin debug router - requires admin API key, not in public docs
+    app.include_router(admin_growth_metrics.router, include_in_schema=False)  # Aggregate growth counts - admin API key, read-only
     app.include_router(admin_newsletter_campaigns.router, include_in_schema=False)  # Admin newsletter campaign scheduler - API key admin only
     app.include_router(admin_client_logs.router, include_in_schema=False)  # Admin client log forwarding - pushes browser console logs to Loki for admin users
     app.include_router(client_logs_ephemeral.router, include_in_schema=False)  # Ephemeral client log forwarding - anonymized console logs from all users (48h retention)
@@ -1435,6 +1441,7 @@ def create_app() -> FastAPI:
     # API routers - explicitly included in schema (support API key authentication)
     from backend.core.api.app.routes import tasks_api
     from backend.core.api.app.routes import embeds_api
+    from backend.core.api.app.routes import pdf_pages
     from backend.core.api.app.routes import profile_api
     app.include_router(settings.router, include_in_schema=False)  # Settings contain sensitive account actions; expose narrow API docs via dedicated routers only
     app.include_router(account_exports.router, include_in_schema=True)  # Account Export V1 - CLI/SDK first, web and Apple later
@@ -1444,15 +1451,18 @@ def create_app() -> FastAPI:
     app.include_router(openai_compat.router, include_in_schema=True)  # OpenAI-compatible models/chat routes for external SDKs
     app.include_router(tasks_api.router, include_in_schema=True)  # Tasks API router - uses API key authentication for polling long-running tasks
     app.include_router(embeds_api.router, include_in_schema=True)  # Embeds API router - uses API key authentication for downloading embed files (images, etc.)
+    app.include_router(pdf_pages.router, include_in_schema=False)  # First-party on-demand PDF page renders (session auth only)
     app.include_router(generated_assets_api.router, include_in_schema=True)  # Short-lived decrypted download URLs for generated media assets
     app.include_router(design_icons.router, include_in_schema=True)  # Design app sanitized Iconify SVG fetch route
-    app.include_router(video_remotion.router, include_in_schema=True)  # Remotion videos.create render, stop, and version endpoints
     app.include_router(features.router, include_in_schema=True)  # Effective feature availability for clients
     app.include_router(profile_api.router, include_in_schema=True)  # Profile image API - authenticated proxy for AES-encrypted user profile images
     app.include_router(geocode.router, include_in_schema=False)  # Geocode proxy router - proxies Nominatim requests server-side to avoid browser CORS/TLS 0-RTT issues
     app.include_router(default_inspirations.router, include_in_schema=False)  # Default inspirations public endpoint - returns published inspirations for DailyInspirationBanner
     app.include_router(projects.router, include_in_schema=False)  # Projects workspace endpoints - web app only
     app.include_router(project_authoring.router, include_in_schema=False)
+    app.include_router(project_commits.router, include_in_schema=False)  # Native Project commits - first-party clients only (client-encrypted)
+    app.include_router(embed_user_revisions.router, include_in_schema=False)  # User embed versions + pending notices - first-party session auth only (client-encrypted)
+    app.include_router(project_item_links.router, include_in_schema=False)  # Project embed adopt/rename/delete - first-party clients only (client-encrypted)
     app.include_router(daily_inspirations_api.router, include_in_schema=False)  # User daily inspirations persistence - save/load/mark-opened for authenticated users
     app.include_router(analytics_beacon.router, include_in_schema=False)  # Analytics beacon - privacy-preserving first-party aggregate analytics (no PII)
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
@@ -1465,6 +1475,8 @@ def create_app() -> FastAPI:
     app.include_router(teams.router, include_in_schema=False)  # Teams V1 can contain sensitive membership/billing context; hide until route-level developer docs are classified
     app.include_router(user_plans.router, include_in_schema=False)  # Plans carry client-side encrypted content; expose only safe metadata via developer_metadata_api
     app.include_router(user_specifications.router, include_in_schema=False)  # Encrypted first-party Project documents
+    app.include_router(memory_suggestions.router, include_in_schema=False)  # First-party only; cleartext for one explicit action, never logged
+    app.include_router(images_enhance.router, include_in_schema=False)  # Image Enhance - first-party clients only (source/result AES keys)
     app.include_router(user_tasks.router, include_in_schema=False)  # Tasks carry client-side encrypted content; expose only safe metadata via developer_metadata_api
     app.include_router(workspace_history.router, include_in_schema=False)  # Workspace history can reference encrypted objects; official clients only until classified
     app.include_router(ideabucket.router, include_in_schema=False)  # IdeaBucket stores encrypted bucket data; official clients only

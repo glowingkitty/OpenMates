@@ -35,7 +35,7 @@ const {
 } = require('./helpers/embed-test-helpers');
 const {
 	saveCurrentFullscreenEmbed,
-	verifySavedMemoryEntry
+	expectEmbedStillSaved
 } = require('./helpers/saved-memory-test-helpers');
 
 test.describe('App: Home / Skill: search', () => {
@@ -127,8 +127,12 @@ test.describe('App: Home / Skill: search', () => {
 		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint);
 
 		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay').last());
+		// contract-test: direct surface=gui.web assertions=app-memories.saved-items.not-memories
+		logCheckpoint(`Reopening saved result "${savedTitle}".`);
+		await resultCards.first().click();
+		await expectEmbedStillSaved(page, logCheckpoint);
+		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay').last());
 		await closeFullscreen(page, fullscreenOverlay);
-		await verifySavedMemoryEntry(page, 'home', 'saved_listings', savedTitle, logCheckpoint);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'home-search');
 	});
 });

@@ -1,0 +1,57 @@
+schema_version: 2
+id: cost-plus-pricing
+title: Cost-plus customer pricing with one configurable margin
+status: approved
+profile: concise
+goal: >
+  Ensure we add for ALL ai model requests only a 50% margin on top, for input,
+  output and caching pricing (via variable so it's ready to change the margin
+  for all later in server settings yml or docker config, not via web app UI).
+  Implement that for all ai models (LLM, video, image generation etc.) as well
+  as the same default 50% margin on top of all api costs (brave search etc.).
+  Give a table with before and after pricing for users, and always round prices
+  up in steps of 5 credits (unless something costs less than 5 credits, then
+  keep the credits price per unit as is).
+specifications:
+  - feature.billing@11
+scope:
+  in:
+    - >
+      Supplier cost (`costs`, USD per billed unit) is the only price input for
+      every priced provider model, provider request and app skill; customer
+      credits are derived as cost x (1 + margin) at 1 credit = $0.001.
+    - >
+      One margin setting in backend_config.yml (`pricing.margin_percent`,
+      default 50) with an environment override
+      (`OPENMATES_PRICING_MARGIN_PERCENT`); no web UI control.
+    - >
+      Rounding: credits per billed unit are rounded up to the next multiple of
+      5; results under 5 credits are rounded up to a whole credit only. Token
+      categories (input, output, cache read, cache write, context bands) are
+      rounded per 1M tokens and stored as tokens per credit rounded down, so a
+      price is never below cost x (1 + margin).
+    - >
+      Items with no external supplier cost charge a flat minimum of 1 credit
+      per billed unit (`pricing.zero_cost_minimum_credits`), as decided by the
+      user on 2026-11-12.
+    - >
+      Routes with different supplier costs (for example a Vertex fallback with a
+      gross-cost multiplier) are priced from the most expensive eligible route,
+      so no route sells below cost x (1 + margin).
+    - Temporary (dated) tariffs derive from their own temporary supplier costs.
+    - Web build metadata generators use the same formula and settings file.
+    - A before/after customer price table for every priced item.
+  out:
+    - Production deployment.
+    - A web or admin UI for the margin.
+    - Rewriting historical receipts; frozen attempt tariffs stay as charged.
+decisions:
+  - Derive at config load instead of hand-maintained `pricing` blocks, so one setting changes every price.
+  - Price multi-route models from the highest eligible route cost rather than per-route customer prices.
+  - Zero-cost items use a flat 1-credit minimum per billed unit (user choice).
+verification:
+  required:
+    - Focused Python checks of the derivation, rounding, margin override and the catalog price floor (cost x 1.5).
+    - JS/Python parity of the derivation on shared vectors.
+    - Isolated GitHub pytest for the affected billing and catalog suites.
+    - Scoped lint and specification validation before dev deployment.

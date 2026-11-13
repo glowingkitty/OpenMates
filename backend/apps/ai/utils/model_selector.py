@@ -87,7 +87,7 @@ PREMIUM_MODELS = {
     "gpt-6-astra",                    # Most capable GPT
     "gpt-6.1-sol",                  # High-capability GPT
     "gpt-5.6-terra",                # Balanced reasoning GPT
-    "claude-fable-5-1",               # Latest max-capability Claude
+    "claude-fable-5-2",               # Latest max-capability Claude
     "claude-opus-5-5",                # Latest Opus
     "claude-sonnet-5-5",              # Latest Sonnet
     "gemini-3.8-flash",              # Current Gemini Flash

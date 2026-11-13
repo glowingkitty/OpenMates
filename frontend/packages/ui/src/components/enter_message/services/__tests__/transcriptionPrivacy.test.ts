@@ -16,6 +16,7 @@ vi.mock('../../services/codeEmbedService', () => ({
   createMindMapEmbed: vi.fn(), detectLanguageFromContent: vi.fn(),
   redactEmbedContent: vi.fn(), createSheetEmbed: vi.fn(),
 }));
+vi.mock('../../services/webPIIDetectionService', () => ({ createWebPIIDocumentScanContext: vi.fn() }));
 vi.mock('../../services/mindMapUploadDetection', () => ({ classifyMindMapUploadSource: vi.fn() }));
 vi.mock('../../utils/fileContentParsers', () => ({
   delimitedTextToMarkdownTable: vi.fn(), docxArrayBufferToHtml: vi.fn(),

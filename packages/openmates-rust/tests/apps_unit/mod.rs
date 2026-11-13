@@ -234,20 +234,10 @@ fn canonical_metadata_schema_and_automatic_routing_controls() {
         false
     );
     let schema = &item.fields["input_schema"];
-    assert!(validate_schema(schema, schema, &fields()["input"], 0));
-    assert!(!validate_schema(
-        schema,
-        schema,
-        &json!({"requests":[{"query":42}]}),
-        0
-    ));
-    assert!(!validate_schema(schema, schema, &json!({"requests":[]}), 0));
-    assert!(!validate_schema(
-        schema,
-        schema,
-        &json!({"requests":[{}]}),
-        0
-    ));
+    assert!(validate_schema(schema, &fields()["input"]));
+    assert!(!validate_schema(schema, &json!({"requests":[{"query":42}]})));
+    assert!(!validate_schema(schema, &json!({"requests":[]})));
+    assert!(!validate_schema(schema, &json!({"requests":[{}]})));
     assert_eq!(
         automatic_input(&json!({"requests":[{"query":"hello","model":"auto"}]}), 0).unwrap(),
         json!({"requests":[{"query":"hello"}]})
@@ -676,5 +666,15 @@ async fn concurrent_task_gets_cancel_all_held_reads_without_releasing_or_redispa
         assert_eq!(requests.lock().unwrap().iter().filter(|(p,_)|p=="/v1/apps/web/skills/search").count(),1);
         assert_eq!(requests.lock().unwrap().iter().filter(|(p,_)|p.starts_with("/v1/tasks/")).count(),4);
         server.abort();controls.drain().await;
+    }
+}
+
+#[test]
+fn identifiers_accept_hyphenated_skill_ids_from_app_yml() {
+    for id in ["web", "list-reminders", "get-docs", "search_icons", "models3d"] {
+        assert!(identifier(id), "{id} must be accepted");
+    }
+    for id in ["", "-docs", "Get-docs", "a/b", "a.b", "1app", &"a".repeat(65)] {
+        assert!(!identifier(id), "{id:?} must be rejected");
     }
 }

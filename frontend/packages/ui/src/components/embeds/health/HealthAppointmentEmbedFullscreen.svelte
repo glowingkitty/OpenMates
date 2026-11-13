@@ -37,14 +37,7 @@
     sanitizeCalendarFilename,
   } from "../../../utils/calendarDownload";
   import { authStore } from "../../../stores/authStore";
-  import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
-  import {
-    findSavedEmbedMemoryEntry,
-    forgetEmbedMemory,
-    getEmbedIdFromContentRef,
-    promptToSaveEmbedMemory,
-    saveEmbedMemory,
-  } from "../../../services/savedEmbedMemoryService";
+  import { savedEmbedIds, loadEmbedSaved, toggleEmbedSaved, getEmbedIdFromContentRef } from '../../../services/savedEmbedService';
   import type { EmbedFullscreenRawData } from "../../../types/embedFullscreen";
 
   interface GoogleReview {
@@ -317,61 +310,19 @@
     activeAppointment?.booking_url || activeAppointment?.practice_url || "",
   );
 
-  function getSlotDate(iso: string | null | undefined): string {
-    if (!iso) return "";
-    const parsed = new Date(iso);
-    if (Number.isNaN(parsed.getTime())) return iso.split("T")[0] || iso;
-    return parsed.toISOString().split("T")[0];
+
+  // Save / Saved: encrypted `saved` flag on the embed itself (no memory entry).
+  const savedTargetId = $derived(embedId || data.focusChildEmbedId || getEmbedIdFromContentRef(data.attrs?.contentRef));
+  let isSaved = $derived($savedEmbedIds.has(savedTargetId));
+  $effect(() => { if (savedTargetId) void loadEmbedSaved(savedTargetId); });
+
+  function handleToggleSaved() {
+    if (savedTargetId) void toggleEmbedSaved(savedTargetId);
   }
 
-  function buildSaveConfig() {
-    const title =
-      activeAppointment?.name || activeAppointment?.speciality || "Appointment";
-    const date = getSlotDate(effectiveSlotDatetime);
-    return {
-      kind: "health_appointment" as const,
-      appId: "health",
-      itemType: "appointments",
-      itemKey: `appointments.${bookingUrl || title}.${effectiveSlotDatetime || ""}`,
-      title,
-      reminderDateTime: effectiveSlotDatetime,
-      reminderPromptTitle: `${title}${effectiveSlotDatetime ? ` at ${formatSlot(effectiveSlotDatetime)}` : ""}`,
-      itemValue: {
-        embed_id:
-          embedId ||
-          data.focusChildEmbedId ||
-          activeAppointment?.embed_id ||
-          getEmbedIdFromContentRef(data.attrs?.contentRef),
-        title: headerTitle,
-        appointment_type: "doctor_visit",
-        where: [activeAppointment?.name, activeAppointment?.speciality]
-          .filter(Boolean)
-          .join(" · "),
-        date,
-        appointment_time: effectiveSlotDatetime || "",
-        notes: [activeAppointment?.address, bookingUrl]
-          .filter(Boolean)
-          .join("\n"),
-      },
-    };
-  }
-
-  let saveConfig = $derived(buildSaveConfig());
-  let savedMemoryEntry = $derived(
-    findSavedEmbedMemoryEntry($appSettingsMemoriesStore, saveConfig),
-  );
-
-  function handleToggleSavedAppointment() {
-    if (savedMemoryEntry) {
-      forgetEmbedMemory(saveConfig);
-      return;
-    }
-    saveEmbedMemory(saveConfig);
-  }
 
   function handleOpenAppointment() {
     if (bookingUrl) window.open(bookingUrl, "_blank", "noopener,noreferrer");
-    promptToSaveEmbedMemory(buildSaveConfig());
   }
 
   function buildCalendarDescription(): string {
@@ -631,9 +582,9 @@
       <div class="embed-header-cta-group">
         {#if $authStore.isAuthenticated}
           <EmbedHeaderCtaButton
-            label={savedMemoryEntry ? "Forget" : "Add memory"}
-            variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry}
-            onclick={handleToggleSavedAppointment}
+            label={$text(isSaved ? "embeds.saved_item" : "embeds.save_item")}
+            variant="secondary" iconName="heart" iconOnly pressed={isSaved}
+            onclick={handleToggleSaved}
             testId="save-embed-cta"
           />
         {/if}

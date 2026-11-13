@@ -2,7 +2,7 @@ import type {AppMetadata} from '../../types/apps';
 
 const app: AppMetadata = {
     id: 'design', name: 'Mobile preferences', description: 'Your preferred layout and interaction style.',
-    icon_image: 'design.svg', providers: [], skills: [], focus_modes: [], settings_and_memories: [],
+    icon_image: 'design.svg', providers: [], skills: [], focus_modes: []
 };
 
 export default {

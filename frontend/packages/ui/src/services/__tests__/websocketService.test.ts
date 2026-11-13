@@ -125,6 +125,31 @@ describe("webSocketService recovery protocol errors", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
+  it("does not toast an output another open client already acknowledged", () => {
+    const consoleDebug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const handlers = (webSocketService as unknown as {
+      messageHandlers: Map<string, Array<(payload: unknown) => void>>;
+    }).messageHandlers.get("error");
+
+    handlers?.[0]?.({
+      code: "recovery_output_not_found",
+      job_id: "record-1",
+      request_id: "request-1",
+      message: "Encrypted completion recovery was rejected.",
+    });
+
+    expect(consoleDebug).toHaveBeenCalledWith(
+      "[WebSocketService] Received retryable recovery protocol error:",
+      expect.objectContaining({ code: "recovery_output_not_found" }),
+    );
+    expect(consoleError).not.toHaveBeenCalledWith(
+      "[WebSocketService] Received error message from server:",
+      expect.anything(),
+    );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced
   it("does not emit a global server error for stale legacy recovery persistence", () => {
     const consoleDebug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -499,6 +524,50 @@ describe("webSocketService connection preparation", () => {
   });
 });
 
+
+describe("webSocketService acknowledged no-op results", () => {
+  // contract-test: supporting surface=gui.web assertions=workflows.chat.metadata-warmup
+  it("accepts the metadata warm-up result without a missing-handler warning", async () => {
+    const sockets: Array<{ onmessage: ((event: MessageEvent) => void) | null; open: () => void }> = [];
+    class FakeSocket {
+      static readonly OPEN = 1;
+      readyState = 0;
+      onopen: (() => void) | null = null;
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      onerror: (() => void) | null = null;
+      onclose: (() => void) | null = null;
+      send = vi.fn();
+      close = vi.fn(() => { this.readyState = 3; });
+      constructor(readonly url: string) { sockets.push(this); }
+      open() { this.readyState = FakeSocket.OPEN; this.onopen?.(); }
+    }
+    vi.stubGlobal("WebSocket", FakeSocket);
+    vi.spyOn(
+      webSocketService as unknown as { refreshSessionForWebSocket: (reason: string) => Promise<boolean> },
+      "refreshSessionForWebSocket",
+    ).mockResolvedValue(true);
+    authStore.set({ isAuthenticated: true, isInitialized: true });
+    const sending = webSocketService.sendMessage("chat_metadata_warmup", {});
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    sockets[0].open();
+    await sending;
+
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    for (const status of ["accepted", "warm"]) {
+      sockets[0].onmessage?.({
+        data: JSON.stringify({ type: "chat_metadata_warmup_result", payload: { status } }),
+      } as MessageEvent);
+    }
+    expect(consoleWarn).not.toHaveBeenCalledWith(
+      expect.stringContaining("No handlers found"),
+      expect.anything(),
+    );
+
+    authStore.set({ isAuthenticated: false, isInitialized: true });
+    webSocketService.disconnect();
+    vi.unstubAllGlobals();
+  });
+});
 
 describe("request-owned embed errors", () => {
   const defaultError = () => (webSocketService as unknown as {

@@ -23,3 +23,15 @@ pub fn privacy(input_json: String) -> Result<String, JsError> {
 pub fn task_order(input_json: String) -> Result<String, JsError> {
     crate::sort_tasks_json(input_json).map_err(error)
 }
+
+/// npm `keyManagement` primitives over `openmates_sdk::crypto` (JSON envelope).
+#[wasm_bindgen(js_name = "keyManagement")]
+pub fn key_management(input_json: String) -> Result<String, JsError> {
+    crate::key_management_json(input_json).map_err(error)
+}
+
+/// npm `models` parsing over the shared `openmates_sdk::model` serde layout.
+#[wasm_bindgen(js_name = "models")]
+pub fn models(input_json: String) -> Result<String, JsError> {
+    crate::models_json(input_json).map_err(error)
+}

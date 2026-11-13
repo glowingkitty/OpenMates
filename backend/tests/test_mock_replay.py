@@ -33,6 +33,24 @@ class _StubCacheService:
     async def publish_event(self, channel: str, payload: dict) -> None:
         self.events.append((channel, payload))
 
+    async def get_chat_list_item_data(self, _user_id: str, _chat_id: str, refresh_ttl: bool = True):
+        return None
+
+    async def update_chat_read_status(self, *, user_id: str, chat_id: str, unread_count: int) -> bool:
+        return True
+
+
+class _StubDirectusChat:
+    def __init__(self) -> None:
+        self.unread_count = 0
+
+    async def get_chat_metadata(self, _chat_id: str) -> dict:
+        return {"unread_count": self.unread_count}
+
+    async def update_chat_read_status(self, *, chat_id: str, unread_count: int) -> bool:
+        self.unread_count = unread_count
+        return True
+
 
 class _StubDirectusResponse:
     status_code = 200
@@ -49,6 +67,7 @@ class _StubDirectusService:
 
     def __init__(self) -> None:
         self.requests = []
+        self.chat = _StubDirectusChat()
 
     async def _make_api_request(self, method: str, url: str, **kwargs) -> _StubDirectusResponse:
         request_json = kwargs["json"]
@@ -254,6 +273,18 @@ def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(
     assert final_chunk["recovery_protocol_version"] == 1
     assert final_chunk["recovery_job_id"] == directus_service.requests[0]["data"]["job_id"]
 
+    # Fixture replay keeps the finished reply unread, like the stream consumer.
+    unread_events = [(channel, payload) for channel, payload in cache_service.events
+                     if payload.get("type") == "chat_unread_count_updated"]
+    assert unread_events == [("ai_message_persisted::owner-hash", {
+        "type": "chat_unread_count_updated",
+        "user_id_uuid": "11111111-1111-4111-8111-111111111111",
+        "chat_id": chat_id,
+        "unread_count": 1,
+        "message_id": final_chunk["message_id"],
+    })]
+    assert directus_service.chat.unread_count == 1
+
 
 def test_replay_fixture_publishes_fixture_postprocessing_metadata(monkeypatch) -> None:
     fixture = {
@@ -308,11 +339,47 @@ def test_replay_fixture_publishes_fixture_postprocessing_metadata(monkeypatch) -
             "chat_tags": ["weather", "Berlin"],
             "harmful_response": 1,
             "top_recommended_apps_for_user": [],
-            "quick_tip_slugs": [],
+            "recommendations": [],
             "task_proposals": [],
             "task_update_proposals": [],
         }
     ]
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected_count"),
+    [
+        ({}, 1),
+        ({"user_preferences": {"recommendations_enabled": False}}, 0),
+        ({"is_incognito": True}, 0),
+    ],
+)
+def test_fixture_postprocessing_applies_recommendations_gate(overrides, expected_count) -> None:
+    """Fixture replays drop Recommendations when the setting is off or the chat is incognito."""
+    from types import SimpleNamespace
+
+    recommendation = {"id": "rec-1", "kind": "memory", "action": "create", "target_id": None,
+                      "title": "Conference day pacing", "summary": "Balance talks and rest."}
+    request_data = AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="55555555-5555-4555-8555-555555555555",
+        user_id="11111111-1111-4111-8111-111111111111",
+        user_id_hash="owner-hash",
+        message_history=[AIHistoryMessage(role="user", content="hello", created_at=1)],
+        **overrides,
+    )
+    cache_service = _StubCacheService()
+    asyncio.run(
+        mock_replay._publish_fixture_postprocessing_metadata(
+            fixture_data={"postprocessing": {"chat_summary": "Conference plan.", "recommendations": [recommendation]}},
+            task_id="66666666-6666-4666-8666-666666666666",
+            request_data=request_data,
+            cache_service=cache_service,
+            preprocessing_result=SimpleNamespace(chat_summary=None),
+        )
+    )
+    [(_channel, payload)] = cache_service.events
+    assert len(payload["recommendations"]) == expected_count
 
 
 def test_mock_mail_fixture_recreates_finished_draft_with_owner_bindings(monkeypatch) -> None:
@@ -391,3 +458,99 @@ def test_mock_mail_fixture_recreates_finished_draft_with_owner_bindings(monkeypa
         assert isinstance(draft[field["name"]], str)
         if field.get("required"):
             assert draft[field["name"]]
+
+
+def test_fixture_memory_writes_dispatch_only_for_capable_clients(monkeypatch) -> None:
+    from backend.apps.ai.processing import memory_write_tool
+
+    calls = []
+
+    async def fake_dispatch(**kwargs):
+        calls.append(kwargs)
+        return {"status": "saved"}
+
+    monkeypatch.setattr(memory_write_tool, "dispatch_save_memory", fake_dispatch)
+    fixture = mock_replay.load_fixture("memory_write_undo")
+    cache = _StubCacheService()
+
+    class _Request:
+        user_id = "user-1"
+        chat_id = "chat-1"
+        message_id = "message-1"
+        client_capabilities: list = []
+
+    asyncio.run(mock_replay._dispatch_fixture_memory_writes(fixture, _Request(), cache))
+    assert calls == []
+    _Request.client_capabilities = ["memory_write_jobs"]
+    asyncio.run(mock_replay._dispatch_fixture_memory_writes(fixture, _Request(), cache))
+    assert len(calls) == 1
+    assert calls[0]["arguments"]["action"] == "create"
+    assert calls[0]["approved_memories"] == []
+
+
+def _memory_reuse_request(**overrides):
+    values = dict(
+        chat_id="chat-1", message_id="message-1", user_id="user-1", user_id_hash="hash-1",
+        message_history=[], chat_has_title=True, mate_id="default",
+        memory_catalog=[
+            {"id": "career-1", "title": "Career profile", "when_to_use": "Career questions",
+             "load_mode": "ask_first", "source": "personal"},
+            {"id": "proj-1", "title": "Project note", "when_to_use": "",
+             "load_mode": "ask_first", "source": "project"},
+        ],
+    )
+    values.update(overrides)
+    return AskSkillRequest(**values)
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.load-modes
+def test_memory_reuse_fixtures_follow_the_browser_spec_contract() -> None:
+    save = mock_replay.load_fixture("memory_reuse_save")
+    load = mock_replay.load_fixture("memory_reuse_load")
+    write = save["memory_writes"][0]
+    assert "Saved your career profile." in save["response"]
+    assert (write["title"], write["load_mode"], write["action"]) == ("Career profile", "ask_first", "create")
+    assert "Example Retail GmbH" in write["content"]
+    assert load["memory_request"] == {"title": "Career profile"}
+    assert load["response"] == (
+        "Based on your career profile at Example Retail GmbH, here is a short introduction."
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.load-modes
+def test_memory_request_fixture_resolves_personal_row_key_and_fails_on_missing_title() -> None:
+    fixture = mock_replay.load_fixture("memory_reuse_load")
+    assert mock_replay._fixture_memory_request_key(fixture, _memory_reuse_request()) == "memory:career-1"
+    with pytest.raises(RuntimeError, match="Career profile"):
+        mock_replay._fixture_memory_request_key(fixture, _memory_reuse_request(memory_catalog=[
+            {"id": "proj-1", "title": "Career profile", "when_to_use": "",
+             "load_mode": "ask_first", "source": "project"},
+        ]))
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.load-modes
+def test_memory_request_fixture_replays_reply_in_the_continuation_turn() -> None:
+    fixture = mock_replay.load_fixture("memory_reuse_load")
+    request = _memory_reuse_request(is_app_settings_memories_continuation=True, memory_catalog=[])
+    assert mock_replay._fixture_memory_request_key(fixture, request) is None
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.load-modes
+def test_memory_request_fixture_issues_request_and_ends_turn_without_reply(monkeypatch) -> None:
+    from backend.apps.ai.processing import memory_permission_request as permission
+
+    calls = []
+
+    async def fake_issue(**kwargs):
+        calls.append(kwargs)
+        return "request-1"
+
+    monkeypatch.setattr(permission, "issue_memory_permission_request", fake_issue)
+    cache = _StubCacheService()
+    result = asyncio.run(replay_fixture(
+        fixture_id="memory_reuse_load", task_id="task-1", request_data=_memory_reuse_request(),
+        cache_service=cache, speed_override="instant",
+    ))
+    assert [call["missing_keys"] for call in calls] == [["memory:career-1"]]
+    assert result["aggregated_final_response"] == ""
+    assert result["main_processor_debug_metadata"]["user_task_blocked_reason_code"] == "permission_required"

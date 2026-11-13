@@ -118,6 +118,9 @@ async def sidebar_chat_metadata(body: SidebarChatMetadataRequest, request: Reque
                 "updated_at": chat.get("updated_at"),
                 "last_edited_overall_timestamp": chat.get("last_edited_overall_timestamp"),
                 "encrypted_follow_up_request_suggestions": chat.get("encrypted_follow_up_request_suggestions"),
+                # The selected read replaces the client's saved row, so it
+                # carries the server unread count (feature.chat-unread@1).
+                "unread_count": chat.get("unread_count"),
             }
         for field in ("encrypted_category", "encrypted_icon", "title_v", "metadata_v", "is_hidden", "is_hidden_candidate",
                       "last_edited_overall_timestamp"):

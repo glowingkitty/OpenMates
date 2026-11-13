@@ -129,6 +129,9 @@ fn object(lines: &[Line<'_>], cursor: &mut usize, indent: usize, depth: usize) -
                             return Err(Error::Protocol);
                         }
                         *cursor = end;
+                    } else if value.trim() == "[]" {
+                        values.push(json!([]));
+                        *cursor += 1;
                     } else {
                         values.push(primitive(value)?);
                         *cursor += 1;
@@ -143,6 +146,10 @@ fn object(lines: &[Line<'_>], cursor: &mut usize, indent: usize, depth: usize) -
             } else {
                 json!({})
             }
+        } else if rest == "[]" {
+            // The Python encoder writes empty lists as `key: []`; the
+            // TS-compatible `crate::toon_decode` reads that as an empty array.
+            json!([])
         } else {
             primitive(rest)?
         };
@@ -294,6 +301,14 @@ mod tests {
     #[test]
     fn nested_tabular_and_list_arrays() {
         assert_eq!(decode("title: Results\nitems[2]{name,score}:\n  alice,1\n  \"bob, jr\",2\nconfig:\n  enabled: true\ntags[2]: a,b\nempty[0]:").unwrap(),json!({"title":"Results","items":[{"name":"alice","score":1},{"name":"bob, jr","score":2}],"config":{"enabled":true},"tags":["a","b"],"empty":[]}));
+    }
+    #[test]
+    fn python_empty_lists_decode_as_arrays_like_the_ts_decoder() {
+        let text = "tests[2]:\n  - name: a\n    steps: []\n  - []\nartifacts: []\nlabel: \"[]\"";
+        let expected = json!({"tests":[{"name":"a","steps":[]},[]],"artifacts":[],"label":"[]"});
+        assert_eq!(decode(text).unwrap(), expected);
+        let ts = crate::toon_decode::decode_to_json_text(text).unwrap();
+        assert_eq!(serde_json::from_str::<Value>(&ts).unwrap(), expected);
     }
     #[test]
     fn malformed_is_never_silently_truncated() {

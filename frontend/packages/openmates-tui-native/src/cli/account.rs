@@ -7,6 +7,7 @@
 mod billing;
 mod export_archive;
 mod export_start;
+mod http_errors;
 mod imports;
 mod imports_zip;
 mod learning_mode;
@@ -217,7 +218,11 @@ pub(super) async fn execute_public(
     invocation: &Invocation,
     client: &mut Client,
 ) -> Result<CliOutput, CliError> {
-    notifications::execute(invocation, client).await
+    client.clear_http_failure();
+    match notifications::execute(invocation, client).await {
+        Err(error) => Err(http_errors::present(invocation, client.http_failure(), error)),
+        ok => ok,
+    }
 }
 pub(super) fn is_info(invocation: &Invocation) -> bool {
     info(invocation).is_some()
@@ -274,7 +279,38 @@ fn api_key_list_text(value: &Value) -> String {
         value
     }).collect::<Vec<_>>().join("\n")
 }
+/// Account commands that run natively under an explicit `--api-key`.
+pub(super) fn key_supported(invocation: &Invocation) -> bool {
+    imports::supported(invocation)
+        || learning_mode::supported(invocation)
+        || new_chat_suggestions::supported(invocation)
+}
+pub(super) async fn execute_key(
+    invocation: &Invocation,
+    client: &mut openmates_sdk::sdk::OpenMates,
+    cancel: tokio_util::sync::CancellationToken,
+) -> Result<CliOutput, CliError> {
+    if imports::supported(invocation) {
+        return imports::execute_key(invocation, client).await;
+    }
+    if learning_mode::supported(invocation) {
+        return learning_mode::execute_key(invocation, client, cancel).await;
+    }
+    new_chat_suggestions::execute_key(invocation, client, cancel).await
+}
+/// Runs an account command and presents SDK HTTP-status failures like npm
+/// (`command_failed` + exit 1); see [`http_errors`].
 pub(super) async fn execute(
+    invocation: &Invocation,
+    client: &mut Client,
+) -> Result<CliOutput, CliError> {
+    client.clear_http_failure();
+    match execute_command(invocation, client).await {
+        Err(error) => Err(http_errors::present(invocation, client.http_failure(), error)),
+        ok => ok,
+    }
+}
+async fn execute_command(
     invocation: &Invocation,
     client: &mut Client,
 ) -> Result<CliOutput, CliError> {

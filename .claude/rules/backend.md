@@ -21,3 +21,18 @@ Before non-trivial backend changes read `docs/contributing/standards/backend.md`
 - **Skills** must NOT import from other skills. Shared logic goes to `BaseSkill` or `backend/shared/`.
 - **Providers** must NOT depend on skill-specific code. Keep them as pure API wrappers in `backend/shared/providers/`.
 - **Logging:** Only remove debug logs after user confirms the issue is fixed.
+
+## Keep new Python cheap to port (backend Rust migration is parked)
+
+The backend stays Python for now; `docs/plans/backend-rust-migration/plan.yml` is
+parked until the client core migration is finished. Do not start backend Rust
+work and do not refuse Python work because of that Plan. Three habits apply to
+new backend code:
+
+- **Test at the API boundary.** Prove new behavior through REST/WebSocket or E2E
+  tests, which stay valid whatever language answers; unit tests of Python
+  internals alone are not enough.
+- **Keep the owning Specification current** with the behavior you add or change.
+- **No new always-on process.** Do not add a Celery queue, worker container or
+  other long-running Python service when an existing queue or process can do the
+  work; if a new one is unavoidable, say why in the deploy message.

@@ -3,6 +3,14 @@
 // and the browser-only AssistantSpeechQueue. Only transient projected text leaves
 // this module; status handling and player state never expose persisted plaintext.
 // One controller instance owns playback across the application.
+//
+// Native Swift counterparts:
+//   apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallSpeechReceiver.swift
+//     (live-call assistant_speech_audio turn track: validation, ordering, seal)
+//   apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallSpeechOutput.swift
+//     (MP3 decode and gapless playback on the call engine)
+//   apple/OpenMates/Sources/Shared/Composer/AssistantSpeechAppRuntime.swift
+//     (socket routing, playback state to the call controller)
 
 import { get, writable, type Readable } from "svelte/store";
 import {

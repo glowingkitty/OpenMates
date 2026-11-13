@@ -1040,28 +1040,28 @@ learning_mode_disable_description:
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_guest_description:
   context: Description on the guest Learning Mode setup page
-  en: Choose the learner age group. For guests, Learning Mode lasts only for this browser session and has no passcode.
-  de: Wähle die Altersgruppe der lernenden Person. Für Gäste gilt Learning Mode nur für diese Browsersitzung und hat keinen Passcode.
-  zh: 选择学习者年龄组。对于访客，Learning Mode 仅在此浏览器会话中持续有效，且没有密码。
-  es: Elige el grupo de edad del estudiante. Para invitados, Learning Mode dura solo esta sesión del navegador y no tiene código de acceso.
-  fr: Choisissez le groupe d'âge de l'apprenant. Pour les invités, Learning Mode ne dure que pendant cette session de navigateur et n'a pas de code d'accès.
-  pt: Escolha a faixa etária do aprendiz. Para convidados, o Learning Mode dura apenas nesta sessão do navegador e não tem código de acesso.
-  ru: Выберите возрастную группу учащегося. Для гостей Learning Mode действует только в этой сессии браузера и не имеет кода доступа.
-  ja: 学習者の年齢グループを選択してください。ゲストの場合、Learning Mode はこのブラウザセッション中のみ有効で、パスコードはありません。
-  ko: 학습자 연령대를 선택하세요. 게스트의 경우 Learning Mode는 이 브라우저 세션 동안만 지속되며 암호가 없습니다.
-  it: Scegli la fascia d'età dello studente. Per gli ospiti, Learning Mode dura solo per questa sessione del browser e non ha un codice.
-  tr: Öğrenci yaş grubunu seçin. Misafirler için Learning Mode yalnızca bu tarayıcı oturumu boyunca sürer ve parolası yoktur.
-  vi: Chọn nhóm tuổi người học. Với khách, Learning Mode chỉ kéo dài trong phiên trình duyệt này và không có mã khóa.
-  id: Pilih kelompok usia pelajar. Untuk tamu, Learning Mode hanya berlangsung selama sesi browser ini dan tidak memiliki kode akses.
-  pl: Wybierz grupę wiekową ucznia. Dla gości Learning Mode działa tylko w tej sesji przeglądarki i nie ma kodu dostępu.
-  nl: Kies de leeftijdsgroep van de leerling. Voor gasten duurt Learning Mode alleen tijdens deze browsersessie en heeft het geen toegangscode.
-  ar: اختر الفئة العمرية للمتعلم. للضيوف، يستمر Learning Mode خلال جلسة المتصفح هذه فقط ولا يحتوي على رمز مرور.
-  hi: सीखने वाले का आयु समूह चुनें। अतिथियों के लिए, Learning Mode केवल इस ब्राउज़र सत्र तक रहता है और इसमें पासकोड नहीं होता।
-  th: เลือกกลุ่มอายุของผู้เรียน สำหรับผู้เยี่ยมชม Learning Mode จะมีผลเฉพาะในเซสชันเบราว์เซอร์นี้และไม่มีรหัสผ่าน
-  cs: Vyberte věkovou skupinu studenta. Pro hosty Learning Mode trvá pouze po dobu této relace prohlížeče a nemá přístupový kód.
-  sv: Välj elevens åldersgrupp. För gäster varar Learning Mode bara under den här webbläsarsessionen och har ingen lösenkod.
-  he: בחר את קבוצת הגיל של הלומד. לאורחים, Learning Mode נמשך רק בהפעלת הדפדפן הזו ואין לו קוד גישה.
-  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+  en: "Choose the learner age group and set a passcode. The passcode is needed to turn Learning Mode off or to allow collaborative building again. It stays in this browser and is never sent to our servers."
+  de: "Wähle die Altersgruppe der lernenden Person und lege einen Passcode fest. Der Passcode ist nötig, um Learning Mode auszuschalten oder gemeinsames Bauen wieder zu erlauben. Er bleibt in diesem Browser und wird nie an unsere Server gesendet."
+  zh: "选择学习者年龄组并设置密码。关闭 Learning Mode 或再次允许协作构建时需要输入该密码。密码只保存在此浏览器中，绝不会发送到我们的服务器。"
+  es: "Elige el grupo de edad del estudiante y define un código de acceso. Se necesita el código para desactivar Learning Mode o para volver a permitir la creación colaborativa. Se queda en este navegador y nunca se envía a nuestros servidores."
+  fr: "Choisissez le groupe d'âge de l'apprenant et définissez un code d'accès. Ce code est nécessaire pour désactiver Learning Mode ou pour autoriser à nouveau la création collaborative. Il reste dans ce navigateur et n'est jamais envoyé à nos serveurs."
+  pt: "Escolha a faixa etária do aprendiz e defina um código de acesso. O código é necessário para desativar o Learning Mode ou para permitir novamente a criação colaborativa. Ele fica neste navegador e nunca é enviado aos nossos servidores."
+  ru: "Выберите возрастную группу учащегося и задайте код доступа. Код нужен, чтобы отключить Learning Mode или снова разрешить совместное создание. Он хранится только в этом браузере и никогда не отправляется на наши серверы."
+  ja: "学習者の年齢グループを選び、パスコードを設定してください。パスコードは、Learning Mode をオフにするときや、共同作成を再び許可するときに必要です。パスコードはこのブラウザー内にのみ保存され、サーバーには送信されません。"
+  ko: "학습자 연령대를 선택하고 암호를 설정하세요. 이 암호는 Learning Mode를 끄거나 함께 만들기를 다시 허용할 때 필요합니다. 암호는 이 브라우저에만 저장되며 서버로 전송되지 않습니다."
+  it: "Scegli la fascia d'età dello studente e imposta un codice. Il codice serve per disattivare Learning Mode o per consentire di nuovo la creazione collaborativa. Resta in questo browser e non viene mai inviato ai nostri server."
+  tr: "Öğrenci yaş grubunu seçin ve bir parola belirleyin. Parola, Learning Mode'u kapatmak veya birlikte oluşturmaya yeniden izin vermek için gerekir. Yalnızca bu tarayıcıda kalır ve sunucularımıza asla gönderilmez."
+  vi: "Chọn nhóm tuổi người học và đặt mã khóa. Cần có mã khóa để tắt Learning Mode hoặc để cho phép cùng sáng tạo trở lại. Mã chỉ lưu trong trình duyệt này và không bao giờ được gửi đến máy chủ của chúng tôi."
+  id: "Pilih kelompok usia pelajar dan atur kode akses. Kode akses diperlukan untuk menonaktifkan Learning Mode atau untuk mengizinkan pembuatan bersama lagi. Kode ini tetap berada di browser ini dan tidak pernah dikirim ke server kami."
+  pl: "Wybierz grupę wiekową ucznia i ustaw kod dostępu. Kod jest potrzebny, aby wyłączyć Learning Mode lub ponownie zezwolić na wspólne tworzenie. Pozostaje w tej przeglądarce i nigdy nie jest wysyłany na nasze serwery."
+  nl: "Kies de leeftijdsgroep van de leerling en stel een toegangscode in. De code is nodig om Learning Mode uit te schakelen of om samen bouwen weer toe te staan. Hij blijft in deze browser en wordt nooit naar onze servers gestuurd."
+  ar: "اختر الفئة العمرية للمتعلم وعيّن رمز مرور. رمز المرور مطلوب لإيقاف Learning Mode أو للسماح بالبناء التعاوني مرة أخرى. يبقى في هذا المتصفح ولا يُرسل أبدًا إلى خوادمنا."
+  hi: "सीखने वाले का आयु समूह चुनें और पासकोड सेट करें। Learning Mode बंद करने या मिलकर बनाने की अनुमति दोबारा देने के लिए पासकोड की ज़रूरत होती है। यह इसी ब्राउज़र में रहता है और हमारे सर्वर पर कभी नहीं भेजा जाता।"
+  th: "เลือกกลุ่มอายุของผู้เรียนและตั้งรหัสผ่าน ต้องใช้รหัสผ่านเพื่อปิด Learning Mode หรืออนุญาตให้สร้างร่วมกันอีกครั้ง รหัสผ่านจะอยู่ในเบราว์เซอร์นี้เท่านั้นและจะไม่ถูกส่งไปยังเซิร์ฟเวอร์ของเรา"
+  cs: "Vyberte věkovou skupinu studenta a nastavte přístupový kód. Kód je potřeba k vypnutí Learning Mode nebo k opětovnému povolení společného tvoření. Zůstává v tomto prohlížeči a nikdy se neodesílá na naše servery."
+  sv: "Välj elevens åldersgrupp och ställ in en lösenkod. Lösenkoden behövs för att stänga av Learning Mode eller för att tillåta gemensamt skapande igen. Den stannar i den här webbläsaren och skickas aldrig till våra servrar."
+  he: "בחר את קבוצת הגיל של הלומד והגדר קוד גישה. הקוד נדרש כדי לכבות את Learning Mode או כדי לאפשר שוב יצירה משותפת. הוא נשאר בדפדפן הזה ולעולם לא נשלח לשרתים שלנו."
+  verified_by_human: []
 learning_mode_active_detail:
   context: Info text when Learning Mode is active
   en: Learning Mode is active for every chat on this account. Answers stay teaching-first and selected tools are restricted.
@@ -1111,53 +1111,53 @@ learning_mode_inactive_detail:
   he: כשהוא מופעל, OpenMates מדריך את הלומד צעד אחר צעד במקום לתת תשובות מלאות.
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_guest_active_detail:
-  context: Info text when guest Learning Mode is active
-  en: Learning Mode is active for anonymous chats in this browser session. Create an account to lock it with a passcode across devices.
-  de: Learning Mode ist für anonyme Chats in dieser Browsersitzung aktiv. Erstelle ein Konto, um ihn geräteübergreifend mit einem Passcode zu sperren.
-  zh: Learning Mode 已在此浏览器会话的匿名聊天中启用。创建账号即可用密码在多台设备上锁定它。
-  es: Learning Mode está activo para chats anónimos en esta sesión del navegador. Crea una cuenta para bloquearlo con un código de acceso en todos tus dispositivos.
-  fr: Learning Mode est actif pour les chats anonymes dans cette session de navigateur. Créez un compte pour le verrouiller avec un code d'accès sur tous vos appareils.
-  pt: O Learning Mode está ativo para chats anônimos nesta sessão do navegador. Crie uma conta para bloqueá-lo com um código de acesso em todos os dispositivos.
-  ru: Learning Mode активен для анонимных чатов в этой сессии браузера. Создайте аккаунт, чтобы закрепить его кодом доступа на всех устройствах.
-  ja: Learning Mode はこのブラウザセッションの匿名チャットで有効です。アカウントを作成すると、デバイス間でパスコード付きでロックできます。
-  ko: Learning Mode가 이 브라우저 세션의 익명 채팅에 활성화되어 있습니다. 계정을 만들면 여러 기기에서 암호로 잠글 수 있습니다.
-  it: Learning Mode è attivo per le chat anonime in questa sessione del browser. Crea un account per bloccarlo con un codice su tutti i dispositivi.
-  tr: Learning Mode bu tarayıcı oturumundaki anonim sohbetler için etkin. Cihazlar arasında parola ile kilitlemek için bir hesap oluşturun.
-  vi: Learning Mode đang hoạt động cho các cuộc trò chuyện ẩn danh trong phiên trình duyệt này. Tạo tài khoản để khóa bằng mã khóa trên nhiều thiết bị.
-  id: Learning Mode aktif untuk obrolan anonim dalam sesi browser ini. Buat akun untuk menguncinya dengan kode akses di berbagai perangkat.
-  pl: Learning Mode jest aktywny dla anonimowych czatów w tej sesji przeglądarki. Utwórz konto, aby zablokować go kodem dostępu na różnych urządzeniach.
-  nl: Learning Mode is actief voor anonieme chats in deze browsersessie. Maak een account om het op al je apparaten met een toegangscode te vergrendelen.
-  ar: Learning Mode نشط للدردشات المجهولة في جلسة المتصفح هذه. أنشئ حساباً لقفله برمز مرور عبر الأجهزة.
-  hi: Learning Mode इस ब्राउज़र सत्र में अनाम चैट के लिए सक्रिय है। इसे सभी डिवाइस पर पासकोड से लॉक करने के लिए खाता बनाएं।
-  th: Learning Mode เปิดใช้งานสำหรับแชทแบบไม่ระบุตัวตนในเซสชันเบราว์เซอร์นี้ สร้างบัญชีเพื่อล็อกด้วยรหัสผ่านบนอุปกรณ์ต่าง ๆ
-  cs: Learning Mode je aktivní pro anonymní chaty v této relaci prohlížeče. Vytvořte si účet, abyste jej mohli zamknout přístupovým kódem napříč zařízeními.
-  sv: Learning Mode är aktivt för anonyma chattar i den här webbläsarsessionen. Skapa ett konto för att låsa det med en lösenkod på flera enheter.
-  he: Learning Mode פעיל לצ'אטים אנונימיים בהפעלת הדפדפן הזו. צור חשבון כדי לנעול אותו עם קוד גישה בכל המכשירים.
-  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+  context: Info text when Learning Mode is active for a guest
+  en: "Learning Mode is active for anonymous chats in this browser. It stays on until it is turned off with the passcode."
+  de: "Learning Mode ist für anonyme Chats in diesem Browser aktiv. Er bleibt an, bis er mit dem Passcode ausgeschaltet wird."
+  zh: "Learning Mode 已在此浏览器的匿名聊天中启用，在使用密码关闭之前会一直保持开启。"
+  es: "Learning Mode está activo para los chats anónimos de este navegador. Sigue activo hasta que se desactive con el código de acceso."
+  fr: "Learning Mode est actif pour les chats anonymes dans ce navigateur. Il reste activé jusqu'à ce qu'il soit désactivé avec le code d'accès."
+  pt: "O Learning Mode está ativo para os chats anônimos neste navegador. Ele continua ativo até ser desativado com o código de acesso."
+  ru: "Learning Mode активен для анонимных чатов в этом браузере. Он остаётся включённым, пока его не отключат с помощью кода доступа."
+  ja: "Learning Mode は、このブラウザーの匿名チャットで有効です。パスコードでオフにするまで有効のままです。"
+  ko: "Learning Mode가 이 브라우저의 익명 채팅에 활성화되어 있습니다. 암호로 끌 때까지 계속 켜져 있습니다."
+  it: "Learning Mode è attivo per le chat anonime in questo browser. Resta attivo finché non viene disattivato con il codice."
+  tr: "Learning Mode bu tarayıcıdaki anonim sohbetler için etkin. Parolayla kapatılana kadar açık kalır."
+  vi: "Learning Mode đang hoạt động cho các cuộc trò chuyện ẩn danh trong trình duyệt này. Chế độ này luôn bật cho đến khi được tắt bằng mã khóa."
+  id: "Learning Mode aktif untuk obrolan anonim di browser ini. Tetap aktif sampai dinonaktifkan dengan kode akses."
+  pl: "Learning Mode jest aktywny dla anonimowych czatów w tej przeglądarce. Pozostaje włączony, dopóki nie zostanie wyłączony kodem dostępu."
+  nl: "Learning Mode is actief voor anonieme chats in deze browser. Het blijft aan totdat het met de toegangscode wordt uitgeschakeld."
+  ar: "Learning Mode مفعّل للدردشات المجهولة في هذا المتصفح. يبقى قيد التشغيل حتى يتم إيقافه برمز المرور."
+  hi: "Learning Mode इस ब्राउज़र की गुमनाम चैट के लिए चालू है। यह तब तक चालू रहता है जब तक इसे पासकोड से बंद न किया जाए।"
+  th: "Learning Mode เปิดใช้งานอยู่สำหรับแชทแบบไม่ระบุตัวตนในเบราว์เซอร์นี้ และจะเปิดอยู่จนกว่าจะปิดด้วยรหัสผ่าน"
+  cs: "Learning Mode je v tomto prohlížeči zapnutý pro anonymní chaty. Zůstává zapnutý, dokud se nevypne přístupovým kódem."
+  sv: "Learning Mode är aktivt för anonyma chattar i den här webbläsaren. Det förblir på tills det stängs av med lösenkoden."
+  he: "Learning Mode פעיל בצ'אטים אנונימיים בדפדפן הזה. הוא נשאר פעיל עד שמכבים אותו באמצעות קוד הגישה."
+  verified_by_human: []
 learning_mode_guest_inactive_detail:
-  context: Info text when guest Learning Mode is inactive
-  en: Guests can try Learning Mode for anonymous chats in this browser session. Create an account to lock it with a passcode.
-  de: Gäste können Learning Mode für anonyme Chats in dieser Browsersitzung ausprobieren. Erstelle ein Konto, um ihn mit einem Passcode zu sperren.
-  zh: 访客可以在此浏览器会话中为匿名聊天试用 Learning Mode。创建账号即可用密码锁定它。
-  es: Los invitados pueden probar Learning Mode para chats anónimos en esta sesión del navegador. Crea una cuenta para bloquearlo con un código de acceso.
-  fr: Les invités peuvent essayer Learning Mode pour les chats anonymes dans cette session de navigateur. Créez un compte pour le verrouiller avec un code d'accès.
-  pt: Convidados podem experimentar o Learning Mode para chats anônimos nesta sessão do navegador. Crie uma conta para bloqueá-lo com um código de acesso.
-  ru: Гости могут попробовать Learning Mode для анонимных чатов в этой сессии браузера. Создайте аккаунт, чтобы закрепить его кодом доступа.
-  ja: ゲストはこのブラウザセッションの匿名チャットで Learning Mode を試せます。アカウントを作成すると、パスコードでロックできます。
-  ko: 게스트는 이 브라우저 세션의 익명 채팅에서 Learning Mode를 사용해 볼 수 있습니다. 계정을 만들면 암호로 잠글 수 있습니다.
-  it: Gli ospiti possono provare Learning Mode per le chat anonime in questa sessione del browser. Crea un account per bloccarlo con un codice.
-  tr: Misafirler bu tarayıcı oturumunda anonim sohbetler için Learning Mode'u deneyebilir. Parola ile kilitlemek için bir hesap oluşturun.
-  vi: Khách có thể thử Learning Mode cho các cuộc trò chuyện ẩn danh trong phiên trình duyệt này. Tạo tài khoản để khóa bằng mã khóa.
-  id: Tamu dapat mencoba Learning Mode untuk obrolan anonim dalam sesi browser ini. Buat akun untuk menguncinya dengan kode akses.
-  pl: Goście mogą wypróbować Learning Mode dla anonimowych czatów w tej sesji przeglądarki. Utwórz konto, aby zablokować go kodem dostępu.
-  nl: Gasten kunnen Learning Mode proberen voor anonieme chats in deze browsersessie. Maak een account om het met een toegangscode te vergrendelen.
-  ar: يمكن للضيوف تجربة Learning Mode للدردشات المجهولة في جلسة المتصفح هذه. أنشئ حساباً لقفله برمز مرور.
-  hi: अतिथि इस ब्राउज़र सत्र में अनाम चैट के लिए Learning Mode आज़मा सकते हैं। इसे पासकोड से लॉक करने के लिए खाता बनाएं।
-  th: ผู้เยี่ยมชมสามารถลองใช้ Learning Mode สำหรับแชทแบบไม่ระบุตัวตนในเซสชันเบราว์เซอร์นี้ สร้างบัญชีเพื่อล็อกด้วยรหัสผ่าน
-  cs: Hosté mohou vyzkoušet Learning Mode pro anonymní chaty v této relaci prohlížeče. Vytvořte si účet, abyste jej mohli zamknout přístupovým kódem.
-  sv: Gäster kan prova Learning Mode för anonyma chattar i den här webbläsarsessionen. Skapa ett konto för att låsa det med en lösenkod.
-  he: אורחים יכולים לנסות את Learning Mode לצ'אטים אנונימיים בהפעלת הדפדפן הזו. צור חשבון כדי לנעול אותו עם קוד גישה.
-  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+  context: Info text when Learning Mode is inactive for a guest
+  en: "Guests can use Learning Mode for anonymous chats in this browser, protected by a passcode."
+  de: "Gäste können Learning Mode für anonyme Chats in diesem Browser nutzen, geschützt durch einen Passcode."
+  zh: "访客可以在此浏览器的匿名聊天中使用 Learning Mode，并用密码保护。"
+  es: "Los invitados pueden usar Learning Mode en chats anónimos de este navegador, protegido con un código de acceso."
+  fr: "Les invités peuvent utiliser Learning Mode pour les chats anonymes dans ce navigateur, protégé par un code d'accès."
+  pt: "Convidados podem usar o Learning Mode em chats anônimos neste navegador, protegido por um código de acesso."
+  ru: "Гости могут использовать Learning Mode в анонимных чатах в этом браузере, защитив его кодом доступа."
+  ja: "ゲストは、このブラウザーの匿名チャットで、パスコードで保護された Learning Mode を使えます。"
+  ko: "게스트는 이 브라우저의 익명 채팅에서 암호로 보호되는 Learning Mode를 사용할 수 있습니다."
+  it: "Gli ospiti possono usare Learning Mode per le chat anonime in questo browser, protetto da un codice."
+  tr: "Misafirler, bu tarayıcıdaki anonim sohbetlerde parolayla korunan Learning Mode'u kullanabilir."
+  vi: "Khách có thể dùng Learning Mode cho các cuộc trò chuyện ẩn danh trong trình duyệt này, được bảo vệ bằng mã khóa."
+  id: "Tamu dapat menggunakan Learning Mode untuk obrolan anonim di browser ini, dilindungi dengan kode akses."
+  pl: "Goście mogą korzystać z Learning Mode w anonimowych czatach w tej przeglądarce, chronionego kodem dostępu."
+  nl: "Gasten kunnen Learning Mode gebruiken voor anonieme chats in deze browser, beveiligd met een toegangscode."
+  ar: "يمكن للضيوف استخدام Learning Mode في الدردشات المجهولة في هذا المتصفح، محميًا برمز مرور."
+  hi: "मेहमान इस ब्राउज़र में गुमनाम चैट के लिए Learning Mode का उपयोग कर सकते हैं, जो पासकोड से सुरक्षित रहता है।"
+  th: "ผู้เยี่ยมชมสามารถใช้ Learning Mode กับแชทแบบไม่ระบุตัวตนในเบราว์เซอร์นี้ได้ โดยป้องกันด้วยรหัสผ่าน"
+  cs: "Hosté mohou v tomto prohlížeči používat Learning Mode pro anonymní chaty, chráněný přístupovým kódem."
+  sv: "Gäster kan använda Learning Mode för anonyma chattar i den här webbläsaren, skyddat av en lösenkod."
+  he: "אורחים יכולים להשתמש ב-Learning Mode בצ'אטים אנונימיים בדפדפן הזה, מוגן בקוד גישה."
+  verified_by_human: []
 learning_mode_age_group_label:
   context: Label for the Learning Mode learner age group dropdown
   en: Learner age group
@@ -1470,6 +1470,198 @@ learning_mode_disable_button:
   sv: Stäng av Learning Mode
   he: כבה את Learning Mode
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+learning_mode_collaborative_label:
+  context: Toggle label to allow collaborative building in Learning Mode
+  en: "Allow collaborative building"
+  de: "Gemeinsames Bauen erlauben"
+  zh: "允许协作构建"
+  es: "Permitir creación colaborativa"
+  fr: "Autoriser la création collaborative"
+  pt: "Permitir criação colaborativa"
+  ru: "Разрешить совместное создание"
+  ja: "共同作成を許可"
+  ko: "함께 만들기 허용"
+  it: "Consenti creazione collaborativa"
+  tr: "Birlikte oluşturmaya izin ver"
+  vi: "Cho phép cùng sáng tạo"
+  id: "Izinkan pembuatan bersama"
+  pl: "Zezwól na wspólne tworzenie"
+  nl: "Samen bouwen toestaan"
+  ar: "السماح بالبناء التعاوني"
+  hi: "मिलकर बनाने की अनुमति दें"
+  th: "อนุญาตให้สร้างร่วมกัน"
+  cs: "Povolit společné tvoření"
+  sv: "Tillåt gemensamt skapande"
+  he: "אפשר יצירה משותפת"
+  verified_by_human: []
+learning_mode_collaborative_help:
+  context: Helper text under the collaborative building toggle in Learning Mode
+  en: "Lets the learner build things together with the AI, such as code, documents and files. When off, the AI only explains and guides. Not available for learners under 10."
+  de: "Erlaubt der lernenden Person, gemeinsam mit der KI Dinge zu bauen, etwa Code, Dokumente und Dateien. Wenn aus, erklärt und begleitet die KI nur. Nicht verfügbar für Lernende unter 10."
+  zh: "让学习者与 AI 一起动手创作，例如代码、文档和文件。关闭后，AI 只会讲解和引导。10 岁以下的学习者不可用。"
+  es: "Permite que el estudiante cree cosas junto con la IA, como código, documentos y archivos. Si está desactivado, la IA solo explica y orienta. No disponible para estudiantes menores de 10 años."
+  fr: "Permet à l'apprenant de créer des choses avec l'IA, comme du code, des documents et des fichiers. Lorsque cette option est désactivée, l'IA se contente d'expliquer et de guider. Non disponible pour les apprenants de moins de 10 ans."
+  pt: "Permite que o aprendiz crie coisas junto com a IA, como código, documentos e arquivos. Quando desativado, a IA apenas explica e orienta. Não disponível para aprendizes com menos de 10 anos."
+  ru: "Позволяет учащемуся создавать что-либо вместе с ИИ, например код, документы и файлы. Если выключено, ИИ только объясняет и направляет. Недоступно для учащихся младше 10 лет."
+  ja: "学習者が AI と一緒に、コード、ドキュメント、ファイルなどを作れるようにします。オフの場合、AI は説明とサポートのみを行います。10 歳未満の学習者は利用できません。"
+  ko: "학습자가 AI와 함께 코드, 문서, 파일 같은 것을 만들 수 있게 합니다. 끄면 AI는 설명하고 안내하기만 합니다. 10세 미만 학습자는 사용할 수 없습니다."
+  it: "Permette allo studente di creare cose insieme all'IA, come codice, documenti e file. Se è disattivato, l'IA si limita a spiegare e guidare. Non disponibile per studenti sotto i 10 anni."
+  tr: "Öğrencinin yapay zekâ ile birlikte kod, belge ve dosya gibi şeyler oluşturmasına olanak tanır. Kapalıyken yapay zekâ yalnızca açıklar ve yol gösterir. 10 yaş altı öğrenciler için kullanılamaz."
+  vi: "Cho phép người học cùng tạo ra mọi thứ với AI, chẳng hạn như mã, tài liệu và tệp. Khi tắt, AI chỉ giải thích và hướng dẫn. Không dành cho người học dưới 10 tuổi."
+  id: "Memungkinkan pelajar membuat sesuatu bersama AI, seperti kode, dokumen, dan file. Saat nonaktif, AI hanya menjelaskan dan membimbing. Tidak tersedia untuk pelajar di bawah 10 tahun."
+  pl: "Pozwala uczniowi tworzyć rzeczy razem z AI, takie jak kod, dokumenty i pliki. Gdy opcja jest wyłączona, AI tylko wyjaśnia i prowadzi. Niedostępne dla uczniów poniżej 10 lat."
+  nl: "Laat de leerling samen met de AI dingen maken, zoals code, documenten en bestanden. Als dit uit staat, legt de AI alleen uit en begeleidt hij. Niet beschikbaar voor leerlingen onder de 10."
+  ar: "يتيح للمتعلم بناء أشياء مع الذكاء الاصطناعي، مثل الأكواد والمستندات والملفات. عند الإيقاف، يكتفي الذكاء الاصطناعي بالشرح والتوجيه. غير متاح للمتعلمين دون سن 10 سنوات."
+  hi: "सीखने वाले को AI के साथ मिलकर कोड, दस्तावेज़ और फ़ाइलें जैसी चीज़ें बनाने देता है। बंद होने पर AI केवल समझाता और मार्गदर्शन करता है। 10 वर्ष से कम उम्र के सीखने वालों के लिए उपलब्ध नहीं है।"
+  th: "ให้ผู้เรียนสร้างสิ่งต่าง ๆ ร่วมกับ AI เช่น โค้ด เอกสาร และไฟล์ เมื่อปิดอยู่ AI จะอธิบายและให้คำแนะนำเท่านั้น ไม่พร้อมใช้งานสำหรับผู้เรียนอายุต่ำกว่า 10 ปี"
+  cs: "Umožňuje studentovi tvořit společně s AI, například kód, dokumenty a soubory. Když je vypnuto, AI pouze vysvětluje a vede. Není dostupné pro studenty mladší 10 let."
+  sv: "Låter eleven skapa saker tillsammans med AI:n, till exempel kod, dokument och filer. När det är av förklarar och vägleder AI:n bara. Inte tillgängligt för elever under 10 år."
+  he: "מאפשר ללומד ליצור דברים יחד עם ה-AI, כמו קוד, מסמכים וקבצים. כשהאפשרות כבויה, ה-AI רק מסביר ומדריך. לא זמין ללומדים מתחת לגיל 10."
+  verified_by_human: []
+learning_mode_collaborative_enable_prompt:
+  context: Prompt asking for the passcode before collaborative building is turned back on
+  en: "Enter the Learning Mode passcode to allow collaborative building again."
+  de: "Gib den Learning Mode-Passcode ein, um gemeinsames Bauen wieder zu erlauben."
+  zh: "输入 Learning Mode 密码，即可再次允许协作构建。"
+  es: "Ingresa el código de acceso de Learning Mode para volver a permitir la creación colaborativa."
+  fr: "Saisissez le code d'accès de Learning Mode pour autoriser à nouveau la création collaborative."
+  pt: "Digite o código de acesso do Learning Mode para permitir a criação colaborativa novamente."
+  ru: "Введите код доступа Learning Mode, чтобы снова разрешить совместное создание."
+  ja: "共同作成を再び許可するには、Learning Mode のパスコードを入力してください。"
+  ko: "함께 만들기를 다시 허용하려면 Learning Mode 암호를 입력하세요."
+  it: "Inserisci il codice di Learning Mode per consentire di nuovo la creazione collaborativa."
+  tr: "Birlikte oluşturmaya yeniden izin vermek için Learning Mode parolasını girin."
+  vi: "Nhập mã khóa Learning Mode để cho phép cùng sáng tạo trở lại."
+  id: "Masukkan kode akses Learning Mode untuk mengizinkan pembuatan bersama lagi."
+  pl: "Wpisz kod dostępu do Learning Mode, aby ponownie zezwolić na wspólne tworzenie."
+  nl: "Voer de toegangscode van Learning Mode in om samen bouwen weer toe te staan."
+  ar: "أدخل رمز مرور Learning Mode للسماح بالبناء التعاوني مرة أخرى."
+  hi: "मिलकर बनाने की अनुमति दोबारा देने के लिए Learning Mode पासकोड दर्ज करें।"
+  th: "ป้อนรหัสผ่าน Learning Mode เพื่ออนุญาตให้สร้างร่วมกันอีกครั้ง"
+  cs: "Zadejte přístupový kód Learning Mode, abyste znovu povolili společné tvoření."
+  sv: "Ange lösenkoden för Learning Mode för att tillåta gemensamt skapande igen."
+  he: "הזן את קוד הגישה של Learning Mode כדי לאפשר שוב יצירה משותפת."
+  verified_by_human: []
+learning_mode_collaborative_confirm_button:
+  context: Button that confirms turning collaborative building on after entering the passcode
+  en: "Allow collaborative building"
+  de: "Gemeinsames Bauen erlauben"
+  zh: "允许协作构建"
+  es: "Permitir creación colaborativa"
+  fr: "Autoriser la création collaborative"
+  pt: "Permitir criação colaborativa"
+  ru: "Разрешить совместное создание"
+  ja: "共同作成を許可"
+  ko: "함께 만들기 허용"
+  it: "Consenti creazione collaborativa"
+  tr: "Birlikte oluşturmaya izin ver"
+  vi: "Cho phép cùng sáng tạo"
+  id: "Izinkan pembuatan bersama"
+  pl: "Zezwól na wspólne tworzenie"
+  nl: "Samen bouwen toestaan"
+  ar: "السماح بالبناء التعاوني"
+  hi: "मिलकर बनाने की अनुमति दें"
+  th: "อนุญาตให้สร้างร่วมกัน"
+  cs: "Povolit společné tvoření"
+  sv: "Tillåt gemensamt skapande"
+  he: "אפשר יצירה משותפת"
+  verified_by_human: []
+learning_mode_collaborative_enabled:
+  context: Success notification when collaborative building is turned on
+  en: "Collaborative building is on."
+  de: "Gemeinsames Bauen ist an."
+  zh: "协作构建已开启。"
+  es: "La creación colaborativa está activada."
+  fr: "La création collaborative est activée."
+  pt: "A criação colaborativa está ativada."
+  ru: "Совместное создание включено."
+  ja: "共同作成をオンにしました。"
+  ko: "함께 만들기가 켜졌습니다."
+  it: "La creazione collaborativa è attiva."
+  tr: "Birlikte oluşturma açık."
+  vi: "Đã bật cùng sáng tạo."
+  id: "Pembuatan bersama diaktifkan."
+  pl: "Wspólne tworzenie jest włączone."
+  nl: "Samen bouwen staat aan."
+  ar: "البناء التعاوني مفعّل."
+  hi: "मिलकर बनाना चालू है।"
+  th: "เปิดการสร้างร่วมกันแล้ว"
+  cs: "Společné tvoření je zapnuto."
+  sv: "Gemensamt skapande är på."
+  he: "היצירה המשותפת פועלת."
+  verified_by_human: []
+learning_mode_collaborative_disabled:
+  context: Success notification when collaborative building is turned off
+  en: "Collaborative building is off."
+  de: "Gemeinsames Bauen ist aus."
+  zh: "协作构建已关闭。"
+  es: "La creación colaborativa está desactivada."
+  fr: "La création collaborative est désactivée."
+  pt: "A criação colaborativa está desativada."
+  ru: "Совместное создание выключено."
+  ja: "共同作成をオフにしました。"
+  ko: "함께 만들기가 꺼졌습니다."
+  it: "La creazione collaborativa è disattivata."
+  tr: "Birlikte oluşturma kapalı."
+  vi: "Đã tắt cùng sáng tạo."
+  id: "Pembuatan bersama dinonaktifkan."
+  pl: "Wspólne tworzenie jest wyłączone."
+  nl: "Samen bouwen staat uit."
+  ar: "البناء التعاوني متوقف."
+  hi: "मिलकर बनाना बंद है।"
+  th: "ปิดการสร้างร่วมกันแล้ว"
+  cs: "Společné tvoření je vypnuto."
+  sv: "Gemensamt skapande är av."
+  he: "היצירה המשותפת כבויה."
+  verified_by_human: []
+learning_mode_guest_notice:
+  context: Honest notice that guest Learning Mode only lives in this browser
+  en: "Without an account, Learning Mode only lives in this browser. Clearing browser data or using a private window removes or bypasses it. Create an account for a lock that holds everywhere."
+  de: "Ohne Konto gilt Learning Mode nur in diesem Browser. Das Löschen von Browserdaten oder ein privates Fenster entfernt oder umgeht ihn. Erstelle ein Konto für eine Sperre, die überall gilt."
+  zh: "没有账号时，Learning Mode 只在此浏览器中有效。清除浏览器数据或使用隐私窗口会移除或绕过它。创建账号即可获得处处有效的锁定。"
+  es: "Sin una cuenta, Learning Mode solo existe en este navegador. Borrar los datos del navegador o usar una ventana privada lo elimina o lo evita. Crea una cuenta para tener un bloqueo que funcione en todas partes."
+  fr: "Sans compte, Learning Mode n'existe que dans ce navigateur. Effacer les données du navigateur ou utiliser une fenêtre privée le supprime ou le contourne. Créez un compte pour un verrouillage valable partout."
+  pt: "Sem uma conta, o Learning Mode existe apenas neste navegador. Limpar os dados do navegador ou usar uma janela privada o remove ou contorna. Crie uma conta para um bloqueio que vale em todos os lugares."
+  ru: "Без аккаунта Learning Mode действует только в этом браузере. Очистка данных браузера или приватное окно отключают или обходят его. Создайте аккаунт, чтобы защита работала везде."
+  ja: "アカウントがない場合、Learning Mode はこのブラウザー内でのみ有効です。ブラウザーのデータを消去したりプライベートウィンドウを使ったりすると、解除または回避されます。どこでも有効なロックにはアカウントを作成してください。"
+  ko: "계정이 없으면 Learning Mode는 이 브라우저에서만 유지됩니다. 브라우저 데이터를 삭제하거나 비공개 창을 사용하면 해제되거나 우회될 수 있습니다. 어디서나 적용되는 잠금을 원하면 계정을 만드세요."
+  it: "Senza un account, Learning Mode esiste solo in questo browser. Cancellare i dati del browser o usare una finestra privata lo rimuove o lo aggira. Crea un account per un blocco valido ovunque."
+  tr: "Hesap olmadan Learning Mode yalnızca bu tarayıcıda geçerlidir. Tarayıcı verilerini temizlemek veya gizli pencere kullanmak onu kaldırır ya da atlatır. Her yerde geçerli bir kilit için hesap oluşturun."
+  vi: "Khi không có tài khoản, Learning Mode chỉ tồn tại trong trình duyệt này. Xóa dữ liệu trình duyệt hoặc dùng cửa sổ riêng tư sẽ gỡ bỏ hoặc vượt qua nó. Hãy tạo tài khoản để có khóa hoạt động ở mọi nơi."
+  id: "Tanpa akun, Learning Mode hanya berlaku di browser ini. Menghapus data browser atau memakai jendela pribadi akan menghapus atau melewatinya. Buat akun untuk kunci yang berlaku di mana saja."
+  pl: "Bez konta Learning Mode działa tylko w tej przeglądarce. Wyczyszczenie danych przeglądarki lub użycie okna prywatnego usuwa go lub omija. Załóż konto, aby blokada działała wszędzie."
+  nl: "Zonder account bestaat Learning Mode alleen in deze browser. Browsergegevens wissen of een privévenster gebruiken verwijdert of omzeilt het. Maak een account aan voor een vergrendeling die overal geldt."
+  ar: "بدون حساب، يوجد Learning Mode في هذا المتصفح فقط. مسح بيانات المتصفح أو استخدام نافذة خاصة يزيله أو يتجاوزه. أنشئ حسابًا للحصول على قفل يعمل في كل مكان."
+  hi: "खाते के बिना Learning Mode केवल इसी ब्राउज़र में रहता है। ब्राउज़र डेटा साफ़ करने या प्राइवेट विंडो इस्तेमाल करने से यह हट जाता है या बायपास हो जाता है। हर जगह काम करने वाले लॉक के लिए खाता बनाएं।"
+  th: "หากไม่มีบัญชี Learning Mode จะอยู่ในเบราว์เซอร์นี้เท่านั้น การล้างข้อมูลเบราว์เซอร์หรือใช้หน้าต่างส่วนตัวจะลบหรือข้ามการล็อกนี้ได้ สร้างบัญชีเพื่อให้ล็อกใช้ได้ทุกที่"
+  cs: "Bez účtu existuje Learning Mode jen v tomto prohlížeči. Smazání dat prohlížeče nebo použití anonymního okna ho odstraní nebo obejde. Vytvořte si účet pro zámek, který platí všude."
+  sv: "Utan konto finns Learning Mode bara i den här webbläsaren. Om du rensar webbläsardata eller använder ett privat fönster tas det bort eller kringgås. Skapa ett konto för ett lås som gäller överallt."
+  he: "ללא חשבון, Learning Mode קיים רק בדפדפן הזה. ניקוי נתוני הדפדפן או שימוש בחלון פרטי מסירים או עוקפים אותו. צור חשבון כדי לקבל נעילה שעובדת בכל מקום."
+  verified_by_human: []
+learning_mode_passcode_invalid:
+  context: Validation error when the Learning Mode passcode length is out of range
+  en: "The passcode must be between 4 and 128 characters."
+  de: "Der Passcode muss zwischen 4 und 128 Zeichen lang sein."
+  zh: "密码长度必须在 4 到 128 个字符之间。"
+  es: "El código de acceso debe tener entre 4 y 128 caracteres."
+  fr: "Le code d'accès doit contenir entre 4 et 128 caractères."
+  pt: "O código de acesso deve ter entre 4 e 128 caracteres."
+  ru: "Код доступа должен содержать от 4 до 128 символов."
+  ja: "パスコードは 4～128 文字で入力してください。"
+  ko: "암호는 4자 이상 128자 이하여야 합니다."
+  it: "Il codice deve contenere da 4 a 128 caratteri."
+  tr: "Parola 4 ile 128 karakter arasında olmalıdır."
+  vi: "Mã khóa phải có từ 4 đến 128 ký tự."
+  id: "Kode akses harus terdiri dari 4 hingga 128 karakter."
+  pl: "Kod dostępu musi mieć od 4 do 128 znaków."
+  nl: "De toegangscode moet tussen 4 en 128 tekens lang zijn."
+  ar: "يجب أن يتراوح طول رمز المرور بين 4 و128 حرفًا."
+  hi: "पासकोड 4 से 128 अक्षरों के बीच होना चाहिए।"
+  th: "รหัสผ่านต้องมีความยาว 4 ถึง 128 ตัวอักษร"
+  cs: "Přístupový kód musí mít 4 až 128 znaků."
+  sv: "Lösenkoden måste vara mellan 4 och 128 tecken."
+  he: "קוד הגישה חייב להכיל בין 4 ל-128 תווים."
+  verified_by_human: []
 incognito_explainer_description:
   context: Description of what incognito mode does
   en: "Incognito mode applies only to new chats you create. New chats created while incognito mode is active are not synced across devices, not stored on the server, and not cached. These chats exist only in your current browser session. Existing chats remain unchanged."
@@ -7987,489 +8179,6 @@ app_embeds.loading:
   cs: Načítání vložených prvků...
   sv: Läser in inbäddningar...
   he: טוען הטמעות...
-  verified_by_human: []
-app_settings_memories.encryption_notice:
-  context: Explanatory text at the top of the Memories hub explaining what memories are and that they are client-side encrypted like chats
-  en: "Your digital team mates can request memories to give you more personalized responses and save you time from having to repeat details over and over again. Just like your chats, your memories are encrypted & decrypted on your devices. So the OpenMates server and AI providers can never see the actual content, unless you decide to explicitly share the content for a chat."
-  de: "Deine digitalen Teammitglieder können Erinnerungen anfordern, um dir personalisierte Antworten zu geben und dir Zeit zu sparen, damit du Details nicht immer wieder wiederholen musst. Genau wie deine Chats werden deine Erinnerungen auf deinen Geräten verschlüsselt und entschlüsselt. So können der OpenMates-Server und die KI-Anbieter den tatsächlichen Inhalt niemals einsehen, es sei denn, du entscheidest dich, den Inhalt ausdrücklich für einen Chat zu teilen."
-  zh: "你的数字团队成员可以请求记忆，为你提供更个性化的回复，并避免你一遍又一遍地重复细节，节省时间。与聊天一样，你的记忆在你的设备上加密和解密。因此，OpenMates 服务器和 AI 提供商永远无法看到实际内容，除非你决定明确为某个聊天分享内容。"
-  es: "Tus compañeros de equipo digitales pueden solicitar memorias para darte respuestas más personalizadas y ahorrarte tiempo de tener que repetir detalles una y otra vez. Al igual que tus chats, tus memorias se cifran y descifran en tus dispositivos. Así, el servidor de OpenMates y los proveedores de IA nunca pueden ver el contenido real, a menos que decidas compartir explícitamente el contenido para un chat."
-  fr: "Vos coéquipiers numériques peuvent demander des mémoires pour vous donner des réponses plus personnalisées et vous faire gagner du temps en évitant de répéter les mêmes détails encore et encore. Comme vos conversations, vos mémoires sont chiffrées et déchiffrées sur vos appareils. Le serveur OpenMates et les fournisseurs d'IA ne peuvent donc jamais voir le contenu réel, sauf si vous décidez de partager explicitement le contenu pour une conversation."
-  pt: "Seus companheiros de equipe digitais podem solicitar memórias para dar respostas mais personalizadas e economizar seu tempo de ter que repetir detalhes várias vezes. Assim como seus chats, suas memórias são criptografadas e descriptografadas em seus dispositivos. Então o servidor OpenMates e os provedores de IA nunca podem ver o conteúdo real, a menos que você decida compartilhar explicitamente o conteúdo para um chat."
-  ru: "Ваши цифровые помощники могут запрашивать воспоминания, чтобы давать вам более персонализированные ответы и экономить ваше время, избавляя от необходимости повторять детали снова и снова. Как и ваши чаты, ваши воспоминания шифруются и расшифровываются на ваших устройствах. Поэтому сервер OpenMates и поставщики ИИ никогда не смогут увидеть фактическое содержимое, если вы не решите явно поделиться им для чата."
-  ja: "デジタルチームメイトがメモリをリクエストすることで、よりパーソナライズされた回答を提供し、同じ情報を何度も繰り返す手間を省けます。チャットと同様、メモリはデバイス上で暗号化・復号化されます。そのため、OpenMatesサーバーやAIプロバイダーが実際のコンテンツを見ることはできません。チャットのためにコンテンツを明示的に共有する場合を除きます。"
-  ko: "디지털 팀원들이 메모리를 요청하여 더 개인화된 응답을 제공하고, 세부 사항을 반복하지 않아도 되어 시간을 절약할 수 있습니다. 채팅과 마찬가지로, 메모리는 기기에서 암호화 및 복호화됩니다. 따라서 OpenMates 서버와 AI 제공업체는 실제 콘텐츠를 절대 볼 수 없습니다. 채팅을 위해 명시적으로 콘텐츠를 공유하기로 결정하지 않는 한 말이죠."
-  it: "I tuoi compagni di squadra digitali possono richiedere memorie per darti risposte più personalizzate e farti risparmiare tempo evitando di ripetere i dettagli più e più volte. Come le tue chat, le tue memorie vengono crittografate e decrittografate sui tuoi dispositivi. Quindi il server OpenMates e i fornitori di IA non potranno mai vedere il contenuto reale, a meno che tu non decida di condividere esplicitamente il contenuto per una chat."
-  tr: "Dijital takım arkadaşlarınız, size daha kişiselleştirilmiş yanıtlar vermek ve aynı detayları tekrar tekrar tekrarlamak zorunda kalmaktan zaman kazandırmak için anılar talep edebilir. Sohbetleriniz gibi, anılarınız da cihazlarınızda şifrelenir ve şifresi çözülür. Bu nedenle OpenMates sunucusu ve yapay zeka sağlayıcıları gerçek içeriği asla göremez; bir sohbet için içeriği açıkça paylaşmaya karar vermediğiniz sürece."
-  vi: "Các đồng đội kỹ thuật số của bạn có thể yêu cầu ký ức để cung cấp phản hồi cá nhân hóa hơn và giúp bạn tiết kiệm thời gian không phải lặp lại chi tiết nhiều lần. Giống như cuộc trò chuyện, ký ức của bạn được mã hóa và giải mã trên thiết bị của bạn. Vì vậy, máy chủ OpenMates và các nhà cung cấp AI không bao giờ có thể xem nội dung thực tế, trừ khi bạn quyết định chia sẻ rõ ràng nội dung cho một cuộc trò chuyện."
-  id: "Rekan tim digital Anda dapat meminta memori untuk memberikan respons yang lebih personal dan menghemat waktu Anda agar tidak perlu mengulang detail berulang kali. Seperti obrolan Anda, memori Anda dienkripsi dan didekripsi di perangkat Anda. Jadi server OpenMates dan penyedia AI tidak pernah bisa melihat konten sebenarnya, kecuali Anda memutuskan untuk secara eksplisit membagikan konten untuk obrolan."
-  pl: "Twoi cyfrowi współpracownicy mogą prosić o wspomnienia, aby dawać ci bardziej spersonalizowane odpowiedzi i oszczędzać czas, żebyś nie musiał powtarzać szczegółów w kółko. Tak jak twoje czaty, twoje wspomnienia są szyfrowane i odszyfrowywane na twoich urządzeniach. Serwer OpenMates i dostawcy AI nigdy nie mogą zobaczyć rzeczywistej treści, chyba że zdecydujesz się jawnie udostępnić treść dla czatu."
-  nl: "Je digitale teamgenoten kunnen herinneringen opvragen om je meer gepersonaliseerde antwoorden te geven en je tijd te besparen doordat je details niet steeds opnieuw hoeft te herhalen. Net als je chats worden je herinneringen versleuteld en ontsleuteld op je apparaten. De OpenMates-server en AI-providers kunnen de daadwerkelijke inhoud dus nooit zien, tenzij je besluit de inhoud expliciet te delen voor een chat."
-  ar: "يمكن لزملائك الرقميين طلب الذكريات لتقديم استجابات أكثر تخصيصاً وتوفير وقتك من الاضطرار لتكرار التفاصيل مراراً وتكراراً. مثل محادثاتك، يتم تشفير ذكرياتك وفك تشفيرها على أجهزتك. لذلك لا يمكن لخادم OpenMates ومزودي الذكاء الاصطناعي رؤية المحتوى الفعلي أبداً، إلا إذا قررت مشاركة المحتوى صراحةً لمحادثة."
-  hi: "आपके डिजिटल टीम साथी अधिक व्यक्तिगत प्रतिक्रियाएँ देने और बार-बार विवरण दोहराने से बचाकर आपका समय बचाने के लिए यादें अनुरोध कर सकते हैं। आपकी चैट की तरह, आपकी यादें आपके उपकरणों पर एन्क्रिप्ट और डिक्रिप्ट की जाती हैं। इसलिए OpenMates सर्वर और AI प्रदाता वास्तविक सामग्री कभी नहीं देख सकते, जब तक आप किसी चैट के लिए सामग्री को स्पष्ट रूप से साझा करने का निर्णय नहीं लेते।"
-  th: "เพื่อนร่วมทีมดิจิทัลของคุณสามารถขอความทรงจำเพื่อให้คำตอบที่เป็นส่วนตัวมากขึ้นและช่วยประหยัดเวลาจากการต้องพูดซ้ำรายละเอียดซ้ำแล้วซ้ำเล่า เช่นเดียวกับแชทของคุณ ความทรงจำของคุณถูกเข้ารหัสและถอดรหัสบนอุปกรณ์ของคุณ ดังนั้นเซิร์ฟเวอร์ OpenMates และผู้ให้บริการ AI จะไม่สามารถเห็นเนื้อหาจริงได้ เว้นแต่คุณจะตัดสินใจแชร์เนื้อหาอย่างชัดเจนสำหรับแชท"
-  cs: "Vaši digitální spolupracovníci mohou požádat o vzpomínky, aby vám poskytli personalizovanější odpovědi a ušetřili vám čas od opakování detailů znovu a znovu. Stejně jako vaše chaty jsou vaše vzpomínky šifrovány a dešifrovány na vašich zařízeních. Server OpenMates a poskytovatelé AI proto nikdy nemohou vidět skutečný obsah, pokud se nerozhodnete obsah výslovně sdílet pro chat."
-  sv: "Dina digitala teammedlemmar kan begära minnen för att ge dig mer personliga svar och spara tid genom att du slipper upprepa detaljer om och om igen. Precis som dina chattar krypteras och dekrypteras dina minnen på dina enheter. OpenMates-servern och AI-leverantörerna kan alltså aldrig se det faktiska innehållet, om du inte väljer att uttryckligen dela innehållet för en chatt."
-  he: "חברי הצוות הדיגיטליים שלך יכולים לבקש זיכרונות כדי לתת לך תגובות מותאמות אישית יותר ולחסוך לך זמן מלחזור על פרטים שוב ושוב. כמו הצ'אטים שלך, הזיכרונות שלך מוצפנים ומפוענחים במכשירים שלך. כך ששרת OpenMates וספקי ה-AI לעולם לא יכולים לראות את התוכן בפועל, אלא אם כן תחליט לשתף במפורש את התוכן לצ'אט."
-  verified_by_human:
-    - en
-app_settings_memories.examples_label:
-  context: Label shown above example entries for non-authenticated users
-  en: "Examples:"
-  de: "Beispiele:"
-  zh: "示例："
-  es: "Ejemplos:"
-  fr: "Exemples :"
-  pt: "Exemplos:"
-  ru: "Примеры:"
-  ja: "例："
-  ko: "예시:"
-  it: "Esempi:"
-  tr: "Örnekler:"
-  vi: "Ví dụ:"
-  id: "Contoh:"
-  pl: "Przykłady:"
-  nl: "Voorbeelden:"
-  ar: "أمثلة:"
-  hi: "उदाहरण:"
-  th: "ตัวอย่าง:"
-  cs: "Příklady:"
-  sv: "Exempel:"
-  he: "דוגמאות:"
-  verified_by_human:
-    - en
-    - de
-app_settings_memories.my:
-  context: First line of the "My Memories" section heading (shown above the section title)
-  en: "My"
-  de: "Meine"
-  zh: "我的"
-  es: "Mi"
-  fr: "Mes"
-  pt: "Minhas"
-  ru: "Мои"
-  ja: "私の"
-  ko: "내"
-  it: "Le mie"
-  tr: "Benim"
-  vi: "Của tôi"
-  id: "Saya"
-  pl: "Moje"
-  nl: "Mijn"
-  ar: "تبتي"
-  hi: "मेरी"
-  th: "ของฉัน"
-  cs: "Moje"
-  sv: "Mina"
-  he: הגדרות וזיכרונות
-  verified_by_human: []
-app_settings_memories.settings_and_memories:
-  context: Second line of the "My Memories" section heading (the bold title)
-  en: Memories
-  de: Erinnerungen
-  zh: 记忆
-  es: Memorias
-  fr: Mémoires
-  pt: Memórias
-  ru: Воспоминания
-  ja: メモリ
-  ko: 기억
-  it: Memorie
-  tr: Anılar
-  vi: Ký ức
-  id: Memori
-  pl: Wspomnienia
-  nl: Herinneringen
-  ar: ذكريات
-  hi: यादें
-  th: ความทรงจำ
-  cs: Vzpomínky
-  sv: Minnen
-  he: זיכרונות
-  verified_by_human: []
-app_settings_memories.my_settings_and_memories:
-  context: Section heading for the user's own memories entries
-  en: My Memories
-  de: Meine Erinnerungen
-  zh: 我的记忆
-  es: Mis memorias
-  fr: Mes mémoires
-  pt: Minhas memórias
-  ru: Мои воспоминания
-  ja: 私のメモリ
-  ko: 내 기억
-  it: Le mie memorie
-  tr: Anılarım
-  vi: Ký ức của tôi
-  id: Memori saya
-  pl: Moje wspomnienia
-  nl: Mijn herinneringen
-  ar: ذكرياتي
-  hi: मेरी यादें
-  th: ความทรงจำของฉัน
-  cs: Moje vzpomínky
-  sv: Mina minnen
-  he: הזיכרונות שלי
-  verified_by_human: []
-app_settings_memories.no_entries_yet:
-  context: Message shown when the user has no entries yet in this settings/memories category
-  en: No entries yet.
-  de: Noch keine Einträge.
-  zh: 还没有条目。
-  es: Aún no hay entradas.
-  fr: Aucune entrée pour l'instant.
-  pt: Ainda sem entradas.
-  ru: Записей пока нет.
-  ja: まだエントリがありません。
-  ko: 아직 항목이 없습니다.
-  it: Ancora nessuna voce.
-  tr: Henüz kayıt yok.
-  vi: Chưa có mục nào.
-  id: Belum ada entri.
-  pl: Brak wpisów.
-  nl: Nog geen items.
-  ar: لا توجد إدخالات حتى الآن.
-  hi: अभी तक कोई प्रविष्टि नहीं।
-  th: ยังไม่มีรายการ
-  cs: Zatím žádné záznamy.
-  sv: Inga poster ännu.
-  he: אין עדיין רשומות.
-  verified_by_human: []
-app_settings_memories.examples:
-  context: Section heading for example entries shown to all users
-  en: Examples
-  de: Beispiele
-  zh: 示例
-  es: Ejemplos
-  fr: Exemples
-  pt: Exemplos
-  ru: Примеры
-  ja: 例
-  ko: 예시
-  it: Esempi
-  tr: Örnekler
-  vi: Ví dụ
-  id: Contoh
-  pl: Przykłady
-  nl: Voorbeelden
-  ar: أمثلة
-  hi: उदाहरण
-  th: ตัวอย่าง
-  cs: Příklady
-  sv: Exempel
-  he: דוגמאות
-  verified_by_human: []
-app_settings_memories.no_settings:
-  context: Message when no memories have been synced for an app
-  en: No settings or memories synced yet. They will appear here once available.
-  de: Noch keine Einstellungen oder Erinnerungen synchronisiert. Sie werden hier angezeigt, wenn verfügbar.
-  zh: 尚未同步任何设置或记忆。可用后会在此显示。
-  es: Aún no hay configuración ni recuerdos sincronizados. Aparecerán aquí una vez disponibles.
-  fr: Aucun paramètre ou souvenir encore synchronisé. Ils apparaîtront ici une fois disponibles.
-  pt: Nenhuma configuração ou memória sincronizada ainda. Eles aparecerão aqui assim que disponíveis.
-  ru: Настройки и воспоминания еще не синхронизированы. Они появятся здесь после доступности.
-  ja: 設定とメモリはまだ同期されていません。利用可能になると表示されます。
-  ko: 아직 동기화된 설정 또는 메모리가 없습니다. 이용 가능할 때 여기에 표시됩니다.
-  it: Nessuna impostazione o ricordo sincronizzato ancora. Appariranno qui una volta disponibili.
-  tr: Henüz hiçbir ayar veya anı senkronize edilmedi. Mevcut olduğunda burada görünecekler.
-  vi: Chưa có cài đặt hoặc ký ức nào được đồng bộ hóa. Chúng sẽ xuất hiện ở đây khi có sẵn.
-  id: Belum ada pengaturan atau memori yang disinkronkan. Mereka akan muncul di sini setelah tersedia.
-  pl: Brak jeszcze zsynchronizowanych ustawień ani wspomnień. Pojawią się tutaj, gdy tylko będą dostępne.
-  nl: Nog geen instellingen of herinneringen gesynchroniseerd. Ze verschijnen hier zodra deze beschikbaar zijn.
-  ar: لم يتم مزامنة أي إعدادات أو ذكريات حتى الآن. ستظهر هنا بمجرد توفرها.
-  hi: अभी तक कोई सेटिंग्स या यादें सिंक नहीं की गई हैं। वे यहां उपलब्ध हो जाने के बाद दिखाई देंगे।
-  th: ยังไม่มีการตั้งค่าหรือความทรงจำที่ซิงค์แล้ว พวกเขาจะปรากฏที่นี่เมื่อมีให้บริการ
-  cs: Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná.
-  sv: Inga inställningar eller minnen ännu inte synkroniserade. De visas här när de är tillgängliga.
-  he: עדיין לא סונכרנו הגדרות או זיכרונות. הם יופיעו כאן כשהם יהיו זמינים.
-  verified_by_human: []
-app_settings_memories.add_entry:
-  context: Button text to add a new entry
-  en: Add Entry
-  de: Eintrag hinzufügen
-  zh: 添加条目
-  es: Agregar entrada
-  fr: Ajouter une entrée
-  pt: Adicionar entrada
-  ru: Добавить запись
-  ja: エントリを追加
-  ko: 항목 추가
-  it: Aggiungi voce
-  tr: Giriş ekle
-  vi: Thêm mục
-  id: Tambah entri
-  pl: Dodaj wpis
-  nl: Item toevoegen
-  ar: إضافة إدخال
-  hi: प्रविष्टि जोड़ें
-  th: เพิ่มรายการ
-  cs: Přidat položku
-  sv: Lägg till post
-  he: הוספת רשומה
-  verified_by_human: []
-app_settings_memories.loading:
-  context: Loading message while fetching memories
-  en: Loading memories...
-  de: Einstellungen und Erinnerungen werden geladen...
-  zh: 正在加载设置和记忆...
-  es: Cargando configuración y recuerdos...
-  fr: Chargement des paramètres et souvenirs...
-  pt: Carregando configurações e memórias...
-  ru: Загрузка настроек и воспоминаний...
-  ja: 設定とメモリを読み込み中...
-  ko: 설정 및 메모리 로드 중...
-  it: Caricamento impostazioni e ricordi...
-  tr: Ayarlar ve anılar yükleniyor...
-  vi: Đang tải cài đặt và ký ức...
-  id: Memuat pengaturan dan memori...
-  pl: Ładowanie ustawień i wspomnień...
-  nl: Instellingen en herinneringen laden...
-  ar: جاري تحميل الإعدادات والذكريات...
-  hi: सेटिंग्स और यादें लोड हो रही हैं...
-  th: กำลังโหลดการตั้งค่าและความทรงจำ...
-  cs: Načítání nastavení a paměti...
-  sv: Läser in inställningar och minnen...
-  he: טוען הגדרות וזיכרונות...
-  verified_by_human: []
-app_settings_memories.item_key:
-  context: Label for item key input field
-  en: Item Key
-  de: Eintragsschlüssel
-  zh: 条目键
-  es: Clave del elemento
-  fr: Clé de l'élément
-  pt: Chave do item
-  ru: Ключ элемента
-  ja: アイテムキー
-  ko: 항목 키
-  it: Chiave elemento
-  tr: Öğe anahtarı
-  vi: Khóa mục
-  id: Kunci item
-  pl: Klucz elementu
-  nl: Item sleutel
-  ar: مفتاح العنصر
-  hi: आइटम कुंजी
-  th: คีย์รายการ
-  cs: Klíč položky
-  sv: Objektnyckel
-  he: מפתח פריט
-  verified_by_human: []
-app_settings_memories.settings_group:
-  context: Label for settings group input field
-  en: Settings Group
-  de: Einstellungsgruppe
-  zh: 设置组
-  es: Grupo de configuración
-  fr: Groupe de paramètres
-  pt: Grupo de configurações
-  ru: Группа настроек
-  ja: 設定グループ
-  ko: 설정 그룹
-  it: Gruppo impostazioni
-  tr: Ayarlar grubu
-  vi: Nhóm cài đặt
-  id: Grup pengaturan
-  pl: Grupa ustawień
-  nl: Instellingen groep
-  ar: مجموعة الإعدادات
-  hi: सेटिंग्स समूह
-  th: กลุ่มการตั้งค่า
-  cs: Skupina nastavení
-  sv: Inställningsgrupp
-  he: קבוצת הגדרות
-  verified_by_human: []
-app_settings_memories.item_value:
-  context: Label for item value input field
-  en: Item Value
-  de: Eintragswert
-  zh: 条目值
-  es: Valor del elemento
-  fr: Valeur de l'élément
-  pt: Valor do item
-  ru: Значение элемента
-  ja: アイテム値
-  ko: 항목 값
-  it: Valore elemento
-  tr: Öğe değeri
-  vi: Giá trị mục
-  id: Nilai item
-  pl: Wartość elementu
-  nl: Item waarde
-  ar: قيمة العنصر
-  hi: आइटम मान
-  th: ค่ารายการ
-  cs: Hodnota položky
-  sv: Objektvärde
-  he: ערך הפריט
-  verified_by_human: []
-app_settings_memories.cancel:
-  context: Cancel button text
-  en: Cancel
-  de: Abbrechen
-  zh: 取消
-  es: Cancelar
-  fr: Annuler
-  pt: Cancelar
-  ru: Отмена
-  ja: キャンセル
-  ko: 취소
-  it: Annulla
-  tr: İptal
-  vi: Hủy
-  id: Batal
-  pl: Anuluj
-  nl: Annuleren
-  ar: إلغاء
-  hi: रद्द करें
-  th: ยกเลิก
-  cs: Zrušit
-  sv: Avbryt
-  he: ביטול
-  verified_by_human: []
-app_settings_memories.creating:
-  context: Button text while creating entry
-  en: Creating...
-  de: Wird erstellt...
-  zh: 创建中...
-  es: Creando...
-  fr: Création en cours...
-  pt: Criando...
-  ru: Создание...
-  ja: 作成中...
-  ko: 생성 중...
-  it: Creazione...
-  tr: Oluşturuluyor...
-  vi: Đang tạo...
-  id: Membuat...
-  pl: Tworzenie...
-  nl: Aanmaken...
-  ar: جاري الإنشاء...
-  hi: बनाया जा रहा है...
-  th: กำลังสร้าง...
-  cs: Vytváření...
-  sv: Skapar...
-  he: יוצר...
-  verified_by_human: []
-app_settings_memories.placeholder:
-  context: Placeholder message when app memories management is temporarily disabled
-  en: Soon you can manage and create your app memories here.
-  de: Bald können Sie hier Ihre App-Einstellungen und Erinnerungen verwalten und erstellen.
-  zh: 很快您就能在这里管理和创建您的应用设置和记忆。
-  es: Pronto podrás gestionar y crear tu configuración de aplicaciones y recuerdos aquí.
-  fr: Bientôt, vous pourrez gérer et créer vos paramètres d'applications et souvenirs ici.
-  pt: Em breve você poderá gerenciar e criar suas configurações de aplicativos e memórias aqui.
-  ru: Скоро вы сможете управлять и создавать настройки приложений и воспоминания здесь.
-  ja: まもなくここでアプリの設定とメモリを管理・作成できるようになります。
-  ko: 곧 여기에서 앱 설정 및 메모리를 관리하고 생성할 수 있습니다.
-  it: Presto potrai gestire e creare qui le impostazioni delle tue app e i ricordi.
-  tr: Yakında uygulama ayarlarınızı ve anılarınızı buradan yönetebilecek ve oluşturabileceksiniz.
-  vi: Sớm bạn sẽ có thể quản lý và tạo cài đặt ứng dụng và ký ức của mình tại đây.
-  id: Segera Anda dapat mengelola dan membuat pengaturan aplikasi dan memori di sini.
-  pl: Wkrótce będziesz mógł tutaj zarządzać i tworzyć ustawienia aplikacji i wspomnienia.
-  nl: Binnenkort kun je hier je app-instellingen en herinneringen beheren en aanmaken.
-  ar: قريباً ستتمكن من إدارة وإنشاء إعدادات تطبيقاتك وذكرياتك هنا.
-  hi: जल्द ही आप यहां अपनी ऐप सेटिंग्स और यादों को प्रबंधित और बना सकेंगे।
-  th: เร็วๆ นี้คุณจะสามารถจัดการและสร้างการตั้งค่าแอปและความทรงจำของคุณได้ที่นี่
-  cs: Brzy budete moci spravovat a vytvářet nastavení aplikací a vzpomínky zde.
-  sv: Snart kommer du att kunna hantera och skapa dina appinställningar och minnen här.
-  he: בקרוב תוכל לנהל וליצור כאן את הגדרות האפליקציה והזיכרונות שלך.
-  verified_by_human: []
-app_settings_memories.just_now:
-  context: Timestamp text indicating something happened just now
-  en: Just now
-  de: Gerade eben
-  zh: 刚刚
-  es: Justo ahora
-  fr: À l'instant
-  pt: Agora mesmo
-  ru: Только что
-  ja: たった今
-  ko: 방금
-  it: Proprio ora
-  tr: Az önce
-  vi: Vừa xong
-  id: Baru saja
-  pl: Właśnie teraz
-  nl: Zojuist
-  ar: الآن
-  hi: अभी अभी
-  th: เมื่อสักครู่
-  cs: Právě teď
-  sv: Just nu
-  he: ממש עכשיו
-  verified_by_human: []
-app_settings_memories.edit:
-  context: Button text to edit an entry
-  en: Edit
-  de: Bearbeiten
-  zh: 编辑
-  es: Editar
-  fr: Modifier
-  pt: Editar
-  ru: Редактировать
-  ja: 編集
-  ko: 편집
-  it: Modifica
-  tr: Düzenle
-  vi: Chỉnh sửa
-  id: Edit
-  pl: Edytuj
-  nl: Bewerken
-  ar: تعديل
-  hi: संपादित करें
-  th: แก้ไข
-  cs: Upravit
-  sv: Redigera
-  he: עריכה
-  verified_by_human: []
-app_settings_memories.delete:
-  context: Button text to delete an entry
-  en: Delete
-  de: Löschen
-  zh: 删除
-  es: Eliminar
-  fr: Supprimer
-  pt: Excluir
-  ru: Удалить
-  ja: 削除
-  ko: 삭제
-  it: Elimina
-  tr: Sil
-  vi: Xóa
-  id: Hapus
-  pl: Usuń
-  nl: Verwijderen
-  ar: حذف
-  hi: हटाएं
-  th: ลบ
-  cs: Smazat
-  sv: Radera
-  he: מחיקה
-  verified_by_human: []
-app_settings_memories.save:
-  context: Button text to save an entry
-  en: Save
-  de: Speichern
-  zh: 保存
-  es: Guardar
-  fr: Enregistrer
-  pt: Salvar
-  ru: Сохранить
-  ja: 保存
-  ko: 저장
-  it: Salva
-  tr: Kaydet
-  vi: Lưu
-  id: Simpan
-  pl: Zapisz
-  nl: Opslaan
-  ar: حفظ
-  hi: सहेजें
-  th: บันทึก
-  cs: Uložit
-  sv: Spara
-  he: שמירה
   verified_by_human: []
 newsletter.description:
   context: Short description shown in the newsletter settings page gradient banner header
@@ -15228,4 +14937,9 @@ server.tests.no_results:
   cs: Zatím nejsou k dispozici žádné výsledky testů. Spusťte testy, abyste zde viděli výsledky.
   sv: Inga testresultat tillgängliga ännu. Kör testerna för att se resultaten här.
   he: עדיין אין תוצאות בדיקה זמינות. הפעל את הבדיקות כדי לראות תוצאות כאן.
+  verified_by_human: []
+projects.tab_sources:
+  context: Tab label for connected sources in Project settings
+  en: Sources
+  de: Quellen
   verified_by_human: []

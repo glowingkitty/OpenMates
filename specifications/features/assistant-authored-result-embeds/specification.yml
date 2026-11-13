@@ -39,7 +39,7 @@ scope:
     - Booking, purchasing, RSVP, calendar writes, task creation, or workflow execution through card authoring.
     - Arbitrary internal embed types, invented tool results, generated-media success, or upload ownership claims.
     - Automatic provider enrichment or a new map engine.
-    - New generic editing/version-history features or migration of historical embeds.
+    - Generic editing or version-history features beyond correcting an authored card as its next version, and migration of historical embeds.
     - Apple implementation in the first stage; it follows verified web behavior and user review.
 
 eligibility:
@@ -170,9 +170,11 @@ assertions:
       with supplied captions, attribution, and ordering. Use existing safe media
       delivery and encrypted-asset access paths; enforce URL/fetch restrictions,
       ownership, and applicable image-use conditions. Never invent an uploaded
-      image identity or fetch a private network resource. Missing, disallowed,
-      or failed images leave a readable card with a fallback, without requiring
-      an image-generation skill or exposing private source URLs in diagnostics.
+      image identity or fetch a private network resource. An image taken from
+      search results is used only when it clearly depicts that item, such as its
+      official logo, banner, or venue; otherwise the card has no image. Missing,
+      disallowed, or failed images leave a readable card with a fallback, without
+      requiring an image-generation skill or exposing private source URLs in diagnostics.
     depends_on: [examples.media]
   - id: authored-results.lifecycle.encrypted-and-stable
     type: privacy
@@ -202,16 +204,66 @@ assertions:
   - id: authored-results.maps.source-faithful-geometry
     type: invariant
     must: >
-      Use the shared results view for individually authored or grouped items
-      with usable spatial data. Keep card selection, markers, and fullscreen
+      Use the shared results view for grouped items with usable spatial data. Keep card selection, markers, and fullscreen
       identity consistent. Items lacking usable coordinates remain in the list;
       online-only events and telehealth do not acquire invented map pins.
       Preserve approximate listing areas as approximate. Coordinates and route
-      geometry must come from supplied facts or an explicit permitted research
-      operation; presentation never silently geocodes or dispatches enrichment.
+      geometry come from supplied facts, an explicit permitted research
+      operation, or a server lookup of a sourced public venue address, never from
+      model-written coordinates. A venue lookup never delays showing the card;
+      presentation never geocodes or dispatches paid enrichment.
       Endpoint-only connections must not appear to have a verified street route
       or actual flight track.
     depends_on: [examples.maps]
+  - id: authored-results.presentation.standard-results-view
+    type: behavior
+    must: >
+      A group of two or more authored cards appears as the standard shared
+      results view, with no extra group title row, expand button, or group
+      fullscreen of its own. It offers a Calendar view when any member has a
+      usable date, a Map view when any member has usable coordinates or a route,
+      and a switch between them when both exist; members lacking both remain in
+      the list. Opening a member shows that member's own fullscreen. A single
+      card appears as that card's own preview. The stored group record only keeps
+      membership and order and is not shown as a separate element.
+    depends_on: [examples.presentation]
+  - id: authored-results.presentation.whole-image-and-title
+    type: behavior
+    must: >
+      Every authored card shows its whole image, scaled to fit and letterboxed,
+      never cropped, at every supported preview size including the narrow chat
+      column and mobile. Its title stays visible within the card regardless of
+      the image's shape or failure, truncating to at most two lines. An event
+      card shows its date, title, organizer and image; without a working image
+      it shows its venue on a map when coordinates are known, and no map when
+      they are not. A preview carries no origin label for user-provided or
+      researched event cards; only a draft is labelled there, and the details
+      view lists the origin and sources.
+    depends_on: [examples.cards]
+  - id: authored-results.followups.reuse-or-version
+    type: behavior
+    must: >
+      Each answer can see which cards already exist in the chat. When a later
+      answer is about an item that already has a card in that chat, it shows that
+      card again instead of creating another card for the same item. When it has
+      corrected or better sourced facts for that item, the same card gains a new
+      version with the same identity; each message keeps showing the version it
+      showed, and the card's details show its version history. A card from
+      another chat or user, or an unknown card reference, is never reused and is
+      reported as a per-item validation outcome. A separate copy is created only
+      when the user asks for one.
+    depends_on: [examples.followups]
+  - id: authored-results.streaming.progressive-cards
+    type: behavior
+    must: >
+      The short introduction of an answer with cards appears before the cards.
+      Each valid card appears as soon as its own facts are complete, while cards
+      still being written appear as placeholders in their final positions; the
+      group does not wait for all cards. Coordinates found later are added to the
+      already shown card. A placeholder for an item that turns out invalid or is
+      cancelled never becomes a finished card. Card descriptions stay short
+      enough to read in a preview.
+    depends_on: [examples.streaming]
   - id: authored-results.actions.truthful-and-explicit
     type: behavior
     must: >
@@ -267,4 +319,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [creation, eligibility, provenance, content, media, lifecycle, groups, maps, actions, surfaces, demonstrations]
+  required_groups: [creation, eligibility, provenance, content, media, lifecycle, groups, presentation, cards, followups, streaming, maps, actions, surfaces, demonstrations]

@@ -36,7 +36,7 @@ const examples: VideoGenerateStoreExample[] = [
     "duration_seconds": 8,
     "aspect_ratio": "16:9",
     "resolution": "720p",
-    "model": "veo-3.1-fast-generate-preview",
+    "model": "Veo 3.1 Fast",
     "provider": "Google Gemini API",
     "status": "finished",
     "previewVideoUrl": "/store-examples/video-generate-1.mp4",

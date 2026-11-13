@@ -95,6 +95,12 @@ async def handle_project_remote_access_register(
             if team_id and source.get("attached_by_user_hash") != _hash_identity(user_id):
                 await _send_error(websocket, "source_host_mismatch")
                 return
+            if source.get("status") == "creation_pending" and (
+                source.get("host_device_hash") != stable_device_fingerprint_hash
+                or source.get("attached_by_user_hash") != _hash_identity(user_id)
+            ):
+                await _send_error(websocket, "source_host_mismatch")
+                return
             requested_capabilities = raw.get("capabilities")
             if not isinstance(requested_capabilities, list) or not set(requested_capabilities).issubset(
                 set(source.get("capabilities") or [])

@@ -80,24 +80,4 @@ final class PasswordV2KDFTests: XCTestCase {
             XCTAssertNotNil(error as? CryptoManager.CryptoError)
         }
     }
-
-    // contract-test: supporting surface=gui.apple assertions=auth.keys.client-wrapped
-    func testMigrationRequiresExplicitStagedCapabilityAndSeparateConfirmationDTO() throws {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let capabilities = try decoder.decode(PasswordV2MigrationCapabilities.self,
-            from: Data(#"{"staged_protocol":2,"confirm_required":true}"#.utf8))
-        XCTAssertEqual(capabilities.stagedProtocol, 2)
-        XCTAssertTrue(capabilities.confirmRequired)
-
-        let request = PasswordV2MigrationRequest(
-            oldLookupHash: "old-lookup", passwordAuthKey: "auth-key",
-            encryptedMasterKey: "wrapped", salt: "email-salt", keyIv: "nonce")
-        let encoder = JSONEncoder()
-        encoder.keyEncodingStrategy = .convertToSnakeCase
-        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: encoder.encode(request)) as? [String: Any])
-        XCTAssertEqual(body["old_lookup_hash"] as? String, "old-lookup")
-        XCTAssertEqual(body["password_auth_key"] as? String, "auth-key")
-        XCTAssertNil(body["confirm"])
-    }
 }

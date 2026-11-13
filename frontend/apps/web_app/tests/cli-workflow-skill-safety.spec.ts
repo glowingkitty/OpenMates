@@ -21,9 +21,9 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const UNSUPPORTED_SKILLS = [
 	'audio.generate', 'audio.speak', 'images.generate', 'images.generate_draft',
 	'music.generate', 'social_media.get-posts',
-	'social_media.search', 'videos.generate', 'videos.create', 'openmates.share-usecase'
+	'social_media.search', 'videos.generate', 'openmates.share-usecase'
 ];
-const REPRESENTATIVES = ['images.generate', 'videos.create', 'openmates.share-usecase'];
+const REPRESENTATIVES = ['images.generate', 'videos.generate', 'openmates.share-usecase'];
 
 test.describe('CLI workflow skill safety', () => {
 	test.setTimeout(300_000);
@@ -54,7 +54,7 @@ test.describe('CLI workflow skill safety', () => {
 				expect(models3d.reason).toBe('WORKFLOW_RUNTIME_UNSUPPORTED');
 			}
 			expect(byId.get('images.generate').metadata.workflow.execution_mode).toBe('async_job');
-			expect(byId.get('videos.create').metadata.workflow.execution_mode).toBe('sandbox');
+			expect(byId.get('videos.generate').metadata.workflow.execution_mode).toBe('async_job');
 			expect(byId.get('openmates.share-usecase').metadata.workflow).toMatchObject({
 				approval: 'always', unattended: false
 			});

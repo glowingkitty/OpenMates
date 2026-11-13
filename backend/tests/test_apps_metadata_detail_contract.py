@@ -44,16 +44,6 @@ def test_build_app_metadata_item_preserves_native_detail_contract() -> None:
                     "how_to_use": ["Create a **launch image**"],
                 }
             ],
-            "settings_and_memories": [
-                {
-                    "id": "preferred_styles",
-                    "name_translation_key": "images.preferred_styles",
-                    "description_translation_key": "images.preferred_styles.description",
-                    "icon_image": "image.svg",
-                    "type": "list",
-                    "example_translation_keys": ["images.preferred_styles.example_1"],
-                }
-            ],
             "embed_types": [
                 {
                     "id": "image",
@@ -115,8 +105,7 @@ def test_build_app_metadata_item_preserves_native_detail_contract() -> None:
     ]
     assert payload["focus_modes"][0]["system_prompt"] == "Direct the visual work."
     assert payload["focus_modes"][0]["how_to_use"] == ["Create a **launch image**"]
-    assert payload["settings_and_memories"][0]["type"] == "list"
-    assert payload["settings_and_memories"][0]["icon_image"] == "image.svg"
+    assert "settings_and_memories" not in payload
     assert payload["content_types"][0]["content_type_id"] == "image"
     assert response_payload["apps"]["images"]["skills"][0]["id"] == "generate"
 
@@ -130,23 +119,18 @@ def test_rich_response_remains_compatible_with_specific_app_shape() -> None:
             "description": "Travel tools",
             "skills": [],
             "focus_modes": [],
-            "settings_and_memories": [
-                {"id": "trips", "name": "Trips", "description": "Saved trips"}
-            ],
         }
     )
 
-    assert item.settings_and_memories[0].type == ""
     assert item.content_types == []
 
-# contract-test: supporting surface=rest_api assertions=app-memories.catalog.declared-types-only,app-memories.definition.context-documents
+# contract-test: supporting surface=rest_api assertions=app-memories.catalog.no-typed-types,app-memories.definition.context-documents
 def test_published_memories_are_complete_read_only_metadata_separate_from_private_types():
-    app = AppYAML(id="code", name_translation_key="code", description_translation_key="code.description",
-                  settings_and_memories=[{"id": "preferred_tech", "type": "list", "name_translation_key": "code.tech", "description_translation_key": "code.tech.description"}])
+    app = AppYAML(id="code", name_translation_key="code", description_translation_key="code.description")
     item = build_app_metadata_item(app_id="code", app_metadata=app, translation_service=None,
                                    provider_configs={}, available_provider_ids=set())
     assert len(item.memories) == 4
-    assert [category.id for category in item.settings_and_memories] == ["preferred_tech"]
+    assert not hasattr(item, "settings_and_memories")
     assert all(memory["source"] == "app" and memory["app_id"] == "code" for memory in item.memories)
     assert all(memory["id"].startswith("app:code:") and len(memory["revision"]) == 64 and memory["body"] for memory in item.memories)
     assert all(not memory.get("project_id") for memory in item.memories)

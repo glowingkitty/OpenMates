@@ -1,0 +1,1620 @@
+{
+ "now": "2026-11-06T12:34:56.789Z",
+ "exportedAt": "2026-11-06T12:00:00.000Z",
+ "chat": [
+  {
+   "name": "basic-seconds",
+   "request": {
+    "filename": "2026-11-06_12-00-00_Plan a trip.",
+    "completenessJson": "{\n  \"status\": \"complete\"\n}",
+    "chat": {
+     "title": "Plan a trip",
+     "createdAt": 1793000000
+    },
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1793000001,
+      "content": "Where to?"
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1793000002,
+      "content": "Lisbon.\n\nSee [embed:abc]"
+     }
+    ],
+    "pii": null,
+    "code": [],
+    "transcripts": [],
+    "images": [],
+    "generatedAudio": [],
+    "staticFiles": [],
+    "audio": [],
+    "pdfs": []
+   },
+   "out": {
+    "base": "2026-11-06_12-00-00_Plan a trip.",
+    "zipName": "2026-11-06_12-00-00_Plan a trip..zip",
+    "entries": [
+     {
+      "path": "export-metadata.json",
+      "text": "{\n  \"status\": \"complete\"\n}"
+     },
+     {
+      "path": "2026-11-06_12-00-00_Plan a trip..yml",
+      "src": [
+       "yaml"
+      ]
+     },
+     {
+      "path": "2026-11-06_12-00-00_Plan a trip..md",
+      "text": "# Plan a trip\n\n*Created: 2026-10-26T07:33:20.000Z*\n\n---\n\n## You - 2026-10-26T07:33:21.000Z\n\nWhere to?\n\n## Assistant - 2026-10-26T07:33:22.000Z\n\nLisbon.\n\nSee [embed:abc]\n\n"
+     }
+    ]
+   }
+  },
+  {
+   "name": "milliseconds-and-pii-revealed",
+   "request": {
+    "filename": "2026-11-06_12-00-00_Mail.",
+    "completenessJson": "{}",
+    "chat": {
+     "title": "Mail [EMAIL_1]",
+     "createdAt": 1793000000000
+    },
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1793000001000,
+      "content": "Write to [EMAIL_1] and EMAIL_2"
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1793000002000,
+      "content": "Sure: EMAIL_1"
+     }
+    ],
+    "pii": {
+     "hidden": false,
+     "mappings": [
+      {
+       "placeholder": "[EMAIL_1]",
+       "original": "a@example.com"
+      },
+      {
+       "placeholder": "EMAIL_2",
+       "original": "b@example.com"
+      }
+     ]
+    },
+    "code": [],
+    "transcripts": [],
+    "images": [],
+    "generatedAudio": [],
+    "staticFiles": [],
+    "audio": [],
+    "pdfs": []
+   },
+   "out": {
+    "base": "2026-11-06_12-00-00_Mail.",
+    "zipName": "2026-11-06_12-00-00_Mail..zip",
+    "entries": [
+     {
+      "path": "export-metadata.json",
+      "text": "{}"
+     },
+     {
+      "path": "2026-11-06_12-00-00_Mail..yml",
+      "src": [
+       "yaml"
+      ]
+     },
+     {
+      "path": "2026-11-06_12-00-00_Mail..md",
+      "text": "# Mail [EMAIL_1]\n\n*Created: 2026-10-26T07:33:20.000Z*\n\n---\n\n## You - 2026-10-26T07:33:21.000Z\n\nWrite to a@example.com and b@example.com\n\n## Assistant - 2026-10-26T07:33:22.000Z\n\nSure: a@example.com\n\n"
+     }
+    ]
+   }
+  },
+  {
+   "name": "pii-hidden-keeps-placeholders",
+   "request": {
+    "filename": "x.",
+    "completenessJson": null,
+    "chat": {
+     "title": "Hidden",
+     "createdAt": 1793000000
+    },
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1793000001,
+      "content": "Mail [EMAIL_1]"
+     }
+    ],
+    "pii": {
+     "hidden": true,
+     "mappings": [
+      {
+       "placeholder": "[EMAIL_1]",
+       "original": "a@example.com"
+      }
+     ]
+    },
+    "code": [],
+    "transcripts": [],
+    "images": [],
+    "generatedAudio": [],
+    "staticFiles": [],
+    "audio": [],
+    "pdfs": []
+   },
+   "out": {
+    "base": "x.",
+    "zipName": "x..zip",
+    "entries": [
+     {
+      "path": "x..yml",
+      "src": [
+       "yaml"
+      ]
+     },
+     {
+      "path": "x..md",
+      "text": "# Hidden\n\n*Created: 2026-10-26T07:33:20.000Z*\n\n---\n\n## You - 2026-10-26T07:33:21.000Z\n\nMail [EMAIL_1]\n\n"
+     }
+    ]
+   }
+  },
+  {
+   "name": "code-embed-path-rules",
+   "request": {
+    "filename": "2026-11-06_12-00-00_Code.",
+    "completenessJson": "{}",
+    "chat": {
+     "title": "Code",
+     "createdAt": 1793000000
+    },
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1793000001,
+      "content": "code"
+     }
+    ],
+    "pii": null,
+    "code": [
+     {
+      "filePath": "src/app/main.py",
+      "filename": "main.py",
+      "language": "python",
+      "embedId": "e1"
+     },
+     {
+      "filePath": null,
+      "filename": "lib.rs",
+      "language": "rust",
+      "embedId": "e2"
+     },
+     {
+      "filePath": null,
+      "filename": null,
+      "language": "JavaScript",
+      "embedId": "e3"
+     },
+     {
+      "filePath": null,
+      "filename": null,
+      "language": "Dockerfile",
+      "embedId": "e4"
+     },
+     {
+      "filePath": null,
+      "filename": "",
+      "language": "Weird-Lang",
+      "embedId": "e5"
+     },
+     {
+      "filePath": null,
+      "filename": null,
+      "language": "BASH",
+      "embedId": "e6"
+     },
+     {
+      "filePath": "",
+      "filename": null,
+      "language": "c",
+      "embedId": "e7"
+     }
+    ],
+    "transcripts": [],
+    "images": [],
+    "generatedAudio": [],
+    "staticFiles": [],
+    "audio": [],
+    "pdfs": []
+   },
+   "out": {
+    "base": "2026-11-06_12-00-00_Code.",
+    "zipName": "2026-11-06_12-00-00_Code..zip",
+    "entries": [
+     {
+      "path": "export-metadata.json",
+      "text": "{}"
+     },
+     {
+      "path": "2026-11-06_12-00-00_Code..yml",
+      "src": [
+       "yaml"
+      ]
+     },
+     {
+      "path": "2026-11-06_12-00-00_Code..md",
+      "text": "# Code\n\n*Created: 2026-10-26T07:33:20.000Z*\n\n---\n\n## You - 2026-10-26T07:33:21.000Z\n\ncode\n\n"
+     },
+     {
+      "path": "src/app/main.py",
+      "src": [
+       "code",
+       0
+      ]
+     },
+     {
+      "path": "code/lib.rs",
+      "src": [
+       "code",
+       1
+      ]
+     },
+     {
+      "path": "code/e3.js",
+      "src": [
+       "code",
+       2
+      ]
+     },
+     {
+      "path": "code/e4.Dockerfile",
+      "src": [
+       "code",
+       3
+      ]
+     },
+     {
+      "path": "code/e5.weird-lang",
+      "src": [
+       "code",
+       4
+      ]
+     },
+     {
+      "path": "code/e6.sh",
+      "src": [
+       "code",
+       5
+      ]
+     },
+     {
+      "path": "code/e7.c",
+      "src": [
+       "code",
+       6
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "every-file-group",
+   "request": {
+    "filename": "2026-11-06_12-00-00_Files v1.2.",
+    "completenessJson": "{}",
+    "chat": {
+     "title": "Files v1.2",
+     "createdAt": 1793000000
+    },
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1793000001,
+      "content": "files"
+     }
+    ],
+    "pii": null,
+    "code": [],
+    "transcripts": [
+     "talk.txt",
+     "talk_2.txt"
+    ],
+    "images": [
+     "img.png",
+     "img_2.jpg"
+    ],
+    "generatedAudio": [
+     "voice.mp3"
+    ],
+    "staticFiles": [
+     "doc.pdf"
+    ],
+    "audio": [
+     "recording_01.webm",
+     "noext",
+     "a.b.c",
+     "trailing."
+    ],
+    "pdfs": [
+     {
+      "folderName": "report",
+      "pages": [
+       "page_1.png",
+       "page_2.png"
+      ]
+     },
+     {
+      "folderName": "empty",
+      "pages": []
+     }
+    ]
+   },
+   "out": {
+    "base": "2026-11-06_12-00-00_Files v1.2.",
+    "zipName": "2026-11-06_12-00-00_Files v1.2..zip",
+    "entries": [
+     {
+      "path": "export-metadata.json",
+      "text": "{}"
+     },
+     {
+      "path": "2026-11-06_12-00-00_Files v1.2..yml",
+      "src": [
+       "yaml"
+      ]
+     },
+     {
+      "path": "2026-11-06_12-00-00_Files v1.2..md",
+      "text": "# Files v1.2\n\n*Created: 2026-10-26T07:33:20.000Z*\n\n---\n\n## You - 2026-10-26T07:33:21.000Z\n\nfiles\n\n"
+     },
+     {
+      "path": "transcripts/talk.txt",
+      "src": [
+       "transcript",
+       0
+      ]
+     },
+     {
+      "path": "transcripts/talk_2.txt",
+      "src": [
+       "transcript",
+       1
+      ]
+     },
+     {
+      "path": "images/img.png",
+      "src": [
+       "image",
+       0
+      ]
+     },
+     {
+      "path": "images/img_2.jpg",
+      "src": [
+       "image",
+       1
+      ]
+     },
+     {
+      "path": "generated-audio/voice.mp3",
+      "src": [
+       "generatedAudio",
+       0
+      ]
+     },
+     {
+      "path": "static-files/doc.pdf",
+      "src": [
+       "staticFile",
+       0
+      ]
+     },
+     {
+      "path": "uploads/audio/recording_01.webm",
+      "src": [
+       "audio",
+       0
+      ]
+     },
+     {
+      "path": "uploads/audio/recording_01_transcript.txt",
+      "src": [
+       "audioTranscript",
+       0
+      ]
+     },
+     {
+      "path": "uploads/audio/noext",
+      "src": [
+       "audio",
+       1
+      ]
+     },
+     {
+      "path": "uploads/audio/noext_transcript.txt",
+      "src": [
+       "audioTranscript",
+       1
+      ]
+     },
+     {
+      "path": "uploads/audio/a.b.c",
+      "src": [
+       "audio",
+       2
+      ]
+     },
+     {
+      "path": "uploads/audio/a.b_transcript.txt",
+      "src": [
+       "audioTranscript",
+       2
+      ]
+     },
+     {
+      "path": "uploads/audio/trailing.",
+      "src": [
+       "audio",
+       3
+      ]
+     },
+     {
+      "path": "uploads/audio/trailing._transcript.txt",
+      "src": [
+       "audioTranscript",
+       3
+      ]
+     },
+     {
+      "path": "uploads/pdfs/report/page_1.png",
+      "src": [
+       "pdf",
+       0,
+       0
+      ]
+     },
+     {
+      "path": "uploads/pdfs/report/page_2.png",
+      "src": [
+       "pdf",
+       0,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "audio-with-empty-transcript",
+   "request": {
+    "filename": "a.",
+    "completenessJson": null,
+    "chat": {
+     "title": "Audio",
+     "createdAt": 1793000000
+    },
+    "messages": [],
+    "pii": null,
+    "code": [],
+    "transcripts": [],
+    "images": [],
+    "generatedAudio": [],
+    "staticFiles": [],
+    "audio": [
+     "rec.webm"
+    ],
+    "pdfs": []
+   },
+   "out": {
+    "base": "a.",
+    "zipName": "a..zip",
+    "entries": [
+     {
+      "path": "a..yml",
+      "src": [
+       "yaml"
+      ]
+     },
+     {
+      "path": "a..md",
+      "text": "# Audio\n\n*Created: 2026-10-26T07:33:20.000Z*\n\n---\n\n"
+     },
+     {
+      "path": "uploads/audio/rec.webm",
+      "src": [
+       "audio",
+       0
+      ]
+     },
+     {
+      "path": "uploads/audio/rec_transcript.txt",
+      "src": [
+       "audioTranscript",
+       0
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "untitled-and-odd-messages",
+   "request": {
+    "filename": "2026-11-06_12-00-00_Untitled Chat.",
+    "completenessJson": "[]",
+    "chat": {
+     "title": null,
+     "createdAt": 1793000000
+    },
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1793000001,
+      "content": "from tiptap"
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1793000002,
+      "content": ""
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1793000003,
+      "content": null
+     },
+     {
+      "role": "user",
+      "createdAt": {
+       "$om_raw": "NaN"
+      },
+      "content": "invalid time"
+     },
+     {
+      "role": "user",
+      "createdAt": null,
+      "content": "missing time"
+     },
+     {
+      "role": "system",
+      "createdAt": 1793000004,
+      "content": ""
+     },
+     {
+      "role": "user",
+      "createdAt": 1000000000000000,
+      "content": "far future ms"
+     },
+     {
+      "role": "user",
+      "createdAt": 9000000000000000000,
+      "content": "out of range"
+     }
+    ],
+    "pii": null,
+    "code": [],
+    "transcripts": [],
+    "images": [],
+    "generatedAudio": [],
+    "staticFiles": [],
+    "audio": [],
+    "pdfs": []
+   },
+   "out": {
+    "base": "2026-11-06_12-00-00_Untitled Chat.",
+    "zipName": "2026-11-06_12-00-00_Untitled Chat..zip",
+    "entries": [
+     {
+      "path": "export-metadata.json",
+      "text": "[]"
+     },
+     {
+      "path": "2026-11-06_12-00-00_Untitled Chat..yml",
+      "src": [
+       "yaml"
+      ]
+     },
+     {
+      "path": "2026-11-06_12-00-00_Untitled Chat..md",
+      "text": "*Created: 2026-10-26T07:33:20.000Z*\n\n---\n\n## You - 2026-10-26T07:33:21.000Z\n\nfrom tiptap\n\n## Assistant - 2026-10-26T07:33:22.000Z\n\n\n\n## You - 2026-10-26T07:33:24.000Z\n\n\n\n## You - +033658-09-27T01:46:40.000Z\n\nfar future ms\n\n"
+     }
+    ]
+   }
+  },
+  {
+   "name": "invalid-chat-created-at-empties-markdown",
+   "request": {
+    "filename": "bad.",
+    "completenessJson": "{}",
+    "chat": {
+     "title": "Bad",
+     "createdAt": {
+      "$om_raw": "Infinity"
+     }
+    },
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1793000001,
+      "content": "kept out"
+     }
+    ],
+    "pii": null,
+    "code": [],
+    "transcripts": [],
+    "images": [],
+    "generatedAudio": [],
+    "staticFiles": [],
+    "audio": [],
+    "pdfs": []
+   },
+   "out": {
+    "base": "bad.",
+    "zipName": "bad..zip",
+    "entries": [
+     {
+      "path": "export-metadata.json",
+      "text": "{}"
+     },
+     {
+      "path": "bad..yml",
+      "src": [
+       "yaml"
+      ]
+     },
+     {
+      "path": "bad..md",
+      "text": ""
+     }
+    ]
+   }
+  },
+  {
+   "name": "unicode-and-newlines",
+   "request": {
+    "filename": "2026-11-06_12-00-00_Ünï.",
+    "completenessJson": "{\"a\":\"ß\"}",
+    "chat": {
+     "title": "Ünïcödé 日本語 🎉",
+     "createdAt": 1793000000
+    },
+    "messages": [
+     {
+      "role": "user",
+      "createdAt": 1793000001,
+      "content": "line1\nline2\r\n$x \\ \"q\""
+     },
+     {
+      "role": "assistant",
+      "createdAt": 1793000002,
+      "content": "🎉 "
+     }
+    ],
+    "pii": null,
+    "code": [],
+    "transcripts": [],
+    "images": [],
+    "generatedAudio": [],
+    "staticFiles": [],
+    "audio": [],
+    "pdfs": []
+   },
+   "out": {
+    "base": "2026-11-06_12-00-00_Ünï.",
+    "zipName": "2026-11-06_12-00-00_Ünï..zip",
+    "entries": [
+     {
+      "path": "export-metadata.json",
+      "text": "{\"a\":\"ß\"}"
+     },
+     {
+      "path": "2026-11-06_12-00-00_Ünï..yml",
+      "src": [
+       "yaml"
+      ]
+     },
+     {
+      "path": "2026-11-06_12-00-00_Ünï..md",
+      "text": "# Ünïcödé 日本語 🎉\n\n*Created: 2026-10-26T07:33:20.000Z*\n\n---\n\n## You - 2026-10-26T07:33:21.000Z\n\nline1\nline2\r\n$x \\ \"q\"\n\n## Assistant - 2026-10-26T07:33:22.000Z\n\n🎉 \n\n"
+     }
+    ]
+   }
+  }
+ ],
+ "codeFiles": [
+  {
+   "name": "mixed-names-and-duplicates",
+   "request": {
+    "nowIso": "2026-11-06T12:34:56.789Z",
+    "files": [
+     {
+      "filename": "src/app/main.py",
+      "headerFilename": "src/app/main.py",
+      "language": "python"
+     },
+     {
+      "filename": "other\\MAIN.py",
+      "headerFilename": "other\\MAIN.py",
+      "language": "python"
+     },
+     {
+      "filename": null,
+      "headerFilename": "app/Dockerfile",
+      "language": "dockerfile"
+     },
+     {
+      "filename": null,
+      "headerFilename": null,
+      "language": "javascript"
+     },
+     {
+      "filename": null,
+      "headerFilename": null,
+      "language": "javascript"
+     },
+     {
+      "filename": "Makefile",
+      "headerFilename": "Makefile",
+      "language": "bash"
+     },
+     {
+      "filename": "makefile",
+      "headerFilename": "makefile",
+      "language": "bash"
+     },
+     {
+      "filename": ".env",
+      "headerFilename": ".env",
+      "language": "text"
+     },
+     {
+      "filename": ".env",
+      "headerFilename": ".env",
+      "language": "text"
+     }
+    ]
+   },
+   "out": {
+    "zipName": "code_files_2026-11-06_12-34-56.zip",
+    "names": [
+     "main.py",
+     "MAIN_2.py",
+     "Dockerfile",
+     "code_snippet.js",
+     "code_snippet_5.js",
+     "Makefile",
+     "makefile_7",
+     ".env",
+     ".env_9"
+    ]
+   }
+  },
+  {
+   "name": "two-snippets",
+   "request": {
+    "nowIso": "2026-11-06T12:34:56.789Z",
+    "files": [
+     {
+      "filename": null,
+      "headerFilename": null,
+      "language": "Kotlin"
+     },
+     {
+      "filename": null,
+      "headerFilename": null,
+      "language": "unknownlang"
+     }
+    ]
+   },
+   "out": {
+    "zipName": "code_files_2026-11-06_12-34-56.zip",
+    "names": [
+     "code_snippet.kt",
+     "code_snippet.unknownlang"
+    ]
+   }
+  },
+  {
+   "name": "single-file",
+   "request": {
+    "nowIso": "2026-11-06T12:34:56.789Z",
+    "files": [
+     {
+      "filename": "deep/path/solo.ts",
+      "headerFilename": "deep/path/solo.ts",
+      "language": "typescript"
+     }
+    ]
+   },
+   "out": {
+    "zipName": null,
+    "names": [
+     "solo.ts"
+    ]
+   }
+  },
+  {
+   "name": "single-snippet",
+   "request": {
+    "nowIso": "2026-11-06T12:34:56.789Z",
+    "files": [
+     {
+      "filename": null,
+      "headerFilename": null,
+      "language": "sql"
+     }
+    ]
+   },
+   "out": {
+    "zipName": null,
+    "names": [
+     "code_snippet.sql"
+    ]
+   }
+  }
+ ],
+ "application": [
+  {
+   "name": "plain",
+   "request": {
+    "appName": "My App",
+    "paths": [
+     "src/main.py",
+     "README.md"
+    ]
+   },
+   "out": {
+    "zipName": "my-app.zip",
+    "paths": [
+     "src/main.py",
+     "README.md"
+    ]
+   }
+  },
+  {
+   "name": "traversal-and-separators",
+   "request": {
+    "appName": "  Ünï Çode!!App_v1.2  ",
+    "paths": [
+     "../etc/passwd",
+     "a\\b\\c.txt",
+     " ./x / y ",
+     "///",
+     "..",
+     "dir//file"
+    ]
+   },
+   "out": {
+    "zipName": "n-ode-app_v1.2.zip",
+    "paths": [
+     "etc/passwd",
+     "a/b/c.txt",
+     "x/y",
+     "application-file.txt",
+     "application-file.txt",
+     "dir/file"
+    ]
+   }
+  },
+  {
+   "name": "empty-name",
+   "request": {
+    "appName": null,
+    "paths": [
+     "a.txt"
+    ]
+   },
+   "out": {
+    "zipName": "application.zip",
+    "paths": [
+     "a.txt"
+    ]
+   }
+  },
+  {
+   "name": "symbols-only-name",
+   "request": {
+    "appName": "***",
+    "paths": [
+     "a.txt"
+    ]
+   },
+   "out": {
+    "zipName": "application.zip",
+    "paths": [
+     "a.txt"
+    ]
+   }
+  }
+ ],
+ "bulk": {
+  "request": {
+   "nowIso": "2026-11-06T12:34:56.789Z"
+  },
+  "out": {
+   "zipName": "chats_2026-11-06_12-34-56.zip"
+  }
+ },
+ "account": [
+  {
+   "name": "typical-multi-domain",
+   "request": {
+    "export": {
+     "export_id": "exp-1",
+     "status": "complete"
+    },
+    "manifest": {
+     "schema_version": "account-export-v1",
+     "selected_domains": [
+      "chats",
+      "usage"
+     ],
+     "filters": {},
+     "report": {
+      "status": "complete",
+      "failures": [],
+      "redactions": [
+       "x"
+      ],
+      "partial_requires_acceptance": false
+     }
+    },
+    "chunks": [
+     {
+      "chunk_id": "c1",
+      "domain": "chats",
+      "sequence": 1,
+      "status": "ready",
+      "payload": {
+       "items": [
+        {
+         "id": "chat-1",
+         "title": "First: chat",
+         "summary": "  A summary  ",
+         "messages": [
+          {
+           "role": "user",
+           "content": "Hello"
+          },
+          {
+           "sender": "bot",
+           "text": "Hi\nthere"
+          },
+          "skipped",
+          null,
+          [
+           "x"
+          ]
+         ]
+        },
+        {
+         "chat_id": "chat/2",
+         "name": "Named",
+         "messages": []
+        },
+        {
+         "title": "No id",
+         "messages": "not an array"
+        },
+        "not a chat"
+       ]
+      }
+     },
+     {
+      "chunk_id": "c2",
+      "domain": "chats",
+      "sequence": 2,
+      "status": "ready",
+      "payload": {
+       "items": [
+        {
+         "id": " weird id! ",
+         "messages": [
+          {
+           "content": 7
+          }
+         ]
+        }
+       ]
+      }
+     },
+     {
+      "chunk_id": "u1",
+      "domain": "usage",
+      "sequence": 1,
+      "status": "ready",
+      "payload": {
+       "rows": [
+        1,
+        2.5,
+        1e+21,
+        0,
+        null,
+        true,
+        "a: b"
+       ]
+      }
+     },
+     {
+      "chunk_id": "p1",
+      "domain": "profile_account_settings",
+      "sequence": 1,
+      "status": "ready",
+      "payload": "plain string"
+     },
+     {
+      "chunk_id": "p2",
+      "domain": "referenced_uploads",
+      "sequence": 1,
+      "status": "ready",
+      "payload": null
+     },
+     {
+      "chunk_id": "n1",
+      "domain": "Ünï/dom ain",
+      "sequence": 3,
+      "status": "ready",
+      "payload": 0
+     },
+     {
+      "chunk_id": "n2",
+      "domain": "5",
+      "sequence": 4,
+      "status": "ready",
+      "payload": {
+       "1": "a",
+       "2": "b",
+       "z": "z",
+       "chunk_id": "override"
+      }
+     },
+     {
+      "chunk_id": "n3",
+      "domain": null,
+      "sequence": 5,
+      "status": "ready",
+      "payload": [
+       1,
+       2
+      ]
+     }
+    ],
+    "exportedAt": "2026-11-06T12:00:00.000Z"
+   },
+   "out": {
+    "kind": "ok",
+    "entries": [
+     {
+      "path": "README.md",
+      "content": "# OpenMates Account Export\n\nExport ID: exp-1\nStatus: complete\nSchema: account-export-v1\nExported at: 2026-11-06T12:00:00.000Z\n\n## Contents\n\n- `manifest.yml` records selected domains, filters, and domain status.\n- `export-report.yml` summarizes completion, failures, and redacted categories.\n- `domains/` contains one JSON file per exported domain.\n- `chats/` contains one Markdown and one YAML file per chat when chat rows include readable content.\n\n## Selected Domains\n\n- chats\n- usage\n\nReusable credentials, token hashes, private keys, and raw secrets are intentionally excluded.\n"
+     },
+     {
+      "path": "manifest.yml",
+      "content": "schema_version: account-export-v1\nselected_domains:\n- chats\n- usage\nfilters:\nreport:\n  status: complete\n  failures:\n  redactions:\n  - api_credentials\n  - authentication_tokens\n  - key_material\n  - password_and_recovery_hashes\n  - webhook_secrets\n  partial_requires_acceptance: false\n"
+     },
+     {
+      "path": "manifest.json",
+      "content": "{\n  \"schema_version\": \"account-export-v1\",\n  \"selected_domains\": [\n    \"chats\",\n    \"usage\"\n  ],\n  \"filters\": {},\n  \"report\": {\n    \"status\": \"complete\",\n    \"failures\": [],\n    \"redactions\": [\n      \"api_credentials\",\n      \"authentication_tokens\",\n      \"key_material\",\n      \"password_and_recovery_hashes\",\n      \"webhook_secrets\"\n    ],\n    \"partial_requires_acceptance\": false\n  }\n}\n"
+     },
+     {
+      "path": "export-report.yml",
+      "content": "export_id: exp-1\nstatus: complete\nselected_domains:\n- chats\n- usage\nfailures:\nredacted_secret_categories:\n- api_credentials\n- authentication_tokens\n- key_material\n- password_and_recovery_hashes\n- webhook_secrets\npartial_requires_acceptance: false\n"
+     },
+     {
+      "path": "domains/5.json",
+      "content": "{\n  \"1\": \"a\",\n  \"2\": \"b\",\n  \"chunk_id\": \"override\",\n  \"sequence\": 4,\n  \"status\": \"ready\",\n  \"z\": \"z\"\n}\n"
+     },
+     {
+      "path": "domains/chats.json",
+      "content": "{\n  \"chunks\": [\n    {\n      \"chunk_id\": \"c1\",\n      \"sequence\": 1,\n      \"status\": \"ready\",\n      \"items\": [\n        {\n          \"id\": \"chat-1\",\n          \"title\": \"First: chat\",\n          \"summary\": \"  A summary  \",\n          \"messages\": [\n            {\n              \"role\": \"user\",\n              \"content\": \"Hello\"\n            },\n            {\n              \"sender\": \"bot\",\n              \"text\": \"Hi\\nthere\"\n            },\n            \"skipped\",\n            null,\n            [\n              \"x\"\n            ]\n          ]\n        },\n        {\n          \"chat_id\": \"chat/2\",\n          \"name\": \"Named\",\n          \"messages\": []\n        },\n        {\n          \"title\": \"No id\",\n          \"messages\": \"not an array\"\n        },\n        \"not a chat\"\n      ]\n    },\n    {\n      \"chunk_id\": \"c2\",\n      \"sequence\": 2,\n      \"status\": \"ready\",\n      \"items\": [\n        {\n          \"id\": \" weird id! \",\n          \"messages\": [\n            {\n              \"content\": 7\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}\n"
+     },
+     {
+      "path": "domains/usage.json",
+      "content": "{\n  \"chunk_id\": \"u1\",\n  \"sequence\": 1,\n  \"status\": \"ready\",\n  \"rows\": [\n    1,\n    2.5,\n    1e+21,\n    0,\n    null,\n    true,\n    \"a: b\"\n  ]\n}\n"
+     },
+     {
+      "path": "domains/profile_account_settings.json",
+      "content": "{\n  \"chunk_id\": \"p1\",\n  \"sequence\": 1,\n  \"status\": \"ready\",\n  \"value\": \"plain string\"\n}\n"
+     },
+     {
+      "path": "domains/referenced_uploads.json",
+      "content": "{\n  \"chunk_id\": \"p2\",\n  \"sequence\": 1,\n  \"status\": \"ready\",\n  \"value\": null\n}\n"
+     },
+     {
+      "path": "domains/n-dom-ain.json",
+      "content": "{\n  \"chunk_id\": \"n1\",\n  \"sequence\": 3,\n  \"status\": \"ready\",\n  \"value\": 0\n}\n"
+     },
+     {
+      "path": "domains/unknown.json",
+      "content": "{\n  \"chunk_id\": \"n3\",\n  \"sequence\": 5,\n  \"status\": \"ready\",\n  \"value\": [\n    1,\n    2\n  ]\n}\n"
+     },
+     {
+      "path": "chats/chat-1.yml",
+      "content": "chat:\n  id: chat-1\n  title: \"First: chat\"\n  summary:   A summary  \n  messages:\n  - \n      role: user\n      content: Hello\n  - \n      sender: bot\n      text: |\n        Hi\n        there\n  - skipped\n  - null\n  - x\nmessages:\n- \n    role: user\n    content: Hello\n- \n    sender: bot\n    text: |\n      Hi\n      there\n- skipped\n- null\n- x\n"
+     },
+     {
+      "path": "chats/chat-1.md",
+      "content": "# First: chat\n\n## Summary\n\nA summary\n\n## Messages\n\n### user\n\nHello\n\n### bot\n\nHi\nthere\n\n"
+     },
+     {
+      "path": "chats/chat-2.yml",
+      "content": "chat:\n  chat_id: chat/2\n  name: Named\n  messages:\nmessages:\n"
+     },
+     {
+      "path": "chats/chat-2.md",
+      "content": "# Named\n\nNo readable message records were included in this export chunk.\n\n"
+     },
+     {
+      "path": "chats/chat-3.yml",
+      "content": "chat:\n  title: No id\n  messages: not an array\nmessages:\n"
+     },
+     {
+      "path": "chats/chat-3.md",
+      "content": "# No id\n\nNo readable message records were included in this export chunk.\n\n"
+     },
+     {
+      "path": "chats/weird-id.yml",
+      "content": "chat:\n  id:  weird id! \n  messages:\n  - \n      content: 7\nmessages:\n- \n    content: 7\n"
+     },
+     {
+      "path": "chats/weird-id.md",
+      "content": "#  weird id! \n\n## Messages\n\n### message\n\n7\n\n"
+     }
+    ]
+   }
+  },
+  {
+   "name": "yaml-quirks-in-manifest",
+   "request": {
+    "export": {
+     "export_id": 7,
+     "status": null
+    },
+    "manifest": {
+     "schema_version": 3,
+     "selected_domains": [
+      "a",
+      1,
+      null,
+      [
+       "x",
+       "y"
+      ],
+      {
+       "k": "v"
+      }
+     ],
+     "filters": {},
+     "report": {
+      "status": "partial",
+      "failures": [
+       {
+        "domain": "chats",
+        "reason": "x"
+       }
+      ],
+      "redactions": [
+       "whatever"
+      ],
+      "partial_requires_acceptance": 1
+     },
+     "text": "multi\nline: text",
+     "empty": "",
+     "flag": "true",
+     "braces": "{a}",
+     "hash": "a#b",
+     "brackets": "[a]",
+     "quote": "say \"hi\" \\ now",
+     "nested": {
+      "list": [
+       {
+        "a": 1,
+        "b": {
+         "c": [
+          1,
+          [
+           2,
+           3
+          ],
+          "q: r",
+          ""
+         ]
+        }
+       },
+       "x"
+      ],
+      "none": null,
+      "k:ey": false
+     },
+     "numbers": {
+      "2": "two",
+      "10": "ten",
+      "big": 12345678901234567000,
+      "small": 1.5e-9,
+      "neg": -3
+     }
+    },
+    "chunks": [],
+    "exportedAt": "2026-11-06T12:00:00.000Z"
+   },
+   "out": {
+    "kind": "ok",
+    "entries": [
+     {
+      "path": "README.md",
+      "content": "# OpenMates Account Export\n\nExport ID: 7\nStatus: unknown\nSchema: 3\nExported at: 2026-11-06T12:00:00.000Z\n\n## Contents\n\n- `manifest.yml` records selected domains, filters, and domain status.\n- `export-report.yml` summarizes completion, failures, and redacted categories.\n- `domains/` contains one JSON file per exported domain.\n- `chats/` contains one Markdown and one YAML file per chat when chat rows include readable content.\n\n## Selected Domains\n\n- a\n- 1\n- null\n- x,y\n- [object Object]\n\nReusable credentials, token hashes, private keys, and raw secrets are intentionally excluded.\n"
+     },
+     {
+      "path": "manifest.yml",
+      "content": "schema_version: 3\nselected_domains:\n- a\n- 1\n- null\n- x,y\n- \n    k: v\nfilters:\nreport:\n  status: partial\n  failures:\n  - \n      domain: chats\n      reason: x\n  redactions:\n  - api_credentials\n  - authentication_tokens\n  - key_material\n  - password_and_recovery_hashes\n  - webhook_secrets\n  partial_requires_acceptance: 1\ntext: |\n  multi\n  line: text\nempty: \"\"\nflag: \"true\"\nbraces: \"{a}\"\nhash: \"a#b\"\nbrackets: \"[a]\"\nquote: say \"hi\" \\ now\nnested:\n  list:\n  - \n      a: 1\n      b:\n        c:\n        - 1\n        - 2,3\n        - \"q: r\"\n        - \"\"\n  - x\n  none: null\n  k:ey: false\nnumbers:\n  2: two\n  10: ten\n  big: 12345678901234567000\n  small: 1.5e-9\n  neg: -3\n"
+     },
+     {
+      "path": "manifest.json",
+      "content": "{\n  \"schema_version\": 3,\n  \"selected_domains\": [\n    \"a\",\n    1,\n    null,\n    [\n      \"x\",\n      \"y\"\n    ],\n    {\n      \"k\": \"v\"\n    }\n  ],\n  \"filters\": {},\n  \"report\": {\n    \"status\": \"partial\",\n    \"failures\": [\n      {\n        \"domain\": \"chats\",\n        \"reason\": \"x\"\n      }\n    ],\n    \"redactions\": [\n      \"api_credentials\",\n      \"authentication_tokens\",\n      \"key_material\",\n      \"password_and_recovery_hashes\",\n      \"webhook_secrets\"\n    ],\n    \"partial_requires_acceptance\": 1\n  },\n  \"text\": \"multi\\nline: text\",\n  \"empty\": \"\",\n  \"flag\": \"true\",\n  \"braces\": \"{a}\",\n  \"hash\": \"a#b\",\n  \"brackets\": \"[a]\",\n  \"quote\": \"say \\\"hi\\\" \\\\ now\",\n  \"nested\": {\n    \"list\": [\n      {\n        \"a\": 1,\n        \"b\": {\n          \"c\": [\n            1,\n            [\n              2,\n              3\n            ],\n            \"q: r\",\n            \"\"\n          ]\n        }\n      },\n      \"x\"\n    ],\n    \"none\": null,\n    \"k:ey\": false\n  },\n  \"numbers\": {\n    \"2\": \"two\",\n    \"10\": \"ten\",\n    \"big\": 12345678901234567000,\n    \"small\": 1.5e-9,\n    \"neg\": -3\n  }\n}\n"
+     },
+     {
+      "path": "export-report.yml",
+      "content": "export_id: 7\nstatus: partial\nselected_domains:\n- a\n- 1\n- null\n- x,y\n- \n    k: v\nfailures:\n- \n    domain: chats\n    reason: x\nredacted_secret_categories:\n- api_credentials\n- authentication_tokens\n- key_material\n- password_and_recovery_hashes\n- webhook_secrets\npartial_requires_acceptance: true\n"
+     }
+    ]
+   }
+  },
+  {
+   "name": "report-defaults",
+   "request": {
+    "export": {
+     "export_id": null,
+     "status": null
+    },
+    "manifest": {
+     "selected_domains": "not-array",
+     "report": [
+      "array"
+     ]
+    },
+    "chunks": [
+     {
+      "chunk_id": null,
+      "domain": null,
+      "sequence": null,
+      "status": null,
+      "payload": null
+     },
+     {
+      "chunk_id": null,
+      "domain": "chats",
+      "sequence": null,
+      "status": null,
+      "payload": {
+       "items": "no"
+      }
+     }
+    ],
+    "exportedAt": "2026-11-06T12:00:00.000Z"
+   },
+   "out": {
+    "kind": "ok",
+    "entries": [
+     {
+      "path": "README.md",
+      "content": "# OpenMates Account Export\n\nExport ID: unknown\nStatus: unknown\nSchema: account-export-v1\nExported at: 2026-11-06T12:00:00.000Z\n\n## Contents\n\n- `manifest.yml` records selected domains, filters, and domain status.\n- `export-report.yml` summarizes completion, failures, and redacted categories.\n- `domains/` contains one JSON file per exported domain.\n- `chats/` contains one Markdown and one YAML file per chat when chat rows include readable content.\n\n## Selected Domains\n\n- none\n\nReusable credentials, token hashes, private keys, and raw secrets are intentionally excluded.\n"
+     },
+     {
+      "path": "manifest.yml",
+      "content": "selected_domains: not-array\nreport:\n- array\n"
+     },
+     {
+      "path": "manifest.json",
+      "content": "{\n  \"selected_domains\": \"not-array\",\n  \"report\": [\n    \"array\"\n  ]\n}\n"
+     },
+     {
+      "path": "export-report.yml",
+      "content": "export_id: null\nstatus: unknown\nselected_domains:\nfailures:\nredacted_secret_categories:\n- api_credentials\n- authentication_tokens\n- key_material\n- password_and_recovery_hashes\n- webhook_secrets\npartial_requires_acceptance: false\n"
+     },
+     {
+      "path": "domains/unknown.json",
+      "content": "{\n  \"chunk_id\": null,\n  \"sequence\": null,\n  \"status\": null,\n  \"value\": null\n}\n"
+     },
+     {
+      "path": "domains/chats.json",
+      "content": "{\n  \"chunk_id\": null,\n  \"sequence\": null,\n  \"status\": null,\n  \"items\": \"no\"\n}\n"
+     }
+    ]
+   }
+  },
+  {
+   "name": "secret-field-in-manifest",
+   "request": {
+    "export": {
+     "export_id": "e",
+     "status": "complete"
+    },
+    "manifest": {
+     "schema_version": "account-export-v1",
+     "selected_domains": [
+      "chats",
+      "usage"
+     ],
+     "filters": {},
+     "report": {
+      "status": "complete",
+      "failures": [],
+      "redactions": [
+       "x"
+      ],
+      "partial_requires_acceptance": false
+     },
+     "nested": [
+      {
+       "API_KEY": "x"
+      }
+     ]
+    },
+    "chunks": [],
+    "exportedAt": "2026-11-06T12:00:00.000Z"
+   },
+   "out": {
+    "kind": "error",
+    "message": "Account export contains forbidden secret field 'API_KEY' at $manifest.nested[0]"
+   }
+  },
+  {
+   "name": "secret-value-in-manifest",
+   "request": {
+    "export": {
+     "export_id": "e",
+     "status": "complete"
+    },
+    "manifest": {
+     "schema_version": "account-export-v1",
+     "selected_domains": [
+      "chats",
+      "usage"
+     ],
+     "filters": {},
+     "report": {
+      "status": "complete",
+      "failures": [],
+      "redactions": [
+       "x"
+      ],
+      "partial_requires_acceptance": false
+     },
+     "note": "use sk-proj-abcdef123 now"
+    },
+    "chunks": [],
+    "exportedAt": "2026-11-06T12:00:00.000Z"
+   },
+   "out": {
+    "kind": "error",
+    "message": "Account export contains forbidden secret-like value at $manifest.note"
+   }
+  },
+  {
+   "name": "secret-field-in-chat-text",
+   "request": {
+    "export": {
+     "export_id": "e",
+     "status": "complete"
+    },
+    "manifest": {
+     "schema_version": "account-export-v1",
+     "selected_domains": [
+      "chats",
+      "usage"
+     ],
+     "filters": {},
+     "report": {
+      "status": "complete",
+      "failures": [],
+      "redactions": [
+       "x"
+      ],
+      "partial_requires_acceptance": false
+     }
+    },
+    "chunks": [
+     {
+      "chunk_id": "c",
+      "domain": "chats",
+      "sequence": 1,
+      "status": "ready",
+      "payload": {
+       "items": [
+        {
+         "id": "x",
+         "messages": [
+          {
+           "role": "user",
+           "content": "my password_hash : abc"
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ],
+    "exportedAt": "2026-11-06T12:00:00.000Z"
+   },
+   "out": {
+    "kind": "error",
+    "message": "Account export file domains/chats.json contains forbidden secret field 'password_hash'"
+   }
+  },
+  {
+   "name": "secret-patterns-edge",
+   "request": {
+    "export": {
+     "export_id": "e",
+     "status": "complete"
+    },
+    "manifest": {
+     "schema_version": "account-export-v1",
+     "selected_domains": [
+      "chats",
+      "usage"
+     ],
+     "filters": {},
+     "report": {
+      "status": "complete",
+      "failures": [],
+      "redactions": [
+       "x"
+      ],
+      "partial_requires_acceptance": false
+     }
+    },
+    "chunks": [
+     {
+      "chunk_id": "a",
+      "domain": "safe",
+      "sequence": 1,
+      "status": "ready",
+      "payload": {
+       "a": "task-api-secretvalue",
+       "b": "sk-api-short",
+       "c": "x#key=short",
+       "d": "no_api_key_here",
+       "e": "myapi_key: ",
+       "f": "-----BEGIN PUBLIC KEY-----",
+       "g": "masterkey:"
+      }
+     }
+    ],
+    "exportedAt": "2026-11-06T12:00:00.000Z"
+   },
+   "out": {
+    "kind": "error",
+    "message": "Account export file domains/safe.json contains forbidden secret-like content"
+   }
+  },
+  {
+   "name": "private-key-block-in-chunk",
+   "request": {
+    "export": {
+     "export_id": "e",
+     "status": "complete"
+    },
+    "manifest": {
+     "schema_version": "account-export-v1",
+     "selected_domains": [
+      "chats",
+      "usage"
+     ],
+     "filters": {},
+     "report": {
+      "status": "complete",
+      "failures": [],
+      "redactions": [
+       "x"
+      ],
+      "partial_requires_acceptance": false
+     }
+    },
+    "chunks": [
+     {
+      "chunk_id": "a",
+      "domain": "x",
+      "sequence": 1,
+      "status": "ready",
+      "payload": {
+       "pem": "-----BEGIN RSA PRIVATE KEY-----\nabc"
+      }
+     }
+    ],
+    "exportedAt": "2026-11-06T12:00:00.000Z"
+   },
+   "out": {
+    "kind": "error",
+    "message": "Account export file domains/x.json contains forbidden secret-like content"
+   }
+  },
+  {
+   "name": "share-fragment-and-quoted-field",
+   "request": {
+    "export": {
+     "export_id": "e",
+     "status": "complete"
+    },
+    "manifest": {
+     "schema_version": "account-export-v1",
+     "selected_domains": [
+      "chats",
+      "usage"
+     ],
+     "filters": {},
+     "report": {
+      "status": "complete",
+      "failures": [],
+      "redactions": [
+       "x"
+      ],
+      "partial_requires_acceptance": false
+     }
+    },
+    "chunks": [
+     {
+      "chunk_id": "a",
+      "domain": "x",
+      "sequence": 1,
+      "status": "ready",
+      "payload": {
+       "link": "https://x/#key=ABCDEFGH12"
+      }
+     }
+    ],
+    "exportedAt": "2026-11-06T12:00:00.000Z"
+   },
+   "out": {
+    "kind": "error",
+    "message": "Account export file domains/x.json contains forbidden secret-like content"
+   }
+  },
+  {
+   "name": "quoted-field-spacing",
+   "request": {
+    "export": {
+     "export_id": "e",
+     "status": "complete"
+    },
+    "manifest": {
+     "schema_version": "account-export-v1",
+     "selected_domains": [
+      "chats",
+      "usage"
+     ],
+     "filters": {},
+     "report": {
+      "status": "complete",
+      "failures": [],
+      "redactions": [
+       "x"
+      ],
+      "partial_requires_acceptance": false
+     }
+    },
+    "chunks": [
+     {
+      "chunk_id": "a",
+      "domain": "x",
+      "sequence": 1,
+      "status": "ready",
+      "payload": {
+       "text": "see 'Token_Hash'  : value"
+      }
+     }
+    ],
+    "exportedAt": "2026-11-06T12:00:00.000Z"
+   },
+   "out": {
+    "kind": "error",
+    "message": "Account export file domains/x.json contains forbidden secret field 'token_hash'"
+   }
+  }
+ ]
+}

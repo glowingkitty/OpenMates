@@ -112,20 +112,6 @@ const VALID_ALL_APPS_FILTERS = new Set([
 const MEMORY_SEGMENT = "memories";
 const INTERNAL_MEMORY_SEGMENT = "settings_memories";
 
-type SettingsMemoryCategory = {
-  id: string;
-  schema?: {
-    properties?: Record<string, unknown>;
-  };
-  schema_definition?: {
-    properties?: Record<string, unknown>;
-  };
-};
-
-type SettingsAppMetadata = {
-  settings_and_memories?: SettingsMemoryCategory[];
-};
-
 function stripHashPrefix(href: string): string | null {
   if (!href) return null;
 
@@ -206,7 +192,7 @@ export function isRenderableInternalHref(href: string): boolean {
   const settingsPath = normalizeSettingsDeepLinkPath(href);
   if (settingsPath === null) return false;
 
-  return isExistingSettingsPath(settingsPath) && hasValidPrefillFields(href, settingsPath);
+  return isExistingSettingsPath(settingsPath) && hasValidPrefillFields(href);
 }
 
 export function buildMessagePrefillHref(text: string): string {
@@ -219,7 +205,7 @@ export function getRenderableInternalHref(href: string, fallbackText = ""): stri
   if (href.includes("#message=")) return href.startsWith("/#") ? href.substring(1) : href;
 
   const settingsPath = normalizeSettingsDeepLinkPath(href);
-  if (settingsPath === null || !isExistingSettingsPath(settingsPath) || !hasValidPrefillFields(href, settingsPath)) {
+  if (settingsPath === null || !isExistingSettingsPath(settingsPath) || !hasValidPrefillFields(href)) {
     return fallbackText.trim() ? buildMessagePrefillHref(fallbackText) : null;
   }
 
@@ -272,17 +258,6 @@ export function isExistingSettingsPath(path: string): boolean {
     return Boolean(app.focus_modes?.some((focusMode) => focusMode.id === parts[1]));
   }
 
-  if (parts[0] === "settings_memories" && parts[1]) {
-    const category = app.settings_and_memories?.find(
-      (candidate) => candidate.id === parts[1],
-    );
-    if (!category) return false;
-    if (parts.length === 2) return true;
-    if (parts.length === 3 && parts[2] === "create") return true;
-    if (parts.length === 4 && parts[2] === "entry") return true;
-    if (parts.length === 5 && parts[2] === "entry" && parts[4] === "edit") return true;
-  }
-
   return false;
 }
 
@@ -311,20 +286,10 @@ function buildPublicSettingsPath(rawAfterSettings: string, path: string): string
   return path.replace(/(^|\/)settings_memories(?=\/|$)/g, `$1${MEMORY_SEGMENT}`);
 }
 
-function hasValidPrefillFields(href: string, path: string): boolean {
-  const prefill = parsePrefill(href);
-  if (prefill === null) return !hasPrefillParameter(href);
-
-  const route = parseSettingsMemoryRoute(path);
-  if (!route) return false;
-
-  const category = route.app.settings_and_memories?.find(
-    (candidate) => candidate.id === route.categoryId,
-  );
-  const schemaProperties = category?.schema?.properties ?? category?.schema_definition?.properties;
-  if (!schemaProperties || typeof schemaProperties !== "object") return true;
-
-  return Object.keys(prefill).every((key) => Object.prototype.hasOwnProperty.call(schemaProperties, key));
+// No settings route accepts a prefill payload (typed memory create routes were removed),
+// so any prefill parameter makes the link invalid.
+function hasValidPrefillFields(href: string): boolean {
+  return !hasPrefillParameter(href);
 }
 
 function hasPrefillParameter(href: string): boolean {
@@ -333,29 +298,6 @@ function hasPrefillParameter(href: string): boolean {
   const queryIdx = href.indexOf("?", hashIndex);
   if (queryIdx < 0) return false;
   return href.substring(queryIdx + 1).includes("prefill=");
-}
-
-function parseSettingsMemoryRoute(path: string): { app: SettingsAppMetadata; categoryId: string } | null {
-  const match = path.match(/^apps\/([^/]+)\/settings_memories\/([^/]+)\/(?:create|entry\/[^/]+\/edit)$/);
-  if (!match) return null;
-  const app = appSkillsStore.getState().apps[match[1]];
-  if (!app) return null;
-  return { app, categoryId: match[2] };
-}
-
-function parsePrefill(href: string): Record<string, unknown> | null {
-  const hashIndex = href.indexOf("#settings");
-  if (hashIndex < 0) return null;
-  const queryIdx = href.indexOf("?", hashIndex);
-  if (queryIdx < 0) return null;
-  const encoded = extractEncodedPrefill(href.substring(queryIdx + 1));
-  if (!encoded) return null;
-  try {
-    const parsed = JSON.parse(decodeURIComponent(encoded));
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
 }
 
 function extractEncodedPrefill(queryString: string): string | null {

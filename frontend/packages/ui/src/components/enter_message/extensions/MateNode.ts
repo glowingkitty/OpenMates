@@ -13,6 +13,8 @@ declare module "@tiptap/core" {
         id: string;
         colorStart?: string;
         colorEnd?: string;
+        /** Inserted by the app ("chat with this mate"), not typed by the user. */
+        autoInserted?: boolean;
       }) => ReturnType;
     };
   }
@@ -47,6 +49,12 @@ export const MateNode = Node.create<MateNodeOptions>({
       },
       colorEnd: {
         default: null,
+      },
+      // Editor-only marker: a mention the app inserted on its own is not draft
+      // content (inspectDraftContent). Never rendered, serialized or sent.
+      autoInserted: {
+        default: false,
+        rendered: false,
       },
     };
   },

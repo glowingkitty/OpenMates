@@ -135,6 +135,16 @@ embed_diffs:
       type: integer
       note: "Unix timestamp (seconds) when this version was created."
 
+    revision_origin:
+      type: string
+      nullable: true
+      note: "Plaintext, non-content: who made this version, assistant or user. Null means assistant (every version written before user revision commits). Set only by the user revision commit."
+
+    revision_action:
+      type: string
+      nullable: true
+      note: "Plaintext, non-content: what the user did for a user-made version: edit, enhance, restore or crop. Null for assistant versions."
+
   # Compound index for efficient timeline queries
   indexes:
     - fields: [embed_id, version_number]

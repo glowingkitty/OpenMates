@@ -341,6 +341,11 @@ def build_report(root: Path, day: date, now: datetime | None = None) -> dict:
         "admitted_specs": len(admitted_specs),
         "held_specs": len(manifest.get("held_specs", [])) if manifest else None,
         "job_count": len(jobs), "job_states": dict(job_states), "job_modes": dict(modes),
+        # Build mode of the browser jobs: Rust client core on (default) or legacy flag-off.
+        "web_build": {
+            "rust_core_on": sum(1 for job in jobs if job["mode"] in ("e2e", "component") and job.get("web_rust_core")),
+            "rust_core_off": sum(1 for job in jobs if job["mode"] in ("e2e", "component") and not job.get("web_rust_core")),
+        },
         "failed_case_count": len(failed_cases), "failed_case_files": files.most_common(12),
         "case_counts": case_counts,
         "known_total_tests": sum(item["total"] for item in case_counts),
@@ -620,6 +625,18 @@ def send_dispatch_alert(root: Path, report: dict) -> dict:
         return result
 
 
+SCHEDULED_WEEKDAYS = frozenset(range(5))  # Mon-Fri; matches test_schedule_setup.py cron.
+
+
+def is_unscheduled_quiet_day(day: date, report: dict) -> bool:
+    """True for a non-run day on which nothing was dispatched (no digest owed)."""
+    return (
+        day.weekday() not in SCHEDULED_WEEKDAYS
+        and not report["manifest_present"]
+        and report["job_count"] == 0
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=canonical_root())
@@ -631,6 +648,10 @@ def main() -> int:
     if args.send:
         reconcile_receipts(args.root, args.date)
     report = build_report(args.root, args.date)
+    if is_unscheduled_quiet_day(args.date, report):
+        # Weekend days have no nightly run; do not mail an empty "blocked" digest.
+        print(json.dumps({"date": report["date"], "status": "not_scheduled"}))
+        return 0
     if args.alert:
         result = send_dispatch_alert(args.root, report)
         print(json.dumps(result))

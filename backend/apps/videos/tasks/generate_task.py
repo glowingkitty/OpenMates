@@ -1,11 +1,13 @@
 # backend/apps/videos/tasks/generate_task.py
 #
-# Celery task for AI video generation. Generated MP4 files are encrypted before
-# S3 storage, indexed for account storage, and exposed to REST callers through
-# short-lived server-side decrypted download URLs.
+# Celery task for AI video generation. A generative clip is made by Gemini Omni
+# (gemini-omni-1.2-flash; a given picture is its first frame) or, when named, by
+# H3 on fal. The MP4 and its first-frame thumbnail are encrypted with one key
+# before S3 storage (video_storage), indexed for account storage, and exposed to
+# REST callers through short-lived server-side decrypted download URLs. In a
+# chat the clip is also kept for later changes (video_kept).
 
 import asyncio
-import base64
 import hashlib
 import logging
 import math
@@ -18,12 +20,16 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 import httpx
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
-from backend.shared.providers.google.gemini_video import generate_video_google_veo
+from backend.apps.videos.tasks.generate_billing import (
+    omni_clip_credits,
+    omni_clip_pricing,
+    video_second_pricing,
+)
+from backend.shared.providers.google.omni_video import OMNI_MODEL, generate_omni_video
 from backend.shared.providers.fal import h3_turbo
 from backend.shared.python_utils.encrypted_embed_images import _load_embed_record, resolve_encrypted_image_embed
 from backend.shared.python_utils.fresh_upload_images import FreshUploadImageUnavailable, recover_fresh_upload_image
@@ -32,12 +38,7 @@ from backend.shared.python_utils.billing_utils import (
     calculate_total_credits,
     ensure_credit_headroom,
 )
-from backend.shared.python_utils.generated_assets import (
-    build_download_url,
-    cache_s3_file_keys,
-    create_download_token,
-    index_generated_asset,
-)
+from backend.shared.python_utils.generated_assets import build_download_url, create_download_token
 from backend.shared.python_utils.media_generation_safety import (
     MediaGenerationSafetyRejection,
     validate_media_generation_request,
@@ -50,15 +51,8 @@ logger = logging.getLogger(__name__)
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 PUBLIC_API_BASE_URL = os.getenv("PUBLIC_API_BASE_URL", "https://api.dev.openmates.org")
-USD_PER_CREDIT = 0.001
-GENERATED_MEDIA_COST_MARKUP = 1.5
-VEO_PRICE_USD_PER_SECOND_BY_MODEL_AND_RESOLUTION = {
-    # Official Gemini API pricing, verified 2026-05-22:
-    # https://ai.google.dev/gemini-api/docs/pricing
-    "veo-3.1-generate-preview": {"720p": 0.40, "1080p": 0.40, "4k": 0.60},
-    "veo-3.1-fast-generate-preview": {"720p": 0.10, "1080p": 0.12, "4k": 0.30},
-    "veo-3.1-lite-generate-preview": {"720p": 0.05, "1080p": 0.08},
-}
+OMNI_DEFAULT_SECONDS = 8
+OMNI_DEFAULT_RESOLUTION = "720p"
 
 
 H3_PROMOTION_END = datetime(2026, 11, 1, tzinfo=timezone.utc)
@@ -73,18 +67,31 @@ class GeneratedH3Video:
     resolution: str = "480p"
 
 
+@dataclass(frozen=True)
+class GeneratedOmniVideo:
+    """A Gemini Omni clip with its measured length and the format it was asked for."""
+
+    video_bytes: bytes
+    duration_seconds: float
+    aspect_ratio: str
+    resolution: str
+    width: int
+    height: int
+    mime_type: str = "video/mp4"
+
+
 def _get_h3_duration_pricing(now: Optional[datetime] = None) -> tuple[float, dict]:
     # Official fal model page, verified 2026-10-19; promotion ends October 31.
     # https://fal.ai/models/minimax/h3-max-turbo/image-to-video
     price = 0.01625 if (now or datetime.now(timezone.utc)) < H3_PROMOTION_END else 0.025
-    return price, {"per_second": {"credits": price * GENERATED_MEDIA_COST_MARKUP / USD_PER_CREDIT, "unit_name": "video_second"}}
+    return price, video_second_pricing(price)
 
 
 def _h3_duration(value: Any) -> float:
     return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and 0 < value < 30 else 5.0
 
 
-async def _resolve_h3_source(task: Any, *, embed_id: str, user_id: str) -> Any:
+async def _resolve_first_frame(task: Any, *, embed_id: str, user_id: str) -> Any:
     """Authorize source ownership before reading/decrypting its image in memory."""
     async def request_internal(method: str, path: str, payload: dict) -> dict:
         headers = {"X-Internal-Service-Token": INTERNAL_API_SHARED_TOKEN or ""}
@@ -125,7 +132,7 @@ async def _resolve_h3_source(task: Any, *, embed_id: str, user_id: str) -> Any:
 
 
 async def _generate_h3_video(task: Any, *, prompt: str, user_id: str, embed_id: str, source_ids: list[str], seed: Any) -> GeneratedH3Video:
-    source = await _resolve_h3_source(task, embed_id=source_ids[0], user_id=user_id) if source_ids else None
+    source = await _resolve_first_frame(task, embed_id=source_ids[0], user_id=user_id) if source_ids else None
     aspect_ratio = "16:9"
     if source:
         from PIL import Image
@@ -157,31 +164,68 @@ async def _generate_h3_video(task: Any, *, prompt: str, user_id: str, embed_id: 
     return GeneratedH3Video(clip.data, _h3_duration(clip.measured_duration or clip.reported_duration), aspect_ratio)
 
 
+async def _generate_omni_video(task: Any, *, prompt: str, user_id: str, source_ids: list[str], aspect_ratio: str,
+                               duration_seconds: int, resolution: str) -> GeneratedOmniVideo:
+    """One Gemini Omni clip; a given picture is its first frame."""
+    source = await _resolve_first_frame(task, embed_id=source_ids[0], user_id=user_id) if source_ids else None
+    clip = await generate_omni_video(
+        prompt, duration_seconds=duration_seconds, aspect_ratio=aspect_ratio, resolution=resolution,
+        first_frame=source.content if source else None,
+        first_frame_mime=source.mime_type if source else "image/jpeg", secrets_manager=task._secrets_manager,
+    )
+    return GeneratedOmniVideo(clip.mp4, clip.duration_seconds, aspect_ratio, resolution, clip.width, clip.height)
+
+
+async def _first_frame_thumbnail(mp4: bytes) -> bytes:
+    """First frame of the clip as JPEG, stored as the result's thumbnail."""
+    from backend.shared.python_utils.video_frames import extract_frame
+
+    return await extract_frame(mp4, position="first")
+
+
+def _generative_result_fields(arguments: Dict[str, Any], generated: Any, prompt: str) -> Dict[str, Any]:
+    """Fields every videos.generate result carries (generate_result); a clip is one part of one track."""
+    from backend.apps.videos.tasks.generate_result import (
+        MADE_BY_GENERATIVE,
+        TIMELINE_FPS,
+        extension_flags,
+        frame_size,
+        one_clip_timeline,
+    )
+
+    width, height = (generated.width, generated.height) if isinstance(generated, GeneratedOmniVideo) \
+        else frame_size(generated.resolution, generated.aspect_ratio)
+    return {
+        "made_by": MADE_BY_GENERATIVE,
+        "routing_decided_by": str(arguments.get("routing_decided_by") or "request_mode"),
+        "version": 1,
+        "timeline": one_clip_timeline(duration_seconds=generated.duration_seconds, width=width, height=height,
+                                      label=prompt),
+        "fps": TIMELINE_FPS,
+        "width": width,
+        "height": height,
+        "source_titles": [],
+        **extension_flags(made_by=MADE_BY_GENERATIVE, duration_seconds=generated.duration_seconds,
+                          has_clips=isinstance(generated, GeneratedOmniVideo)),
+    }
+
+
 def _hash_value(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def _get_veo_duration_pricing(model_id: str, resolution: str) -> tuple[float, dict[str, dict[str, float | str]]]:
-    """Return official Veo per-second cost and per-second credit config."""
-    price_usd_per_second = VEO_PRICE_USD_PER_SECOND_BY_MODEL_AND_RESOLUTION.get(model_id, {}).get(resolution)
-    if price_usd_per_second is None:
-        price_usd_per_second = VEO_PRICE_USD_PER_SECOND_BY_MODEL_AND_RESOLUTION["veo-3.1-generate-preview"]["720p"]
-    credits_per_second = (price_usd_per_second * GENERATED_MEDIA_COST_MARKUP) / USD_PER_CREDIT
-    return price_usd_per_second, {"per_second": {"credits": credits_per_second, "unit_name": "video_second"}}
+def _omni_duration(value: Any) -> int:
+    """Requested Omni length: whole seconds 3-15, default 8 (the request contract already rejected others)."""
+    duration = int(value or OMNI_DEFAULT_SECONDS)
+    if not 3 <= duration <= 15:
+        raise ValueError("A Gemini Omni clip lasts 3 to 15 seconds")
+    return duration
 
 
-def _normalize_veo_duration_seconds(duration_seconds: Any) -> int:
-    duration = max(4, min(int(duration_seconds or 8), 8))
-    return duration if duration in {4, 6, 8} else 8
-
-
-def _normalize_veo_resolution(resolution: Any) -> str:
-    return resolution if resolution in {"720p", "1080p", "4k"} else "720p"
-
-
-def _estimate_veo_generation_credits(model_id: str, resolution: str, duration_seconds: int) -> int:
-    _, pricing_config = _get_veo_duration_pricing(model_id, resolution)
-    return calculate_total_credits(pricing_config=pricing_config, duration_seconds=duration_seconds)
+def _omni_resolution(value: Any) -> str:
+    resolution = str(value or OMNI_DEFAULT_RESOLUTION)
+    omni_clip_pricing(resolution)  # unknown resolutions have no price and are refused
+    return resolution
 
 
 async def _charge_video_generation_credits(
@@ -198,27 +242,21 @@ async def _charge_video_generation_credits(
     log_prefix: str,
     team_id: Optional[str] = None,
     event_id: Optional[str] = None,
-) -> None:
+) -> str:
+    """Charge the delivered clip; a Personal billing failure is returned as "failed", a Team one raises."""
     try:
         headers = {"Content-Type": "application/json"}
         if INTERNAL_API_SHARED_TOKEN:
             headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
         is_h3 = model_id == h3_turbo.MODEL
-        price_usd_per_second, pricing_config = _get_h3_duration_pricing() if is_h3 else _get_veo_duration_pricing(model_id, resolution)
-        if not is_h3 and (model_id not in VEO_PRICE_USD_PER_SECOND_BY_MODEL_AND_RESOLUTION or resolution not in VEO_PRICE_USD_PER_SECOND_BY_MODEL_AND_RESOLUTION.get(model_id, {})):
-            logger.warning(
-                "%s Unknown Veo pricing for model=%s resolution=%s; falling back to standard 720p rate",
-                log_prefix,
-                model_id,
-                resolution,
-            )
+        price_usd_per_second, pricing_config = _get_h3_duration_pricing() if is_h3 else omni_clip_pricing(resolution)
         credits_charged = (
             calculate_total_credits(pricing_config=pricing_config, duration_seconds=duration_seconds)
             if pricing_config
             else MINIMUM_CREDITS_CHARGED
         )
         if credits_charged <= 0:
-            return
+            return "charged"
         charge_payload = {
             "user_id": user_id,
             "user_id_hash": user_id_hash,
@@ -247,19 +285,40 @@ async def _charge_video_generation_credits(
                 headers=headers,
             )
             response.raise_for_status()
-    except Exception as exc:
+    except httpx.HTTPError as exc:
         logger.error("%s Failed to charge video generation credits: %s", log_prefix, exc, exc_info=True)
         if team_id:
             raise
+        return "failed"
+    return "charged"
 
 
 @app.task(bind=True, name="apps.videos.tasks.skill_generate", base=BaseServiceTask, queue="app_videos", soft_time_limit=2100, time_limit=2160)
 def generate_video_task(self, app_id: str, skill_id: str, arguments: Dict[str, Any]):
+    from backend.apps.images.tasks.image_revision import run_with_batch_claims
+    from backend.apps.videos.tasks.generate_pipeline import run_generate
     from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
-    return asyncio.run(run_generated_media_batch(
-        self, app_id=app_id, skill_id=skill_id, arguments=arguments,
-        generate_one=_async_generate_video,
-    )) if arguments.get("requests") else asyncio.run(_async_generate_video(self, app_id, skill_id, arguments))
+
+    if arguments.get("requests"):
+        return asyncio.run(run_with_batch_claims(run_generated_media_batch(
+            self, app_id=app_id, skill_id=skill_id, arguments=arguments, generate_one=run_generate,
+        )))
+    return asyncio.run(_async_generate_video(self, app_id, skill_id, arguments))
+
+
+def _clip_kept_record(generated: GeneratedOmniVideo, stored: Any, *, prompt: str, model: str) -> Any:
+    """Kept record of a first generative version: the clip is its own only part."""
+    from backend.apps.videos.tasks.generate_result import TIMELINE_FPS
+    from backend.apps.videos.tasks.video_kept import KeptClip, KeptVideo
+
+    original = stored.object("original")
+    frames = max(1, math.floor(generated.duration_seconds * TIMELINE_FPS))
+    return KeptVideo(
+        version=1, made_by="generative", aspect_ratio=generated.aspect_ratio, resolution=generated.resolution,
+        width=generated.width, height=generated.height, video=original,
+        clips=(KeptClip(stored=original, duration_in_frames=frames, trim_before_frames=0, trim_after_frames=0,
+                        label=prompt[:120], model=model),),
+    )
 
 
 async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: str, arguments: Dict[str, Any]):
@@ -273,8 +332,10 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
         message_id = arguments.get("message_id")
         external_request = bool(arguments.get("external_request"))
         embed_id = arguments.get("embed_id") or str(uuid.uuid4())
-        model = arguments.get("model") or "veo-3.1-generate-preview"
+        model = arguments.get("model") or OMNI_MODEL
         is_h3 = model == h3_turbo.MODEL
+        if not is_h3 and model != OMNI_MODEL:
+            raise ValueError(f"Unknown video model {model!r}")
         provider_name = "fal.ai" if is_h3 else "Google Gemini API"
         watermarking = "not_reported" if is_h3 else "SynthID"
         model_ref = f"fal/{model}" if is_h3 else arguments.get("full_model_reference") or f"google/{model}"
@@ -282,10 +343,8 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
         if not isinstance(source_ids, list) or len(source_ids) > 1:
             raise ValueError("Provide at most one first-frame image")
         source_ids = [str(uuid.UUID(value)) for value in source_ids]
-        if source_ids and not is_h3:
-            raise ValueError("First-frame images currently require H3")
         if is_h3 and external_request:
-            raise ValueError("H3 is available in authenticated chats and calls; REST currently supports Veo only")
+            raise ValueError("H3 is available in authenticated chats and calls; REST supports Gemini Omni only")
         if not prompt or not user_id:
             raise ValueError("Missing required prompt or user_id")
         from backend.core.api.app.services.embed_service import EmbedService
@@ -298,6 +357,7 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
             media_type="video",
             prompt=prompt,
             request_count=1,
+            named_person_reviewed=arguments.get("named_person_reviewed") is True,
         )
         if not media_decision.allowed:
             logger.warning(
@@ -311,10 +371,11 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
         s3_service = await initialize_task_storage(task)
         await require_storage_available(s3_service)
 
-        requested_duration_seconds = 5 if is_h3 else _normalize_veo_duration_seconds(arguments.get("duration_seconds"))
-        requested_resolution = "480p" if is_h3 else _normalize_veo_resolution(arguments.get("resolution", "720p"))
+        requested_duration_seconds = 5 if is_h3 else _omni_duration(arguments.get("duration_seconds"))
+        requested_resolution = "480p" if is_h3 else _omni_resolution(arguments.get("resolution"))
+        aspect_ratio = str(arguments.get("aspect_ratio") or "16:9")
         estimated_credits = (calculate_total_credits(pricing_config=_get_h3_duration_pricing()[1], duration_seconds=5.7)
-                             if is_h3 else _estimate_veo_generation_credits(model, requested_resolution, requested_duration_seconds))
+                             if is_h3 else omni_clip_credits(requested_resolution, requested_duration_seconds))
         if arguments.get("team_id"):
             from backend.shared.python_utils.team_skill_billing import ensure_team_skill_credit_headroom
             await ensure_team_skill_credit_headroom(task._directus_service, arguments["team_id"], user_id, estimated_credits)
@@ -336,15 +397,42 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
                     log_prefix, team_id=arguments.get("team_id"), event_id=str(embed_id))
                 raise
         else:
-            generated = await generate_video_google_veo(
-                prompt=prompt, secrets_manager=task._secrets_manager, model_id=model,
-                aspect_ratio=arguments.get("aspect_ratio", "16:9"), duration_seconds=requested_duration_seconds,
-                resolution=requested_resolution, seed=arguments.get("seed"),
+            generated = await _generate_omni_video(
+                task, prompt=prompt, user_id=user_id, source_ids=source_ids, aspect_ratio=aspect_ratio,
+                duration_seconds=requested_duration_seconds, resolution=requested_resolution,
             )
         generated_at = datetime.now(timezone.utc).isoformat()
         hashed_user_id = _hash_value(user_id)
+        success, user_profile, error_msg = await task._directus_service.get_user_profile(user_id)
+        if not success or not isinstance(user_profile, dict):
+            raise RuntimeError(f"User profile not found for {user_id}: {error_msg}")
+        vault_key_id = user_profile.get("vault_key_id")
+        if not vault_key_id:
+            raise RuntimeError(f"Vault key ID not found for user {user_id}")
+
+        from backend.apps.videos.tasks.video_kept import remember_video
+        from backend.apps.videos.tasks.video_storage import (
+            cache_embed_file_keys,
+            delete_video_files,
+            index_video,
+            upload_video_files,
+        )
+
+        stored = await upload_video_files(
+            task, s3_service=task._s3_service, bucket_name=get_bucket_name("chatfiles"), user_id=user_id,
+            mp4=generated.video_bytes, thumbnail=await _first_frame_thumbnail(generated.video_bytes),
+            thumbnail_format="jpg", vault_key_id=vault_key_id, label="video",
+        )
+        stored.files_metadata["original"]["duration_seconds"] = generated.duration_seconds
+        provenance = {"labeling": "metadata_only", "visual_watermark": False, "provider_watermarking": watermarking}
+        indexed = await index_video(task, stored, user_id=user_id, embed_id=embed_id, mp4=generated.video_bytes,
+                                    provenance=provenance, log_prefix=log_prefix)
+        if not indexed:
+            await delete_video_files(task._s3_service, stored)
+            raise RuntimeError("Failed to index generated video in account storage")
+        billing_status = "not_charged"
         if not external_request or arguments.get("team_id"):
-            await _charge_video_generation_credits(
+            billing_status = await _charge_video_generation_credits(
                 user_id,
                 hashed_user_id,
                 app_id,
@@ -359,64 +447,20 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
                 team_id=arguments.get("team_id"),
                 event_id=str(arguments.get("embed_id") or task.request.id),
             )
-
-        success, user_profile, error_msg = await task._directus_service.get_user_profile(user_id)
-        if not success or not isinstance(user_profile, dict):
-            raise RuntimeError(f"User profile not found for {user_id}: {error_msg}")
-        vault_key_id = user_profile.get("vault_key_id")
-        if not vault_key_id:
-            raise RuntimeError(f"Vault key ID not found for user {user_id}")
-
-        aes_key = os.urandom(32)
-        nonce = os.urandom(12)
-        aes_key_b64 = base64.b64encode(aes_key).decode("utf-8")
-        vault_wrapped_aes_key, _ = await task._encryption_service.encrypt_with_user_key(aes_key_b64, vault_key_id)
-        if not vault_wrapped_aes_key:
-            raise RuntimeError("Failed to wrap video AES key with Vault")
-        nonce_b64 = base64.b64encode(nonce).decode("utf-8")
-        encrypted_video = AESGCM(aes_key).encrypt(nonce, generated.video_bytes, None)
-
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        s3_key = f"{user_id}/{timestamp}_{uuid.uuid4().hex[:8]}_video_original.mp4"
-        await task._s3_service.upload_file("chatfiles", s3_key, encrypted_video, "application/octet-stream")
-        files_metadata = {
-            "original": {
-                "s3_key": s3_key,
-                "size_bytes": len(generated.video_bytes),
-                "format": "mp4",
-                "mime_type": generated.mime_type,
-                "duration_seconds": generated.duration_seconds,
-            }
-        }
-        chatfiles_bucket = get_bucket_name("chatfiles")
-        s3_base_url = f"https://{chatfiles_bucket}.{task._s3_service.base_domain}"
+        file_keys = stored.file_keys()
+        if chat_id and isinstance(generated, GeneratedOmniVideo):
+            kept_key = await remember_video(
+                task, s3_service=task._s3_service, kept=_clip_kept_record(generated, stored, prompt=prompt, model=model),
+                user_id=user_id, embed_id=embed_id, vault_key_id=vault_key_id,
+            )
+            file_keys.append({"bucket": "chatfiles", "key": kept_key})
+        await cache_embed_file_keys(task, embed_id=embed_id, keys=file_keys)
+        files_metadata = stored.files_metadata
+        s3_base_url = stored.s3_base_url
+        aes_key_b64, nonce_b64, vault_wrapped_aes_key = stored.aes_key_b64, stored.nonce_b64, stored.vault_wrapped_aes_key
         now_ts = int(datetime.now(timezone.utc).timestamp())
-        stored = await index_generated_asset(
-            task,
-            user_id=user_id,
-            embed_id=embed_id,
-            media_type="video",
-            files_metadata=files_metadata,
-            s3_base_url=s3_base_url,
-            aes_key_b64=aes_key_b64,
-            nonce_b64=nonce_b64,
-            vault_wrapped_aes_key=vault_wrapped_aes_key,
-            created_at=now_ts,
-            content_hash_source=generated.video_bytes,
-            original_filename=f"openmates_generated_video_{embed_id[:8]}.mp4",
-            content_type=generated.mime_type,
-            log_prefix=log_prefix,
-            provenance_metadata={
-                "labeling": "metadata_only",
-                "visual_watermark": False,
-                "provider_watermarking": watermarking,
-            },
-        )
-        if not stored:
-            await task._s3_service.delete_file("chatfiles", s3_key)
-            raise RuntimeError("Failed to index generated video in account storage")
-        await cache_s3_file_keys(task, embed_id=embed_id, files_metadata=files_metadata, log_prefix=log_prefix)
 
+        made_fields = _generative_result_fields(arguments, generated, prompt)
         embed_content = {
             "app_id": app_id,
             "skill_id": skill_id,
@@ -424,6 +468,7 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
             "status": "finished",
             "prompt": prompt,
             "input_embed_ids": source_ids,
+            **made_fields,
             "duration_seconds": generated.duration_seconds,
             "aspect_ratio": generated.aspect_ratio,
             "resolution": generated.resolution,
@@ -483,6 +528,7 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
             "status": "finished",
             "prompt": prompt,
             "input_embed_ids": source_ids,
+            **{key: value for key, value in made_fields.items() if key != "timeline"},
             "duration_seconds": generated.duration_seconds,
             "aspect_ratio": generated.aspect_ratio,
             "resolution": generated.resolution,
@@ -492,6 +538,7 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
             "s3_base_url": s3_base_url,
             "generated_at": generated_at,
             "watermarking": watermarking,
+            "billing_status": billing_status,
             "provenance": {
                 "ai_generated": True,
                 "labeling": "metadata_only",

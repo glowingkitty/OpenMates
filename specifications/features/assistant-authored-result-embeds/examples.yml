@@ -43,9 +43,9 @@ content:
 
 media:
   - id: public-cover-and-uploaded-gallery
-    given: An event has a supported public cover URL, and Alice's listing brochure contains image embeds she can access.
+    given: An event has a supported public cover URL from its official site, a web image search also returned an unrelated stock photo, and Alice's listing brochure contains image embeds she can access.
     when: The cards load their images.
-    then: They use the existing permitted media paths and retain supplied attribution; a failed cover leaves the event title and details usable.
+    then: The event uses its official cover rather than the unrelated photo, and both cards use the existing permitted media paths and retain supplied attribution; a failed cover leaves the event title and details usable.
   - id: reject-private-or-foreign-image
     given: A proposed card includes a loopback image URL or an image embed belonging to another user.
     when: The image is resolved.
@@ -70,6 +70,46 @@ groups:
     given: A batch contains two valid cards and one malformed item or duplicate local label.
     when: The batch is validated.
     then: The invalid item or label is reported clearly; valid independent cards remain usable in order, without being attached to the wrong group member. Oversized batches receive a clear limit outcome.
+
+presentation:
+  - id: two-dated-events-with-venues
+    given: The assistant answers Alice with cards for two upcoming conferences, each with announced dates and a sourced venue address.
+    when: The answer finishes and Alice looks at the group in the chat.
+    then: She sees the normal results view with a switch between Calendar and Map, both conferences in the list, and no extra group title or expand button; selecting a conference opens that conference's own details.
+  - id: dated-online-and-undated-items
+    given: A group contains an online webinar with a date and a recipe draft with neither a date nor a location.
+    when: The group is shown.
+    then: It offers only the Calendar view, the webinar appears in the calendar, and the recipe stays in the list without a map pin or invented date.
+
+cards:
+  - id: square-logo-in-narrow-chat
+    given: An event card has a square conference logo and a long title, shown in a narrow chat column next to the open sidebar.
+    when: The card is displayed.
+    then: The whole logo is visible with empty bars beside it, nothing is cut off, and the title's first two lines are visible at the bottom of the card.
+  - id: wide-banner-and-broken-image
+    given: One event has a very wide banner and another has an image link that fails to load.
+    when: Both cards are displayed on a phone and on a laptop.
+    then: The banner is shown whole without cropping, and the card with the failed image still shows its title and opens its details.
+
+followups:
+  - id: follow-up-adds-confirmed-dates
+    given: In the first turn the assistant created a card for a conference whose venue was known but whose dates were unconfirmed; in the second turn Alice asks for more details and the assistant finds the official dates.
+    when: The second answer presents the conference.
+    then: The chat still has one card for that conference; it now shows version 2 with the official dates, the second message shows version 2, the first message still shows version 1, and the card's details list both versions.
+  - id: follow-up-mentions-unchanged-card
+    given: The chat has cards for two conferences, and Alice asks which of them is cheaper.
+    when: The assistant answers with the same facts it already showed.
+    then: The answer shows the existing cards again without creating new ones or new versions; a reference to a card from another chat is rejected for that item while the valid cards remain.
+
+streaming:
+  - id: five-conferences-appear-progressively
+    given: Alice asks for five upcoming open-source conferences and the assistant answers with a short introduction and five event cards.
+    when: The answer is streaming.
+    then: The introduction appears first, the first card appears before the fifth one is written, the remaining cards show as placeholders in order, and map pins appear on cards once their venues are found without the cards waiting for them.
+  - id: cancelled-while-cards-stream
+    given: Two of four cards have appeared and Alice stops the answer while the third is being written.
+    when: The response settles.
+    then: The two finished cards remain usable, and the third and fourth placeholders do not become finished cards or show raw structured text.
 
 maps:
   - id: event-and-approximate-home

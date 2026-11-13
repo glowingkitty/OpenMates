@@ -1,6 +1,7 @@
 id: remotion-video-create-embeds
 title: Remotion Video Create Embeds
 status: draft
+# Superseded by docs/plans/videos-generate-composed-video (videos.generate composed mode replaces videos.create and the remotion fence).
 
 goal: >
   Let users create deterministic product-style videos from assistant-generated

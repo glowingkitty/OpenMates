@@ -58,14 +58,26 @@ imports.
   those rows retain native scrolling and their position indicator. Titles are at
   most two lines with ellipsis; one-line metadata truncates with ellipsis.
 - Show the complete image with `contain`; never crop to fill. Large result cards
-  give one third to information and two thirds to media. Letterboxing is dark,
-  including in light mode. Existing image aspect ratio does not change card size.
+  give one third to information and two thirds to media. Image letterboxing uses
+  `--color-media-letterbox`: white in light mode, black in dark mode. Pin the
+  `<img>` to its box (`position: absolute; inset: 0`) rather than `height: 100%`,
+  which Safari cannot resolve inside a flex item and crops square images.
+  Existing image aspect ratio does not change card size.
+- App-skill embeds (`images/view`, the generation parent) keep the circle and
+  info bar. The generation parent shows thumbnails of its generated children and
+  the first lines of the prompt. App-skill embeds are never referenceable (e.g.
+  in questionnaire options); only result embeds are, and an app-skill reference
+  resolves to its result children.
 - Dated cards reuse `EmbedCalendarDate`: red weekday over a large day number,
   beside the app tile in compact mode and above the title in large mode.
   Appointment time uses its theme-reactive rounded time pill.
 - Event compact previews contain title and one line of start time/organizer
   attribution, using 1rem (16px at the standard root size). RSVP counts appear
   only in large previews. Omit description, provider/type/price/location repetitions.
+  The media area shows the event image alone, falling back to a venue map alone
+  when no working image is available and coordinates are known; never invent a
+  location. Authored previews carry no "User-provided" origin label (only drafts
+  are labelled); the origin stays in the details view.
 - Compact Home copy contains only title and monthly price. Large previews retain
   location and area. Both sizes show the first listing photo alone, falling back
   to a map alone when no working photo is available. Never pair photo and map in

@@ -1,0 +1,4614 @@
+{
+ "generated_by": "packages/openmates-rust/tests/crypto_fixtures/ts_web_share_state/generate.mjs",
+ "note": "Outcomes of the TypeScript rules in frontend/packages/ui/src/services/shareState; replayed by web_share_state_tests.rs and shareStateVectors.test.ts.",
+ "ops": {
+  "shortUrlParseFragment": [
+   {
+    "name": "hash prefix",
+    "input": {
+     "fragment": "#abcdef-ghij"
+    },
+    "expected": {
+     "token": "abcdef",
+     "shortKey": "ghij"
+    }
+   },
+   {
+    "name": "no prefix",
+    "input": {
+     "fragment": "abcdef-ghij"
+    },
+    "expected": {
+     "token": "abcdef",
+     "shortKey": "ghij"
+    }
+   },
+   {
+    "name": "no dash",
+    "input": {
+     "fragment": "abcdefghij"
+    },
+    "expected": null
+   },
+   {
+    "name": "token too short",
+    "input": {
+     "fragment": "abcde-ghij"
+    },
+    "expected": null
+   },
+   {
+    "name": "token too long",
+    "input": {
+     "fragment": "abcdefghijklm-ghij"
+    },
+    "expected": null
+   },
+   {
+    "name": "token 12",
+    "input": {
+     "fragment": "abcdefghijkl-ghij"
+    },
+    "expected": {
+     "token": "abcdefghijkl",
+     "shortKey": "ghij"
+    }
+   },
+   {
+    "name": "key too short",
+    "input": {
+     "fragment": "abcdef-ghi"
+    },
+    "expected": null
+   },
+   {
+    "name": "key 22",
+    "input": {
+     "fragment": "abcdef-KKKKKKKKKKKKKKKKKKKKKK"
+    },
+    "expected": {
+     "token": "abcdef",
+     "shortKey": "KKKKKKKKKKKKKKKKKKKKKK"
+    }
+   },
+   {
+    "name": "key 23",
+    "input": {
+     "fragment": "abcdef-KKKKKKKKKKKKKKKKKKKKKKK"
+    },
+    "expected": null
+   },
+   {
+    "name": "symbol in token",
+    "input": {
+     "fragment": "abc_ef-ghij"
+    },
+    "expected": null
+   },
+   {
+    "name": "second dash in key",
+    "input": {
+     "fragment": "abcdef-gh-ij"
+    },
+    "expected": null
+   },
+   {
+    "name": "empty",
+    "input": {
+     "fragment": ""
+    },
+    "expected": null
+   },
+   {
+    "name": "hash only",
+    "input": {
+     "fragment": "#"
+    },
+    "expected": null
+   },
+   {
+    "name": "non-ascii key",
+    "input": {
+     "fragment": "abcdef-ghijé"
+    },
+    "expected": null
+   },
+   {
+    "name": "empty key",
+    "input": {
+     "fragment": "abcdef-"
+    },
+    "expected": null
+   }
+  ],
+  "shortUrlParseParts": [
+   {
+    "name": "path token and key",
+    "input": {
+     "pathname": "/s/Ab12Cd34",
+     "fragment": "#0Oab12"
+    },
+    "expected": {
+     "token": "Ab12Cd34",
+     "shortKey": "0Oab12"
+    }
+   },
+   {
+    "name": "trailing slash",
+    "input": {
+     "pathname": "/s/Ab12Cd34/",
+     "fragment": "0Oab12"
+    },
+    "expected": {
+     "token": "Ab12Cd34",
+     "shortKey": "0Oab12"
+    }
+   },
+   {
+    "name": "22 char key",
+    "input": {
+     "pathname": "/s/Ab12Cd34",
+     "fragment": "#AAAAAAAAAAAAAAAAAAAAAA"
+    },
+    "expected": {
+     "token": "Ab12Cd34",
+     "shortKey": "AAAAAAAAAAAAAAAAAAAAAA"
+    }
+   },
+   {
+    "name": "key too short",
+    "input": {
+     "pathname": "/s/Ab12Cd34",
+     "fragment": "#abc"
+    },
+    "expected": null
+   },
+   {
+    "name": "key too long",
+    "input": {
+     "pathname": "/s/Ab12Cd34",
+     "fragment": "#AAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    "expected": null
+   },
+   {
+    "name": "key symbol",
+    "input": {
+     "pathname": "/s/Ab12Cd34",
+     "fragment": "#ab-cd1"
+    },
+    "expected": null
+   },
+   {
+    "name": "legacy fragment on /s/",
+    "input": {
+     "pathname": "/s/",
+     "fragment": "#abcdef-ghij"
+    },
+    "expected": {
+     "token": "abcdef",
+     "shortKey": "ghij"
+    }
+   },
+   {
+    "name": "legacy fragment other path",
+    "input": {
+     "pathname": "/x",
+     "fragment": "abcdef-ghij"
+    },
+    "expected": {
+     "token": "abcdef",
+     "shortKey": "ghij"
+    }
+   },
+   {
+    "name": "short path token falls back",
+    "input": {
+     "pathname": "/s/Ab12C",
+     "fragment": "#abcdef-ghij"
+    },
+    "expected": {
+     "token": "abcdef",
+     "shortKey": "ghij"
+    }
+   },
+   {
+    "name": "13 char path token falls back",
+    "input": {
+     "pathname": "/s/Ab12Cd34Ef567",
+     "fragment": "#abcdef-ghij"
+    },
+    "expected": {
+     "token": "abcdef",
+     "shortKey": "ghij"
+    }
+   },
+   {
+    "name": "double slash",
+    "input": {
+     "pathname": "/s/Ab12Cd34//",
+     "fragment": "#0Oab12"
+    },
+    "expected": null
+   },
+   {
+    "name": "path prefix only",
+    "input": {
+     "pathname": "/s/Ab12Cd34/extra",
+     "fragment": "#0Oab12"
+    },
+    "expected": null
+   },
+   {
+    "name": "path match key invalid blocks legacy",
+    "input": {
+     "pathname": "/s/Ab12Cd34",
+     "fragment": "#abcdef-ghij"
+    },
+    "expected": null
+   }
+  ],
+  "shortUrlBuild": [
+   {
+    "name": "custom domain",
+    "input": {
+     "token": "Ab12Cd34",
+     "short_key": "Key123",
+     "short_domain": "omts.io",
+     "origin": "https://app.example"
+    },
+    "expected": "https://omts.io/s/Ab12Cd34#Key123"
+   },
+   {
+    "name": "origin",
+    "input": {
+     "token": "Ab12Cd34",
+     "short_key": "Key123",
+     "origin": "https://app.example"
+    },
+    "expected": "https://app.example/s/Ab12Cd34#Key123"
+   },
+   {
+    "name": "empty domain falls back",
+    "input": {
+     "token": "Ab12Cd34",
+     "short_key": "Key123",
+     "short_domain": "",
+     "origin": "https://app.example"
+    },
+    "expected": "https://app.example/s/Ab12Cd34#Key123"
+   }
+  ],
+  "sharedKeyEntryMeta": [
+   {
+    "name": "with url",
+    "input": {
+     "chat_id": "c1",
+     "share_url": "https://x/share/chat/c1#key=a",
+     "now_ms": 1790000000999
+    },
+    "expected": {
+     "chat_id": "c1",
+     "created_at": 1790000000,
+     "share_url": "https://x/share/chat/c1#key=a"
+    }
+   },
+   {
+    "name": "no url",
+    "input": {
+     "chat_id": "c1",
+     "now_ms": 1790000000000
+    },
+    "expected": {
+     "chat_id": "c1",
+     "created_at": 1790000000,
+     "share_url": null
+    }
+   },
+   {
+    "name": "null url",
+    "input": {
+     "chat_id": "c1",
+     "share_url": null,
+     "now_ms": 1999
+    },
+    "expected": {
+     "chat_id": "c1",
+     "created_at": 1,
+     "share_url": null
+    }
+   },
+   {
+    "name": "empty url stays",
+    "input": {
+     "chat_id": "c1",
+     "share_url": "",
+     "now_ms": 5000
+    },
+    "expected": {
+     "chat_id": "c1",
+     "created_at": 5,
+     "share_url": ""
+    }
+   }
+  ],
+  "sharedKeyEntryUrl": [
+   {
+    "name": "no entry",
+    "input": {
+     "entry": null
+    },
+    "expected": null
+   },
+   {
+    "name": "no url",
+    "input": {
+     "entry": {}
+    },
+    "expected": null
+   },
+   {
+    "name": "null url",
+    "input": {
+     "entry": {
+      "share_url": null
+     }
+    },
+    "expected": null
+   },
+   {
+    "name": "empty url reads as none",
+    "input": {
+     "entry": {
+      "share_url": ""
+     }
+    },
+    "expected": null
+   },
+   {
+    "name": "url",
+    "input": {
+     "entry": {
+      "share_url": "https://x/y"
+     }
+    },
+    "expected": "https://x/y"
+   }
+  ],
+  "sharedKeyLoadable": [
+   {
+    "name": "mixed rows",
+    "input": {
+     "entries": [
+      {
+       "chat_id": "a",
+       "has_key": true
+      },
+      {
+       "chat_id": "",
+       "has_key": true
+      },
+      {
+       "chat_id": "b",
+       "has_key": false
+      },
+      {
+       "has_key": true
+      },
+      {
+       "chat_id": "c",
+       "has_key": true
+      }
+     ]
+    },
+    "expected": [
+     0,
+     4
+    ]
+   },
+   {
+    "name": "empty",
+    "input": {
+     "entries": []
+    },
+    "expected": []
+   }
+  ],
+  "queueChatRecord": [
+   {
+    "name": "all optional absent",
+    "input": {
+     "update_id": "u1",
+     "chat_id": "c1",
+     "title": "T",
+     "summary": "S",
+     "now_ms": 1790000000999
+    },
+    "expected": {
+     "update_id": "u1",
+     "chat_id": "c1",
+     "title": "T",
+     "summary": "S",
+     "created_at": 1790000000,
+     "retry_count": 0
+    }
+   },
+   {
+    "name": "all optional set",
+    "input": {
+     "update_id": "u1",
+     "chat_id": "c1",
+     "title": "T",
+     "summary": "S",
+     "now_ms": 1790000000999,
+     "share_cta_text": "cta",
+     "encrypted_shared_short_url": "enc",
+     "share_pii": true,
+     "share_highlights": false
+    },
+    "expected": {
+     "update_id": "u1",
+     "chat_id": "c1",
+     "title": "T",
+     "summary": "S",
+     "share_cta_text": "cta",
+     "encrypted_shared_short_url": "enc",
+     "share_pii": true,
+     "share_highlights": false,
+     "created_at": 1790000000,
+     "retry_count": 0
+    }
+   },
+   {
+    "name": "nulls kept",
+    "input": {
+     "update_id": "u1",
+     "chat_id": "c1",
+     "title": null,
+     "summary": null,
+     "now_ms": 1790000000999,
+     "share_cta_text": null,
+     "encrypted_shared_short_url": null
+    },
+    "expected": {
+     "update_id": "u1",
+     "chat_id": "c1",
+     "title": null,
+     "summary": null,
+     "share_cta_text": null,
+     "encrypted_shared_short_url": null,
+     "created_at": 1790000000,
+     "retry_count": 0
+    }
+   }
+  ],
+  "queueEmbedRecord": [
+   {
+    "name": "minimal",
+    "input": {
+     "update_id": "u2",
+     "embed_id": "e1",
+     "is_shared": true,
+     "now_ms": 2999
+    },
+    "expected": {
+     "update_id": "u2",
+     "embed_id": "e1",
+     "is_shared": true,
+     "created_at": 2,
+     "retry_count": 0
+    }
+   },
+   {
+    "name": "with text",
+    "input": {
+     "update_id": "u2",
+     "embed_id": "e1",
+     "is_shared": false,
+     "title": "t",
+     "description": null,
+     "now_ms": 3000
+    },
+    "expected": {
+     "update_id": "u2",
+     "embed_id": "e1",
+     "is_shared": false,
+     "title": "t",
+     "description": null,
+     "created_at": 3,
+     "retry_count": 0
+    }
+   }
+  ],
+  "queueChatBody": [
+   {
+    "name": "summary becomes cta",
+    "input": {
+     "chat_id": "c1",
+     "title": "T",
+     "summary": "S",
+     "is_shared": true
+    },
+    "expected": {
+     "chat_id": "c1",
+     "title": "T",
+     "summary": "S",
+     "share_cta_text": "S",
+     "is_shared": true
+    }
+   },
+   {
+    "name": "cta wins",
+    "input": {
+     "chat_id": "c1",
+     "title": "T",
+     "summary": "S",
+     "is_shared": true,
+     "share_cta_text": "cta"
+    },
+    "expected": {
+     "chat_id": "c1",
+     "title": "T",
+     "summary": "S",
+     "share_cta_text": "cta",
+     "is_shared": true
+    }
+   },
+   {
+    "name": "empty strings become null",
+    "input": {
+     "chat_id": "c1",
+     "title": "",
+     "summary": "",
+     "is_shared": true,
+     "share_cta_text": ""
+    },
+    "expected": {
+     "chat_id": "c1",
+     "title": null,
+     "summary": null,
+     "share_cta_text": null,
+     "is_shared": true
+    }
+   },
+   {
+    "name": "null everywhere",
+    "input": {
+     "chat_id": "c1",
+     "title": null,
+     "summary": null,
+     "is_shared": true
+    },
+    "expected": {
+     "chat_id": "c1",
+     "title": null,
+     "summary": null,
+     "share_cta_text": null,
+     "is_shared": true
+    }
+   },
+   {
+    "name": "short url null kept",
+    "input": {
+     "chat_id": "c1",
+     "title": "T",
+     "summary": "S",
+     "is_shared": true,
+     "encrypted_shared_short_url": null,
+     "share_pii": false,
+     "share_highlights": true
+    },
+    "expected": {
+     "chat_id": "c1",
+     "title": "T",
+     "summary": "S",
+     "share_cta_text": "S",
+     "is_shared": true,
+     "share_pii": false,
+     "share_highlights": true,
+     "encrypted_shared_short_url": null
+    }
+   },
+   {
+    "name": "short url set",
+    "input": {
+     "chat_id": "c1",
+     "title": "T",
+     "summary": "S",
+     "is_shared": true,
+     "encrypted_shared_short_url": "enc"
+    },
+    "expected": {
+     "chat_id": "c1",
+     "title": "T",
+     "summary": "S",
+     "share_cta_text": "S",
+     "is_shared": true,
+     "encrypted_shared_short_url": "enc"
+    }
+   }
+  ],
+  "queueEmbedBody": [
+   {
+    "name": "values",
+    "input": {
+     "embed_id": "e1",
+     "is_shared": true,
+     "title": "t",
+     "description": "d"
+    },
+    "expected": {
+     "embed_id": "e1",
+     "is_shared": true,
+     "title": "t",
+     "description": "d"
+    }
+   },
+   {
+    "name": "absent and empty",
+    "input": {
+     "embed_id": "e1",
+     "is_shared": false,
+     "description": ""
+    },
+    "expected": {
+     "embed_id": "e1",
+     "is_shared": false,
+     "title": null,
+     "description": null
+    }
+   }
+  ],
+  "queueRetryDecision": [
+   {
+    "name": "retry 0",
+    "input": {
+     "retry_count": 0
+    },
+    "expected": "send"
+   },
+   {
+    "name": "retry 4",
+    "input": {
+     "retry_count": 4
+    },
+    "expected": "send"
+   },
+   {
+    "name": "retry 5",
+    "input": {
+     "retry_count": 5
+    },
+    "expected": "drop"
+   },
+   {
+    "name": "retry 6",
+    "input": {
+     "retry_count": 6
+    },
+    "expected": "drop"
+   }
+  ],
+  "queueAttemptOutcome": [
+   {
+    "name": "success",
+    "input": {
+     "success": true,
+     "retry_count": 2
+    },
+    "expected": {
+     "action": "delete"
+    }
+   },
+   {
+    "name": "failure increments",
+    "input": {
+     "success": false,
+     "retry_count": 2
+    },
+    "expected": {
+     "action": "store",
+     "retry_count": 3
+    }
+   },
+   {
+    "name": "failure from zero",
+    "input": {
+     "success": false,
+     "retry_count": 0
+    },
+    "expected": {
+     "action": "store",
+     "retry_count": 1
+    }
+   }
+  ],
+  "queueResponseSuccess": [
+   {
+    "name": "true",
+    "input": {
+     "body": {
+      "success": true
+     }
+    },
+    "expected": true
+   },
+   {
+    "name": "string true is not success",
+    "input": {
+     "body": {
+      "success": "true"
+     }
+    },
+    "expected": false
+   },
+   {
+    "name": "false",
+    "input": {
+     "body": {
+      "success": false
+     }
+    },
+    "expected": false
+   },
+   {
+    "name": "no body",
+    "input": {
+     "body": null
+    },
+    "expected": false
+   },
+   {
+    "name": "empty body",
+    "input": {
+     "body": {}
+    },
+    "expected": false
+   }
+  ],
+  "detailsCursorCheck": [
+   {
+    "name": "none",
+    "input": {
+     "kind": "plans",
+     "cursor": null
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "valid",
+    "input": {
+     "kind": "plans",
+     "cursor": {
+      "timestamp": 5,
+      "id": "x"
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "zero timestamp",
+    "input": {
+     "kind": "plans",
+     "cursor": {
+      "timestamp": 0,
+      "id": "x"
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "negative",
+    "input": {
+     "kind": "plans",
+     "cursor": {
+      "timestamp": -1,
+      "id": "x"
+     }
+    },
+    "expected": {
+     "error": "Shared plans cursor was invalid"
+    }
+   },
+   {
+    "name": "fractional",
+    "input": {
+     "kind": "plans",
+     "cursor": {
+      "timestamp": 1.5,
+      "id": "x"
+     }
+    },
+    "expected": {
+     "error": "Shared plans cursor was invalid"
+    }
+   },
+   {
+    "name": "empty id",
+    "input": {
+     "kind": "plans",
+     "cursor": {
+      "timestamp": 3,
+      "id": ""
+     }
+    },
+    "expected": {
+     "error": "Shared plans cursor was invalid"
+    }
+   },
+   {
+    "name": "unsafe integer",
+    "input": {
+     "kind": "plans",
+     "cursor": {
+      "timestamp": 9007199254740992,
+      "id": "x"
+     }
+    },
+    "expected": {
+     "error": "Shared plans cursor was invalid"
+    }
+   }
+  ],
+  "detailsPageCheck": [
+   {
+    "name": "valid",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "valid tasks kind",
+    "input": {
+     "kind": "tasks",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "empty page",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": null,
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "items not array",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": false,
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page was invalid"
+    }
+   },
+   {
+    "name": "21 items",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "i00",
+        "updated_at": 1,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i01",
+        "updated_at": 2,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i02",
+        "updated_at": 3,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i03",
+        "updated_at": 4,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i04",
+        "updated_at": 5,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i05",
+        "updated_at": 6,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i06",
+        "updated_at": 7,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i07",
+        "updated_at": 8,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i08",
+        "updated_at": 9,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i09",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i10",
+        "updated_at": 11,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i11",
+        "updated_at": 12,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i12",
+        "updated_at": 13,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i13",
+        "updated_at": 14,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i14",
+        "updated_at": 15,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i15",
+        "updated_at": 16,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i16",
+        "updated_at": 17,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i17",
+        "updated_at": 18,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i18",
+        "updated_at": 19,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i19",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i20",
+        "updated_at": 21,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 1,
+       "id": "i00"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page was invalid"
+    }
+   },
+   {
+    "name": "20 items ok",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "i00",
+        "updated_at": 1,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i01",
+        "updated_at": 2,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i02",
+        "updated_at": 3,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i03",
+        "updated_at": 4,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i04",
+        "updated_at": 5,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i05",
+        "updated_at": 6,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i06",
+        "updated_at": 7,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i07",
+        "updated_at": 8,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i08",
+        "updated_at": 9,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i09",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i10",
+        "updated_at": 11,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i11",
+        "updated_at": 12,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i12",
+        "updated_at": 13,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i13",
+        "updated_at": 14,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i14",
+        "updated_at": 15,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i15",
+        "updated_at": 16,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i16",
+        "updated_at": 17,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i17",
+        "updated_at": 18,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i18",
+        "updated_at": 19,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "i19",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 1,
+       "id": "i00"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "wrappers not array",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": false,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page was invalid"
+    }
+   },
+   {
+    "name": "has_more_before not boolean",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": "yes",
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page was invalid"
+    }
+   },
+   {
+    "name": "payload too large",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 131073,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page was invalid"
+    }
+   },
+   {
+    "name": "payload at limit",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 131072,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "payload negative",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": -1,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page was invalid"
+    }
+   },
+   {
+    "name": "payload fractional",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 1.5,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page was invalid"
+    }
+   },
+   {
+    "name": "payload string",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": "5",
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page was invalid"
+    }
+   },
+   {
+    "name": "payload missing",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page was invalid"
+    }
+   },
+   {
+    "name": "empty id",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": ""
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page identities or order were invalid"
+    }
+   },
+   {
+    "name": "id not string",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": 5,
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": 5
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page identities or order were invalid"
+    }
+   },
+   {
+    "name": "fractional timestamp",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10.5,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10.5,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page identities or order were invalid"
+    }
+   },
+   {
+    "name": "foreign chat",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "other"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page identities or order were invalid"
+    }
+   },
+   {
+    "name": "null primary chat",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": null
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "missing primary chat",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "timestamp order",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 20,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page identities or order were invalid"
+    }
+   },
+   {
+    "name": "same timestamp id ascending",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "same timestamp id descending",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "b",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "b"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page identities or order were invalid"
+    }
+   },
+   {
+    "name": "duplicate id",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page identities or order were invalid"
+    }
+   },
+   {
+    "name": "utf16 order astral before bmp-high",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "😀",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "～",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "😀"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "utf16 order bmp-high before astral rejected",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "～",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "😀",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "～"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page identities or order were invalid"
+    }
+   },
+   {
+    "name": "start cursor wrong id",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "z"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page cursor was invalid"
+    }
+   },
+   {
+    "name": "start cursor wrong timestamp",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 11,
+       "id": "a"
+      },
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page cursor was invalid"
+    }
+   },
+   {
+    "name": "start cursor missing",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": null,
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page cursor was invalid"
+    }
+   },
+   {
+    "name": "more before without cursor or oversized",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [],
+      "key_wrappers_is_array": true,
+      "has_more_before": true,
+      "payload_bytes": 500,
+      "start_cursor": null,
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans page cannot advance"
+    }
+   },
+   {
+    "name": "more before with oversized id",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [],
+      "key_wrappers_is_array": true,
+      "has_more_before": true,
+      "payload_bytes": 500,
+      "start_cursor": null,
+      "oversized_id": "big"
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "more before with empty oversized id",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [],
+      "key_wrappers_is_array": true,
+      "has_more_before": true,
+      "payload_bytes": 500,
+      "start_cursor": null,
+      "oversized_id": ""
+     }
+    },
+    "expected": {
+     "error": "Shared plans page cannot advance"
+    }
+   },
+   {
+    "name": "cursor advances",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     },
+     "cursor": {
+      "timestamp": 11,
+      "id": "a"
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "cursor equal timestamp bigger id advances",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     },
+     "cursor": {
+      "timestamp": 10,
+      "id": "b"
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "cursor same does not advance",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     },
+     "cursor": {
+      "timestamp": 10,
+      "id": "a"
+     }
+    },
+    "expected": {
+     "error": "Shared plans cursor did not advance"
+    }
+   },
+   {
+    "name": "cursor behind does not advance",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "items": [
+       {
+        "id": "a",
+        "updated_at": 10,
+        "primary_chat_id": "chat"
+       },
+       {
+        "id": "b",
+        "updated_at": 20,
+        "primary_chat_id": "chat"
+       }
+      ],
+      "key_wrappers_is_array": true,
+      "has_more_before": false,
+      "payload_bytes": 500,
+      "start_cursor": {
+       "timestamp": 10,
+       "id": "a"
+      },
+      "oversized_id": null
+     },
+     "cursor": {
+      "timestamp": 9,
+      "id": "z"
+     }
+    },
+    "expected": {
+     "error": "Shared plans cursor did not advance"
+    }
+   }
+  ],
+  "detailsExactCheck": [
+   {
+    "name": "valid",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "id": "big",
+     "exact": {
+      "has_item": true,
+      "key_wrappers_is_array": true,
+      "item_id": "big",
+      "updated_at": 7,
+      "primary_chat_id": "chat"
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "valid tasks",
+    "input": {
+     "kind": "tasks",
+     "chat_id": "chat",
+     "id": "big",
+     "exact": {
+      "has_item": true,
+      "key_wrappers_is_array": true,
+      "item_id": "big",
+      "updated_at": 7,
+      "primary_chat_id": "chat"
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "no item",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "id": "big",
+     "exact": {
+      "has_item": false,
+      "key_wrappers_is_array": true,
+      "item_id": "big",
+      "updated_at": 7,
+      "primary_chat_id": "chat"
+     }
+    },
+    "expected": {
+     "error": "Shared plans item was invalid"
+    }
+   },
+   {
+    "name": "wrappers not array",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "id": "big",
+     "exact": {
+      "has_item": true,
+      "key_wrappers_is_array": false,
+      "item_id": "big",
+      "updated_at": 7,
+      "primary_chat_id": "chat"
+     }
+    },
+    "expected": {
+     "error": "Shared plans item was invalid"
+    }
+   },
+   {
+    "name": "id changed",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "id": "big",
+     "exact": {
+      "has_item": true,
+      "key_wrappers_is_array": true,
+      "item_id": "other",
+      "updated_at": 7,
+      "primary_chat_id": "chat"
+     }
+    },
+    "expected": {
+     "error": "Shared plans item identity changed"
+    }
+   },
+   {
+    "name": "fractional updated_at",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "id": "big",
+     "exact": {
+      "has_item": true,
+      "key_wrappers_is_array": true,
+      "item_id": "big",
+      "updated_at": 7.5,
+      "primary_chat_id": "chat"
+     }
+    },
+    "expected": {
+     "error": "Shared plans item identity changed"
+    }
+   },
+   {
+    "name": "foreign chat",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "id": "big",
+     "exact": {
+      "has_item": true,
+      "key_wrappers_is_array": true,
+      "item_id": "big",
+      "updated_at": 7,
+      "primary_chat_id": "other"
+     }
+    },
+    "expected": {
+     "error": "Shared plans item identity changed"
+    }
+   },
+   {
+    "name": "null chat ok",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "id": "big",
+     "exact": {
+      "has_item": true,
+      "key_wrappers_is_array": true,
+      "item_id": "big",
+      "updated_at": 7,
+      "primary_chat_id": null
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "missing updated_at",
+    "input": {
+     "kind": "plans",
+     "chat_id": "chat",
+     "id": "big",
+     "exact": {
+      "has_item": true,
+      "key_wrappers_is_array": true,
+      "item_id": "big",
+      "primary_chat_id": "chat"
+     }
+    },
+    "expected": {
+     "error": "Shared plans item identity changed"
+    }
+   }
+  ],
+  "detailsOversizedAdvance": [
+   {
+    "name": "no cursor",
+    "input": {
+     "kind": "tasks",
+     "cursor": null,
+     "start_cursor": {
+      "timestamp": 5,
+      "id": "a"
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "advances",
+    "input": {
+     "kind": "tasks",
+     "cursor": {
+      "timestamp": 9,
+      "id": "a"
+     },
+     "start_cursor": {
+      "timestamp": 5,
+      "id": "a"
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "same",
+    "input": {
+     "kind": "tasks",
+     "cursor": {
+      "timestamp": 5,
+      "id": "a"
+     },
+     "start_cursor": {
+      "timestamp": 5,
+      "id": "a"
+     }
+    },
+    "expected": {
+     "error": "Shared tasks oversized cursor did not advance"
+    }
+   },
+   {
+    "name": "later id",
+    "input": {
+     "kind": "tasks",
+     "cursor": {
+      "timestamp": 5,
+      "id": "a"
+     },
+     "start_cursor": {
+      "timestamp": 5,
+      "id": "b"
+     }
+    },
+    "expected": {
+     "error": "Shared tasks oversized cursor did not advance"
+    }
+   },
+   {
+    "name": "no start",
+    "input": {
+     "kind": "tasks",
+     "cursor": {
+      "timestamp": 5,
+      "id": "a"
+     },
+     "start_cursor": null
+    },
+    "expected": {
+     "ok": true
+    }
+   }
+  ],
+  "detailsWrapperStep": [
+   {
+    "name": "oversized wins",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": true,
+      "end_cursor": "e",
+      "oversized_key_id": "o"
+     }
+    },
+    "expected": {
+     "param": "key_id",
+     "value": "o"
+    }
+   },
+   {
+    "name": "end cursor",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": true,
+      "end_cursor": "e"
+     }
+    },
+    "expected": {
+     "param": "after_key_id",
+     "value": "e"
+    }
+   },
+   {
+    "name": "neither",
+    "input": {
+     "kind": "tasks",
+     "window": {
+      "has_more_after": true
+     }
+    },
+    "expected": {
+     "error": "Shared tasks key cursor did not advance"
+    }
+   },
+   {
+    "name": "null cursors",
+    "input": {
+     "kind": "tasks",
+     "window": {
+      "has_more_after": true,
+      "end_cursor": null,
+      "oversized_key_id": null
+     }
+    },
+    "expected": {
+     "error": "Shared tasks key cursor did not advance"
+    }
+   }
+  ],
+  "detailsWrapperAdvance": [
+   {
+    "name": "wrappers not array",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": true,
+      "end_cursor": "a"
+     },
+     "continuation": {
+      "key_wrappers_is_array": false,
+      "window": {
+       "has_more_after": false
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared plans key window was invalid"
+    }
+   },
+   {
+    "name": "window missing",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": true,
+      "end_cursor": "a"
+     },
+     "continuation": {
+      "key_wrappers_is_array": true
+     }
+    },
+    "expected": {
+     "error": "Shared plans key window was invalid"
+    }
+   },
+   {
+    "name": "window null",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": true,
+      "end_cursor": "a"
+     },
+     "continuation": {
+      "key_wrappers_is_array": true,
+      "window": null
+     }
+    },
+    "expected": {
+     "error": "Shared plans key window was invalid"
+    }
+   },
+   {
+    "name": "oversized merges",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": true,
+      "oversized_key_id": "o"
+     },
+     "continuation": {
+      "key_wrappers_is_array": true,
+      "window": {
+       "has_more_after": false,
+       "end_cursor": "z",
+       "extra": 1
+      }
+     }
+    },
+    "expected": {
+     "window": {
+      "has_more_after": true,
+      "end_cursor": "o",
+      "extra": 1,
+      "oversized_key_id": null
+     }
+    }
+   },
+   {
+    "name": "advances",
+    "input": {
+     "kind": "tasks",
+     "window": {
+      "has_more_after": true,
+      "end_cursor": "a"
+     },
+     "continuation": {
+      "key_wrappers_is_array": true,
+      "window": {
+       "has_more_after": true,
+       "end_cursor": "b"
+      }
+     }
+    },
+    "expected": {
+     "window": {
+      "has_more_after": true,
+      "end_cursor": "b"
+     }
+    }
+   },
+   {
+    "name": "stuck",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": true,
+      "end_cursor": "a"
+     },
+     "continuation": {
+      "key_wrappers_is_array": true,
+      "window": {
+       "has_more_after": true,
+       "end_cursor": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared plans key cursor did not advance"
+    }
+   },
+   {
+    "name": "same cursor but done",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": true,
+      "end_cursor": "a"
+     },
+     "continuation": {
+      "key_wrappers_is_array": true,
+      "window": {
+       "has_more_after": false,
+       "end_cursor": "a"
+      }
+     }
+    },
+    "expected": {
+     "window": {
+      "has_more_after": false,
+      "end_cursor": "a"
+     }
+    }
+   },
+   {
+    "name": "same cursor with oversized id",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": true,
+      "end_cursor": "a"
+     },
+     "continuation": {
+      "key_wrappers_is_array": true,
+      "window": {
+       "has_more_after": true,
+       "end_cursor": "a",
+       "oversized_key_id": "o"
+      }
+     }
+    },
+    "expected": {
+     "window": {
+      "has_more_after": true,
+      "end_cursor": "a",
+      "oversized_key_id": "o"
+     }
+    }
+   },
+   {
+    "name": "undefined vs null end cursor",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": true
+     },
+     "continuation": {
+      "key_wrappers_is_array": true,
+      "window": {
+       "has_more_after": true,
+       "end_cursor": null
+      }
+     }
+    },
+    "expected": {
+     "window": {
+      "has_more_after": true,
+      "end_cursor": null
+     }
+    }
+   },
+   {
+    "name": "both undefined end cursor is stuck",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": true
+     },
+     "continuation": {
+      "key_wrappers_is_array": true,
+      "window": {
+       "has_more_after": true
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared plans key cursor did not advance"
+    }
+   }
+  ],
+  "detailsWrapperContinue": [
+   {
+    "name": "more after",
+    "input": {
+     "window": {
+      "has_more_after": true
+     },
+     "count": 0
+    },
+    "expected": true
+   },
+   {
+    "name": "last allowed round",
+    "input": {
+     "window": {
+      "has_more_after": true
+     },
+     "count": 19
+    },
+    "expected": true
+   },
+   {
+    "name": "limit reached",
+    "input": {
+     "window": {
+      "has_more_after": true
+     },
+     "count": 20
+    },
+    "expected": false
+   },
+   {
+    "name": "done",
+    "input": {
+     "window": {
+      "has_more_after": false
+     },
+     "count": 0
+    },
+    "expected": false
+   },
+   {
+    "name": "no window",
+    "input": {
+     "window": null,
+     "count": 0
+    },
+    "expected": false
+   }
+  ],
+  "detailsWrapperDone": [
+   {
+    "name": "outstanding",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": true
+     }
+    },
+    "expected": {
+     "error": "Shared plans key window exceeded the bounded retry limit"
+    }
+   },
+   {
+    "name": "finished",
+    "input": {
+     "kind": "plans",
+     "window": {
+      "has_more_after": false
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "no window",
+    "input": {
+     "kind": "tasks",
+     "window": null
+    },
+    "expected": {
+     "ok": true
+    }
+   }
+  ],
+  "detailsWrapperDedup": [
+   {
+    "name": "mixed",
+    "input": {
+     "seen": [
+      "a",
+      "b"
+     ],
+     "wrappers": [
+      {
+       "id": "a"
+      },
+      {
+       "id": "c"
+      },
+      {},
+      {
+       "id": "c"
+      },
+      {
+       "id": ""
+      },
+      {
+       "id": "d"
+      },
+      {
+       "id": null
+      }
+     ]
+    },
+    "expected": [
+     1,
+     5
+    ]
+   },
+   {
+    "name": "empty",
+    "input": {
+     "seen": [],
+     "wrappers": []
+    },
+    "expected": []
+   }
+  ],
+  "subChatCursorCheck": [
+   {
+    "name": "first page",
+    "input": {
+     "chat_id": "chat",
+     "before": null
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "valid before",
+    "input": {
+     "chat_id": "chat",
+     "before": {
+      "timestamp": 5,
+      "id": "x"
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "empty chat id",
+    "input": {
+     "chat_id": "",
+     "before": null
+    },
+    "expected": {
+     "error": "Invalid shared subchat cursor."
+    }
+   },
+   {
+    "name": "zero timestamp",
+    "input": {
+     "chat_id": "chat",
+     "before": {
+      "timestamp": 0,
+      "id": "x"
+     }
+    },
+    "expected": {
+     "error": "Invalid shared subchat cursor."
+    }
+   },
+   {
+    "name": "fractional",
+    "input": {
+     "chat_id": "chat",
+     "before": {
+      "timestamp": 1.5,
+      "id": "x"
+     }
+    },
+    "expected": {
+     "error": "Invalid shared subchat cursor."
+    }
+   },
+   {
+    "name": "empty id",
+    "input": {
+     "chat_id": "chat",
+     "before": {
+      "timestamp": 3,
+      "id": ""
+     }
+    },
+    "expected": {
+     "error": "Invalid shared subchat cursor."
+    }
+   }
+  ],
+  "subChatPageCheck": [
+   {
+    "name": "valid",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "a",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 5
+       },
+       {
+        "id": "b",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 6
+       }
+      ],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "mode": "items",
+     "cursor": {
+      "timestamp": 5,
+      "id": "a"
+     }
+    }
+   },
+   {
+    "name": "empty page",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": null
+     }
+    },
+    "expected": {
+     "mode": "items",
+     "cursor": null
+    }
+   },
+   {
+    "name": "empty page without cursor field",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [],
+      "has_more_before": false,
+      "payload_bytes": 100
+     }
+    },
+    "expected": {
+     "mode": "items",
+     "cursor": null
+    }
+   },
+   {
+    "name": "items not array",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": false,
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page had invalid bounded metadata."
+    }
+   },
+   {
+    "name": "21 rows",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "r0",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 1
+       },
+       {
+        "id": "r1",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 2
+       },
+       {
+        "id": "r2",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 3
+       },
+       {
+        "id": "r3",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 4
+       },
+       {
+        "id": "r4",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 5
+       },
+       {
+        "id": "r5",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 6
+       },
+       {
+        "id": "r6",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 7
+       },
+       {
+        "id": "r7",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 8
+       },
+       {
+        "id": "r8",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 9
+       },
+       {
+        "id": "r9",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 10
+       },
+       {
+        "id": "r10",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 11
+       },
+       {
+        "id": "r11",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 12
+       },
+       {
+        "id": "r12",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 13
+       },
+       {
+        "id": "r13",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 14
+       },
+       {
+        "id": "r14",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 15
+       },
+       {
+        "id": "r15",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 16
+       },
+       {
+        "id": "r16",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 17
+       },
+       {
+        "id": "r17",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 18
+       },
+       {
+        "id": "r18",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 19
+       },
+       {
+        "id": "r19",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 20
+       },
+       {
+        "id": "r20",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 21
+       }
+      ],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page had invalid bounded metadata."
+    }
+   },
+   {
+    "name": "has_more_before not boolean",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "a",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 5
+       },
+       {
+        "id": "b",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 6
+       }
+      ],
+      "has_more_before": 1,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page had invalid bounded metadata."
+    }
+   },
+   {
+    "name": "payload too large",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "a",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 5
+       },
+       {
+        "id": "b",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 6
+       }
+      ],
+      "has_more_before": false,
+      "payload_bytes": 131073,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page had invalid bounded metadata."
+    }
+   },
+   {
+    "name": "payload negative",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "a",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 5
+       },
+       {
+        "id": "b",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 6
+       }
+      ],
+      "has_more_before": false,
+      "payload_bytes": -5,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page had invalid bounded metadata."
+    }
+   },
+   {
+    "name": "row not object",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       null
+      ],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page had invalid bounded metadata."
+    }
+   },
+   {
+    "name": "row wrong parent",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "a",
+        "parent_id": "other",
+        "is_sub_chat": true,
+        "created_at": 5
+       }
+      ],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page had invalid bounded metadata."
+    }
+   },
+   {
+    "name": "row not a sub chat",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "a",
+        "parent_id": "chat",
+        "is_sub_chat": false,
+        "created_at": 5
+       }
+      ],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page had invalid bounded metadata."
+    }
+   },
+   {
+    "name": "row zero created_at",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "a",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 0
+       }
+      ],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page had invalid bounded metadata."
+    }
+   },
+   {
+    "name": "row fractional created_at",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "a",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 1.5
+       }
+      ],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page had invalid bounded metadata."
+    }
+   },
+   {
+    "name": "row empty id",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 5
+       }
+      ],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page had invalid bounded metadata."
+    }
+   },
+   {
+    "name": "start cursor invalid timestamp",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "a",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 5
+       },
+       {
+        "id": "b",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 6
+       }
+      ],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 0,
+       "id": "a"
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page cursor was invalid."
+    }
+   },
+   {
+    "name": "start cursor invalid id",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "a",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 5
+       },
+       {
+        "id": "b",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 6
+       }
+      ],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": ""
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page cursor was invalid."
+    }
+   },
+   {
+    "name": "start cursor id not string",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "a",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 5
+       },
+       {
+        "id": "b",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 6
+       }
+      ],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": 5
+      }
+     }
+    },
+    "expected": {
+     "error": "Shared subchat page cursor was invalid."
+    }
+   },
+   {
+    "name": "oversized fetch",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [],
+      "has_more_before": true,
+      "payload_bytes": 100,
+      "start_cursor": null,
+      "oversized_id": "big"
+     }
+    },
+    "expected": {
+     "mode": "fetch_oversized",
+     "id": "big"
+    }
+   },
+   {
+    "name": "oversized with rows",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [
+       {
+        "id": "a",
+        "parent_id": "chat",
+        "is_sub_chat": true,
+        "created_at": 5
+       }
+      ],
+      "has_more_before": true,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      },
+      "oversized_id": "big"
+     }
+    },
+    "expected": {
+     "error": "Shared subchat oversized cursor was invalid."
+    }
+   },
+   {
+    "name": "oversized without more",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      },
+      "oversized_id": "big"
+     }
+    },
+    "expected": {
+     "error": "Shared subchat oversized cursor was invalid."
+    }
+   },
+   {
+    "name": "oversized empty id",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [],
+      "has_more_before": true,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      },
+      "oversized_id": ""
+     }
+    },
+    "expected": {
+     "error": "Shared subchat oversized cursor was invalid."
+    }
+   },
+   {
+    "name": "oversized not string",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [],
+      "has_more_before": true,
+      "payload_bytes": 100,
+      "start_cursor": {
+       "timestamp": 5,
+       "id": "a"
+      },
+      "oversized_id": 7
+     }
+    },
+    "expected": {
+     "error": "Shared subchat oversized cursor was invalid."
+    }
+   },
+   {
+    "name": "oversized null is absent",
+    "input": {
+     "chat_id": "chat",
+     "page": {
+      "items_is_array": true,
+      "rows": [],
+      "has_more_before": false,
+      "payload_bytes": 100,
+      "start_cursor": null,
+      "oversized_id": null
+     }
+    },
+    "expected": {
+     "mode": "items",
+     "cursor": null
+    }
+   }
+  ],
+  "subChatOversizedCheck": [
+   {
+    "name": "valid",
+    "input": {
+     "chat_id": "chat",
+     "oversized_id": "big",
+     "item": {
+      "id": "big",
+      "parent_id": "chat",
+      "is_sub_chat": true,
+      "created_at": 9
+     }
+    },
+    "expected": {
+     "cursor": {
+      "timestamp": 9,
+      "id": "big"
+     }
+    }
+   },
+   {
+    "name": "other id",
+    "input": {
+     "chat_id": "chat",
+     "oversized_id": "big",
+     "item": {
+      "id": "other",
+      "parent_id": "chat",
+      "is_sub_chat": true,
+      "created_at": 9
+     }
+    },
+    "expected": {
+     "error": "Shared oversized subchat identity did not match its cursor."
+    }
+   },
+   {
+    "name": "invalid row",
+    "input": {
+     "chat_id": "chat",
+     "oversized_id": "big",
+     "item": {
+      "id": "big",
+      "parent_id": "chat",
+      "is_sub_chat": true,
+      "created_at": 0
+     }
+    },
+    "expected": {
+     "error": "Shared oversized subchat identity did not match its cursor."
+    }
+   },
+   {
+    "name": "null row",
+    "input": {
+     "chat_id": "chat",
+     "oversized_id": "big",
+     "item": null
+    },
+    "expected": {
+     "error": "Shared oversized subchat identity did not match its cursor."
+    }
+   }
+  ],
+  "subChatFinalCheck": [
+   {
+    "name": "empty",
+    "input": {
+     "rows": [],
+     "cursor": null,
+     "has_more_before": false,
+     "before": null
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "contiguous",
+    "input": {
+     "rows": [
+      {
+       "id": "a",
+       "created_at": 5
+      },
+      {
+       "id": "b",
+       "created_at": 6
+      }
+     ],
+     "cursor": {
+      "timestamp": 5,
+      "id": "a"
+     },
+     "has_more_before": false,
+     "before": null
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "cursor mismatch id",
+    "input": {
+     "rows": [
+      {
+       "id": "a",
+       "created_at": 5
+      }
+     ],
+     "cursor": {
+      "timestamp": 5,
+      "id": "z"
+     },
+     "has_more_before": false,
+     "before": null
+    },
+    "expected": {
+     "error": "Shared subchat page was not a contiguous chronological window."
+    }
+   },
+   {
+    "name": "cursor mismatch timestamp",
+    "input": {
+     "rows": [
+      {
+       "id": "a",
+       "created_at": 5
+      }
+     ],
+     "cursor": {
+      "timestamp": 6,
+      "id": "a"
+     },
+     "has_more_before": false,
+     "before": null
+    },
+    "expected": {
+     "error": "Shared subchat page was not a contiguous chronological window."
+    }
+   },
+   {
+    "name": "rows without cursor",
+    "input": {
+     "rows": [
+      {
+       "id": "a",
+       "created_at": 5
+      }
+     ],
+     "cursor": null,
+     "has_more_before": false,
+     "before": null
+    },
+    "expected": {
+     "error": "Shared subchat page was not a contiguous chronological window."
+    }
+   },
+   {
+    "name": "time order",
+    "input": {
+     "rows": [
+      {
+       "id": "a",
+       "created_at": 6
+      },
+      {
+       "id": "b",
+       "created_at": 5
+      }
+     ],
+     "cursor": {
+      "timestamp": 6,
+      "id": "a"
+     },
+     "has_more_before": false,
+     "before": null
+    },
+    "expected": {
+     "error": "Shared subchat page was not a contiguous chronological window."
+    }
+   },
+   {
+    "name": "same time id order",
+    "input": {
+     "rows": [
+      {
+       "id": "b",
+       "created_at": 5
+      },
+      {
+       "id": "a",
+       "created_at": 5
+      }
+     ],
+     "cursor": {
+      "timestamp": 5,
+      "id": "b"
+     },
+     "has_more_before": false,
+     "before": null
+    },
+    "expected": {
+     "error": "Shared subchat page was not a contiguous chronological window."
+    }
+   },
+   {
+    "name": "same time duplicate",
+    "input": {
+     "rows": [
+      {
+       "id": "a",
+       "created_at": 5
+      },
+      {
+       "id": "a",
+       "created_at": 5
+      }
+     ],
+     "cursor": {
+      "timestamp": 5,
+      "id": "a"
+     },
+     "has_more_before": false,
+     "before": null
+    },
+    "expected": {
+     "error": "Shared subchat page was not a contiguous chronological window."
+    }
+   },
+   {
+    "name": "more before needs cursor",
+    "input": {
+     "rows": [],
+     "cursor": null,
+     "has_more_before": true,
+     "before": null
+    },
+    "expected": {
+     "error": "Shared subchat page did not provide its next cursor."
+    }
+   },
+   {
+    "name": "more before with cursor",
+    "input": {
+     "rows": [],
+     "cursor": {
+      "timestamp": 5,
+      "id": "a"
+     },
+     "has_more_before": true,
+     "before": null
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "advances",
+    "input": {
+     "rows": [
+      {
+       "id": "a",
+       "created_at": 5
+      }
+     ],
+     "cursor": {
+      "timestamp": 5,
+      "id": "a"
+     },
+     "has_more_before": false,
+     "before": {
+      "timestamp": 9,
+      "id": "a"
+     }
+    },
+    "expected": {
+     "ok": true
+    }
+   },
+   {
+    "name": "does not advance",
+    "input": {
+     "rows": [
+      {
+       "id": "a",
+       "created_at": 9
+      }
+     ],
+     "cursor": {
+      "timestamp": 9,
+      "id": "a"
+     },
+     "has_more_before": false,
+     "before": {
+      "timestamp": 9,
+      "id": "a"
+     }
+    },
+    "expected": {
+     "error": "Shared subchat cursor did not advance."
+    }
+   },
+   {
+    "name": "later cursor does not advance",
+    "input": {
+     "rows": [
+      {
+       "id": "a",
+       "created_at": 10
+      }
+     ],
+     "cursor": {
+      "timestamp": 10,
+      "id": "a"
+     },
+     "has_more_before": false,
+     "before": {
+      "timestamp": 9,
+      "id": "a"
+     }
+    },
+    "expected": {
+     "error": "Shared subchat cursor did not advance."
+    }
+   }
+  ],
+  "incognitoNormalize": [
+   {
+    "name": "adds flags",
+    "input": {
+     "chats": [
+      {
+       "chat_id": "a"
+      },
+      {
+       "chat_id": "b",
+       "is_incognito": false,
+       "group_key": "today",
+       "title": "T"
+      }
+     ]
+    },
+    "expected": [
+     {
+      "chat_id": "a",
+      "is_incognito": true,
+      "group_key": "incognito"
+     },
+     {
+      "chat_id": "b",
+      "is_incognito": true,
+      "group_key": "incognito",
+      "title": "T"
+     }
+    ]
+   },
+   {
+    "name": "empty",
+    "input": {
+     "chats": []
+    },
+    "expected": []
+   }
+  ],
+  "incognitoMetadata": [
+   {
+    "name": "projection",
+    "input": {
+     "chats": [
+      {
+       "chat_id": "a",
+       "is_incognito": false,
+       "group_key": "x",
+       "encrypted_title": "e",
+       "title": "T",
+       "category": "c",
+       "icon": "i",
+       "created_at": 1,
+       "updated_at": 2,
+       "last_edited_overall_timestamp": 3,
+       "unread_count": 0,
+       "messages_v": 4,
+       "title_v": 5,
+       "draft_v": 6,
+       "encrypted_draft_md": null,
+       "encrypted_draft_preview": "p",
+       "waiting_for_metadata": false,
+       "chat_summary": "dropped",
+       "encrypted_icon": "dropped",
+       "extra": {
+        "deep": 1
+       }
+      },
+      {
+       "chat_id": "b"
+      }
+     ]
+    },
+    "expected": [
+     {
+      "chat_id": "a",
+      "is_incognito": true,
+      "group_key": "incognito",
+      "encrypted_title": "e",
+      "title": "T",
+      "category": "c",
+      "icon": "i",
+      "created_at": 1,
+      "updated_at": 2,
+      "last_edited_overall_timestamp": 3,
+      "unread_count": 0,
+      "messages_v": 4,
+      "title_v": 5,
+      "draft_v": 6,
+      "encrypted_draft_md": null,
+      "encrypted_draft_preview": "p",
+      "waiting_for_metadata": false
+     },
+     {
+      "chat_id": "b",
+      "is_incognito": true,
+      "group_key": "incognito"
+     }
+    ]
+   },
+   {
+    "name": "empty",
+    "input": {
+     "chats": []
+    },
+    "expected": []
+   }
+  ],
+  "incognitoUpdateAccepted": [
+   {
+    "name": "same ids",
+    "input": {
+     "message_id": "m",
+     "chat_id": "c",
+     "next": {
+      "message_id": "m",
+      "chat_id": "c"
+     }
+    },
+    "expected": true
+   },
+   {
+    "name": "message id changed",
+    "input": {
+     "message_id": "m",
+     "chat_id": "c",
+     "next": {
+      "message_id": "n",
+      "chat_id": "c"
+     }
+    },
+    "expected": false
+   },
+   {
+    "name": "chat id changed",
+    "input": {
+     "message_id": "m",
+     "chat_id": "c",
+     "next": {
+      "message_id": "m",
+      "chat_id": "d"
+     }
+    },
+    "expected": false
+   },
+   {
+    "name": "update returned nothing",
+    "input": {
+     "message_id": "m",
+     "chat_id": "c",
+     "next": null
+    },
+    "expected": false
+   },
+   {
+    "name": "missing ids",
+    "input": {
+     "message_id": "m",
+     "chat_id": "c",
+     "next": {}
+    },
+    "expected": false
+   }
+  ],
+  "anonymousNextTimestamp": [
+   {
+    "name": "no messages",
+    "input": {
+     "created_ats": [],
+     "fallback": 100
+    },
+    "expected": 100
+   },
+   {
+    "name": "newer message wins",
+    "input": {
+     "created_ats": [
+      10,
+      200,
+      30
+     ],
+     "fallback": 100
+    },
+    "expected": 201
+   },
+   {
+    "name": "older message loses",
+    "input": {
+     "created_ats": [
+      10,
+      20
+     ],
+     "fallback": 100
+    },
+    "expected": 100
+   },
+   {
+    "name": "equal to fallback",
+    "input": {
+     "created_ats": [
+      100
+     ],
+     "fallback": 100
+    },
+    "expected": 101
+   },
+   {
+    "name": "null and zero",
+    "input": {
+     "created_ats": [
+      null,
+      0
+     ],
+     "fallback": 100
+    },
+    "expected": 100
+   },
+   {
+    "name": "negative",
+    "input": {
+     "created_ats": [
+      -5
+     ],
+     "fallback": 100
+    },
+    "expected": 100
+   }
+  ],
+  "anonymousAssistantMessageId": [
+   {
+    "name": "no response id",
+    "input": {
+     "chat_id": "anonymous-0123456789abcdef",
+     "user_message_id": "u-1",
+     "new_uuid": "uuid-1"
+    },
+    "expected": "6789abcdef-uuid-1"
+   },
+   {
+    "name": "empty response id",
+    "input": {
+     "chat_id": "anonymous-0123456789abcdef",
+     "user_message_id": "u-1",
+     "new_uuid": "uuid-1",
+     "response_message_id": ""
+    },
+    "expected": "6789abcdef-uuid-1"
+   },
+   {
+    "name": "null response id",
+    "input": {
+     "chat_id": "anonymous-0123456789abcdef",
+     "user_message_id": "u-1",
+     "new_uuid": "uuid-1",
+     "response_message_id": null
+    },
+    "expected": "6789abcdef-uuid-1"
+   },
+   {
+    "name": "same as user",
+    "input": {
+     "chat_id": "anonymous-0123456789abcdef",
+     "user_message_id": "u-1",
+     "new_uuid": "uuid-1",
+     "response_message_id": "u-1"
+    },
+    "expected": "6789abcdef-uuid-1"
+   },
+   {
+    "name": "streamed keeps id",
+    "input": {
+     "chat_id": "anonymous-0123456789abcdef",
+     "user_message_id": "u-1",
+     "new_uuid": "uuid-1",
+     "response_message_id": "srv-9",
+     "streamed": true
+    },
+    "expected": "srv-9"
+   },
+   {
+    "name": "prefixed keeps id",
+    "input": {
+     "chat_id": "anonymous-0123456789abcdef",
+     "user_message_id": "u-1",
+     "new_uuid": "uuid-1",
+     "response_message_id": "anonymous-0123456789abcdef-srv"
+    },
+    "expected": "anonymous-0123456789abcdef-srv"
+   },
+   {
+    "name": "unprefixed gets prefix",
+    "input": {
+     "chat_id": "anonymous-0123456789abcdef",
+     "user_message_id": "u-1",
+     "new_uuid": "uuid-1",
+     "response_message_id": "srv-9"
+    },
+    "expected": "anonymous-0123456789abcdef-srv-9"
+   },
+   {
+    "name": "short chat id",
+    "input": {
+     "chat_id": "abc",
+     "user_message_id": "u-1",
+     "new_uuid": "uuid-1"
+    },
+    "expected": "abc-uuid-1"
+   }
+  ],
+  "anonymousTitle": [
+   {
+    "name": "plain",
+    "input": {
+     "markdown": "Hello world"
+    },
+    "expected": "Hello world"
+   },
+   {
+    "name": "leading blank lines",
+    "input": {
+     "markdown": "\n\n  Second line \nthird"
+    },
+    "expected": "Second line"
+   },
+   {
+    "name": "only whitespace",
+    "input": {
+     "markdown": "  \n\t\n"
+    },
+    "expected": "Anonymous chat"
+   },
+   {
+    "name": "empty",
+    "input": {
+     "markdown": ""
+    },
+    "expected": "Anonymous chat"
+   },
+   {
+    "name": "fenced json removed",
+    "input": {
+     "markdown": "```json\n{\"a\":1}\n```\nQuestion here"
+    },
+    "expected": "Question here"
+   },
+   {
+    "name": "only fence",
+    "input": {
+     "markdown": "```json\n{}\n```"
+    },
+    "expected": "Anonymous chat"
+   },
+   {
+    "name": "two fences",
+    "input": {
+     "markdown": "a```json x```b```json y```c"
+    },
+    "expected": "abc"
+   },
+   {
+    "name": "unclosed fence kept",
+    "input": {
+     "markdown": "```json\nstill open"
+    },
+    "expected": "```json"
+   },
+   {
+    "name": "fence closes at first backticks",
+    "input": {
+     "markdown": "```json {} ``` tail ``` more"
+    },
+    "expected": "tail ``` more"
+   },
+   {
+    "name": "non-json fence kept",
+    "input": {
+     "markdown": "```js\ncode\n```"
+    },
+    "expected": "```js"
+   },
+   {
+    "name": "exactly 50",
+    "input": {
+     "markdown": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "expected": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   {
+    "name": "51 chars",
+    "input": {
+     "markdown": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+    },
+    "expected": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy..."
+   },
+   {
+    "name": "long line",
+    "input": {
+     "markdown": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+    },
+    "expected": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz..."
+   },
+   {
+    "name": "crlf",
+    "input": {
+     "markdown": "Title line\r\nsecond"
+    },
+    "expected": "Title line"
+   },
+   {
+    "name": "nbsp trim",
+    "input": {
+     "markdown": "  Title "
+    },
+    "expected": "Title"
+   },
+   {
+    "name": "bom trim",
+    "input": {
+     "markdown": "﻿Title"
+    },
+    "expected": "Title"
+   },
+   {
+    "name": "emoji cut in pair",
+    "input": {
+     "markdown": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀tail"
+    },
+    "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa�..."
+   },
+   {
+    "name": "emoji kept whole",
+    "input": {
+     "markdown": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀tail"
+    },
+    "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀..."
+   },
+   {
+    "name": "astral line under 50 units",
+    "input": {
+     "markdown": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+    },
+    "expected": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+   },
+   {
+    "name": "astral line over 50 units",
+    "input": {
+     "markdown": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+    },
+    "expected": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀..."
+   },
+   {
+    "name": "unicode space not trimmed by rust whitespace",
+    "input": {
+     "markdown": "Title"
+    },
+    "expected": "Title"
+   },
+   {
+    "name": "line separator trimmed",
+    "input": {
+     "markdown": " Title "
+    },
+    "expected": "Title"
+   }
+  ],
+  "anonymousChunkEnds": [
+   {
+    "name": "length 0",
+    "input": {
+     "length": 0
+    },
+    "expected": [
+     0
+    ]
+   },
+   {
+    "name": "length 1",
+    "input": {
+     "length": 1
+    },
+    "expected": [
+     1
+    ]
+   },
+   {
+    "name": "length 47",
+    "input": {
+     "length": 47
+    },
+    "expected": [
+     47
+    ]
+   },
+   {
+    "name": "length 48",
+    "input": {
+     "length": 48
+    },
+    "expected": [
+     48
+    ]
+   },
+   {
+    "name": "length 49",
+    "input": {
+     "length": 49
+    },
+    "expected": [
+     25,
+     49
+    ]
+   },
+   {
+    "name": "length 96",
+    "input": {
+     "length": 96
+    },
+    "expected": [
+     48,
+     96
+    ]
+   },
+   {
+    "name": "length 97",
+    "input": {
+     "length": 97
+    },
+    "expected": [
+     33,
+     66,
+     97
+    ]
+   },
+   {
+    "name": "length 500",
+    "input": {
+     "length": 500
+    },
+    "expected": [
+     46,
+     92,
+     138,
+     184,
+     230,
+     276,
+     322,
+     368,
+     414,
+     460,
+     500
+    ]
+   },
+   {
+    "name": "length 864",
+    "input": {
+     "length": 864
+    },
+    "expected": [
+     48,
+     96,
+     144,
+     192,
+     240,
+     288,
+     336,
+     384,
+     432,
+     480,
+     528,
+     576,
+     624,
+     672,
+     720,
+     768,
+     816,
+     864
+    ]
+   },
+   {
+    "name": "length 865",
+    "input": {
+     "length": 865
+    },
+    "expected": [
+     49,
+     98,
+     147,
+     196,
+     245,
+     294,
+     343,
+     392,
+     441,
+     490,
+     539,
+     588,
+     637,
+     686,
+     735,
+     784,
+     833,
+     865
+    ]
+   },
+   {
+    "name": "length 2000",
+    "input": {
+     "length": 2000
+    },
+    "expected": [
+     112,
+     224,
+     336,
+     448,
+     560,
+     672,
+     784,
+     896,
+     1008,
+     1120,
+     1232,
+     1344,
+     1456,
+     1568,
+     1680,
+     1792,
+     1904,
+     2000
+    ]
+   }
+  ],
+  "anonymousConversationRows": [
+   {
+    "name": "mixed",
+    "input": {
+     "rows": [
+      {
+       "status": "synced",
+       "role": "user",
+       "content": "hi"
+      },
+      {
+       "status": "failed",
+       "role": "user",
+       "content": "x"
+      },
+      {
+       "role": "system",
+       "content": "s"
+      },
+      {
+       "role": "assistant",
+       "content": "  "
+      },
+      {
+       "role": "assistant",
+       "content": "ok"
+      },
+      {
+       "role": "assistant"
+      },
+      {
+       "role": "user",
+       "content": 5
+      },
+      {
+       "role": "user",
+       "content": " 　"
+      },
+      {
+       "role": "tool",
+       "content": "t"
+      },
+      {}
+     ]
+    },
+    "expected": [
+     0,
+     4
+    ]
+   },
+   {
+    "name": "empty",
+    "input": {
+     "rows": []
+    },
+    "expected": []
+   }
+  ],
+  "anonymousStripPlain": [
+   {
+    "name": "removes plaintext fields",
+    "input": {
+     "chat": {
+      "chat_id": "a",
+      "title": "T",
+      "category": "c",
+      "icon": "i",
+      "chat_summary": "s",
+      "encrypted_title": "e",
+      "encrypted_category": "ec",
+      "messages_v": 2
+     }
+    },
+    "expected": {
+     "chat_id": "a",
+     "encrypted_title": "e",
+     "encrypted_category": "ec",
+     "messages_v": 2
+    }
+   },
+   {
+    "name": "nothing to strip",
+    "input": {
+     "chat": {
+      "chat_id": "a"
+     }
+    },
+    "expected": {
+     "chat_id": "a"
+    }
+   }
+  ]
+ }
+}

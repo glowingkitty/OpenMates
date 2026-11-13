@@ -533,7 +533,7 @@ export interface Chat {
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
   encrypted_suggested_followup_message?: string | null; // Encrypted, turn-identified composer ghost suggestion
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
-  encrypted_quick_tip_slugs?: string | null; // Encrypted array of product quick tip slugs selected during post-processing
+  encrypted_recommendations?: string | null; // Chat-key encrypted ChatRecommendationsState JSON (types/recommendations.ts)
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
   anonymous_encrypted_chat_key?: string | null; // Local-only anonymous wrapper for pre-signup chat keys
   candidate_encrypted_keys?: string[] | null; // Fallback encrypted_chat_key blobs rejected by injectKey (multi-tab race survivors). Tried in order when primary decryption fails.
@@ -1104,12 +1104,13 @@ export interface InitialSyncResponsePayload {
     updated_at: number;
     encrypted_title?: string;
     encrypted_chat_summary?: string | null;
+    encrypted_suggested_followup_message?: string | null;
     encrypted_draft_md?: string | null;
     encrypted_draft_preview?: string | null;
     encrypted_chat_key?: string | null; // Encrypted chat-specific key for decryption
     encrypted_icon?: string | null; // Encrypted icon name from Lucide library
     encrypted_category?: string | null; // Encrypted category name
-    encrypted_quick_tip_slugs?: string | null; // Encrypted quick-tip slugs selected during post-processing
+    encrypted_recommendations?: string | null; // Chat-key encrypted ChatRecommendationsState JSON
     encrypted_auto_speak_response?: string | null;
     encrypted_focus_phase_state?: string | null;
     encrypted_shared_short_url?: string | null;
@@ -1346,6 +1347,8 @@ export interface PhasedSyncRequestPayload {
   // The server uses this to skip re-sending embeds the client already has,
   // preventing the "703 embeds on every reconnect" problem for active users.
   client_embed_ids?: string[];
+  /** Idle local Personal drafts the server should confirm (Rust core builds only; max 200). */
+  stale_draft_probe?: Array<{ chat_id: string; draft_v: number }>;
 }
 
 export interface PhasedSyncCompletePayload {
@@ -1384,6 +1387,10 @@ export interface Phase2RecentChatsPayload {
   deleted_chat_ids?: string[];
   /** Tombstones with explicit deletion authority, distinct from inferred absence. */
   explicit_deleted_chat_ids?: string[];
+  /** Answer to `stale_draft_probe`: ids whose draft deletion the server recorded at or above the probed
+   * version (`absent_chat_ids`: no chat row; `draft_absent_chat_ids`: own chat row). Omitted when none
+   * was sent or a server read failed. */
+  stale_draft_probe_result?: { absent_chat_ids: string[]; draft_absent_chat_ids: string[] };
 }
 
 /**

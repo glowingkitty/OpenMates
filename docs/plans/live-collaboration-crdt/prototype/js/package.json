@@ -1,0 +1,9 @@
+{
+  "name": "crdt-spike-interop",
+  "private": true,
+  "type": "module",
+  "description": "Isolated Yjs side of the live-collaboration-crdt spike; not part of the frontend workspace.",
+  "dependencies": {
+    "yjs": "13.6.33"
+  }
+}

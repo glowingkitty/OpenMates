@@ -10,8 +10,9 @@ import json
 import uuid
 import httpx
 import asyncio
+from collections import deque
 from contextlib import contextmanager
-from typing import Dict, Any, List, Optional, AsyncIterator, Union, Callable, Awaitable
+from typing import Dict, Any, List, Optional, AsyncIterator, Union, Callable, Awaitable, Deque
 
 from celery.exceptions import SoftTimeLimitExceeded
 from celery.states import REVOKED as TASK_STATE_REVOKED
@@ -20,6 +21,7 @@ from backend.shared.python_utils.saved_chat_turn_authority import admission_chat
 from backend.core.api.app.tasks import celery_config
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.chat_unread_counter import increment_unread_for_assistant_reply
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.translations import TranslationService
@@ -46,6 +48,7 @@ from backend.shared.providers.e2b_application_preview import (
 )
 
 
+from backend.apps.code.application_identity import derive_application_identity
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.assistant_speech.projection import (
     build_app_use_announcement,
@@ -59,6 +62,8 @@ from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
 from backend.apps.ai.processing.agentic_context import attach_memory_receipt_assistant_id
+from backend.apps.ai.tasks.loose_application_files import split_loose_application_files
+from backend.apps.ai.tasks.result_embed_references import append_result_embed_references
 from backend.apps.ai.processing.suggested_followup_stream import may_publish_suggested_followup
 from backend.apps.ai.sub_chat_orchestration import (
     build_sequential_child_prompt,
@@ -84,9 +89,8 @@ from backend.apps.ai.utils.code_embed_policy import (
 from backend.apps.ai.utils.app_skill_json_cleanup import (
     canonicalize_app_skill_json_blocks,
 )
-from backend.apps.ai.utils.remotion_fences import (
-    _is_remotion_video_fence,
-)
+from backend.apps.ai.utils.slides_fences import _is_slides_fence
+from backend.shared.python_utils.slides_markup import SlidesMarkupError, normalise_slides_markup
 from backend.apps.ai.utils.pcb_schematic_fences import (
     _extract_pcb_schematic_metadata,
     _is_pcb_schematic_fence,
@@ -101,6 +105,7 @@ from backend.apps.ai.utils.diagram_html_fences import (
     validate_diagram_html_source,
 )
 from backend.apps.ai.utils.json_content_fences import is_json_content_fence
+from backend.core.api.app.services.authored_result_progressive import drain_authored_result_background
 from backend.apps.ai.utils.embeds_map_view import (
     MAP_VIEW_CAPABLE_SKILLS,
     append_missing_embeds_map_view_block,
@@ -143,10 +148,12 @@ from backend.shared.python_utils.url_normalizer import (
 from backend.shared.python_utils.markdown_links import iter_markdown_links
 from backend.shared.python_utils.learning_mode import (
     LEARNING_MODE_CODE_MAX_LINES,
+    LEARNING_MODE_COLLABORATIVE_CODE_MAX_LINES,
     LEARNING_MODE_DOCUMENT_MAX_LINES,
     LEARNING_MODE_SHEET_MAX_COLS,
     LEARNING_MODE_SHEET_MAX_ROWS,
     cap_learning_mode_lines,
+    is_collaborative_build_enabled,
     is_learning_mode_enabled,
     should_disable_learning_mode_application_artifact,
 )
@@ -283,6 +290,137 @@ def _recovery_inference_task_id(request_data: AskSkillRequest) -> Optional[str]:
 
 def _assistant_message_id(task_id: str, request_data: AskSkillRequest) -> str:
     return getattr(request_data, "continuation_message_id", None) or task_id
+
+
+# Messages whose instant call acknowledgement already went out, so the later
+# speech setup does not play a second one. Bounded: entries are consumed per turn.
+_INSTANT_ACK_SENT: dict[str, None] = {}
+_INSTANT_ACK_SENT_LIMIT = 256
+
+
+def _speaks_call_confirmations(request_data: AskSkillRequest) -> bool:
+    return bool(request_data.voice_mode and request_data.auto_speak_response) \
+        and not request_data.is_external and not request_data.is_incognito
+
+
+async def _call_confirmation_language(
+    request_data: AskSkillRequest, preprocessing_result: Any, cache_service: Any,
+) -> str | None:
+    """Turn language for a pre-recorded call clip, or None to stay silent."""
+    language = getattr(preprocessing_result, "output_language", None)
+    if language:
+        return language
+    # Before preprocessing only the turn text, the language of the previous
+    # turn in this call and the interface preference are known. No guess is
+    # hard-coded: with none of them the call stays silent.
+    from backend.apps.ai.assistant_speech.voice_status import detect_turn_language
+
+    turn_text = request_data.current_user_content or next(
+        (str(item.get("content") or "") for item in reversed(request_data.message_history or [])
+         if isinstance(item, dict) and item.get("role") == "user"), "",
+    )
+    remembered = None
+    if cache_service is not None and request_data.voice_call_id:
+        cached_language = await cache_service.get(f"voice_call_last_language:{request_data.voice_call_id}")
+        remembered = cached_language if isinstance(cached_language, str) else None
+    return detect_turn_language(
+        turn_text, remembered or (request_data.user_preferences or {}).get("language") or None,
+    )
+
+
+async def _publish_call_confirmation_clip(
+    *, task_id: str, request_data: AskSkillRequest, clip: dict[str, object],
+    cache_service: Any, log_prefix: str, description: str,
+) -> None:
+    message_id = _assistant_message_id(task_id, request_data)
+    await _publish_to_redis(
+        cache_service,
+        f"chat_stream::{request_data.chat_id}",
+        {
+            "type": "assistant_speech_acknowledgement",
+            "chat_id": request_data.chat_id,
+            "user_id_hash": request_data.user_id_hash,
+            "message_id": message_id,
+            "payload": {
+                "chat_id": request_data.chat_id,
+                "message_id": message_id,
+                "clip_id": clip["clip_id"],
+                "audio_url": clip["asset_url"],
+            },
+        },
+        log_prefix,
+        description,
+    )
+    # One confirmation per turn: the speech setup after routing plays no second one.
+    if len(_INSTANT_ACK_SENT) >= _INSTANT_ACK_SENT_LIMIT:
+        _INSTANT_ACK_SENT.pop(next(iter(_INSTANT_ACK_SENT)))
+    _INSTANT_ACK_SENT[message_id] = None
+
+
+async def publish_instant_voice_acknowledgement(
+    *,
+    task_id: str,
+    request_data: AskSkillRequest,
+    mate: Any,
+    preprocessing_result: Any = None,
+    cache_service: Any,
+    log_prefix: str,
+) -> bool:
+    """Play a pre-recorded "I'm on it" clip in the voice of the Mate that answers.
+
+    ``mate`` must be the Mate whose voice speaks the answer: the explicitly
+    chosen Mate before routing, or the routed Mate afterwards. Callers never
+    guess one (a previous turn's or a default Mate): a clip in another voice
+    than the answer is worse than no clip, so without a known Mate it stays silent.
+    """
+    if not _speaks_call_confirmations(request_data) or mate is None:
+        return False
+    from backend.apps.ai.assistant_speech.voice_status import select_instant_acknowledgement
+
+    language = await _call_confirmation_language(request_data, preprocessing_result, cache_service)
+    if not language:
+        return False
+    acknowledgement = select_instant_acknowledgement(
+        voice_profile_id=mate.voice_profile.key,
+        voice_profile_version=mate.voice_profile.version,
+        language=language,
+        seed=_assistant_message_id(task_id, request_data),
+    )
+    if acknowledgement is None:
+        return False
+    await _publish_call_confirmation_clip(
+        task_id=task_id, request_data=request_data, clip=acknowledgement,
+        cache_service=cache_service, log_prefix=log_prefix, description="instant voice acknowledgement",
+    )
+    return True
+
+
+async def publish_chat_start_voice_confirmation(
+    *,
+    task_id: str,
+    request_data: AskSkillRequest,
+    cache_service: Any,
+    log_prefix: str,
+) -> bool:
+    """Confirm a call turn that starts a new chat in the neutral system voice.
+
+    The chat has no Mate yet, so no Mate voice may speak before routing. The
+    recorded clip is a short chime plus "Starting your chat…"; everything after
+    routing is spoken in the routed Mate's own voice.
+    """
+    if not _speaks_call_confirmations(request_data):
+        return False
+    from backend.apps.ai.assistant_speech.voice_status import select_chat_start_confirmation
+
+    language = await _call_confirmation_language(request_data, None, cache_service)
+    clip = select_chat_start_confirmation(language=language) if language else None
+    if clip is None:
+        return False
+    await _publish_call_confirmation_clip(
+        task_id=task_id, request_data=request_data, clip=clip,
+        cache_service=cache_service, log_prefix=log_prefix, description="chat start voice confirmation",
+    )
+    return True
 
 
 async def _dispatch_automatic_assistant_speech_segment(
@@ -2098,6 +2236,7 @@ async def _apply_diff_block_to_existing_embed(
     from backend.core.api.app.services.embed_diff_service import (
         apply_patch, build_committed_version_patch, parse_unified_diff, resolve_diff_target_embed_id
     )
+    from backend.core.api.app.services.embed_version_transaction_service import PROJECT_FILE_TOOL_REQUIRED, requires_atomic_project_embed_write
     from toon_format import decode
 
     file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
@@ -2116,6 +2255,10 @@ async def _apply_diff_block_to_existing_embed(
             f"{list(file_path_index.keys())[:10]}. Showing visual diff card."
         )
         return _render_diff_visual_card(resolved_ref, diff_content)
+    # One write path (P11): a Project-linked embed changes only through the Project file tools.
+    if await requires_atomic_project_embed_write(directus_service, target_embed_id):
+        logger.info(f"{log_prefix} [DIFF_BLOCK] Not applied to Project-linked embed {target_embed_id}: {PROJECT_FILE_TOOL_REQUIRED}")
+        return _render_diff_visual_card(resolved_ref, diff_content, f"not applied: {PROJECT_FILE_TOOL_REQUIRED}; use project_update_file")
 
     cached_embed = await cache_service.get_embed_from_cache(target_embed_id)
     if not cached_embed:
@@ -2146,6 +2289,7 @@ async def _apply_diff_block_to_existing_embed(
                         (json.dumps(decoded.get("notebook"), ensure_ascii=False, indent=2) if decoded.get("notebook") else None) or
                         (decoded.get("content") if decoded.get("type") == "notebook" else None) or
                         (json.dumps(decoded.get("docx_model"), ensure_ascii=False, indent=2) if decoded.get("docx_model") else None) or
+                        decoded.get("slides_markup") or
                         decoded.get("table") or
                         ""
                     )
@@ -2175,12 +2319,7 @@ async def _apply_diff_block_to_existing_embed(
     version_history_rows = []
     now = int(time.time())
     if current_version == 1:
-        version_history_rows.append({
-            "embed_id": target_embed_id,
-            "version_number": 1,
-            "snapshot": current_content,
-            "created_at": now,
-        })
+        version_history_rows.append({"embed_id": target_embed_id, "version_number": 1, "snapshot": current_content, "created_at": now})
 
     new_version = current_version + 1
     new_content_hash = hashlib.sha256(patch_result.new_content.encode("utf-8")).hexdigest()
@@ -2273,6 +2412,28 @@ async def _apply_diff_block_to_existing_embed(
             }],
             queue="app_docs",
             output_kind="diff", output_version=new_version,
+        )
+    elif embed_type == "deck":
+        try:
+            new_deck = normalise_slides_markup(patch_result.new_content)
+        except SlidesMarkupError as exc:
+            logger.warning(f"{log_prefix} [DIFF_BLOCK] Patched deck is invalid: {exc}")
+            return _render_diff_visual_card(resolved_ref, diff_content, "result is not a valid deck")
+        version_history_rows[-1]["patch"] = build_committed_version_patch(current_content, new_deck.markup)
+        if new_version % 32 == 0:
+            version_history_rows[-1]["snapshot"] = new_deck.markup
+        await embed_service.update_deck_embed_content(
+            embed_id=target_embed_id,
+            deck=new_deck,
+            chat_id=request_data.chat_id,
+            user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            status="finished",
+            version_number=new_version,
+            content_hash=hashlib.sha256(new_deck.markup.encode("utf-8")).hexdigest(),
+            version_history_rows=version_history_rows,
+            log_prefix=log_prefix,
         )
     elif embed_type == "sheet":
         table_row_count = max(0, len(patch_result.new_content.splitlines()) - 2)
@@ -2992,13 +3153,21 @@ async def _strip_invalid_inline_embed_links(
     validated_refs_out: Optional[set[str]] = None,
     require_authority: bool = False,
 ) -> str:
-    """Downgrade non-quote inline embed links whose embed_ref is not real."""
+    """Downgrade non-quote inline embed links whose embed_ref is not real.
+
+    Skill-use refs are removed from the body first (skill_use_body_refs), with
+    their results put in place, so only result embeds stay in the answer.
+    """
     if not aggregated_response:
         return aggregated_response
 
     from backend.apps.ai.processing.native_history_cache import strip_invalid_inline_embed_links
+    from backend.shared.python_utils.skill_use_body_refs import (
+        is_skill_use_content, remove_skill_use_body_refs,
+    )
 
     if not cache_service or not encryption_service or not user_vault_key_id:
+        aggregated_response = remove_skill_use_body_refs(aggregated_response)[0]
         if require_authority:
             return strip_invalid_inline_embed_links(aggregated_response, known_valid_refs or set())[0]
         return aggregated_response
@@ -3031,6 +3200,7 @@ async def _strip_invalid_inline_embed_links(
 
     all_embed_ids = list({eid for eid in all_embed_ids if isinstance(eid, str) and eid})
     if not all_embed_ids and not known_valid_refs:
+        aggregated_response = remove_skill_use_body_refs(aggregated_response)[0]
         if require_authority:
             return strip_invalid_inline_embed_links(aggregated_response, set())[0]
         return aggregated_response
@@ -3048,6 +3218,7 @@ async def _strip_invalid_inline_embed_links(
     )
 
     valid_refs: set[str] = set(known_valid_refs or set())
+    skill_use_children: dict[str, list[str]] = {}
     for embed_id in all_embed_ids:
         try:
             node = await graph.get(embed_id)
@@ -3055,7 +3226,14 @@ async def _strip_invalid_inline_embed_links(
                 continue
             decoded = node.decoded
             ref = decoded.get("embed_ref")
-            if isinstance(ref, str) and ref:
+            skill_use_ref = ref if isinstance(ref, str) and ref and is_skill_use_content(decoded) else None
+            if skill_use_ref:
+                kids = skill_use_children.setdefault(skill_use_ref, [])
+                for pinned in decoded.get("pinned_embeds") or []:
+                    if isinstance(pinned, dict) and isinstance(pinned.get("embed_ref"), str):
+                        valid_refs.add(pinned["embed_ref"])
+                        kids.append(pinned["embed_ref"])
+            elif isinstance(ref, str) and ref:
                 valid_refs.add(ref)
 
             child_ids_raw = decoded.get("embed_ids")
@@ -3072,9 +3250,14 @@ async def _strip_invalid_inline_embed_links(
                 child_ref = child_node.decoded.get("embed_ref")
                 if isinstance(child_ref, str) and child_ref:
                     valid_refs.add(child_ref)
+                    if skill_use_ref:
+                        skill_use_children[skill_use_ref].append(child_ref)
         except Exception as e:
             logger.debug(f"{log_prefix} [EMBED_REF_VALIDATE] Could not inspect embed {embed_id}: {e}")
 
+    aggregated_response, removed_skill_use = remove_skill_use_body_refs(aggregated_response, skill_use_children)
+    if removed_skill_use:
+        logger.info(f"{log_prefix} [EMBED_REF_VALIDATE] Removed {removed_skill_use} skill-use body ref(s)")
     if not valid_refs:
         if require_authority:
             return strip_invalid_inline_embed_links(aggregated_response, set())[0]
@@ -4052,6 +4235,13 @@ async def _update_chat_metadata(
     # This ensures follow-up messages include assistant responses in the history
     # The cache tracks its own messages_v for AI inference purposes
     if cache_service:
+        # Server-authoritative unread counter: a finished top-level assistant reply
+        # stays unread until a client reports its last line was seen.
+        unread_count: Optional[int] = None
+        if not rejection_reason and not request_data.parent_id:
+            unread_count = await increment_unread_for_assistant_reply(
+                cache_service, directus_service, request_data.user_id, request_data.chat_id,
+            )
         await _save_to_cache_and_publish(
             request_data, task_id, category, timestamp,
             new_messages_v, cache_service,  # Pass the NEW version, cache will use it explicitly
@@ -4060,6 +4250,7 @@ async def _update_chat_metadata(
             model_name=model_name,
             rejection_reason=rejection_reason,
             native_cache_context=native_cache_context,
+            unread_count=unread_count,
         )
 
 
@@ -4137,6 +4328,7 @@ async def _save_to_cache_and_publish(
     model_name: Optional[str] = None,
     rejection_reason: Optional[str] = None,
     native_cache_context: Optional[Dict[str, Any]] = None,
+    unread_count: Optional[int] = None,
 ) -> None:
     """Save message to cache and publish persistence event.
 
@@ -4249,7 +4441,8 @@ async def _save_to_cache_and_publish(
             "user_id_hash": request_data.user_id_hash,
             "message": client_message,
             "versions": {"messages_v": messages_version},
-            "last_edited_overall_timestamp": timestamp
+            "last_edited_overall_timestamp": timestamp,
+            "unread_count": unread_count,
         }
         
         persisted_channel = f"ai_message_persisted::{request_data.user_id_hash}"
@@ -4898,6 +5091,8 @@ APPLICATION_PREVIEW_SOURCE_EXTENSIONS = (
 APPLICATION_PREVIEW_MAIN_FILES = (
     "src/main.ts",
     "src/main.js",
+    "src/main.tsx",
+    "src/main.jsx",
     "src/App.svelte",
     "src/App.tsx",
     "src/App.jsx",
@@ -4971,11 +5166,16 @@ def _cap_code_for_learning_mode(
     request_data: AskSkillRequest,
     code_content: str,
 ) -> tuple[str, Optional[Dict[str, Any]]]:
-    if not is_learning_mode_enabled(_learning_mode_context(request_data)):
+    context = _learning_mode_context(request_data)
+    if not is_learning_mode_enabled(context):
         return code_content, None
     capped, metadata = cap_learning_mode_lines(
         code_content,
-        max_lines=LEARNING_MODE_CODE_MAX_LINES,
+        max_lines=(
+            LEARNING_MODE_COLLABORATIVE_CODE_MAX_LINES
+            if is_collaborative_build_enabled(context)
+            else LEARNING_MODE_CODE_MAX_LINES
+        ),
     )
     return capped, metadata
 
@@ -5772,6 +5972,19 @@ def _parse_application_preview_json_bundle_files(
     return files if has_manifest and has_source else []
 
 
+async def _with_chunks_after_closing_fence(
+    stream: AsyncIterator[Any],
+    chunks_after_closing_fence: Deque[str],
+) -> AsyncIterator[Any]:
+    """Yield the provider stream, then any text the consumer split off after a closing fence."""
+    async for item in stream:
+        yield item
+        while chunks_after_closing_fence:
+            yield chunks_after_closing_fence.popleft()
+    while chunks_after_closing_fence:
+        yield chunks_after_closing_fence.popleft()
+
+
 def _extract_application_preview_files_from_markdown_code_block(
     response_text: str,
 ) -> tuple[List[Dict[str, str]], str]:
@@ -5871,6 +6084,7 @@ def _strip_generated_application_source_text(response_text: str) -> str:
 
 def _build_application_manifest_from_code_embeds(
     code_embeds: List[Dict[str, str]],
+    package_json_content: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     seen_paths: set[str] = set()
     file_refs: List[Dict[str, str]] = []
@@ -5889,13 +6103,16 @@ def _build_application_manifest_from_code_embeds(
     if not has_manifest or not has_source:
         return None
 
-    framework = "svelte" if any(ref["path"].endswith(".svelte") for ref in file_refs) else "web"
+    name, framework = derive_application_identity(
+        package_json_content=package_json_content,
+        paths=[ref["path"] for ref in file_refs],
+    )
     main_file = next((path for path in APPLICATION_PREVIEW_MAIN_FILES if path in seen_paths), None)
     if not main_file:
         main_file = next((ref["path"] for ref in file_refs if ref["role"] == "source"), "")
 
     return {
-        "name": "Generated application",
+        "name": name,
         "framework": framework,
         "runtime": "node",
         "file_refs": file_refs,
@@ -5904,14 +6121,24 @@ def _build_application_manifest_from_code_embeds(
     }
 
 
+def _embed_id_from_reference_block(reference_block: str) -> Optional[str]:
+    match = re.search(r'"embed_id"\s*:\s*"([^"]+)"', reference_block)
+    return match.group(1) if match else None
+
+
 def _has_stream_ready_application_manifest(code_embeds: List[Dict[str, str]]) -> bool:
     manifest = _build_application_manifest_from_code_embeds(code_embeds)
     if not manifest:
         return False
 
     paths = {ref["path"] for ref in manifest["file_refs"]}
-    has_entrypoint = any(path in paths for path in APPLICATION_PREVIEW_MAIN_FILES)
-    return has_entrypoint and len(paths) >= 3
+    # index.html alone is not enough while streaming: the script entry files
+    # usually follow it, and files streamed after the parent exists need a
+    # manifest refresh. Wait for a real script entry instead.
+    has_script_entry = any(
+        path in paths for path in APPLICATION_PREVIEW_MAIN_FILES if path != "index.html"
+    )
+    return has_script_entry and len(paths) >= 3
 
 
 def _record_generated_code_file_embed(
@@ -6008,68 +6235,33 @@ async def _create_application_preview_child_code_embeds(
     return "".join(embed_references)
 
 
-async def _create_remotion_video_embed_reference(
+async def _create_slides_deck_embed_reference(
     *,
     embed_service: Any,
     source: str,
-    filename: Optional[str],
     request_data: AskSkillRequest,
     task_id: str,
     user_vault_key_id: str,
     log_prefix: str,
 ) -> str:
-    if is_learning_mode_enabled(_learning_mode_context(request_data)):
-        logger.info("%s Skipping Remotion video artifact because Learning Mode is active", log_prefix)
-        return "Learning Mode is active, so I can outline the video concept or storyboard instead of generating a finished video artifact.\n\n"
-
-    embed_data = await embed_service.create_remotion_video_embed_placeholder(
+    """Normalise a ```slides fence and create a finished deck embed; return its reference chunk."""
+    try:
+        deck = normalise_slides_markup(source)
+    except SlidesMarkupError as exc:
+        logger.warning("%s Slides fence rejected: %s", log_prefix, exc)
+        return f"```slides\n{source}```\n\n"
+    embed_data = await embed_service.create_deck_embed(
         chat_id=request_data.chat_id,
         message_id=request_data.message_id,
         user_id=request_data.user_id,
         user_id_hash=request_data.user_id_hash,
         user_vault_key_id=user_vault_key_id,
+        deck=deck,
         task_id=task_id,
-        filename=filename,
         log_prefix=log_prefix,
     )
     if not embed_data:
-        return ""
-
-    embed_id = embed_data["embed_id"]
-    await embed_service.update_remotion_video_embed_content(
-        embed_id=embed_id,
-        remotion_source=source,
-        chat_id=request_data.chat_id,
-        message_id=request_data.message_id,
-        user_id=request_data.user_id,
-        user_id_hash=request_data.user_id_hash,
-        user_vault_key_id=user_vault_key_id,
-        filename=filename,
-        status="rendering",
-        source_version=1,
-        log_prefix=log_prefix,
-    )
-    await _dispatch_ai_embed_task(
-        "apps.videos.tasks.render_remotion",
-        args=[{
-            "embed_id": embed_id,
-            "chat_id": request_data.chat_id,
-            "message_id": request_data.message_id,
-            "user_id": request_data.user_id,
-            "user_id_hash": request_data.user_id_hash,
-            "vault_key_id": user_vault_key_id,
-            "remotion_source": source,
-            "filename": filename,
-            "source_version": 1,
-            "auto_started": True,
-        }],
-        queue="app_videos",
-    )
-    logger.info(
-        "%s Created Remotion videos.create embed %s and queued auto render",
-        log_prefix,
-        embed_id,
-    )
+        return f"```slides\n{source}```\n\n"
     return f"```json\n{embed_data['embed_reference']}\n```\n\n"
 
 
@@ -6158,6 +6350,27 @@ async def _infer_generated_code_file_embeds_from_response(
     return inferred
 
 
+async def _read_generated_package_json(
+    code_embeds: List[Dict[str, str]],
+    embed_service: Any,
+    user_vault_key_id: str,
+    log_prefix: str,
+) -> Optional[str]:
+    """Return the cached package.json source of the generated app, if it has one."""
+    from toon_format import decode
+
+    for code_embed in code_embeds:
+        path = _normalize_generated_app_file_path(code_embed.get("filename"))
+        if not path or path.rsplit("/", 1)[-1] != "package.json" or not code_embed.get("embed_id"):
+            continue
+        toon = await embed_service._get_cached_embed_toon(code_embed["embed_id"], user_vault_key_id, log_prefix)
+        decoded = decode(toon) if toon else None
+        code = decoded.get("code") if isinstance(decoded, dict) else None
+        if isinstance(code, str):
+            return _strip_code_file_header_from_content(code)[0]
+    return None
+
+
 async def _create_application_parent_embed_reference(
     *,
     generated_code_file_embeds: List[Dict[str, str]],
@@ -6169,6 +6382,7 @@ async def _create_application_parent_embed_reference(
     user_vault_key_id: str,
     log_prefix: str,
     response_text: str = "",
+    existing_application_embed_id: Optional[str] = None,
 ) -> Optional[str]:
     if should_disable_learning_mode_application_artifact(_learning_mode_context(request_data)):
         logger.info("%s Skipping generated application parent because Learning Mode is active", log_prefix)
@@ -6207,6 +6421,15 @@ async def _create_application_parent_embed_reference(
         from backend.core.api.app.services.embed_service import EmbedService
 
         embed_service = EmbedService(cache_service, directus_service, encryption_service)
+    package_json_content = await _read_generated_package_json(
+        generated_code_file_embeds, embed_service, user_vault_key_id, log_prefix
+    )
+    application_manifest["name"], application_manifest["framework"] = derive_application_identity(
+        given_name=application_manifest["name"],
+        given_framework=application_manifest["framework"],
+        package_json_content=package_json_content,
+        paths=[ref["path"] for ref in application_manifest["file_refs"]],
+    )
     application_embed_data = await embed_service.create_application_embed(
         name=application_manifest["name"],
         framework=application_manifest["framework"],
@@ -6221,6 +6444,7 @@ async def _create_application_parent_embed_reference(
         task_id=task_id,
         provenance="fallback_stream_inference",
         log_prefix=log_prefix,
+        embed_id=existing_application_embed_id,
     )
     if not application_embed_data:
         return None
@@ -6479,6 +6703,8 @@ async def _consume_main_processing_stream(
     speech_tracker: Optional[ImmutableSpeechBoundaryTracker] = None
     voice_waiting = None
     realtime_speech_turn = None
+    voice_status_language: str | None = None
+    voice_app_use_announced = False
     if _should_prepare_assistant_speech(request_data, preprocessing_result, user_overrides):
         selected_mate = next(
             (
@@ -6517,8 +6743,30 @@ async def _consume_main_processing_stream(
             }
             speech_language = (
                 preprocessing_result.output_language
-                or (request_data.user_preferences or {}).get("language", "en")
+                or (request_data.user_preferences or {}).get("language")
+                or ""
             )
+            voice_status_language = speech_language
+            if speech_language and request_data.voice_mode and request_data.voice_call_id and cache_service is not None:
+                await cache_service.set(
+                    f"voice_call_last_language:{request_data.voice_call_id}", speech_language, ttl=6 * 3600,
+                )
+            instant_ack_played = False
+            if request_data.voice_mode and request_data.auto_speak_response:
+                # Already played when the turn started (explicitly chosen Mate, or
+                # the neutral system clip of a new chat); otherwise it plays now,
+                # in the routed Mate's voice.
+                # A Memory-approval continuation is the same spoken turn: its
+                # paused first task reached this point and confirmed it.
+                instant_ack_played = (
+                    request_data.is_app_settings_memories_continuation
+                    or _INSTANT_ACK_SENT.pop(assistant_message_id, 0) is None
+                    or await publish_instant_voice_acknowledgement(
+                        task_id=task_id, request_data=request_data, mate=selected_mate,
+                        preprocessing_result=preprocessing_result, cache_service=cache_service,
+                        log_prefix=log_prefix,
+                    )
+                )
             if request_data.auto_speak_response and not request_data.voice_mode:
                 from backend.apps.audio.assistant_speech.acknowledgements import build_acknowledgement_clips
 
@@ -6605,6 +6853,12 @@ async def _consume_main_processing_stream(
 
             async def dispatch_speech_segment(segment):
                 nonlocal waiting_speech_segment
+                if segment.get("kind") == "voice_status":
+                    # Spoken in order on the call track; no stored row, no transcript text.
+                    if realtime_speech_turn is not None:
+                        await realtime_speech_turn.prepare()
+                        await realtime_speech_turn.enqueue(segment)
+                    return
                 if int(segment["sequence"]) == -1:
                     waiting_speech_segment = segment
                 continuous = realtime_speech_turn is not None and int(segment["sequence"]) >= 0
@@ -6665,7 +6919,7 @@ async def _consume_main_processing_stream(
                 finalize_speech=finalize_speech_segments,
                 sequence_offset=1 if app_use_announcement else 0,
             )
-            if request_data.voice_mode and request_data.auto_speak_response:
+            if request_data.voice_mode and request_data.auto_speak_response and not instant_ack_played:
                 from backend.apps.ai.assistant_speech.voice_waiting import DelayedVoiceWaiting
 
                 voice_waiting = DelayedVoiceWaiting(
@@ -6729,6 +6983,8 @@ async def _consume_main_processing_stream(
     generated_code_file_embeds: List[Dict[str, str]] = []
     full_replacement_reused_refs: set[str] = set()
     application_parent_embed_created = False
+    streaming_application_embed_id: Optional[str] = None
+    streaming_application_file_count = 0
     # New state: when LLM streams ``` and language separately, wait for next chunk
     waiting_for_code_language = False
     # pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed (currently unused)
@@ -6799,11 +7055,14 @@ async def _consume_main_processing_stream(
     debug_metadata: Dict[str, Any] = {}
     suggested_followup_message: Optional[str] = None
     
+    chunks_after_closing_fence: Deque[str] = deque()
     pre_main_scope = ai_phase_span("pre_main")
     pre_main_scope.__enter__()
     pre_main_open = True
     try:
-        async for chunk in main_processing_stream:
+        async for chunk in _with_chunks_after_closing_fence(
+            main_processing_stream, chunks_after_closing_fence
+        ):
             # Internal setup frames do not publish answer content. Let the
             # provider run while sealed metadata persists, then join before
             # any visible content or recovery terminal can be published.
@@ -6813,7 +7072,7 @@ async def _consume_main_processing_stream(
                 "__debug_metadata__", "__suggested_followup_message__",
                 "__tool_calls_info__", "__failed_embed_ids__",
                 "__authored_inline_outputs__",
-                "__cumulative_llm_usage__",
+                "__cumulative_llm_usage__", "__voice_skill_phase__",
             ))):
                 await first_chunk_barrier.wait()
             if pre_main_open:
@@ -6871,6 +7130,25 @@ async def _consume_main_processing_stream(
                     log_prefix,
                     failure_reason,
                 )
+                continue
+
+            if isinstance(chunk, dict) and "__voice_skill_phase__" in chunk:
+                if speech_tracker is not None and request_data.voice_mode:
+                    from backend.apps.ai.assistant_speech.voice_status import (
+                        build_skill_recap, build_voice_app_use_announcement,
+                    )
+
+                    if chunk["__voice_skill_phase__"] == "started" and not voice_app_use_announced:
+                        voice_app_use_announced = True
+                        announcement = build_voice_app_use_announcement(voice_status_language, assistant_message_id)
+                        if announcement:
+                            speech_tracker.dispatch_status_utterance(announcement)
+                    elif chunk["__voice_skill_phase__"] == "finished":
+                        recap = build_skill_recap(
+                            [tuple(item) for item in chunk.get("skills", [])], voice_status_language,
+                        )
+                        if recap:
+                            speech_tracker.dispatch_status_utterance(recap)
                 continue
 
             # Check for tool calls info marker (special dict at end of stream)
@@ -7616,20 +7894,16 @@ async def _consume_main_processing_stream(
                                     current_code_filename,
                                     _diff_file_path_index,
                                 )
-                                is_remotion_block = _is_remotion_video_fence(current_code_language, current_code_filename)
 
-                                if is_remotion_block:
-                                    embed_reference_code = await _create_remotion_video_embed_reference(
+                                if _is_slides_fence(current_code_language):
+                                    chunk = await _create_slides_deck_embed_reference(
                                         embed_service=embed_service,
                                         source=code_content,
-                                        filename=current_code_filename,
                                         request_data=request_data,
                                         task_id=task_id,
                                         user_vault_key_id=user_vault_key_id,
                                         log_prefix=log_prefix,
                                     )
-                                    if embed_reference_code:
-                                        chunk = embed_reference_code
                                     in_code_block = False
                                     current_code_language = ""
                                     current_code_filename = None
@@ -7996,6 +8270,13 @@ async def _consume_main_processing_stream(
                                             if embed_reference_code:
                                                 chunk = embed_reference_code
                                                 application_parent_embed_created = True
+                                                # Models often send the combined block first and the
+                                                # script sources as separate file blocks afterwards;
+                                                # the end-of-stream refresh joins those to this parent.
+                                                combined_embed_id = _embed_id_from_reference_block(embed_reference_code)
+                                                if combined_embed_id:
+                                                    streaming_application_embed_id = combined_embed_id
+                                                    streaming_application_file_count = len(application_preview_files)
                                                 logger.info(
                                                     f"{log_prefix} Created generated application artifact from "
                                                     f"{len(application_preview_files)} file(s) in combined preview block"
@@ -8223,11 +8504,9 @@ async def _consume_main_processing_stream(
                             chunk = ""  # Don't emit opening fence
                             continue  # Skip embed creation, just track the content
 
-                        if _is_remotion_video_fence(current_code_language, current_code_filename):
+                        if _is_slides_fence(current_code_language):
                             chunk = ""
-                            logger.info(
-                                f"{log_prefix} Deferring Remotion video-create block until closing fence"
-                            )
+                            logger.info(f"{log_prefix} Deferring slides deck block until closing fence")
                             continue
 
                         if _is_application_preview_combined_language(current_code_language):
@@ -8661,11 +8940,9 @@ async def _consume_main_processing_stream(
                             chunk = ""
                             continue
 
-                        if _is_remotion_video_fence(current_code_language, current_code_filename):
+                        if _is_slides_fence(current_code_language):
                             chunk = ""
-                            logger.info(
-                                f"{log_prefix} Deferring Remotion video-create block until closing fence"
-                            )
+                            logger.info(f"{log_prefix} Deferring slides deck block until closing fence")
                             continue
 
                         if _is_application_preview_combined_language(current_code_language):
@@ -9029,6 +9306,15 @@ async def _consume_main_processing_stream(
                         closing_fence_idx = chunk.find('```')
                         code_chunk_content = chunk[:closing_fence_idx]
                         current_code_content += code_chunk_content
+                        # Providers can stream the end of one block together with
+                        # text or the opening fence of the next block. Every exit of
+                        # this branch finishes only the current block, so whatever
+                        # follows the closing fence is processed as the next chunk.
+                        # Leading line breaks are dropped: an embed reference already
+                        # ends with a blank line, and fence detection reads line one.
+                        text_after_closing_fence = chunk[closing_fence_idx + 3:].lstrip("\r\n")
+                        if text_after_closing_fence.strip():
+                            chunks_after_closing_fence.append(text_after_closing_fence)
                         
                         # HARDENING: Check if this was a suspicious code block (fake tool call)
                         # 'tool_code' is ALWAYS a fake tool call.
@@ -9211,45 +9497,6 @@ async def _consume_main_processing_stream(
                                     current_code_filename = None
                                     current_code_content = ""
                                     current_code_embed_id = None
-                        if (
-                            not current_code_embed_id
-                            and _is_remotion_video_fence(current_code_language, current_code_filename)
-                            and directus_service
-                            and encryption_service
-                            and user_vault_key_id
-                        ):
-                            try:
-                                from backend.core.api.app.services.embed_service import EmbedService
-                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
-                                chunk = await _create_remotion_video_embed_reference(
-                                    embed_service=embed_service,
-                                    source=current_code_content,
-                                    filename=current_code_filename,
-                                    request_data=request_data,
-                                    task_id=task_id,
-                                    user_vault_key_id=user_vault_key_id,
-                                    log_prefix=log_prefix,
-                                )
-                            except RequiredRecoveryOutputError:
-                                raise
-                            except Exception as e:
-                                logger.error(f"{log_prefix} Error creating Remotion video embed: {e}", exc_info=True)
-                                chunk = f"```{current_code_language or ''}\n{current_code_content}```\n\n"
-
-                            in_code_block = False
-                            in_plot_block = False
-                            in_document_block = False
-                            in_email_block = False
-                            in_pcb_schematic_block = False
-                            in_json_content_block = False
-                            in_mermaid_block = False
-                            in_diagram_html_block = False
-                            current_document_title = None
-                            current_code_language = ""
-                            current_code_filename = None
-                            current_code_content = ""
-                            current_code_embed_id = None
-
                         # No embed was created (services unavailable or placeholder failed) —
                         # emit accumulated code as raw markdown so it's not silently lost.
                         application_preview_files_at_close = _parse_application_preview_json_bundle_files(
@@ -9285,6 +9532,12 @@ async def _consume_main_processing_stream(
                                     )
                                 if chunk:
                                     application_parent_embed_created = True
+                                    # Script files sent as separate blocks after the bundle
+                                    # join this parent in the end-of-stream refresh.
+                                    bundle_embed_id = _embed_id_from_reference_block(chunk)
+                                    if bundle_embed_id:
+                                        streaming_application_embed_id = bundle_embed_id
+                                        streaming_application_file_count = len(application_preview_files_at_close)
                                     logger.info(
                                         f"{log_prefix} Created generated application artifact from "
                                         f"{len(application_preview_files_at_close)} file(s) in JSON bundle"
@@ -9755,6 +10008,14 @@ async def _consume_main_processing_stream(
                                             final_response_chunks.append(application_reference)
                                             stream_chunk_count += 1
                                             application_parent_embed_created = True
+                                            streaming_application_embed_id = _embed_id_from_reference_block(
+                                                application_reference
+                                            )
+                                            streaming_application_file_count = len(
+                                                _build_application_manifest_from_code_embeds(
+                                                    generated_code_file_embeds
+                                                )["file_refs"]
+                                            )
                                             logger.info(
                                                 f"{log_prefix} Published streaming generated application embed reference "
                                                 f"after {len(generated_code_file_embeds)} file embed(s)"
@@ -9788,7 +10049,6 @@ async def _consume_main_processing_stream(
                         is_deferred_protocol_block = (
                             in_json_content_block
                             or _is_application_preview_combined_language(current_code_language)
-                            or _is_remotion_video_fence(current_code_language, current_code_filename)
                             or toon_pending_validation
                             or bool(current_code_language and current_code_language.lower() == 'tool_code')
                         )
@@ -10441,6 +10701,79 @@ async def _consume_main_processing_stream(
         except Exception as e:
             logger.error(f"{log_prefix} Error creating early generated application parent embed: {e}", exc_info=True)
 
+    # Script sources written as unfenced `language:path` sections after the
+    # combined block would otherwise stay chat text, leaving the app without an
+    # entry script. Turn them into file embeds so the refresh below adds them.
+    if (
+        streaming_application_embed_id
+        and embed_service
+        and user_vault_key_id
+        and aggregated_response
+        and not was_revoked_during_stream
+    ):
+        loose_files, remaining_response = split_loose_application_files(
+            aggregated_response, _parse_generated_app_file_header
+        )
+        if loose_files:
+            await _create_application_preview_child_code_embeds(
+                files=loose_files,
+                embed_service=embed_service,
+                generated_code_file_embeds=generated_code_file_embeds,
+                request_data=request_data,
+                task_id=task_id,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix,
+            )
+            aggregated_response = remaining_response
+            final_response_chunks = [aggregated_response]
+            logger.info(
+                f"{log_prefix} Recovered {len(loose_files)} unfenced application file(s) "
+                f"for application embed {streaming_application_embed_id}"
+            )
+
+    # Test results of the completed run are shown in the reply even when the
+    # model did not link them (they carry the run video and step timeline).
+    if request_data.completed_result_embed_ids and not was_revoked_during_stream:
+        referenced_response = append_result_embed_references(
+            aggregated_response or "", "test_result", request_data.completed_result_embed_ids
+        )
+        if referenced_response != aggregated_response:
+            aggregated_response = referenced_response
+            final_response_chunks = [aggregated_response]
+            logger.info(f"{log_prefix} Added completed test result embed reference(s) to the reply")
+
+    # Files streamed after the streaming application parent was created are not in
+    # its manifest yet. Re-publish the same parent embed with the complete file list.
+    if (
+        streaming_application_embed_id
+        and generated_code_file_embeds
+        and cache_service
+        and directus_service
+        and encryption_service
+        and user_vault_key_id
+        and not was_revoked_during_stream
+    ):
+        late_manifest = _build_application_manifest_from_code_embeds(generated_code_file_embeds)
+        if late_manifest and len(late_manifest["file_refs"]) > streaming_application_file_count:
+            refreshed_reference = await _create_application_parent_embed_reference(
+                generated_code_file_embeds=generated_code_file_embeds,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                request_data=request_data,
+                task_id=task_id,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix,
+                response_text=aggregated_response,
+                existing_application_embed_id=streaming_application_embed_id,
+            )
+            if refreshed_reference:
+                streaming_application_file_count = len(late_manifest["file_refs"])
+                logger.info(
+                    f"{log_prefix} Refreshed streaming application embed {streaming_application_embed_id} "
+                    f"with {streaming_application_file_count} file(s)"
+                )
+
     # Post-aggregation sweep: strip garbled number sequences from the final response.
     # The per-chunk garbled filter (above) catches large individual chunks, but Gemini
     # multimodal responses sometimes emit raw token-ID / attention-index sequences in
@@ -10690,6 +11023,9 @@ async def _consume_main_processing_stream(
         f"Total length: {len(aggregated_response)} chars"
     )
     
+    # Authored cards were published without coordinates; finish their venue lookups.
+    await drain_authored_result_background(request_data.message_id, log_prefix)
+
     # Wait for all URL validation tasks to complete (non-blocking during streaming, but wait now)
     if url_validation_tasks:
         logger.info(

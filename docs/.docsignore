@@ -18,6 +18,11 @@ contributing/
 # Specs remain versioned in git under docs/specs/ for agents and contributors.
 specs/
 
+# Exclude the internal Rust migration status, lane plan and performance history
+# (engineering tracking generated from the repo; not user-facing documentation).
+migration/
+architecture/platforms/rust-migration-status.md
+
 # Exclude any temporary or draft files
 *.draft.md
 *.temp.md

@@ -105,6 +105,36 @@
         "description": {
           "text": "חשבו כמה לגבות על מוצרים בעבודת יד או בייצור קטן, עם גיליון חי שאפשר לערוך."
         }
+      },
+      "find_business_angels": {
+        "text": "מציאת משקיעי אנג'ל",
+        "description": {
+          "text": "בנו רשימה מדורגת של משקיעי אנג'ל לסבב שלכם, עם ראיות להתאמה ודרך ליצור קשר."
+        }
+      },
+      "research_investor": {
+        "text": "מחקר על משקיע",
+        "description": {
+          "text": "בדקו משקיע או קרן לפני הפנייה, עם עובדות מאומתות, דגלים אדומים ודרכי היכרות."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "כתיבת פנייה למשקיע",
+        "description": {
+          "text": "נסחו מייל קצר למשקיע אחד, פסקת היכרות שניתן להעביר דרך מכר משותף ושתי הודעות מעקב."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "הכנת הפיץ' שלך",
+        "description": {
+          "text": "בנו את סיפור המצגת, מצאו נקודות חולשה ואז תרגלו שאלות קשות של משקיעים, אחת בכל פעם."
+        }
+      },
+      "plan_funding_round": {
+        "text": "תכנון סבב גיוס",
+        "description": {
+          "text": "חשבו כמה לגייס, איזה מכשיר מתאים, את ההדילול ולוח זמנים, עם גיליון קאפ טייבל שאפשר לערוך."
+        }
       }
     },
     "code": {
@@ -240,6 +270,24 @@
           "3": {
             "text": "אני רוצה **לעבור ענף** ממימון לטכנולוגיה — כיצד כדאי להתחיל?"
           }
+        }
+      },
+      "create_cv": {
+        "text": "יצירה או עדכון של קורות חיים",
+        "description": {
+          "text": "צרו קורות חיים ברורים וקריאים למכונה כמסמך Word שניתן לעריכה, או שפרו את הקיימים."
+        }
+      },
+      "write_application": {
+        "text": "כתיבת מועמדות",
+        "description": {
+          "text": "כתבו מועמדות למשרה מסוימת, בקול שלכם ועל בסיס הניסיון האמיתי שלכם."
+        }
+      },
+      "prepare_interview": {
+        "text": "הכנה לראיון",
+        "description": {
+          "text": "התכוננו לראיון עבודה עם שאלות צפויות, הסיפורים שלכם ותרגול עם משוב."
         }
       }
     },
@@ -417,767 +465,6 @@
       }
     }
   },
-  "app_settings_memories": {
-    "books": {
-      "favorite_books": {
-        "text": "ספרים אהובים",
-        "description": {
-          "text": "ספרים שאהבת והיית ממליץ עליהם."
-        },
-        "example_1": {
-          "text": "1984",
-          "title": {
-            "text": "גטסבי הגדול"
-          },
-          "genre": {
-            "text": "ספרות קלאסית"
-          },
-          "notes": {
-            "text": "פרוזה יפה על החלום האמריקאי"
-          }
-        },
-        "example_2": {
-          "text": "קיצור תולדות האנושות",
-          "title": {
-            "text": "קיצור תולדות האנושות"
-          },
-          "genre": {
-            "text": "עיון"
-          },
-          "notes": {
-            "text": "סקירה מרתקת של תולדות האנושות"
-          }
-        },
-        "example_3": {
-          "text": "חולית"
-        }
-      },
-      "currently_reading": {
-        "text": "קורא עכשיו",
-        "description": {
-          "text": "ספרים שאתה קורא כרגע."
-        },
-        "example_1": {
-          "text": "פרויקט הייל מרי",
-          "title": {
-            "text": "פרויקט הייל מרי"
-          },
-          "notes": {
-            "text": "הרפתקת מדע בדיוני מצוינת"
-          }
-        },
-        "example_2": {
-          "text": "הרגלים אטומיים",
-          "title": {
-            "text": "הרגלים אטומיים"
-          },
-          "notes": {
-            "text": "אסטרטגיות מעשיות לבניית הרגלים טובים"
-          }
-        }
-      },
-      "to_read_list": {
-        "text": "רשימת קריאה",
-        "description": {
-          "text": "ספרים שתרצה לקרוא בהמשך."
-        },
-        "example_1": {
-          "text": "בעיית שלושת הגופים",
-          "title": {
-            "text": "חולית"
-          },
-          "genre": {
-            "text": "מדע בדיוני"
-          },
-          "notes": {
-            "text": "מדע בדיוני קלאסי, מומלץ על ידי חברים"
-          }
-        },
-        "example_2": {
-          "text": "לחשוב מהר, לחשוב לאט",
-          "title": {
-            "text": "לחשוב מהר, לחשוב לאט"
-          },
-          "genre": {
-            "text": "פסיכולוגיה"
-          },
-          "notes": {
-            "text": "רוצה להבין הטיות קוגניטיביות"
-          }
-        },
-        "example_3": {
-          "text": "עבודה עמוקה"
-        }
-      }
-    },
-    "code": {
-      "preferred_tech": {
-        "text": "טכנולוגיות מועדפות",
-        "description": {
-          "text": "השפות והפריימוורקים המועדפים עליך."
-        },
-        "example_1": {
-          "text": "Python",
-          "name": {
-            "text": "Python"
-          }
-        },
-        "example_2": {
-          "text": "TypeScript",
-          "name": {
-            "text": "TypeScript"
-          }
-        },
-        "example_3": {
-          "text": "Svelte"
-        }
-      },
-      "projects": {
-        "text": "פרויקטים",
-        "description": {
-          "text": "הפרויקטים שלך (פעילים, מתוכננים או שהושלמו)"
-        },
-        "example_1": {
-          "text": "אתר אישי",
-          "name": {
-            "text": "אתר אישי"
-          },
-          "description": {
-            "text": "אתר תיק עבודות שנבנה עם SvelteKit"
-          }
-        },
-        "example_2": {
-          "text": "אפליקציה לנייד",
-          "name": {
-            "text": "אפליקציית מזג אוויר"
-          },
-          "description": {
-            "text": "אפליקציית תחזית מזג אוויר עם React ו-OpenWeather API"
-          }
-        },
-        "example_3": {
-          "text": "API backend"
-        }
-      },
-      "want_to_learn": {
-        "text": "רוצה ללמוד",
-        "description": {
-          "text": "טכנולוגיות ומיומנויות שברצונך ללמוד"
-        },
-        "example_1": {
-          "text": "Rust",
-          "name": {
-            "text": "Rust"
-          }
-        },
-        "example_2": {
-          "text": "למידת מכונה",
-          "name": {
-            "text": "למידת מכונה"
-          }
-        },
-        "example_3": {
-          "text": "Kubernetes"
-        }
-      },
-      "coding_setup": {
-        "text": "הגדרת קידוד",
-        "description": {
-          "text": "איך אתה אוהב לכתוב קוד, לשתף פעולה עם AI ולהכניס הוראות"
-        },
-        "example_1": {
-          "text": "הגדרה עם עדיפות לטרמינל",
-          "notes": {
-            "text": "Neovim + tmux, הצעות קצרות בלבד"
-          }
-        },
-        "example_2": {
-          "text": "תהליך עבודה מונחה לאינטרנט",
-          "notes": {
-            "text": "מעדיף הגדרות מוגדרות מראש ופעולות בלחיצה אחת"
-          }
-        }
-      }
-    },
-    "docs": {
-      "writing_style": {
-        "text": "סגנונות כתיבה",
-        "description": {
-          "text": "סגנונות הכתיבה המועדפים עליך למסמכים."
-        },
-        "example_1": {
-          "text": "עסקי רשמי",
-          "name": {
-            "text": "תיעוד טכני"
-          },
-          "description": {
-            "text": "כתיבה ברורה ומובנית לתיעוד מפתחים וייחוסי API"
-          }
-        },
-        "example_2": {
-          "text": "אקדמי",
-          "name": {
-            "text": "פוסט בבלוג"
-          },
-          "description": {
-            "text": "טון מרתק ושיחתי למאמרי בלוג"
-          }
-        },
-        "example_3": {
-          "text": "בלוג קליל"
-        }
-      }
-    },
-    "events": {
-      "saved_events": {
-        "text": "אירועים שמורים",
-        "description": {
-          "text": "אירועים ששמרת מתוצאות החיפוש."
-        }
-      }
-    },
-    "health": {
-      "appointments": {
-        "text": "תורים",
-        "description": {
-          "text": "התורים והביקורים הרפואיים שלך."
-        },
-        "example_1": {
-          "text": "רופא שיניים ד\"ר מילר",
-          "where": {
-            "text": "בית החולים העירוני"
-          },
-          "notes": {
-            "text": "בדיקה שנתית"
-          }
-        },
-        "example_2": {
-          "text": "בדיקת עיניים תקופתית",
-          "where": {
-            "text": "מרפאת שיניים במרכז העיר"
-          },
-          "notes": {
-            "text": "ניקוי שיניים"
-          }
-        }
-      },
-      "medical_history": {
-        "text": "היסטוריה רפואית",
-        "description": {
-          "text": "ניתוחי עבר, מצבים רפואיים ואלרגיות."
-        },
-        "example_1": {
-          "text": "אלרגיה לפניצילין",
-          "name": {
-            "text": "אלרגיה לבוטנים"
-          },
-          "details": {
-            "text": "תגובה אלרגית חמורה, נושא אפיפן"
-          }
-        },
-        "example_2": {
-          "text": "ניתוח ברך 2023",
-          "name": {
-            "text": "חיסון קורונה"
-          },
-          "details": {
-            "text": "מנת דחף של פייזר"
-          }
-        }
-      },
-      "symptoms_log": {
-        "text": "יומן תסמינים",
-        "description": {
-          "text": "מעקב אחר תסמינים עם תאריכים ופרטים."
-        }
-      },
-      "sleep_diary": {
-        "text": "יומן שינה",
-        "description": {
-          "text": "מעקב אחר דפוסי שינה ואיכות השינה."
-        }
-      }
-    },
-    "home": {
-      "saved_listings": {
-        "text": "מודעות שמורות",
-        "description": {
-          "text": "בתים ודירות ששמרת מתוצאות החיפוש."
-        }
-      }
-    },
-    "images": {
-      "preferred_styles": {
-        "text": "סגנונות מועדפים",
-        "description": {
-          "text": "הסגנונות המועדפים עליך עבור תמונות שנוצרו"
-        },
-        "example_1": {
-          "text": "צבעי מים",
-          "name": {
-            "text": "מינימליסטי"
-          },
-          "description": {
-            "text": "קווים נקיים, קומפוזיציות פשוטות, פלטת צבעים עמומה"
-          }
-        },
-        "example_2": {
-          "text": "מינימליסטי",
-          "name": {
-            "text": "צילום תוסס"
-          },
-          "description": {
-            "text": "צבעים בהירים, ניגודיות גבוהה, קומפוזיציות דינמיות"
-          }
-        },
-        "example_3": {
-          "text": "סייברפאנק"
-        }
-      }
-    },
-    "mail": {
-      "writing_styles": {
-        "text": "סגנונות כתיבה",
-        "description": {
-          "text": "איך את/ה כותב/ת אימיילים בהקשרים שונים."
-        },
-        "example_1": {
-          "text": "עסקי רשמי",
-          "title": {
-            "text": "מקצועי"
-          },
-          "description": {
-            "text": "טון רשמי למיילים עסקיים"
-          },
-          "when_to_use": {
-            "text": "מיילים עבודה ותקשורת עם לקוחות"
-          },
-          "footer": {
-            "text": "בברכה,"
-          }
-        },
-        "example_2": {
-          "text": "צוותי לא רשמי",
-          "title": {
-            "text": "יומיומי"
-          },
-          "description": {
-            "text": "טון רגוע וידידותי למיילים אישיים"
-          },
-          "when_to_use": {
-            "text": "חברים ומשפחה"
-          },
-          "footer": {
-            "text": "להתראות,"
-          }
-        },
-        "example_3": {
-          "text": "מעקב ותזכורות"
-        }
-      }
-    },
-    "maps": {
-      "favorite_places": {
-        "text": "מקומות מועדפים",
-        "description": {
-          "text": "המקומות המועדפים ששמרת לגישה מהירה."
-        },
-        "example_1": {
-          "text": "בית",
-          "name": {
-            "text": "סנטרל פארק"
-          },
-          "address": {
-            "text": "ניו יורק, NY 10024"
-          }
-        },
-        "example_2": {
-          "text": "משרד",
-          "name": {
-            "text": "מגדל אייפל"
-          },
-          "address": {
-            "text": "שאן דה מארס, 75007 פריז"
-          }
-        },
-        "example_3": {
-          "text": "בית הקפה המועדף"
-        }
-      }
-    },
-    "nutrition": {
-      "saved_recipes": {
-        "text": "מתכונים שמורים",
-        "description": {
-          "text": "מתכונים ששמרת כדי להכין שוב מאוחר יותר."
-        }
-      },
-      "meal_plan": {
-        "text": "תוכנית ארוחות",
-        "description": {
-          "text": "רעיונות לארוחות, לוחות זמנים והעדפות תזונה שברצונך לזכור."
-        }
-      }
-    },
-    "plants": {
-      "my_plants": {
-        "text": "הצמחים שלי",
-        "description": {
-          "text": "אוסף הצמחים שלך עם לוחות זמנים לטיפול"
-        },
-        "example_1": {
-          "text": "מונסטרה דליסיוסה",
-          "name": {
-            "text": "מונסטרה דליסיוסה"
-          },
-          "location": {
-            "text": "סלון"
-          },
-          "notes": {
-            "text": "צריך אור עקיף, לנגב עלים מדי חודש"
-          }
-        },
-        "example_2": {
-          "text": "סנסביירה",
-          "name": {
-            "text": "בזיליקום"
-          },
-          "location": {
-            "text": "חלון המטבח"
-          },
-          "notes": {
-            "text": "לקטוף באופן קבוע לעידוד צמיחה"
-          }
-        }
-      }
-    },
-    "reminder": {
-      "saved_item_reminder_defaults": {
-        "text": "תזכורות לפריטים שמורים",
-        "description": {
-          "text": "התאמה אישית של ברירות המחדל לזמני התזכורות עבור אירועים, טיולים, מודעות, שהיות ופגישות שנשמרו."
-        }
-      }
-    },
-    "shopping": {
-      "preferred_supermarkets": {
-        "text": "סופרמרקטים מועדפים",
-        "description": {
-          "text": "הסופרמרקטים המועדפים עליך לחיפוש מוצרים."
-        }
-      },
-      "dietary_preferences": {
-        "text": "העדפות תזונתיות",
-        "description": {
-          "text": "הצרכים התזונתיים שלך (טבעוני, צמחוני, ללא גלוטן וכו')."
-        }
-      }
-    },
-    "study": {
-      "learning_goals": {
-        "text": "יעדי למידה",
-        "description": {
-          "text": "יעדי הלמידה שלך ונושאים להתמקצעות"
-        },
-        "example_1": {
-          "text": "ספרדית ברמת B2",
-          "topic": {
-            "text": "מדעי הנתונים"
-          },
-          "notes": {
-            "text": "התמקדות ב-Python pandas והמחשת נתונים"
-          }
-        },
-        "example_2": {
-          "text": "יסודות מדעי הנתונים",
-          "topic": {
-            "text": "שפה ספרדית"
-          },
-          "notes": {
-            "text": "לשאוף לרמת שיחה עד הקיץ"
-          }
-        }
-      },
-      "education_history": {
-        "text": "היסטוריית השכלה",
-        "description": {
-          "text": "הרקע האקדמי וההסמכות שלך"
-        }
-      },
-      "career_interests": {
-        "text": "תחומי עניין בקריירה",
-        "description": {
-          "text": "יעדי הקריירה והשאיפות המקצועיות שלך"
-        }
-      }
-    },
-    "travel": {
-      "saved_connections": {
-        "text": "חיבורים שמורים",
-        "description": {
-          "text": "טיסות וחיבורי רכבת ששמרת מתוצאות החיפוש."
-        }
-      },
-      "saved_stays": {
-        "text": "שהיות שמורות",
-        "description": {
-          "text": "מלונות ושהיות ששמרת מתוצאות החיפוש."
-        }
-      },
-      "trips": {
-        "text": "טיולים",
-        "description": {
-          "text": "הטיולים המתוכננים והקודמים שלך עם תאריכים."
-        },
-        "example_1": {
-          "text": "יפן, מרץ 2026",
-          "destination": {
-            "text": "טוקיו, יפן"
-          },
-          "notes": {
-            "text": "חופשה של שבועיים לחקור מקדשות ותרבות אוכל"
-          }
-        },
-        "example_2": {
-          "text": "ברצלונה, קיץ 2025",
-          "destination": {
-            "text": "ברצלונה, ספרד"
-          },
-          "notes": {
-            "text": "חופשת קיץ, חוף ואדריכלות"
-          }
-        },
-        "example_3": {
-          "text": "טיול דרכים בסקוטלנד"
-        }
-      },
-      "preferred_airlines": {
-        "text": "חברות תעופה מועדפות",
-        "description": {
-          "text": "חברות התעופה המועדפות עליך להזמנת טיסות"
-        },
-        "example_1": {
-          "text": "לופטהנזה",
-          "name": {
-            "text": "לופטהנזה"
-          }
-        },
-        "example_2": {
-          "text": "סוויס",
-          "name": {
-            "text": "סינגפור איירליינס"
-          }
-        },
-        "example_3": {
-          "text": "KLM"
-        }
-      },
-      "preferred_transport_methods": {
-        "text": "תחבורה מועדפת",
-        "description": {
-          "text": "דרכי הנסיעה המועדפות עליך."
-        },
-        "example_1": {
-          "text": "רכבת"
-        },
-        "example_2": {
-          "text": "מטוס"
-        },
-        "example_3": {
-          "text": "אופניים"
-        }
-      },
-      "preferred_activities": {
-        "text": "פעילויות מועדפות",
-        "description": {
-          "text": "פעילויות וחוויות הטיול המועדפות עליך."
-        },
-        "example_1": {
-          "text": "ביקור בחופים",
-          "name": {
-            "text": "טיולים רגליים"
-          }
-        },
-        "example_2": {
-          "text": "סיור במוזיאונים",
-          "name": {
-            "text": "ביקורים במוזיאונים"
-          }
-        },
-        "example_3": {
-          "text": "טיולים רגליים"
-        },
-        "example_4": {
-          "text": "טעימת אוכל מקומי"
-        }
-      }
-    },
-    "tv": {
-      "watched_movies": {
-        "text": "סרטים שראיתי",
-        "description": {
-          "text": "סרטים שראית"
-        },
-        "example_1": {
-          "text": "התחלה",
-          "title": {
-            "text": "התחלה"
-          },
-          "notes": {
-            "text": "יצירת מופת מסחררת על חלומות בתוך חלומות"
-          }
-        },
-        "example_2": {
-          "text": "חומות של תקווה",
-          "title": {
-            "text": "פרזיט"
-          },
-          "notes": {
-            "text": "פרשנות חברתית מבריקה עם תפניות בלתי צפויות"
-          }
-        }
-      },
-      "watched_tv_shows": {
-        "text": "סדרות שראיתי",
-        "description": {
-          "text": "סדרות שראית או שאתה צופה בהן"
-        },
-        "example_1": {
-          "text": "שובר שורות",
-          "title": {
-            "text": "שובר שורות"
-          },
-          "notes": {
-            "text": "אחת מסדרות הטלוויזיה הגדולות שנעשו אי פעם"
-          }
-        },
-        "example_2": {
-          "text": "דברים מוזרים",
-          "title": {
-            "text": "הדוב"
-          },
-          "notes": {
-            "text": "דרמת מטבח אינטנסיבית עם משחק מדהים"
-          }
-        }
-      },
-      "to_watch_list": {
-        "text": "רשימת צפייה",
-        "description": {
-          "text": "סרטים וסדרות שאתה רוצה לראות"
-        },
-        "example_1": {
-          "text": "אופנהיימר",
-          "title": {
-            "text": "אופנהיימר"
-          },
-          "reason": {
-            "text": "סרט ביוגרפי זוכה פרסים"
-          }
-        },
-        "example_2": {
-          "text": "הדוב",
-          "title": {
-            "text": "סברנס"
-          },
-          "reason": {
-            "text": "מותחן מדע בדיוני ייחודי בסביבת עבודה"
-          }
-        }
-      }
-    },
-    "videos": {
-      "to_watch_list": {
-        "text": "רשימת צפייה",
-        "description": {
-          "text": "סרטונים שברצונך לראות"
-        },
-        "example_1": {
-          "text": "הרצאה מרכזית בכנס טכנולוגיה",
-          "name": {
-            "text": "איך מחשבים עובדים"
-          }
-        },
-        "example_2": {
-          "text": "מדריך בישול",
-          "name": {
-            "text": "TypeScript מתקדם"
-          }
-        },
-        "example_3": {
-          "text": "ולוג טיולים"
-        }
-      },
-      "subscribed_channels": {
-        "text": "ערוצים רשומים",
-        "description": {
-          "text": "ערוצי YouTube שאליהם נרשמת"
-        },
-        "example_1": {
-          "text": "Fireship"
-        },
-        "example_2": {
-          "text": "Kurzgesagt"
-        },
-        "example_3": {
-          "text": "Veritasium"
-        }
-      }
-    },
-    "web": {
-      "bookmarks": {
-        "text": "סימניות",
-        "description": {
-          "text": "האתרים ששמרת בסימניות"
-        },
-        "example_1": {
-          "text": "github.com"
-        },
-        "example_2": {
-          "text": "developer.mozilla.org"
-        },
-        "example_3": {
-          "text": "news.ycombinator.com"
-        }
-      },
-      "favorite_websites": {
-        "text": "אתרים מועדפים",
-        "description": {
-          "text": "האתרים המועדפים עליך לגישה מהירה"
-        },
-        "example_1": {
-          "text": "ExampleCommunity.com"
-        },
-        "example_2": {
-          "text": "medium.com"
-        },
-        "example_3": {
-          "text": "stackoverflow.com"
-        }
-      },
-      "read_later": {
-        "text": "לקרוא אחר כך",
-        "description": {
-          "text": "אתרים ומאמרים שנשמרו להמשך"
-        },
-        "example_1": {
-          "text": "מאמר מחקר מעניין בנושא בינה מלאכותית",
-          "notes": {
-            "text": "מאמר מעניין על בינה מלאכותית"
-          }
-        },
-        "example_2": {
-          "text": "מאמר על תבניות עיצוב",
-          "notes": {
-            "text": "מדריך לפיתוח אתרים"
-          }
-        },
-        "example_3": {
-          "text": "פוסט בבלוג טכנולוגי"
-        }
-      }
-    }
-  },
   "app_skills": {
     "ai": {
       "ask": {
@@ -1340,6 +627,18 @@
         "text": "חיפוש סימני מסחר",
         "description": {
           "text": "חיפוש סימני מסחר לפי אזור עם מקורות ומגבלות כיסוי."
+        }
+      },
+      "search_investors": {
+        "text": "חיפוש משקיעים",
+        "description": {
+          "text": "מצאו אנג'לים עסקיים, רשתות אנג'לים ומשקיעים בשלב מוקדם לפי נושא ואזור."
+        }
+      },
+      "company_ownership": {
+        "text": "בעלות על חברות",
+        "description": {
+          "text": "בדקו מי הבעלים או המנהלים של חברה, או אילו חברות מחזיק אדם, במרשמים הרשמיים של גרמניה, בריטניה וצרפת."
         }
       }
     },
@@ -1605,6 +904,12 @@
         "description": {
           "text": "מצא אייקוני SVG בקוד פתוח מאוספי Iconify."
         }
+      },
+      "embroidery": {
+        "text": "רקמה",
+        "description": {
+          "text": "הפוך גרפיקה וקטורית לקובצי מכונת רקמה עם תצוגה מקדימה של התפרים."
+        }
       }
     },
     "electronics": {
@@ -1854,6 +1159,23 @@
           },
           "3": {
             "text": "המר את אייקון ה-PNG הזה ל-SVG כדי שייראה חד בכל גודל"
+          }
+        }
+      },
+      "modify": {
+        "text": "עריכה",
+        "description": {
+          "text": "שילוב, מיקום, חיתוך, שינוי גודל וכוונון מדויק של תמונות מהצ'אט, בלי להמציא תוכן חדש."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "שים את עיצוב הרקמה שלי על הגב של הז'קט בתמונה הזו"
+          },
+          "2": {
+            "text": "צור קולאז' מחמש התמונות האלה עם רווחים לבנים שווים"
+          },
+          "3": {
+            "text": "חתוך את התמונה הזו לריבוע סביב המגדלור והפוך את הצבעים לחמימים מעט יותר"
           }
         }
       },
@@ -2374,7 +1696,10 @@
       "generate": {
         "text": "יצירה",
         "description": {
-          "text": "יצירת סרטון AI קצר מהנחיית טקסט."
+          "text": "יצירת סרטון קצר מהתיאור שלך ומתמונות בצ'אט, כצילומי AI או כסרטון מורכב מדויק."
+        },
+        "pricing_note": {
+          "text": "קליפים שנוצרו: 35 (360p), 105 (720p), 160 (1080p) או 315 (4K) קרדיטים לשנייה. סרטונים מורכבים: הטוקנים שמודל הכתיבה משתמש בהם ועוד 10 קרדיטים לכל דקת רינדור שהתחילה. שינויים מחויבים רק על מה שהם מוסיפים. אין חיוב כאשר לא נמסר סרטון. צליל בסרטונים מורכבים: 2 קרדיטים לשנייה של קריינות, 15 קרדיטים לשנייה של אפקט קולי ו-120 קרדיטים לכל קטע מוזיקה; מחויבים רק קליפים שנוצרו מחדש עבור גרסה."
         }
       },
       "create": {
@@ -2973,6 +2298,12 @@
       },
       "day": {
         "text": "יום מזג אוויר"
+      }
+    },
+    "slides": {
+      "text": "מצגות",
+      "description": {
+        "text": "צרו, ערכו והציגו מצגות."
       }
     }
   },
@@ -3840,46 +3171,6 @@
       },
       "discover_math_calculate": {
         "text": "פתור: כמה זה 15% מתוך 240?"
-      }
-    },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "טיפ מהיר"
-      },
-      "cta_learn_more": {
-        "text": "מידע נוסף"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "צ'אטים קצרים עובדים טוב יותר"
-        },
-        "body": {
-          "text": "תקבל תשובות טובות יותר ותחסוך קרדיטים כשתפצל נושאים לצ'אטים קצרים ונפרדים."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "חפש כשהעדכניות חשובה"
-        },
-        "body": {
-          "text": "בפעם הבאה שתצטרך מחירים עדכניים, אירועים, חדשות, פרטי מוצרים או עובדות מהזמן האחרון, OpenMates יוכל לחפש באינטרנט עבורך."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "הוספת הקשר נוסף לנסיעה"
-        },
-        "body": {
-          "text": "לאחר תכנון הנסיעה, OpenMates יכול לעזור גם במציאת מקומות מקומיים, אירועים, מקומות לינה, מסלולים ופרטים פרקטיים לאותה נסיעה."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "נסה אפליקציה לשלב הבא"
-        },
-        "body": {
-          "text": "כשאתה יודע מה אתה רוצה לעשות הלאה, האפליקציות של OpenMates יכולות לתת ל-AI כלים טובים יותר למשימות כמו תכנות, מחקר, אירועים, קניות, כתיבה או תכנון."
-        }
       }
     },
     "suggestions": {
@@ -6637,6 +5928,7 @@
       }
     }
   },
+  "embed_user_edits": {},
   "embeds": {
     "hosting": {
       "search_domains": {
@@ -7239,6 +6531,15 @@
       "loading": {
         "text": "טוען תמונה..."
       },
+      "checking": {
+        "text": "בודק את התוצאה…"
+      },
+      "scripting": {
+        "text": "כותב את סקריפט היצירה…"
+      },
+      "correcting": {
+        "text": "משפר…"
+      },
       "prompt_label": {
         "text": "פרומפט"
       },
@@ -7266,6 +6567,29 @@
     },
     "image_generate_draft": {
       "text": "יצירת טיוטה"
+    },
+    "image_modify": {
+      "writing": {
+        "text": "כותב את העריכה…"
+      },
+      "running": {
+        "text": "מריץ…"
+      },
+      "checking": {
+        "text": "בודק את התוצאה…"
+      },
+      "correcting": {
+        "text": "מתקן…"
+      },
+      "attempt": {
+        "text": "ניסיון {n}"
+      },
+      "unmet_title": {
+        "text": "לא התקיים במלואו"
+      },
+      "title": {
+        "text": "תמונה ערוכה"
+      }
     },
     "context_menu": {
       "view": {
@@ -8317,6 +7641,48 @@
       },
       "no_frame": {
         "text": "אין צילום מסך שמור."
+      },
+      "phase_starting": {
+        "text": "מתחיל"
+      },
+      "phase_working": {
+        "text": "עובד"
+      },
+      "phase_finishing": {
+        "text": "מסיים"
+      },
+      "starting_browser": {
+        "text": "מפעיל את הדפדפן…"
+      },
+      "steps_title": {
+        "text": "שלבים"
+      },
+      "step_start": {
+        "text": "הדפדפן הופעל"
+      },
+      "step_goto": {
+        "text": "הדף נפתח"
+      },
+      "step_click": {
+        "text": "לחיצה על"
+      },
+      "step_type": {
+        "text": "הוקלד ב"
+      },
+      "step_select": {
+        "text": "נבחר"
+      },
+      "step_scroll": {
+        "text": "גלילה"
+      },
+      "step_wait": {
+        "text": "המתין"
+      },
+      "step_back": {
+        "text": "חזר אחורה"
+      },
+      "partial": {
+        "text": "אומת חלקית — לא ניתן לאשר: {fields}"
       }
     },
     "authoring": {
@@ -8448,6 +7814,652 @@
       "unavailable": {
         "text": "הכותר אינו זמין"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "מצגת"
+    },
+    "slides_count_singular": {
+      "text": "שקף"
+    },
+    "slides_count_plural": {
+      "text": "שקפים"
+    },
+    "slides_prev": {
+      "text": "השקף הקודם"
+    },
+    "slides_next": {
+      "text": "השקף הבא"
+    },
+    "slides_strip_label": {
+      "text": "שקפים"
+    },
+    "slides_slide_label": {
+      "text": "שקף"
+    },
+    "slides_no_content": {
+      "text": "עדיין אין שקפים."
+    },
+    "slides_present": {
+      "text": "הצג"
+    },
+    "slides_presenter_view": {
+      "text": "תצוגת מציג"
+    },
+    "slides_exit_presentation": {
+      "text": "צא מההצגה"
+    },
+    "slides_popup_blocked": {
+      "text": "הדפדפן חסם את החלון השני. ההצגה מתבצעת בחלון זה."
+    },
+    "slides_speaker_notes": {
+      "text": "הערות מרצה"
+    },
+    "slides_no_notes": {
+      "text": "אין הערות לשקף זה."
+    },
+    "slides_timer_reset": {
+      "text": "אפס טיימר"
+    },
+    "slides_editor_loading": {
+      "text": "פותח את העורך…"
+    },
+    "slides_editor_unavailable": {
+      "text": "לא ניתן לערוך את המצגת הזו כאן כרגע."
+    },
+    "slides_editor_change_failed": {
+      "text": "לא ניתן היה להחיל את השינוי."
+    },
+    "slides_editor_saving": {
+      "text": "שומר…"
+    },
+    "slides_editor_save_failed": {
+      "text": "לא ניתן היה לשמור את השינויים שלך. הם עדיין כאן, כך שאפשר לנסות שוב."
+    },
+    "slides_editor_toolbar": {
+      "text": "כלי עריכת שקפים"
+    },
+    "slides_editor_selection_tools": {
+      "text": "הרכיב שנבחר"
+    },
+    "slides_editor_undo": {
+      "text": "בטל"
+    },
+    "slides_editor_redo": {
+      "text": "בצע שוב"
+    },
+    "slides_editor_add_text": {
+      "text": "הוסף טקסט"
+    },
+    "slides_editor_bring_forward": {
+      "text": "הבא קדימה"
+    },
+    "slides_editor_send_backward": {
+      "text": "שלח אחורה"
+    },
+    "slides_editor_new_text": {
+      "text": "טקסט חדש"
+    },
+    "slides_editor_element": {
+      "text": "רכיב"
+    },
+    "slides_editor_text_box": {
+      "text": "טקסט השקף"
+    },
+    "slides_editor_font_size": {
+      "text": "גודל גופן"
+    },
+    "slides_editor_smaller": {
+      "text": "טקסט קטן יותר"
+    },
+    "slides_editor_larger": {
+      "text": "טקסט גדול יותר"
+    },
+    "slides_editor_bold": {
+      "text": "מודגש"
+    },
+    "slides_editor_align": {
+      "text": "יישור"
+    },
+    "slides_editor_align_left": {
+      "text": "שמאל"
+    },
+    "slides_editor_align_center": {
+      "text": "מרכז"
+    },
+    "slides_editor_align_right": {
+      "text": "ימין"
+    },
+    "slides_editor_align_justify": {
+      "text": "מיושר לשני הצדדים"
+    },
+    "slides_editor_color": {
+      "text": "צבע הטקסט"
+    },
+    "slides_editor_color_foreground": {
+      "text": "טקסט"
+    },
+    "slides_editor_color_accent": {
+      "text": "הדגשה"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "הדגשה שנייה"
+    },
+    "slides_editor_color_muted": {
+      "text": "מעומעם"
+    },
+    "slides_editor_color_surface": {
+      "text": "משטח"
+    },
+    "slides_editor_color_background": {
+      "text": "רקע"
+    },
+    "slides_editor_custom_color": {
+      "text": "צבע מותאם"
+    },
+    "slides_editor_slide_actions": {
+      "text": "פעולות שקף"
+    },
+    "slides_editor_add_slide": {
+      "text": "הוסף שקף"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "שכפל שקף"
+    },
+    "slides_editor_delete_slide": {
+      "text": "מחק שקף"
+    },
+    "slides_editor_move_left": {
+      "text": "הזז את השקף אחורה"
+    },
+    "slides_editor_move_right": {
+      "text": "הזז את השקף קדימה"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "הערות שרק אתה רואה בזמן ההצגה"
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "חוטים"
+        },
+        "stitches_unit": {
+          "text": "תפרים"
+        },
+        "stitches": {
+          "text": "תפרים"
+        },
+        "size": {
+          "text": "גודל"
+        },
+        "thread_changes": {
+          "text": "החלפות חוט"
+        },
+        "sewing_time": {
+          "text": "זמן רקמה משוער"
+        },
+        "sewing_time_note": {
+          "text": "זמן הרקמה ואורך החוט הם הערכות. הם משתנים לפי המכונה והגדרותיה."
+        },
+        "thread_length": {
+          "text": "חוט נדרש"
+        },
+        "thread_amount": {
+          "text": "{length} חוט"
+        },
+        "fits_hoop": {
+          "text": "נכנס למסגרת {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "גדול מדי למסגרת {hoop}"
+        },
+        "fabric": {
+          "text": "בד"
+        },
+        "fabric_light": {
+          "text": "קל"
+        },
+        "fabric_normal": {
+          "text": "רגיל"
+        },
+        "fabric_stretchy": {
+          "text": "אלסטי"
+        },
+        "hoop": {
+          "text": "מסגרת"
+        },
+        "hoop_none": {
+          "text": "ללא מסגרת"
+        },
+        "width": {
+          "text": "רוחב (מ\"מ)"
+        },
+        "width_range": {
+          "text": "הזינו רוחב בין {min} ל-{max} מ\"מ."
+        },
+        "apply": {
+          "text": "החלה"
+        },
+        "change_settings": {
+          "text": "שינוי הגדרות"
+        },
+        "download": {
+          "text": "הורדה"
+        },
+        "download_all": {
+          "text": "הורדת כל הפורמטים (ZIP)"
+        },
+        "download_single": {
+          "text": "או רק הפורמט שהמכונה שלך קוראת:"
+        },
+        "notes": {
+          "text": "הערות"
+        },
+        "reworked_hint": {
+          "text": "הגרפיקה הותאמה לרקמה לפני יצירת התפרים."
+        },
+        "view": {
+          "text": "סוג תצוגה מקדימה"
+        },
+        "view_stitches": {
+          "text": "תפרים"
+        },
+        "view_graphic": {
+          "text": "גרפיקה"
+        },
+        "converting": {
+          "text": "ממיר לתפרים…"
+        },
+        "failed": {
+          "text": "ההמרה נכשלה"
+        },
+        "preview_unavailable": {
+          "text": "לא ניתן היה לטעון את התצוגה המקדימה של התפרים."
+        },
+        "apply_request": {
+          "text": "המר שוב את עיצוב הרקמה הזה: רוחב {width} מ\"מ, מסגרת {hoop}, בד {fabric}."
+        },
+        "border": {
+          "text": "שוליים"
+        },
+        "border_none": {
+          "text": "ללא"
+        },
+        "border_mm": {
+          "text": "{width} מ\"מ"
+        },
+        "apply_request_border": {
+          "text": "הוסף שוליים של {width} מ\"מ לתפירה."
+        },
+        "apply_request_no_border": {
+          "text": "השמט את השוליים."
+        },
+        "error": {
+          "generic": {
+            "text": "לא ניתן היה להמיר את העיצוב הזה."
+          },
+          "unreadable_svg": {
+            "text": "לא ניתן היה לקרוא את הגרפיקה."
+          },
+          "nothing_to_sew": {
+            "text": "אחרי הסרת הרקע לא נשאר מה לרקום."
+          },
+          "too_many_stitches": {
+            "text": "בעיצוב יש יותר מדי תפרים. נסו גודל קטן יותר או גרפיקה פשוטה יותר."
+          },
+          "timeout": {
+            "text": "ההמרה ארכה זמן רב מדי ונעצרה."
+          },
+          "sandbox_failed": {
+            "text": "לא ניתן היה להשלים את ההמרה. נסו שוב."
+          },
+          "invalid_source": {
+            "text": "המקור אינו גרפיקה וקטורית. צרו קודם גרפיקה וקטורית."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "הרקע הושמט"
+          },
+          "tiny_details_removed": {
+            "text": "פרטים קטנים מדי לרקמה הושמטו ({count})"
+          },
+          "lines_running": {
+            "text": "קווים דקים מ-1 מ\"מ נרקמים כקו תפר דק"
+          },
+          "gradient_flattened": {
+            "text": "מעברי צבע נרקמים בצבע אחיד אחד"
+          },
+          "effects_ignored": {
+            "text": "אפקטי טשטוש, צל ומסכה הושמטו"
+          },
+          "image_left_out": {
+            "text": "תמונת פיקסלים משובצת הושמטה"
+          },
+          "text_left_out": {
+            "text": "טקסט שאינו מצויר כצורות הושמט"
+          },
+          "rotate_for_hoop": {
+            "text": "סובבו את העיצוב ב-90 מעלות כדי שיתאים למסגרת"
+          },
+          "rework_failed": {
+            "text": "לא ניתן היה להתאים את העיצוב אוטומטית ולכן הוא הומר כמות שהוא"
+          },
+          "instructions_applied": {
+            "text": "הבקשות שלך יושמו"
+          },
+          "border_added": {
+            "text": "נוספה שוליים של {mm} מ\"מ לתפירה"
+          },
+          "sized_to_hoop": {
+            "text": "הגודל הותאם למילוי החישוק"
+          },
+          "solved_gradient_or_filter": {
+            "text": "מעברי צבע ומסננים הוחלפו בצבעים אחידים"
+          },
+          "solved_live_text": {
+            "text": "הטקסט צויר מחדש כצורות או הושמט"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "תמונת הפיקסלים המשובצת צוירה מחדש כצורות או הושמטה"
+          },
+          "solved_detail_below_1mm": {
+            "text": "פרטים קטנים הוגדלו או הושמטו"
+          },
+          "solved_more_than_12_colours": {
+            "text": "הצבעים צומצמו ל-12 חוטים לכל היותר"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "עדיין יש מעברי צבע או מסננים; ייתכן שהתוצאה לא תירקם שם בצורה נקייה"
+          },
+          "unsolved_live_text": {
+            "text": "עדיין יש טקסט חי; ייתכן שהתוצאה לא תירקם שם בצורה נקייה"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "עדיין יש תמונת פיקסלים משובצת; ייתכן שהתוצאה לא תירקם שם בצורה נקייה"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "עדיין יש פרטים קטנים מ-1 מ\"מ; ייתכן שהתוצאה לא תירקם שם בצורה נקייה"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "עדיין יש יותר מ-12 צבעי חוט; ייתכן שהתוצאה לא תירקם שם בצורה נקייה"
+          }
+        }
+      }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "תוצאת בדיקה"
+        },
+        "status_passed": {
+          "text": "עבר"
+        },
+        "status_failed": {
+          "text": "נכשל"
+        },
+        "status_skipped": {
+          "text": "דולג"
+        },
+        "status_error": {
+          "text": "שגיאה"
+        },
+        "status_cancelled": {
+          "text": "בוטל"
+        },
+        "status_timed_out": {
+          "text": "תם הזמן"
+        },
+        "stale": {
+          "text": "לא עדכני"
+        },
+        "steps": {
+          "text": "שלבי הבדיקה"
+        },
+        "no_video": {
+          "text": "אין וידאו זמין להרצה זו"
+        }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "החל"
+      },
+      "cancel": {
+        "text": "ביטול"
+      },
+      "clip": {
+        "text": "קליפ"
+      },
+      "discard": {
+        "text": "השלך"
+      },
+      "discard_confirm": {
+        "text": "לזרוק את השינויים הממתינים?"
+      },
+      "edit_hint": {
+        "text": "בחר חלק בציר הזמן כדי לערוך אותו."
+      },
+      "edit_part": {
+        "text": "עריכת {label}"
+      },
+      "extend_empty": {
+        "text": "תאר קודם מה צריך לקרות בחלק שנוסף."
+      },
+      "extend_end": {
+        "text": "הארך את הסרטון בסוף"
+      },
+      "extend_placeholder_end": {
+        "text": "מה צריך לקרות בקליפ שנוסף אחרי הסוף?"
+      },
+      "extend_placeholder_start": {
+        "text": "מה צריך לקרות בקליפ שנוסף לפני ההתחלה?"
+      },
+      "extend_start": {
+        "text": "הארך את הסרטון בהתחלה"
+      },
+      "keep_editing": {
+        "text": "המשך לערוך"
+      },
+      "kind_composed": {
+        "text": "סרטון מורכב"
+      },
+      "kind_generative": {
+        "text": "סרטון שנוצר"
+      },
+      "load_error": {
+        "text": "טעינת הסרטון נכשלה"
+      },
+      "loading": {
+        "text": "טוען סרטון..."
+      },
+      "model": {
+        "text": "מודל"
+      },
+      "new_length": {
+        "text": "אורך חדש {length}"
+      },
+      "part_aria": {
+        "text": "{label}, מ-{start} עד {end}"
+      },
+      "pending_changes": {
+        "text": "שינויים ממתינים: {count}"
+      },
+      "created_by": {
+        "text": "נוצר על ידי {model}"
+      },
+      "change_edit": {
+        "text": "עורך את הסרטון"
+      },
+      "change_extend_start": {
+        "text": "מאריך את הסרטון בהתחלה"
+      },
+      "change_extend_end": {
+        "text": "מאריך את הסרטון בסוף"
+      },
+      "progress_correcting_round": {
+        "text": "מתקן בעיית עיבוד (סבב {round})…"
+      },
+      "failed": {
+        "text": "יצירת הסרטון נכשלה"
+      },
+      "progress_deciding": {
+        "text": "מחליט איך ליצור את הסרטון…"
+      },
+      "progress_writing": {
+        "text": "כותב את הקומפוזיציה…"
+      },
+      "progress_rendering": {
+        "text": "מעבד את הסרטון…"
+      },
+      "progress_correcting": {
+        "text": "מתקן את הסרטון…"
+      },
+      "progress_generating": {
+        "text": "יוצר את הקליפ…"
+      },
+      "progress_audio_speech": {
+        "text": "מקליט את הקריינות…"
+      },
+      "progress_audio_sound": {
+        "text": "יוצר אפקטי קול…"
+      },
+      "progress_audio_music": {
+        "text": "מלחין את המוזיקה…"
+      },
+      "progress_audio_unknown": {
+        "text": "יוצר את הצליל…"
+      },
+      "progress_audio_several": {
+        "text": "יוצר {kinds}…"
+      },
+      "audio_noun_speech": {
+        "text": "קריינות"
+      },
+      "audio_noun_sound": {
+        "text": "אפקטי קול"
+      },
+      "audio_noun_music": {
+        "text": "מוזיקה"
+      },
+      "audio_list_and": {
+        "text": "{head} ו{last}"
+      },
+      "timeline_audio_speech": {
+        "text": "קול"
+      },
+      "timeline_audio_sound": {
+        "text": "אפקט"
+      },
+      "timeline_audio_music": {
+        "text": "מוזיקה"
+      },
+      "prompt": {
+        "text": "פרומפט"
+      },
+      "remove_last_hint": {
+        "text": "לא ניתן להסיר את החלק האחרון."
+      },
+      "remove_part": {
+        "text": "הסר חלק"
+      },
+      "request_change_text": {
+        "text": "חלק {label} (id {id}): שנה את הטקסט {text} מ-{from} ל-{to}"
+      },
+      "request_remove_part": {
+        "text": "הסר את חלק {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "חלק {label} (id {id}): קצר ב-{seconds} s בסוף"
+      },
+      "request_shorten_start": {
+        "text": "חלק {label} (id {id}): קצר ב-{seconds} s בהתחלה"
+      },
+      "request_trim_video": {
+        "text": "קצץ את הסרטון: הסר {start} s מההתחלה ו-{end} s מהסוף"
+      },
+      "request_trim_video_end": {
+        "text": "קצץ את הסרטון: הסר {end} s מהסוף"
+      },
+      "request_trim_video_start": {
+        "text": "קצץ את הסרטון: הסר {start} s מההתחלה"
+      },
+      "resolution": {
+        "text": "רזולוציה"
+      },
+      "restore_part": {
+        "text": "שחזר חלק"
+      },
+      "send": {
+        "text": "שלח"
+      },
+      "shorten_end": {
+        "text": "קצר מהסוף"
+      },
+      "shorten_less": {
+        "text": "החזר 0.5 s"
+      },
+      "shorten_more": {
+        "text": "קצר ב-0.5 s"
+      },
+      "shorten_start": {
+        "text": "קצר מההתחלה"
+      },
+      "sources": {
+        "text": "מקורות"
+      },
+      "timeline": {
+        "text": "ציר זמן של הסרטון"
+      },
+      "trim_video": {
+        "text": "קצץ את הסרטון"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "הסרטון עדיין לא זמין."
+      },
+      "status_cancelled": {
+        "text": "העיבוד נעצר"
+      },
+      "status_error": {
+        "text": "העיבוד נכשל"
+      },
+      "status_finished": {
+        "text": "הושלם"
+      },
+      "status_needs_rerender": {
+        "text": "נדרש עיבוד מחדש"
+      },
+      "status_processing": {
+        "text": "מכין את המקור…"
+      },
+      "status_rendering": {
+        "text": "מעבד סרטון..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "קוד"
+      },
+      "view_timeline": {
+        "text": "ציר זمن"
+      },
+      "view_video": {
+        "text": "סרטון"
+      }
+    },
+    "progress_searching_sources": {
+      "text": "{done}/{total} מקורות"
+    },
+    "progress_searching": {
+      "text": "מחפש…"
+    },
+    "progress_results": {
+      "text": "{count} תוצאות"
+    },
+    "progress_result_one": {
+      "text": "תוצאה אחת"
     }
   },
   "embeds_input": {},
@@ -8737,6 +8749,57 @@
       "selected_model_label": {
         "text": "מודל שנבחר:"
       }
+    },
+    "send_failed": {
+      "text": "לא ניתן היה לשלוח את ההודעה. היא עדיין בשדה ההקלדה, נסה שוב."
+    },
+    "file_import_failed": {
+      "text": "לא ניתן היה לקרוא את {filename}, ולכן הוא לא צורף. ייתכן שהקובץ ריק, פגום או מוגן בסיסמה."
+    },
+    "file_unsupported_type": {
+      "text": "{filename} לא צורף כי סוג קובץ זה עדיין אינו נתמך."
+    },
+    "file_pptx_coming_soon": {
+      "text": "קובצי PowerPoint עדיין אינם נתמכים - התמיכה במצגות תגיע בקרוב. {filename} לא צורף."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} יובא כגיליונות. תכונות Excel הבאות אינן נתמכות והוסרו: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "צבעי תאים ועיצוב"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "עיצוב מותנה"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "תאים ממוזגים"
+    },
+    "xlsx_feature_charts": {
+      "text": "תרשימים"
+    },
+    "xlsx_feature_images": {
+      "text": "תמונות"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "טבלאות ציר"
+    },
+    "xlsx_feature_macros": {
+      "text": "מאקרו"
+    },
+    "xlsx_feature_external_links": {
+      "text": "קישורים לחוברות עבודה אחרות"
+    },
+    "xlsx_feature_comments": {
+      "text": "הערות"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "נוסחאות שעדיין אינן נתמכות (הערכים המחושבים נשמרו)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "גיליונות מוסתרים"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "גיליונות אחרי ה-10 הראשונים"
     },
     "mention_dropdown": {
       "header": {
@@ -10070,398 +10133,6 @@
         "text": "דיון במודלי המימון של פלטפורמות קוד פתוח עצמאיות"
       }
     },
-    "memory_books_currently_reading": {
-      "title": {
-        "text": "Memory Books Currently Reading"
-      },
-      "summary": {
-        "text": "OpenMates uses saved books currently_reading memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.\n\nHere is your spoiler-free one-week reading plan to keep you on track:\n\n*   **Night 1:** Page 250 to 275\n*   **Night 2:** Page 275 to 300\n*   **Night 3:** Page 300 to 325\n*   **Night 4:** Page 325 to 350\n*   **Night 5:** Page 350 to 375\n*   **Night 6:** Page 375 to 400\n*   **Night 7:** Page 400 to 425\n\nBy the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!"
-      }
-    },
-    "memory_books_favorite_books": {
-      "title": {
-        "text": "Memory Books Favorite Books"
-      },
-      "summary": {
-        "text": "OpenMates uses saved books favorite_books memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved favorite books memory to recommend one novel I should read next and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved preference for [The Left Hand of Darkness](wiki:The_Left_Hand_of_Darkness) by [Ursula K. Le Guin](wiki:Ursula_K._Le_Guin), I recommend you read **[The Dispossessed](wiki:The_Dispossessed)**, also by Le Guin.\n\nYour memories indicate that you value \"thoughtful worldbuilding,\" \"humane political themes,\" and \"restrained pacing.\" *The Dispossessed* is a perfect follow-up because it explores a complex, dual-world society through the eyes of a deeply humane protagonist, Shevek. Much like your favorite book, it prioritizes philosophical depth and the exploration of identity—in this case, through the lens of anarchism versus capitalism—rather than fast-paced action. It offers the same reflective atmosphere and meticulous cultural detail that you appreciated in your previous reading."
-      }
-    },
-    "memory_books_to_read_list": {
-      "title": {
-        "text": "Memory Books To Read List"
-      },
-      "summary": {
-        "text": "OpenMates uses saved books to_read_list memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.\n\nYour notes specifically identify it as a \"big immersive book for a quiet trip\" and a \"high priority,\" which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a \"gentle weekend read,\" the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly."
-      }
-    },
-    "memory_code_coding_setup": {
-      "title": {
-        "text": "Memory Code Coding Setup"
-      },
-      "summary": {
-        "text": "OpenMates uses saved code coding_setup memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved coding setup memory to suggest how I should structure a debugging session tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.\n\nHere is how you should structure your debugging session tonight to align perfectly with your preferences:\n\n1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.\n2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.\n3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.\n4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.\n5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue."
-      }
-    },
-    "memory_code_preferred_tech": {
-      "title": {
-        "text": "Memory Code Preferred Tech"
-      },
-      "summary": {
-        "text": "OpenMates uses saved code preferred_tech memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:\n\n1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.\n2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).\n3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.\n4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.\n5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple \"git push.\"\n\nThis combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience."
-      }
-    },
-    "memory_code_projects": {
-      "title": {
-        "text": "Memory Code Projects"
-      },
-      "summary": {
-        "text": "OpenMates uses saved code projects memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:\n\n1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the \"Thirst Status\" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., \"Satisfied,\" \"Due,\" or \"Overdue\") which can then be used to drive visual indicators in your UI.\n2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness."
-      }
-    },
-    "memory_code_want_to_learn": {
-      "title": {
-        "text": "Memory Code Want To Learn"
-      },
-      "summary": {
-        "text": "OpenMates uses saved code want_to_learn memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your interest in learning [Rust](wiki:Rust_(programming_language)), [WebAssembly](wiki:WebAssembly), and Asynchronous programming patterns, I suggest building a **Web-Based Real-Time Image Filter**.\n\nThis project is an ideal entry point because it provides immediate visual feedback and highlights why WebAssembly is valuable.\n\n### The Project: Rust-Powered Image Processor\nThe goal is to create a simple web page where you can upload an image and apply filters (like grayscale, sepia, or brightness) using a Rust backend compiled to Wasm.\n\n**Why this fits your goals:**\n*   **WebAssembly:** You will use `wasm-pack` and `wasm-bindgen` to bridge the gap between [JavaScript](wiki:JavaScript) and Rust, learning how to pass large buffers of memory (pixel data) between the two.\n*   **Rust Fundamentals:** You'll practice using [Iterators](wiki:Iterator) and handling raw byte arrays efficiently.\n*   **Async Patterns:** You can extend the project by using [Future](wiki:Futures_and_promises) patterns in Rust to handle file loading or to offload the processing to a [Web worker](wiki:Web_worker), ensuring the UI remains responsive during heavy computation.\n\n**Suggested Weekend Roadmap:**\n1.  **Setup:** Initialize a project with `wasm-pack` and set up a basic HTML/JS frontend with a `<canvas>` element.\n2.  **The Bridge:** Write a Rust function that takes a `Vec<u8>` (representing RGBA pixels), iterates through them to calculate grayscale values, and returns the modified vector.\n3.  **Optimization:** Once the basic filter works, explore using Rayon or internal async tasks to see if you can parallelize the pixel processing for very large images.\n\nThis project directly applies what you've shared about your learning path by combining high-performance computation with modern web integration."
-      }
-    },
-    "memory_docs_writing_style": {
-      "title": {
-        "text": "Memory Docs Writing Style"
-      },
-      "summary": {
-        "text": "OpenMates uses saved docs writing_style memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "### Bulk Data Import\nBring your existing data into the platform in seconds with our new import tool.\n\n*   **Multi-format Support**: Upload data directly from CSV and JSON files.\n*   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.\n*   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows."
-      }
-    },
-    "memory_events_saved_events": {
-      "title": {
-        "text": "Memory Events Saved Events"
-      },
-      "summary": {
-        "text": "OpenMates uses saved events saved_events memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "It looks like you have the **Berlin AI Builders Gathering** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.\n\nBased on the specific notes you've saved for this event, here is a practical checklist to help you prepare:\n\n*   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.\n*   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.\n*   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.\n*   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.\n*   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.\n*   **Review your goals:** Remind yourself of what you want to get out of this specific Gathering—whether it's feedback on your demo or meeting potential collaborators.\n---\n*⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*"
-      }
-    },
-    "memory_health_appointments": {
-      "title": {
-        "text": "Memory Health Appointments"
-      },
-      "summary": {
-        "text": "OpenMates uses saved health appointments memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.\n\nHere is a simple preparation checklist based on your notes:\n\n*   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.\n*   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.\n*   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.\n*   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.\n---\n*⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*"
-      }
-    },
-    "memory_health_medical_history": {
-      "title": {
-        "text": "Memory Health Medical History"
-      },
-      "summary": {
-        "text": "OpenMates uses saved health medical_history memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved medical history memory to list what I should remember to tell a new doctor. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved medical history, here are the key details you should share with a new doctor:\n\n*   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.\n*   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.\n---\n*⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*"
-      }
-    },
-    "memory_home_saved_listings": {
-      "title": {
-        "text": "Memory Home Saved Listings"
-      },
-      "summary": {
-        "text": "OpenMates uses saved home saved_listings memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:\n\n### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)\n*   **Cellar Storage:** \"Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed.\"\n*   **Balcony & Sunlight:** \"You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?\"\n*   **Commute Logistics:** \"Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?\"\n\n### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio\n*   **Noise & Insulation:** \"Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?\"\n*   **Connectivity:** \"What are the exact internet speeds currently available at this address, and which providers are already connected to the building?\"\n*   **Heating & Energy:** \"How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?\"\n*   **Environment:** \"Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?\"\n\n### General Questions for Both Listings\n*   **Warm Rent Breakdown:** \"The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?\"\n*   **Lease Terms:** \"Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?\"\n*   **Deposit:** \"How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?\""
-      }
-    },
-    "memory_images_preferred_styles": {
-      "title": {
-        "text": "Memory Images Preferred Styles"
-      },
-      "summary": {
-        "text": "OpenMates uses saved images preferred_styles memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:\n\n**Prompt:**\nA high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware."
-      }
-    },
-    "memory_mail_writing_styles": {
-      "title": {
-        "text": "Memory Mail Writing Styles"
-      },
-      "summary": {
-        "text": "OpenMates uses saved mail writing_styles memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved email writing style memory to draft a short Friday progress update to a client. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Subject: Friday Update - [Project Name]\n\nHi [Client Name],\n\nI hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:\n\n* **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].\n* **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.\n* **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.\n\nWe are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.\n\nBest, Alex"
-      }
-    },
-    "memory_reminder_defaults": {
-      "title": {
-        "text": "Memory Reminder Defaults"
-      },
-      "summary": {
-        "text": "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.\n\nFor any event you have saved for next week, you will be nudged at the following times:\n\n1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.\n2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.\n---\n*⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*"
-      }
-    },
-    "memory_study_learning_goals": {
-      "title": {
-        "text": "Memory Study Learning Goals"
-      },
-      "summary": {
-        "text": "OpenMates uses saved study learning_goals memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.\n\n### One-Week Linear Algebra Intensive\n\n**Day 1: The Geometry of Vectors and Linear Transformations**\nFocus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).\n*   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.\n\n**Day 2: Matrix Multiplication as Composition**\nInstead of focusing on the \"row-by-column\" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.\n*   **Key Concept:** Why order matters (Matrix multiplication is not commutative).\n\n**Day 3: Determinants and the Change of Area**\nLearn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.\n*   **Key Concept:** The relationship between the determinant and matrix invertibility.\n\n**Day 4: Eigenvalues and Eigenvectors**\nFind the special \"hidden\" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.\n*   **Key Concept:** $Ax = \\lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\\lambda$ is the scale factor.\n\n**Day 5: Matrix Decompositions (The ML Foundation)**\nIntroduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.\n*   **Key Concept:** How SVD \"factors\" a transformation into a rotation, a stretch, and another rotation.\n\n**Day 6: Applications in Graphics and ML**\nStudy how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.\n*   **Key Concept:** Change of basis and coordinate systems.\n\n**Day 7: Practical Exercise and Review**\nConsolidate the week's concepts by working through a manual transformation exercise.\n\n***\n\n### Practical Exercise: The \"Hand-Drawn\" Transformation\n\nTo build your intuition for graphics and matrix operations, perform the following exercise:\n\n1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.\n2.  **Create a Transformation Matrix:** Use the matrix $M = \\begin{bmatrix} 0 & -1 \\\\ 1 & 0 \\end{bmatrix}$.\n3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.\n    *   Example for point $A$: $\\begin{bmatrix} 0 & -1 \\\\ 1 & 0 \\end{bmatrix} \\begin{bmatrix} 1 \\\\ 1 \\end{bmatrix} = \\begin{bmatrix} -1 \\\\ 1 \\end{bmatrix}$.\n4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).\n    *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.\n5.  **Challenge:** Try to find a new 2x2 matrix that would \"squish\" the triangle so its area becomes zero. (Hint: Think about the determinant)."
-      }
-    },
-    "memory_travel_preferred_activities": {
-      "title": {
-        "text": "Memory Travel Preferred Activities"
-      },
-      "summary": {
-        "text": "OpenMates uses saved travel preferred_activities memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved preferred travel activities memory to suggest what kind of afternoon plan I would probably enjoy in a new city. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved travel preferences, which highlight an interest in **small local food markets and guided tasting walks**, you would likely enjoy an afternoon centered around culinary discovery.\n\nYour ideal plan would involve heading to a historic neighborhood known for its independent vendors rather than a tourist-heavy center. You could spend the first half of the afternoon wandering through a local market, sampling regional cheeses, seasonal fruits, or freshly baked goods while observing the daily rhythm of the residents. Afterward, you might enjoy a guided walking tour led by a local expert who can share the stories behind specific stalls and traditional recipes, finishing the afternoon with a tasting at a small, family-run bistro or a specialty spice shop. This approach allows you to connect with the city's culture through its flavors and community-driven commerce."
-      }
-    },
-    "memory_travel_preferred_airlines": {
-      "title": {
-        "text": "Memory Travel Preferred Airlines"
-      },
-      "summary": {
-        "text": "OpenMates uses saved travel preferred_airlines memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved preferred airline memory to explain what flight options I should compare first for a work trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:\n\n1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.\n2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.\n3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.\n\nStarting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals."
-      }
-    },
-    "memory_travel_preferred_transport": {
-      "title": {
-        "text": "Memory Travel Preferred Transport"
-      },
-      "summary": {
-        "text": "OpenMates uses saved travel preferred_transport_methods memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved preferred transport memory to suggest how I should travel for a nearby weekend trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your travel settings, your preferred method of transportation is the train. For a nearby weekend trip, I suggest choosing a destination accessible by rail. Traveling by train allows you to relax and enjoy the landscape as you arrive at your destination, which perfectly matches your stated preference."
-      }
-    },
-    "memory_travel_saved_connections": {
-      "title": {
-        "text": "Memory Travel Saved Connections"
-      },
-      "summary": {
-        "text": "OpenMates uses saved travel saved_connections memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved travel connection memory to suggest what I should prepare before my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.\n\nHere is what you should prepare based on the specific notes you've saved:\n\n*   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.\n*   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.\n*   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.\n*   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip."
-      }
-    },
-    "memory_travel_saved_stays": {
-      "title": {
-        "text": "Memory Travel Saved Stays"
-      },
-      "summary": {
-        "text": "OpenMates uses saved travel saved_stays memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:\n\n*   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to \"check stairs,\" always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.\n*   **Transit Proximity:** You have prioritized locations \"near bus routes\" and \"transit access.\" Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.\n*   **Atmosphere and Quietude:** Both of your saved options highlight a \"quiet\" environment or a \"traditional atmosphere.\" Look for guest reviews that specifically mention noise levels or the \"family-friendly\" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer."
-      }
-    },
-    "memory_travel_trips": {
-      "title": {
-        "text": "Memory Travel Trips"
-      },
-      "summary": {
-        "text": "OpenMates uses saved travel trips memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved travel trips memory to suggest a relaxed first-day plan for my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved trip to [Lisbon](wiki:Lisbon) from September 10 to September 17, 2026, here is a relaxed first-day plan that incorporates your notes about remote work, viewpoints, and the [Alfama](wiki:Alfama) district:\n\n*   **Morning (Remote Work):** Since you mentioned working remotely in the morning, start your day at a local café or your accommodation. The Alfama area has several quiet spots where you can stay productive while enjoying a [Bica](wiki:Bica_(coffee)) (a traditional Portuguese espresso).\n*   **Early Afternoon (Viewpoints):** After your work block, head to the Miradouro de Santa Luzia. It offers a stunning terrace with [Azulejo](wiki:Azulejo) tile panels and a panoramic view of Alfama's red rooftops and the [Tagus](wiki:Tagus) River. A short walk away is the Miradouro das Portas do Sol, which is perfect for photos.\n*   **Late Afternoon (Alfama Wandering):** Spend the rest of your afternoon wandering through the narrow, winding alleys of Alfama. Because it is the city's oldest district, it is best explored slowly on foot. You can admire the flower-filled balconies and listen for the faint sounds of [Fado](wiki:Fado) music practicing in the distance.\n*   **Evening (Local Food):** For dinner, visit a traditional [Tasca](wiki:Tasca). These are small, family-run eateries where you can try local staples like [Bacalhau](wiki:Bacalhau) (salted cod) or grilled sardines. This fits your preference for local food while keeping the evening low-key and authentic."
-      }
-    },
-    "memory_tv_to_watch_list": {
-      "title": {
-        "text": "Memory Tv To Watch List"
-      },
-      "summary": {
-        "text": "OpenMates uses saved tv to_watch_list memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight!\n\nSince it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!"
-      }
-    },
-    "memory_tv_watched_movies": {
-      "title": {
-        "text": "Memory Tv Watched Movies"
-      },
-      "summary": {
-        "text": "OpenMates uses saved tv watched_movies memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).\n\nSince you noted that you loved the \"thoughtful first-contact story\" and \"language-centered approach\" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.\n\nLike [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the \"emotional ending\" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity."
-      }
-    },
-    "memory_tv_watched_shows": {
-      "title": {
-        "text": "Memory Tv Watched Shows"
-      },
-      "summary": {
-        "text": "OpenMates uses saved tv watched_tv_shows memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved watched shows memory to recommend what kind of series I should try next. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your interest in [Severance](wiki:Severance_(TV_series)), particularly your appreciation for its eerie office mystery, slow-burn reveals, and identity puzzles, here are a few series you should try next:\n\n1. **[Devs](wiki:Devs_(TV_series))**: Created by [Alex Garland](wiki:Alex_Garland), this miniseries is perhaps the closest in tone to the unsettling corporate atmosphere of Lumon. It follows a software engineer investigating a secretive division within a massive tech company called Amaya. It shares that same clinical, high-design aesthetic and explores deep philosophical questions about free will and determinism.\n\n2. **[Mr. Robot](wiki:Mr._Robot)**: This series stars [Rami Malek](wiki:Rami_Malek) as a cybersecurity engineer pulled into a world of corporate conspiracy and hacktivism. Much like *Severance*, it heavily features identity puzzles and a fractured sense of reality, all while maintaining a deeply tense and psychological atmosphere.\n\n3. **[Counterpart](wiki:Counterpart_(TV_series))**: This show is a brilliant blend of a bureaucratic thriller and high-concept science fiction. It stars [J.K. Simmons](wiki:J._K._Simmons) as a low-level UN employee who discovers his agency is guarding a gateway to a parallel dimension. The \"identity puzzle\" aspect is literal here, as characters often have to interact with their own counterparts from the other side.\n\n4. **[Homecoming](wiki:Homecoming_(TV_series))**: The first season, directed by [Sam Esmail](wiki:Sam_Esmail), centers on a facility that supposedly helps soldiers transition back to civilian life. It uses a unique visual style and a slow-burn mystery to peel back the layers of a corporate conspiracy, echoing the \"unsettling corporate atmosphere\" you enjoyed in your notes."
-      }
-    },
-    "memory_videos_to_watch_list": {
-      "title": {
-        "text": "Memory Videos To Watch List"
-      },
-      "summary": {
-        "text": "OpenMates uses saved videos to_watch_list memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.\n\nSince this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:\n\n1.  **Core Principles:** Focus on the \"Three Pillars\" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.\n2.  **The \"Trade-offs\":** Data-intensive design is rarely about finding a \"perfect\" solution but about choosing the right compromise. Create a specific section for \"Pros vs. Cons\" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.\n3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the \"source of truth\" sits and how data is partitioned.\n4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like \"Strong Consistency\" or \"Eventual Consistency\") applies to the projects you are currently interested in.\n\nUsing these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design."
-      }
-    },
-    "memory_web_bookmarks": {
-      "title": {
-        "text": "Memory Web Bookmarks"
-      },
-      "summary": {
-        "text": "OpenMates uses saved web bookmarks memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved web bookmarks memory to tell me which saved bookmark I should open first while planning a SvelteKit dashboard, and why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved bookmarks, you should open the SvelteKit documentation first.\n\nThis is the most critical resource for planning your dashboard because it serves as the definitive guide for the framework's core features. When building a dashboard, you will need to establish a robust [routing](wiki:Routing) structure, handle complex data fetching from APIs, and manage application state efficiently. The official docs provide the latest best practices for server-side rendering (SSR), [form actions](wiki:Data_validation), and [adapters](wiki:Deployment_environment), ensuring your architecture is scalable and follows the intended patterns of the [Svelte](wiki:Svelte) ecosystem."
-      }
-    },
-    "memory_web_read_later": {
-      "title": {
-        "text": "Memory Web Read Later"
-      },
-      "summary": {
-        "text": "OpenMates uses saved web read_later memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.\n\nAccording to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase."
-      }
-    },
     "mortgage_payment_calculation": {
       "title": {
         "text": "Mortgage Payment Calculation"
@@ -11028,10 +10699,40 @@
         "text": "- הבנת הצורך\n- בחירת שמות\n- בדיקת המועמדים הסופיים\n- השוואת הראיות"
       }
     },
+    "business_find_business_angels": {
+      "text": "מציאת משקיעי אנג'ל",
+      "description": {
+        "text": "בנו רשימה מדורגת של משקיעי אנג'ל לסבב שלכם, עם ראיות להתאמה ודרך ליצור קשר."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "תכנון סבב גיוס",
+      "description": {
+        "text": "חשבו כמה לגייס, איזה מכשיר מתאים, את ההדילול ולוח זמנים, עם גיליון קאפ טייבל שאפשר לערוך."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "הכנת הפיץ' שלך",
+      "description": {
+        "text": "בנו את סיפור המצגת, מצאו נקודות חולשה ואז תרגלו שאלות קשות של משקיעים, אחת בכל פעם."
+      }
+    },
     "business_price_products": {
       "text": "תמחור המוצרים שלך",
       "description": {
         "text": "חשבו כמה לגבות על מוצרים בעבודת יד או בייצור קטן, עם גיליון חי שאפשר לערוך."
+      }
+    },
+    "business_research_investor": {
+      "text": "מחקר על משקיע",
+      "description": {
+        "text": "בדקו משקיע או קרן לפני הפנייה, עם עובדות מאומתות, דגלים אדומים ודרכי היכרות."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "כתיבת פנייה למשקיע",
+      "description": {
+        "text": "נסחו מייל קצר למשקיע אחד, פסקת היכרות שניתן להעביר דרך מכר משותף ושתי הודעות מעקב."
       }
     },
     "code_analyze_logs": {
@@ -11179,6 +10880,24 @@
       },
       "systemprompt": {
         "text": "אתה יועץ קריירה מנוסה וקשוב. המטרה שלך היא לעזור למשתמשים להשיג בהירות לגבי כיוון הקריירה שלהם על ידי הבנה מעמיקה של מי הם, מה הם רוצים ומה מציאותי עבורם.\n\nהתחל בהבנת המצב הנוכחי של המשתמש: מה הוא עושה עכשיו? כמה זמן הוא עוסק בכך? מה הניע אותו לבקש ייעוץ? האם הוא מתוסכל, סקרן או מחפש שינוי באופן פעיל?\n\nלאחר מכן, חקור את הרקע שלו באמצעות שיחה טבעית:\n- אילו היבטים בתפקידים קודמים ונוכחיים היו הכי מספקים או מתישים עבורו?\n- מהם כישורי הליבה והחוזקות שלו – הן כישורים מקצועיים (hard skills) והן כישורים רכים (soft skills)?\n- מהם תחומי העניין והתשוקות שלו, כולל דברים מחוץ לעבודה?\n- מה הכי חשוב לו בקריירה? (למשל: אוטונומיה, יצירתיות, ביטחון כלכלי, עזרה לאחרים, אתגר אינטלקטואלי, גמישות, תרבות צוותית)\n- האם יש מגבלות מעשיות כמו מגבלות גיאוגרפיות, צרכים כלכליים, שיקולים משפחתיים או תזמון?\n\nשאל שאלה אחת או שתיים בכל פעם. אל תציף את המשתמש ברשימה ארוכה של שאלות. הקשב היטב ובנה על התשובות שלו. השתמש בטון חם אך מקצועי.\n\nברגע שיש לך מספיק הקשר, סכם את הבנתך והצע 2-4 כיווני קריירה קונקרטיים עם הסבר קצר מדוע כל אחד מהם מתאים. עבור כל הצעה, ציין:\n- מדוע היא תואמת את הכישורים, תחומי העניין והערכים שלו\n- איך נראה המסלול הטיפוסי לתוך אותה קריירה\n- פערים כלשהם שעליו לגשר עליהם (כישורים, הסמכות, ניסיון)\n\nסיים בצעדים מעשיים שניתן לנקוט בהם באופן מיידי, כגון קורסים ספציפיים, אסטרטגיות נטוורקינג, קהילות להצטרף אליהן או לוחות דרושים שכדאי לבדוק.\n\nהנחיות חשובות:\n- לעולם אל תמהר לתת עצות לפני שהבנת את האדם. איכות ההמלצות שלך תלויה בעומק ההבנה שלך.\n- היה כנה אם מסלול רצוי נראה לא מציאותי בהתחשב במגבלות שלו, אך נסח זאת בצורה בונה.\n- גלה הבנה לרגשות – חוסר ודאות בקריירה יכול להיות מלחיץ, ואמפתיה בונה אמון.\n- אם נראה שהמשתמש תקוע או לא בטוח איך לענות, הצע דוגמאות או נסח מחדש את השאלה."
+      }
+    },
+    "jobs_create_cv": {
+      "text": "יצירה או עדכון של קורות חיים",
+      "description": {
+        "text": "צרו קורות חיים ברורים וקריאים למכונה כמסמך Word שניתן לעריכה, או שפרו את הקיימים."
+      }
+    },
+    "jobs_prepare_interview": {
+      "text": "הכנה לראיון",
+      "description": {
+        "text": "התכוננו לראיון עבודה עם שאלות צפויות, הסיפורים שלכם ותרגול עם משוב."
+      }
+    },
+    "jobs_write_application": {
+      "text": "כתיבת מועמדות",
+      "description": {
+        "text": "כתבו מועמדות למשרה מסוימת, בקול שלכם ועל בסיס הניסיון האמיתי שלכם."
       }
     },
     "life_coaching_crisis_support": {
@@ -14400,6 +14119,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -15405,11 +15125,11 @@
         "follow_up_suggestions_save_error": {
           "text": "לא ניתן היה לשמור את הגדרת ההצעות להמשך."
         },
-        "quick_tips": {
-          "text": "טיפים מהירים"
+        "recommendations": {
+          "text": "המלצות"
         },
-        "quick_tips_description": {
-          "text": "מציג מדי פעם טיפים על המוצר לאחר תשובות העוזר. כבה אפשרות זו אם אינך רוצה ש-OpenMates יפיק כרטיסי טיפים מהירים."
+        "recommendations_description": {
+          "text": "מציע זיכרונות ותהליכי עבודה ליצירה או לעדכון לאחר תשובות העוזר. שום דבר לא נשמר עד שתשמור."
         },
         "server_region": {
           "text": "אזור שרתים"
@@ -15419,15 +15139,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "פעיל (ברירת מחדל): מודלי AI רצים קודם בשרתים באיחוד האירופי, ואזורים אחרים משמשים רק כגיבוי. כבוי: המהיר ביותר, גלובלי – OpenMates בוחר את השרת המהיר ביותר בעולם."
-        },
-        "quick_tips_enabled": {
-          "text": "הטיפים המהירים הופעלו."
-        },
-        "quick_tips_disabled": {
-          "text": "הטיפים המהירים הושבתו."
-        },
-        "quick_tips_save_error": {
-          "text": "לא ניתן היה לשמור את הגדרת הטיפים המהירים."
         },
         "manual_select_note": {
           "text": "תמיד ניתן לבחור מודל ידנית באמצעות @mention בצ'אט."
@@ -15649,66 +15360,6 @@
             "text": "Default prompt and processing times for IdeaBucket buckets."
           }
         }
-      },
-      "encryption_notice": {
-        "text": "חברי הצוות הדיגיטליים שלך יכולים לבקש זיכרונות כדי לתת לך תגובות מותאמות אישית יותר ולחסוך לך זמן מלחזור על פרטים שוב ושוב. כמו הצ'אטים שלך, הזיכרונות שלך מוצפנים ומפוענחים במכשירים שלך. כך ששרת OpenMates וספקי ה-AI לעולם לא יכולים לראות את התוכן בפועל, אלא אם כן תחליט לשתף במפורש את התוכן לצ'אט."
-      },
-      "examples_label": {
-        "text": "דוגמאות:"
-      },
-      "my": {
-        "text": "הגדרות וזיכרונות"
-      },
-      "settings_and_memories": {
-        "text": "זיכרונות"
-      },
-      "my_settings_and_memories": {
-        "text": "הזיכרונות שלי"
-      },
-      "no_entries_yet": {
-        "text": "אין עדיין רשומות."
-      },
-      "examples": {
-        "text": "דוגמאות"
-      },
-      "no_settings": {
-        "text": "עדיין לא סונכרנו הגדרות או זיכרונות. הם יופיעו כאן כשהם יהיו זמינים."
-      },
-      "add_entry": {
-        "text": "הוספת רשומה"
-      },
-      "loading": {
-        "text": "טוען הגדרות וזיכרונות..."
-      },
-      "item_key": {
-        "text": "מפתח פריט"
-      },
-      "settings_group": {
-        "text": "קבוצת הגדרות"
-      },
-      "item_value": {
-        "text": "ערך הפריט"
-      },
-      "cancel": {
-        "text": "ביטול"
-      },
-      "creating": {
-        "text": "יוצר..."
-      },
-      "placeholder": {
-        "text": "בקרוב תוכל לנהל וליצור כאן את הגדרות האפליקציה והזיכרונות שלך."
-      },
-      "just_now": {
-        "text": "ממש עכשיו"
-      },
-      "edit": {
-        "text": "עריכה"
-      },
-      "delete": {
-        "text": "מחיקה"
-      },
-      "save": {
-        "text": "שמירה"
       }
     },
     "app_store": {
@@ -15837,6 +15488,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} קרדיטים לשנייה"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15904,6 +15558,9 @@
           },
           "per_minute": {
             "text": "לדקה"
+          },
+          "per_second": {
+            "text": "לשנייה"
           },
           "servers": {
             "text": "שרתים"
@@ -16120,14 +15777,6 @@
         },
         "loading": {
           "text": "טוען הטמעות..."
-        }
-      },
-      "app_settings_memories": {
-        "no_settings": {
-          "text": "טרם סונכרנו הגדרות או זיכרונות. הם יופיעו כאן ברגע שיהיו זמינים."
-        },
-        "add_entry": {
-          "text": "הוספת רשומה"
         }
       },
       "plus_n_more": {
@@ -16549,6 +16198,16 @@
       "banner": {
         "sample_data": {
           "text": "נתוני דוגמה — כך נראות תוצאות אמיתיות מהמיומנות הזו."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "לוגו שועל לכובע, 90 מ\"מ"
+          },
+          "2": {
+            "text": "טלאי שועל על בד אלסטי, 60 מ\"מ"
+          }
         }
       }
     },
@@ -17547,7 +17206,7 @@
       "text": "הזן את קוד הגישה של Learning Mode כדי לכבות אותו בחשבון הזה."
     },
     "learning_mode_guest_description": {
-      "text": "בחר את קבוצת הגיל של הלומד. לאורחים, Learning Mode נמשך רק בהפעלת הדפדפן הזו ואין לו קוד גישה."
+      "text": "בחר את קבוצת הגיל של הלומד והגדר קוד גישה. הקוד נדרש כדי לכבות את Learning Mode או כדי לאפשר שוב יצירה משותפת. הוא נשאר בדפדפן הזה ולעולם לא נשלח לשרתים שלנו."
     },
     "learning_mode_active_detail": {
       "text": "Learning Mode פעיל לכל צ'אט בחשבון הזה. התשובות נשארות ממוקדות בהוראה וכלים נבחרים מוגבלים."
@@ -17556,10 +17215,10 @@
       "text": "כשהוא מופעל, OpenMates מדריך את הלומד צעד אחר צעד במקום לתת תשובות מלאות."
     },
     "learning_mode_guest_active_detail": {
-      "text": "Learning Mode פעיל לצ'אטים אנונימיים בהפעלת הדפדפן הזו. צור חשבון כדי לנעול אותו עם קוד גישה בכל המכשירים."
+      "text": "Learning Mode פעיל בצ'אטים אנונימיים בדפדפן הזה. הוא נשאר פעיל עד שמכבים אותו באמצעות קוד הגישה."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "אורחים יכולים לנסות את Learning Mode לצ'אטים אנונימיים בהפעלת הדפדפן הזו. צור חשבון כדי לנעול אותו עם קוד גישה."
+      "text": "אורחים יכולים להשתמש ב-Learning Mode בצ'אטים אנונימיים בדפדפן הזה, מוגן בקוד גישה."
     },
     "learning_mode_age_group_label": {
       "text": "קבוצת הגיל של הלומד"
@@ -17599,6 +17258,30 @@
     },
     "learning_mode_disable_button": {
       "text": "כבה את Learning Mode"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "אפשר יצירה משותפת"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "מאפשר ללומד ליצור דברים יחד עם ה-AI, כמו קוד, מסמכים וקבצים. כשהאפשרות כבויה, ה-AI רק מסביר ומדריך. לא זמין ללומדים מתחת לגיל 10."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "הזן את קוד הגישה של Learning Mode כדי לאפשר שוב יצירה משותפת."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "אפשר יצירה משותפת"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "היצירה המשותפת פועלת."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "היצירה המשותפת כבויה."
+    },
+    "learning_mode_guest_notice": {
+      "text": "ללא חשבון, Learning Mode קיים רק בדפדפן הזה. ניקוי נתוני הדפדפן או שימוש בחלון פרטי מסירים או עוקפים אותו. צור חשבון כדי לקבל נעילה שעובדת בכל מקום."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "קוד הגישה חייב להכיל בין 4 ל-128 תווים."
     },
     "incognito_explainer_description": {
       "text": "מצב גלישה בסתר חל רק על צ'אטים חדשים שתיצור. צ'אטים חדשים שנוצרו בזמן שמצב גלישה בסתר פעיל אינם מסונכרנים בין מכשירים, אינם נשמרים בשרת ואינם נשמרים במטמון. צ'אטים אלו קיימים רק בהפעלת הדפדפן הנוכחית שלך. צ'אטים קיימים נותרים ללא שינוי."
@@ -19994,6 +19677,23 @@
         "export_hint": {
           "text": "ייצא והורד את כל הנתונים שלך"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "מצב שקט"
+        },
+        "silent_mode_info": {
+          "text": "מכבה צלילים ורטט במכשיר זה"
+        },
+        "notice_title": {
+          "text": "הצלילים פועלים"
+        },
+        "notice_message": {
+          "text": "צליל קצר מודיע כשהודעה נשלחה בבטחה, כשמגיעה התראה או כשמשהו נכשל."
+        },
+        "notice_turn_off": {
+          "text": "כיבוי צלילים"
+        }
       }
     },
     "buy_credits": {
@@ -21049,7 +20749,7 @@
       "text": "נסו בחינם"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "דומיין האימייל אינו מורשה."

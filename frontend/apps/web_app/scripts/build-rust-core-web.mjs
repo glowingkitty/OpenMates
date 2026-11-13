@@ -2,9 +2,11 @@
 // Builds the shared Rust core browser package for the opt-in web build:
 //   node frontend/apps/web_app/scripts/build-rust-core-web.mjs <out-dir> [--wasm-opt]
 // then build the web app with OPENMATES_RUST_CORE_PKG=<out-dir> VITE_OPENMATES_RUST_CORE=1.
-// Size profile: opt-level z + fat LTO + one codegen unit (about 43% smaller gzip than
-// the workspace release profile). wasm-opt -Oz is optional: it shrinks raw bytes ~8%
-// but measured ~5% larger gzip/brotli transfer for this module, so it is off by default.
+// Profile `wasm-web` (root Cargo.toml): opt-level z + fat LTO + one codegen unit,
+// with opt-level 3 for the crypto crates the shared Worker crypto unit runs per
+// message, plus simd128 (~13% faster AES-GCM, no size cost; see Cargo.toml).
+// wasm-opt -Oz is optional: it shrinks raw bytes but measured larger gzip/brotli
+// transfer for this module, so it is off by default.
 import { execFileSync } from 'node:child_process';
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 import { mkdirSync, readFileSync, renameSync } from 'node:fs';
@@ -19,21 +21,23 @@ if (!outArgument) {
 }
 const out = resolve(outArgument);
 const targetDir = process.env.CARGO_TARGET_DIR || join(root, 'target');
+const PROFILE = 'wasm-web';
+// WASM SIMD (simd128) lets LLVM vectorize the software AES-GCM; every supported
+// browser runs it (Chrome 91, Firefox 89, Safari 16.4).
+const SIMD = true;
 const env = {
 	...process.env,
-	CARGO_PROFILE_RELEASE_OPT_LEVEL: 'z',
-	CARGO_PROFILE_RELEASE_LTO: 'fat',
-	CARGO_PROFILE_RELEASE_CODEGEN_UNITS: '1'
+	...(SIMD ? { RUSTFLAGS: [process.env.RUSTFLAGS, '-C target-feature=+simd128'].filter(Boolean).join(' ') } : {})
 };
 const run = (command, args) => execFileSync(command, args, { cwd: root, env, stdio: 'inherit' });
 
-run('cargo', ['build', '--release', '--locked', '--target', 'wasm32-unknown-unknown', '-p', 'openmates-browser-bindings']);
+run('cargo', ['build', '--profile', PROFILE, '--locked', '--target', 'wasm32-unknown-unknown', '-p', 'openmates-browser-bindings']);
 mkdirSync(out, { recursive: true });
 run('wasm-bindgen', ['--target', 'web', '--out-dir', out, '--out-name', 'openmates_browser',
-	join(targetDir, 'wasm32-unknown-unknown/release/openmates_browser_bindings.wasm')]);
+	join(targetDir, `wasm32-unknown-unknown/${PROFILE}/openmates_browser_bindings.wasm`)]);
 const wasm = join(out, 'openmates_browser_bg.wasm');
 if (flags.includes('--wasm-opt')) {
-	run('wasm-opt', ['-Oz', '--enable-bulk-memory', '--enable-nontrapping-float-to-int', '--enable-sign-ext',
+	run('wasm-opt', ['-Oz', ...(SIMD ? ['--enable-simd'] : []), '--enable-bulk-memory', '--enable-nontrapping-float-to-int', '--enable-sign-ext',
 		'--enable-mutable-globals', '--enable-reference-types', '--enable-multivalue', wasm, '-o', wasm + '.opt']);
 	renameSync(wasm + '.opt', wasm);
 }

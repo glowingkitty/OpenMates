@@ -94,7 +94,7 @@ async def test_image_to_html_worker_generates_charges_and_returns_result(monkeyp
     assert task.cleaned is True
     assert prechecks[0]["estimated_credits"] == 1500
     assert charges[0]["credits"] == result["usage"]["credits_charged"]
-    assert charges[0]["usage_details"]["image_to_html_e2b_credits"] == 10
+    assert charges[0]["usage_details"]["image_to_html_e2b_credits"] == 6
     assert charges[0]["usage_details"]["model_used"] == "fake-gemini"
     assert charges[0]["usage_details"]["input_tokens"] == 1000
     assert charges[0]["usage_details"]["output_tokens"] == 500

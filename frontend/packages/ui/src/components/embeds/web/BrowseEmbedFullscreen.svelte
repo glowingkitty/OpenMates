@@ -50,6 +50,7 @@
         {/key}
       {:else if result.screenshot}<img class="saved" src={result.screenshot} alt={$text('embeds.browse.saved_frame')} />
       {:else}<p>{$text(result.status === 'processing' ? 'embeds.browse.waiting_frame' : 'embeds.browse.no_frame')}</p>{/if}
+      {#if result.missing.length}<p class="partial" data-testid="browse-partial">{$text('embeds.browse.partial', { values: { fields: result.missing.join(', ') } })}</p>{/if}
       {#if result.reason}<p class="reason">{result.reason}</p>{/if}
       {#if result.data !== null}
         <details><summary>{$text('embeds.browse.structured_data')}</summary><pre data-testid="browse-json">{JSON.stringify(result.data, null, 2)}</pre></details>
@@ -60,6 +61,7 @@
 
 <style>
   .browse-content { width: 100%; max-width: 64rem; margin: 0 auto; padding: var(--spacing-8); display: flex; flex-direction: column; gap: var(--spacing-8); box-sizing: border-box; color: var(--color-font-primary); }
+  .partial { margin: 0; overflow-wrap: anywhere; font-size: .875rem; padding: var(--spacing-4) var(--spacing-6); border-radius: var(--radius-3); border: 1px solid var(--color-warning); background: var(--color-warning-bg); color: var(--color-font-primary); }
   .url, .reason { margin: 0; overflow-wrap: anywhere; font-size: .875rem; color: var(--color-font-secondary); }
   .saved { width: 100%; height: auto; border-radius: var(--radius-4); }
   summary { cursor: pointer; padding: var(--spacing-4) 0; }

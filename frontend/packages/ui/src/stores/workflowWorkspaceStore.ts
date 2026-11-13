@@ -9,6 +9,20 @@ import { get, writable } from "svelte/store";
 import { getApiEndpoint } from "../config/api";
 import { registerWorkspaceCacheClear } from "../services/workspaceCacheLifecycle";
 import { getActiveTeamContextSnapshot, isActiveTeamContext } from "./teamStore";
+import { buildWorkBody, workClient, workDecide, type WorkRequest } from "../services/work/workRust";
+import type { WorkClient } from "../services/rustCore/crypto/workOps";
+
+// Flag-on builds decide the mutation/read paths and the create/run bodies of
+// the async store methods in the shared Rust core Worker (`work` op,
+// web_work/workflow_bodies.rs); the constant folds to false otherwise. Cache,
+// revision and generation bookkeeping, in-flight dedupe and the team scoping in
+// workflowApiFetch stay here (they are synchronous).
+const RUST_WORK = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
+
+/** Flag on: a workspace request path decided in the Worker (`workflowPath` routes). */
+function workflowWorkPath(work: WorkClient, route: string, ids: Record<string, unknown>): Promise<string> {
+  return workDecide<string>(work, "workflowPath", { route, ...ids });
+}
 
 export type WorkflowNodeType =
   | "schedule_trigger"
@@ -526,6 +540,21 @@ export const workflowWorkspaceStore = {
   }): Promise<WorkflowDetail> {
     const requestGeneration = cacheGeneration;
     const context = getActiveTeamContextSnapshot();
+    const work = RUST_WORK ? workClient() : null;
+    if (work) {
+      // Rust applies the workspace fence and orders the body; the graph stays the page's own object.
+      const request = await workDecide<WorkRequest>(work, "workflowCreateBody", { input, context_team_id: context.teamId });
+      const body = await buildWorkBody(request.steps, {}, {}, { graph: () => input.graph });
+      const created = await workflowApiRequest<{ workflow: WorkflowDetail; warnings?: WorkflowAuthoringWarning[] }>(request.path, {
+        method: request.method, body: JSON.stringify(body),
+      });
+      assertCurrentGeneration(requestGeneration);
+      if (!isActiveTeamContext(context.teamId, context.epoch)) throw new Error("Workflow context changed while saving.");
+      const workflow = { ...created.workflow, authoring_warnings: created.warnings ?? [] };
+      this.upsertWorkflow(workflow);
+      setSelectedFromCaches(workflow.id);
+      return workflow;
+    }
     const teamId = input.teamId === undefined ? context.teamId : input.teamId;
     if (teamId !== context.teamId) throw new Error("The selected Project belongs to another workspace.");
     const data = await workflowApiRequest<{ workflow: WorkflowDetail; warnings?: WorkflowAuthoringWarning[] }>("/v1/workflows", {
@@ -551,8 +580,9 @@ export const workflowWorkspaceStore = {
 
   async saveAsReusableWorkflow(workflowId: string, idempotencyKey: string): Promise<WorkflowDetail> {
     const requestGeneration = cacheGeneration;
+    const work = RUST_WORK ? workClient() : null;
     const data = await workflowApiRequest<{ workflow: WorkflowDetail }>(
-      `/v1/workflows/${encodeURIComponent(workflowId)}/save-as-reusable`,
+      work ? await workflowWorkPath(work, "save_reusable", { workflow_id: workflowId }) : `/v1/workflows/${encodeURIComponent(workflowId)}/save-as-reusable`,
       { method: "POST", body: JSON.stringify({ idempotency_key: idempotencyKey }) },
     );
     assertCurrentGeneration(requestGeneration);
@@ -574,8 +604,9 @@ export const workflowWorkspaceStore = {
 
   async completeBindingRequirement(workflowId: string, input: WorkflowBindingRequirement & { chat_id?: string; new_chat?: boolean }): Promise<WorkflowDetail> {
     const requestGeneration = cacheGeneration;
+    const work = RUST_WORK ? workClient() : null;
     const data = await workflowApiRequest<{ workflow: WorkflowDetail }>(
-      `/v1/workflows/${encodeURIComponent(workflowId)}/binding-requirements/complete`,
+      work ? await workflowWorkPath(work, "binding_complete", { workflow_id: workflowId }) : `/v1/workflows/${encodeURIComponent(workflowId)}/binding-requirements/complete`,
       { method: "POST", body: JSON.stringify(input) },
     );
     assertCurrentGeneration(requestGeneration);
@@ -585,7 +616,9 @@ export const workflowWorkspaceStore = {
 
   async patchWorkflow(workflowId: string, payload: Record<string, unknown>): Promise<WorkflowDetail> {
     const requestGeneration = cacheGeneration;
-    const data = await workflowApiRequest<{ workflow: WorkflowDetail; warnings?: WorkflowAuthoringWarning[] }>(`/v1/workflows/${encodeURIComponent(workflowId)}`, {
+    const work = RUST_WORK ? workClient() : null;
+    const path = work ? await workflowWorkPath(work, "detail", { workflow_id: workflowId }) : `/v1/workflows/${encodeURIComponent(workflowId)}`;
+    const data = await workflowApiRequest<{ workflow: WorkflowDetail; warnings?: WorkflowAuthoringWarning[] }>(path, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
@@ -597,20 +630,24 @@ export const workflowWorkspaceStore = {
   },
 
   async getWorkflowVersions(workflowId: string): Promise<WorkflowVersionHistory> {
+    const work = RUST_WORK ? workClient() : null;
+    if (work) return workflowApiRequest<WorkflowVersionHistory>(await workflowWorkPath(work, "versions", { workflow_id: workflowId }));
     return workflowApiRequest<WorkflowVersionHistory>(`/v1/workflows/${encodeURIComponent(workflowId)}/versions`);
   },
 
   async getWorkflowVersion(workflowId: string, versionId: string): Promise<WorkflowVersionDetail> {
+    const work = RUST_WORK ? workClient() : null;
     const data = await workflowApiRequest<{ version: WorkflowVersionDetail }>(
-      `/v1/workflows/${encodeURIComponent(workflowId)}/versions/${encodeURIComponent(versionId)}`,
+      work ? await workflowWorkPath(work, "version", { workflow_id: workflowId, version_id: versionId }) : `/v1/workflows/${encodeURIComponent(workflowId)}/versions/${encodeURIComponent(versionId)}`,
     );
     return data.version;
   },
 
   async restoreWorkflowVersion(workflowId: string, versionId: string): Promise<WorkflowDetail> {
     const requestGeneration = cacheGeneration;
+    const work = RUST_WORK ? workClient() : null;
     const data = await workflowApiRequest<{ workflow: WorkflowDetail }>(
-      `/v1/workflows/${encodeURIComponent(workflowId)}/versions/${encodeURIComponent(versionId)}/restore`,
+      work ? await workflowWorkPath(work, "restore", { workflow_id: workflowId, version_id: versionId }) : `/v1/workflows/${encodeURIComponent(workflowId)}/versions/${encodeURIComponent(versionId)}/restore`,
       { method: "POST", body: JSON.stringify({}) },
     );
     assertCurrentGeneration(requestGeneration);
@@ -622,8 +659,9 @@ export const workflowWorkspaceStore = {
   async setWorkflowEnabled(workflowId: string, enabled: boolean): Promise<WorkflowDetail> {
     const action = enabled ? "enable" : "disable";
     const requestGeneration = cacheGeneration;
+    const work = RUST_WORK ? workClient() : null;
     const data = await workflowApiRequest<{ workflow: WorkflowDetail }>(
-      `/v1/workflows/${encodeURIComponent(workflowId)}/${action}`,
+      work ? await workflowWorkPath(work, "toggle", { workflow_id: workflowId, enabled }) : `/v1/workflows/${encodeURIComponent(workflowId)}/${action}`,
       { method: "POST", body: JSON.stringify({}) },
     );
     assertCurrentGeneration(requestGeneration);
@@ -633,7 +671,9 @@ export const workflowWorkspaceStore = {
 
   async deleteWorkflow(workflowId: string): Promise<void> {
     const requestGeneration = cacheGeneration;
-    await workflowApiRequest<{ deleted: boolean }>(`/v1/workflows/${encodeURIComponent(workflowId)}`, {
+    const work = RUST_WORK ? workClient() : null;
+    const path = work ? await workflowWorkPath(work, "detail", { workflow_id: workflowId }) : `/v1/workflows/${encodeURIComponent(workflowId)}`;
+    await workflowApiRequest<{ deleted: boolean }>(path, {
       method: "DELETE",
     });
     assertCurrentGeneration(requestGeneration);
@@ -664,7 +704,22 @@ export const workflowWorkspaceStore = {
 
   async runWorkflow(workflowId: string, invocation: WorkflowRunInvocation = {}): Promise<WorkflowRun> {
     const requestGeneration = cacheGeneration;
-    const data = await workflowApiRequest<{ run: WorkflowRun }>(`/v1/workflows/${encodeURIComponent(workflowId)}/run`, {
+    const work = RUST_WORK ? workClient() : null;
+    let data: { run: WorkflowRun };
+    if (work) {
+      // Run inputs and output maps stay the page's own objects (body slots).
+      const request = await workDecide<WorkRequest & { idempotency_key: string }>(work, "workflowRunBody", {
+        workflow_id: workflowId, invocation, uuid: crypto.randomUUID(),
+      });
+      const body = await buildWorkBody(request.steps, {}, {}, {
+        input: () => invocation.input,
+        message_destination_overrides: () => invocation.messageDestinationOverrides,
+        return_outputs: () => invocation.returnOutputs,
+      });
+      data = await workflowApiRequest<{ run: WorkflowRun }>(request.path, {
+        method: request.method, body: JSON.stringify(body), headers: { "Idempotency-Key": request.idempotency_key },
+      });
+    } else data = await workflowApiRequest<{ run: WorkflowRun }>(`/v1/workflows/${encodeURIComponent(workflowId)}/run`, {
       method: "POST",
       body: JSON.stringify({ mode: invocation.mode ?? "test", input: invocation.input ?? {},
         ...(invocation.sourceChatId ? { source_chat_id: invocation.sourceChatId } : {}),
@@ -694,8 +749,9 @@ export const workflowWorkspaceStore = {
 
   async getWorkflowRun(workflowId: string, runId: string): Promise<WorkflowRunDetail> {
     const requestGeneration = cacheGeneration;
+    const work = RUST_WORK ? workClient() : null;
     const data = await workflowApiRequest<{ run: WorkflowRunDetail }>(
-      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`,
+      work ? await workflowWorkPath(work, "run_detail", { workflow_id: workflowId, run_id: runId }) : `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`,
     );
     assertCurrentGeneration(requestGeneration);
     bumpRevision(runRevisions, workflowId);
@@ -721,8 +777,9 @@ export const workflowWorkspaceStore = {
 
   async cancelWorkflowRun(workflowId: string, runId: string): Promise<"cancellation_requested" | "cancelled"> {
     const requestGeneration = cacheGeneration;
+    const work = RUST_WORK ? workClient() : null;
     const data = await workflowApiRequest<{ run_id: string; status: "cancellation_requested" | "cancelled" }>(
-      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}/cancel`,
+      work ? await workflowWorkPath(work, "cancel", { workflow_id: workflowId, run_id: runId }) : `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}/cancel`,
       { method: "POST", body: JSON.stringify({}) },
     );
     assertCurrentGeneration(requestGeneration);
@@ -746,7 +803,9 @@ export const workflowWorkspaceStore = {
 
   async deleteWorkflowRun(workflowId: string, runId: string): Promise<"deleted" | "deletion_pending"> {
     const requestGeneration = cacheGeneration;
-    const data = await workflowApiRequest<{ status: "deleted" | "deletion_pending" }>(`/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`, { method: "DELETE" });
+    const work = RUST_WORK ? workClient() : null;
+    const path = work ? await workflowWorkPath(work, "run_detail", { workflow_id: workflowId, run_id: runId }) : `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`;
+    const data = await workflowApiRequest<{ status: "deleted" | "deletion_pending" }>(path, { method: "DELETE" });
     assertCurrentGeneration(requestGeneration);
     if (data.status === "deleted") {
       cacheRevision += 1;

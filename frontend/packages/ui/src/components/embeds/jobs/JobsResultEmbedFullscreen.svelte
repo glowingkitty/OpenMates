@@ -1,3 +1,8 @@
+<!--
+  frontend/packages/ui/src/components/embeds/jobs/JobsResultEmbedFullscreen.svelte
+
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Renderers/JobsEmbedRenderers.swift
+-->
 <script lang="ts">
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';

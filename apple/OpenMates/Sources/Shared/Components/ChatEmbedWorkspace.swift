@@ -253,7 +253,16 @@ struct WorkspaceSettingsLayout<Content: View, Settings: View>: View {
                         .accessibilityLabel(AppStrings.close)
                         .accessibilityIdentifier("settings-backdrop-dismiss")
                 }
-                settings().environment(\.workspacePaneIsVisible, parentVisible && visible)
+                ZStack(alignment: .topLeading) {
+                    settings().environment(\.workspacePaneIsVisible, parentVisible && visible)
+                    // A container over a single container merges with it and
+                    // the outer name wins, hiding Settings' own page identity
+                    // (settings-<page>-page). This zero-size sibling keeps the
+                    // workspace a distinct node, as settings-report-issue-form does.
+                    Color.clear
+                        .frame(width: 0, height: 0)
+                        .accessibilityIdentifier("workspace-settings-anchor")
+                }
                     .frame(width: panelWidth, height: height)
                     // Own the workspace identity instead of propagating it to
                     // the active destination's native ScrollView or controls.

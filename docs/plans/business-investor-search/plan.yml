@@ -1,0 +1,108 @@
+schema_version: 2
+profile: concise
+id: business-investor-search
+title: Business app investor search (company ownership, investor search, fundraising focus modes)
+status: draft
+task_reference: TASK-1290
+
+goal: >
+  Founders can find and research business angels in OpenMates. Expand the Business
+  app with a register-backed company ownership skill, an investor search skill
+  served by operator-installed providers, region-aware provider selection so a
+  search for one region never runs a source that only covers another, and five
+  fundraising focus modes.
+
+scope:
+  in:
+    - New skill `business.company_ownership` with official register providers for DE, GB and FR.
+    - New skill `business.search_investors`, shipped paused without a built-in provider and served by operator-installed providers through the generic `skill.requests@1` contract.
+    - Optional `regions` key on installed provider contributions and region filtering in the generic delegates.
+    - Web embeds (preview and fullscreen) for both skills, CLI and SDK metadata.
+    - Focus modes find_business_angels, research_investor, write_investor_outreach, prepare_investor_pitch, plan_funding_round.
+    - Specifications for both skills, the regions rule and the focus modes; unit, CLI and E2E coverage.
+  out:
+    - Paid investor databases and any source without an official documented API in this repository.
+    - Contact enrichment (email finders) and automated outreach sending.
+    - Investment, legal or tax advice.
+    - Apple UI parity (follows web after user confirmation).
+
+decisions:
+  - id: ownership-routing
+    decision: >
+      `company_ownership` routes each request by its required `country` to the one
+      provider covering that country. A country without a configured provider
+      returns a `coverage_gap` error for that request and never falls back to
+      another country's source.
+  - id: ownership-privacy
+    decision: >
+      Results carry public business facts only. Birth dates (also partial), private
+      addresses, nationality and identity document data from any register are
+      dropped in the provider wrapper before they reach the skill, the model or an embed.
+  - id: ownership-credit-budget
+    decision: >
+      The German register source has a small monthly free allowance. Identical
+      lookups are cached for 7 days, each request makes the minimum calls for the
+      requested `include` values, and at most 5 requests run per call.
+  - id: investor-search-generic-contract
+    decision: >
+      `search_investors` follows the `search_trademarks` precedent: public skill
+      definition and schema, `provider_required: true`, `providers: []`, no
+      per-skill provider contract.
+  - id: provider-regions
+    decision: >
+      An installed provider contribution may declare `regions`: a list of 1-60
+      unique ISO 3166-1 alpha-2 codes. Absent means worldwide. The generic delegates
+      read the request's `country`, `countries`, `region` and `regions` values; a
+      provider with declared regions runs only when the request names no region,
+      names `WORLDWIDE`, or names at least one of its regions. Skipped providers
+      are listed in `warnings`; when every provider is skipped the group error is a
+      coverage gap and no provider process starts.
+  - id: focus-mode-clarification
+    decision: >
+      The user approved the five focus modes and asked for implementation without
+      further clarification rounds; drafts are reviewed with the final result.
+
+contracts:
+  company_ownership:
+    request_item:
+      query: Company name, register number, or person name (1-160 chars).
+      subject: "company (default) | person"
+      country: "DE | GB | FR (required)"
+      include: "list of owners | holdings | officers; default [owners]"
+    providers:
+      DE: {id: openregister, secret: api_key, supports: [owners, holdings, officers, person]}
+      GB: {id: companies_house, secret: api_key, supports: [owners (significant control only), officers, person appointments]}
+      FR: {id: recherche_entreprises, secret: none, supports: [officers, person (director search)]}
+    result:
+      subject: {name, type, country, register_id, legal_form, status, city, source_url}
+      owners: "[{name, type: person|company, share_percent, nominal_amount, currency, since, register_id}]"
+      holdings: "[{name, register_id, country, share_percent, since, status, source_url}]"
+      officers: "[{name, role, since}]"
+      meta: {provider, retrieved_at, warnings, limitation}
+    errors: [coverage_gap, provider_not_configured, not_found, ambiguous (returns candidates), unsupported_include (warning), rate_limited, provider_error]
+  search_investors:
+    request:
+      query: Topic, sector or thesis keywords (required).
+      regions: "list of ISO 3166-1 alpha-2 codes or WORLDWIDE (required, 1-10)"
+      investor_types: "optional list: angel | angel_network | vc | family_office | accelerator | public_funding"
+      stages: "optional list: pre_seed | seed | series_a | later"
+      ticket_min: optional number
+      ticket_max: optional number
+      currency: "optional ISO 4217, default EUR"
+      max_results: "1-30, default 15"
+    result:
+      fields: [name, investor_type, organization, regions, city, stages, sectors, ticket_min, ticket_max, currency, thesis, example_investments, profile_url, website_url, contact_route, source_updated_at]
+
+checks:
+  required:
+    - Unit tests for each register provider with synthetic fixtures, including dropped personal fields.
+    - Unit tests for region filtering in both generic delegates and manifest validation (Python loader and CLI archive check).
+    - Real CLI calls against dev for both skills (search_investors with an installed provider).
+    - Component preview spec and screenshots for the new embeds; one real-flow E2E spec per skill.
+    - Real CLI chat per focus mode plus one example chat each.
+
+phases:
+  - Server contract: providers, skills, regions rule, specifications, unit tests.
+  - CLI and SDK metadata, real CLI proof on dev.
+  - Web embeds and focus modes, E2E and example chats.
+  - Provider credentials requested from the user, then live proof for the keyed register sources.

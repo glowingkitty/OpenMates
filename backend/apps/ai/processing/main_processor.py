@@ -23,6 +23,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from toon_format import encode
 import yaml
+from backend.shared.app_packages.billing import is_installed_only_group
 from backend.shared.python_utils.recent_work_summary_client import authoritative_context_turn_id
 from backend.shared.python_utils.calendar_action_journal import calendar_undo_payload
 
@@ -66,6 +67,7 @@ from backend.shared.python_utils.learning_mode import (
     AGE_GROUP_13_15,
     apply_learning_mode_policy_to_skill_result,
     build_learning_mode_global_prompt,
+    is_collaborative_build_enabled,
     is_learning_mode_blocked_skill,
     is_learning_mode_enabled,
 )
@@ -90,11 +92,22 @@ from backend.apps.ai.processing.native_history_cache import (
 )
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 from backend.apps.ai.processing import agentic_context
-from backend.apps.ai.processing.rule_context import applied_rule_receipt
+from backend.apps.ai.processing.rule_context import (
+    applied_rule_receipt, approved_memory_definitions, memory_catalog_snapshot,
+    request_memory_catalog,
+)
+from backend.shared.python_utils.rule_loader import rules_prompt
 from backend.apps.ai.processing.memory_tools import (
     MEMORY_TOOL_INSTRUCTION, MEMORY_TOOL_NAMES, MemoryToolRuntime, NativeDiagramContextGuard,
     NATIVE_MEMORY_FINGERPRINT_KEY, authorized_memory_catalog, has_memory_catalog,
     memory_tools, native_memory_context_matches,
+)
+from backend.apps.ai.processing.memory_write_tool import (
+    PROJECT_MEMORY_FILE_TOOL, SAVE_MEMORY_TOOL_INSTRUCTION, SAVE_MEMORY_TOOL_NAME,
+    SAVE_PROJECT_MEMORY_TOOL_INSTRUCTION, MemoryWriteToolError, dispatch_save_memory, is_project_memory_call,
+    is_save_memory_tool_name, project_memory_file_arguments,
+    record_workflow_writes, save_memory_chat_allowed, save_memory_enabled, save_memory_tool,
+    with_default_project_target,
 )
 from backend.shared.python_utils.rule_loader import applied_rule_set_key
 from backend.apps.ai.processing.related_work import (
@@ -157,6 +170,7 @@ from backend.apps.ai.processing.project_file_tools import (
     uniquely_named_project_focus_id,
     without_unscoped_project_search,
 )
+from backend.apps.ai.processing.embed_update_history import apply_embed_update_history
 from backend.apps.ai.processing.task_queue_continuation import (
     TASK_QUEUE_GUARD_MAX_RETRIES,
     build_task_queue_continuation_event,
@@ -228,6 +242,7 @@ from backend.apps.ai.sub_chat_orchestration import (
     validate_sub_chat_capacity,
 )
 # Import skill executor
+from backend.apps.skill_progress import open_progress_channel, skill_progress_scope
 from backend.apps.ai.processing.skill_executor import (
     execute_skill_with_multiple_requests,
     SkillCancelledException,
@@ -426,7 +441,7 @@ def _omit_fact_question_format_guidance(
     # documents, binding, and routing state explicitly below.
     if any(getattr(request, key, None) for key in (
         "historical_artifact_context", "embed_file_path_index", "has_image_upload_embed",
-        "custom_rule_documents", "project_focus_documents", "project_context_documents",
+        "custom_rule_documents", "memory_catalog", "project_focus_documents", "project_context_documents",
         "project_routing_focus_id",
         "mentioned_settings_memories_cleartext", "focus_phase_state",
         "connected_account_directory", "connected_account_token_refs",
@@ -511,11 +526,30 @@ def _trusted_focus_override(overrides: UserOverrides | None, focus_id: str) -> b
                                  for app_id, identifier in overrides.focus_modes))
 
 
+def _pending_focus_authority_root(request_data: Any, task_id: str) -> str:
+    """Return the task that owns a pending focus activation for this turn.
+
+    Imported here because focus_continuation_history imports the AI tasks package,
+    which imports this module.
+    """
+    from backend.shared.python_utils.focus_continuation_history import focus_authority_root
+
+    return focus_authority_root(request_data, task_id)
+
+
 def _forward_agentic_context(request: AskSkillRequest) -> dict:
-    return {field: getattr(request, field, []) for field in (
+    """JSON-safe agentic context for a pending Focus continuation (stored in Redis).
+
+    `memory_catalog` holds pydantic entries; it is forwarded as the body-free
+    metadata snapshot, otherwise storing the pending Focus context fails and the
+    Focus turn never continues.
+    """
+    context = {field: getattr(request, field, []) for field in (
         "accepted_plan_context", "custom_rule_documents", "project_focus_catalog", "project_focus_documents",
         "project_context_documents", "related_task_candidates",
     )}
+    context["memory_catalog"] = memory_catalog_snapshot(request_memory_catalog(request))
+    return context
 
 
 async def _load_main_agentic_context(
@@ -756,6 +790,8 @@ _FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
     "code-code",
     "document",
     "docs-doc",
+    "deck",
+    "slides-deck",
     "email",
     "mail",
     "mail-email",
@@ -1111,6 +1147,7 @@ Acknowledge their choice, explain if it's correct/incorrect, or use their submit
 ## Rules:
 - Only generate ONE interactive question per assistant turn.
 - Ensure the "id" is completely unique to the active question context.
+- Reference only result embeds in embed_ids (a generated image, website, sheet, document, ...). Never reference an app-skill embed, i.e. the card of a skill call such as Generate, View or Search; for generated images use the embed_id of each generated image result.
 - When a choice option or swipe card is about a code/document/sheet/image/content embed, include its embed_id in that option/card's embed_ids. Do not rely on standalone embeds above the question as the only visual reference.
 """
 
@@ -1169,42 +1206,6 @@ def _resolve_app_skill_model_override(
 
     return model_ref
 
-
-def _build_pending_app_settings_memories_context(
-    request_data: AskSkillRequest,
-    request_id: str,
-    missing_keys: List[str],
-    task_id: str,
-) -> Dict[str, Any]:
-    """Build the request context needed to restart after memory permission."""
-    return {
-        "request_id": request_id,
-        "chat_id": request_data.chat_id,
-        "message_id": request_data.message_id,
-        "user_id": request_data.user_id,
-        "user_id_hash": request_data.user_id_hash,
-        "mate_id": request_data.mate_id,
-        "active_focus_id": request_data.active_focus_id,
-        "chat_has_title": request_data.chat_has_title,
-        "current_chat_title": request_data.current_chat_title,
-        "is_incognito": request_data.is_incognito,
-        "user_preferences": request_data.user_preferences or {},
-        "embed_file_path_index": request_data.embed_file_path_index,
-        "has_image_upload_embed": getattr(request_data, "has_image_upload_embed", False),
-        "requested_keys": missing_keys,
-        "task_id": task_id,
-        # Resume the authorized turn without claiming a second inference identity.
-        # See docs/architecture/core/chat-encryption-implementation.md.
-        "recovery_inference_task_id": (
-            getattr(request_data, "recovery_task_id", None)
-            or getattr(request_data, "recovery_inference_task_id", None)
-        ),
-        "recovery_preflight_id": getattr(request_data, "recovery_preflight_id", None),
-        "recovery_turn_id": getattr(request_data, "recovery_turn_id", None),
-        "recovery_public_key": getattr(request_data, "recovery_public_key", None),
-        "chat_key_version": getattr(request_data, "chat_key_version", None),
-        "preprocessing_resume_ref": getattr(request_data, "preprocessing_resume_ref", None),
-    }
 
 # Four tool-enabled passes followed by one answer-only pass. Recovery first
 # retries the same model with clean evidence, then permits one configured alternate.
@@ -1341,12 +1342,13 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
     ("audio", "speak"),
     ("code", "run"),
     ("code", "image_to_html"),
+    ("design", "embroidery"),
     ("images", "generate"),
     ("images", "generate_draft"),
     ("images", "vectorize"),
+    ("images", "modify"),
     ("models3d", "generate"),
     ("music", "generate"),
-    ("videos", "create"),
     ("videos", "generate"),
 }
 VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read")}
@@ -1362,13 +1364,11 @@ def _ordered_async_task_ids(async_result: Dict[str, Any]) -> List[str]:
 
 
 def _is_async_skill_dispatch_result(app_id: str, skill_id: str, result: Dict[str, Any]) -> bool:
-    """Accept Remotion's rendering state only for the registered videos.create producer."""
+    """Accept only the processing state for an async skill dispatch."""
     if not (result.get("task_id") or result.get("task_ids")):
         return False
     status = result.get("status")
-    return status == "processing" or (
-        (app_id, skill_id) == ("videos", "create") and status == "rendering"
-    )
+    return status == "processing"
 
 
 def _is_async_skill_blocked_in_orchestration(
@@ -3503,6 +3503,9 @@ async def _charge_skill_credits(
                 and not group.get("error")  # No error field
                 and group.get("status") not in ("error", "cancelled")
                 and group.get("results")    # Has non-empty results
+                # Groups served only by operator-installed providers (per the
+                # server registry, never skill output flags) are not charged.
+                and not is_installed_only_group(app_id, skill_id, group)
             )
             units_processed = successful_requests
             if successful_requests < total_requests:
@@ -3833,6 +3836,16 @@ async def handle_main_processing(
         )
         yield {"__debug_metadata__": True, "routing_phase": "selected_project_focus_metadata"}
         return
+    pending_project_create = getattr(preprocessing_results, "pending_project_create", None)
+    if pending_project_create:
+        from backend.apps.ai.processing.project_focus_orchestration import request_project_creation
+        await request_project_creation(
+            task_id=task_id, directus_service=directus_service, request_data=request_data,
+            preprocessing_results=preprocessing_results, cache_service=cache_service,
+            skill_config_dict=skill_config_dict, proposal=pending_project_create,
+        )
+        yield {"__debug_metadata__": True, "routing_phase": "project_create_requested"}
+        return
     if pending_project_focus_id:
         from backend.apps.ai.processing.project_focus_orchestration import request_project_focus as propose_project_focus
         candidate = next((row for row in request_data.project_focus_candidates
@@ -3965,10 +3978,9 @@ async def handle_main_processing(
                     "chat_has_title": request_data.chat_has_title,
                     "is_incognito": getattr(request_data, 'is_incognito', False),
                     "task_id": task_id,
-                    "focus_authority_task_id": (
-                        getattr(request_data, "_focus_authority_task_id", None)
-                        or request_data.resolved_recovery_inference_task_id() or task_id
-                    ),
+                    # Same root the pause retains and the active marker holds; a
+                    # Memory-approval continuation owns the marker under its own id.
+                    "focus_authority_task_id": _pending_focus_authority_root(request_data, task_id),
                     "legacy_cutover_task_id": request_data.legacy_cutover_task_id,
                     "root_legacy_cutover_task_id": request_data.root_legacy_cutover_task_id,
                     "root_user_message_id": request_data.root_user_message_id,
@@ -4132,11 +4144,6 @@ async def handle_main_processing(
     if preprocessing_results.load_app_settings_and_memories and cache_service:
         logger.debug(f"{log_prefix} Preprocessing requested app settings/memories: {preprocessing_results.load_app_settings_and_memories}")
         try:
-            # Import helper function for creating requests
-            from backend.core.api.app.utils.app_settings_memories_request import (
-                create_app_settings_memories_request_message
-            )
-            
             requested_keys = [
                 key
                 for key in preprocessing_results.load_app_settings_and_memories
@@ -4229,55 +4236,20 @@ async def handle_main_processing(
 
             if missing_keys:
                 logger.info(f"{log_prefix} Creating new app settings/memories request for {len(missing_keys)} missing keys")
-                # Create new system message request in chat history
-                # Client will encrypt with chat key and store it
-                # When user confirms, client will send app settings/memories as separate data (like embeds)
-                # and server will store them in cache for future use
-                request_id = await create_app_settings_memories_request_message(
-                    chat_id=request_data.chat_id,
-                    requested_keys=missing_keys,
-                    cache_service=cache_service,
-                    connection_manager=None,  # Celery tasks run in separate processes, can't access WebSocket manager directly
-                    user_id=request_data.user_id,
-                    device_fingerprint_hash=None,  # Will use first available device connection
-                    message_id=request_data.message_id  # User message that triggered this request (for UI display)
+                from backend.apps.ai.processing.memory_permission_request import (
+                    issue_memory_permission_request,
                 )
-                
+                request_id = await issue_memory_permission_request(
+                    request_data=request_data,
+                    missing_keys=missing_keys,
+                    task_id=task_id,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                    user_vault_key_id=user_vault_key_id,
+                    log_prefix=log_prefix,
+                )
+
                 if request_id:
-                    logger.info(f"{log_prefix} Created app settings/memories request {request_id} - storing pending context and returning")
-                    # IMPORTANT: Store the pending request context so we can re-trigger processing
-                    # when user confirms or rejects. The confirmation/rejection acts as a trigger
-                    # for a NEW AI processing pass - not a continuation of this task.
-                    #
-                    # Flow:
-                    # 1. This task completes (no LLM response)
-                    # 2. Client shows permission dialog
-                    # 3. User confirms/rejects (could be seconds or hours later)
-                    # 4. Server receives confirmation → triggers NEW ask_skill task
-                    # 5. New task finds data in cache (if confirmed) → normal LLM response
-                    #
-                    # NOTE: We only store minimal context here - NOT the message_history!
-                    # The chat history is already cached on the server (recent chat).
-                    # When continuing, we retrieve the chat from cache.
-                    try:
-                        # Store MINIMAL context needed to re-trigger processing
-                        # Do NOT store message_history - it's already in the chat cache
-                        pending_context = _build_pending_app_settings_memories_context(
-                            request_data=request_data,
-                            request_id=request_id,
-                            missing_keys=missing_keys,
-                            task_id=task_id,
-                        )
-                        await cache_service.store_pending_app_settings_memories_request(
-                            chat_id=request_data.chat_id,
-                            context=pending_context,
-                            ttl=86400 * 7  # 7 days - user can confirm/reject within a week
-                        )
-                        logger.info(f"{log_prefix} Stored pending context for request {request_id}")
-                    except Exception as e:
-                        logger.error(f"{log_prefix} Failed to store pending context: {e}", exc_info=True)
-                        # Continue without storing - user will need to send a new message
-                    
                     # CRITICAL: Yield a special marker to signal that we're awaiting user permission.
                     # The stream_consumer.py will detect this marker and NOT send an error message.
                     # Without this marker, the empty stream would be treated as an error.
@@ -4293,6 +4265,34 @@ async def handle_main_processing(
         except Exception as e:
             logger.error(f"{log_prefix} Error handling app settings/memories requests: {e}", exc_info=True)
             # Continue without app settings/memories - don't fail the entire request
+
+    # Returned personal Memories (keys "memory:<id>") become Memory sections; they
+    # never reach the typed-category prompt block below. The client decided consent
+    # (automatic for Auto include, approval UI for Ask first); the server only
+    # accepts ids requested for this turn that exist in the catalog snapshot.
+    approved_memories_prompt = ""
+    approved_memories: list = []
+    if any(isinstance(key, str) and key.startswith("memory:") for key in loaded_app_settings_and_memories_content):
+        try:
+            approved_memories, loaded_app_settings_and_memories_content = approved_memory_definitions(
+                loaded_app_settings_and_memories_content, request_memory_catalog(request_data),
+                requested_keys=[key for key in (preprocessing_results.load_app_settings_and_memories or [])
+                                if isinstance(key, str) and key.startswith("memory:")],
+                mentioned_keys=(getattr(request_data, "mentioned_settings_memories_cleartext", None) or {}).keys(),
+                # Ask first Project Memories load only under the chat's current Project Focus.
+                active_project_id=((await agentic_context.fresh_project(
+                    request_data, directus_service, cache_service)) or {}).get("project_id"),
+            )
+            approved_memories_prompt = rules_prompt(approved_memories)
+            logger.info("%s Applied %d approved Memories (%d Project)", log_prefix, len(approved_memories),
+                        sum(memory.source == "project" for memory in approved_memories))
+        except ValueError:
+            logger.warning("%s Returned Memory content rejected; none applied", log_prefix)
+            approved_memories = []
+            loaded_app_settings_and_memories_content = {
+                key: value for key, value in loaded_app_settings_and_memories_content.items()
+                if not (isinstance(key, str) and key.startswith("memory:"))
+            }
 
     # Require a valid preprocessor selection before prompt construction so the
     # creator/model instruction and actual inference model use the same choice.
@@ -4417,11 +4417,13 @@ async def handle_main_processing(
     selected_mate_config = next((mate for mate in all_mates_configs if mate.id == preprocessing_results.selected_mate_id), None)
     learning_mode_context = getattr(request_data, "learning_mode", None) or {}
     learning_mode_active = is_learning_mode_enabled(learning_mode_context)
+    collaborative_build_active = is_collaborative_build_enabled(learning_mode_context)
     if selected_mate_config:
         prompt_parts.append(select_mate_system_prompt(
             selected_mate_config,
             voice_mode=bool(getattr(request_data, "voice_mode", False)),
             learning_mode=learning_mode_active,
+            collaborative_build=collaborative_build_active,
         ))
         # Furry Mode prompt styling is disabled until any furry art is made by human artists.
     # Insert creator_and_used_model_instruction right after the mate-specific prompt
@@ -4713,6 +4715,15 @@ async def handle_main_processing(
         if active_project_focus
         else None
     )
+    # Assistant-created Project: the activation card leads the resumed answer.
+    from backend.apps.ai.processing.project_focus_orchestration import created_project_activation_reference
+    created_project_reference = await created_project_activation_reference(
+        task_id=task_id, request_data=request_data, active_project_focus=active_project_focus,
+        cache_service=cache_service, directus_service=directus_service,
+        encryption_service=encryption_service, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+    )
+    if created_project_reference:
+        yield f"```json\n{created_project_reference}\n```\n\n"
     reference_preview = getattr(request_data, "project_file_reference_preview", None)
     if reference_preview is not None:
         # A continuation may publish only the result of its freshly authorized
@@ -4869,6 +4880,13 @@ async def handle_main_processing(
         )
         if authored_result_guidance:
             prompt_parts.append(authored_result_guidance)
+            from backend.core.api.app.services.authored_existing_cards import existing_authored_cards_prompt
+            existing_cards_guidance = await existing_authored_cards_prompt(
+                request_data, cache_service=cache_service, directus_service=directus_service,
+                encryption_service=encryption_service, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+            )
+            if existing_cards_guidance:
+                prompt_parts.append(existing_cards_guidance)
         workflow_known_sources = {
             source for source in (request_data.user_preferences or {}).get("workflow_presentation_sources", [])
             if isinstance(source, str) and "-" in source
@@ -5133,6 +5151,15 @@ async def handle_main_processing(
         )
         prompt_parts.append(MEMORY_TOOL_INSTRUCTION)
         logger.info("%s [MEMORY_CONTEXT] on-demand tools available", log_prefix)
+    # Client-applied personal Memory writes (memory_write_tool.py); the server never stores them.
+    save_memory_available = save_memory_enabled(request_data) and cache_service is not None
+    # Project target only with the authorized Project file tools of this turn (see below).
+    save_memory_project_target = bool(
+        save_memory_chat_allowed(request_data) and project_file_tools_enabled and active_project_focus)
+    if save_memory_available:
+        prompt_parts.append(SAVE_MEMORY_TOOL_INSTRUCTION)
+    if save_memory_project_target:
+        prompt_parts.append(SAVE_PROJECT_MEMORY_TOOL_INSTRUCTION)
     if (discovered_apps_metadata and "diagrams" in discovered_apps_metadata
             and selected_app_ids is not None and "diagrams" in selected_app_ids):
         from backend.apps.diagrams.diagram_guidance import (
@@ -5188,12 +5215,21 @@ async def handle_main_processing(
             value_str = json.dumps(processed_value) if not isinstance(processed_value, str) else processed_value
             settings_and_memories_prompt_section.append(f"- {key}: {value_str}")
         prompt_parts.append("\n".join(settings_and_memories_prompt_section))
+    if approved_memories_prompt:
+        prompt_parts.append(approved_memories_prompt)
 
     active_focus_definition = None
     active_focus_prompt_text: Optional[str] = None
     active_focus_prompt_section: Optional[str] = None
     translation_service = TranslationService()
-    if request_data.active_focus_id:
+    # The chat's active focus can be the bound Project's own focus (a bare id,
+    # e.g. the default focus of an assistant-created Project). Its instruction
+    # comes from the verified binding above, not from an app or private focus.
+    project_bound_focus = bool(
+        active_project_focus and request_data.active_focus_id
+        and request_data.active_focus_id == active_project_focus.get("focus_id")
+    )
+    if request_data.active_focus_id and not project_bound_focus:
         try:
             # Parse focus mode ID (format: "app_id-focus_id" using hyphen for consistency with tool names)
             if request_data.active_focus_id.startswith("project-focus:"):
@@ -5261,10 +5297,12 @@ async def handle_main_processing(
 
     if learning_mode_active:
         learning_age_group = learning_mode_context.get("age_group") or AGE_GROUP_13_15
-        prompt_parts.append(build_learning_mode_global_prompt(learning_age_group))
+        prompt_parts.append(build_learning_mode_global_prompt(
+            learning_age_group, collaborative_build=collaborative_build_active,
+        ))
         logger.info(
             f"{log_prefix} Added Learning Mode global prompt "
-            f"(age_group={learning_age_group})"
+            f"(age_group={learning_age_group}, collaborative_build={collaborative_build_active})"
         )
 
     # Enforce response language based on the preprocessor's detected output_language.
@@ -5293,6 +5331,17 @@ async def handle_main_processing(
 
     if task_context_prompt:
         prompt_parts.append(task_context_prompt)
+
+    # Best-matching pages of the PDF(s) attached to this message, so the assistant can usually
+    # answer without its own pdf.search / pdf.read turns (feature.pdf-processing).
+    from backend.apps.ai.processing.pdf_prefetch import build_pdf_prefetch_section
+
+    pdf_prefetch_section = await build_pdf_prefetch_section(
+        request_data=request_data, user_vault_key_id=user_vault_key_id, cache_service=cache_service,
+        encryption_service=encryption_service, secrets_manager=secrets_manager, log_prefix=log_prefix,
+    )
+    if pdf_prefetch_section:
+        prompt_parts.append(pdf_prefetch_section)
 
     # --- Add sub-chats usage instructions for LLM ---
     enable_subchats_results = preprocessing_results.enable_subchats if hasattr(preprocessing_results, 'enable_subchats') else False
@@ -5328,8 +5377,21 @@ async def handle_main_processing(
         )
     # Apply delivery after domain, focus and rich-output instructions. Keep the
     # exact same canonical ethics/privacy and tool/model policies in every mode.
-    from backend.apps.ai.assistant_speech.voice_context import build_voice_main_instruction
+    from backend.apps.ai.assistant_speech.voice_context import (
+        build_voice_learning_focus_instruction,
+        build_voice_main_instruction,
+    )
 
+    # The learning/focus speech rules come first so the main voice delivery
+    # block stays the final, highest-attention instruction of a voice turn.
+    voice_learning_focus_instruction = build_voice_learning_focus_instruction(
+        base_instructions,
+        voice_mode=bool(getattr(request_data, "voice_mode", False)),
+        learning_mode_active=learning_mode_active,
+        focus_active=bool(getattr(request_data, "active_focus_id", None)),
+    )
+    if voice_learning_focus_instruction:
+        prompt_parts.append(voice_learning_focus_instruction)
     voice_main_instruction = build_voice_main_instruction(
         base_instructions, voice_mode=bool(getattr(request_data, "voice_mode", False)),
     )
@@ -5390,6 +5452,9 @@ async def handle_main_processing(
     }
     if memory_runtime is not None:
         available_tools_for_llm.extend(memory_tools())
+    if save_memory_available or save_memory_project_target:
+        available_tools_for_llm.append(save_memory_tool(project_target=save_memory_project_target,
+                                                        personal=save_memory_available))
     available_tools_for_llm = without_unscoped_project_search(available_tools_for_llm)
 
     if task_queue_blocks_plan_tools:
@@ -5514,6 +5579,9 @@ async def handle_main_processing(
         _desc_lines = [
             "Activate a focus mode to specialize the assistant's behavior for a specific task. "
             "Focus modes provide specialized instructions that help with particular types of requests.",
+            "The focus modes below were pre-selected as candidates for this request. When one fits what the "
+            "user asks for, call this tool first, before writing the answer or creating a document, also "
+            "when the user already gave all the details.",
             "",
             f"Valid focus_id values (use EXACTLY one of these): {_valid_ids_list}",
         ]
@@ -5892,6 +5960,7 @@ async def handle_main_processing(
     # snake_case form (pre-canonicalize, defensive) for both tools.
     for system_skill in (
         *MEMORY_TOOL_NAMES,
+        SAVE_MEMORY_TOOL_NAME,
         "activate_focus_mode",
         "deactivate_focus_mode",
         "start_sub_chats",
@@ -5907,7 +5976,9 @@ async def handle_main_processing(
         tool_resolver_map[task_tool_name] = (TASK_TOOL_RESOLVER_APP_ID, task_tool_skill_id(task_tool_name))
         tool_resolver_map[task_tool_name.replace("-", "_")] = (TASK_TOOL_RESOLVER_APP_ID, task_tool_skill_id(task_tool_name))
 
-    current_message_history: List[Dict[str, Any]] = [_llm_history_message(msg) for msg in request_data.message_history]
+    current_message_history: List[Dict[str, Any]] = apply_embed_update_history(
+        [_llm_history_message(msg) for msg in request_data.message_history]
+    )
     
     # Size the initial history for the selected answer model. Jev's independent
     # bounded projection never participates in this calculation.
@@ -5983,8 +6054,9 @@ async def handle_main_processing(
     DEBUG_MSG_HISTORY_TAIL = 3  # Last 3 messages (most recent context)
     # Debug receipts use the request's privacy projection; the answer model
     # continues to use current_message_history with restored file results.
-    safe_debug_history = [_llm_history_message(message)
-                          for message in request_data.model_dump(mode="json")["message_history"]]
+    safe_debug_history = apply_embed_update_history(
+        [_llm_history_message(message) for message in request_data.model_dump(mode="json")["message_history"]]
+    )
     safe_debug_history = truncate_message_history_to_token_budget(
         safe_debug_history, max_tokens=selected_history_budget,
     )
@@ -6148,10 +6220,9 @@ async def handle_main_processing(
                     "chat_has_title": request_data.chat_has_title,
                     "is_incognito": getattr(request_data, 'is_incognito', False),
                     "task_id": task_id,
-                    "focus_authority_task_id": (
-                        getattr(request_data, "_focus_authority_task_id", None)
-                        or request_data.resolved_recovery_inference_task_id() or task_id
-                    ),
+                    # Same root the pause retains and the active marker holds; a
+                    # Memory-approval continuation owns the marker under its own id.
+                    "focus_authority_task_id": _pending_focus_authority_root(request_data, task_id),
                     "legacy_cutover_task_id": request_data.legacy_cutover_task_id,
                     "root_legacy_cutover_task_id": request_data.root_legacy_cutover_task_id,
                     "root_user_message_id": request_data.root_user_message_id,
@@ -6625,6 +6696,12 @@ async def handle_main_processing(
         generated_embed_refs = list(resume_checkpoint.get("generated_embed_refs") or [])
         generated_embed_aliases = dict(resume_checkpoint.get("generated_embed_aliases") or {})
         authored_inline_outputs = list(resume_checkpoint.get("authored_inline_outputs") or [])
+        from backend.shared.python_utils.generated_media_graph import generated_output_file_index
+        same_turn_file_index = generated_output_file_index(authored_inline_outputs)
+        if same_turn_file_index:
+            request_data.embed_file_path_index = {
+                **(request_data.embed_file_path_index or {}), **same_turn_file_index,
+            }
         start_iteration = int(resume_checkpoint["next_iteration"])
         from backend.apps.ai.tasks.same_turn_skill_barrier import selected_resume_route
         try:
@@ -6990,6 +7067,8 @@ async def handle_main_processing(
                         on_demand_memory_prompt = next_memory_prompt
                 if not agentic_section or agentic_section in iteration_system_prompt:
                     receipt_guides = [*applied_guides]
+                    if approved_memories and approved_memories_prompt in iteration_system_prompt:
+                        receipt_guides.extend(approved_memories)
                     if diagram_prompt and diagram_prompt in iteration_system_prompt:
                         receipt_guides.extend(diagram_receipt_memories)
                     if memory_runtime and memory_runtime.prompt and memory_runtime.prompt in iteration_system_prompt:
@@ -7022,6 +7101,8 @@ async def handle_main_processing(
                 effective_memory_context = on_demand_memory_prompt
                 if applied_guides and agentic_section and agentic_section in iteration_system_prompt:
                     effective_memory_context += applied_rule_set_key(applied_guides)
+                if approved_memories and approved_memories_prompt in iteration_system_prompt:
+                    effective_memory_context += applied_rule_set_key(approved_memories)
                 if diagram_prompt and diagram_prompt in iteration_system_prompt:
                     effective_memory_context += diagram_prompt
                 if (not native_memory_context_matches(native_state, effective_memory_context)
@@ -7473,7 +7554,7 @@ async def handle_main_processing(
                     or is_sub_chat_violation
                 ):
                     rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else INVALID_TOOL_RESULT_REASON
-                    raw_arguments_log = "" if _is_task_tool_like(canonical_name) or _is_task_tool_like(raw_function_name) else f"Raw arguments: {chunk.function_arguments_raw[:500]}"
+                    raw_arguments_log = "" if _is_task_tool_like(canonical_name) or _is_task_tool_like(raw_function_name) or is_save_memory_tool_name(raw_function_name) else f"Raw arguments: {chunk.function_arguments_raw[:500]}"
                     logger.warning(
                         f"{log_prefix} [HALLUCINATION/BLOCK] Rejecting tool call "
                         f"'{raw_function_name}' (canonical='{canonical_name}') "
@@ -7514,6 +7595,44 @@ async def handle_main_processing(
                         f"'{raw_function_name}' -> '{canonical_name}'"
                     )
                     chunk.function_name = canonical_name
+
+                # save_memory with target "project": store the Memory as one
+                # Project file operation, so it runs through the authorized,
+                # client-encrypted Project file path (placeholder, exclusivity,
+                # continuation, revision history) instead of the personal job.
+                if (is_save_memory_tool_name(chunk.function_name) and save_memory_project_target
+                        and _canonicalize_tool_name(PROJECT_MEMORY_FILE_TOOL) in iteration_allowed_tool_names):
+                    try:
+                        memory_call_args = json.loads(chunk.function_arguments_raw or "{}")
+                    except json.JSONDecodeError:
+                        memory_call_args = None
+                    memory_call_args = with_default_project_target(
+                        memory_call_args, personal_available=save_memory_available)
+                    if is_project_memory_call(memory_call_args):
+                        try:
+                            project_memory_args = project_memory_file_arguments(memory_call_args)
+                        except MemoryWriteToolError as exc:
+                            hallucinated_tool_calls_this_turn.append((chunk, {
+                                "tool_call_id": chunk.tool_call_id, "role": "tool", "name": chunk.function_name,
+                                "content": json.dumps({"status": "rejected", "message": str(exc)}),
+                            }))
+                            hallucinated_rejections_this_turn += 1
+                            continue
+                        logger.info("%s [MEMORY_WRITE] project target -> %s document_chars=%d", log_prefix,
+                                    PROJECT_MEMORY_FILE_TOOL, len(project_memory_args["content"]))
+                        chunk.function_name = _canonicalize_tool_name(PROJECT_MEMORY_FILE_TOOL)
+                        chunk.function_arguments_raw = json.dumps(project_memory_args)
+                        if hasattr(chunk, "function_arguments_parsed"):
+                            chunk.function_arguments_parsed = project_memory_args
+                    elif not save_memory_available:
+                        hallucinated_tool_calls_this_turn.append((chunk, {
+                            "tool_call_id": chunk.tool_call_id, "role": "tool", "name": chunk.function_name,
+                            "content": json.dumps({"status": "rejected", "message": (
+                                "This app can save Memories only to the active Project (target project). "
+                                "Nothing was saved.")}),
+                        }))
+                        hallucinated_rejections_this_turn += 1
+                        continue
 
                 tool_calls_for_this_turn.append(chunk)
 
@@ -7641,8 +7760,8 @@ async def handle_main_processing(
                                 len(omitted_inline_budget_requests),
                             )
 
-                    if app_id == "system" and skill_id in MEMORY_TOOL_NAMES:
-                        continue  # Context loads use Memory receipts, never skill placeholders.
+                    if app_id == "system" and (skill_id in MEMORY_TOOL_NAMES or skill_id == SAVE_MEMORY_TOOL_NAME):
+                        continue  # Memory context/writes use Memory receipts, never skill placeholders.
                     if app_id == "system" and skill_id == "activate_focus_mode":
                         focus_activation_seen_this_turn = True
                     elif is_legacy_task_runtime_tool_name(tool_name):
@@ -8435,6 +8554,14 @@ async def handle_main_processing(
         )
 
         logger.info(f"{log_prefix} Processing {len(tool_calls_for_this_turn)} tool call(s).")
+        voice_skill_ids = [
+            tool_resolver_map[call.function_name] for call in tool_calls_for_this_turn
+            if call.function_name in tool_resolver_map
+            and tool_resolver_map[call.function_name][1] != "activate_focus_mode"
+        ]
+        if voice_skill_ids:
+            # Speech-only signal: the consumer may announce app use during a call.
+            yield {"__voice_skill_phase__": "started", "skills": voice_skill_ids}
         
         # Append valid tool calls plus rejected hallucinated calls as matched
         # tool_use/tool_result pairs. Rejected calls are hidden protocol
@@ -8765,23 +8892,31 @@ async def handle_main_processing(
                     async def execute() -> List[Dict[str, Any]]:
                         if preparation_error := candidate.get("preparation_error"):
                             raise preparation_error
+                        progress_channel = open_progress_channel(
+                            cache_service=cache_service, directus_service=directus_service,
+                            encryption_service=encryption_service, placeholder=candidate["placeholder"],
+                            chat_id=request_data.chat_id, message_id=request_data.message_id,
+                            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                            task_id=task_id, external_request=bool(request_data.is_external),
+                        )
                         with ai_phase_span("tool"):
-                            return await execute_skill_with_multiple_requests(
-                                app_id=candidate["app_id"],
-                                skill_id=candidate["skill_id"],
-                                arguments=candidate["arguments"],
-                                timeout=get_skill_timeout(candidate["app_id"], candidate["skill_id"], candidate["arguments"]),
-                                chat_id=request_data.chat_id,
-                                message_id=request_data.message_id,
-                                user_id=request_data.user_id,
-                                team_id=request_data.team_id,
-                                skill_task_id=candidate["skill_task_id"],
-                                cache_service=cache_service,
-                                encryption_service=encryption_service,
-                                secrets_manager=secrets_manager,
-                                max_retries=0 if getattr(request_data, "is_anonymous", False) else 1,
-                                is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
-                            )
+                            async with skill_progress_scope(progress_channel):
+                                return await execute_skill_with_multiple_requests(
+                                    app_id=candidate["app_id"],
+                                    skill_id=candidate["skill_id"],
+                                    arguments=candidate["arguments"],
+                                    timeout=get_skill_timeout(candidate["app_id"], candidate["skill_id"], candidate["arguments"]),
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    team_id=request_data.team_id,
+                                    skill_task_id=candidate["skill_task_id"],
+                                    cache_service=cache_service,
+                                    encryption_service=encryption_service,
+                                    secrets_manager=secrets_manager,
+                                    max_retries=0 if getattr(request_data, "is_anonymous", False) else 1,
+                                    is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
+                                )
 
                     return execute
 
@@ -8879,7 +9014,7 @@ async def handle_main_processing(
                 is_sub_chat_violation = (tool_name == "start-sub-chats" and chat_depth >= 2)
                 if tool_name not in allowed_tool_names or is_sub_chat_violation:
                     rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else "Tool not available. Only preselected tools may be used. Do not retry this call."
-                    raw_arguments_log = "" if is_task_tool_name(tool_name) else f". Raw arguments: {tool_arguments_str[:500]}"
+                    raw_arguments_log = "" if is_task_tool_name(tool_name) or is_save_memory_tool_name(tool_name) else f". Raw arguments: {tool_arguments_str[:500]}"
                     logger.warning(
                         f"{log_prefix} [HALLUCINATION/BLOCK] Refusing to execute tool '{tool_name}'. "
                         f"tool_call_id={tool_call_id}. Allowed tools ({len(allowed_tool_names)}): "
@@ -8943,6 +9078,15 @@ async def handle_main_processing(
                         memory_result = {"status": "unavailable", "message": "Memory unavailable or selection exceeds the context limit. Use only available IDs and fewer documents; do not claim it loaded."}
                     current_message_history.append({"tool_call_id": tool_call_id, "role": "tool",
                         "name": tool_name, "content": json.dumps(memory_result)})
+                    continue
+
+                if app_id == "system" and skill_id == SAVE_MEMORY_TOOL_NAME and save_memory_available:
+                    # Waits for the user's device to apply the job; the result is what it actually did.
+                    save_result = await dispatch_save_memory(
+                        arguments=parsed_args, request=request_data, approved_memories=approved_memories,
+                        cache_service=cache_service, log_prefix=log_prefix)
+                    current_message_history.append({"tool_call_id": tool_call_id, "role": "tool",
+                        "name": tool_name, "content": json.dumps(save_result)})
                     continue
                 
                 # Validate that app_id and skill_id are non-empty after split
@@ -9277,6 +9421,74 @@ async def handle_main_processing(
                             f"Next iteration will force tool_choice='none' to generate final answer."
                         )
                 
+                # --- Hosted-Project code-run: the Project snapshot comes from the client ---
+                if app_id == "code" and skill_id == "run" and isinstance(parsed_args, dict):
+                    from backend.apps.ai.processing import project_test_snapshot as _pts
+                    if _pts.needs_snapshot(parsed_args) and active_project_focus and cache_service:
+                        _snapshot = await _pts.take_snapshot(
+                            cache_service,
+                            user_id=request_data.user_id,
+                            chat_id=request_data.chat_id,
+                            project_id=str(active_project_focus.get("project_id") or ""),
+                        )
+                        if _snapshot is not None:
+                            parsed_args = _pts.inject_snapshot(parsed_args, _snapshot)
+                        elif project_file_tools_enabled and not pending_project_operation_id:
+                            try:
+                                pending_project_operation_id = await _pts.dispatch_snapshot_operation(
+                                    cache_service=cache_service,
+                                    directus_service=directus_service,
+                                    request_data=request_data,
+                                    active_project_focus=active_project_focus,
+                                    skill_config_dict=skill_config_dict,
+                                    task_id=task_id,
+                                    preprocessing_results=preprocessing_results,
+                                    prefix=_pts.snapshot_prefix(parsed_args),
+                                )
+                                request_data.awaiting_async_skill_continuation = True
+                                _snapshot_tool_result = {
+                                    "status": "processing",
+                                    "message": (
+                                        "Collecting the Project snapshot from the authorized client; "
+                                        "the test run continues when it is ready."
+                                    ),
+                                }
+                            except (PermissionError, RuntimeError, KeyError, ValueError) as snapshot_error:
+                                logger.warning(
+                                    "%s Project snapshot dispatch failed: %s",
+                                    log_prefix, snapshot_error, exc_info=True,
+                                )
+                                _snapshot_tool_result = {
+                                    "status": "rejected",
+                                    "reason": "Project snapshot authorization or dispatch failed.",
+                                }
+                            # This call never runs; the rerun after the snapshot
+                            # gets its own card. Cancelled placeholders are removed
+                            # silently by clients instead of spinning forever.
+                            _snapshot_placeholder = inline_placeholder_embeds.get(tool_call_id)
+                            if (isinstance(_snapshot_placeholder, dict) and _snapshot_placeholder.get("embed_id")
+                                    and user_vault_key_id and directus_service):
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                await EmbedService(
+                                    cache_service=cache_service, directus_service=directus_service,
+                                    encryption_service=encryption_service,
+                                ).update_embed_status_to_cancelled(
+                                    embed_id=_snapshot_placeholder["embed_id"], app_id=app_id, skill_id=skill_id,
+                                    chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                    user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                                )
+                            current_message_history.append(
+                                {
+                                    "role": "tool",
+                                    "tool_call_id": tool_call_id,
+                                    "name": tool_name,
+                                    "content": json.dumps(_snapshot_tool_result),
+                                }
+                            )
+                            completed_skill_calls[call_hash] = _snapshot_tool_result
+                            continue
+
                 # --- Handle system tools (focus mode activation/deactivation) ---
                 # System tools are special tools that modify the chat state rather than executing skills
                 # They use app_id="system" to distinguish from regular app skills
@@ -9303,9 +9515,10 @@ async def handle_main_processing(
                                 from backend.apps.ai.tasks.async_skill_continuation import (
                                     cache_async_skill_continuation_context,
                                     async_skill_continuation_key,
+                                    release_unoffered_async_recovery_handoff,
                                 )
                                 from backend.core.api.app.services.project_file_operation_service import (
-                                    PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS,
+                                    PROJECT_FILE_MUTATIONS, PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS,
                                     ProjectFileOperationService,
                                 )
                                 from backend.core.api.app.services.project_write_authorization_service import (
@@ -9347,7 +9560,7 @@ async def handle_main_processing(
                                     )
                                     required_source_capability = (
                                         "write_request"
-                                        if operation in {"create_file", "update_file"}
+                                        if operation in PROJECT_FILE_MUTATIONS
                                         else "search" if operation == "search" else "read"
                                     )
                                     if (
@@ -9360,6 +9573,7 @@ async def handle_main_processing(
                                         raise PermissionError("Project source is unavailable or not authorized")
                                     dispatch_focus["source_id"] = str(requested_source_id)
 
+                                awaiting_before_operation = bool(request_data.awaiting_async_skill_continuation)
                                 await cache_async_skill_continuation_context(
                                     cache_service=cache_service,
                                     async_task_id=operation_id,
@@ -9391,6 +9605,13 @@ async def handle_main_processing(
                                     )
                                 except Exception:
                                     await cache_service.delete(async_skill_continuation_key(operation_id))
+                                    # The operation was never offered: release its pause so later
+                                    # Project operations and the turn's completion are not blocked.
+                                    await release_unoffered_async_recovery_handoff(
+                                        cache=cache_service, directus=directus_service,
+                                        request=request_data, producer_id=operation_id,
+                                        awaiting_before=awaiting_before_operation,
+                                    )
                                     raise
                                 operation_record = await operation_service.get_job(
                                     user_id=request_data.user_id,
@@ -10326,29 +10547,38 @@ async def handle_main_processing(
                                 raise parallel_outcome
                             results = parallel_outcome
                         else:
+                            progress_channel = open_progress_channel(
+                                cache_service=cache_service, directus_service=directus_service,
+                                encryption_service=encryption_service, placeholder=placeholder_embed_data,
+                                chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                task_id=task_id, external_request=bool(request_data.is_external),
+                            )
                             with ai_phase_span("tool"):
                                 provider_dispatch_attempted = True
                                 delegated_primary_read.observe_attempt(tool_name)
-                                results = await execute_skill_with_multiple_requests(
-                                    app_id=app_id,
-                                    skill_id=skill_id,
-                                    arguments=skill_arguments,
-                                    timeout=90.0 if natural_workflow_authoring else get_skill_timeout(app_id, skill_id, skill_arguments),
-                                    chat_id=request_data.chat_id,
-                                    message_id=request_data.message_id,
-                                    user_id=request_data.user_id,
-                                    team_id=request_data.team_id,
-                                    skill_task_id=skill_task_id,
-                                    cache_service=cache_service,
-                                    encryption_service=encryption_service,
-                                    secrets_manager=secrets_manager,
-                                    max_retries=0 if natural_workflow_authoring or getattr(request_data, "is_anonymous", False) or (same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS) else 1,
-                                    is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
-                                )
+                                async with skill_progress_scope(progress_channel):
+                                    results = await execute_skill_with_multiple_requests(
+                                        app_id=app_id,
+                                        skill_id=skill_id,
+                                        arguments=skill_arguments,
+                                        timeout=90.0 if natural_workflow_authoring else get_skill_timeout(app_id, skill_id, skill_arguments),
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        team_id=request_data.team_id,
+                                        skill_task_id=skill_task_id,
+                                        cache_service=cache_service,
+                                        encryption_service=encryption_service,
+                                        secrets_manager=secrets_manager,
+                                        max_retries=0 if natural_workflow_authoring or getattr(request_data, "is_anonymous", False) or (same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS) else 1,
+                                        is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
+                                    )
                         results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
                             results,
                             log_prefix=f"{log_prefix}[{app_id}.{skill_id}] ",
                         )
+                        record_workflow_writes(request_data, app_id, skill_id, results)
                         if ascii_sanitization_stats.get("removed_count", 0) > 0:
                             logger.warning(
                                 f"{log_prefix} Removed {ascii_sanitization_stats['removed_count']} "
@@ -12009,6 +12239,27 @@ async def handle_main_processing(
                             app_id=app_id, skill_id=skill_id,
                             results=results_with_refs, authored_embeds=updated_embed_data_list,
                         ))
+                    # Exact refs of this turn's finished search results, so a later call in the
+                    # same turn (videos.generate pictures) can name a result by its embed_ref.
+                    from backend.shared.python_utils.result_pictures import collect_result_ref_index
+                    result_ref_index: Dict[str, str] = {}
+                    if is_multiple_requests and grouped_results:
+                        for authored_embed in updated_embed_data_list:
+                            group = grouped_by_id.get(str(authored_embed.get("request_id")))
+                            if group and isinstance(group.get("results"), list):
+                                result_ref_index.update(collect_result_ref_index(
+                                    app_id=app_id, skill_id=skill_id,
+                                    results=group["results"], authored_embeds=[authored_embed],
+                                ))
+                    else:
+                        result_ref_index = collect_result_ref_index(
+                            app_id=app_id, skill_id=skill_id,
+                            results=results_with_refs, authored_embeds=updated_embed_data_list,
+                        )
+                    if result_ref_index:
+                        request_data.embed_file_path_index = {
+                            **result_ref_index, **(request_data.embed_file_path_index or {}),
+                        }
 
                 # NOTE: With new embeds architecture, embed references are streamed as chunks
                 # We still track tool_call_info for TOON code block (for backward compatibility and follow-up questions)
@@ -12364,6 +12615,9 @@ async def handle_main_processing(
         ):
             force_no_tools = True
             continue_published_answer = bool(published_answer_text)
+
+        if voice_skill_ids and not async_batch_jobs:
+            yield {"__voice_skill_phase__": "finished", "skills": voice_skill_ids}
 
         if async_batch_jobs:
             checkpoint = {

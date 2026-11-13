@@ -22,7 +22,7 @@ The Videos app helps you find videos on any topic and retrieve captions from sup
 
 **Available skills:**
 
-- **Generate** -- Creates short AI videos. Ordinary generation uses Google Veo. Authenticated chats and calls can use H3 Max Turbo for five-second 480p clips with one saved image as the first frame. H3 results are encrypted and saved alongside other generated videos; REST generation currently supports Veo only.
+- **Generate** -- Creates short AI videos. Ordinary generation uses Google's Gemini Omni: 3-15 second clips in 16:9 or 9:16 at 360p, 720p, 1080p or 4k, optionally starting from a first frame or a first and last frame, billed per second at the price of the chosen resolution. You can change a video afterwards: extending it at the end continues from its last frame, extending it at the start creates an opening still image and blends it into the current first frame, and every edit becomes the next version of the same video. Authenticated chats and calls can use H3 Max Turbo for five-second 480p clips with one saved image as the first frame. H3 results are encrypted and saved alongside other generated videos; REST generation currently supports Gemini Omni only.
 - **Search** -- Searches the web for videos, documentaries, tutorials, and clips on any topic. Results show video thumbnails, titles, and durations.
 - **Get Transcript** -- Retrieves available captions from media.ccc.de recordings. YouTube links support metadata and search; captions are unavailable.
 

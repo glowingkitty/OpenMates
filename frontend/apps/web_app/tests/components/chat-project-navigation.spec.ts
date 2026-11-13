@@ -45,6 +45,18 @@ for (const width of [280, 325]) {
   });
 }
 
+// contract-test: supporting surface=gui.web assertions=chat-navigation.projects.only-with-chats
+test('sidebar root lists only projects that contain chats', async ({ page }) => {
+  await page.setViewportSize({ width: 325, height: 844 });
+  await page.goto(preview('ChatProjectNavigator', 325, 'withEmptyProject'), { waitUntil: 'domcontentloaded' });
+  await waitForComponentPreview(page);
+  const navigator = page.getByTestId('chat-project-navigation');
+  await expect(navigator.getByTestId('chat-project-root')).toHaveCount(1);
+  await expect(navigator.getByTestId('chat-project-root')).toContainText('Website launch');
+  await expect(navigator).not.toContainText('Empty archive');
+  await navigator.screenshot({ path: test.info().outputPath('only-projects-with-chats.png') });
+});
+
 // contract-test: supporting surface=gui.web assertions=chat-navigation.projects.organize
 test('project picker selects a deep destination and retains a failed selection', async ({ page }) => {
   await page.setViewportSize({ width: 325, height: 844 });

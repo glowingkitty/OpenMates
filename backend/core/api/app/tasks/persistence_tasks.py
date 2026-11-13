@@ -14,6 +14,7 @@ from typing import Optional
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.pending_embed_notices import clear_pending_embed_notice
 from backend.core.api.app.schemas.chat import CachedChatListItemData, CachedChatVersions
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -81,7 +82,7 @@ def _chat_list_cache_data_from_metadata(
         encrypted_follow_up_request_suggestions=chat_metadata.get("encrypted_follow_up_request_suggestions"),
         encrypted_suggested_followup_message=chat_metadata.get("encrypted_suggested_followup_message"),
         encrypted_top_recommended_apps_for_chat=chat_metadata.get("encrypted_top_recommended_apps_for_chat"),
-        encrypted_quick_tip_slugs=chat_metadata.get("encrypted_quick_tip_slugs"),
+        encrypted_recommendations=chat_metadata.get("encrypted_recommendations"),
         encrypted_shared_short_url=chat_metadata.get("encrypted_shared_short_url"),
         encrypted_active_focus_id=chat_metadata.get("encrypted_active_focus_id"),
         encrypted_focus_phase_state=chat_metadata.get("encrypted_focus_phase_state"),
@@ -862,6 +863,9 @@ async def _async_persist_new_chat_message_task(
             # IMPORTANT: We still need to update chat metadata (messages_v, timestamps)
             # But we skip creating the duplicate message
             # The chat metadata update happens later in this function, so we continue there
+            if role == "system":
+                # A second device wrote the same embed-updated event: its notice is answered.
+                await clear_pending_embed_notice(directus_service, chat_id=chat_id, message_id=message_id)
             return  # Exit early - message already persisted
         
         # The 'created_at' parameter is the client's original timestamp.
@@ -896,6 +900,10 @@ async def _async_persist_new_chat_message_task(
                 f"Directus operation returned: {created_message_item}"
             )
             return  # Stop if message creation fails
+
+        if role == "system":
+            # A stored embed-updated event answers its pending notice (feature.embed-user-edits).
+            await clear_pending_embed_notice(directus_service, chat_id=chat_id, message_id=message_id)
 
         if role == "user" and hashed_team_id:
             # Legacy path only. The current durable preflight has its own commit
@@ -2355,7 +2363,7 @@ async def _async_persist_encrypted_chat_metadata(
                                    "encrypted_chat_summary", "encrypted_share_cta_text", "encrypted_chat_tags",
                                    "encrypted_follow_up_request_suggestions", "encrypted_suggested_followup_message",
                                     "encrypted_top_recommended_apps_for_chat",
-                                   "encrypted_quick_tip_slugs", "encrypted_shared_short_url",
+                                   "encrypted_recommendations", "encrypted_shared_short_url",
                                    "encrypted_auto_speak_response"):
                         if field in update_fields:
                             rejected_metadata.append(field)
@@ -2373,7 +2381,7 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_title", "encrypted_icon", "encrypted_category", "encrypted_chat_tags",
                 "encrypted_chat_summary", "encrypted_share_cta_text", "encrypted_follow_up_request_suggestions", "encrypted_suggested_followup_message", "encrypted_chat_key",
                 "encrypted_top_recommended_apps_for_chat",
-                "encrypted_quick_tip_slugs", "encrypted_shared_short_url", "encrypted_auto_speak_response", "encrypted_focus_phase_state",
+                "encrypted_recommendations", "encrypted_shared_short_url", "encrypted_auto_speak_response", "encrypted_focus_phase_state",
                 "updated_at"
             }
             
@@ -2527,7 +2535,7 @@ async def _async_persist_encrypted_chat_metadata(
                         encrypted_follow_up_request_suggestions=encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
                         encrypted_suggested_followup_message=encrypted_metadata.get("encrypted_suggested_followup_message"),
                         encrypted_top_recommended_apps_for_chat=encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
-                        encrypted_quick_tip_slugs=encrypted_metadata.get("encrypted_quick_tip_slugs"),
+                        encrypted_recommendations=encrypted_metadata.get("encrypted_recommendations"),
                         encrypted_shared_short_url=encrypted_metadata.get("encrypted_shared_short_url"),
                         encrypted_active_focus_id=encrypted_metadata.get("encrypted_active_focus_id"),
                         encrypted_focus_phase_state=encrypted_metadata.get("encrypted_focus_phase_state"),
@@ -2608,7 +2616,7 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_follow_up_request_suggestions": encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
                 "encrypted_suggested_followup_message": encrypted_metadata.get("encrypted_suggested_followup_message"),
                 "encrypted_top_recommended_apps_for_chat": encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
-                "encrypted_quick_tip_slugs": encrypted_metadata.get("encrypted_quick_tip_slugs"),
+                "encrypted_recommendations": encrypted_metadata.get("encrypted_recommendations"),
                 "encrypted_shared_short_url": encrypted_metadata.get("encrypted_shared_short_url"),
                 "encrypted_auto_speak_response": encrypted_metadata.get("encrypted_auto_speak_response"),
                 "parent_id": encrypted_metadata.get("parent_id"),

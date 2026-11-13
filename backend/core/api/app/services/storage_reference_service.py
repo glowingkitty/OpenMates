@@ -1367,6 +1367,7 @@ async def delete_account_storage_reference_rows(
     specifications = (
         ("account_export_parts", {"hashed_user_id": {"_eq": user_id_hash}}),
         ("account_export_jobs", {"hashed_user_id": {"_eq": user_id_hash}}),
+        ("image_enhance_jobs", {"hashed_user_id": {"_eq": user_id_hash}}),
         ("upload_files", {"user_id": {"_eq": user_id}}),
         ("chat_recovery_outputs", {"hashed_user_id": {"_eq": user_id_hash}, "root_hashed_team_id": {"_null": True},
                                    "s3_file_keys": {"_null": True}}),

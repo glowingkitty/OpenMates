@@ -3,133 +3,56 @@ use super::super::settings_more::tests::{mock, parsed};
 use super::*;
 
 #[tokio::test]
-async fn types_and_validation_match_the_legacy_registry_without_network() {
+async fn typed_commands_point_to_memories_without_network() {
     let (mut client, server) = mock(vec![]).await;
-    let types = execute(
-        &parsed(&[
+    // The catalog no longer declares the typed types and create subcommands, so
+    // the parser refuses them before any handler or network access.
+    for args in [
+        ["openmates", "settings", "memories", "types"].as_slice(),
+        [
             "openmates",
             "settings",
             "memories",
-            "types",
+            "create",
             "--app-id",
             "books",
-            "--json",
-        ]),
-        &mut client,
-    )
-    .await
-    .ok()
-    .unwrap();
-    let value: Value = serde_json::from_str(&types.stdout).unwrap();
-    assert!(
-        value
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|t| t["app_id"] == "books")
-    );
-    assert_eq!(value[0]["key"], "books/favorite_books");
-    let human = execute(
-        &parsed(&[
-            "openmates",
-            "settings",
-            "memories",
-            "types",
-            "--app-id",
-            "books",
-        ]),
-        &mut client,
-    )
-    .await
-    .ok()
-    .unwrap();
-    assert!(human.stdout.starts_with("\x1b[1mMemory types  ("));
-    assert!(
-        human
-            .stdout
-            .contains("\x1b[1mbooks\x1b[0m\n  \x1b[36mfavorite_books\x1b[0m  \x1b[2mlist\x1b[0m\n")
-    );
-    for (args, prefix) in [
-        (
-            vec![
-                "openmates",
-                "settings",
-                "memories",
-                "create",
-                "--app-id",
-                "books",
-            ],
-            "Missing required flags.",
-        ),
-        (
-            vec![
-                "openmates",
-                "settings",
-                "memories",
-                "create",
-                "--app-id",
-                "books",
-                "--item-type",
-                "favorite_books",
-            ],
-            "Missing --data '<json>'.",
-        ),
-        (
-            vec![
-                "openmates",
-                "settings",
-                "memories",
-                "create",
-                "--app-id",
-                "nope",
-                "--item-type",
-                "x",
-                "--data",
-                "{}",
-            ],
-            "Unknown memory type 'nope/x'.",
-        ),
-        (
-            vec![
-                "openmates",
-                "settings",
-                "memories",
-                "create",
-                "--app-id",
-                "books",
-                "--item-type",
-                "favorite_books",
-                "--data",
-                "{}",
-            ],
-            "Missing required fields for 'books/favorite_books': title",
-        ),
-        (
-            vec![
-                "openmates",
-                "settings",
-                "memories",
-                "update",
-                "--app-id",
-                "books",
-                "--item-type",
-                "favorite_books",
-                "--data",
-                "{}",
-            ],
-            "Missing required flags.",
-        ),
-        (
-            vec!["openmates", "settings", "memories", "delete"],
-            "Missing entry ID.",
-        ),
+        ]
+        .as_slice(),
     ] {
+        let refusal = crate::cli::parse_from(args.iter().copied())
+            .err()
+            .unwrap_or_else(|| panic!("{args:?} must not parse"));
+        assert!(
+            refusal
+                .to_string()
+                .contains("Unknown subcommand for 'settings memories'"),
+            "{args:?}: {refusal}"
+        );
+    }
+    for args in [vec![
+        "openmates",
+        "settings",
+        "memories",
+        "update",
+        "--id",
+        "typed-1",
+    ]] {
         match execute(&parsed(&args), &mut client).await {
-            Err(CliError::Invalid(message)) => {
-                assert!(message.starts_with(prefix), "{args:?}: {message}")
-            }
+            Err(CliError::Invalid(message)) => assert!(
+                message.starts_with("Typed app memories were replaced by Memories"),
+                "{args:?}: {message}"
+            ),
             _ => panic!("expected invalid input for {args:?}"),
         }
+    }
+    match execute(
+        &parsed(&["openmates", "settings", "memories", "delete"]),
+        &mut client,
+    )
+    .await
+    {
+        Err(CliError::Invalid(message)) => assert!(message.starts_with("Missing entry ID.")),
+        _ => panic!("expected invalid input"),
     }
     assert!(matches!(
         execute(
@@ -184,4 +107,17 @@ async fn list_filters_and_renders_decrypted_memories() {
     );
     let requests = server.await.unwrap();
     assert!(requests[0].starts_with("GET /v1/sdk/memories "));
+}
+
+#[tokio::test]
+async fn undo_requires_a_chat_and_accepts_listed_memory_ids() {
+    let (mut client, _server) = mock(vec![]).await;
+    let invocation = parsed(&["openmates", "settings", "memories", "undo"]);
+    assert!(supported(&invocation));
+    let error = execute(&invocation, &mut client).await.err().unwrap();
+    assert!(matches!(error, CliError::Invalid(message) if message.starts_with("Missing chat ID.")));
+    assert!(matches_memory("personal:abc", "account-memory-abc"));
+    assert!(matches_memory("personal:abc", "personal:abc"));
+    assert!(matches_memory("personal:abc", "abc"));
+    assert!(!matches_memory("personal:abc", "abcd"));
 }

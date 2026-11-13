@@ -18,10 +18,12 @@ decisions:
   - On 2026-10-28 the user clarified that Browse execution and workflow handoff must be independent of a chat. The remaining refactor uses trusted owner/execution/operation identity, optional chat delivery and the workflow run view; no existing or fabricated chat is a prerequisite. Preserve ownership isolation, deterministic admission and the original session budget.
   - On 2026-10-26 the user set a browser startup target below three seconds, acceptable below four and a hard ceiling around four to five. Measure provisioning separately from page loading, queueing and inference.
   - The user explicitly approved a prepared paused pool conditional on no cross-user cache or login access. Each public blank VM is claimed atomically for one owner and chat for its entire lifetime, never recycled after any claim, and destroyed on a failed handoff. No template may contain user state. Pool preparation overhead is absorbed by the platform; the existing user tariff applies only after the admitted ownership resume.
+  - 'On 2026-11-11 the user approved the reworked architecture ("Sounds good. Let us implement this updated architecture and test it out with multiple example user flows"): single start call, batched act-and-observe steps, a planner with quoted evidence that survives navigation, per-value verification with partial results, pause when a run finishes, a live step list that never waits on the run, and crawler exclusions applied to page and frame navigations. Contract: v2-design.md. Acceptance uses real chats on dev, including a multi-page product search (psilocybin grow kits, with the check-your-local-law notice in the answer).'
 scope:
   - Regular callable skill, authenticated session controls, encrypted results, scoped provider calls and bounded usage ledger.
   - Screenshot preview and fullscreen watch, manual input, sign-in notice, AI continuation and lifecycle controls.
   - Workflow contract and tests after regular skill/embed verification.
+  - Browse v2 run loop, planner, evidence ledger, partial results, step list and the example-flow evaluation (v2-design.md).
 required_checks:
   - Specification/Plan validation and focused local backend and frontend checks.
   - Isolated GitHub CI for affected API/client and component/browser behavior, including unauthorized access and lifecycle cases.

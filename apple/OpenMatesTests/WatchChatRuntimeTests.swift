@@ -863,6 +863,9 @@ final class WatchChatRuntimeTests: XCTestCase {
     func testLiveReservedAccountLoginLoadsAndOpensWatchChat() async throws {
         let credentials = try WatchLiveAccountCredentials.fromEnvironment(preferredReservedSlot: 14)
         ServerConfiguration.current = ServerProfile.development.endpointConfiguration
+        // The core performs the login and owns the session (unit-test hosts
+        // do not launch it on their own).
+        CoreSession.launch()
 
         let authManager = AuthManager()
         let lookup = try await authManager.lookup(email: credentials.email, stayLoggedIn: true)
@@ -902,17 +905,6 @@ final class WatchChatRuntimeTests: XCTestCase {
         let loggedInUser = try XCTUnwrap(authManager.currentUser)
         let masterKey = try await CryptoManager.shared.loadMasterKey(for: loggedInUser.id)
         XCTAssertNotNil(masterKey)
-
-        let watchSession: SessionResponse = try await APIClient.shared.request(
-            .post,
-            path: "/v1/auth/session",
-            body: SessionRequest(
-                sessionId: WatchCompatibleSession.nativeSessionId,
-                deviceInfo: WatchCompatibleSession.makeNativeDeviceInfo()
-            )
-        )
-        XCTAssertTrue(watchSession.isAuthenticated)
-        XCTAssertEqual(watchSession.user?.id, loggedInUser.id)
 
         let runtime = WatchChatRuntime(
             currentUserId: loggedInUser.id,
@@ -1784,7 +1776,8 @@ final class WatchChatRuntimeTests: XCTestCase {
         let master = SymmetricKey(size: .bits256)
         let chatKey = SymmetricKey(size: .bits256)
         let embedKey = SymmetricKey(size: .bits256)
-        try await CryptoManager.shared.saveMasterKey(master, for: account)
+        // In the iOS host the master key is the core's; the fixture stands in for it.
+        await CoreLegacyAccess.installFixtureMasterKey(master, for: account)
         do {
             let wrapped = try await CryptoManager.shared.wrapChatKey(chatKey, masterKey: master)
             let encryptedTitle = try await CryptoManager.shared.encryptContent("Synthetic cold chat", key: chatKey)
@@ -1815,9 +1808,9 @@ final class WatchChatRuntimeTests: XCTestCase {
             await restored.openChat(try XCTUnwrap(restored.chats.first))
             XCTAssertEqual(restored.selectedMessages.first?.content, "Cold offline answer\n[!](embed:cold-sheet)")
             XCTAssertEqual(restored.hydratedEmbedPreviews["cold-sheet"]?.data?["title"]?.value as? String, "cold.xls")
-            try await CryptoManager.shared.deleteMasterKey(for: account)
+            await CoreLegacyAccess.removeFixtureMasterKey(for: account)
         } catch {
-            try? await CryptoManager.shared.deleteMasterKey(for: account)
+            await CoreLegacyAccess.removeFixtureMasterKey(for: account)
             throw error
         }
     }

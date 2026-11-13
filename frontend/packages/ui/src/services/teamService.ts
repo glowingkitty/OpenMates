@@ -22,6 +22,15 @@ import {
   unwrapEmbedKeyWithEmbedKey,
   wrapEmbedKeyWithChatKey,
 } from "./cryptoService";
+import { buildWorkBody, workClient, workDecide, workView, type WorkRequest } from "./work/workRust";
+import type { WorkClient } from "./rustCore/crypto/workOps";
+
+// Flag-on builds run this service's pure logic (Team view, member/invite parsing,
+// wallet decision, paths, bodies) in the shared Rust core Worker (`work` op,
+// web_work/teams.rs + team_bodies.rs); the constant folds to false otherwise, so
+// flag-off keeps the original paths. The page keeps fetch, the Team key cache,
+// every scope fence, WebCrypto and the invite secret.
+const RUST_WORK = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 
 export type TeamRole = "owner" | "admin" | "member" | "viewer";
 export type InviteRole = Exclude<TeamRole, "owner">;
@@ -246,6 +255,25 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> 
   return (await response.json()) as T;
 }
 
+/** Flag on: a Team GET/DELETE path decided in the Worker (`teamPath` routes). */
+function teamWorkPath(work: WorkClient, route: string, ids: Record<string, unknown>): Promise<string> {
+  return workDecide<string>(work, "teamPath", { route, ...ids });
+}
+
+/** Flag on: one Worker request decision, its body built with the page's Team key and slots, then sent. */
+async function sendTeamWork<T>(
+  work: WorkClient, op: string, input: Record<string, unknown>, source: object,
+  teamKey: Uint8Array | null, slots?: Record<string, () => unknown>,
+): Promise<{ data: T; body: Record<string, unknown> }> {
+  const request = await workDecide<WorkRequest>(work, op, input);
+  const body = await buildWorkBody(request.steps, source, { team: teamKey }, slots);
+  const data = await requestJson<T>(request.path, { method: request.method, body: JSON.stringify(body) });
+  return { data, body };
+}
+
+/** The Worker's Team view: `securityPolicy` arrives as ordered pairs (TS spread order). */
+type TeamWorkView = Omit<TeamViewModel, "securityPolicy"> & { securityPolicy: Array<[string, unknown]> };
+
 async function decryptOptional(value: string | null | undefined, key: Uint8Array): Promise<string> {
   if (!value) return "";
   return (await decryptWithEmbedKey(value, key)) ?? "";
@@ -271,6 +299,12 @@ async function decryptTeam(record: TeamRecord, scope: TeamKeyScope): Promise<Tea
   const teamId = record.team_id;
   const teamKey = await teamKeyForRecord(record, scope);
   if (!teamId || !teamKey) return null;
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const view = await workView<TeamRecord, TeamWorkView>(work, "teamView", record, teamKey);
+    assertTeamKeyScope(scope);
+    return { ...view, securityPolicy: Object.fromEntries(view.securityPolicy) as unknown as TeamSecurityPolicy };
+  }
   const profileText = await decryptOptional(record.encrypted_profile_image_metadata, teamKey);
   let profileImageMetadata = defaultProfileImageMetadata();
   if (profileText) {
@@ -321,7 +355,9 @@ export function subscribeTeamListRefresh(listener: () => void): () => void {
 
 export async function getTeam(teamId: string): Promise<TeamViewModel> {
   const scope = ensureTeamKeyScope();
-  const data = await requestJson<{ team: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`);
+  const work = RUST_WORK ? workClient() : null;
+  const path = work ? await teamWorkPath(work, "team", { team_id: teamId }) : `/v1/teams/${encodeURIComponent(teamId)}`;
+  const data = await requestJson<{ team: TeamRecord }>(path);
   assertTeamKeyScope(scope);
   const decrypted = await decryptTeam(data.team, scope);
   assertTeamKeyScope(scope);
@@ -331,7 +367,9 @@ export async function getTeam(teamId: string): Promise<TeamViewModel> {
 
 /** Forget local decrypted Team material only after the server confirms deletion. */
 export async function deleteTeam(teamId: string): Promise<void> {
-  await requestJson<{ success: boolean }>(`/v1/teams/${encodeURIComponent(teamId)}`, { method: "DELETE" });
+  const work = RUST_WORK ? workClient() : null;
+  const path = work ? await teamWorkPath(work, "team", { team_id: teamId }) : `/v1/teams/${encodeURIComponent(teamId)}`;
+  await requestJson<{ success: boolean }>(path, { method: "DELETE" });
   teamKeyCache.delete(teamId);
   teamListCache.invalidate("teams");
   if (getActiveTeamContextSnapshot().teamId === teamId) setActiveTeamContext(null);
@@ -376,6 +414,8 @@ export async function wrapTeamChatKey(
 }
 
 export async function approveTeamName(name: string): Promise<string> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return (await sendTeamWork<{ approval_token: string }>(work, "teamNameApprovalBody", { name }, {}, null)).data.approval_token;
   const data = await requestJson<{ approval_token: string }>("/v1/teams/name-approval", {
     method: "POST",
     body: JSON.stringify({ name: name.trim().toLowerCase() }),
@@ -385,6 +425,31 @@ export async function approveTeamName(name: string): Promise<string> {
 
 export async function createTeam(input: { name: string; description?: string | null; profileImageMetadata?: Record<string, unknown> }): Promise<TeamViewModel> {
   const scope = ensureTeamKeyScope();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    // Rust refuses a blank name first (the TS precedence), then the page approves, makes and wraps the key.
+    const teamId = crypto.randomUUID();
+    const request = await workDecide<WorkRequest>(work, "teamCreateBody",
+      { input, team_id: teamId, timestamp: nowSeconds(), username: get(userProfile).username ?? null });
+    const nameApprovalToken = await approveTeamName(input.name);
+    const teamKey = generateEmbedKey();
+    const encryptedTeamKey = await encryptChatKeyWithMasterKey(teamKey);
+    if (!encryptedTeamKey) throw new Error("Could not wrap team key with master key");
+    const body = await buildWorkBody(request.steps, input, { team: teamKey }, {
+      encrypted_team_key: () => encryptedTeamKey, name_approval_token: () => nameApprovalToken,
+    });
+    const data = await requestJson<{ team: TeamRecord }>(request.path, { method: request.method, body: JSON.stringify(body) });
+    assertTeamKeyScope(scope);
+    const created = await workDecide<{ team_id: string; overrides: Array<[string, unknown]> }>(work, "teamCreatedRecord",
+      { returned: data.team ?? null, sent: body, team_id: teamId });
+    assertTeamKeyScope(scope);
+    if (scope.identity) teamKeyCache.set(created.team_id, teamKey);
+    const decrypted = await decryptTeam({ ...(data.team ?? {}), ...Object.fromEntries(created.overrides) } as TeamRecord, scope);
+    assertTeamKeyScope(scope);
+    if (!decrypted) throw new Error("Created team could not be decrypted");
+    teamListCache.invalidate("teams");
+    return decrypted;
+  }
   const name = input.name.trim();
   if (!name) throw new Error("Team name is required");
   const nameApprovalToken = await approveTeamName(name);
@@ -436,6 +501,15 @@ export async function updateTeamName(team: TeamViewModel, name: string): Promise
   const teamKey = await teamKeyForRecord(team.encrypted, scope);
   if (!teamKey) throw new Error("Team key is unavailable");
   const nameApprovalToken = await approveTeamName(name);
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const { data, body } = await sendTeamWork<{ team: TeamRecord }>(work, "teamNameUpdateBody",
+      { team_id: team.team_id, name, timestamp: nowSeconds() }, {}, teamKey, { name_approval_token: () => nameApprovalToken });
+    const next = await decryptTeam({ ...team.encrypted, ...data.team, encrypted_name: body.encrypted_name as string }, scope);
+    if (!next) throw new Error("Updated team could not be decrypted");
+    teamListCache.invalidate("teams");
+    return next;
+  }
   const encryptedName = await encryptWithEmbedKey(name.trim(), teamKey);
   const data = await requestJson<{ team: TeamRecord }>(`/v1/teams/${encodeURIComponent(team.team_id)}`, {
     method: "PATCH",
@@ -451,6 +525,15 @@ export async function updateTeamProfileMetadata(team: TeamViewModel, metadata: R
   const scope = ensureTeamKeyScope();
   const teamKey = await teamKeyForRecord(team.encrypted, scope);
   if (!teamKey) throw new Error("Team key is unavailable");
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const { data, body } = await sendTeamWork<{ team: TeamRecord }>(work, "teamProfileMetadataBody",
+      { team_id: team.team_id, timestamp: nowSeconds() }, { metadata }, teamKey);
+    const next = await decryptTeam({ ...team.encrypted, ...data.team, encrypted_profile_image_metadata: body.encrypted_profile_image_metadata as string }, scope);
+    if (!next) throw new Error("Updated team could not be decrypted");
+    teamListCache.invalidate("teams");
+    return next;
+  }
   const encryptedMetadata = await encryptWithEmbedKey(JSON.stringify(metadata), teamKey);
   const data = await requestJson<{ team: TeamRecord }>(`/v1/teams/${encodeURIComponent(team.team_id)}`, {
     method: "PATCH",
@@ -466,6 +549,24 @@ export async function uploadTeamProfileImage(team: TeamViewModel, file: File): P
   const scope = ensureTeamKeyScope();
   const teamKey = await teamKeyForRecord(team.encrypted, scope);
   if (!teamKey) throw new Error("Team key is unavailable");
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const request = await workDecide<WorkRequest>(work, "teamProfileImageForm", { team_id: team.team_id, timestamp: nowSeconds() });
+    const fields = await buildWorkBody(request.steps, {}, { team: teamKey }, { file: () => prepareFileForUpload(file) });
+    const form = new FormData();
+    for (const [name, value] of Object.entries(fields)) form.append(name, value as string | Blob);
+    const response = await fetch(getUploadEndpoint(request.path), { method: request.method, credentials: "include", body: form });
+    const data = await response.json().catch(() => ({})) as Record<string, unknown>;
+    const result = await workDecide<{ outcome: string; detail?: string }>(work, "teamProfileImageOutcome", { ok: response.ok, data });
+    if (result.outcome === "account_deleted") {
+      localStorage.setItem("policy_violation_lockout", String(Date.now() + 600_000));
+      sessionStorage.setItem("account_deleted", "true");
+      window.dispatchEvent(new CustomEvent("account-deleted"));
+      throw new TeamApiError(response.status, "ACCOUNT_DELETED");
+    }
+    if (result.outcome !== "ok") throw new TeamApiError(response.status, result.detail as string);
+    return getTeam(team.team_id);
+  }
   const metadata = {
     version: 1, mode: "uploaded", image_url: `/v1/teams/${team.team_id}/profile-image`,
     content_safety_status: "accepted", updated_at: nowSeconds(), team_id: team.team_id,
@@ -491,10 +592,26 @@ export async function uploadTeamProfileImage(team: TeamViewModel, file: File): P
 
 export async function loadTeamMembers(teamId: string): Promise<TeamMember[]> {
   const scope = ensureTeamKeyScope();
-  const data = await requestJson<{ members: TeamMember[] }>(`/v1/teams/${encodeURIComponent(teamId)}/members`);
+  const work = RUST_WORK ? workClient() : null;
+  const path = work ? await teamWorkPath(work, "members", { team_id: teamId }) : `/v1/teams/${encodeURIComponent(teamId)}/members`;
+  const data = await requestJson<{ members: TeamMember[] }>(path);
   assertTeamKeyScope(scope);
   const teamKey = await getTeamKey(teamId);
   assertTeamKeyScope(scope);
+  if (work) {
+    const list = data.members ?? [];
+    const plaintexts = await Promise.all(list.map(async (member) => {
+      if (!member.encrypted_member_profile) return null;
+      // Same as the TS original: an undecryptable profile keeps the member as is.
+      try { return (await decryptWithEmbedKey(member.encrypted_member_profile, teamKey)) ?? null; } catch { return null; }
+    }));
+    const { profiles } = await workDecide<{ profiles: Array<TeamMemberProfile | null> }>(work, "teamMemberProfiles", { plaintexts });
+    assertTeamKeyScope(scope);
+    return list.map((member, index) => {
+      const profile = profiles[index];
+      return profile ? { ...member, profile } : member;
+    });
+  }
   const members = await Promise.all((data.members ?? []).map(async member => {
     if (!member.encrypted_member_profile) return member;
     try {
@@ -510,6 +627,17 @@ export async function loadTeamMembers(teamId: string): Promise<TeamMember[]> {
 
 export async function loadTeamMemberAvatar(teamId: string, member: TeamMember): Promise<string | null> {
   const scope = ensureTeamKeyScope();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const path = await workDecide<string | null>(work, "teamMemberAvatarPath", { team_id: teamId, member });
+    if (!path) return null;
+    const response = await fetch(getApiEndpoint(path), { credentials: "include" });
+    assertTeamKeyScope(scope);
+    if (!response.ok || !response.headers.get("content-type")?.startsWith("image/")) return null;
+    const blob = await response.blob();
+    assertTeamKeyScope(scope);
+    return URL.createObjectURL(blob);
+  }
   if (!member.user_id || member.profile_image_url !== `/v1/teams/${teamId}/members/${member.user_id}/profile-image`) return null;
   const response = await fetch(getApiEndpoint(member.profile_image_url), { credentials: "include" });
   assertTeamKeyScope(scope);
@@ -520,12 +648,22 @@ export async function loadTeamMemberAvatar(teamId: string, member: TeamMember): 
 }
 
 export async function updateTeamMemberRole(teamId: string, userId: string, role: InviteRole): Promise<void> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    await sendTeamWork(work, "teamMemberRoleBody", { team_id: teamId, user_id: userId, role, timestamp: nowSeconds() }, {}, null);
+    return;
+  }
   await requestJson(`/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(userId)}`, {
     method: "PATCH", body: JSON.stringify({ role, updated_at: nowSeconds() }),
   });
 }
 
 export async function removeTeamMember(teamId: string, userId: string): Promise<void> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    await sendTeamWork(work, "teamMemberRemoveBody", { team_id: teamId, user_id: userId, timestamp: nowSeconds() }, {}, null);
+    return;
+  }
   await requestJson(`/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(userId)}/remove`, {
     method: "POST", body: JSON.stringify({ removed_at: nowSeconds() }),
   });
@@ -574,6 +712,25 @@ async function encryptInviteTeamKey(teamKey: Uint8Array, inviteKey: Uint8Array):
 }
 
 export async function acceptTeamInviteFromFragment(inviteId: string, secret: string, verifiedEmail: string): Promise<{ status: string }> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    // The fragment secret, the derived invite key and the Team key never leave the page.
+    const preview = await sendTeamWork<{ invite: Record<string, unknown> }>(work, "teamInvitePreviewBody",
+      { invite_id: inviteId, verified_email: verifiedEmail }, {}, null);
+    const context = await workDecide<{ team_id: string; origin: string; encrypted: string; is_link: boolean }>(work, "teamInviteKeyContext",
+      { invite: preview.data.invite, location_origin: window.location.origin });
+    const key = await deriveInviteKey({ recipientEmail: context.is_link ? "" : verifiedEmail, secret, inviteId, teamId: context.team_id, origin: context.origin });
+    const bytes = Uint8Array.from(atob(context.encrypted), character => character.charCodeAt(0));
+    const aes = await crypto.subtle.importKey("raw", new Uint8Array(key), "AES-GCM", false, ["decrypt"]);
+    const teamKey = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.slice(0, 12) }, aes, bytes.slice(12)));
+    const encryptedTeamKey = await encryptChatKeyWithMasterKey(teamKey);
+    if (!encryptedTeamKey) throw new Error("Could not wrap accepted team key");
+    const { data: accepted } = await sendTeamWork<{ status?: string; status_label?: string }>(work, "teamInviteAcceptBody",
+      { invite_id: inviteId, verified_email: verifiedEmail, timestamp: nowSeconds(), username: get(userProfile).username ?? null },
+      {}, teamKey, { encrypted_team_key: () => encryptedTeamKey });
+    teamListCache.invalidate("teams");
+    return { status: accepted.status ?? accepted.status_label ?? "pending" };
+  }
   const data = await requestJson<{ invite: Record<string, unknown> }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/preview`, {
     method: "POST", body: JSON.stringify({ verified_email: verifiedEmail.trim().toLowerCase() }),
   });
@@ -600,12 +757,30 @@ export async function acceptTeamInviteFromFragment(inviteId: string, secret: str
 }
 
 export async function declineTeamInvite(inviteId: string, verifiedEmail: string): Promise<void> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    await sendTeamWork(work, "teamInviteDeclineBody", { invite_id: inviteId, verified_email: verifiedEmail, timestamp: nowSeconds() }, {}, null);
+    return;
+  }
   await requestJson(`/v1/teams/invites/${encodeURIComponent(inviteId)}/decline`, {
     method: "POST", body: JSON.stringify({ verified_email: verifiedEmail.trim().toLowerCase(), declined_at: nowSeconds() }),
   });
 }
 
 export async function loadTeamInvites(team: TeamViewModel): Promise<TeamInvite[]> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const data = await requestJson<{ invites: TeamInvite[] }>(await teamWorkPath(work, "invites", { team_id: team.team_id }));
+    const teamKey = await getTeamKey(team.team_id);
+    const list = data.invites ?? [];
+    const plaintexts = await Promise.all(list.map(async (invite) => {
+      if (!invite.encrypted_recipient_hint) return null;
+      // Same as the TS original: a revoked or legacy hint may be undecryptable.
+      try { return (await decryptWithEmbedKey(invite.encrypted_recipient_hint, teamKey)) ?? null; } catch { return null; }
+    }));
+    const { recipient_emails } = await workDecide<{ recipient_emails: string[] }>(work, "teamInviteHints", { plaintexts });
+    return list.map((invite, index) => ({ ...invite, recipientEmail: recipient_emails[index] }));
+  }
   const data = await requestJson<{ invites: TeamInvite[] }>(`/v1/teams/${encodeURIComponent(team.team_id)}/invites`);
   const teamKey = await getTeamKey(team.team_id);
   return Promise.all((data.invites ?? []).map(async invite => {
@@ -621,11 +796,17 @@ export async function loadTeamInvites(team: TeamViewModel): Promise<TeamInvite[]
 }
 
 export async function revokeTeamInvite(teamId: string, inviteId: string): Promise<void> {
-  await requestJson(`/v1/teams/${encodeURIComponent(teamId)}/invites/${encodeURIComponent(inviteId)}/revoke`, { method: "POST" });
+  const work = RUST_WORK ? workClient() : null;
+  const path = work
+    ? await teamWorkPath(work, "invite_revoke", { team_id: teamId, invite_id: inviteId })
+    : `/v1/teams/${encodeURIComponent(teamId)}/invites/${encodeURIComponent(inviteId)}/revoke`;
+  await requestJson(path, { method: "POST" });
 }
 
 export async function updateTeamSecurity(teamId: string, policy: TeamSecurityPolicy): Promise<TeamSecurityPolicy> {
-  const data = await requestJson<{ security_policy: TeamSecurityPolicy }>(`/v1/teams/${encodeURIComponent(teamId)}/security`, {
+  const work = RUST_WORK ? workClient() : null;
+  const path = work ? await teamWorkPath(work, "security", { team_id: teamId }) : `/v1/teams/${encodeURIComponent(teamId)}/security`;
+  const data = await requestJson<{ security_policy: TeamSecurityPolicy }>(path, {
     method: "PATCH", body: JSON.stringify(policy),
   });
   teamListCache.invalidate("teams");
@@ -634,6 +815,21 @@ export async function updateTeamSecurity(teamId: string, policy: TeamSecurityPol
 
 export async function loadTeamBilling(team: TeamViewModel): Promise<TeamBillingSummary> {
   const scope = ensureTeamKeyScope();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const data = await requestJson<{ billing: Record<string, unknown> }>(await teamWorkPath(work, "billing", { team_id: team.team_id }));
+    assertTeamKeyScope(scope);
+    type Summary = Omit<TeamBillingSummary, "raw"> & { decrypt?: string };
+    const facts = { billing: data.billing, zero_balance: team.zeroBalance };
+    let summary = await workDecide<Summary>(work, "teamBilling", facts);
+    if (typeof summary.decrypt === "string") {
+      // Rust chose the encrypted snapshot; only the page holds the Team key to open it.
+      const teamKey = await teamKeyForRecord(team.encrypted, scope);
+      const plaintext = teamKey ? await decryptWithEmbedKey(summary.decrypt, teamKey) : null;
+      summary = await workDecide<Summary>(work, "teamBilling", { ...facts, decrypt: { team_key: Boolean(teamKey), plaintext: plaintext ?? null } });
+    }
+    return { ...summary, raw: data.billing };
+  }
   const data = await requestJson<{ billing: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(team.team_id)}/billing`);
   assertTeamKeyScope(scope);
   const version = data.billing.version;
@@ -659,13 +855,21 @@ export async function loadTeamBilling(team: TeamViewModel): Promise<TeamBillingS
 
 export async function loadTeamStorage(teamId: string): Promise<TeamStorageSummary> {
   const scope = ensureTeamKeyScope();
-  const data = await requestJson<{ storage: TeamStorageSummary }>(`/v1/teams/${encodeURIComponent(teamId)}/storage`);
+  const work = RUST_WORK ? workClient() : null;
+  const path = work ? await teamWorkPath(work, "storage", { team_id: teamId }) : `/v1/teams/${encodeURIComponent(teamId)}/storage`;
+  const data = await requestJson<{ storage: TeamStorageSummary }>(path);
   assertTeamKeyScope(scope);
   return data.storage;
 }
 
 export async function loadTeamStorageNotice(teamId: string, afterUnitId?: string): Promise<TeamStorageNotice> {
   const scope = ensureTeamKeyScope();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const notice = await requestJson<TeamStorageNotice>(await teamWorkPath(work, "storage_notice", { team_id: teamId, after_unit_id: afterUnitId }));
+    assertTeamKeyScope(scope);
+    return notice;
+  }
   const query = new URLSearchParams({ limit: '50' });
   if (afterUnitId) query.set('after_unit_id', afterUnitId);
   const notice = await requestJson<TeamStorageNotice>(`/v1/teams/${encodeURIComponent(teamId)}/storage/notice?${query}`);
@@ -674,12 +878,33 @@ export async function loadTeamStorageNotice(teamId: string, afterUnitId?: string
 }
 
 export async function loadTeamMemoryCount(teamId: string): Promise<number> {
-  const data = await requestJson<{ memories: unknown[] }>(`/v1/teams/${encodeURIComponent(teamId)}/memories`);
+  const work = RUST_WORK ? workClient() : null;
+  const path = work ? await teamWorkPath(work, "memories", { team_id: teamId }) : `/v1/teams/${encodeURIComponent(teamId)}/memories`;
+  const data = await requestJson<{ memories: unknown[] }>(path);
   return Array.isArray(data.memories) ? data.memories.length : 0;
 }
 
 export async function createTeamEmailInvite(team: TeamViewModel, email: string, role: InviteRole = "member"): Promise<TeamInviteResult> {
   const scope = ensureTeamKeyScope();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    // The invite secret and the derived invite key stay on the page; Rust only shapes the payload.
+    const inviteId = crypto.randomUUID();
+    const origin = window.location.origin;
+    const request = await workDecide<WorkRequest & { recipient_email: string }>(work, "teamEmailInviteBody",
+      { team_id: team.team_id, email, role, invite_id: inviteId, origin, timestamp: nowSeconds() });
+    const teamKey = await teamKeyForRecord(team.encrypted, scope);
+    if (!teamKey) throw new Error("Team key is unavailable for invite encryption");
+    const secret = base64Url(crypto.getRandomValues(new Uint8Array(32)));
+    const inviteKey = await deriveInviteKey({ recipientEmail: request.recipient_email, secret, inviteId, teamId: team.team_id, origin });
+    const body = await buildWorkBody(request.steps, {}, { team: teamKey }, {
+      encrypted_invite_team_key: () => encryptInviteTeamKey(teamKey, inviteKey),
+    });
+    const data = await requestJson<{ invite: Record<string, unknown> }>(request.path, { method: request.method, body: JSON.stringify(body) });
+    const result = await workDecide<Omit<TeamInviteResult, "raw" | "inviteUrl">>(work, "teamInviteResult",
+      { invite: data.invite, invite_id: inviteId, role, delivery: "email" });
+    return { ...result, raw: data.invite, inviteUrl: `${origin}/teams/invites/${inviteId}#key=${secret}` };
+  }
   const recipientEmail = email.trim().toLowerCase();
   if (!recipientEmail) throw new Error("Recipient email is required");
   const teamKey = await teamKeyForRecord(team.encrypted, scope);
@@ -717,6 +942,16 @@ export async function createTeamLinkInvite(team: TeamViewModel, role: InviteRole
   const inviteId = crypto.randomUUID();
   const secret = base64Url(crypto.getRandomValues(new Uint8Array(32)));
   const inviteKey = await deriveInviteKey({ recipientEmail: "", secret, inviteId, teamId: team.team_id, origin: window.location.origin });
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const origin = window.location.origin;
+    const { data } = await sendTeamWork<{ invite: Record<string, unknown> }>(work, "teamLinkInviteBody",
+      { team_id: team.team_id, role, invite_id: inviteId, origin, timestamp: nowSeconds() }, {}, teamKey,
+      { encrypted_invite_team_key: () => encryptInviteTeamKey(teamKey, inviteKey) });
+    const result = await workDecide<Omit<TeamInviteResult, "raw" | "inviteUrl">>(work, "teamInviteResult",
+      { invite: data.invite, invite_id: inviteId, role, delivery: "link" });
+    return { ...result, raw: data.invite, inviteUrl: `${origin}/teams/invites/${inviteId}#key=${secret}` };
+  }
   const payload = {
     invite_id: inviteId, role,
     encrypted_invite_team_key: await encryptInviteTeamKey(teamKey, inviteKey),

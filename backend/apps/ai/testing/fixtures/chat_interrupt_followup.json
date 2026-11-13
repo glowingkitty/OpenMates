@@ -54,8 +54,15 @@
   "response": "This partial response must survive interruption. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. The remaining explanation has not finished yet. ",
   "postprocessing": {
     "chat_summary": "User is planning a balanced weekend trip around Kyoto and Osaka.",
-    "quick_tip_slugs": [
-      "travel-can-add-local-context"
+    "recommendations": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "kind": "memory",
+        "action": "create",
+        "target_id": null,
+        "title": "Interested in Kyoto and Osaka trips",
+        "summary": "The user is planning a balanced weekend trip around Kyoto and Osaka."
+      }
     ]
   },
   "skill_executions": [],

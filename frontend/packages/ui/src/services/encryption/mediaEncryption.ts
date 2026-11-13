@@ -5,6 +5,9 @@
  * payloads here so unknown formats fail closed consistently across embeds.
  */
 
+import { rustWebCrypto } from "../rustCore/crypto/webCryptoClient";
+import { rustDecryptMedia } from "../rustCore/crypto/webCryptoFacades";
+
 export const MEDIA_ENCRYPTION_V2 = "aes-gcm-nonce-prefixed-v1";
 
 const AES_KEY_BYTES = 32;
@@ -49,6 +52,22 @@ export function hasMediaEncryptionMetadata(
 export async function decryptMediaPayload(
   input: DecryptMediaPayloadInput,
 ): Promise<ArrayBuffer> {
+  // Compile-time flag: default builds fold this to null and drop the Rust branch.
+  const rust = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+  if (rust) {
+    const metadata = readMediaEncryptionMetadata(input.variant);
+    return rustDecryptMedia(
+      rust,
+      {
+        encryptedData: input.encryptedData,
+        aesKeyBase64: input.aesKeyBase64,
+        encryption: metadata.encryption,
+        aesNonce: metadata.aes_nonce,
+        legacyNonceBase64: input.legacyNonceBase64,
+      },
+      (message, stage) => new MediaEncryptionError(message, stage),
+    );
+  }
   const keyBytes = decodeBase64(input.aesKeyBase64, "media AES key");
   if (keyBytes.byteLength !== AES_KEY_BYTES) {
     throw new MediaEncryptionError("Media AES key must be 32 bytes", "metadata");

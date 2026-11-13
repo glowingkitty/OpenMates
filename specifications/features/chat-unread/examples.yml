@@ -1,0 +1,52 @@
+schema_version: 1
+specification: feature.chat-unread@1
+
+read_position:
+  - id: partial-read-then-close-stays-unread
+    assertion_ids: [chat-unread.reply.read-at-last-line]
+    given: Alice asks for a long step-by-step explanation and the reply finishes while only its first paragraphs fit on screen.
+    when: She reads the first few lines and then closes the chat by opening the Chats start screen.
+    then: The chat stays unread with a counter of 1, and reopening it alone does not clear the counter.
+  - id: reaching-last-line-marks-read
+    assertion_ids: [chat-unread.reply.read-at-last-line]
+    given: Alice's chat is unread because she has not reached the end of its latest reply.
+    when: She scrolls until the reply's last line is visible.
+    then: The chat is marked read, and the counter disappears from the sidebar row and from its Continue card.
+
+follow_up:
+  - id: answering-before-finishing-counts-once
+    assertion_ids: [chat-unread.followup.implies-read]
+    given: Alice's chat shows 1 unread reply that she has only partly read.
+    when: She sends a follow-up question and closes the chat before reading the new reply to the end.
+    then: The chat shows 1 unread reply, not 2.
+
+surfaces:
+  - id: open-unread-chat-keeps-both-counters
+    assertion_ids: [chat-unread.surfaces.sidebar-and-continue]
+    given: Alice has an unread chat whose newest reply she has not read to the end.
+    when: She views the Chats start screen with the sidebar open.
+    then: Its sidebar row and its "Continue where you left off" card both show the counter 1.
+  - id: terminal-ui-shows-same-counter
+    assertion_ids: [chat-unread.surfaces.sidebar-and-continue]
+    given: Alice runs openmates in her terminal and a long reply finishes while only its first lines fit in the transcript.
+    when: She returns to the terminal UI home screen, then later reopens the chat and scrolls until the reply's last line is shown.
+    then: The chat list row and the home-screen continue entry show 1 until she reaches the last line, after which both counters disappear.
+
+persistence:
+  - id: unread-survives-reload-and-devices
+    assertion_ids: [chat-unread.persistence.cross-device]
+    given: A reply finishes in Alice's chat while she has the web app open on her laptop and phone.
+    when: She reloads the laptop, then reads the reply to its last line on the phone.
+    then: After the reload the laptop still shows 1 unread; once she reads it on the phone, the laptop counter clears too.
+  - id: one-reply-counts-once
+    assertion_ids: [chat-unread.persistence.cross-device]
+    given: A reply finishes in a background chat and the laptop counts it locally before the server's count for the same reply arrives.
+    when: Both signals are applied.
+    then: The chat shows 1 unread, not 2.
+
+manual:
+  - id: manual-unread-stays-while-in-chat
+    assertion_ids: [chat-unread.manual.mark-unread]
+    given: Alice is in a chat whose last line is on screen.
+    when: She chooses Mark unread from the chat menu, stays in the chat, then later chooses Mark read.
+    then: The counter shows 1 while she stays, and disappears as soon as she chooses Mark read.

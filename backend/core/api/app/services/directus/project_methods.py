@@ -36,7 +36,7 @@ ITEM_FIELDS = (
 )
 SOURCE_FIELDS = (
     "id,source_id,hashed_project_id,hashed_user_id,hashed_team_id,attached_by_user_hash,source_type,"
-    "encrypted_display_name,encrypted_metadata,capabilities,status,"
+    "encrypted_display_name,encrypted_metadata,capabilities,status,host_device_hash,"
     "created_at,updated_at,last_indexed_at"
 )
 PROJECT_SETTINGS_FIELDS = (
@@ -401,6 +401,7 @@ class ProjectMethods:
             "encrypted_metadata": payload["encrypted_metadata"],
             "capabilities": payload.get("capabilities", []),
             "status": payload.get("status", "connected"),
+            "host_device_hash": payload.get("host_device_hash"),
             "created_at": payload["created_at"],
             "updated_at": payload["updated_at"],
             "last_indexed_at": payload.get("last_indexed_at"),
@@ -434,7 +435,7 @@ class ProjectMethods:
         team_id: str | None = None,
     ) -> Optional[Dict[str, Any]]:
         """Refresh only trusted source capabilities without replacing ciphertext or identity."""
-        allowed = {"read", "search", "import", "write_request", "run_command"}
+        allowed = {"read", "search", "import", "write_request", "run_command", "create_source"}
         normalized = list(dict.fromkeys(capabilities))
         if not normalized or len(normalized) != len(capabilities) or not set(normalized).issubset(allowed):
             return None
@@ -453,6 +454,53 @@ class ProjectMethods:
             "capabilities": normalized,
             "updated_at": updated_at,
         }
+
+    async def list_creation_pending_sources(
+        self, user_id: str, host_device_hash: str
+    ) -> List[Dict[str, Any]]:
+        """Placeholders created by this user and addressed to one host device."""
+        params = {
+            "filter[attached_by_user_hash][_eq]": hash_id(user_id),
+            "filter[host_device_hash][_eq]": host_device_hash,
+            "filter[status][_eq]": "creation_pending",
+            "fields": SOURCE_FIELDS + ",hashed_project_id,hashed_team_id",
+            "sort": "created_at",
+            "limit": 50,
+        }
+        rows = await self.directus_service.get_items("project_sources", params=params, no_cache=True)
+        if not isinstance(rows, list):
+            raise RuntimeError("Failed to list creation-pending Project sources")
+        return rows
+
+    async def complete_source_creation(
+        self,
+        project_id: str,
+        user_id: str,
+        source_id: str,
+        *,
+        source_type: str,
+        encrypted_display_name: str,
+        encrypted_metadata: str,
+        capabilities: List[str],
+        updated_at: int,
+        team_id: str | None = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Turn a creation_pending placeholder into an ordinary (offline) source."""
+        source = await self.get_source(project_id, user_id, source_id, team_id=team_id)
+        if not source or source.get("status") != "creation_pending":
+            return None
+        changes = {
+            "source_type": source_type,
+            "encrypted_display_name": encrypted_display_name,
+            "encrypted_metadata": encrypted_metadata,
+            "capabilities": capabilities,
+            "status": "offline",
+            "host_device_hash": None,
+            "updated_at": updated_at,
+        }
+        if not await self.directus_service.update_item("project_sources", source["id"], changes):
+            return None
+        return {**source, **changes}
 
     async def mark_team_member_sources_offline(
         self,
@@ -627,7 +675,7 @@ class ProjectMethods:
         await self.delete_project_items_by_project_hash(hashed_project_id, user_id, team_id=team_id)
         await self.delete_project_folders_by_project_hash(hashed_project_id, user_id, team_id=team_id)
         owner_filter = {"hashed_project_id": {"_eq": hashed_project_id}, **_owner_filter(user_id, team_id)}
-        for collection in ("project_sources", "project_settings"):
+        for collection in ("project_sources", "project_settings", "project_commits", "project_item_operations"):
             await self.directus_service.delete_items(collection, owner_filter)
         await self.directus_service.delete_items(
             "project_key_wrappers",
@@ -673,6 +721,8 @@ class ProjectMethods:
             "project_items": "attached_by_user_hash",
             "project_sources": "attached_by_user_hash",
             "project_settings": "updated_by_user_hash",
+            "project_commits": "created_by_user_hash",
+            "project_item_operations": "actor_user_hash",
         }
         child_rows: list[tuple[str, str, dict[str, Any]]] = []
         for collection, actor_field in actor_fields.items():

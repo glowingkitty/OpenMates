@@ -119,5 +119,15 @@ export const variants = {
 		wordCount: 91,
 		preview_page_urls: previewPageUrls,
 		page_count: 2
+	},
+
+	/** Generated document with a stored PDF artifact: header offers Download PDF next to Word. */
+	generatedPdfArtifact: {
+		...defaultProps,
+		title: 'Generated PDF Artifact',
+		filename: 'generated-artifact.docx',
+		pdf_s3_key: 'chatfiles/preview/generated-artifact.pdf.bin',
+		// Preview-only key; the matching encrypted bytes are served by the Playwright spec.
+		aes_key: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8='
 	}
 };

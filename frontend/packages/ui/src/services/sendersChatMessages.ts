@@ -1,4 +1,6 @@
+import { noteLocalSend } from "./eventSounds";
 import { prepareSavedPersonalAdmissionHistory, selectPersonalPhasedAdmission } from './savedPersonalAdmissionHistory';
+import { withoutPresentationOnlyEvents } from './contextEntryEvents';
 import { initialChatHistoryGate } from './initialChatHistoryGate';
 import { freshPersonalPrivacyForSend, filterWithFreshPersonalPrivacy, attachFreshPrivacyReceipt, personalPrivacyMetadataKeys, type PrivacySendReceipt } from "./preparedPrivacyForSend";
 import { createVoiceCallSendDiagnostics } from "./voiceCallTurns";
@@ -72,7 +74,44 @@ import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } f
 import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement, recoverTimedOutAdmission } from "./preflightAcknowledgement";
 import { observePersonalChatCanonicalVersion, awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, hasRecoveryBoundPersonalChatMessage, markPersonalChatTurnLegacy, type PersonalChatTurn } from "./personalChatTurnBarrier";
 import { isDraftContextDispatchActive, reserveDraftContextDispatch } from "./draftContextDispatchBarrier";
+/** Build-time opt-in to the shared Rust core `sendPrep` unit (default off). */
+const RUST_SEND_PREP_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
+
+/**
+ * Project Memories of a focus activated by this send's @Project mention: Auto include
+ * bodies and the catalog with the Ask first rows. A failed read keeps the earlier
+ * (personal-only) context and is logged, like the first collection.
+ */
+async function addProjectMemoriesAfterActivation(
+	chatId: string,
+	payload: { custom_memory_documents?: Array<Record<string, unknown>>; memory_catalog?: Array<Record<string, unknown>> },
+): Promise<void> {
+	let documents: ReadonlyArray<import("../utils/ruleDocuments").CustomRuleDocument>;
+	try {
+		const { collectCustomRuleDocuments } = await import("./ruleDocumentService");
+		documents = await collectCustomRuleDocuments({ chatId });
+	} catch (error) {
+		console.warn("[ChatSyncService:Senders] Project Memories unavailable after focus activation", error);
+		return;
+	}
+	if (documents.length) payload.custom_memory_documents = documents as unknown as Array<Record<string, unknown>>;
+	const catalog = await collectMemoryCatalogForSend(documents);
+	if (catalog.length) payload.memory_catalog = catalog;
+}
+
+/** Metadata-only Memory catalog; a catalog failure must not block sending the message. */
+async function collectMemoryCatalogForSend(
+	projectDocuments: ReadonlyArray<import("../utils/ruleDocuments").CustomRuleDocument>,
+): Promise<Array<Record<string, unknown>>> {
+	try {
+		const { collectMemoryCatalog } = await import("./ruleDocumentService");
+		return (await collectMemoryCatalog(projectDocuments)) as unknown as Array<Record<string, unknown>>;
+	} catch (error) {
+		console.warn("[ChatSyncService:Senders] Memory catalog unavailable", error);
+		return [];
+	}
+}
 
 function isReceiptConnectionMismatch(error: unknown): boolean {
   return !!error && typeof error === 'object'
@@ -1157,6 +1196,7 @@ async function publishPostAdmissionContext(input: {
 						context.collectProjectReferenceDocuments({ chatId: message.chat_id, text: message.content ?? "", initialFocus }),
 					]),
 				]);
+				const memoryCatalog = await collectMemoryCatalogForSend(memoryDocs);
 				if (!isV2Current()) throw new Error("Post-admission details owner changed.");
 				detailsFrame = await retainContextPhaseFrame(message, chatKey, identity, "details", {
 					...identity, phase: "details",
@@ -1166,6 +1206,7 @@ async function publishPostAdmissionContext(input: {
 						...(plan ? { accepted_plan_context: plan } : {}),
 						connected_account_directory: routedAccounts?.directory ?? [],
 						custom_memory_documents: memoryDocs.slice(0, 24),
+						memory_catalog: memoryCatalog,
 						project_focus_documents: focusDocs.slice(0, 8),
 						project_context_documents: projectDocs.slice(0, 20),
 						connected_account_token_refs: routedAccounts?.tokenRefs ?? [],
@@ -1226,11 +1267,13 @@ async function publishPostAdmissionContext(input: {
 			context.collectProjectReferenceDocuments({ chatId: message.chat_id, text: message.content ?? "", initialFocus }),
 			accounts,
 		]);
+		const memoryCatalog = await collectMemoryCatalogForSend(memoryDocs);
 		if (!isCurrent()) return;
 		detailsFrame = await retainContextPhaseFrame(message, chatKey, identity, "details", {
 			...identity, phase: "details",
 			context: {
 				custom_memory_documents: memoryDocs.slice(0, 24),
+				memory_catalog: memoryCatalog,
 				project_focus_documents: focusDocs.slice(0, 8),
 				project_context_documents: projectDocs.slice(0, 20),
 				connected_account_token_refs: detailedAccounts?.tokenRefs ?? [],
@@ -1316,7 +1359,9 @@ async function dispatchFastPersonalTurn(input: {
 	if (!encryptedFields.encrypted_content) throw new Error("Durable turn admission requires encrypted user content.");
 	const { userProfile: routingProfileStore } = await import("../stores/userProfile");
 	const inferenceRequest: Record<string, unknown> = {
-		model_routing_restrictions: modelRoutingRestrictionsForTurn(get(routingProfileStore)),
+		model_routing_restrictions: RUST_SEND_PREP_BUILD
+			? await (await import("./rustCore/send/rustRoutingRestrictions")).rustModelRoutingRestrictionsForTurn(get(routingProfileStore))
+			: modelRoutingRestrictionsForTurn(get(routingProfileStore)),
 		chat_id: message.chat_id,
 		turn_id: turnId,
 		recovery_public_key: recoveryKeypair.publicKey,
@@ -1343,7 +1388,7 @@ async function dispatchFastPersonalTurn(input: {
 		recordSendPreparationPhase('saved_admission_history_begin');
 		inferenceRequest.message_history = await prepareSavedPersonalAdmissionHistory({
 			chatId: message.chat_id, messageId: message.message_id, currentContent: message.content ?? '',
-			read: () => chatDB.getMessagesForChat(message.chat_id),
+			read: () => chatDB.getMessagesForChat(message.chat_id).then(withoutPresentationOnlyEvents),
 			category: (row) => resolveHistoryCategoryForInference(row, false,
 				(encrypted) => decryptWithChatKey(encrypted, chatKey)),
 			assertCurrent: assertCurrentAdmissionScope,
@@ -1591,6 +1636,7 @@ export async function sendNewMessageImpl(
 	holdAdmissionUntil?: (completion: Promise<void>) => void,
 ): Promise<void> {
 	const personalTurn = reservedTurn ?? reservePersonalChatTurn(message.chat_id, message.message_id);
+	noteLocalSend(message.message_id);
 	const voiceDiagnostics = createVoiceCallSendDiagnostics(message);
 	voiceDiagnostics.enter('sender');
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
@@ -2314,9 +2360,15 @@ export async function sendNewMessageImpl(
 		}
 	} else {
 		try {
-			messageHistory = await loadLocalSavedHistoryForSend(
-				message.chat_id, chat?.team_id, (id) => chatDB.getMessagesForChat(id)
-			);
+			// Presentation-only system events (context_entry, voice_call) never reach the AI,
+			// but they are server rows that advance messages_v. Decide whether history is
+			// needed from the stored rows and filter afterwards: a first voice turn after a
+			// "call started" event must still carry its history, or the server finds a
+			// short AI cache for an existing chat and asks for an unbound legacy resend.
+			messageHistory = await withoutPresentationOnlyEvents(await loadLocalSavedHistoryForSend(
+				message.chat_id, chat?.team_id,
+				(id) => chatDB.getMessagesForChat(id)
+			));
 			if (messageHistory.length > 0) {
 				console.debug(
 					`[ChatSyncService:Senders] Loaded ${messageHistory.length} local messages for durable saved-chat history`
@@ -2434,6 +2486,8 @@ export async function sendNewMessageImpl(
 		active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
 		project_focus_candidates?: ProjectFocusRoutingCandidate[];
 		custom_memory_documents?: Array<Record<string, unknown>>;
+		/** Metadata only: {id,title,when_to_use,load_mode,source}; mention_only/out-of-window memories excluded. */
+		memory_catalog?: Array<Record<string, unknown>>;
 		project_focus_catalog?: Array<Record<string, unknown>>;
 		project_focus_documents?: Array<Record<string, unknown>>;
 		project_context_documents?: Array<Record<string, unknown>>;
@@ -2451,7 +2505,9 @@ export async function sendNewMessageImpl(
 	}
 	const { userProfile: routingProfileStore } = await import("../stores/userProfile");
 	let payload: SendMessagePayload = {
-		model_routing_restrictions: modelRoutingRestrictionsForTurn(get(routingProfileStore)),
+		model_routing_restrictions: RUST_SEND_PREP_BUILD
+			? await (await import("./rustCore/send/rustRoutingRestrictions")).rustModelRoutingRestrictionsForTurn(get(routingProfileStore))
+			: modelRoutingRestrictionsForTurn(get(routingProfileStore)),
 		...(message.preserve_draft === true ? { preserve_draft: true } : {}),
 		chat_id: message.chat_id,
 		parent_id: chat?.parent_id || null,
@@ -2581,6 +2637,13 @@ export async function sendNewMessageImpl(
 				payload[fields[index]] = result.value as unknown as Array<Record<string, unknown>>;
 			}
 		}
+		if (collected[0].status === 'rejected') {
+			console.warn('[ChatSyncService:Senders] Project Memories unavailable for this send', collected[0].reason);
+		}
+		const projectMemoryDocs = collected[0].status === 'fulfilled' ? collected[0].value : [];
+		const memoryCatalog = await collectMemoryCatalogForSend(projectMemoryDocs);
+		if (!sendContextStillCurrent()) return;
+		if (memoryCatalog.length) payload.memory_catalog = memoryCatalog as unknown as Array<Record<string, unknown>>;
 		const acceptedPlan = collected[fields.length];
 		if (acceptedPlan.status === 'fulfilled' && acceptedPlan.value) {
 			payload.accepted_plan_context = acceptedPlan.value as import('./acceptedPlanContext').AcceptedPlanContext;
@@ -3358,6 +3421,9 @@ export async function sendNewMessageImpl(
 			await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
 			throw error;
 		}
+		// The @Project mention activates the focus only now: the private context
+		// collected above saw no focus, so this turn's Project Memories are added here.
+		await addProjectMemoriesAfterActivation(message.chat_id, payload);
 	}
 
 	// OTel: WebSocket dispatch span — the actual send over the wire
@@ -3954,7 +4020,6 @@ export async function sendEncryptedStoragePackage(
 			encrypted_follow_up_suggestions?: string;
 			encrypted_new_chat_suggestions?: string;
 			encrypted_top_recommended_apps_for_chat?: string;
-			encrypted_quick_tip_slugs?: string;
 			created_at: number;
 			encrypted_chat_key?: string;
 			versions: {

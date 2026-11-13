@@ -147,17 +147,24 @@ final class EmbedWireFormatTests: XCTestCase {
             descendants(of: host.view).compactMap { $0 as? UICollectionView }
                 .first { $0.accessibilityIdentifier == "sheet-fullscreen-table" }
         }
+        // The first fullscreen render compiles Core Animation pipelines on the
+        // main thread; on a slow macos-26 runner that alone took over 4 s, so
+        // the wait is generous. The viewport assertion itself is unchanged.
+        let lastObserved = SheetViewportObservation()
         let mounted = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             MainActor.assumeIsolated {
                 host.view.layoutIfNeeded()
                 guard let collection = table() else { return false }
                 collection.layoutIfNeeded()
+                lastObserved.summary = "table height \(collection.bounds.height) host height \(host.view.bounds.height) "
+                    + "visible cells \(collection.visibleCells.count)"
                 return collection.bounds.height > 0 && collection.bounds.height < host.view.bounds.height
                     && !collection.visibleCells.isEmpty
             }
         }, object: nil)
-        let mountedResult = await XCTWaiter.fulfillment(of: [mounted], timeout: 5)
-        XCTAssertEqual(mountedResult, .completed, "The production container must give the table a finite viewport")
+        let mountedResult = await XCTWaiter.fulfillment(of: [mounted], timeout: 20)
+        XCTAssertEqual(mountedResult, .completed,
+                       "The production container must give the table a finite viewport (\(lastObserved.summary))")
         let collection = try XCTUnwrap(table())
         XCTAssertGreaterThan(collection.contentSize.height, collection.bounds.height * 10)
         XCTAssertLessThan(collection.visibleCells.count, collection.numberOfItems(inSection: 0) / 10,
@@ -172,7 +179,7 @@ final class EmbedWireFormatTests: XCTestCase {
                     .contains { $0.text == "Row 300" }
             }
         }, object: nil)
-        let scrolledResult = await XCTWaiter.fulfillment(of: [scrolled], timeout: 5)
+        let scrolledResult = await XCTWaiter.fulfillment(of: [scrolled], timeout: 10)
         XCTAssertEqual(scrolledResult, .completed, "The table must scroll its own rows")
         let letter = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
         let header = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 4, section: 0)))
@@ -453,4 +460,10 @@ final class EmbedWireFormatTests: XCTestCase {
         XCTAssertEqual(parsed.headers, ["Name", "Note"])
         XCTAssertEqual(parsed.rows.count, 1)
     }
+}
+
+/// Last table state the viewport waiter saw, for the failure message.
+@MainActor
+private final class SheetViewportObservation {
+    var summary = "table not mounted"
 }

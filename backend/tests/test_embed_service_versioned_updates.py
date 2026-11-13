@@ -607,6 +607,31 @@ async def test_application_parent_is_cached_before_plaintext_publish():
     )
 
 
+
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,projects.files.application-single-source
+@pytest.mark.asyncio
+async def test_application_republish_with_late_files_is_the_next_version():
+    cache = FakeCacheService({})
+    service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
+    service._schedule_embed_persistence_fallback = lambda embed_id: None
+    common = dict(name="Recipe Box", framework="vanilla", runtime="static", entrypoints=[],
+                  chat_id="chat-1", message_id="message-1", user_id="user-1",
+                  user_id_hash="user-hash", user_vault_key_id="vault-1", task_id="task-1")
+    first = await service.create_application_embed(
+        file_refs=[{"path": "index.html", "embed_id": "file-1"}], **common)
+    assert first
+    refreshed = await service.create_application_embed(
+        file_refs=[{"path": "index.html", "embed_id": "file-1"}, {"path": "app.js", "embed_id": "file-2"}],
+        embed_id=first["embed_id"], **common)
+
+    assert refreshed and refreshed["embed_id"] == first["embed_id"]
+    assert json.loads(cache._client.values[f"embed:{first['embed_id']}"])["version_number"] == 2
+    payload = cache._client.published[-1][1]["payload"]
+    assert payload["version_number"] == 2 and payload["embed_ids"] == ["file-1", "file-2"]
+    # A parent that is no longer cached is not re-published blindly.
+    assert await service.create_application_embed(
+        file_refs=[{"path": "index.html", "embed_id": "file-1"}], embed_id="missing", **common) is None
+
 # contract-test: infrastructure
 @pytest.mark.asyncio
 async def test_embed_cache_budget_refusal_stops_publication():
@@ -1012,83 +1037,6 @@ async def test_registered_media_retry_checks_durable_receipt_before_provider(mon
                 object(), embed_id=embed_id, chat_id="chat-1", message_id="message-1",
                 owner_hash="a" * 64,
             )
-    finally:
-        active_verified_output_producer.reset(token)
-
-
-# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
-@pytest.mark.asyncio
-async def test_authorized_remotion_rerender_requires_canonical_version_and_emits_next_version(monkeypatch):
-    import hashlib
-    from backend.core.api.app.services import chat_recovery_service
-
-    class ClaimedRecovery:
-        def __init__(self, _directus):
-            pass
-
-        async def execute(self, operation, data):
-            assert operation == "verify_claimed_output_producer"
-            assert data["task_uuid"] == "66666666-6666-4666-8666-666666666666"
-            return {
-                "producer_intent_id": data["task_uuid"], "authorized": True,
-                "status": "RUNNING", "intent_kind": "rerender",
-            }
-
-    monkeypatch.setattr(chat_recovery_service, "ChatRecoveryService", ClaimedRecovery)
-
-    chat_id = "22222222-2222-4222-8222-222222222222"
-    owner_hash = hashlib.sha256(b"user-1").hexdigest()
-    embed_id = "88888888-8888-4888-8888-888888888888"
-    cache = FakeCacheService({
-        "embed_id": embed_id, "encrypted_content": encode({
-            "type": "video_create", "filename": "Composition.tsx", "status": "finished",
-        }),
-        "status": "finished", "message_id": "message-1", "created_at": 1,
-        "version_number": 1,
-    })
-    cache._client.values[f"embed:{embed_id}"] = cache._client.values.pop("embed:embed-1")
-
-    class Directus:
-        version = 1
-
-        async def get_items(self, collection, *, params, admin_required, no_cache, raise_on_error):
-            assert collection == "embeds" and raise_on_error is True
-            assert params["filter[hashed_user_id][_eq]"] == owner_hash
-            return [{
-                "id": "db-row", "version_number": self.version,
-                "hashed_chat_id": hashlib.sha256(chat_id.encode()).hexdigest(),
-            }]
-
-    directus = Directus()
-    service = EmbedService(cache, directus, FakeEncryptionService())
-    service._schedule_embed_persistence_fallback = lambda _embed_id: None
-    producer = VerifiedOutputProducer(
-        classification="authorized_direct", intent_id="66666666-6666-4666-8666-666666666666",
-        task_id="66666666-6666-4666-8666-666666666666", task_name="apps.videos.tasks.render_remotion",
-        kwargs_binding="f" * 64, primary_embed_id=embed_id, primary_message_id="message-1",
-        target_chat_id=chat_id, owner_hash=owner_hash, intent_kind="rerender",
-        expected_embed_version=1,
-    )
-    token = active_verified_output_producer.set(producer)
-    try:
-        ok = await service.update_remotion_video_embed_content(
-            embed_id=embed_id, remotion_source="export default function Main() {}",
-            chat_id=chat_id, message_id="message-1", user_id="user-1",
-            user_id_hash=owner_hash, user_vault_key_id="vault-1", status="finished",
-            final_producer_output=True,
-        )
-        assert ok is True
-        assert cache._client.published[-1][1]["payload"]["version_number"] == 2
-        assert json.loads(cache._client.values[f"embed:{embed_id}"])["version_number"] == 2
-
-        directus.version = 2
-        with pytest.raises(RequiredRecoveryOutputError):
-            await service.update_remotion_video_embed_content(
-                embed_id=embed_id, remotion_source="changed source", chat_id=chat_id,
-                message_id="message-1", user_id="user-1", user_id_hash=owner_hash,
-                user_vault_key_id="vault-1", status="finished", final_producer_output=True,
-            )
-        assert len(cache._client.published) == 1
     finally:
         active_verified_output_producer.reset(token)
 

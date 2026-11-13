@@ -89,10 +89,30 @@ impl StreamedEmbedData {
     pub fn local_only(&self) -> bool {
         self.raw.get("local_only").and_then(Value::as_bool).unwrap_or(false)
     }
-    /// Sealed root revision: parent with `version_number ?? 1` above one.
+    /// Sealed revision: a root with `version_number ?? 1` above one, or a
+    /// child revision (`payload.revision` with `version_number > 1`, see
+    /// [`Self::child_revision`]). A child without `revision` stays unsealed.
     pub fn sealed_history(&self) -> bool {
-        self.parent_embed_id().is_none()
-            && self.raw.get("version_number").and_then(Value::as_f64).unwrap_or(1.0) > 1.0
+        let root_revision = self.parent_embed_id().is_none()
+            && self.raw.get("version_number").and_then(Value::as_f64).unwrap_or(1.0) > 1.0;
+        // A malformed `revision` is refused by `plan_stream_completion` before any
+        // write is built, so `Err` here never reaches a prepared write.
+        root_revision || matches!(self.child_revision(), Ok(Some(_)))
+    }
+    /// `payload.revision` of a generated child's next version
+    /// (`images-generate.revision.same-embed-new-version`, wire-contract.md
+    /// "send_embed_data for the revised image"). `Ok(None)` when absent/null.
+    ///
+    /// # Errors
+    /// `Error::Protocol` when `revision` is present on a root, is not an object,
+    /// lacks a positive integer `base_version` or a boolean
+    /// `base_snapshot_required`, or `version_number != base_version + 1`.
+    pub fn child_revision(&self) -> Result<Option<super::revision::ChildRevision>> {
+        super::revision::ChildRevision::from_payload(&self.raw, self.parent_embed_id().is_some())
+    }
+    /// Raw payload map for sibling write builders (plaintext; never logged).
+    pub(super) fn raw(&self) -> &Map<String, Value> {
+        &self.raw
     }
     pub fn version_history_rows(&self) -> &[Value] {
         self.raw.get("version_history_rows").and_then(Value::as_array).map_or(&[], Vec::as_slice)
@@ -126,11 +146,36 @@ pub struct PreparedEmbedWrite {
     pub embed_ref_registration: Option<Value>,
     pub child_ref_embed_ids: Vec<String>,
     pub sealed_history: bool,
+    /// Ordered writes of a child revision (base snapshot, head, history row);
+    /// absent for every other write so their JSON keeps the deployed shape.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub child_revision: Option<super::revision::ChildRevisionWrites>,
+}
+
+/// Head identity a child revision keeps from the stored head instead of
+/// deriving it from the event: the extension requires the creating message's
+/// hash, the chat hash and the byte-identical `encrypted_type`
+/// (`operations.js` `requireChildRevisionHead` and the acknowledged advance).
+pub(crate) struct KeptHeadIdentity<'a> {
+    pub hashed_message_id: &'a str,
+    pub hashed_chat_id: &'a str,
+    pub encrypted_type: &'a str,
+    /// Resume of a head already stored locally at N+1: resend its exact
+    /// content/preview ciphertext instead of encrypting again, so a send that
+    /// reached the server before a crash is repeated byte for byte.
+    pub resend: Option<KeptHeadCiphertext<'a>>,
+}
+/// Stored head ciphertext reused by a resumed child revision.
+pub(crate) struct KeptHeadCiphertext<'a> {
+    pub encrypted_content: &'a str,
+    pub encrypted_text_preview: Option<&'a str>,
 }
 
 /// `decodeToonContentLocal` result when it is an object (TOON, then JSON).
+/// TOON uses the vector-proven port of the web's non-strict decoder
+/// (`crate::toon_decode`), so embed_ref/app metadata match the TS writer.
 pub(crate) fn decode_object(content: &str) -> Option<Map<String, Value>> {
-    match super::super::toon::decode(content) {
+    match crate::toon_decode::decode(content).map(|value| value.to_json_value()) {
         Ok(Value::Object(map)) => Some(map),
         _ => match serde_json::from_str::<Value>(content) {
             Ok(Value::Object(map)) => Some(map),
@@ -179,20 +224,46 @@ pub fn build_stream_completion(
     now_ms: i64,
     nonces: &mut impl NonceSource,
 ) -> Result<PreparedEmbedWrite> {
+    build_stream_completion_keeping(data, keys, now_ms, nonces, None)
+}
+
+/// [`build_stream_completion`] with an optional kept head identity (child
+/// revisions only). With `kept`, the type ciphertext is reused, so the nonce
+/// order is content, preview; without it the output is unchanged.
+pub(crate) fn build_stream_completion_keeping(
+    data: &StreamedEmbedData,
+    keys: WriteKeys<'_>,
+    now_ms: i64,
+    nonces: &mut impl NonceSource,
+    kept: Option<&KeptHeadIdentity<'_>>,
+) -> Result<PreparedEmbedWrite> {
     let raw = &data.raw;
     let child = data.parent_embed_id().is_some();
     let now_seconds = now_ms.div_euclid(1000);
     let content = required(raw, "content")?;
     let embed_type = data.embed_type();
-    let hashed_chat_id = hash_id(data.chat_id());
-    let hashed_message_id = hash_id(required(raw, "message_id")?);
+    let message_id = required(raw, "message_id")?;
+    let (hashed_chat_id, hashed_message_id) = match kept {
+        Some(kept) => (kept.hashed_chat_id.to_owned(), kept.hashed_message_id.to_owned()),
+        None => (hash_id(data.chat_id()), hash_id(message_id)),
+    };
     let hashed_user_id = hash_id(required(raw, "user_id")?);
     let hashed_embed_id = hash_id(data.embed_id());
-    let encrypted_content = encrypt_text(content, keys.embed_key, None, nonces)?;
-    let encrypted_type = encrypt_text(embed_type, keys.embed_key, None, nonces)?;
-    let encrypted_preview = truthy_text(raw, "text_preview")
-        .map(|preview| encrypt_text(preview, keys.embed_key, None, nonces))
-        .transpose()?;
+    let resend = kept.and_then(|kept| kept.resend.as_ref());
+    let encrypted_content = match resend {
+        Some(resend) => resend.encrypted_content.to_owned(),
+        None => encrypt_text(content, keys.embed_key, None, nonces)?,
+    };
+    let encrypted_type = match kept {
+        Some(kept) => kept.encrypted_type.to_owned(),
+        None => encrypt_text(embed_type, keys.embed_key, None, nonces)?,
+    };
+    let encrypted_preview = match resend {
+        Some(resend) => resend.encrypted_text_preview.map(str::to_owned),
+        None => truthy_text(raw, "text_preview")
+            .map(|preview| encrypt_text(preview, keys.embed_key, None, nonces))
+            .transpose()?,
+    };
     if !child && (keys.master_wrapper.is_some() == data.local_only()) {
         return Err(Error::Invalid("Parent embed writes need a master wrapper unless local-only."));
     }
@@ -293,6 +364,7 @@ pub fn build_stream_completion(
         embed_ref_registration,
         child_ref_embed_ids: child_ref_embed_ids(decoded.as_ref()),
         sealed_history: data.sealed_history(),
+        child_revision: None,
     })
 }
 
@@ -423,5 +495,6 @@ pub fn build_processing_update(
         embed_ref_registration,
         child_ref_embed_ids: child_refs,
         sealed_history: false,
+        child_revision: None,
     })
 }

@@ -119,7 +119,14 @@ fn input(i: &Invocation) -> Result<(String, Intent), CliError> {
     )?;
     let positional = i.positionals.join(" ");
     let instruction = input::text(i, "text")?.unwrap_or(&positional).trim();
-    if instruction.is_empty() || instruction.chars().count() > 20_000 {
+    if instruction.is_empty() {
+        // npm requiredAskInstruction: a runtime failure (exit 1), not a usage error.
+        return Err(CliError::Contract {
+            code: "command_failed",
+            message: "Missing ask instruction. Example: openmates projects ask \"Launch workspace\"".into(),
+        });
+    }
+    if instruction.chars().count() > 20_000 {
         return Err(CliError::Invalid(
             "Project instructions require 1–20,000 characters.".into(),
         ));

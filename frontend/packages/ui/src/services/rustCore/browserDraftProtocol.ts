@@ -3,8 +3,8 @@
  * tombstones, pending synchronization and original-resource authorization. */
 export const MAX_DRAFT_MARKDOWN_BYTES=1_000_000;
 export const MAX_DRAFT_PACKET_BYTES=2*1024*1024;
-export const DRAFT_PREDICATES=Object.freeze(['chat_id','id','user_id','owner_id','team_id','hashed_team_id','chat_visibility','encrypted_chat_key','key_version','key_fingerprint','messages_v','draft_v','cleared_draft_v','encrypted_draft_md','encrypted_draft_preview','updated_at'] as const);
-export const DRAFT_WRITES=Object.freeze(['encrypted_draft_md','encrypted_draft_preview','draft_v','updated_at'] as const);
+export const DRAFT_PREDICATES=/* @__PURE__ */ Object.freeze(['chat_id','id','user_id','owner_id','team_id','hashed_team_id','chat_visibility','encrypted_chat_key','key_version','key_fingerprint','messages_v','draft_v','cleared_draft_v','encrypted_draft_md','encrypted_draft_preview','updated_at'] as const);
+export const DRAFT_WRITES=/* @__PURE__ */ Object.freeze(['encrypted_draft_md','encrypted_draft_preview','draft_v','updated_at'] as const);
 export type DraftProjection=Record<typeof DRAFT_PREDICATES[number],{present:boolean;value:unknown}>;
 export interface BrowserDraftScope{lifecycleGeneration:number;workspaceEpoch:number}
 export interface BrowserDraftPlan{
@@ -22,7 +22,9 @@ const uuid=(v:unknown):v is string=>typeof v==='string'&&/^[a-f0-9]{8}(?:-[a-f0-
 const integer=(v:unknown):v is number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0;
 const PLAN_KINDS:readonly unknown[]=['capture_draft','store_draft','readback_draft','ack_draft'];
 const RESOURCE_OPERATIONS:readonly unknown[]=['sync_draft','cancel_draft','close_draft'];
-export function draftProjection(raw:Record<string,unknown>):DraftProjection{return Object.fromEntries(DRAFT_PREDICATES.map(field=>[field,{present:Object.hasOwn(raw,field),value:Object.hasOwn(raw,field)?raw[field]:null}])) as DraftProjection;}
+/** JSON projection of a chats_db row. IndexedDB keeps `undefined` field values
+ * (the TS draft clear writes them) but JSON cannot: such a field is absent. */
+export function draftProjection(raw:Record<string,unknown>):DraftProjection{return Object.fromEntries(DRAFT_PREDICATES.map(field=>{const present=Object.hasOwn(raw,field)&&raw[field]!==undefined;return [field,{present,value:present?raw[field]:null}];})) as DraftProjection;}
 function projection(v:unknown):v is DraftProjection{return record(v)&&exact(v,DRAFT_PREDICATES)&&DRAFT_PREDICATES.every(field=>record(v[field])&&exact(v[field],['present','value'])&&typeof v[field].present==='boolean'&&(v[field].present||v[field].value===null));}
 export function parseBrowserDraftPlan(encoded:string):BrowserDraftPlan{
  if(typeof encoded!=='string'||new TextEncoder().encode(encoded).length>MAX_DRAFT_PACKET_BYTES)throw Error('invalid_draft_plan');

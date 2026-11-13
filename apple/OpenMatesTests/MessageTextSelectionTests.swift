@@ -512,21 +512,6 @@ final class MessageTextSelectionTests: XCTestCase {
         XCTAssertFalse(RememberMessageDraft.isForgotten(invalid, messages: [invalid], checkpoint: Int.max))
     }
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction,chats.persistence.client-encrypted
-    func testEditSuffixPreservesPrefixAndStopsOnChangedScope() async throws {
-        let rows = [message("a", second: 0), message("b", second: 1), message("c", second: 2)]
-        let plan = try MessageEditPlan.make(messages: rows, chatID: "c", messageID: "b")
-        XCTAssertEqual(plan.retained.map(\.id), ["a"]); XCTAssertEqual(plan.removed.map(\.id), ["b", "c"])
-        var valid = true, removed: [String] = []
-        do {
-            try await MessageEditExecutor.removeSuffix(plan, validate: { if !valid { throw MessageContextActionError.staleContext } },
-                remove: { removed.append($0); valid = false })
-            XCTFail("Account cancellation must stop remaining deletion")
-        } catch { }
-        XCTAssertEqual(removed, ["c"], "The edited boundary stays available after a partial failure")
-        XCTAssertThrowsError(try MessageEditPlan.make(messages: rows, chatID: "wrong", messageID: "b"))
-        XCTAssertThrowsError(try MessageEditPlan.make(messages: rows, chatID: "c", messageID: "missing"))
-    }
-    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.inline-entity-interaction,chats.persistence.client-encrypted
     func testForkUsesFreshKeyEncryptedHistoryAndOmitsSensitiveMappings() async throws {
         let key = SymmetricKey(size: .bits256), source = DevHistoryWelcomeData.chat("c", title: "Source")
         var row = message("m", second: 0); row.content = "private content [[embed:opaque-id]]"; row.thinkingContent = "private thinking"

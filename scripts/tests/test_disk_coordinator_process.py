@@ -102,6 +102,11 @@ except DiskWait as wait: print(wait.request['id'],flush=True)
         assert disposable.exists()
         stop(process)
         assert coordinator.get(request_id)["state"] == "waiting"
+        # The exited client's ticket is re-attached by the resumed thread (a
+        # live owner), as a dead owner is never granted capacity.
+        coordinator.request(
+            repository, GIB, operation="integration-build", thread=thread
+        )
         # Reboot/restart recovery uses the same ledger; capacity recovery is an
         # isolated sensor transition, never real host disk consumption.
         (repository / "allow-cleanup").write_text("fixture cleanup authorized")

@@ -242,8 +242,8 @@ def test_launch_tariff_discounts_customer_and_supplier_and_freezes_attempt():
     validate_temporary_prices(model)
     before = resolve_model_tariff(model, on_date=date(2026, 10, 18), inference_host="inception")
     launch = resolve_model_tariff(model, on_date=date(2026, 10, 20), inference_host="inception")
-    assert before["pricing"]["tokens"] == {"input": {"per_credit_unit": 1650}, "cache_read": {"per_credit_unit": 16500}, "output": {"per_credit_unit": 475}}
-    assert launch["pricing"]["tokens"] == {"input": {"per_credit_unit": 3300}, "cache_read": {"per_credit_unit": 33000}, "output": {"per_credit_unit": 950}}
+    assert before["pricing"]["tokens"] == {"input": {"per_credit_unit": 3335}, "cache_read": {"per_credit_unit": 33335}, "output": {"per_credit_unit": 955}}
+    assert launch["pricing"]["tokens"] == {"input": {"per_credit_unit": 6670}, "cache_read": {"per_credit_unit": 66670}, "output": {"per_credit_unit": 1905}}
     assert model == original
     assert before["costs"]["input_per_million_token"]["price"] == .2
     assert launch["costs"]["input_per_million_token"]["price"] == .1
@@ -251,14 +251,14 @@ def test_launch_tariff_discounts_customer_and_supplier_and_freezes_attempt():
     frozen = snapshot_model_tariff(launch)
     launch["pricing"]["tokens"]["input"]["per_credit_unit"] = 1
     launch["costs"]["input_per_million_token"]["price"] = 999
-    assert frozen["pricing"]["tokens"]["input"]["per_credit_unit"] == 3300
+    assert frozen["pricing"]["tokens"]["input"]["per_credit_unit"] == 6670
     assert frozen["costs"]["input_per_million_token"]["price"] == .1
     assert frozen["active_temporary_price"]["id"] == "mercury-3-launch-2026"
     assert model == original
 
 
-@pytest.mark.parametrize("promotional,input_unit", [(False, 1650), (True, 3300)])
-def test_mercury_cache_read_and_launch_discounts_compose_without_double_counting(promotional, input_unit):
+@pytest.mark.parametrize("promotional,input_unit,cache_unit", [(False, 3335, 33335), (True, 6670, 66670)])
+def test_mercury_cache_read_and_launch_discounts_compose_without_double_counting(promotional, input_unit, cache_unit):
     from datetime import date
     from pathlib import Path
     from fractions import Fraction
@@ -272,7 +272,7 @@ def test_mercury_cache_read_and_launch_discounts_compose_without_double_counting
     if not promotional:
         model["temporary_prices"] = []
     tariff = snapshot_model_tariff(resolve_model_tariff(model, on_date=date(2026, 10, 20), inference_host="inception"))
-    assert tariff["pricing"]["tokens"]["cache_read"]["per_credit_unit"] == input_unit * 10
+    assert tariff["pricing"]["tokens"]["cache_read"]["per_credit_unit"] == cache_unit
     result = normalize_provider_usage(
         {"input_tokens": 33000, "output_tokens": 950, "cache_read_input_tokens": 29700},
         model_id="inception/mercury-3", provider_kind="openai", inference_host="inception",
@@ -282,8 +282,8 @@ def test_mercury_cache_read_and_launch_discounts_compose_without_double_counting
     assert receipt["input_tokens"] == 33000
     assert receipt["uncached_input_tokens"] == 3300
     assert receipt["cache_read_input_tokens"] == 29700
-    expected = (Fraction(3300, input_unit) + Fraction(29700, input_unit * 10)
-                + Fraction(950, tariff["pricing"]["tokens"]["output"]["per_credit_unit"]))
+    expected = (Fraction(3300) / Fraction(str(input_unit)) + Fraction(29700) / Fraction(str(cache_unit))
+                + Fraction(950) / Fraction(str(tariff["pricing"]["tokens"]["output"]["per_credit_unit"])))
     assert receipt["credits_charged"] == int(expected)
     assert receipt["entries"][0]["billing_mode"] == "cache_aware"
     ordinary = normalize_provider_usage(

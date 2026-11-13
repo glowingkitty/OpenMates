@@ -103,7 +103,7 @@ def invoke(argv, case):
         cwd=ROOT,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
+        stderr=None,  # inherited: the driver projects only class and tracked frames
         start_new_session=True,
     )
     selector = selectors.DefaultSelector()
@@ -207,6 +207,22 @@ def main():
                 "direct-session exact protocol/no extra traffic"
             )
             results.append({"id": vector["id"], "status": "passed"})
+        except Exception:
+            # Exact failed vector id for the driver's closed attribution; the
+            # original exception still ends the run.
+            results.append({"id": vector["id"], "status": "failed"})
+            print(
+                json.dumps(
+                    {
+                        "capability": CAPABILITY,
+                        "language": args.language,
+                        "status": "failed",
+                        "fixtureSha256": hashlib.sha256(raw).hexdigest(),
+                        "results": results,
+                    }
+                )
+            )
+            raise
         finally:
             peer.close()
     print(

@@ -87,6 +87,7 @@ describe("chatExportService", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=storage.export.persisted-bounded-complete
   it("hydrates beyond the rendered 40-message window before export", async () => {
     const allMessages = makeMessages(101).reverse();
     mocks.getMessagesForChat.mockResolvedValue(allMessages);
@@ -108,6 +109,7 @@ describe("chatExportService", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=storage.export.persisted-bounded-complete
   it("marks exports partial when durable rows or forgotten checkpoint messages may be missing", async () => {
     mocks.getMessagesForChat.mockResolvedValue(makeMessages(40, 62));
     mocks.getChatCompressionCheckpoints.mockResolvedValue([makeCheckpoint()]);
@@ -122,6 +124,7 @@ describe("chatExportService", () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=storage.export.persisted-bounded-complete
   it("marks compressed exports complete when all checkpoint messages are hydrated", async () => {
     const allMessages = makeMessages(101);
     mocks.getMessagesForChat.mockResolvedValue(allMessages);
@@ -138,29 +141,5 @@ describe("chatExportService", () => {
       checkpoint_count: 1,
       warnings: [],
     });
-  });
-
-  it("serializes export completeness and compression checkpoints into YAML", async () => {
-    const checkpoint = makeCheckpoint();
-
-    const { convertChatToYaml } = await import("../chatExportService");
-    const yaml = await convertChatToYaml(makeChat(), makeMessages(2), false, undefined, {
-      messages: makeMessages(2),
-      checkpoints: [checkpoint],
-      completeness: {
-        status: "partial",
-        requested_message_count: 101,
-        hydrated_message_count: 2,
-        checkpoint_count: 1,
-        warnings: ["Only 2 of 101 durable messages were available locally."],
-      },
-    });
-
-    expect(yaml).toContain("export_completeness:");
-    expect(yaml).toContain("status: partial");
-    expect(yaml).toContain("requested_message_count: 101");
-    expect(yaml).toContain("compression_checkpoints:");
-    expect(yaml).toContain("id: checkpoint-1");
-    expect(yaml).toContain("summary: Older history summary");
   });
 });

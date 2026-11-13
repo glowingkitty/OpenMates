@@ -26,7 +26,6 @@ import { createAccountChatIdentity } from "../src/directChats.ts";
 // Import from compiled dist — the .js extension imports in src/ require the build step
 import {
   deriveAppUrl,
-  MEMORY_TYPE_REGISTRY,
   serializeToYaml,
   getExtForLang,
   defaultCloneBranchForVersion,
@@ -2095,7 +2094,20 @@ async function withLearningModeMockApi<T>(
         writeJson(response, {
           enabled: true,
           age_group: "13_15",
+          collaborative_build: true,
           failed_attempts: 1,
+          deactivation_blocked_until: null,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/learning-mode/collaborative") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJson(response, {
+          enabled: true,
+          age_group: "16_18",
+          collaborative_build: body.enabled,
+          failed_attempts: 0,
           deactivation_blocked_until: null,
         });
         return;
@@ -4155,151 +4167,6 @@ describe("apps metadata commands", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// MEMORY_TYPE_REGISTRY
-// ---------------------------------------------------------------------------
-
-describe("MEMORY_TYPE_REGISTRY", () => {
-  it("contains at least 10 memory types", () => {
-    const keys = Object.keys(MEMORY_TYPE_REGISTRY);
-    docAssert("cli-apps-memory-type-registry-is-available", () => {
-      assert.ok(keys.length >= 10, `expected >=10 types, got ${keys.length}`);
-    });
-  });
-
-  it("every type has appId, itemType, required, and properties", () => {
-    for (const [key, def] of Object.entries(MEMORY_TYPE_REGISTRY)) {
-      assert.ok(def.appId, `${key}: missing appId`);
-      assert.ok(def.itemType, `${key}: missing itemType`);
-      assert.ok(
-        Array.isArray(def.required),
-        `${key}: required should be array`,
-      );
-      assert.ok(
-        typeof def.properties === "object",
-        `${key}: properties should be object`,
-      );
-    }
-  });
-
-  it("all required fields are present in properties", () => {
-    for (const [key, def] of Object.entries(MEMORY_TYPE_REGISTRY)) {
-      for (const req of def.required) {
-        assert.ok(
-          def.properties[req] !== undefined,
-          `${key}: required field '${req}' missing from properties`,
-        );
-      }
-    }
-  });
-
-  it("code/preferred_tech requires 'name'", () => {
-    const def = MEMORY_TYPE_REGISTRY["code/preferred_tech"];
-    assert.ok(def, "code/preferred_tech should exist");
-    assert.ok(def.required.includes("name"), "should require 'name'");
-  });
-
-  it("does not expose removed AI memory types", () => {
-    const keys = Object.keys(MEMORY_TYPE_REGISTRY);
-    assert.equal(keys.some((key) => key.startsWith("ai/")), false);
-    assert.ok(MEMORY_TYPE_REGISTRY["travel/preferred_airlines"]);
-  });
-
-  it("registry key format matches appId/itemType", () => {
-    for (const [key, def] of Object.entries(MEMORY_TYPE_REGISTRY)) {
-      const expectedKey = `${def.appId}/${def.itemType}`;
-      assert.strictEqual(
-        key,
-        expectedKey,
-        `key mismatch: ${key} vs ${expectedKey}`,
-      );
-    }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Schema validation (via OpenMatesClient.createMemory validation path)
-// In isolation: we test the validation logic that would be called by the client.
-// We re-implement a minimal version to keep tests network-free.
-// ---------------------------------------------------------------------------
-
-function validateMemory(
-  registryKey: string,
-  itemValue: Record<string, unknown>,
-): { valid: true } | { valid: false; error: string } {
-  const schema = MEMORY_TYPE_REGISTRY[registryKey];
-  if (!schema) {
-    return { valid: false, error: `Unknown type: ${registryKey}` };
-  }
-  const missing = schema.required.filter(
-    (f) =>
-      itemValue[f] === undefined ||
-      itemValue[f] === null ||
-      itemValue[f] === "",
-  );
-  if (missing.length > 0) {
-    return { valid: false, error: `Missing required: ${missing.join(", ")}` };
-  }
-  for (const [field, def] of Object.entries(schema.properties)) {
-    const val = itemValue[field];
-    if (val !== undefined && def.enum && !def.enum.includes(String(val))) {
-      return {
-        valid: false,
-        error: `Invalid enum value '${String(val)}' for '${field}'`,
-      };
-    }
-  }
-  return { valid: true };
-}
-
-describe("memory schema validation", () => {
-  it("accepts valid code/preferred_tech entry", () => {
-    const result = validateMemory("code/preferred_tech", {
-      name: "Python",
-      proficiency: "advanced",
-    });
-    assert.ok(result.valid);
-  });
-
-  it("rejects missing required field", () => {
-    const result = validateMemory("code/preferred_tech", {
-      proficiency: "advanced",
-    });
-    assert.ok(!result.valid);
-    assert.ok(result.valid === false && result.error.includes("name"));
-  });
-
-  it("rejects invalid enum value", () => {
-    const result = validateMemory("code/preferred_tech", {
-      name: "Python",
-      proficiency: "guru",
-    });
-    assert.ok(!result.valid);
-    assert.ok(result.valid === false && result.error.includes("guru"));
-  });
-
-  it("rejects removed ai/communication_style entries", () => {
-    const result = validateMemory("ai/communication_style", {
-      title: "Work Mode",
-      tone: "professional",
-      verbosity: "detailed",
-    });
-    assert.ok(!result.valid);
-    assert.ok(result.valid === false && result.error.includes("Unknown"));
-  });
-
-  it("rejects unknown memory type", () => {
-    const result = validateMemory("fake/nonexistent", { name: "x" });
-    assert.ok(!result.valid);
-    assert.ok(result.valid === false && result.error.includes("Unknown"));
-  });
-
-  it("accepts entry with optional fields omitted", () => {
-    const result = validateMemory("books/favorite_books", { title: "Dune" });
-    assert.ok(result.valid);
-  });
-});
-
 describe("chat deletion command", () => {
   it("skips chat title resolution when --yes is provided", async () => {
     const chatId = "11111111-2222-4333-8444-555555555555";
@@ -5002,6 +4869,51 @@ describe("learning-mode command surface", () => {
     assert.match(output, /openmates learning-mode status/);
     assert.match(output, /openmates learning-mode enable --age-group <group>/);
     assert.match(output, /openmates learning-mode disable/);
+    assert.match(output, /--no-collaborative-build/);
+    assert.match(output, /openmates learning-mode collaborative <on\|off>/);
+  });
+
+  it("prints collaborative build in the text status", async () => {
+    await withLearningModeMockApi(async ({ apiUrl, tempHome }) => {
+      const output = await runCliAsync(
+        ["learning-mode", "status", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      assert.match(output, /Collaborative build: on/);
+    });
+  });
+
+  it("forwards the collaborative build choice and toggles it", async () => {
+    await withLearningModeMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const env = { HOME: tempHome, USERPROFILE: tempHome };
+      await runCliAsync(
+        ["learning-mode", "enable", "--age-group", "16_18", "--passcode", "teach-1234", "--no-collaborative-build", "--json", "--api-url", apiUrl],
+        env,
+      );
+      await runCliAsync(
+        ["learning-mode", "collaborative", "on", "--passcode", "teach-1234", "--json", "--api-url", apiUrl],
+        env,
+      );
+      await runCliAsync(["learning-mode", "collaborative", "off", "--json", "--api-url", apiUrl], env);
+
+      assert.deepEqual(requests, [
+        {
+          method: "POST",
+          url: "/v1/learning-mode/activate",
+          body: { age_group: "16_18", passcode: "teach-1234", collaborative_build: false },
+        },
+        {
+          method: "POST",
+          url: "/v1/learning-mode/collaborative",
+          body: { enabled: true, passcode: "teach-1234" },
+        },
+        {
+          method: "POST",
+          url: "/v1/learning-mode/collaborative",
+          body: { enabled: false },
+        },
+      ]);
+    });
   });
 
   it("prints authenticated status as JSON", async () => {

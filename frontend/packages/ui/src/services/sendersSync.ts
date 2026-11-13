@@ -20,6 +20,10 @@ import { resolveDraftChatContext, isDraftChatContextCurrent } from "./drafts/dra
 import { beginOfflineSyncBatch, cancelOfflineSyncBatch, captureOfflineSyncContext,
 	isOfflineSyncContextCurrent, isOfflineSyncWorkspaceCurrent } from "./offlineSyncBatch";
 import { orderOfflineChanges } from "./offlineChangeOrder";
+import { isDeferredDeleteReplayable } from "./deferredDeleteReplay";
+
+/** Opt-in shared Rust core build: replay order is decided in the Worker `sendPrep` unit. */
+const RUST_SEND_PREP_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 import { isDeferredDraftDeleteFencedNow, mayReplayDeferredDraftDelete,
 	parseDeferredDraftDeleteId } from "./deferredDraftDeleteIntent";
 import { draftEditorUIState } from "./drafts/draftState";
@@ -88,6 +92,7 @@ export async function sendAppSettingsMemoriesConfirmedImpl(
 		app_id: string;
 		item_key: string;
 		content: unknown; // Decrypted content (will be JSON stringified by server)
+		references_unavailable?: boolean;
 	}>
 ): Promise<void> {
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
@@ -113,7 +118,8 @@ export async function sendAppSettingsMemoriesConfirmedImpl(
 		app_settings_memories: appSettingsMemories.map((item) => ({
 			app_id: item.app_id,
 			item_key: item.item_key,
-			content: item.content // Decrypted content - server will encrypt with vault key
+			content: item.content, // Decrypted content - server will encrypt with vault key
+			...(item.references_unavailable ? { references_unavailable: true } : {})
 		}))
 	};
 
@@ -347,7 +353,8 @@ export async function queueOfflineChangeImpl(
 ): Promise<void> {
 	const queueContext = captureOfflineSyncContext();
 	if (change.type === "draft" || change.type === "delete_draft") {
-		const context = await resolveDraftChatContext(change.chat_id);
+		const context = await resolveDraftChatContext(change.chat_id,
+			{ allowMissingPersonalRow: change.type === "delete_draft" });
 		if ((change.team_id ?? null) !== context.teamId || !isDraftChatContextCurrent(context)) return;
 		if (context.teamId && !context.committed) return;
 	}
@@ -375,7 +382,8 @@ export async function sendOfflineChangesImpl(): Promise<void> {
 	const eligible: OfflineChange[] = [];
 	for (const change of changes) {
 		try {
-			const context = await resolveDraftChatContext(change.chat_id);
+			const context = await resolveDraftChatContext(change.chat_id,
+				{ allowMissingPersonalRow: change.type === "delete_draft" });
 			if (!isOfflineSyncContextCurrent(sendContext)) return;
 			if (!isDraftChatContextCurrent(context)) continue;
 			if ((change.team_id ?? null) !== context.teamId) continue;
@@ -383,11 +391,20 @@ export async function sendOfflineChangesImpl(): Promise<void> {
 			if (parseDeferredDraftDeleteId(change.change_id)) {
 				if (!(await mayReplayDeferredDraftDelete(change.change_id, change.chat_id))) continue;
 				const editor = get(draftEditorUIState);
-				if (editor.currentChatId === change.chat_id && editor.hasUnsavedChanges) continue;
+				const editorOnChat = editor.currentChatId === change.chat_id;
+				// Flag-off: an editor-blocked delete never reads the local row (unchanged behaviour).
+				if (!RUST_SEND_PREP_BUILD && editorOnChat && editor.hasUnsavedChanges) continue;
 				const local = await chatDB.getRawChat(change.chat_id);
 				// A newer local draft must be accepted before its older delete can be retired.
-				if (!local || local.encrypted_draft_md || local.encrypted_draft_preview ||
-					(local.draft_v ?? 0) !== 0) continue;
+				const facts = {
+					editorOnChat,
+					editorUnsaved: !!editor.hasUnsavedChanges, localExists: !!local,
+					hasDraft: !!local?.encrypted_draft_md, hasPreview: !!local?.encrypted_draft_preview,
+					draftVersion: local?.draft_v ?? null,
+				};
+				if (!(RUST_SEND_PREP_BUILD
+					? await (await import("./rustCore/send/rustDeferredDelete")).rustIsDeferredDeleteReplayable(facts)
+					: isDeferredDeleteReplayable(facts))) continue;
 			}
 			eligible.push(change);
 		} catch { /* Keep stale-context changes queued until their workspace is active. */ }
@@ -412,7 +429,9 @@ export async function sendOfflineChangesImpl(): Promise<void> {
 		return !isDeferredDraftDeleteFencedNow(change.change_id, change.chat_id) &&
 			!(editor.currentChatId === change.chat_id && editor.hasUnsavedChanges);
 	});
-	const { ready, retainedCount } = orderOfflineChanges(current);
+	const { ready, retainedCount } = RUST_SEND_PREP_BUILD
+		? await (await import("./rustCore/send/rustOutbox")).rustOrderOfflineChanges(current)
+		: orderOfflineChanges(current);
 	if (retainedCount > 0) console.warn(
 		`[ChatSyncService:Senders] Retaining ${retainedCount} offline changes with ambiguous edit order.`
 	);
@@ -514,7 +533,7 @@ export async function sendPostProcessingMetadataImpl(
 	encrypted_chat_summary: string,
 	encrypted_chat_tags: string,
 	encrypted_top_recommended_apps: string = "",
-	encrypted_quick_tip_slugs: string = "",
+	encrypted_recommendations: string = "",
 	encrypted_updated_title: string = "",
 	encrypted_share_cta_text: string = "",
 	encrypted_chat_key: string = ""
@@ -534,7 +553,7 @@ export async function sendPostProcessingMetadataImpl(
 			encrypted_chat_summary?: string;
 			encrypted_chat_tags?: string;
 			encrypted_top_recommended_apps_for_chat?: string;
-			encrypted_quick_tip_slugs?: string;
+			encrypted_recommendations?: string; // chat-key encrypted ChatRecommendationsState
 			encrypted_title?: string; // OPE-265: Updated title from post-processing
 			encrypted_share_cta_text?: string;
 			encrypted_chat_key?: string; // OPE-314: Include for server-side key validation
@@ -565,8 +584,8 @@ export async function sendPostProcessingMetadataImpl(
 				encrypted_top_recommended_apps;
 		}
 
-		if (encrypted_quick_tip_slugs) {
-			payload.encrypted_quick_tip_slugs = encrypted_quick_tip_slugs;
+		if (encrypted_recommendations) {
+			payload.encrypted_recommendations = encrypted_recommendations;
 		}
 
 		// OPE-265: Include updated title from post-processing if the conversation drifted
@@ -597,6 +616,27 @@ export async function sendPostProcessingMetadataImpl(
 		);
 		throw error; // Don't swallow errors
 	}
+}
+
+/**
+ * Persist only the chat's encrypted Recommendations state (dismiss or save in the
+ * Recommendations card). The server accepts chat_id + encrypted_recommendations alone.
+ * Plan: docs/plans/chat-recommendations/plan.yml (wire_contract.client_storage)
+ */
+export async function sendChatRecommendationsStateImpl(
+	serviceInstance: ChatSynchronizationService,
+	chat_id: string,
+	encrypted_recommendations: string,
+	encrypted_chat_key: string
+): Promise<void> {
+	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+		throw new Error("recommendations_sync_offline");
+	}
+	await webSocketService.sendMessage("update_post_processing_metadata", {
+		chat_id,
+		encrypted_recommendations,
+		...(encrypted_chat_key ? { encrypted_chat_key } : {})
+	});
 }
 
 /**

@@ -593,9 +593,9 @@ async def test_selected_card_correction_survives_recovery_without_executing_fabr
         assert len(system) == 1 and system[0].count("Selected result schema:\n") == 1
         schema = json.JSONDecoder().raw_decode(system[0].split("Selected result schema:\n", 1)[1])[0]
         assert [variant["properties"]["kind"]["const"]
-                for variant in schema["properties"]["items"]["items"]["oneOf"]] == ["events.event"]
+                for variant in schema["properties"]["items"]["items"]["oneOf"][:-1]] == ["events.event"]
         assert "tv.movie" not in system[0]
-        assert "create an updated card using this same selected openmates_embeds envelope" in system[0]
+        assert "Never create a second card for an item that already has a card in this chat" in system[0]
         assert "never copy internal app_id/skill_id envelopes" in system[0]
         assert "does not edit or replace the stored original" in system[0]
         assert "preserve photographer credit, source URLs and licence URLs" in system[0]

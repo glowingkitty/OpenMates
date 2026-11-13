@@ -15,20 +15,27 @@ import { authStore } from "../../stores/authStore"; // Import auth store to chec
 import { userProfile } from "../../stores/userProfile";
 import { activeTeamContext, isActiveTeamContext } from "../../stores/teamStore";
 import { isDraftOnlyChatSurface } from "../../utils/chatDraftState";
+import { isDraftChatClaimedForSend } from "./draftSendClaims";
 import { isPublicChat } from "../../demo_chats/convertToChat"; // Import to detect demo/legal chats
 import {
   saveSessionStorageDraft,
   deleteSessionStorageDraft,
 } from "./sessionStorageDraftService"; // Import sessionStorage draft service
-import { modelsMetadata } from "../../data/modelsMetadata"; // For model name lookup
-import { matesMetadata } from "../../data/matesMetadata"; // For mate name lookup
-import { appSkillsStore } from "../../stores/appSkillsStore"; // For skill/focus/memory name lookup
+import { modelsMetadata } from "../../data/modelsMetadata";
+import { convertMentionSyntaxToDisplayName } from "../../utils/mentionDisplay";
 import { draftEmbedLabel, formatDraftPreview } from "../../utils/draftPreview";
 
 // Slightly longer than draftCore's context-switch guard so explicit empty flushes
 // from the dismiss button can become authoritative after chat restoration settles.
 const DEFERRED_EMPTY_DRAFT_FLUSH_DELAY_MS = 550;
 const DEFERRED_EMPTY_DRAFT_FLUSH_ATTEMPTS = 2;
+
+// Rust-core builds: load the draft route with this module, while the app is online.
+// Loading it on the first save would fail for a draft first edited offline. A failed
+// warm-up is not handled here: the save imports the route again and reports the error.
+if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+  void import("../rustCore/drafts/rustDraftRoute").catch(() => undefined);
+}
 
 let deferredEmptyDraftFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -78,110 +85,6 @@ function shouldHoldEmptyRecordingDraftSave(editor: Editor, chatId: string | unde
   } catch {
     return false;
   }
-}
-
-/**
- * Convert a name to hyphenated format for mention display.
- * e.g., "Claude 4.5 Opus" -> "Claude-4.5-Opus"
- */
-function toHyphenatedName(name: string): string {
-  return name.replace(/\s+/g, "-");
-}
-
-/**
- * Capitalize first letter of each word for display.
- * e.g., "get-docs" -> "Get-Docs"
- */
-function capitalizeWords(str: string): string {
-  return str
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join("-");
-}
-
-/**
- * Convert backend mention syntax to human-readable display names.
- * This ensures draft previews show "@Claude-4.5-Opus" instead of "@ai-model:claude-4-sonnet"
- *
- * Supported mention formats:
- * - @ai-model:{model_id} -> @Model-Name (e.g., @Claude-4.5-Opus)
- * - @mate:{mate_id} -> @MateName (e.g., @Sophia)
- * - @skill:{app_id}:{skill_id} -> @App-Skill-Name (e.g., @Code-Get-Docs)
- * - @focus:{app_id}:{focus_id} -> @App-Focus-Name (e.g., @Web-Research)
- * - @memory:{app_id}:{memory_id}:{type} -> @App-Memory-Name (e.g., @Code-Projects)
- */
-function convertMentionSyntaxToDisplayName(text: string): string {
-  // Replace @ai-model:{id} with @Model-Name
-  text = text.replace(/@ai-model:([^\s]+)/g, (match, modelId) => {
-    const model = modelsMetadata.find((m) => m.id === modelId);
-    if (model) {
-      return `@${toHyphenatedName(model.name)}`;
-    }
-    return match; // Keep original if model not found
-  });
-
-  // Replace @mate:{id} with @MateName
-  text = text.replace(/@mate:([^\s]+)/g, (match, mateId) => {
-    const mate = matesMetadata.find((m) => m.id === mateId);
-    if (mate) {
-      // Use first search name (the actual name like "Sophia")
-      const displayName = capitalizeWords(mate.search_names[0] || mate.id);
-      return `@${displayName}`;
-    }
-    return match; // Keep original if mate not found
-  });
-
-  // Replace @skill:{app_id}:{skill_id} with @App-Skill-Name
-  text = text.replace(/@skill:([^:]+):([^\s]+)/g, (match, appId, skillId) => {
-    const apps = appSkillsStore.apps;
-    const app = apps[appId];
-    if (app) {
-      const skill = app.skills.find((s) => s.id === skillId);
-      if (skill) {
-        const appDisplayName = capitalizeWords(appId);
-        const skillDisplayName = capitalizeWords(skillId.replace(/_/g, "-"));
-        return `@${appDisplayName}-${skillDisplayName}`;
-      }
-    }
-    return match; // Keep original if not found
-  });
-
-  // Replace @focus:{app_id}:{focus_id} with @App-Focus-Name
-  text = text.replace(/@focus:([^:]+):([^\s]+)/g, (match, appId, focusId) => {
-    const apps = appSkillsStore.apps;
-    const app = apps[appId];
-    if (app) {
-      const focusMode = app.focus_modes.find((f) => f.id === focusId);
-      if (focusMode) {
-        const appDisplayName = capitalizeWords(appId);
-        const focusDisplayName = capitalizeWords(focusId.replace(/_/g, "-"));
-        return `@${appDisplayName}-${focusDisplayName}`;
-      }
-    }
-    return match; // Keep original if not found
-  });
-
-  // Replace @memory:{app_id}:{memory_id}:{type} with @App-Memory-Name
-  text = text.replace(
-    /@memory:([^:]+):([^:]+):([^\s]+)/g,
-    (match, appId, memoryId) => {
-      const apps = appSkillsStore.apps;
-      const app = apps[appId];
-      if (app) {
-        const memory = app.settings_and_memories.find((m) => m.id === memoryId);
-        if (memory) {
-          const appDisplayName = capitalizeWords(appId);
-          const memoryDisplayName = capitalizeWords(
-            memoryId.replace(/_/g, "-"),
-          );
-          return `@${appDisplayName}-${memoryDisplayName}`;
-        }
-      }
-      return match; // Keep original if not found
-    },
-  );
-
-  return text;
 }
 
 /**
@@ -557,7 +460,9 @@ export async function clearCurrentDraft(expected?: {
     // Those reads can finish after a new draft was entered or persisted.
     // Never delete its chat based on the earlier empty-draft snapshot.
     if (!stillOwnsInitialDocument()) return;
-    if (chat && (chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)) {
+    // A send that claimed this chat stores its first message here next.
+    if (chat && (chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)
+      && !isDraftChatClaimedForSend(currentChatId)) {
       console.info(
         `[DraftService] Chat ${currentChatId} has no messages after draft deletion. Attempting to delete chat.`,
       );
@@ -663,6 +568,11 @@ const queuedEditLocalSaveWaiters = new Set<{
   resolve: (saved: boolean) => void;
 }>();
 
+/** Chats whose voice-call start must persist an app-inserted-only draft: the
+ * call binds to that Project draft chat. Counted so overlapping flushes nest.
+ * shell-only: bugfix-in-frozen-code drafts */
+const autoInsertedDraftPersistRequests = new Map<string, number>();
+
 function notifyQueuedEditDraftSavedLocally(editor: Editor, chatId: string | null): void {
   for (const waiter of queuedEditLocalSaveWaiters) {
     if (waiter.editor === editor && waiter.chatId === chatId) waiter.resolve(true);
@@ -710,7 +620,8 @@ async function discardStaleDraftWrite(chatId: string): Promise<void> {
     const chat = await chatDB.getRawChat(chatId);
     if (!chat) return;
     const messages = await chatDB.getMessagesForChat(chatId);
-    if ((chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)) {
+    if ((chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)
+      && !isDraftChatClaimedForSend(chatId)) {
       const result = await chatDB.deleteDraftOnlyChat(chatId);
       if (result.deleted) return;
     }
@@ -1130,6 +1041,15 @@ export const saveDraftDebounced = debounce(
           return;
         }
 
+        // The composer was emptied by a send of this chat's message; that send
+        // owns the draft cleanup once its message is stored.
+        if (isDraftChatClaimedForSend(currentChatIdForOperation)) {
+          console.debug(
+            "[DraftService] Editor empty because a send claimed this chat; skipping draft deletion.",
+          );
+          return;
+        }
+
         console.info(
           "[DraftService] Editor content is empty. Triggering draft deletion process.",
         );
@@ -1159,6 +1079,22 @@ export const saveDraftDebounced = debounce(
 
     if (contentState.hasPendingEmbed && !contentMarkdown.trim()) return;
 
+    // An untouched composer holding only an app-inserted mention (Project
+    // navigation prefill) is not user input: persisting it left draft-only
+    // chats behind whenever the user navigated away. Keep the chip in the
+    // editor and save nothing until the user adds content, unless a voice call
+    // starts from this composer (it binds to the Project draft chat). A draft
+    // the user already saved here keeps the normal update path.
+    // shell-only: bugfix-in-frozen-code drafts
+    if (
+      contentState.onlyAutoInserted &&
+      !currentState.currentUserDraftVersion &&
+      !currentState.lastSavedContentMarkdown &&
+      !(currentChatIdForOperation && autoInsertedDraftPersistRequests.has(currentChatIdForOperation))
+    ) {
+      return;
+    }
+
     // CRITICAL: Check if we're saving a non-empty draft to a demo/legal/example chat.
     // If so, generate a new UUID so the saved draft becomes a regular private chat.
     if (currentChatIdForOperation && isPublicChat(currentChatIdForOperation)) {
@@ -1183,6 +1119,108 @@ export const saveDraftDebounced = debounce(
       hasUnsavedChanges: true,
       isSaveInProgress: true,
     }));
+
+    // Rust-core build: an existing saved Personal chat is saved by shared Rust in
+    // the core Worker (encryption, version, chats_db row and durable sync intent);
+    // this branch only keeps the editor state and sends Rust's ciphertext on the
+    // existing socket. Every other shape is routed to the TS writer below with a
+    // marked reason (rustDraftRoute.ts).
+    if (
+      import.meta.env.VITE_OPENMATES_RUST_CORE === "1" &&
+      currentChatIdForOperation &&
+      !draftTeamContext.teamId &&
+      previewText
+    ) {
+      if (
+        currentState.currentChatId === currentChatIdForOperation &&
+        currentState.lastSavedContentMarkdown &&
+        contentMarkdown === currentState.lastSavedContentMarkdown
+      ) {
+        draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: false, isSaveInProgress: false }));
+        notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
+        return;
+      }
+      const rustChatId = currentChatIdForOperation;
+      const rustSave = { editor, chatId: rustChatId, suppressResaveForQueuedEdit: false };
+      activeDraftSaves.add(rustSave);
+      let routedToRust = false;
+      try {
+        const { saveDraftWithRustCore } = await import("../rustCore/drafts/rustDraftRoute");
+        const outcome = await saveDraftWithRustCore({
+          chatId: rustChatId,
+          markdown: contentMarkdown,
+          preview: previewText,
+          workspaceEpoch: draftTeamContext.epoch,
+          send: (payload) =>
+            chatSyncService.sendUpdateDraft(
+              payload.chat_id,
+              payload.encrypted_draft_md,
+              payload.encrypted_draft_preview,
+              payload.draft_v,
+            ),
+        });
+        if (outcome.kind !== "legacy") {
+          routedToRust = true;
+          if (outcome.kind === "failed") {
+            draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
+            return;
+          }
+          if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
+            await discardStaleDraftWrite(rustChatId);
+            return;
+          }
+          draftEditorUIState.update((s) => ({
+            ...s,
+            currentUserDraftVersion: outcome.version,
+            hasUnsavedChanges: false,
+            lastSavedContentMarkdown: contentMarkdown,
+            isSaveInProgress: false,
+          }));
+          notifyQueuedEditDraftSavedLocally(editor, rustChatId);
+          chatMetadataCache.invalidateDraftProjection(rustChatId);
+          window.dispatchEvent(
+            new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: rustChatId } }),
+          );
+          try {
+            await outcome.synced;
+          } catch (wsError) {
+            if (!isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) return;
+            console.error(
+              `[DraftService] Error sending Rust draft update for chat ${rustChatId}; its durable intent replays offline:`,
+              wsError,
+            );
+            scheduleOfflineDraftFlush();
+            draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
+          }
+          return;
+        }
+      } finally {
+        activeDraftSaves.delete(rustSave);
+        if (routedToRust) {
+          // Same lock release and follow-up save as the TS writer's finally block
+          // (kept inside this build-time branch so the flag-off bundle is unchanged).
+          draftEditorUIState.update((s) => ({ ...s, isSaveInProgress: false }));
+          if (resaveNeeded) {
+            resaveNeeded = false;
+            if (!rustSave.suppressResaveForQueuedEdit) {
+              const pendingResave = {
+                timer: null as unknown as ReturnType<typeof setTimeout>,
+                editor: editorOverride ?? getEditorInstance(),
+                chatId: chatIdFromMessageInput,
+              };
+              pendingResave.timer = setTimeout(() => {
+                pendingResaves.delete(pendingResave);
+                const followUpEditor = editorOverride ?? getEditorInstance();
+                if (followUpEditor && !followUpEditor.isDestroyed) {
+                  saveDraftDebounced(chatIdFromMessageInput, followUpEditor);
+                }
+              }, 100);
+              pendingResaves.add(pendingResave);
+            }
+          }
+        }
+      }
+    }
 
     // CRITICAL FIX: await encryptWithMasterKey since it's async to prevent TypeError when calling substring
     const encryptedMarkdown = await encryptWithMasterKey(contentMarkdown);
@@ -1693,7 +1731,7 @@ export function flushSaveDraft(
 export async function flushSaveDraftAndWaitForIdle(
   editor: Editor,
   chatId: string,
-  options: { suppressQueuedEditResaves?: boolean } = {},
+  options: { suppressQueuedEditResaves?: boolean; persistAutoInserted?: boolean } = {},
 ): Promise<boolean> {
   const authAtStart = get(authStore).isAuthenticated;
   const accountAtStart = get(userProfile).user_id;
@@ -1757,6 +1795,9 @@ export async function flushSaveDraftAndWaitForIdle(
   const locallySaved = new Promise<boolean>((resolve) => { settleLocalSave = resolve; });
   const waiter = { editor, chatId, resolve: settleLocalSave };
   queuedEditLocalSaveWaiters.add(waiter);
+  if (options.persistAutoInserted) {
+    autoInsertedDraftPersistRequests.set(chatId, (autoInsertedDraftPersistRequests.get(chatId) ?? 0) + 1);
+  }
   try {
     const transport = flushSaveDraft(editor, chatId);
     void Promise.resolve(transport).then(
@@ -1768,5 +1809,10 @@ export async function flushSaveDraftAndWaitForIdle(
     return true;
   } finally {
     queuedEditLocalSaveWaiters.delete(waiter);
+    if (options.persistAutoInserted) {
+      const remaining = (autoInsertedDraftPersistRequests.get(chatId) ?? 1) - 1;
+      if (remaining > 0) autoInsertedDraftPersistRequests.set(chatId, remaining);
+      else autoInsertedDraftPersistRequests.delete(chatId);
+    }
   }
 }

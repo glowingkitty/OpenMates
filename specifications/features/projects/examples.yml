@@ -672,6 +672,17 @@ project_uploads:
     owner_wrapper: true
     project_wrapper: true
     link_after_wrappers: true
+project_document_creation:
+- id: new-deck-in-a-subfolder
+  assertion_ids: [projects.items.create-documents]
+  given: Alice is in the folder "Pitch / Investors" of her Project "Bike rental", which has a pinned template "Studio Blue".
+  when: She opens the Create menu and chooses "New slides".
+  then: An empty deck in the "Studio Blue" template appears in "Pitch / Investors" and opens in the slides editor; no chat was created, and she can later mention the deck in a chat and ask the assistant to fill it.
+- id: new-document-and-sheet-read-only-member
+  assertion_ids: [projects.items.create-documents]
+  given: Bob may edit the Team Project "Launch", and Carol may only read it.
+  when: Bob creates "New document" and "New sheet" in the Project root, and Carol opens the same Project.
+  then: Both items appear in the root for Bob and Carol and open in their editors for Bob; Carol's Create menu does not offer new documents, sheets or slides.
 project_surface_parity:
 - id: same-linked-object
   input:
@@ -746,3 +757,103 @@ project_memories:
   given: The user saved a private personal memory about Acme outside Project files.
   when: The user works on Acme.
   then: Project access does not approve that personal memory; its existing request or explicit mention is required.
+- id: project-memory-same-fields
+  given: Acme's Memories tab is open.
+  when: The user creates a memory with a title, text, when-to-use, an expiry date and Only when mentioned.
+  then: It is stored under .openmates/memories with those fields and stays hidden from model stages until mentioned.
+- id: assistant-saves-project-memory
+  given: Acme's Work on focus is active in a chat and the user agrees to save Acme's press style.
+  when: The assistant saves it to the Project.
+  then: A new Memory file appears in Acme's Memories tab, no personal Memory is created, and the reply says it was saved only after the file operation succeeded.
+- id: assistant-project-memory-without-focus
+  given: No Project Focus is active in the chat.
+  when: The assistant tries to save a Memory to a Project.
+  then: The save is refused, nothing is stored, and the assistant offers a personal Memory instead.
+project_assistant_creation:
+- id: recipe-web-app-creates-project
+  assertion_ids:
+  - projects.creation.assistant-inferred
+  given: Alice is in a new chat with no Project and asks "build me a simple recipe web app".
+  when: The message is processed.
+  then: A Project named Recipe Manager exists, the chat shows a "Created project Recipe Manager" card with Undo, Work on
+    Recipe Manager is active in the chat, and the assistant starts writing the app's files without asking for permission.
+    The reply begins with the active Work on Recipe Manager focus card, and after a reload the card and the active focus are
+    still shown.
+- id: single-script-creates-no-project
+  assertion_ids:
+  - projects.creation.assistant-inferred
+  given: Alice is in a new chat with no Project.
+  when: She asks "write me a Python script that renames my photos by date".
+  then: The assistant answers with one code embed in the chat. No Project is created and no Project focus starts.
+project_application_files:
+- id: member-edits-file-directly
+  assertion_ids:
+  - projects.files.user-edit-direct
+  - projects.files.adopt-embed
+  given: Ben has write access to the Project "Kitchen renovation", whose file plan.md was adopted from a chat. No chat is open.
+  when: Ben edits plan.md in the Project view and saves.
+  then: The edit is the next version of the same file, and the timeline shows that Ben made it. Server and legacy writers
+    are still refused for the adopted file, but this edit by Ben is allowed.
+- id: chat-diff-shows-in-project
+  assertion_ids:
+  - projects.files.application-single-source
+  given: Recipe Manager contains web-app/src/App.svelte, created as part of the recipe app in Alice's chat.
+  when: Alice asks in the chat "make the header green" and then opens web-app/src/App.svelte in the Project view.
+  then: The Project file shows the green header as its newest version, with the earlier version in the same version timeline.
+    The web-app folder lists package.json and src/ below an application card with a Start button.
+- id: project-edit-shows-in-chat
+  assertion_ids:
+  - projects.files.application-single-source
+  given: The same file is open in the Project view.
+  when: Alice changes the page title by hand, saves, and returns to the chat's application embed.
+  then: The application's file list opens the same file with Alice's change as the newest version, and the assistant's
+    next diff applies on top of it.
+project_commits:
+- id: commit-after-green-tests
+  assertion_ids:
+  - projects.history.native-commits
+  given: The assistant added recipe search to Recipe Manager and the test for it passed.
+  when: The assistant finishes the change.
+  then: The Project timeline shows a commit "Add recipe search" by the assistant listing the three changed files, above
+    the individual file changes. No commit appears for an attempt whose test failed.
+- id: restore-commit
+  assertion_ids:
+  - projects.history.native-commits
+  given: Recipe Manager has commits "Add recipe list" and, later, "Add recipe search".
+  when: Alice opens "Add recipe list" in the timeline and chooses Restore.
+  then: Every file returns to its content from that commit as a new version, and "Add recipe search" stays in the timeline
+    and can be restored again.
+project_machine_creation:
+- id: new-project-on-own-machine
+  assertion_ids:
+  - projects.creation.machine-folder
+  given: Alice's laptop is connected through remote access and she set ~/projects as its folder for new Projects.
+  when: She asks for a new Project "Recipe Manager" on her laptop and confirms the request shown in the chat.
+  then: The laptop creates ~/projects/recipe-manager as a Git repository on main with a first commit, and the folder
+    appears as a connected source of the new Project. Before she confirmed, nothing existed on the laptop.
+- id: existing-folder-is-never-overwritten
+  assertion_ids:
+  - projects.creation.machine-folder
+  given: ~/projects/recipe-manager already exists on Alice's laptop.
+  when: She confirms creating a Project "Recipe Manager" on her laptop.
+  then: The laptop refuses with target_exists, the existing folder is unchanged, and Alice can retry with another name
+    or remove the pending request.
+project_chat_worktrees:
+- id: two-chats-one-repository
+  assertion_ids:
+  - projects.sources.chat-worktrees
+  given: Alice's OpenMates repository is connected and checked out on dev. Two chats work on it, one adding dark mode and
+    one fixing a typo.
+  when: Both assistants edit files and run tests.
+  then: Each chat works in its own worktree, started from dev with a detached HEAD, and no branch is created for either
+    chat. Alice's dev checkout and her running dev server are unchanged until a chat's commits land, and neither chat sees
+    the other's edits.
+- id: land-automatically-push-asks
+  assertion_ids:
+  - projects.sources.chat-worktrees
+  given: The dark-mode chat's tests passed and the assistant committed in its worktree. A sub-chat it started edited
+    files in the same worktree.
+  when: The assistant is ready to deliver the change.
+  then: The commits are rebased onto dev and land there automatically on Alice's machine after the tests pass again, and
+    the worktree and its hidden ref are removed. Before any push it asks "Push dev to origin?" and declining leaves the
+    commits local on dev.

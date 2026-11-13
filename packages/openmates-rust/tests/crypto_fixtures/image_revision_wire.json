@@ -1,0 +1,117 @@
+{
+ "_doc": "Wire payloads of docs/plans/image-edit-as-embed-version/wire-contract.md; TOON produced by the backend toon_format encoder.",
+ "ids": {
+  "image": "5b2c0f3e-1111-5222-8333-444455556666",
+  "parent_1": "0f6e1c2a-aaaa-4bbb-8ccc-000000000001",
+  "parent_2": "0f6e1c2a-aaaa-4bbb-8ccc-000000000002",
+  "parent_3": "0f6e1c2a-aaaa-4bbb-8ccc-000000000003",
+  "chat": "9d3e2b1a-0000-4000-8000-00000000c4a7",
+  "user": "user-0001",
+  "messages": [
+   "msg-0001-assistant",
+   "msg-0002-assistant",
+   "msg-0003-assistant",
+   "msg-0004-assistant"
+  ]
+ },
+ "content": {
+  "v1": "type: generated_image\nembed_ref: sunset-a1b\nprompt: a sunset\nfiles:\n  preview:\n    s3_key: u/5b2c0f3e-1111-5222-8333-444455556666/v1/preview.webp\n    width: 600\n    height: 400\naes_key: aes-key-v1\ns3_base_url: \"https://s3.example\"",
+  "v2": "type: generated_image\nembed_ref: sunset-a1b\nprompt: warmer sunset\nfiles:\n  preview:\n    s3_key: u/5b2c0f3e-1111-5222-8333-444455556666/v2/preview.webp\n    width: 600\n    height: 400\naes_key: aes-key-v2\ns3_base_url: \"https://s3.example\"\nrevised_from:\n  embed_id: 5b2c0f3e-1111-5222-8333-444455556666\n  version: 1",
+  "v3": "type: generated_image\nembed_ref: sunset-a1b\nprompt: add a boat\nfiles:\n  preview:\n    s3_key: u/5b2c0f3e-1111-5222-8333-444455556666/v3/preview.webp\n    width: 600\n    height: 400\naes_key: aes-key-v3\ns3_base_url: \"https://s3.example\"\nrevised_from:\n  embed_id: 5b2c0f3e-1111-5222-8333-444455556666\n  version: 2"
+ },
+ "v1_event": {
+  "embed_id": "5b2c0f3e-1111-5222-8333-444455556666",
+  "type": "generated_image",
+  "status": "finished",
+  "parent_embed_id": "0f6e1c2a-aaaa-4bbb-8ccc-000000000001",
+  "chat_id": "9d3e2b1a-0000-4000-8000-00000000c4a7",
+  "message_id": "msg-0001-assistant",
+  "user_id": "user-0001",
+  "encryption_mode": "client",
+  "content": "type: generated_image\nembed_ref: sunset-a1b\nprompt: a sunset\nfiles:\n  preview:\n    s3_key: u/5b2c0f3e-1111-5222-8333-444455556666/v1/preview.webp\n    width: 600\n    height: 400\naes_key: aes-key-v1\ns3_base_url: \"https://s3.example\"",
+  "app_id": "images",
+  "skill_id": "generated_image",
+  "created_at": 1790000100,
+  "updated_at": 1790000100
+ },
+ "v2_event": {
+  "embed_id": "5b2c0f3e-1111-5222-8333-444455556666",
+  "type": "generated_image",
+  "status": "finished",
+  "parent_embed_id": "0f6e1c2a-aaaa-4bbb-8ccc-000000000001",
+  "chat_id": "9d3e2b1a-0000-4000-8000-00000000c4a7",
+  "message_id": "msg-0002-assistant",
+  "user_id": "user-0001",
+  "version_number": 2,
+  "encryption_mode": "client",
+  "content": "type: generated_image\nembed_ref: sunset-a1b\nprompt: warmer sunset\nfiles:\n  preview:\n    s3_key: u/5b2c0f3e-1111-5222-8333-444455556666/v2/preview.webp\n    width: 600\n    height: 400\naes_key: aes-key-v2\ns3_base_url: \"https://s3.example\"\nrevised_from:\n  embed_id: 5b2c0f3e-1111-5222-8333-444455556666\n  version: 1",
+  "app_id": "images",
+  "skill_id": "generated_image",
+  "created_at": 1790000102,
+  "updated_at": 1790000102,
+  "version_history_rows": [
+   {
+    "embed_id": "5b2c0f3e-1111-5222-8333-444455556666",
+    "version_number": 2,
+    "snapshot": "type: generated_image\nembed_ref: sunset-a1b\nprompt: warmer sunset\nfiles:\n  preview:\n    s3_key: u/5b2c0f3e-1111-5222-8333-444455556666/v2/preview.webp\n    width: 600\n    height: 400\naes_key: aes-key-v2\ns3_base_url: \"https://s3.example\"\nrevised_from:\n  embed_id: 5b2c0f3e-1111-5222-8333-444455556666\n  version: 1",
+    "created_at": 1790000102
+   }
+  ],
+  "revision": {
+   "base_version": 1,
+   "base_snapshot_required": true
+  }
+ },
+ "v3_event": {
+  "embed_id": "5b2c0f3e-1111-5222-8333-444455556666",
+  "type": "generated_image",
+  "status": "finished",
+  "parent_embed_id": "0f6e1c2a-aaaa-4bbb-8ccc-000000000001",
+  "chat_id": "9d3e2b1a-0000-4000-8000-00000000c4a7",
+  "message_id": "msg-0003-assistant",
+  "user_id": "user-0001",
+  "version_number": 3,
+  "encryption_mode": "client",
+  "content": "type: generated_image\nembed_ref: sunset-a1b\nprompt: add a boat\nfiles:\n  preview:\n    s3_key: u/5b2c0f3e-1111-5222-8333-444455556666/v3/preview.webp\n    width: 600\n    height: 400\naes_key: aes-key-v3\ns3_base_url: \"https://s3.example\"\nrevised_from:\n  embed_id: 5b2c0f3e-1111-5222-8333-444455556666\n  version: 2",
+  "app_id": "images",
+  "skill_id": "generated_image",
+  "created_at": 1790000103,
+  "updated_at": 1790000103,
+  "version_history_rows": [
+   {
+    "embed_id": "5b2c0f3e-1111-5222-8333-444455556666",
+    "version_number": 3,
+    "snapshot": "type: generated_image\nembed_ref: sunset-a1b\nprompt: add a boat\nfiles:\n  preview:\n    s3_key: u/5b2c0f3e-1111-5222-8333-444455556666/v3/preview.webp\n    width: 600\n    height: 400\naes_key: aes-key-v3\ns3_base_url: \"https://s3.example\"\nrevised_from:\n  embed_id: 5b2c0f3e-1111-5222-8333-444455556666\n  version: 2",
+    "created_at": 1790000103
+   }
+  ],
+  "revision": {
+   "base_version": 2,
+   "base_snapshot_required": false
+  }
+ },
+ "parents": [
+  {
+   "message_id": "msg-0001-assistant",
+   "parent_contents": [
+    "app_id: images\nskill_id: generate\nembed_ref: images-generate-p1\nstatus: finished\nresult_count: 1\nembed_ids[1]: 5b2c0f3e-1111-5222-8333-444455556666\noutput_embed_refs[1]: sunset-a1b\nfailed_results: []\ninput_embed_ids: []"
+   ]
+  },
+  {
+   "message_id": "msg-0002-assistant",
+   "parent_contents": [
+    "app_id: images\nskill_id: generate\nembed_ref: images-generate-p2\nstatus: finished\nresult_count: 1\nembed_ids: []\noutput_embed_refs: []\npinned_embeds[1]{embed_id,version,embed_ref,previous_version}:\n  5b2c0f3e-1111-5222-8333-444455556666,2,sunset-a1b,1\nfailed_results: []\ninput_embed_ids[1]: 5b2c0f3e-1111-5222-8333-444455556666"
+   ]
+  },
+  {
+   "message_id": "msg-0003-assistant",
+   "parent_contents": []
+  },
+  {
+   "message_id": "msg-0004-assistant",
+   "parent_contents": [
+    "app_id: images\nskill_id: generate\nembed_ref: images-generate-p3\nstatus: finished\nresult_count: 1\nembed_ids: []\noutput_embed_refs: []\npinned_embeds[1]{embed_id,version,embed_ref,previous_version}:\n  5b2c0f3e-1111-5222-8333-444455556666,3,sunset-a1b,2\nfailed_results: []\ninput_embed_ids[1]: 5b2c0f3e-1111-5222-8333-444455556666"
+   ]
+  }
+ ]
+}

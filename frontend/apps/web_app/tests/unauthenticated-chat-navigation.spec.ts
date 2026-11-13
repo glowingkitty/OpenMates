@@ -115,9 +115,15 @@ async function openFirstIntroOrExampleChat(page: any) {
 	await expect(newChatButton).toBeVisible({ timeout: 15000 });
 }
 
-async function expectBlankFocusedComposer(page: any) {
+// Starting a new chat never opens a typing session: the composer is present and
+// blank, but only an explicit click, tap or key press focuses it (see
+// chat-open-focus.spec.ts for the focus contract).
+async function expectBlankUnfocusedComposer(page: any) {
 	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
-	await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
+	const composer = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+	await expect(composer).toBeVisible({ timeout: 5000 });
+	await expect(composer).not.toBeFocused();
+	await expect(composer).toHaveText('');
 }
 
 async function blurComposerAndWaitForWelcome(page: any) {
@@ -210,9 +216,9 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 			localStorage.setItem('theme', 'light');
 		});
 
-		await page.goto(getE2EDebugUrl('/#chat-id=demo-who-develops-openmates'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#chat-id=example-gigantic-airplanes'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', 'demo-who-develops-openmates', {
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', 'example-gigantic-airplanes', {
 			timeout: 15000
 		});
 
@@ -222,13 +228,13 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		}
 		await expect(sidebar).toBeVisible({ timeout: 10000 });
 
-		const activeRow = page.locator('[data-testid="chat-item-wrapper"][data-chat-id="demo-who-develops-openmates"]');
+		const activeRow = page.locator('[data-testid="chat-item-wrapper"][data-chat-id="example-gigantic-airplanes"]');
 		await expect(activeRow).toBeVisible({ timeout: 10000 });
 		await expect(activeRow).toHaveClass(/active/);
 		await expect(activeRow).toHaveCSS('background-color', await resolveCssTokenColor(page, '--color-grey-0'));
 
 		const nonActiveChatId = await page.getByTestId('chat-item-wrapper').evaluateAll(
-			(elements: HTMLElement[]) => elements.find((element) => element.dataset.chatId !== 'demo-who-develops-openmates')?.dataset.chatId ?? ''
+			(elements: HTMLElement[]) => elements.find((element) => element.dataset.chatId !== 'example-gigantic-airplanes')?.dataset.chatId ?? ''
 		);
 		expect(nonActiveChatId).not.toBe('');
 		const hoveredRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${nonActiveChatId}"]`);
@@ -345,8 +351,8 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 			await expect(newChatButton).toBeVisible({ timeout: 8000 });
 			await newChatButton.click();
 			console.log(`[chat-nav] [${cycle}] Clicked New Chat button`);
-			await expectBlankFocusedComposer(page);
-			console.log(`[chat-nav] [${cycle}] Blank composer focused after New Chat click`);
+			await expectBlankUnfocusedComposer(page);
+			console.log(`[chat-nav] [${cycle}] Blank unfocused composer after New Chat click`);
 			await blurComposerAndWaitForWelcome(page);
 
 			// Wait for the welcome screen: message editor and chat cards appear.
@@ -400,7 +406,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		const finalNewChatButton = getNewChatButton(page);
 		await expect(finalNewChatButton).toBeVisible({ timeout: 8000 });
 		await finalNewChatButton.click();
-		await expectBlankFocusedComposer(page);
+		await expectBlankUnfocusedComposer(page);
 		await blurComposerAndWaitForWelcome(page);
 		await expectLandingCarouselNavigatesBothDirections(page);
 		console.log('[chat-nav] Ordinary Daily Inspiration carousel navigated from first to last card and back');
@@ -418,11 +424,11 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 
 		const settingsMenu = page.getByTestId('settings-menu');
 		await expect(settingsMenu).toBeVisible({ timeout: SETTINGS_TIMEOUT });
-		await expect(settingsMenu.getByTestId('learning-mode-toggle-wrapper')).toHaveCount(0);
+		await expect(settingsMenu.getByTestId('learning-mode-toggle-wrapper')).toBeVisible();
 		if (proof) {
 			await proof.assert('guest-navigation.settings-responsive', async () => {
 				await expect(settingsMenu).toBeVisible();
-				await expect(settingsMenu.getByTestId('learning-mode-toggle-wrapper')).toHaveCount(0);
+				await expect(settingsMenu.getByTestId('learning-mode-toggle-wrapper')).toBeVisible();
 			});
 			await proof.checkpoint('settings-menu-responsive');
 		}
@@ -443,7 +449,11 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 				l.startsWith('[error]') &&
 				!l.includes('favicon') &&
 				!l.includes('net::ERR_') &&
-				!l.includes('Failed to load resource')
+				!l.includes('Failed to load resource') &&
+				// The on-device model runtime (LiteRT/TensorFlow Lite) writes "INFO:" and
+				// "WARNING:" lines to stderr, which Chromium reports as console errors;
+				// they are native log lines, not JS errors.
+				!/^\[error\] (INFO|WARNING): /.test(l)
 		);
 		if (jsErrors.length > 0) {
 			console.warn(`[chat-nav] JS errors detected during test:\n${jsErrors.join('\n')}`);

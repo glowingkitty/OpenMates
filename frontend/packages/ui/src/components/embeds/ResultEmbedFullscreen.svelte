@@ -1,4 +1,8 @@
-<!-- Shared result-detail structure; specialized editors retain their own layout. -->
+<!--
+  Shared result-detail structure; specialized editors retain their own layout.
+
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Renderers/ImageGenerateEmbedRenderer.swift
+-->
 <script lang="ts">
   import { getContext, onDestroy, type Snippet, type ComponentProps } from "svelte";
   import { get } from "svelte/store";
@@ -30,6 +34,12 @@
     type EmbedSourceChatContext,
   } from "../../types/embedFullscreen";
 
+  /** Sends text as the same follow-up turn the composer would send for this result. */
+  interface ResultFollowupChannel {
+    requestFollowup: (value: string) => Promise<boolean>;
+    submitting: boolean;
+  }
+
   type Props = Omit<ComponentProps<typeof UnifiedEmbedFullscreen>, "content" | "fixedBottom" | "floatingBottom"> & {
     authoring?: AuthoredResultMetadata;
     /** Where sources/observed-at/credits are shown: under the summary (default) or as a bottom Sources section. */
@@ -37,8 +47,9 @@
     /** Visible, safe result metadata only; never encryption keys or transport records. */
     result: Record<string, unknown>;
     summary?: Snippet;
-    media?: Snippet;
-    detailContent?: Snippet;
+    media?: Snippet<[ResultFollowupChannel]>;
+    /** Receives the follow-up channel so detail controls can send ordinary follow-up turns. */
+    detailContent?: Snippet<[ResultFollowupChannel]>;
     identity?: Snippet;
     mediaLayout?: "standard" | "immersive";
     mapCenter?: { lat: number; lon: number };
@@ -205,7 +216,7 @@
           data-testid="result-media"
         >
           {#if media}<div class="result-media-panel">
-              {@render media()}
+              {@render media({ requestFollowup: (value) => submitFollowup(value, []), submitting })}
             </div>{/if}
           {#if hasMap}
             <div class="result-map" data-testid="result-map">
@@ -231,7 +242,7 @@
         </div>
       {/if}
       {#if identity}<div class="result-identity-content">{@render identity()}</div>{/if}
-      {#if detailContent}<div class="result-detail-content">{@render detailContent()}</div>{/if}
+      {#if detailContent}<div class="result-detail-content">{@render detailContent({ requestFollowup: (value) => submitFollowup(value, []), submitting })}</div>{/if}
       {#if authoring && authoringPlacement === "bottom"}<div class="result-sources-content" data-testid="result-sources"><AuthoredResultContextInfo {authoring} section /></div>{/if}
     </div>
   {/snippet}
@@ -359,6 +370,15 @@
   }
   .static-map { width: 100%; height: 100%; object-fit: contain; }
   .result-embed-content.immersive { width: 100%; }
+  /* Images use the whole width and all height left after header, facts and composer.
+     Videos keep their own budget so playback controls stay clear of the composer. */
+  .result-embed-content.immersive[data-app-id="images"] {
+    padding-inline: var(--spacing-4);
+    --result-image-max-height: max(1rem, calc(var(--result-fullscreen-height, 100dvh) - 18rem - max(0px, var(--result-followup-height, 4rem) - 4rem)));
+  }
+  .immersive[data-app-id="images"] .result-media-panel :global(img.result-primary-media) {
+    max-height: var(--result-image-max-height);
+  }
   .immersive .result-media-panel { height: auto; background: transparent; overflow: hidden; }
   .immersive .result-media-panel :global(.result-primary-media) {
     display: block;

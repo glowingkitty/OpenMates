@@ -73,7 +73,7 @@ delivery_idempotency:
     assertion_ids: [apple-notifications.delivery.confirmed-action-haptics]
     given: Alice is using a supported active Apple device in the current account scope with native haptics enabled.
     when: A Task or Workflow creation or update is confirmed, Team creation completes, login or signup fully unlocks the account, an API key's one-time secret becomes available, or a fresh in-app notification becomes visible.
-    then: Each confirmed operation provides native haptic confirmation; the newly visible notification emits exactly once for its notification identity. Native system settings apply, unsupported hardware does nothing, and OS notification vibration follows the operating system settings.
+    then: Each confirmed commit action (save, create, confirm, confirmed delete) gives one light tap, an admitted sent message gives the accepted cue, and a newly visible warning or error notification gives its cue exactly once for its notification identity; any haptic within three seconds of the previous one is dropped, and none play in silent mode. Native system settings apply, unsupported hardware does nothing, and OS notification vibration follows the operating system settings.
   - id: failed-stale-and-replayed-actions-stay-silent
     assertion_ids: [apple-notifications.delivery.confirmed-action-haptics]
     given: Alice has a pending Task, Workflow, Team, login, signup or API-key operation, or an in-app notification already presented once.

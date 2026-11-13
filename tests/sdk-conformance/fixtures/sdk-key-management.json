@@ -1,0 +1,96 @@
+{
+ "schemaVersion": 1,
+ "description": "Synthetic key-management primitive vectors (encode/decode, FNV-1a32 OM fingerprint, email/key hashes, OM-framed and legacy AES-GCM combined ciphertext). sdk.key-management.primitives.v1 runs them through Rust openmates_sdk::crypto, the npm keyManagement facade over the shared WASM core, and Python openmates.key_management. Keys and passwords are public synthetic values.",
+ "capabilities": {
+  "sdk.key-management.primitives.v1": {
+   "vectors": [
+    {
+     "id": "encode-key",
+     "op": "encode_key",
+     "key_hex": "fbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffeef",
+     "expect": "+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+//u8="
+    },
+    {
+     "id": "decode-standard-base64",
+     "op": "decode_key",
+     "value": "+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+/+//u8=",
+     "expect_hex": "fbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffeef"
+    },
+    {
+     "id": "decode-url-safe-unpadded",
+     "op": "decode_key",
+     "value": "-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-__u8",
+     "expect_hex": "fbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffeef"
+    },
+    {
+     "id": "decode-rejects-short-key",
+     "op": "decode_key",
+     "value": "c2hvcnQ=",
+     "expect_error": true
+    },
+    {
+     "id": "decode-rejects-non-base64",
+     "op": "decode_key",
+     "value": "not base64 at all!",
+     "expect_error": true
+    },
+    {
+     "id": "fingerprint-fnv1a32",
+     "op": "key_fingerprint",
+     "key_hex": "fbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffeef",
+     "expect_hex": "978267dc"
+    },
+    {
+     "id": "fingerprint-sequential-key",
+     "op": "key_fingerprint",
+     "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+     "expect_hex": "0913ad65"
+    },
+    {
+     "id": "hash-email",
+     "op": "hash_email",
+     "email": "synthetic.user@example.invalid",
+     "expect": "XBecQMIuxtqgHU3vYhmzlUIpyJxW/rnx1q4NeWDA+/w="
+    },
+    {
+     "id": "hash-key",
+     "op": "hash_key",
+     "password": "synthetic-passphrase",
+     "salt_b64": "AAECAwQFBgcICQoLDA0ODw==",
+     "expect": "aApWB89NGGWls6SdFL6tIQoWfmSIkgeP63tii+sUCjI="
+    },
+    {
+     "id": "decrypt-om-framed",
+     "op": "decrypt_combined",
+     "key_hex": "fbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffeef",
+     "ciphertext": "T02XgmfcZGVmZ2hpamtsbW5vAchFarP9gUxqbWLB/73FudsYfyfe0M7WR2A02aEFT8UBnVNC1jwLdxXhWCQ=",
+     "expect": "Synthetic Schlüssel 鍵 ✓"
+    },
+    {
+     "id": "decrypt-legacy-iv-prefixed",
+     "op": "decrypt_combined",
+     "key_hex": "fbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffeef",
+     "ciphertext": "BwgJCgsMDQ4PEBESdSzZWYbDsyJ7i2zZsgKZgvXEia8NA/mhLKohAaaotSOWweZimuQGqfKjtDw=",
+     "expect": "Synthetic Schlüssel 鍵 ✓"
+    },
+    {
+     "id": "decrypt-rejects-wrong-key",
+     "op": "decrypt_combined",
+     "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+     "ciphertext": "T02XgmfcZGVmZ2hpamtsbW5vAchFarP9gUxqbWLB/73FudsYfyfe0M7WR2A02aEFT8UBnVNC1jwLdxXhWCQ=",
+     "expect_error": true
+    },
+    {
+     "id": "encrypt-writes-om-header-and-roundtrips",
+     "op": "encrypt_combined",
+     "key_hex": "fbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffbffeef",
+     "plaintext": "Synthetic Schlüssel 鍵 ✓"
+    },
+    {
+     "id": "random-key-is-32-fresh-bytes",
+     "op": "random_key"
+    }
+   ]
+  }
+ }
+}

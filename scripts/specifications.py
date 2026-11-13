@@ -1079,7 +1079,11 @@ def check_changed_files(
             bundle.specification_id,
             bundle.fingerprint,
         )
-        if approval_error and not _standing_prompt_waiver(root, session_id, bundle.specification_id):
+        # Draft Specifications are maintained without approval rounds; only a
+        # Specification that is (or becomes) approved/verified needs the
+        # explicit user confirmation recorded for its exact fingerprint.
+        if (approval_error and bundle.status != "draft"
+                and not _standing_prompt_waiver(root, session_id, bundle.specification_id)):
             errors.append(approval_error)
     if verify_generated and (specifications_root / "generated").exists():
         try:
@@ -1270,7 +1274,8 @@ def verify_plan_specifications(
                 ref["id"],
                 specifications[ref["id"]]["fingerprint"],
             )
-            if error and not _standing_prompt_waiver(Path(specifications_root).resolve().parent, session_id, ref["id"]):
+            if (error and specifications[ref["id"]].get("status") != "draft"
+                    and not _standing_prompt_waiver(Path(specifications_root).resolve().parent, session_id, ref["id"])):
                 errors.append(error)
     return errors
 

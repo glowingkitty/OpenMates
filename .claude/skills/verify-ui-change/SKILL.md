@@ -65,7 +65,9 @@ integration point only.
 
 4. Inspect the source-bound result and component artifact. A queued, running,
    stale, skipped or cleanup-incomplete job is not a pass. Fix objective defects
-   and republish the candidate before continuing.
+   and republish the candidate before continuing. Open the run's screenshots
+   and send them to the user with `SendUserFile` after each run (one line each:
+   what it shows, visible defects), not only in the final reply.
    Retrieve existing recordings. Successful `wait` retrieves the artifact; use
    `ci_coordinator.py result <request-id>` for failed/cancelled runs with a run ID.
    Run the receipt's `ci_evidence_command` and select final links from its

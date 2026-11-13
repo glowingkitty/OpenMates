@@ -395,6 +395,11 @@ export function parseEmbedNodes(
               if (embedRef.focus_mode_name) {
                 embedAttrs.focus_mode_name = embedRef.focus_mode_name;
               }
+              // Assistant-created Project: the collapsed activity row names the creation.
+              if (embedRef.project_created === true && typeof embedRef.project_name === "string") {
+                embedAttrs.project_created = true;
+                embedAttrs.project_name = embedRef.project_name;
+              }
 
               // Copy PDF metadata if present (filename + page_count survive reload)
               if (embedRef.filename) {

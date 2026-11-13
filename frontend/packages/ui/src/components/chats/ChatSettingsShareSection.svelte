@@ -16,7 +16,7 @@
   import { chatDB } from '../../services/db';
   import { generateShareKeyBlob, type ShareDuration } from '../../services/shareEncryption';
   import { shareMetadataQueue } from '../../services/shareMetadataQueue';
-  import { generateShortUrlParts, encryptShareUrl, buildShortUrl } from '../../services/shortUrlEncryption';
+  import { generateShortUrlParts, encryptShareUrl, buildShortUrlDecided } from '../../services/shortUrlEncryption';
   import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
   import { encryptWithChatKey, uint8ArrayToBase64 } from '../../services/cryptoService';
   import { copyToClipboard } from '../../utils/clipboardUtils';
@@ -178,7 +178,7 @@
         return { url: longShareLink, usedLongFallback: true };
       }
 
-      return { url: buildShortUrl(token, shortKey), usedLongFallback: false };
+      return { url: await buildShortUrlDecided(token, shortKey), usedLongFallback: false };
     } catch (error) {
       console.warn('[ChatSettingsShareSection] Short link failed; using long link:', error);
       shortLinkError = 'Short link took too long. Using a long encrypted link.';

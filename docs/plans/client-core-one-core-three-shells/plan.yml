@@ -1,0 +1,378 @@
+schema_version: 2
+profile: concise
+id: client-core-one-core-three-shells
+title: One Rust Client Core, Three Thin Shells
+status: approved
+
+goal: >
+  (User decision 2026-11-09.) Re-base the Rust migration on "one client core,
+  three thin shells". packages/openmates-rust (crate openmates-sdk, its client/
+  module already runs the native TUI) becomes THE client: transport, phased sync,
+  keys/crypto, encrypted local cache, drafts, send, streaming, completion
+  recovery, search and policies. The shells only do UI, platform APIs and
+  credential storage: Svelte web through the existing shared Worker, SwiftUI
+  Apple through a UniFFI xcframework that generalises apple/PairOpaqueBridge
+  (Keychain stays Swift; the SDK emits credential snapshots like the TUI
+  session_runtime.rs), and the ratatui TUI (done). Progress is the number of
+  capabilities at rust-only per shell (old implementation deleted, existing suite
+  green), replacing the TypeScript-lines ledger.
+
+contract: specifications/architecture/client-core/specification.yml (draft; approval is requested once with the first deployed implementation, per CLAUDE.md)
+
+supersedes:
+  - docs/plans/apple-sync-decryption-performance/plan.yml  # its perf fix is delivered by Apple step 3 (sync+cache)
+
+scope:
+  in:
+    - Capability inventory and per-shell status for web, Apple and TUI/CLI.
+    - Apple UniFFI binding framework and the Apple strangler sequence.
+    - Web per-capability flips behind VITE_OPENMATES_RUST_CORE and deletion of TypeScript on flip.
+    - CLI native default with npm fallback.
+    - Replacing the TS-lines migration metric with the capability metric.
+    - A deploy guard that requires a `shell-only:` justification for shell logic edits (design only in this Plan).
+  out:
+    - Backend Rust migration.
+    - UI redesign or UI parity work; the Apple UI rules are unchanged.
+    - Public SDK authentication changes (surface.sdk owns them).
+    - Implementing anything in this Plan's authoring lane; implementation is done later by lane agents following the tasks below.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: One core (openmates-sdk), three shells; shells own UI, platform APIs, credential storage, an opaque byte persistence adapter and binding glue only.
+  - id: D-2
+    status: active
+    decision: Progress metric = capability/shell cells at rust-only or stays-shell. The web TS-lines ratio and web-port-ledger.yml were retired by TASK-2 (2026-11-12).
+  - id: D-3
+    status: active
+    decision: Apple order is bridge, crypto+keys, sync+cache, send/stream/recovery, drafts/search/settings/projects. Sync+cache is the Apple performance fix.
+  - id: D-4
+    status: active
+    decision: Web flips one capability at a time; flag on by default in dev; the existing Playwright suite with the flag on is the gate; TypeScript for that capability is deleted in the flip deploy. Flag-off stays byte-identical only for capabilities that have not flipped.
+  - id: D-5
+    status: active
+    decision: Apple verification runs XCTest on GitHub macos-26 runners (ci_coordinator modes apple-core and apple-unit, added by session 97b7). XCUITest runs there too through the apple-ui mode (TASK-12, landed in 137d080/0b5b800; explicit OpenMatesUITests selectors, Xcode 26.6). The Mac is used only for TestFlight, physical-device/APNs and real-account tests. Apple web-parity test files are deleted when their subject moves into the core.
+  - id: D-6
+    status: active
+    decision: Parity vectors between old and new implementations are debugging aids, never a gate; partial twins are unfinished work.
+
+# ---------------------------------------------------------------------------
+# Capability inventory. Status enum: ts-only | swift-only | rust-twin |
+# rust-default | rust-only | stays-shell. Snapshot 2026-11-09, derived from
+# frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts (17 units, including the `core` unit),
+# config/sdk-capabilities.json domains (operations, recovery, configuration,
+# encryption, auth, streaming, errors) and apple/OpenMates/Sources/Core/*.
+# Web cells marked rust-twin have an installed Worker unit but the TS path is
+# still present. TASK-2 re-audited every cell (2026-11-12) and moved the table into
+# docs/migration/rust/capabilities.yml; that file is authoritative, this snapshot is history.
+# Status rule: Worker-unit cells stay rust-twin until TASK-3 proves the full suite
+# flag-on; only then do they become rust-default (and rust-only once the TS path is deleted).
+# ---------------------------------------------------------------------------
+capability_inventory:
+  - id: transport
+    what: WebSocket/REST connect, auth handshake, reconnect, message routing
+    web: {status: rust-twin, unit: ws, old: [frontend/packages/ui/src/services/websocketService.ts]}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift, apple/OpenMates/Sources/Core/Networking/APIClient.swift (transport parts)]}
+    tui: rust-only
+  - id: crypto-keys
+    what: key derivation, wrapping, chat/embed keys, AES-GCM, share-link and notification-preview decrypt
+    web: {status: rust-twin, unit: crypto, old: [frontend/packages/ui/src/services/cryptoService.ts, frontend/packages/ui/src/services/authKeyDerivation.ts, frontend/packages/ui/src/services/encryption/]}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift, apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift, apple/OpenMates/Sources/Core/Crypto/ChatRecoveryV2Envelope.swift, apple/OpenMates/Sources/Core/Crypto/ShareLinkCrypto.swift, apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift]}
+    tui: rust-only
+  - id: credential-storage
+    what: persisting the credential snapshot in the platform secure store
+    web: {status: stays-shell, note: browser credential storage behind services/rustCore/browserCredentialStorage.ts}
+    apple: {status: stays-shell, keep: [apple/OpenMates/Sources/Core/Crypto/KeychainHelper.swift]}
+    tui: stays-shell
+  - id: auth-session
+    what: login, session validation, pairing (OPAQUE), logout fences
+    web: {status: rust-twin, unit: auth}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Features/Auth/ViewModels/PairOpaque.swift (C bridge), apple/OpenMates/Sources/Core/Models/AuthModels.swift (logic parts)], note: pairing crypto is already Rust via PairOpaqueBridge}
+    tui: rust-only
+  - id: sync
+    what: phased startup sync, cursor feed, reconnect catch-up, deletion authority
+    web: {status: rust-twin, unit: sync, old: [frontend/packages/ui/src/services/chatSyncService.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts, frontend/packages/ui/src/services/chatSyncMerge.ts]}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/Networking/SyncManager.swift, apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift, WebSocketManager.swift routing]}
+    tui: rust-only
+  - id: local-cache
+    what: encrypted local cache model, partitioning, retention, migrations
+    web: {status: rust-twin, unit: persist, old: [frontend/packages/ui/src/services/db.ts, frontend/packages/ui/src/services/chatListCache.ts, frontend/packages/ui/src/services/chatMetadataCache.ts]}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/Persistence/ChatStore.swift, apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift, apple/OpenMates/Sources/Core/Persistence/NativeWorkspaceOfflineCache.swift]}
+    tui: rust-only
+  - id: chat-list
+    what: ordered chat list view model, pins, unread, hidden chats
+    web: {status: rust-twin, unit: chatState, note: unit installed (chatListUnit); the TS chat-list path is still present}
+    apple: {status: swift-only, old: [ChatStore.swift list projection, apple/OpenMates/Sources/Core/Services/UnreadMessagesStore.swift]}
+    tui: rust-only
+  - id: chat-window
+    what: bounded message window, paging, full read
+    web: {status: ts-only, old: [frontend/packages/ui/src/services/authenticatedChatMessageWindow.ts]}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/Networking/ChatMessageWindowClient.swift]}
+    tui: rust-only
+  - id: send
+    what: send preparation, outbox, queued follow-ups, background send
+    web: {status: rust-twin, unit: sendPrep}
+    apple: {status: swift-only, old: [apple/OpenMatesShared/BackgroundChatSender.swift, apple/OpenMates/Sources/Core/Services/ChatQueuedFollowupRuntime.swift, apple/OpenMates/Sources/Core/Persistence/PendingAssistantResponseQueue.swift]}
+    tui: rust-only
+  - id: streaming
+    what: AI stream events, cancellation
+    web: {status: ts-only, old: [frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts]}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/Networking/StreamingClient.swift]}
+    tui: rust-only
+  - id: completion-recovery
+    what: completion and metadata recovery after disconnect/relaunch
+    web: {status: ts-only, old: [frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts]}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/Services/ChatCompletionRecoveryCoordinator.swift, apple/OpenMates/Sources/Core/Services/ChatMetadataRecoveryCoordinator.swift, apple/OpenMates/Sources/Core/Services/MessageCompressionCheckpoint.swift]}
+    tui: rust-only
+  - id: drafts
+    what: encrypted drafts, draft-only chats, draft sync
+    web: {status: rust-twin, unit: drafts}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/Services/DraftService.swift, apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift]}
+    tui: rust-only
+  - id: search
+    what: chat/message search and index policy
+    web: {status: rust-twin, unit: search}
+    apple: {status: swift-only, note: Spotlight indexing calls (SpotlightIndexer.swift) stay-shell; search logic moves}
+    tui: rust-only
+  - id: embeds
+    what: embed read, write, versions and patches
+    web: {status: rust-twin, units: [embedData, embedWrite], old: [frontend/packages/ui/src/services/embedStore.ts, frontend/packages/ui/src/services/embedResolver.ts]}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/Services/EmbedVersionHistory.swift, apple/OpenMates/Sources/Core/Services/EmbedVersionPatch.swift]}
+    tui: rust-only
+  - id: transfer
+    what: uploads, media fetch, pending uploads
+    web: {status: rust-twin, unit: transfer}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift, apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift]}
+    tui: rust-only
+  - id: composer-parse
+    what: mentions, message parsing, composer suggestions logic
+    web: {status: rust-twin, units: [parse, composer]}
+    apple: {status: swift-only}
+    tui: rust-only
+  - id: apps-skills
+    what: app/skill inventory and invocation
+    web: {status: rust-twin, unit: apps}
+    apple: {status: swift-only}
+    tui: rust-only
+  - id: settings
+    what: app settings and memories requests/policy
+    web: {status: rust-twin, unit: settings, old: [frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts]}
+    apple: {status: swift-only}
+    tui: rust-only
+  - id: projects-tasks-teams
+    what: projects, tasks, workflows, team workspace context
+    web: {status: ts-only, old: [frontend/packages/ui/src/services/projectState/, frontend/packages/ui/src/services/work/]}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/Teams/TeamWorkspaceContext.swift]}
+    tui: rust-only
+  - id: anonymous-public-chats
+    what: anonymous chats, public examples, free usage
+    web: {status: ts-only, old: [frontend/packages/ui/src/services/anonymousChatStorage.ts]}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/PublicChats/, apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift]}
+    tui: rust-only
+  - id: watch-runtime
+    what: watchOS chat runtime
+    web: {status: stays-shell, note: not applicable}
+    apple: {status: swift-only, old: [apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift], note: last; depends on the arm64_32 risk R-3}
+    tui: stays-shell
+  - id: platform-only
+    what: voice calls, audio capture/transcription UI, local models, StoreKit, widgets, Live Activities, APNs registration, haptics, handoff, deep-link routing, WebRTC, media
+    web: {status: stays-shell}
+    apple: {status: stays-shell}
+    tui: stays-shell
+
+# ---------------------------------------------------------------------------
+# Acceptance criteria (per capability and shell). The same three conditions
+# apply to every cell moved to rust-only.
+# ---------------------------------------------------------------------------
+acceptance_criteria:
+  - id: AC-1
+    text: The old shell implementation of the capability is deleted in the same deploy that makes the core path the only path (no flag branch, no fallback).
+    required: true
+  - id: AC-2
+    text: The shell's existing suite is green on the exact deployed commit (web Playwright with VITE_OPENMATES_RUST_CORE=1; Apple apple-unit and apple-core on GitHub macos-26, plus the capability's XCUITests on macos-26 via the apple-ui mode; TUI/core rust-check plus sdk-conformance).
+    required: true
+  - id: AC-3
+    text: docs/migration/rust/capabilities.yml records the new status with the deploy commit (after TASK-2 exists; before that, this Plan's inventory is updated).
+    required: true
+  - id: AC-4
+    text: The Apple bridge spike (TASK-1) meets its own done definition before any Apple capability task starts.
+    required: true
+
+verifications:
+  - id: V-CORE
+    kind: command
+    covers: [AC-2]
+    command: python3 scripts/sessions.py ci-source --session <id>, then python3 scripts/ci_coordinator.py submit --session <id> --source <src> --mode rust-check and --mode sdk-conformance, then ci_coordinator.py wait <job>
+  - id: V-WEB
+    kind: command
+    covers: [AC-2]
+    command: ci_coordinator.py submit --mode e2e (e2e and component builds default to the Rust client core on; --no-web-rust-core opts out; see R-6)
+  - id: V-APPLE
+    kind: command
+    covers: [AC-2, AC-4]
+    command: ci_coordinator.py submit --mode apple-unit and --mode apple-core (GitHub macos-26). Real-account, TestFlight and device/APNs checks only through python3 scripts/apple_remote.py on the coordinated Mac.
+  - id: V-DELETE
+    kind: command
+    covers: [AC-1]
+    command: git grep for every path in the cell's `old:` list returns nothing (or only the comment pointer), and the flag constant for that capability is gone
+
+strangler_order:
+  apple: [TASK-1 bridge, TASK-5 crypto-keys + auth-session, TASK-6 sync + local-cache + chat-list + chat-window + transport, TASK-7 send + streaming + completion-recovery, TASK-8 drafts + search + settings + projects-tasks-teams + embeds + transfer + composer-parse + apps-skills + anonymous-public-chats, TASK-9 watch-runtime]
+  web: one capability per lane in this order - crypto-keys, auth-session, transport, sync, local-cache, chat-list, chat-window, send, streaming, completion-recovery, drafts, search, embeds, transfer, composer-parse, apps-skills, settings, projects-tasks-teams, anonymous-public-chats
+  cli: TASK-4
+
+# ---------------------------------------------------------------------------
+# Tasks. Each task is written so a Sonnet-class lane agent can execute it from
+# its text: read list, create/delete list, verification, done definition.
+# Every lane: read .claude/rules/client-core.md first; one capability (or the one
+# step named) per lane; delete old code in the same deploy; never add new logic
+# to TS or Swift. OpenMates Tasks owns status; this list is the work breakdown.
+# ---------------------------------------------------------------------------
+tasks:
+  - id: TASK-1
+    title: Apple bridge spike - UniFFI binding crate and OpenMatesCore Swift package (first implementation task)
+    read:
+      - .claude/rules/client-core.md
+      - apple/PairOpaqueBridge/Cargo.toml, apple/PairOpaqueBridge/build-apple.sh, apple/PairOpaqueBridge/src/lib.rs, apple/PairOpaqueBridge/include/PairOpaqueBridge.h
+      - apple/OpenMates/Sources/Features/Auth/ViewModels/PairOpaque.swift (current C-bridge caller)
+      - apple/project.yml (the two "Build PairOpaqueBridge" preBuildScripts, LIBRARY_SEARCH_PATHS)
+      - packages/openmates-session-bindings/Cargo.toml and src/session.rs (binding pattern for node/python/wasm)
+      - frontend/packages/openmates-tui-native/src/session_runtime.rs (credential snapshot pattern)
+      - packages/openmates-rust/src/model.rs (presentation types)
+    create:
+      - packages/openmates-apple-bindings/ (crate, publish = false, crate-type [staticlib, lib], depends on openmates-sdk; UniFFI proc-macro bindings; module docs per .claude/rules/rust.md)
+      - packages/openmates-apple-bindings/build-xcframework.sh (targets aarch64-apple-ios, aarch64-apple-ios-sim, aarch64-apple-darwin; watchOS slices reuse the arm64_32 build-std recipe from PairOpaqueBridge/build-apple.sh)
+      - apple/OpenMatesCore/ Swift package wrapping the generated Swift bindings (Package.swift, generated sources are build outputs, not committed if generated per build)
+      - one XCTest file apple/OpenMatesTests/OpenMatesCoreBridgeTests.swift
+    move: The OPAQUE pairing functions from PairOpaqueBridge into the new crate's surface (re-exported from openmates-sdk pairing code where it exists), and switch PairOpaque.swift to call OpenMatesCore.
+    delete: apple/PairOpaqueBridge/ and its preBuildScripts in apple/project.yml once PairOpaque.swift uses OpenMatesCore and the pairing tests pass.
+    scope_of_api: version(); one async call (e.g. validate an empty/anonymous client) proving async delivery off the main actor with results applied on @MainActor; credential snapshot emit/ack round trip with an in-memory store; pairing OPAQUE start/finish.
+    verify:
+      - cargo fmt locally; rust-check in CI for the new crate
+      - ci_coordinator.py submit --mode apple-unit (OpenMatesCoreBridgeTests plus the existing pairing tests) and --mode apple-core (app builds for iOS simulator and macOS)
+      - record the xcframework size and app binary size delta in the deploy message
+    done: OpenMatesCore builds on macos-26 CI for iOS, iOS simulator and macOS; the Watch target either builds with the arm64_32 slice or is explicitly excluded with a recorded follow-up (R-3); PairOpaqueBridge is deleted; apple-unit and apple-core are green on the deployed commit.
+    dependencies: [session 97b7 apple-core/apple-unit CI modes]
+  - id: TASK-2
+    title: Replace the TS-lines metric with the capability status file
+    status: done
+    read:
+      - docs/migration/rust/README.md, docs/migration/rust/web-port-ledger.yml
+      - scripts/rust_migration_yaml.py, scripts/rust_migration_rollup.py, scripts/rust_web_port_ledger.py, scripts/rust_migration_inputs.py
+      - this Plan's capability_inventory
+    create:
+      - docs/migration/rust/capabilities.yml (curated; one entry per capability with web/apple/tui status, old paths, last commit)
+      - validation in scripts/rust_migration_yaml.py - every status in the enum; rust-only cells list no existing old path; overview.yml shows per-shell counts of rust-only/stays-shell
+    delete: the web-port-ledger requirement - stop failing --check on unledgered routing functions; web-port-ledger.yml stays as history until this task, which deletes it together with the ledger check and scripts/rust_web_port_ledger.py (decided 2026-11-09)
+    verify: python3 scripts/rust_migration_yaml.py --check passes in the lane via sessions.py ci-source; pytest for scripts/tests touching these scripts
+    done: deploy regenerates overview.yml with the capability metric; README and .claude/rules/client-core.md no longer need the "still enforced" caveat (remove it in the same deploy).
+  - id: TASK-3
+    title: Web flag-on gate for the existing Playwright suite and flag-on default in dev
+    read:
+      - .github/workflows/isolated-tests.yml (CI_LANE_WEB_RUST_CORE only matches web-rust-core-* specs)
+      - frontend/apps/web_app/vite.config.ts, frontend/apps/web_app/scripts/build-rust-core-web.mjs
+      - scripts/ci_coordinator.py submit options
+    create: a ci_coordinator option or mode that builds the wasm package and VITE_OPENMATES_RUST_CORE=1 for any existing spec list; set the flag on for the dev deployment build
+    verify: one existing non-web-rust-core spec (e.g. a chat or drafts spec) runs flag-on in isolated CI and the job log shows the wasm build and flag
+    done: any lane can run its capability's existing specs flag-on; dev serves flag-on; production stays flag-off until each capability flips.
+  - id: TASK-4
+    title: CLI native default with npm fallback
+    read:
+      - .claude/rules/cli-sdk.md, docs/architecture/platforms/cli-package.md
+      - frontend/packages/openmates-cli/package.json (bin entry), packages/openmates-rust/Cargo.toml
+      - specifications/surfaces/cli/specification.yml, specifications/surfaces/sdk/specification.yml (sdk.migration.ordered-client-rollout)
+    change: make `openmates` resolve to the native binary; keep the npm CLI reachable through an explicit command or option; never fall back silently
+    verify: ci_coordinator.py submit --mode selfhost and --mode rust-native-dev; the existing CLI E2E specs
+    done: fresh install runs native by default; fallback is documented and explicit; behavior matches sdk.migration.ordered-client-rollout (native default, explicit npm fallback for unverified commands).
+  - id: TASK-5
+    title: Apple step 2 - crypto+keys and auth-session through OpenMatesCore
+    read: [TASK-1 output, apple/OpenMates/Sources/Core/Crypto/*.swift, apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift, packages/openmates-rust/src/crypto.rs, packages/openmates-rust/src/client/credentials.rs, apple/OpenMatesTests/CryptoFailureTests.swift, apple/OpenMatesTests/AuthSecurityParityTests.swift]
+    delete: CryptoManager.swift, ChatKeyManager.swift, ChatRecoveryV2Envelope.swift, ShareLinkCrypto.swift, crypto parts of NotificationPreviewCrypto.swift; Apple crypto parity tests whose subject is now core logic. KeychainHelper.swift stays and stores the core's credential snapshot.
+    note: The notification service extension runs with tight memory; measure its peak with the framework linked (R-2).
+    verify: apple-unit and apple-core green; one real-account login on the Mac via apple_remote.py
+    done: AC-1..AC-3 for crypto-keys and auth-session on Apple.
+  - id: TASK-6
+    title: Apple step 3 - sync and cache in the core (the Apple performance fix)
+    read: [apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift, SyncManager.swift, apple/OpenMates/Sources/Core/Persistence/*.swift, apple/OpenMatesTests/ChatSyncParityTests.swift, docs/plans/apple-sync-decryption-performance/plan.yml (superseded; read its scenarios S-1..S-3 as performance expectations), specifications/architecture/sync/specification.yml, specifications/architecture/client-core/specification.yml (client-core.cache.*)]
+    split: one lane each, in order - (a) transport + sync behind the view model, (b) local-cache with the SwiftData migration, (c) chat-list and chat-window view models. Each lane deletes what it replaces.
+    delete: WebSocketManager.swift routing, SyncManager.swift, OfflineSyncBridge.swift, ChatStore.swift, OfflineStore.swift, NativeWorkspaceOfflineCache.swift, ChatMessageWindowClient.swift, ChatSyncParityTests.swift and other parity tests of those subjects
+    migration: pending drafts, queued sends, recovery checkpoints and last-opened chat migrate into the core cache on first launch; server content is re-synced; old SwiftData files are deleted only after the migration check passes (client-core.cache.safe-store-retirement)
+    verify: apple-unit, apple-core, apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift on macos-26 via the apple-ui mode; a real-account cold start on the Mac with timing recorded
+    done: AC-1..AC-3 for transport, sync, local-cache, chat-list, chat-window on Apple; cold start to usable chat list no slower than before.
+  - id: TASK-7
+    title: Apple step 4 - send, streaming, completion recovery
+    read: [apple/OpenMatesShared/BackgroundChatSender.swift, apple/OpenMates/Sources/Core/Networking/StreamingClient.swift, apple/OpenMates/Sources/Core/Services/ChatCompletionRecoveryCoordinator.swift, ChatMetadataRecoveryCoordinator.swift, ChatQueuedFollowupRuntime.swift, PendingAssistantResponseQueue.swift, apple/OpenMatesTests/ChatSendPipelineParityTests.swift, ChatStreamingLifecycleParityTests.swift, ChatCompletionRecoveryTests.swift]
+    delete: the files above except UI; the share extension and background-task entry points stay in Swift and call the core
+    verify: apple-unit, apple-core; streaming XCUITests via the apple-ui mode; one real-account send on the Mac
+    done: AC-1..AC-3 for send, streaming, completion-recovery on Apple.
+  - id: TASK-8
+    title: Apple step 5 - drafts, search, settings, projects and the remaining capabilities
+    split: one lane per capability (drafts, search, settings, projects-tasks-teams, embeds, transfer, composer-parse, apps-skills, anonymous-public-chats)
+    read: the cell's `old:` paths, the matching core module under packages/openmates-rust/src/client/, the matching Apple *ParityTests.swift
+    verify: apple-unit, apple-core
+    done: AC-1..AC-3 per capability.
+  - id: TASK-9
+    title: Watch runtime onto the core
+    read: [apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift, apple/PairOpaqueBridge/build-apple.sh history (arm64_32 build-std)]
+    done: the Watch app links OpenMatesCore for arm64_32 and arm64, WatchChatRuntime logic is deleted, Watch UI tests green; or the user accepts keeping Watch Swift with a recorded reason.
+  - id: TASK-10
+    title: Web capability flips (one lane per capability, order in strangler_order.web)
+    read: [the cell's `old:` paths, the unit installer under frontend/packages/ui/src/services/rustCore/<unit>/, frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts, the existing Playwright specs for that capability]
+    steps: route every call site to the unit; run the capability's existing specs flag-on (TASK-3); flip; delete the TS implementation and the flag branch in the same deploy; record perf per .claude/rules/cli-sdk.md
+    done: AC-1..AC-3 for the capability on web.
+  - id: TASK-11
+    title: Deploy guard for shell logic edits (implements the design below)
+    read: [.claude/hooks/, scripts/sessions.py deploy validation, this Plan's deploy_guard section]
+    status: done
+    note: scripts/shell_logic_guard.py, wired into sessions.py _preflight_deploy_commit_message; tests in scripts/tests/test_shell_logic_guard.py. Warn-only until 2026-11-26 (BLOCKING_FROM), then sessions.py deploy refuses, per the deploy_guard rollout.
+    done: the guard rejects a deploy that changes guarded shell paths without a linked Rust change or a `shell-only:` line, with tests in scripts/tests.
+  - id: TASK-12
+    title: apple-ui CI mode - run XCUITest targets on macos-26
+    read: [scripts/ci_apple.py, scripts/ci_coordinator.py, apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift]
+    steps: add an apple-ui mode to ci_apple.py and ci_coordinator.py that selects and runs the XCUITest targets (including ChatOpeningScalabilityUITests) on macos-26; ci_apple.py does not select XCUITest targets today
+    status: done
+    note: Landed in 137d080 and 0b5b800. Run 42745003185 (commit 0b5b800) ran LandingOnboardingParityUITests green on macos-26. The lane passes no secrets, so real-account XCUITests skip there and stay on the Mac.
+    done: ci_coordinator.py submit --mode apple-ui runs the XCUITest targets green on macos-26; AC-2 and TASK-6/TASK-7 reference it directly.
+
+deploy_guard:
+  summary: >
+    Design only. A deploy that edits guarded shell logic paths without also
+    changing packages/openmates-rust/** (or a binding crate) must carry a
+    justification line in the deploy message, otherwise sessions.py deploy refuses.
+  guarded_paths:
+    - apple/OpenMates/Sources/Core/**
+    - apple/OpenMatesShared/**
+    - frontend/packages/ui/src/services/** (excluding services/rustCore/** binding glue and __tests__/**)
+  rule:
+    - If the diff touches a guarded path and no file under packages/openmates-rust/**, packages/openmates-apple-bindings/**, packages/openmates-browser-bindings/** or packages/openmates-session-bindings/**, the deploy message must contain a line starting with `shell-only:` followed by one of the allowed reasons - ui, platform-api, credential-storage, byte-adapter, binding-glue, deletion (old code removed), bugfix-in-frozen-code (a defect fix in not-yet-migrated shell logic, with the capability id).
+    - Pure deletions under guarded paths pass without a justification.
+    - bugfix-in-frozen-code must name the capability id; the guard prints a reminder that the fix belongs in the core if the capability is rust-twin or later.
+    - The guard reports, it does not inspect semantics; reviewers and the client-core rule remain the semantic check.
+  rollout: warn-only for two weeks, then blocking.
+
+risks:
+  - id: R-1
+    risk: SwiftData to Rust cache migration loses unsynced drafts, queued sends or recovery checkpoints.
+    mitigation: Migrate local-only state explicitly, re-sync server content, keep the old store until the check passes, XCTest with a seeded SwiftData store (client-core.cache.safe-store-retirement).
+  - id: R-2
+    risk: UniFFI async and @MainActor - callbacks on arbitrary threads, actor reentrancy, cancellation, memory in the notification service extension.
+    mitigation: The core owns its runtime; bindings expose async functions plus a listener for updates; Swift hops to @MainActor once at the view-model boundary; TASK-1 tests cancellation and main-actor delivery; measure extension memory in TASK-5.
+  - id: R-3
+    risk: watchOS arm64_32 is a Rust tier-3 target (no shipped std).
+    mitigation: Reuse the pinned nightly build-std recipe already proven in PairOpaqueBridge/build-apple.sh; Watch moves last (TASK-9) and may stay Swift with user acceptance.
+  - id: R-4
+    risk: Single Mac is a bottleneck and single point of failure.
+    mitigation: XCTest moves to GitHub macos-26 (apple-core, apple-unit) and XCUITest runs there through the apple-ui mode; the Mac only serves TestFlight, device/APNs and real-account tests.
+  - id: R-5
+    risk: Binary size and startup cost of the full core in the iOS app and extensions.
+    mitigation: Record size and cold start in TASK-1 and TASK-6 deploy messages; share one framework between app and extensions.
+  - id: R-6
+    risk: Resolved by TASK-960 - e2e/component CI builds default flag-on (CI_LANE_WEB_RUST_CORE true unless --no-web-rust-core).
+    mitigation: TASK-3 before the first web flip.
+  - id: R-7
+    risk: The TS-lines ledger check (rust_migration_yaml.py --check) still fails deploys that route a TS function without a ledger slice.
+    mitigation: Until TASK-2 lands, lanes keep appending the ledger slice the check asks for; TASK-2 removes the requirement.
+
+open_questions:
+  - id: Q-1
+    question: Resolved 2026-11-09 - sdk.migration.ordered-client-rollout rewritten to the parallel web/Apple order and the native CLI default with explicit npm fallback.

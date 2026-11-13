@@ -109,7 +109,7 @@ Two caches, different encryption, different purposes:
 - Why separate? AI cache needs server-readable encryption (Vault-wrapped, transient in RAM); sync cache holds client-encrypted blobs the server can only relay, not read. Mixing → decryption failures
 - Implementation: [cache_chat_mixin.py](../../backend/core/api/app/services/cache_chat_mixin.py) — `add_ai_message_to_history()`, `get_ai_messages_history()`, `set_sync_messages_history()`
 - Embeds cached separately: `embed:{embed_id}` — vault-encrypted, 24h TTL, global
-- App settings/memories: `chat:{chat_id}:app_settings_memories:{app_id}:{item_key}` — auto-evicted with chat
+- Memories: no durable server storage. Client-supplied bodies are held only transiently for the current request (see `app-memories` specification)
 
 ### Cache Fallback Flow
 
@@ -128,7 +128,7 @@ Two caches, different encryption, different purposes:
   - `selected_model` + `selection_reason` — optimal LLM
   - `relevant_app_skills` — preselected tools
   - `relevant_app_focus_modes` — preselected focus modes
-  - `relevant_app_settings_and_memories` — data to request from client
+  - `load_app_settings_and_memories` (`memory:<id>` entries) — Memories selected from the metadata-only catalog (title, when-to-use, load mode); bodies are supplied by the client on demand
   - `prompt_injection_chance` — safety score
   - `title`, `icon_names`, `category` — chat metadata (first message only, skipped if title exists)
   - `tags` — max 10 for similar past chat lookup
@@ -204,7 +204,7 @@ The web, authenticated CLI and Apple share backend routing improvements. Web own
 - **Chat history too large:** split into 70k token blocks, processed in parallel in [preprocessor.py](../../backend/apps/ai/processing/preprocessor.py)
 - **First message metadata:** pre-processing generates title/icon/category — skipped for follow-ups (checks `current_chat_title` field)
 - **Embed resolution during inference:** embed placeholders in cached messages resolved on-demand when building AI context, not at cache time
-- **App settings not yet confirmed:** WebSocket notification sent to client (`request_app_settings_memories`), processing continues without waiting — user can confirm hours later
+- **Ask-first Memories not yet approved:** the client is asked for approval; processing continues without the bodies, and only approved bodies are supplied transiently on the client's confirmation
 
 <!-- TODO: screenshot (1000x400) — message processing timeline showing pre/main/post stages -->
 

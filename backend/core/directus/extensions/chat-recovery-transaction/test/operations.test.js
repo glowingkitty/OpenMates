@@ -4140,48 +4140,20 @@ test('Team standalone direct skill requires membership and reconciles only index
     (error) => error.code === 'chat_not_found');
 });
 
-test('authorized rerender claims once and completes only at the exact next canonical version', async () => {
+test('authorized rerender registration is rejected because no rerender task is supported', async () => {
   const database = fakeDatabase({
     chats: [{ id: CHAT_ID, hashed_user_id: OWNER }],
     embeds: [{ embed_id: PRODUCER_EMBED, hashed_user_id: OWNER,
       hashed_chat_id: sha256(CHAT_ID), encrypted_content: 'source-cipher', version_number: 1 }],
-    embed_keys: [
-      { hashed_embed_id: sha256(PRODUCER_EMBED), hashed_user_id: OWNER,
-        key_type: 'master', encrypted_embed_key: 'wrapped-master' },
-      { hashed_embed_id: sha256(PRODUCER_EMBED), hashed_user_id: OWNER,
-        key_type: 'chat', hashed_chat_id: sha256(CHAT_ID), encrypted_embed_key: 'wrapped-chat' },
-    ],
     chat_recovery_authorized_rerenders: [],
   });
-  const body = {
+  await assert.rejects(executeOperation(database, 'register_authorized_rerender', {
     protocol_version: 1, task_uuid: PRODUCER_TASK,
-    task_name: 'apps.videos.tasks.render_remotion', kwargs_binding: 'd'.repeat(64),
+    task_name: 'apps.example.tasks.rerender', kwargs_binding: 'd'.repeat(64),
     hashed_user_id: OWNER, target_chat_id: CHAT_ID, primary_embed_id: PRODUCER_EMBED,
     primary_message_id: null, source_version: 1, expected_embed_version: 1,
-  };
-  assert.equal((await executeOperation(database, 'register_authorized_rerender', body)).status,
-    'DIRECT_AUTHORIZED');
-  assert.equal((await executeOperation(database, 'resolve_output_producer', {
-    protocol_version: 1, task_uuid: PRODUCER_TASK,
-    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
-  })).intent_kind, 'rerender');
-  assert.equal((await executeOperation(database, 'claim_authorized_direct_producer', {
-    protocol_version: 1, task_uuid: PRODUCER_TASK,
-    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
-  })).claimed, true);
-  const completion = {
-    protocol_version: 1, hashed_user_id: OWNER,
-    primary_embed_id: PRODUCER_EMBED, target_chat_id: CHAT_ID,
-    canonical_version: 1, intent_kind: 'rerender',
-  };
-  assert.equal((await executeOperation(database, 'complete_authorized_direct_by_embed', completion)).completed,
-    false);
-  database.rows.embeds[0].version_number = 2;
-  database.rows.embeds[0].encrypted_content = 'finished-cipher';
-  assert.deepEqual(await executeOperation(database, 'complete_authorized_direct_by_embed', {
-    ...completion, canonical_version: 2,
-  }), { completed: true, intent_kind: 'rerender' });
-  assert.equal(database.rows.chat_recovery_authorized_rerenders[0].state, 'COMPLETED');
+  }), (error) => error.code === 'invalid_rerender_identity');
+  assert.equal(database.rows.chat_recovery_authorized_rerenders.length, 0);
 });
 
 test('epoch-zero saved-chat producer is registered while running and claims once after terminal', async () => {

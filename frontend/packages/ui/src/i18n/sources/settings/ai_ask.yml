@@ -401,55 +401,53 @@ ai_ask_settings.follow_up_suggestions_save_error:
   sv: Kunde inte spara inställningen för uppföljningsförslag.
   he: לא ניתן היה לשמור את הגדרת ההצעות להמשך.
   verified_by_human: []
-ai_ask_settings.quick_tips:
-  context: Label for quick tips toggle
-  en: Quick tips
-  de: Kurztipps
-
-  zh: 快捷提示
-  es: Consejos rápidos
-  fr: Astuces rapides
-  pt: Dicas rápidas
-  ru: Быстрые советы
-  ja: クイックチップ
-  ko: 퀵 팁
-  tr: Hızlı ipuçları
-  vi: Mẹo nhanh
-  id: Tips cepat
-  pl: Szybkie wskazówki
-  nl: Snelle tips
-  ar: نصائح سريعة
-  hi: त्वरित सुझाव
-  th: เคล็ดลับด่วน
-  it: Suggerimenti rapidi
-  cs: Rychlé tipy
-  sv: Snabbtips
-  he: טיפים מהירים
+ai_ask_settings.recommendations:
+  context: Label for the toggle that shows memory and workflow recommendations below assistant replies
+  en: Recommendations
+  de: Empfehlungen
+  zh: 推荐
+  es: Recomendaciones
+  fr: Recommandations
+  pt: Recomendações
+  ru: Рекомендации
+  ja: おすすめ
+  ko: 추천
+  tr: Öneriler
+  vi: Đề xuất
+  id: Rekomendasi
+  pl: Rekomendacje
+  nl: Aanbevelingen
+  ar: التوصيات
+  hi: सुझाव
+  th: คำแนะนำ
+  it: Consigli
+  cs: Doporučení
+  sv: Rekommendationer
+  he: המלצות
   verified_by_human: []
-ai_ask_settings.quick_tips_description:
-  context: Description for quick tips toggle
-  en: Shows occasional product tips after assistant replies. Turn this off if you do not want OpenMates to generate quick tip cards.
-  de: Zeigt gelegentliche Produkttipps nach Antworten des Assistenten. Deaktiviere dies, wenn OpenMates keine Kurztipp-Karten generieren soll.
-
-  zh: 在助手回复后偶尔显示产品提示。如果你不希望 OpenMates 生成快捷提示卡片，请关闭此选项。
-  es: Muestra consejos ocasionales sobre el producto después de las respuestas del asistente. Desactiva esta opción si no quieres que OpenMates genere tarjetas de consejos rápidos.
-  fr: "Affiche occasionnellement des astuces produit après les réponses de l'assistant. Désactive cette option si tu ne souhaites pas qu'OpenMates génère des fiches d'astuces rapides."
-  pt: Mostra dicas ocasionais do produto após as respostas do assistente. Desativa esta opção se não quiseres que o OpenMates gere cartões de dicas rápidas.
-  ru: Показывает периодические советы по продукту после ответов ассистента. Выключи это, если не хочешь, чтобы OpenMates создавал карточки с быстрыми советами.
-  ja: アシスタントの回答後に、製品のヒントを時々表示します。OpenMatesによるクイックチップカードの生成を希望しない場合は、これをオフにしてください。
-  ko: 어시스턴트 응답 후 가끔 제품 팁을 표시합니다. OpenMates가 퀵 팁 카드를 생성하지 않도록 하려면 이 기능을 끄세요.
-  tr: "Asistan yanıtlarından sonra ara sıra ürün ipuçları gösterir. OpenMates'in hızlı ipucu kartları oluşturmasını istemiyorsan bunu kapat."
-  vi: Hiển thị các mẹo sản phẩm thỉnh thoảng sau khi trợ lý trả lời. Tắt tính năng này nếu bạn không muốn OpenMates tạo các thẻ mẹo nhanh.
-  id: Menampilkan tips produk sesekali setelah asisten membalas. Matikan ini jika kamu tidak ingin OpenMates membuat kartu tips cepat.
-  pl: Wyświetla sporadyczne wskazówki dotyczące produktu po odpowiedziach asystenta. Wyłącz tę opcję, jeśli nie chcesz, aby OpenMates generował karty z szybkimi wskazówkami.
-  nl: Toont af en toe producttips na antwoorden van de assistent. Schakel dit uit als je niet wilt dat OpenMates kaarten met snelle tips genereert.
-  ar: يعرض نصائح عرضية حول المنتج بعد ردود المساعد. قم بإيقاف تشغيل هذا إذا كنت لا تريد أن يقوم OpenMates بإنشاء بطاقات نصائح سريعة.
-  hi: असिस्टेंट के जवाबों के बाद कभी-कभी प्रोडक्ट टिप्स दिखाता है। अगर तुम नहीं चाहते कि OpenMates त्वरित सुझाव कार्ड जनरेट करे, तो इसे बंद कर दो।
-  th: แสดงเคล็ดลับการใช้งานผลิตภัณฑ์เป็นครั้งคราวหลังจากผู้ช่วยตอบกลับ ปิดส่วนนี้หากคุณไม่ต้องการให้ OpenMates สร้างการ์ดเคล็ดลับด่วน
-  it: "Mostra occasionali suggerimenti sul prodotto dopo le risposte dell'assistente. Disattiva questa opzione se non vuoi che OpenMates generi schede di suggerimenti rapidi."
-  cs: Po odpovědích asistenta občas zobrazí tipy k produktu. Vypni tuto možnost, pokud nechceš, aby OpenMates generoval karty s rychlými tipy.
-  sv: Visar tillfälliga produkttips efter assistentens svar. Stäng av detta om du inte vill att OpenMates ska generera snabbtipskort.
-  he: מציג מדי פעם טיפים על המוצר לאחר תשובות העוזר. כבה אפשרות זו אם אינך רוצה ש-OpenMates יפיק כרטיסי טיפים מהירים.
+ai_ask_settings.recommendations_description:
+  context: Description for the recommendations toggle
+  en: Suggests memories and workflows to create or update after assistant replies. Nothing is saved until you save it.
+  de: Schlägt nach Antworten des Assistenten Erinnerungen und Workflows zum Erstellen oder Aktualisieren vor. Gespeichert wird erst, wenn du speicherst.
+  zh: 在助手回复后，建议创建或更新记忆和工作流。在你保存之前不会保存任何内容。
+  es: Sugiere memorias y flujos de trabajo para crear o actualizar después de las respuestas del asistente. No se guarda nada hasta que lo guardes.
+  fr: "Suggère des mémoires et des workflows à créer ou à mettre à jour après les réponses de l'assistant. Rien n'est enregistré tant que tu ne l'enregistres pas."
+  pt: Sugere memórias e fluxos de trabalho para criar ou atualizar após as respostas do assistente. Nada é guardado até que o guardes.
+  ru: Предлагает создать или обновить воспоминания и рабочие процессы после ответов ассистента. Ничего не сохраняется, пока ты не сохранишь.
+  ja: アシスタントの回答後に、作成または更新するメモリーとワークフローを提案します。保存するまで何も保存されません。
+  ko: 어시스턴트 응답 후 만들거나 업데이트할 메모리와 워크플로를 제안합니다. 직접 저장하기 전에는 아무것도 저장되지 않습니다.
+  tr: Asistan yanıtlarından sonra oluşturulacak veya güncellenecek anıları ve iş akışlarını önerir. Sen kaydedene kadar hiçbir şey kaydedilmez.
+  vi: Đề xuất các ký ức và quy trình để tạo hoặc cập nhật sau khi trợ lý trả lời. Không có gì được lưu cho đến khi bạn lưu.
+  id: Menyarankan memori dan alur kerja untuk dibuat atau diperbarui setelah asisten membalas. Tidak ada yang disimpan sampai kamu menyimpannya.
+  pl: Proponuje wspomnienia i przepływy pracy do utworzenia lub zaktualizowania po odpowiedziach asystenta. Nic nie zostanie zapisane, dopóki tego nie zapiszesz.
+  nl: Stelt na antwoorden van de assistent herinneringen en workflows voor om te maken of bij te werken. Er wordt niets opgeslagen totdat je het opslaat.
+  ar: يقترح ذكريات ومسارات عمل لإنشائها أو تحديثها بعد ردود المساعد. لا يُحفظ أي شيء حتى تحفظه أنت.
+  hi: असिस्टेंट के जवाबों के बाद बनाने या अपडेट करने के लिए मेमोरी और वर्कफ़्लो सुझाता है। जब तक तुम सेव नहीं करते, कुछ भी सेव नहीं होता।
+  th: แนะนำความจำและเวิร์กโฟลว์ที่ควรสร้างหรืออัปเดตหลังจากผู้ช่วยตอบกลับ จะไม่มีการบันทึกใดๆ จนกว่าคุณจะบันทึกเอง
+  it: "Suggerisce memorie e workflow da creare o aggiornare dopo le risposte dell'assistente. Nulla viene salvato finché non lo salvi tu."
+  cs: Po odpovědích asistenta navrhuje vzpomínky a pracovní postupy k vytvoření nebo aktualizaci. Nic se neuloží, dokud to neuložíš.
+  sv: Föreslår minnen och arbetsflöden att skapa eller uppdatera efter assistentens svar. Inget sparas förrän du sparar det.
+  he: מציע זיכרונות ותהליכי עבודה ליצירה או לעדכון לאחר תשובות העוזר. שום דבר לא נשמר עד שתשמור.
   verified_by_human: []
 ai_ask_settings.server_region:
   context: Section heading for the AI server region preference
@@ -522,81 +520,6 @@ ai_ask_settings.prefer_eu_servers_description:
   cs: "Zapnuto (výchozí): modely AI běží nejdříve na serverech v EU, jiné oblasti jen jako záloha. Vypnuto: nejrychlejší, globálně – OpenMates vybere nejrychlejší server na světě."
   sv: "På (standard): AI-modeller körs först på EU-servrar, andra regioner endast som reserv. Av: Snabbast, globalt – OpenMates väljer den snabbaste servern i världen."
   he: "פעיל (ברירת מחדל): מודלי AI רצים קודם בשרתים באיחוד האירופי, ואזורים אחרים משמשים רק כגיבוי. כבוי: המהיר ביותר, גלובלי – OpenMates בוחר את השרת המהיר ביותר בעולם."
-  verified_by_human: []
-ai_ask_settings.quick_tips_enabled:
-  context: Success toast when quick tips are enabled
-  en: Quick tips enabled.
-  de: Kurztipps aktiviert.
-
-  zh: 快捷提示已启用。
-  es: Consejos rápidos activados.
-  fr: Astuces rapides activées.
-  pt: Dicas rápidas ativadas.
-  ru: Быстрые советы включены.
-  ja: クイックチップを有効にしました。
-  ko: 퀵 팁이 활성화되었습니다.
-  tr: Hızlı ipuçları etkinleştirildi.
-  vi: Đã bật mẹo nhanh.
-  id: Tips cepat diaktifkan.
-  pl: Szybkie wskazówki włączone.
-  nl: Snelle tips ingeschakeld.
-  ar: تم تفعيل النصائح السريعة.
-  hi: त्वरित सुझाव सक्षम किए गए।
-  th: เปิดใช้งานเคล็ดลับด่วนแล้ว
-  it: Suggerimenti rapidi attivati.
-  cs: Rychlé tipy zapnuty.
-  sv: Snabbtips aktiverade.
-  he: הטיפים המהירים הופעלו.
-  verified_by_human: []
-ai_ask_settings.quick_tips_disabled:
-  context: Success toast when quick tips are disabled
-  en: Quick tips disabled.
-  de: Kurztipps deaktiviert.
-
-  zh: 快捷提示已禁用。
-  es: Consejos rápidos desactivados.
-  fr: Astuces rapides désactivées.
-  pt: Dicas rápidas desativadas.
-  ru: Быстрые советы выключены.
-  ja: クイックチップを無効にしました。
-  ko: 퀵 팁이 비활성화되었습니다.
-  tr: Hızlı ipuçları devre dışı bırakıldı.
-  vi: Đã tắt mẹo nhanh.
-  id: Tips cepat dinonaktifkan.
-  pl: Szybkie wskazówki wyłączone.
-  nl: Snelle tips uitgeschakeld.
-  ar: تم تعطيل النصائح السريعة.
-  hi: त्वरित सुझाव अक्षम किए गए।
-  th: ปิดใช้งานเคล็ดลับด่วนแล้ว
-  it: Suggerimenti rapidi disattivati.
-  cs: Rychlé tipy vypnuty.
-  sv: Snabbtips inaktiverade.
-  he: הטיפים המהירים הושבתו.
-  verified_by_human: []
-ai_ask_settings.quick_tips_save_error:
-  context: Error toast when quick tips preference cannot be saved
-  en: Could not save quick tips setting.
-  de: Einstellung für Kurztipps konnte nicht gespeichert werden.
-
-  zh: 无法保存快捷提示设置。
-  es: No se pudo guardar el ajuste de consejos rápidos.
-  fr: "Impossible d'enregistrer le paramètre des astuces rapides."
-  pt: Não foi possível salvar a configuração de dicas rápidas.
-  ru: Не удалось сохранить настройку быстрых советов.
-  ja: クイックチップ設定を保存できませんでした。
-  ko: 퀵 팁 설정을 저장할 수 없습니다.
-  tr: Hızlı ipuçları ayarı kaydedilemedi.
-  vi: Không thể lưu cài đặt mẹo nhanh.
-  id: Gagal menyimpan pengaturan tips cepat.
-  pl: Nie udało się zapisać ustawienia szybkich wskazówek.
-  nl: Kan instelling voor snelle tips niet opslaan.
-  ar: تعذر حفظ إعداد النصائح السريعة.
-  hi: त्वरित सुझाव सेटिंग सहेजी नहीं जा सकी।
-  th: ไม่สามารถบันทึกการตั้งค่าเคล็ดลับด่วนได้
-  it: "Impossibile salvare l'impostazione dei suggerimenti rapidi."
-  cs: Nepodařilo se uložit nastavení rychlých tipů.
-  sv: Kunde inte spara inställningen för snabbtips.
-  he: לא ניתן היה לשמור את הגדרת הטיפים המהירים.
   verified_by_human: []
 ai_ask_settings.manual_select_note:
   context: Note about manual model selection via @ mention

@@ -1,0 +1,39 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: images-modify-skill
+title: Images app modify skill with a model-written editing program in an E2B sandbox
+goal: "Add an images.modify skill: the assistant hands over natural-language instructions and one to six pictures from the chat, an author model writes deterministic Python that runs in E2B without internet, the result is checked against stated requirements and corrected within a limit, progress is streamed, and the result is a normal image. First real case is an embroidery stitch preview placed on an outfit photo."
+authorization: The user described the skill on 2026-11-10, agreed to the recommended design (code only, allowed libraries, Jev review, progress streaming, stitch preview as input) and asked to update Specification and Plan, implement, test and show real results.
+task: 2e6d9f0d-187c-4d4f-83c6-cc7222acfd65
+specification_refs:
+  - id: feature.app-skill.images-modify
+    version: 1
+  - id: feature.app-skill.design-embroidery
+    version: 1
+scope:
+  - E2B template with Pillow, NumPy, OpenCV (headless) and CairoSVG; build script under backend/scripts, following the embroidery template.
+  - Dedicated sandbox provider under backend/shared/providers that owns sandbox lifetime, limits and binary file transfer of inputs and the single output picture.
+  - Author loop in a new module of the images app; multimodal author models in a fixed order, program extraction and static validation, sandbox run, Jev review of the computed picture against requirements, at most two correction rounds, usage records for billing.
+  - Input loading in full resolution for pixel images, SVG source for vector graphics, and the transparent stitch preview for design.embroidery results.
+  - images.modify skill and Celery task on the shared media worker in new modules (generate_task.py is not grown); result stored, indexed and delivered as a generated image child; program and input references kept encrypted for 24 hours for follow-up changes.
+  - Progress updates with step names and a small draft picture; web card and opened view show them; assistant instructions route exact edits to images.modify and generative ones to images.generate.
+  - CLI and SDK metadata regenerated; generic CLI rendering shows the finished image.
+  - Apple follows after the deployed web behaviour is confirmed.
+decisions:
+  - Code only; images.modify never calls an image generation model. The assistant chooses or chains images.generate for generative changes.
+  - One to six input pictures; every picture is sent reduced to the author and review each round, so cost grows with the count.
+  - A new sandbox template instead of the Code Run template, which has no image libraries and no internet to install them.
+  - The author sees reduced copies (longest side about 1024 px) and exact pixel sizes; the program works on the originals with relative or absolute coordinates.
+  - Review reuses the Jev client used for vector graphics, on a reduced JPEG of the result, with the inputs as additional pictures where needed.
+  - Output is capped at 4096 px on the longest side and 20 MB.
+  - Price follows the script vector engine; model tokens plus 5 credits per started sandbox minute.
+  - The shared store-and-deliver block of generated images is extracted into a helper only if it can be done without changing images.generate behaviour; otherwise the modify task has its own storage module built from the same primitives.
+required_checks:
+  - Real sandbox runs against the built template for at least five cases (motif on outfit photo, collage of five, crop and colour grade, SVG logo on photo with rotation, a deliberately failing first program) with the result pictures viewed.
+  - Backend unit tests for request validation, input loading, program validation, the correction loop, review handling, billing sums and failure states, in isolated CI.
+  - Real CLI chat against dev that triggers images.modify with two pictures and receives a finished image.
+  - Component preview spec for the image card and opened view in the modifying states (steps, draft picture, finished, failed) on phone and desktop widths.
+  - Real web chat against dev with the personal dev test account that uploads a photo, uses an embroidery result and gets the composed picture, with recording and screenshots.
+  - Generated registries, SDK metadata and translations regenerated and their checks green.
+  - Validate this Plan; deploy only scoped, verified changes through the managed session helper.

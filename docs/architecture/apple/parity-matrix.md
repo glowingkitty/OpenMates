@@ -4,6 +4,10 @@ Status: program inventory active
 Created: 2026-06-01  
 Owner: Apple/web parity work
 
+> Scope note (2026-11-09): this matrix tracks UI and user-visible behavior. Logic
+> (sync, crypto, cache, send, streaming, recovery, drafts, search) is no longer ported
+> to Swift; it moves into the Rust core per `specifications/architecture/client-core`.
+
 ## Goal
 
 The web app is the source of truth for OpenMates product UI and user-facing behavior. The Apple app should match that product experience one-to-one where OpenMates owns the UI, while still using idiomatic SwiftUI/UIKit boundaries where native platform APIs are the correct product contract.

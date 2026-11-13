@@ -26,6 +26,7 @@
   import ChatComponent from '../Chat.svelte';
   import Icon from '../../Icon.svelte';
   import { groupChats, getLocalizedGroupTitle } from '../utils/chatGroupUtils';
+  import { buildGroupInput } from '../utils/chatListInput'; // Opt-in Rust chat-list policy input (flag-on only)
   import type { ChatSearchResult, AppCatalogSearchResult, SearchResults as SearchResultsType } from '../../../services/searchService';
   import type { Chat as ChatType } from '../../../types/chat';
   import { appSkillsStore } from '../../../stores/appSkillsStore';
@@ -64,12 +65,30 @@
     onAppCatalogClick,
   }: Props = $props();
 
+  // Measurement-only opt-out (`openmates_rust_core_chatstate` = 'ts'), read once per page load.
+  const RUST_CHAT_LIST: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+    && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
+  // Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === '1'): the chatState unit groups the results.
+  let rustGroupedChatResults = $state.raw<Record<string, ChatType[]>>({});
+  if (RUST_CHAT_LIST) {
+    $effect(() => {
+      const chats = (results.chats ?? []).map(r => r.chat);
+      const input = buildGroupInput(chats);
+      let stale = false;
+      void import('../../../services/rustCore/chatState/rustChatList')
+        .then((rust) => rust.rustGroupChats(chats, input))
+        .then((groups) => { if (!stale) rustGroupedChatResults = groups; })
+        .catch((error) => console.error('[SearchResults] Rust chat-list grouping failed', error));
+      return () => { stale = true; };
+    });
+  }
+
   // Group chat results by time period (reusing existing grouping logic)
   let groupedChatResults = $derived((() => {
     if (!results.chats || results.chats.length === 0) return [];
 
     const chats = results.chats.map(r => r.chat);
-    const grouped = groupChats(chats);
+    const grouped = RUST_CHAT_LIST ? rustGroupedChatResults : groupChats(chats);
 
     const timeGroups = ['today', 'yesterday', 'previous_7_days', 'previous_30_days'];
     const staticGroups = ['shared_by_others', 'intro', 'examples', 'legal'];
@@ -124,26 +143,10 @@
     const apps = results.appCatalog.filter(r => r.entryType === 'app');
     const skills = results.appCatalog.filter(r => r.entryType === 'skill');
     const focusModes = results.appCatalog.filter(r => r.entryType === 'focus_mode');
-    const memories = results.appCatalog.filter(r => r.entryType === 'memory');
-    return { apps, skills, focusModes, memories };
+    return { apps, skills, focusModes };
   })());
 
-  let settingsByType = $derived((() => {
-    const myEmbeds: typeof results.settings = [];
-    const regularSettings: typeof results.settings = [];
-
-    for (const settingResult of results.settings) {
-      const path = settingResult.entry.path;
-      const isMyEmbedEntry = /^app_store\/[^/]+\/settings_memories\/[^/]+\/entry\/[^/]+$/.test(path);
-      if (isMyEmbedEntry) {
-        myEmbeds.push(settingResult);
-      } else {
-        regularSettings.push(settingResult);
-      }
-    }
-
-    return { myEmbeds, regularSettings };
-  })());
+  const settingsByType = $derived({ regularSettings: results.settings });
 
   // Track focused result index for keyboard navigation.
   // We flatten all results into a single navigable list.
@@ -165,9 +168,6 @@
     for (const s of settingsByType.regularSettings) {
       items.push({ type: 'settings', id: s.entry.path });
     }
-    for (const s of settingsByType.myEmbeds) {
-      items.push({ type: 'settings', id: s.entry.path });
-    }
     if (appsByType) {
       for (const a of appsByType.apps) {
         items.push({ type: 'app', id: a.entry.path });
@@ -176,9 +176,6 @@
         items.push({ type: 'app', id: a.entry.path });
       }
       for (const a of appsByType.focusModes) {
-        items.push({ type: 'app', id: a.entry.path });
-      }
-      for (const a of appsByType.memories) {
         items.push({ type: 'app', id: a.entry.path });
       }
     }
@@ -334,7 +331,7 @@
   function getAppCatalogIcons(appResult: AppCatalogSearchResult): {
     appIconName: string;
     itemIconName: string | null;
-    itemIconType: 'skill' | 'focus' | 'memory' | null;
+    itemIconType: 'skill' | 'focus' | null;
   } {
     const appMeta = appSkillsStore.getState().apps[appResult.entry.appId];
     const appIconName = normalizeIconName(appMeta?.icon_image, appResult.entry.appId);
@@ -359,26 +356,7 @@
       return { appIconName, itemIconName, itemIconType: 'focus' };
     }
 
-    const memoryId = pathParts[3] || '';
-    const memory = appMeta.settings_and_memories.find(m => m.id === memoryId);
-    const itemIconName = normalizeIconName(memory?.icon_image || appMeta.icon_image, appResult.entry.appId);
-    return { appIconName, itemIconName, itemIconType: 'memory' };
-  }
-
-  function getMyEmbedIcons(path: string): {
-    appIconName: string;
-    memoryIconName: string;
-  } {
-    const pathParts = path.split('/');
-    const appId = pathParts[1] || '';
-    const categoryId = pathParts[3] || '';
-    const appMeta = appSkillsStore.getState().apps[appId];
-
-    const appIconName = normalizeIconName(appMeta?.icon_image, appId || 'app');
-    const memoryMeta = appMeta?.settings_and_memories.find((m) => m.id === categoryId);
-    const memoryIconName = normalizeIconName(memoryMeta?.icon_image || appMeta?.icon_image, appId || 'app');
-
-    return { appIconName, memoryIconName };
+    return { appIconName, itemIconName: null, itemIconType: null };
   }
 
   function resolveTranslatedLabel(value: string): string {
@@ -538,48 +516,6 @@
     </div>
   {/if}
 
-  {#if settingsByType.myEmbeds.length > 0}
-    <div class="search-section">
-      <h3 class="search-section-title">{$text('settings.app_settings_memories.my_settings_and_memories')}</h3>
-      {#each settingsByType.myEmbeds as settingResult}
-        {@const itemId = settingResult.entry.path}
-        {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
-        {@const myEmbedIcons = getMyEmbedIcons(settingResult.entry.path)}
-        <button
-          class="search-setting-item"
-          class:focused={isFocused}
-          data-testid="search-setting-item"
-          data-result-id={itemId}
-          onclick={() => onSettingsClick(
-            settingResult.entry.path,
-            settingResult.label,
-            settingResult.icon || undefined,
-            settingResult.entry.translationKey,
-          )}
-        >
-          <span class="app-result-icons" aria-hidden="true">
-            <Icon
-              name={myEmbedIcons.appIconName}
-              type="app"
-              size="22px"
-              noAnimation={true}
-            />
-            <Icon
-              name={myEmbedIcons.memoryIconName}
-              type="memory"
-              size="22px"
-              noAnimation={true}
-            />
-          </span>
-          <span class="item-label">
-            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-            {@html highlightText(settingResult.label, query)}
-          </span>
-        </button>
-      {/each}
-    </div>
-  {/if}
-
   <!-- App Catalog Results Sections -->
   {#if appsByType && appsByType.apps.length > 0}
     <div class="search-section">
@@ -673,44 +609,6 @@
               <Icon
                 name={appIcons.itemIconName}
                 type="focus"
-                size="22px"
-                noAnimation={true}
-              />
-            {/if}
-          </span>
-          <span class="item-label">
-            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-            {@html highlightText(appResult.label, query)}
-          </span>
-        </button>
-      {/each}
-    </div>
-  {/if}
-
-  {#if appsByType && appsByType.memories.length > 0}
-    <div class="search-section">
-      <h3 class="search-section-title">{$text('settings.app_settings_memories.settings_and_memories')}</h3>
-      {#each appsByType.memories as appResult}
-        {@const itemId = appResult.entry.path}
-        {@const isFocused = allFocusableItems[focusedIndex]?.id === itemId}
-        {@const appIcons = getAppCatalogIcons(appResult)}
-        <button
-          class="search-setting-item"
-          class:focused={isFocused}
-          data-result-id={itemId}
-          onclick={() => onAppCatalogClick(appResult.entry.path, appResult.label)}
-        >
-          <span class="app-result-icons" aria-hidden="true">
-            <Icon
-              name={appIcons.appIconName}
-              type="app"
-              size="22px"
-              noAnimation={true}
-            />
-            {#if appIcons.itemIconName}
-              <Icon
-                name={appIcons.itemIconName}
-                type="memory"
                 size="22px"
                 noAnimation={true}
               />

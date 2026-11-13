@@ -253,7 +253,7 @@ async function mockProgressiveAnonymousChatStream(page: any, anonymousRequests: 
 								chat_summary: longSummary,
 								chat_tags: [],
 								harmful_response: 0,
-								quick_tip_slugs: []
+								recommendations: []
 							});
 							controller.close();
 						}
@@ -366,8 +366,24 @@ test.describe('Anonymous free chat', () => {
 
 		await openDemoForEveryoneAndStartAnonymousChat(page, async () => {
 			await page.evaluate(() => {
-				window.sessionStorage.setItem('openmates.learningMode.enabled', 'true');
-				window.sessionStorage.setItem('openmates.learningMode.ageGroup', '10_12');
+				// Guest Learning Mode is a passcode-locked, browser-local record. The
+				// passcode record below is a placeholder that must never reach a request.
+				window.localStorage.setItem(
+					'openmates.learningMode.guest',
+					JSON.stringify({
+						enabled: true,
+						age_group: '10_12',
+						collaborative_build: true,
+						passcode: {
+							hash: 'cGxhY2Vob2xkZXItaGFzaA==',
+							salt: 'cGxhY2Vob2xkZXItc2FsdA==',
+							iterations: 210000,
+							algorithm: 'pbkdf2_sha256'
+						},
+						failed_attempts: 0,
+						blocked_until: null
+					})
+				);
 			});
 		});
 
@@ -382,8 +398,15 @@ test.describe('Anonymous free chat', () => {
 		expect(anonymousRequests[0].learning_mode).toEqual({
 			enabled: true,
 			age_group: '10_12',
+			collaborative_build: true,
 			source: 'anonymous_session'
 		});
+		// No passcode, hash, salt or attempt data may leave the browser.
+		const serialized = JSON.stringify(anonymousRequests[0]);
+		expect(serialized).not.toContain('pbkdf2_sha256');
+		expect(serialized).not.toContain('cGxhY2Vob2xkZXItaGFzaA==');
+		expect(serialized).not.toContain('failed_attempts');
+		expect(serialized).not.toContain('blocked_until');
 	});
 
 	// contract-test: supporting surface=gui.web assertions=message-input.privacy-context

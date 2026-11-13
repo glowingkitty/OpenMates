@@ -197,3 +197,80 @@ def test_reserve_message_demands_an_immediate_stop() -> None:
     text = guard.reserve_message(97.6, resets_in(30), 30)
     assert "EMERGENCY RESERVE" in text and "usage is at 98%" in text and "stop this chat now" in text
     assert "exact next command or file" in text and "overrides this message" in text
+
+
+def test_pace_requires_15_percent_per_full_day_left() -> None:
+    assert guard.pace_days(160.5) == 6 and guard.pace_required_remaining(160.5) == 90
+    assert guard.pace_required_remaining(48.1) == 30 and guard.pace_threshold(48.1) == 70
+    assert guard.pace_required_remaining(23.9) == 0  # last day: the reserve tiers take over
+    assert guard.pace_required_remaining(7 * 24) == 90  # a fresh window never demands more than 100%
+
+
+def test_pace_decision_uses_the_falling_threshold() -> None:
+    # 80% left with 6.7 days to go is below 6 x 15% = 90% -> stop; the same 80% left with 5.2 days is fine.
+    assert guard.decide(20, resets_in(160.5), NOW, None, guard.pace_threshold(160.5), 0).action == "trigger"
+    assert guard.decide(20, resets_in(125), NOW, None, guard.pace_threshold(125), 0).action == "below_threshold"
+    assert guard.decide(26, resets_in(125), NOW, None, guard.pace_threshold(125), 0).action == "trigger"
+
+
+def _pace_env(monkeypatch, rows: list[dict], used: float = 20.0, hours: float = 160.5) -> list[list[str]]:
+    monkeypatch.setattr(guard, "fetch_weekly_usage", lambda: (used, resets_in(hours)))
+    monkeypatch.setattr(guard, "list_background_agents", lambda: rows)
+    monkeypatch.setattr(guard, "transcripts", lambda root: {})
+    sent: list[list[str]] = []
+    monkeypatch.setattr(guard, "deliver", lambda targets, message, root, mode:
+                        sent.append([t["sessionId"] for t in targets]) or message.splitlines()[0])
+    return sent
+
+
+def test_pace_tells_each_chat_once_but_reaches_chats_started_later(tmp_path: Path, monkeypatch) -> None:
+    rows = [{"name": "a", "sessionId": "s1", "status": "busy"}]
+    sent = _pace_env(monkeypatch, rows)
+    assert guard.run_check(False, 0, 0, 30, tmp_path, NOW, tier=guard.PACE_TIER).action == "trigger"
+    guard.run_check(False, 0, 0, 30, tmp_path, NOW, tier=guard.PACE_TIER)
+    rows.append({"name": "b", "sessionId": "s2", "status": "busy"})
+    guard.run_check(False, 0, 0, 30, tmp_path, NOW, tier=guard.PACE_TIER)
+    assert sent == [["s1"], ["s2"]]
+    assert json.loads((tmp_path / "state-pace.json").read_text())["notified"] == ["s1", "s2"]
+
+
+def test_pace_tells_chats_again_on_the_next_day_step(tmp_path: Path, monkeypatch) -> None:
+    rows = [{"name": "a", "sessionId": "s1", "status": "busy"}]
+    sent = _pace_env(monkeypatch, rows, used=40.0, hours=160.5)
+    guard.run_check(False, 0, 0, 30, tmp_path, NOW, tier=guard.PACE_TIER)
+    _pace_env(monkeypatch, rows, used=39.9, hours=100.0)  # step 4 needs 60%; 60.1% left is fine
+    assert guard.run_check(False, 0, 0, 30, tmp_path, NOW, tier=guard.PACE_TIER).action == "below_threshold"
+    sent_after = _pace_env(monkeypatch, rows, used=45.0, hours=100.0)  # 55% left < 60% -> stop again
+    assert guard.run_check(False, 0, 0, 30, tmp_path, NOW, tier=guard.PACE_TIER).action == "trigger"
+    assert sent == [["s1"]] and sent_after == [["s1"]]
+
+
+def test_pace_successful_deliveries_never_exhaust_the_attempt_budget(tmp_path: Path, monkeypatch) -> None:
+    rows: list[dict] = []
+    sent = _pace_env(monkeypatch, rows)
+    for index in range(guard.MAX_ATTEMPTS + 2):
+        rows.append({"name": f"c{index}", "sessionId": f"s{index}", "status": "busy"})
+        assert guard.run_check(False, 0, 0, 30, tmp_path, NOW, tier=guard.PACE_TIER).action == "trigger"
+    assert len(sent) == guard.MAX_ATTEMPTS + 2
+
+
+def test_pace_message_demands_a_stop_with_progress_and_open_items() -> None:
+    text = guard.pace_message(20, resets_in(160.5), 160.5)
+    assert text.startswith("STOP: only 80% of the weekly Claude budget is left")
+    assert "6 full day(s)" in text and "= 90%" in text
+    for needle in ("progress made and what remains open", "exact next command or file", "/new-task",
+                   "overrides this message"):
+        assert needle in text
+    assert guard.tier_message(guard.PACE_TIER, 20, resets_in(160.5), 160.5) == text
+
+
+def test_pace_tier_is_off_unless_enabled(monkeypatch, capsys) -> None:
+    seen: list[str] = []
+    monkeypatch.setattr(guard, "run_check", lambda *args, tier=guard.WRAPUP_TIER, **kw: seen.append(tier))
+    assert guard.main(["check"]) == 0
+    assert seen == [guard.RESERVE_TIER, guard.WRAPUP_TIER]
+    seen.clear()
+    assert guard.main(["check", "--enable-pace"]) == 0
+    assert seen == [guard.RESERVE_TIER, guard.PACE_TIER, guard.WRAPUP_TIER]
+    guard.main(["message"])
+    assert "--- pace ---" not in capsys.readouterr().out

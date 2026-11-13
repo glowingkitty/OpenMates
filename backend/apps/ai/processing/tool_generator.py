@@ -210,9 +210,34 @@ def _extract_skill_parameters_schema(skill_def: AppSkillDefinition) -> Dict[str,
     # Automatically inject 'id' field into schemas with 'requests' arrays
     # This ensures all skills that support multiple requests have consistent 'id' field definitions
     schema = _inject_id_field_if_needed(schema, skill_def.id)
+    _drop_assistant_hidden_properties(schema)
     
     logger.debug(f"Using tool_schema from app.yml for skill '{skill_def.id}' (with automatic 'id' field injection if needed)")
     return schema
+
+
+ASSISTANT_HIDDEN_KEY = "x-assistant"
+
+
+def _drop_assistant_hidden_properties(schema: Dict[str, Any]) -> None:
+    """Remove every property marked ``x-assistant: false`` from the tool schema, in place.
+
+    Such a parameter stays part of the skill for the app's own clients (CLI, fullscreen
+    controls) but is never offered to the assistant, so the skill decides it itself.
+    """
+    properties = schema.get("properties")
+    if isinstance(properties, dict):
+        for name in [key for key, value in properties.items()
+                     if isinstance(value, dict) and value.get(ASSISTANT_HIDDEN_KEY) is False]:
+            del properties[name]
+            if isinstance(schema.get("required"), list) and name in schema["required"]:
+                schema["required"].remove(name)
+        for value in properties.values():
+            if isinstance(value, dict):
+                _drop_assistant_hidden_properties(value)
+    items = schema.get("items")
+    if isinstance(items, dict):
+        _drop_assistant_hidden_properties(items)
 
 
 def _inject_id_field_if_needed(schema: Dict[str, Any], skill_id: str) -> Dict[str, Any]:

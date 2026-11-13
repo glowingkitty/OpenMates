@@ -70,6 +70,7 @@
     type ProjectRemoteSearchResult,
     type ProjectRemoteTextResult,
   } from '../../services/projectService';
+  import { PROJECT_RUST_CORE, decideProject } from '../../services/projectState/decide';
   import {
     buildRemoteFileUploadCandidate,
     buildVirtualRemoteFullscreenDetail,
@@ -81,6 +82,7 @@
   } from '../../services/projectRemoteSources';
   import { broadcastProjectFilesChanged, PROJECTS_CHANGED_EVENT } from '../../services/projectBrowserEvents';
   import {
+    projectApplicationFolder,
     projectBrowserItemName,
     projectVirtualBreadcrumbs,
     projectVirtualBrowserView,
@@ -429,6 +431,8 @@
     if (entry.kind === 'virtual-folder') return currentFolderHash === null && directParentPath(entry.folder.path) === (currentVirtualPath ?? '.');
     if (currentFolderHash !== null) return (entry.item.encrypted.hashed_folder_id ?? null) === currentFolderHash;
     if (entry.item.encrypted.hashed_folder_id) return false;
+    const applicationFolder = projectApplicationFolder(entry.item);
+    if (applicationFolder) return applicationFolder === currentVirtualPath;
     const path = entry.item.metadata.source === 'hosted_project_file' && typeof entry.item.metadata.path === 'string'
       ? entry.item.metadata.path : null;
     return path ? directParentPath(path) === (currentVirtualPath ?? '.') : currentVirtualPath === null;
@@ -1029,7 +1033,11 @@
       const candidate = buildRemoteFileUploadCandidate({
         preview: entry.preview,
         readResult,
-      });
+      }, PROJECT_RUST_CORE
+        ? await decideProject('projectRemoteUploadPlan', {
+            preview: entry.preview, readResult: { truncated: readResult.truncated, expectedBase: readResult.expectedBase },
+          })
+        : undefined);
       await uploadFileToProject(project, candidate.file, candidate.metadata, { folderId: currentFolder?.folder_id ?? null });
       await refreshSelectedProject();
       notificationStore.success('Remote file uploaded to OpenMates');
@@ -1844,7 +1852,9 @@
         teamId: project.teamId,
       });
       if (selectedProject?.project_id !== project.project_id) return null;
-      const type = String(head.content.type || item.metadata.embed_type || 'code');
+      // An adopted application link carries no embed_type; never fall back to a code snippet.
+      const type = String(head.content.type || item.metadata.embed_type
+        || (projectApplicationFolder(item) ? 'application' : 'code'));
       return {
         embedData: {
           embed_id: item.target_id,
@@ -1853,7 +1863,7 @@
           content: JSON.stringify(head.content),
           version_number: head.revision,
         },
-        decodedContent: head.content,
+        decodedContent: { ...head.content, type },
       };
     } catch {
       // Older linked embeds may only have a chat/master wrapper. The card's
@@ -2232,7 +2242,7 @@
             <nav class="project-breadcrumbs" aria-label="Project folder path">
               <button class="breadcrumb-button" type="button" onclick={openRoot} aria-label="Project root">/</button>
               {#each currentFolderTrail as folder, index (folder.folder_id)}
-                <span class="breadcrumb-separator">/</span>
+                {#if index > 0}<span class="breadcrumb-separator">/</span>{/if}
                 {#if index === currentFolderTrail.length - 1}
                   <span class="breadcrumb-current" aria-current="page">{folder.name || 'Untitled folder'}</span>
                 {:else}
@@ -2240,7 +2250,7 @@
                 {/if}
               {/each}
               {#each virtualFolderTrail as folder, index (folder.path)}
-                <span class="breadcrumb-separator">/</span>
+                {#if index > 0}<span class="breadcrumb-separator">/</span>{/if}
                 {#if index === virtualFolderTrail.length - 1}
                   <span class="breadcrumb-current" aria-current="page">{folder.name}</span>
                 {:else}
@@ -2366,6 +2376,26 @@
                 <p>{normalizedFolderSearch ? 'Try a different search.' : 'Upload a file or use “Add to project” from chats and embed fullscreen views.'}</p>
               </div>
             {/if}
+            {#snippet storedItemEntry(item: (typeof pageBrowserItems)[number])}
+              <div class="stored-item-entry" class:selected={storedItemSelected(item.project_item_id)}
+                onclickcapture={(event) => handleStoredSelectionClick(event, item)}
+                oncontextmenucapture={(event) => openStoredContextMenu(event, item)}>
+              <ProjectBrowserItem
+                projectId={selectedProject.project_id}
+                teamId={selectedProject.teamId}
+                {item}
+                {viewMode}
+                displayName={projectBrowserItemName(item)}
+                chatPresentation={previewState?.chatPresentations?.[item.target_id]}
+                loadProjectEmbed={loadProjectEmbed}
+                onOpenFullscreen={openStoredFullscreen}
+              />
+              </div>
+            {/snippet}
+            <!-- The application card leads its folder, ahead of subfolders and files. -->
+            {#each pageBrowserItems.filter((item) => !!projectApplicationFolder(item)) as item (item.project_item_id)}
+              {@render storedItemEntry(item)}
+            {/each}
             {#each pageBrowserFolders as folder (folder.folder_id)}
               {@const cardEntries = folderCardEntries(folder)}
               {#if viewMode === 'tile'}
@@ -2418,13 +2448,20 @@
                     appIconName="files"
                     status="finished"
                     skillName={folder.name}
-                    customStatusText="Hosted path"
+                    customStatusText={`${folder.children?.length ?? 0} ${(folder.children?.length ?? 0) === 1 ? 'entry' : 'entries'}`}
                     showSkillIcon={false}
                     onFullscreen={() => openVirtualFolder(folder)}
                   >
                     {#snippet details()}
                       <span class="folder-card-contents">
-                        <span class="folder-child-row"><span class="folder-child-icon child-folder" aria-hidden="true"></span><span>{folder.name}</span><small>Folder</small></span>
+                        {#each (folder.children ?? []).slice(0, 3) as entry (`${entry.kind}:${entry.name}`)}
+                          <span class="folder-child-row" data-testid="project-folder-child"><span class:child-folder={entry.kind === 'folder'} class="folder-child-icon" aria-hidden="true"></span><span>{entry.name}</span><small>{entry.kind === 'folder' ? 'Folder' : 'File'}</small></span>
+                        {:else}
+                          <span class="folder-empty-row">Empty folder</span>
+                        {/each}
+                        {#if (folder.children?.length ?? 0) > 3}
+                          <span class="folder-more-row">+ {(folder.children?.length ?? 0) - 3} more files &amp; folders</span>
+                        {/if}
                       </span>
                     {/snippet}
                   </UnifiedEmbedPreview>
@@ -2434,25 +2471,12 @@
                   <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
                   <span class="remote-list-icon" data-app="files" aria-hidden="true"></span>
                   <strong>{folder.name}</strong>
-                  <small>Hosted path</small>
+                  <small>{folder.children?.length ?? 0} {(folder.children?.length ?? 0) === 1 ? 'entry' : 'entries'}</small>
                 </button>
               {/if}
             {/each}
-            {#each pageBrowserItems as item (item.project_item_id)}
-              <div class="stored-item-entry" class:selected={storedItemSelected(item.project_item_id)}
-                onclickcapture={(event) => handleStoredSelectionClick(event, item)}
-                oncontextmenucapture={(event) => openStoredContextMenu(event, item)}>
-              <ProjectBrowserItem
-                projectId={selectedProject.project_id}
-                teamId={selectedProject.teamId}
-                {item}
-                {viewMode}
-                displayName={projectBrowserItemName(item)}
-                chatPresentation={previewState?.chatPresentations?.[item.target_id]}
-                loadProjectEmbed={loadProjectEmbed}
-                onOpenFullscreen={openStoredFullscreen}
-              />
-              </div>
+            {#each pageBrowserItems.filter((item) => !projectApplicationFolder(item)) as item (item.project_item_id)}
+              {@render storedItemEntry(item)}
             {/each}
             {#each pageBrowserSources as source (source.source_id)}
               {#if viewMode === 'tile'}
@@ -3726,7 +3750,7 @@
   }
 
   .folder-child-icon { width: 0.9rem; height: 0.9rem; color: var(--color-font-secondary); }
-  .folder-child-icon:not(.child-folder) { -webkit-mask: var(--icon-url-code, var(--icon-url-files)) center / contain no-repeat; mask: var(--icon-url-code, var(--icon-url-files)) center / contain no-repeat; }
+  .folder-child-icon:not(.child-folder) { -webkit-mask: var(--icon-url-docs, var(--icon-url-files)) center / contain no-repeat; mask: var(--icon-url-docs, var(--icon-url-files)) center / contain no-repeat; }
 
   .folder-card-contents {
     display: grid;
@@ -3768,6 +3792,10 @@
   }
 
   .breadcrumb-button {
+    width: auto;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
     padding: 0;
     background: transparent;
     color: var(--color-font-secondary);

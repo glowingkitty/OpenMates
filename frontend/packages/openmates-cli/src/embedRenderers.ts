@@ -22,6 +22,8 @@ import type { DecryptedEmbed } from "./client.js";
 import type { OpenMatesClient } from "./client.js";
 import qrcode from "qrcode-terminal";
 import { terminalText } from "./tuiText.js";
+import { investorLines } from "./investorEmbedLines.js";
+import { companyOwnershipLines } from "./companyOwnershipEmbedLines.js";
 
 type EmbedWriter = (chunk: string) => void;
 const stdoutWriter: EmbedWriter = chunk => { process.stdout.write(chunk); };
@@ -228,6 +230,18 @@ export function formatEmbedPreviewLines(embed: DecryptedEmbed, maxContentLines =
     return lines;
   }
 
+  if (app === 'business' && skill === 'company_ownership') {
+    lines.push(...companyOwnershipLines(c).map(line => `│  ${line}`));
+    lines.push(`└─ openmates embeds show ${shortId}`);
+    return lines;
+  }
+
+  if (app === 'business' && skill === 'search_investors') {
+    lines.push(...investorLines(c).map(line => `│  ${line}`));
+    lines.push(`└─ openmates embeds show ${shortId}`);
+    return lines;
+  }
+
   if (app === 'business' && skill === 'search_trademarks') {
     lines.push(...trademarkLines(c).map(line => `│  ${line}`));
     lines.push(`└─ openmates embeds show ${shortId}`);
@@ -412,6 +426,14 @@ export async function renderEmbedPreview(
       await renderHealthSearchPreview(c, ln, client);
       break;
 
+    case "business/company_ownership":
+      companyOwnershipLines(c).forEach(ln);
+      break;
+
+    case "business/search_investors":
+      investorLines(c).forEach(ln);
+      break;
+
     case "business/search_trademarks":
       trademarkLines(c).forEach(ln);
       break;
@@ -491,6 +513,12 @@ export async function renderEmbedFullscreen(
   // Type-specific detail
   const key = `${app}/${skill}`;
   switch (key) {
+    case "business/company_ownership":
+      companyOwnershipLines(c, true).forEach(line => writeEmbedLine(write, line));
+      break;
+    case "business/search_investors":
+      investorLines(c, true).forEach(line => writeEmbedLine(write, line));
+      break;
     case "business/search_trademarks":
       trademarkLines(c, true).forEach(line => writeEmbedLine(write, line));
       break;

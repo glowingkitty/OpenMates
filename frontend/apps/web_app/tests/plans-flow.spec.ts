@@ -6,6 +6,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { createProjectPlanForTest } = require('./helpers/create-project-plan');
+const { naturalProjectName } = require('./helpers/project-names');
 
 test.describe('Plans in Tasks and Projects', () => {
   // contract-test: direct surface=gui.web assertions=plans.lifecycle.visible,plans.content.client-encrypted,plans.ui.edit-approve-resume
@@ -16,14 +17,14 @@ test.describe('Plans in Tasks and Projects', () => {
     await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
     await loginToTestAccount(page);
 
-    const projectName = `Plan flow project ${Date.now()}`;
+    const projectName = naturalProjectName('Spanish lessons');
     let planPayload = '';
     page.on('request', (request) => {
       if (request.method() === 'POST' && request.url().endsWith('/v1/user-plans')) planPayload = request.postData() ?? '';
     });
     const { planId } = await createProjectPlanForTest(page, projectName);
     expect(planPayload).not.toContain(projectName);
-    await expect(page.getByTestId('plan-title-input')).toBeVisible();
+    await expect(page.getByTestId('plan-detail-page').getByTestId('workspace-detail-title-field')).toBeVisible();
 
     await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30000 });

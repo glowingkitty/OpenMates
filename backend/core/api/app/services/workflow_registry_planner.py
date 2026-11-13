@@ -319,7 +319,9 @@ class WorkflowRegistryPlanner:
                                    "generation_attempts": [], "cost_estimate_complete": True}
         user_id = context.get("_billing_user_id")
         session_id = context.get("_billing_session_id")
-        billing = (WorkflowAuthoringBilling(user_id=user_id, session_id=session_id)
+        billing = (WorkflowAuthoringBilling(user_id=user_id, session_id=session_id,
+                                            source_chat_id=context.get("_billing_source_chat_id"),
+                                            source_message_id=context.get("_billing_source_message_id"))
                    if isinstance(user_id, str) and isinstance(session_id, str) else None)
         metered_jev = MeteredJevClient(jev, billing) if billing is not None else jev
         targets: dict[str, dict[str, Any]] = {}

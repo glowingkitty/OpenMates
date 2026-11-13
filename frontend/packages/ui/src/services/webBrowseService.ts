@@ -15,7 +15,12 @@ export interface BrowseSession {
   charged_credits: number;
   accounting_pending: boolean;
   expires_at: number;
+  /** Absent on sessions created before step reporting. Labels are observed targets, never typed text. */
+  steps?: BrowseStep[];
+  phase?: BrowsePhase;
 }
+export interface BrowseStep { n: number; kind: string; label: string; url: string; at: number }
+export type BrowsePhase = 'starting' | 'working' | 'finishing' | 'idle';
 export type BrowseInput = { kind: 'click'; x: number; y: number }
   | { kind: 'type'; text: string }
   | { kind: 'key'; key: 'Enter' | 'Tab' | 'Shift+Tab' | 'Backspace' | 'Escape' | 'ArrowDown' | 'ArrowUp' | 'Control+A' }

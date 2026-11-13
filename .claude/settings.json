@@ -1,7 +1,38 @@
 {
   "env": {
     "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
-    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "300000"
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "300000",
+    "CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL": "1h"
+  },
+  "permissions": {
+    "deny": [
+      "Workflow",
+      "EnterWorktree",
+      "ExitWorktree",
+      "mcp__claude-code-remote__add_repo",
+      "mcp__claude-code-remote__register_repo_root",
+      "mcp__claude-code-remote__list_repos",
+      "mcp__claude-code-remote__confirm_repository_trust",
+      "mcp__claude-code-remote__get_environment",
+      "mcp__claude-code-remote__list_environments",
+      "mcp__claude-code-remote__create_environment",
+      "mcp__claude-code-remote__update_environment",
+      "mcp__claude-code-remote__switch_environment",
+      "mcp__claude-code-remote__list_computer_folders",
+      "mcp__claude-code-remote__request_computer_folder",
+      "mcp__claude-code-remote__report_preview_port",
+      "mcp__claude-code-remote__subscribe_pr_activity",
+      "mcp__claude-code-remote__unsubscribe_pr_activity",
+      "mcp__claude-code-remote__watch_url",
+      "mcp__claude-code-remote__unwatch_url",
+      "mcp__claude-code-remote__set_session_tags",
+      "mcp__claude-code-remote__set_session_title",
+      "mcp__claude-code-remote__get_event",
+      "mcp__claude-code-remote__interrupt_session",
+      "mcp__claude-code-remote__unarchive_session",
+      "mcp__claude-code-remote__fire_trigger",
+      "mcp__claude-code-remote__get_trigger"
+    ]
   },
   "hooks": {
     "PreToolUse": [
@@ -12,6 +43,11 @@
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/apple-no-delete-guard.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/subagent-budget.sh",
+            "timeout": 5
           }
         ]
       },
@@ -21,6 +57,11 @@
           {
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/host-load-gate.sh pre-agent",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/subagent-model-guard.sh",
             "timeout": 5
           }
         ]
@@ -32,12 +73,22 @@
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/bash-guard.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/subagent-session-guard.sh",
+            "timeout": 5
           }
         ]
       },
       {
         "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/session-edit-gate.sh",
+            "timeout": 5
+          },
           {
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/e2e-encryption-guard.sh",
@@ -76,6 +127,41 @@
           {
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/analytics-sdk-forbidden.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/privacy-promise-guard.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/cookie-consent-gate.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/external-resources-guard.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/cli-credential-prompt-guard.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/donation-language-guard.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/read-outline-guard.sh",
             "timeout": 5
           }
         ]
@@ -160,6 +246,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/fable-guard.sh",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -174,6 +270,11 @@
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/peer-chats.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/fable-guard.sh",
+            "timeout": 5
           }
         ]
       }
@@ -185,6 +286,22 @@
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/check-uncommitted.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/pending-work-stop-gate.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/subagent-budget.sh",
+            "timeout": 5
           }
         ]
       }

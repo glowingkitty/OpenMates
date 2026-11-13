@@ -58,6 +58,33 @@ All generated media must follow the root [`DESIGN.md`](../../../DESIGN.md). This
 
 Agents working on video or media generation must check `DESIGN.md` before creating visual output and must update it when introducing reusable video, Remotion, social, or print design rules.
 
+## In-Chat Video Generation
+
+`videos.generate` makes short videos from natural-language `instructions`, optionally with up to 12 pictures of the chat. A request is either a generative clip (Gemini Omni `gemini-omni-1.2-flash`, Google Gemini API, delivered inline with `store: false`) or a composed, code-rendered video; `mode` defaults to auto. Contract: `specifications/features/app-skills/videos-generate/specification.yml`.
+
+### Changing a video (versions)
+
+A request with `source_video` (the embed_ref of an earlier result) and `change` (`edit`, `extend_start`, `extend_end`) makes version N+1 of the same result embed instead of a new embed. Code: `backend/apps/videos/tasks/generate_change.py` (make), `change_delivery.py` (store, charge, publish), `change_edits.py` (structured trims). It uses the shared revision mechanism in `backend/shared/python_utils/media_revision.py`, the same one `images.generate` uses, and is gated by the env flag `IMAGE_EDIT_AS_EMBED_VERSION`. Without the flag, a chat and message id, or for external API requests, the change fails with `change_not_available` and nothing is charged.
+
+Before any work the video must be a generated video of this chat (otherwise `invalid_input`) and have a kept record (otherwise `change_unavailable`). A change that is lost to a concurrent version bump fails with `version_changed` before upload or charge. A failed change publishes nothing, so the video keeps its current version.
+
+### Kept store
+
+Each version stores a kept record at `{user}/videos_kept/{embed}/v{N}.json` in the chat-files bucket, encrypted with the user's Vault key (`video_kept.py`). It holds the version, `made_by`, aspect ratio, resolution, size, the stored final video, and either the composition source plus its input pictures (composed videos) or the ordered list of generated clips with per-clip trims and labels (clip videos). Newly generated clips are stored beside the version (`clip-new`). The record's file keys are added to the embed's key union across all versions.
+
+### Change kinds
+
+- `extend_end`: only for videos made of generated clips. The last frame of the current video is the first frame of one new Gemini Omni clip (3 to `EXTEND_MAX_SECONDS` s), which is joined after the existing clips.
+- `extend_start`: the first frame is turned into an opening still with the image model (`gemini-nano-banana-2.1`); an Omni clip is then generated from that still to the video's first frame and joined before the existing clips. The joined video may last at most 60 s.
+- `edit` of a clip video: if every line of the instructions is a structured trim or removal (the timeline's `Apply these edits to this video:` format: shorten a part at start or end, remove a part, trim the whole video), the new clip list is computed by code and rendered as a clip join, with no author-model call. Edits that would remove everything are rejected. Any other wording goes to the author model, with the clip join as its starting composition and the clips as `video_clip` inputs.
+- `edit` of a composed video: the author model gets the kept composition and the kept original pictures and renders again.
+
+Joins and composed renders run in the E2B sandbox. Safety is checked on the prompt (extends) and on the first, middle and last frame of the result before storing.
+
+### Billing
+
+A change is charged once under the event id `{embed_id}:v{N}:{change_id}` for what it used: added Omni clip seconds at the resolution price, the opening still, author-model tokens and sandbox render minutes. Credit headroom is checked before work starts. If the server refuses to seal the new version, the charge is refunded.
+
 ## Why This Exists
 
 Marketing assets (OG images, Instagram posts/stories/carousels) need to show the actual app UI. Instead of hand-maintained mock components that drift from reality, device frames contain iframes that load the real app in media mode (`?media=1`), ensuring screenshots always match the current UI.

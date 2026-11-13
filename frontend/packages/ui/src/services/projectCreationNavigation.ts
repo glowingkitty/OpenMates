@@ -16,6 +16,7 @@ import {
 } from "../stores/phasedSyncStateStore";
 import { addExistingTargetToProject, getProject, getProjectContents, listProjectSources, listProjects,
   getActiveProjectFocus, getProjectSettings, approveProjectWrite, requestProjectRemoteAccess, updateProjectItemMetadata, type ProjectViewModel } from "./projectService";
+import { PROJECT_RUST_CORE, decideProject, projectRule } from "./projectState/decide";
 import { userProfile } from '../stores/userProfile';
 import { workflowApiRequest, type WorkflowDetail } from '../stores/workflowWorkspaceStore';
 import { persistWorkflowRemoteFile, type WorkflowRemoteFileBinding } from '../../../workflowRemoteFile';
@@ -134,19 +135,27 @@ export async function saveWorkflowToProjectTarget(
   assertCurrent();
   const sources = await listProjectSources(project, context);
   assertCurrent();
-  const remoteSources = sources.filter(source => source.source_type.startsWith('remote_') || source.sourceSessionId);
   const contents = await getProjectContents(project, context);
   assertCurrent();
-  const existing = contents.items.find(item => item.item_type === 'workflow' && item.target_id === workflowId);
+  const targetInput = {
+    projectId: project.project_id, workflowId, targetSourceId: target.sourceId ?? null, folderPath: target.folderPath ?? null,
+    sources: sources.map(({ source_id, source_type, sourceSessionId }) => ({ source_id, source_type, sourceSessionId })),
+    items: contents.items.map(({ item_type, target_id, metadata }) => ({
+      item_type, target_id, metadata: { remote_workflow_file: metadata.remote_workflow_file },
+    })),
+  };
+  const plan = PROJECT_RUST_CORE
+    ? await decideProject('projectWorkflowTarget', targetInput) : projectRule('projectWorkflowTarget', targetInput);
+  if (PROJECT_RUST_CORE) assertCurrent();
+  const existing = plan.existingIndex === null ? undefined : contents.items[plan.existingIndex];
   const priorBinding = existing?.metadata.remote_workflow_file as WorkflowRemoteFileBinding | undefined;
-  const sourceId = priorBinding?.source_id || target.sourceId;
-  const source = sourceId ? sources.find(source => source.source_id === sourceId)
-    : remoteSources.length === 1 ? remoteSources[0] : null;
+  const source = plan.sourceIndex === null ? null : sources[plan.sourceIndex];
   let metadata: Record<string, unknown> = { ...existing?.metadata, source: 'workflow_target',
     path: target.folderPath ?? undefined, source_id: target.sourceId ?? undefined };
   let pending: string | null = null;
-  if (source || remoteSources.length || target.sourceId || priorBinding) {
-    const binding = priorBinding?.source_id ? priorBinding : { project_id: project.project_id, source_id: source?.source_id ?? '', folder_path: target.folderPath ?? '' };
+  if (plan.remote && plan.binding) {
+    const binding: WorkflowRemoteFileBinding = plan.binding.mode === 'prior' && priorBinding ? priorBinding
+      : { project_id: project.project_id, source_id: source?.source_id ?? '', folder_path: target.folderPath ?? '' };
     metadata = { ...metadata, remote_workflow_file: binding, remote_file_status: 'pending' };
     if (source) {
       const workflowPath = `/v1/workflows/${encodeURIComponent(workflowId)}`;
@@ -196,12 +205,20 @@ async function saveRemote(project: ProjectViewModel, workflow: WorkflowDetail, b
   const context = { teamId: teamId ?? null };
   const source = (await listProjectSources(project, context)).find(item => item.source_id === binding.source_id);
   assertCurrent();
-  if (source?.status === 'offline') return { status: 'pending' as const, binding, error: 'source_offline' };
-  if (binding.project_id !== project.project_id) return { status: 'pending' as const, binding, error: 'project_focus_required' };
+  const gateBase = { projectId: project.project_id, bindingProjectId: binding.project_id, sourceFound: Boolean(source) };
+  const sourceGateInput = { ...gateBase, phase: 'source' as const, sourceStatus: source?.status ?? null, chatId: null, focusProjectId: null };
+  const sourceGate = PROJECT_RUST_CORE
+    ? await decideProject('projectWorkflowRemoteGate', sourceGateInput) : projectRule('projectWorkflowRemoteGate', sourceGateInput);
+  if (sourceGate.pending) return { status: 'pending' as const, binding, error: sourceGate.pending };
   const chatId = activeChatStore.get() || workflowRouteChatId(workflow.id);
   const focus = chatId ? await getActiveProjectFocus(chatId) : null;
   assertCurrent();
-  if (!source || !chatId || focus?.project_id !== project.project_id) return { status: 'pending' as const, binding, error: 'project_focus_required' };
+  const focusGateInput = {
+    ...gateBase, phase: 'focus' as const, sourceStatus: source?.status ?? null, chatId: chatId || null, focusProjectId: focus?.project_id ?? null,
+  };
+  const focusGate = PROJECT_RUST_CORE
+    ? await decideProject('projectWorkflowRemoteGate', focusGateInput) : projectRule('projectWorkflowRemoteGate', focusGateInput);
+  if (focusGate.pending || !source || !chatId) return { status: 'pending' as const, binding, error: focusGate.pending ?? 'project_focus_required' };
   return persistWorkflowRemoteFile({ workflow, binding, expectedVersionId: workflow.current_version_id,
     serialize: stringify,
     operationId: crypto.randomUUID(),

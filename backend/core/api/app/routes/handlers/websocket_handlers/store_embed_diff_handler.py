@@ -16,7 +16,8 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.embed_version_transaction_service import (
-    EmbedVersionTransactionService, EmbedVersionTransactionError, requires_atomic_project_embed_write,
+    EmbedVersionTransactionService, EmbedVersionTransactionError, is_generated_image_child,
+    is_hosted_project_embed_id, requires_atomic_project_embed_write,
 )
 
 logger = logging.getLogger(__name__)
@@ -92,7 +93,16 @@ async def handle_store_embed_diff(
             )
             return
 
-        if await requires_atomic_project_embed_write(directus_service, embed_id):
+        # A generated image child has a UUIDv5 id like a hosted Project file, but its
+        # versions are ordinary history rows; the transaction extension re-checks it.
+        image_child = False
+        if is_hosted_project_embed_id(embed_id):
+            stored_head = await directus_service.embed.get_embed_by_id(embed_id)
+            image_child = (
+                is_generated_image_child(embed_id, stored_head)
+                and stored_head.get("hashed_user_id") == _user_hash(user_id)
+            )
+        if not image_child and await requires_atomic_project_embed_write(directus_service, embed_id):
             logger.warning(
                 "Rejected legacy store_embed_diff for atomic Project embed %s from user %s",
                 embed_id,
@@ -109,7 +119,7 @@ async def handle_store_embed_diff(
         encrypted_patch = payload.get("encrypted_patch")
         if (not isinstance(encrypted_snapshot, str) and not isinstance(encrypted_patch, str)) or (
             version_number == 1 and (not isinstance(encrypted_snapshot, str) or encrypted_patch is not None)
-        ) or (version_number > 1 and not isinstance(encrypted_patch, str)):
+        ) or (version_number > 1 and not isinstance(encrypted_patch, str) and not image_child):
             logger.warning("Rejected unencrypted/empty embed diff row for embed %s", embed_id)
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Embed diff row must be encrypted"}},

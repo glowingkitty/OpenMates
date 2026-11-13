@@ -29,6 +29,7 @@ from backend.shared.python_utils.app_skill_helpers import execute_skill_via_cele
 from backend.shared.python_utils.media_generation_safety import (
     validate_media_generation_request,
 )
+from backend.shared.python_utils.media_generation_safety.named_person_review import check_image_generation_request
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +50,25 @@ class ImageGenerationRequestItem(BaseModel):
     )
     output_filetype: str = Field(
         default="png",
-        description="Output file type: 'png', 'jpg', or 'svg'. Use 'svg' for scalable vector graphics via Recraft V4.1.",
+        description="Output file type: 'png', 'jpg', or 'svg'. Use 'svg' for scalable vector graphics.",
+    )
+    vector_engine: str = Field(
+        default="llm",
+        description="Only for svg output: 'llm' (a vector author model writes the SVG code; billed by tokens), "
+        "'script' (the author writes a deterministic generator script that runs in a sandbox; best for "
+        "mathematical or highly regular shapes; billed by tokens plus sandbox time) or 'recraft' "
+        "(Recraft V4.1 Vector, flat price).",
+    )
+    requirements: Optional[List[str]] = Field(
+        default=None,
+        description="Only for svg output: short, checkable natural-language requirements the result must meet. "
+        "When given, the rendered result is checked against each one and clearly unmet requirements are "
+        "corrected automatically; when omitted, no check runs.",
     )
     quality: str = Field(
         default="default",
-        description="Quality/model tier: 'default' or 'max'. Only relevant for svg and recraft raster models.",
+        description="Quality tier: 'default' or 'max'. For svg with the llm engine 'max' means longer reasoning; "
+        "otherwise it selects the Recraft model tier.",
     )
     style: Optional[str] = Field(
         default=None,
@@ -203,11 +218,11 @@ class GenerateSkill(BaseSkill):
                 )
                 continue
 
-            prompt_decision = validate_media_generation_request(
-                media_type="image",
-                prompt=str(prompt),
-                request_count=1,
-                style=req.get("style"),
+            # A prompt that names someone without asking to imitate them is decided by the
+            # safeguard model; every other refusal of the fixed rules stands.
+            prompt_decision = await check_image_generation_request(
+                prompt=str(prompt), style=req.get("style"),
+                secrets_manager=kwargs.get("secrets_manager") or getattr(self.app, "secrets_manager", None),
             )
             if not prompt_decision.allowed:
                 logger.warning(
@@ -265,7 +280,12 @@ class GenerateSkill(BaseSkill):
                 "aspect_ratio": req.get("aspect_ratio", "1:1"),
                 "output_filetype": output_filetype,
                 "quality": quality,
+                # Only read for SVG output: "llm" (vector author, default) or "recraft".
+                "vector_engine": str(req.get("vector_engine") or "llm").lower(),
+                # Natural-language requirements an SVG result is checked against (optional).
+                "requirements": req.get("requirements") or [],
                 "style": req.get("style"),
+                **({"named_person_reviewed": True} if prompt_decision.reason == "named_person_reviewed" else {}),
                 "user_id": user_id,
                 "chat_id": self._current_chat_id,
                 "message_id": self._current_message_id,

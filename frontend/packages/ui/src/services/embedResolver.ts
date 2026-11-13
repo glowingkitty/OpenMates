@@ -70,7 +70,11 @@ function pruneExpiredPersonalRequests(now: number): void {
   }
 }
 
-type EmbedReadOptions = { chatId?: string | null };
+/**
+ * `refresh`: the server holds a newer head than this device (a version saved
+ * just now), so read it even when an older copy is stored locally.
+ */
+type EmbedReadOptions = { chatId?: string | null; refresh?: boolean };
 
 // An explicit null is an unknown source (for example an older saved result),
 // not permission to reinterpret the ID in the currently open chat.
@@ -92,6 +96,7 @@ type EmbedReadContext = {
   requestKey: string;
   assertCurrent: () => void;
   personalScope: PersonalEmbedReadScope | null;
+  refresh: boolean;
 };
 
 async function captureEmbedReadContext(embedId: string, options: EmbedReadOptions): Promise<EmbedReadContext> {
@@ -122,6 +127,7 @@ async function captureEmbedReadContext(embedId: string, options: EmbedReadOption
   return {
     chatId, teamId, parentId: chat?.parent_id ?? null,
     shared: chat?.is_shared_by_others === true, authenticated, assertCurrent, personalScope,
+    refresh: options.refresh === true,
     requestKey: personalScope ? personalEmbedReadOperationKey(personalScope)
       : JSON.stringify([account, selectedTeam, teamId, chatId, embedId]),
   };
@@ -250,7 +256,8 @@ async function fetchPersonalEmbedForChat(embedId: string, chatId: string, contex
     const guard = () => { context.assertCurrent(); assertPending(); };
     guard();
     // resolveEmbed's earlier miss may be stale after asynchronous context capture.
-    if (await readableLocal()) return;
+    // A refresh replaces the stored copy, which is an older head.
+    if (!context.refresh && await readableLocal()) return;
     guard();
     fetched = await fetchEncryptedEmbedForChat(embedId, chatId, null, false, guard, signal);
     if (fetched) await readableLocal();
@@ -449,7 +456,7 @@ export async function requestEmbedFromServerOnce(
     );
     return false;
   }
-  if (existing && now - existing.requestedAt < EMBED_REQUEST_COOLDOWN_MS) {
+  if (existing && !context.refresh && now - existing.requestedAt < EMBED_REQUEST_COOLDOWN_MS) {
     console.debug(
       `[embedResolver] request_embed cooldown active for ${bareId}; suppressing duplicate (${reason})`,
     );

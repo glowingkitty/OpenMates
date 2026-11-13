@@ -39,14 +39,15 @@ def test_utc_timestamps_are_bucketed_on_the_berlin_date():
     assert [i["title"] for i in view["due_next_days"]] == ["late"]
 
 
-def test_reminders_helper_is_admitted_and_cannot_delete(tmp_path, monkeypatch):
+def test_reminders_helper_is_admitted_and_deletes_only_in_allowed_lists(tmp_path, monkeypatch):
     guard = importlib.import_module("apple_no_delete_guard")
     monkeypatch.setattr(guard, "STATE_PATH", tmp_path / "stops.sqlite3")
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "test-reminders")
     guard.require_safe_operation("reminders-op")
     guard.require_safe_command(guard.reminders_command())
     helper = (mac_reminders.SCRIPTS / "_apple_reminders_remote.py").read_text()
-    assert '"delete"' not in helper and "remove(" not in helper
+    assert 'case "delete":' in helper and helper.count("store.remove(") == 1
+    assert "try requireWritable(r.calendar)" in helper  # reminder(req) gates every delete
     assert 'ALLOWED_WRITE_LISTS = ["OpenMates", "Personal Tasks"]' in helper
 
 

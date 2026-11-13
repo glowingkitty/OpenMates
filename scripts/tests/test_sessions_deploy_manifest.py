@@ -76,7 +76,7 @@ def test_only_is_exact_and_rejects_non_session_work(monkeypatch):
     try:
         sessions._resolve_deploy_selection(session, exclude=set(), only=["foreign.py"])
     except RuntimeError as exc:
-        assert "not tracked dirty work" in str(exc)
+        assert "not dirty in this session's worktree: foreign.py" in str(exc)
     else:
         raise AssertionError("expected non-session --only selection to fail")
 
@@ -227,3 +227,17 @@ def test_legacy_grandfathered_managed_worktree_uses_native_integration(monkeypat
     assert len(deployed) == 1
     assert deployed[0][2] == metadata
     assert deployed[0][3] == ["selected.py"]
+
+
+def test_deploy_blocks_when_dirty_files_would_be_left_out(capsys) -> None:
+    sessions = load_sessions_module()
+
+    sessions._require_tracked_deploy_files([], {}, False)
+    with pytest.raises(SystemExit) as blocked:
+        sessions._require_tracked_deploy_files([".claude/hooks/gate.sh"], {}, False)
+    assert blocked.value.code == 1
+    err = capsys.readouterr().err
+    assert ".claude/hooks/gate.sh" in err and "DEPLOY BLOCKED" in err
+
+    sessions._require_tracked_deploy_files([".claude/hooks/gate.sh"], {}, True)
+    assert "--allow-untracked" in capsys.readouterr().err

@@ -39,6 +39,7 @@ scope:
     - Later-phase architecture placeholders for applying remote patches and running commands without implementing remote-source mutations in V1.
   out:
     - Shell commands, package installs, test execution, git commits, git pushes, or other arbitrary remote command execution in V1.
+      # Superseded 2026-11-10: confined commands, tests, per-chat worktrees and git commits are delivered through docs/plans/native-agentic-coding-readiness (agentic_flow_extension_2026_11_10).
     - Folder upload, background sync, bidirectional sync, or automatic mirror upload of repositories to OpenMates in V1.
     - Creating real OpenMates embeds for every remote file by default.
     - Sending raw recursive file trees, entire repositories, or unlimited file contents to the assistant.

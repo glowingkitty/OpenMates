@@ -83,9 +83,12 @@ final class SettingsFullParityUITests: XCTestCase {
     // contract-test: direct surface=gui.apple assertions=settings-ui.navigation.contextual-availability,settings-ui.navigation.parent-return,settings-ui.parity.web-apple-shell
     func testAuthenticatedSettingsSubmenusOpenAndReturn() throws {
         let app = XCUIApplication()
+        // Billing opens only for a signed-in account or the billing fixture;
+        // the account fixture alone is not a billing-authorized user.
         app.launchArguments = [
             "--ui-test-disable-auth-cache",
             "--ui-test-account-settings-fixture",
+            "--ui-test-billing-fixture",
         ]
         app.launch()
 
@@ -101,10 +104,38 @@ final class SettingsFullParityUITests: XCTestCase {
         }
     }
 
+    // contract-test: direct surface=gui.apple assertions=notifications.sounds.silent-mode
+    func testNotificationsSilentModeQuickToggleIsVisibleAndTappable() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-account-settings-fixture",
+            "--ui-test-billing-fixture",
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
+        app.buttons["settings-button"].tap()
+        XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
+        openDestination(("settings-notifications-row", "settings-notifications-page"), in: app)
+
+        let toggle = app.descendants(matching: .any)["silent-mode"].firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "Silent mode quick toggle must be visible")
+        XCTAssertTrue(toggle.isHittable)
+        XCTAssertEqual(toggle.value as? String, "Off", "Silent mode starts off")
+        attachScreenshot(name: "Notifications settings with silent mode quick toggle")
+        toggle.tap()
+        XCTAssertEqual(toggle.value as? String, "On", "Tapping the switch turns silent mode on")
+        attachScreenshot(name: "Silent mode turned on in Notifications settings")
+        toggle.tap()
+        XCTAssertEqual(toggle.value as? String, "Off", "Tapping again turns silent mode off")
+    }
+
     // contract-test: direct surface=gui.apple assertions=settings-ui.navigation.parent-return,settings-ui.parity.web-apple-shell
     func testAuthenticatedProfileHeaderControlsOpenExistingDestinations() {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-account-settings-fixture"]
+        // The credits control opens Billing, which needs the billing fixture.
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-account-settings-fixture", "--ui-test-billing-fixture"]
         app.launch()
         let settingsButton = app.buttons["settings-button"]
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 15))
@@ -285,7 +316,10 @@ final class SettingsFullParityUITests: XCTestCase {
         let element = app.descendants(matching: .any)[identifier]
         if element.waitForExistence(timeout: timeout) { return true }
 
-        let scrollView = app.scrollViews.firstMatch
+        // Scroll the open settings pane, not the first scroll view in the app:
+        // the closed chat sidebar keeps an offscreen scroll view in the tree.
+        let workspace = app.descendants(matching: .any)["workspace-settings"].firstMatch
+        let scrollView = workspace.exists ? workspace.scrollViews.firstMatch : app.scrollViews.firstMatch
         for _ in 0..<6 where scrollView.exists {
             scrollView.swipeUp()
             if element.waitForExistence(timeout: 1) { return true }
@@ -298,17 +332,27 @@ final class SettingsFullParityUITests: XCTestCase {
     }
 
     private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
-        if element.exists && element.isHittable { return true }
         let scrollView = app.scrollViews["settings-menu"].firstMatch
-        for _ in 0..<6 where scrollView.exists {
-            scrollView.swipeUp()
-            if element.exists && element.isHittable { return true }
+        func isVisible() -> Bool {
+            guard element.exists, element.isHittable else { return false }
+            guard scrollView.exists else { return true }
+            let frame = element.frame
+            return scrollView.frame.contains(CGPoint(x: frame.midX, y: frame.midY))
         }
-        for _ in 0..<6 where scrollView.exists {
-            scrollView.swipeDown()
-            if element.exists && element.isHittable { return true }
+        if isVisible() { return true }
+        guard scrollView.exists, element.exists else { return false }
+        // A swipe flings the long settings footer past rows just below the
+        // fold (Shared sits right under Notifications), so swipeUp/swipeDown
+        // alternate between the top and the bottom. Held drags move the menu
+        // by exactly the drag distance, toward the row's known frame.
+        for _ in 0..<12 {
+            if isVisible() { return true }
+            let rowIsBelow = element.frame.midY > scrollView.frame.midY
+            let start = scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: rowIsBelow ? 0.7 : 0.3))
+            let end = scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: rowIsBelow ? 0.4 : 0.6))
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.2)
         }
-        return false
+        return isVisible()
     }
 
     private func enterText(_ text: String, into identifier: String, in app: XCUIApplication) {

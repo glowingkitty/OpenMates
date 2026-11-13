@@ -1,0 +1,154 @@
+schema_version: 2
+profile: concise
+id: agentic-tests-and-git-sync
+title: Agentic coding - recorded test results, Git repository sync and the two acceptance flows
+status: draft
+goal: >-
+  Get the agentic coding setup properly working and tested for two user flows:
+  a user asks for a simple recipe web app and gets a new Project with the app,
+  tests and commits; a user asks for a feature in a connected remote repository
+  and the assistant searches, edits, tests and commits there. Tests must record
+  what happened (video for browser tests, a terminal timeline for command-line
+  tests), and a Project must be linkable to a real Git repository such as GitHub.
+
+tracking:
+  authority: OpenMates Tasks
+  parent_delivery_task: TASK-3542
+  session: "5349"
+  policy: Packages below describe deliverables. Tasks are created per package when it starts; status lives in OpenMates Tasks.
+
+related_plans:
+  hosted_flow: docs/plans/cloud-project-development (S-7, AC-9 to AC-12, P9 to P14, V-7)
+  remote_flow: docs/plans/native-agentic-coding-readiness (agentic_flow_extension_2026_11_10, R1 to R8)
+  application_embed: docs/plans/application-embeds (S-4 live sandbox sync is still open)
+  doc_editor: docs/plans/doc-editor-project-documents (chat-less hosted item writes; owned by another chat, read only from here)
+
+specification_refs:
+  - {id: feature.app-skill.code-run, assertions: [code-run.execution.e2b-only, code-run.tests.project-snapshot, code-run.tests.recorded-evidence]}
+  - {id: feature.projects, assertions: [projects.creation.assistant-inferred, projects.files.application-single-source, projects.history.native-commits, projects.sources.chat-worktrees]}
+  - {id: feature.checks, note: "Test result embeds are the recorded evidence of a run. The reusable Check and Run records of feature.checks (cloud-project-development P4) may reference them later; this plan does not depend on P4."}
+
+scope:
+  in:
+    - A test run contract in Code Run - assistant-selected target, several commands, start a server then test against it, results bound to exact file revisions.
+    - Recording - browser test video and step list in E2B and on a remote machine; terminal step recording for command-line end-to-end tests; plain results for unit tests.
+    - A test result embed with preview frame, fullscreen video beside a top-to-bottom step timeline, and a terminal timeline variant, in the Rust core, the Rust CLI and web.
+    - Git repository sync for Projects (design confirmed, see git_sync).
+    - Two acceptance tests through the Rust CLI on the real stack in isolated CI, plus web proof.
+  out:
+    - Apple UI for test result embeds and Git sync (follows web per the usual parity order).
+    - Test frameworks other than Playwright for the video path in the first version.
+    - Live preview for native apps.
+    - Deployment integrations beyond what a push to the linked repository triggers by itself (for example Vercel building from GitHub).
+
+decisions:
+  - Hosted Projects run tests in E2B; remote Projects run them on the remote machine by default; the assistant can set the target (user decision 2026-11-10).
+  - Browser tests get video, a vertical step timeline and a deterministic preview frame. The frame is the step the test marks as preview, otherwise the last non-blank frame before the final assertion (user decision 2026-11-10).
+  - Command-line end-to-end tests get a terminal-style step timeline of command in and output out. A recorded terminal cast is enough; no video (user decision 2026-11-10).
+  - Unit tests show the normal run result with no recording (user decision 2026-11-10).
+  - Commits to a hosted Project happen automatically after green tests. For a remote Git repository, commits in the chat's worktree happen automatically after green tests, the commits then land on the source's target branch on the local machine automatically after green tests, and push always asks. There is no named branch per chat; a hidden ref protects the commits (user decision 2026-11-10, see native-agentic-coding-readiness R4/R5). Remote test commands run unprompted only through an enabled command list (user decision 2026-11-10).
+  - Test runs in E2B have their own budget of ten automatic runs per turn, independent of the tool-call budget. The next run asks the user (user decision 2026-11-10; implemented in T1 follow-up, see design.test_run.budget).
+  - Test result staleness is computed by clients at read time (user decision 2026-11-10, see T4).
+  - Rust first. Client logic lands in packages/openmates-rust and is proven through the Rust CLI before web; no such logic in TypeScript or Swift (.claude/rules/client-core.md).
+  - Order - hosted flow first; in parallel one verification run of the existing remote flow (R1).
+
+design:
+  test_run:
+    request: Code Run gains a test mode with target (e2b or remote_source), an ordered command list, an optional server command with a readiness check, the test kind (browser, cli_e2e or unit) and the file revisions it covers.
+    recording_browser: Playwright runs with video and trace enabled. A fixed post-processing step turns the trace into steps (title, start, end, outcome, error text) and extracts the preview frame. A test marks its preview step through a documented annotation; non-blank is decided by a fixed pixel-variance threshold so the choice is reproducible.
+    recording_cli: A wrapper runs each test step's command in a pseudo-terminal and records input, output, exit code and timing in the asciicast format, grouped by step.
+    artifacts: Video (webm) and cast files join the Code Run artifact allowlist with their own size caps; they are encrypted and stored under the existing artifact rules.
+    budget: Automatic test runs in E2B are limited to ten per turn, counted separately from the assistant's tool-call budget. The eleventh run in a turn asks the user before it starts. Implemented by the T1 follow-up package (budget counter and ask step in the Code Run test mode and the turn's tool loop).
+    remote: The same recorder runs on the remote machine inside the chat's worktree through the confined command runtime; the encrypted recording is uploaded by the source host. The sandbox or machine never receives Project or chat keys.
+  test_result_embed:
+    type: New embed type in the code app, child of the run, carrying kind, outcome, counts, step list, revision identity and artifact references.
+    preview: Preview frame for browser tests; last terminal lines for command-line tests; pass and fail counts for unit tests.
+    fullscreen: Video beside the vertical step timeline with seek on step selection; terminal timeline for command-line tests; stale marker when the files changed after the run, computed by the client at read time (see T4).
+    staleness: The Rust core compares the embed's recorded file revisions with the Project's current revisions when the embed is read. The server cannot do this because file paths are client-encrypted. The unused server function refresh_test_result_currency (backend/apps/code/tasks/test_result_embed.py) and its test are removed.
+    cli: The Rust CLI prints the step list and outcome and can save the recording to a file.
+
+git_sync:
+  status: design confirmed by the user on 2026-11-10
+  recommendation:
+    link: A Project setting links one folder of the Project to one Git repository, and that folder becomes the repository root. A Project can link several folders to several repositories (for example web-app/ and native-app/, each with its own repository). GitHub first through a GitHub App installed for the chosen repository only, using short-lived installation tokens. A generic HTTPS remote with a user-supplied token is a later variant.
+    connect: The user either imports an existing repository (its files become Project files under the linked folder, recorded as the first commit) or lets OpenMates create a new repository from the Project.
+    outgoing: Each Project commit becomes one real Git commit with the same message, built and pushed from an E2B sandbox that receives the commit's file snapshot and a token scoped to that repository.
+    branch_policy: Each link has its own setting that chooses between pushing to the default branch (suits a solo user whose host deploys from it) and pushing to a branch with a pull request.
+    incoming: Changes on the remote are fetched on open and on a GitHub webhook and recorded as a new set of revisions with a commit named after the remote commit. A conflict with unpushed Project changes is handed to the assistant to resolve, and nothing is overwritten silently.
+    remote_machine_projects: A Project on a connected machine already has real Git. It pushes with the machine's own credentials after the user approves that exact push; no OpenMates-held token is involved.
+  privacy_tradeoff: Hosted Project files are client-encrypted today. Linking a repository means the linked files' contents leave client encryption for the push sandbox and for the Git host, and the server handles a repository token. This needs explicit consent at connect time that names the repository and what leaves encryption, applies only to the linked folder, is given per link, and can be revoked (unlinking a folder stops its pushes and deletes that link's token). Each link has its own token scope, limited to its one repository.
+  confirmed_decisions:
+    - GitHub App rather than OAuth or personal access tokens (user, 2026-11-10).
+    - The push runs in an E2B sandbox, not from the user's own client (user, 2026-11-10).
+    - One repository is linked to one folder of a Project, which becomes the repository root; a Project can link several folders to several repositories. Branch policy, consent and token scope are per link (user, 2026-11-10).
+    - The user registers the GitHub App themselves once everything around it is implemented; G1 stays gated on that (user, 2026-11-10).
+    - Branch policy default is push to the default branch for a Personal Project and branch plus pull request for a Team Project; it is a Project setting the user can change at any time (user, 2026-11-10).
+    - Incoming changes are part of the confirmed flow (fetch, new revision set, conflicts handed to the assistant).
+  open_decisions: []
+  gate: The user confirmed the design on 2026-11-10. G1 still waits for cloud-project-development P13 and for the GitHub App, which the user registers themselves once everything around it is implemented (credentials are supplied by the user, never committed).
+
+delivery_packages:
+  - id: T1
+    outcome: Test run contract in Code Run - test mode, target selection with the remote default for remote Projects, command list, server-then-test, revision identity in the result, video and cast artifact types. Follow-up in the same ownership - the per-turn budget of ten automatic E2B test runs, separate from the tool-call budget, with an ask before the next run.
+    ownership: backend/apps/code/app.yml (run schema), skills/run_code_skill.py, tasks/run_code_task.py, backend/shared/providers/e2b_code_runner.py, backend/core/api/app/routes/code_execution.py and their tests.
+    depends_on: []
+  - id: T2
+    outcome: Browser test recorder for E2B - Playwright with video and trace, step extraction, deterministic preview frame, template update.
+    ownership: New backend/shared/providers/e2b_test_recorder.py and the recorder script it uploads; backend/scripts/build_code_runner_template.py or the preview template build. No edits to e2b_application_preview.py beyond reuse.
+    depends_on: [T1 contract only]
+  - id: T3
+    outcome: Command-line end-to-end recorder producing the terminal step cast, usable in E2B and on a remote machine.
+    ownership: New recorder script beside T2's and its unit tests.
+    depends_on: [T1 contract only]
+  - id: T4
+    outcome: Test result embed in the backend and Rust core - embed type, encrypted content model, artifact references, Rust CLI rendering and save. Staleness is computed in the Rust core at read time by comparing the embed's recorded file revisions with the Project's current revisions; the unused server function refresh_test_result_currency and its test are removed.
+    ownership: backend/apps/code/app.yml (embed type), embed creation in tasks/run_code_task.py, packages/openmates-rust (embed model and read path), frontend/packages/openmates-tui-native/src/cli/embed_commands.rs.
+    depends_on: [T1]
+  - id: T5
+    outcome: Web test result embed - preview card, fullscreen with video and vertical step timeline, terminal timeline variant, stale marker (read from the Rust core's read-time staleness, no client-side comparison logic in TypeScript). Built with /add-embed-type and verified with component preview.
+    ownership: New frontend/packages/ui/src/components/embeds/code/TestResultEmbed* files, embed registry entries, i18n.
+    depends_on: [T4]
+  - id: T6
+    outcome: Remote test runs - the recorders run in the chat's worktree on the source host and upload encrypted recordings.
+    ownership: Rust source host command path (after R3 and R4 in the remote plan).
+    depends_on: [T2, T3, native-agentic-coding-readiness R3, R4]
+  - id: A1
+    outcome: Hosted acceptance test. Through the Rust CLI on the real stack in isolated CI - request a recipe web app, assert the Project, the files under web-app/, one embed per file after a chat diff and a direct edit, a passing browser test result with video and steps, a commit and a restore. Web E2E of the same journey with screenshots of the created card, the folder with the application card, the test result embed and the timeline.
+    ownership: New Rust CLI acceptance spec and new web E2E spec; no product code.
+    depends_on: [cloud-project-development P9 to P14, T1, T2, T4, T5]
+  - id: A2
+    outcome: Remote acceptance test. Through the Rust CLI as requester and as source host on a disposable Git repository in isolated CI - request a feature, assert focus by inference, search and edit in the chat worktree, a test run on the machine with a recorded result, commits under the chat's hidden ref (refs/openmates/chats/<chat-id>, not a branch), automatic local landing on the target branch after green tests, an approval prompt before push, and a main checkout working tree that stays untouched until landing. Web proof of the same chat.
+    ownership: New Rust CLI acceptance spec and web E2E spec; no product code.
+    depends_on: [native-agentic-coding-readiness R2 to R6, T3, T4, T6]
+  - id: G1
+    outcome: Repository link - GitHub App, connect and consent flow per linked folder, encrypted token handling per link, per-link settings (folder, repository, branch policy), REST and Rust CLI.
+    depends_on: [cloud-project-development P13, registered GitHub App credentials]
+  - id: G2
+    outcome: Outgoing sync - Project commit to Git commit and push from an E2B sandbox, per link (only the linked folder's files go to its repository), per-link branch policy, failure states.
+    depends_on: [G1]
+  - id: G3
+    outcome: Incoming sync - fetch on open and webhook per link, revision set per remote commit for the linked folder, conflict handoff to the assistant.
+    depends_on: [G2]
+  - id: G4
+    outcome: Web settings and status UI for the links (several per Project, each with folder, repository, branch policy and consent), plus approved push from remote-machine Projects.
+    depends_on: [G1, native-agentic-coding-readiness R5]
+
+parallel_start:
+  unblocked_now: [cloud-project-development P9, P10, P13, native-agentic-coding-readiness R1, R2, R6, T1]
+  after_contracts_agreed: [T2, T3]
+  note: P10 and R2 both work in packages/openmates-rust but in separate modules (work/projects versus the source host); T1 and P9 are backend files that do not overlap. Chat 761a is switching the web app to the Rust core and chat c443 edits Project document creation and the Projects Specification; lanes must take the latest dev before editing shared files.
+
+checks:
+  - Backend pytest for the test run contract, revision identity and artifact allowlist (T1).
+  - Recorder unit tests with a fixed sample app - identical steps and identical preview frame on repeated runs (T2, T3).
+  - Rust core tests for the test result embed model and the CLI rendering (T4).
+  - Component preview and one web E2E spec for the test result embed (T5).
+  - A1 and A2 green in isolated CI for the exact deployed commit, with the latest successful recording per flow.
+  - Live inference parts run only on dev in disposable Projects with default routing.
+
+risks:
+  - Whether git commit works under the remote confinement is untested (remote plan R5).
+  - Landing a worktree's commits on the target branch automatically changes the user's checkout on the local machine; the target branch must be checked out cleanly or the landing must wait (remote plan R5).
+  - The hosted flow needs the client to wrap each application file key with the Project key during streaming; if no client is online the files stay chat-only until one connects, and that state must be visible.
+  - Video size against artifact caps - the recorder needs a resolution and duration limit, with a visible truncation state.
+  - Two other running chats change neighbouring code (Rust core switch-over, Project document creation).

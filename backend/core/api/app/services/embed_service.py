@@ -17,6 +17,7 @@ from contextvars import ContextVar
 from datetime import datetime, timezone
 
 from toon_format import encode, decode
+from backend.apps.code.application_identity import derive_application_identity
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.cache_reminder_mixin import EMBED_CACHE_EXTENDED_TTL
 from backend.core.api.app.services.directus import DirectusService
@@ -44,6 +45,7 @@ from backend.core.api.app.utils.text_sanitization import (
     sanitize_text_simple,
 )
 from backend.apps.ai.utils.mindmap_fences import normalize_mindmap_source
+from backend.core.api.app.services.slides_embed_service import SlidesEmbedMixin
 from backend.apps.ai.utils.calendar_event_fences import normalize_calendar_event_source
 from backend.apps.ai.utils.json_content_fences import json_content_embed_type
 from backend.apps.ai.utils.app_skill_result_groups import sanitize_shopping_visual_evaluations
@@ -257,7 +259,7 @@ def _flatten_for_toon_tabular(obj: Any, prefix: str = "") -> Any:
         return obj
 
 
-class EmbedService:
+class EmbedService(SlidesEmbedMixin):
     """
     Service for creating and managing embeds from skill results.
 
@@ -730,6 +732,7 @@ class EmbedService:
             "code": ("code", "code"),
             "sheet": ("sheets", "sheet"),
             "document": ("docs", "document"),
+            "deck": ("slides", "deck"),
             "mail": ("mail", "email"),
             "math-plot": ("math", "plot"),
             "mermaid": ("diagrams", "mermaid"),
@@ -928,7 +931,9 @@ class EmbedService:
                 "embed_id": embed_id,
                 "embed_reference": embed_reference,
                 "embed_ref": placeholder_content["embed_ref"],
-                "skill_task_id": skill_task_id  # Return skill_task_id for cancellation tracking
+                "skill_task_id": skill_task_id,  # Return skill_task_id for cancellation tracking
+                # Original placeholder content: live progress frames re-send it plus a progress field
+                "placeholder_content": placeholder_content,
             }
 
         except Exception as e:
@@ -946,11 +951,17 @@ class EmbedService:
         user_id_hash: str,
         user_vault_key_id: str,
         task_id: Optional[str] = None,
-        log_prefix: str = ""
+        log_prefix: str = "",
+        extra_fields: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Create a focus mode activation embed that the frontend renders as a
         countdown indicator (4-3-2-1) with the option for the user to reject.
+
+        ``extra_fields`` adds flat, non-secret presentation fields to both the
+        embed content and its message reference (for example the
+        ``project_created`` card after an assistant Project creation). They can
+        never replace the core fields above.
 
         This is a lightweight embed that contains focus mode metadata.
         The frontend uses it to show the activation UI and manage the
@@ -985,6 +996,9 @@ class EmbedService:
                 "focus_mode_name": focus_mode_name,
                 "status": "activated"
             }
+            extra = {key: value for key, value in (extra_fields or {}).items()
+                     if key not in activation_content and key not in {"type", "embed_id"}}
+            activation_content.update(extra)
 
             # Encode to TOON
             activation_toon = encode(activation_content)
@@ -1041,7 +1055,8 @@ class EmbedService:
                 "embed_id": embed_id,
                 "focus_id": focus_id,
                 "app_id": app_id,
-                "focus_mode_name": focus_mode_name
+                "focus_mode_name": focus_mode_name,
+                **extra,
             }
             embed_reference = json.dumps(embed_reference_payload)
 
@@ -2070,231 +2085,6 @@ class EmbedService:
             logger.error(f"{log_prefix} Error updating PCB schematic embed content: {e}", exc_info=True)
             return False
 
-    async def create_remotion_video_embed_placeholder(
-        self,
-        chat_id: str,
-        message_id: str,
-        user_id: str,
-        user_id_hash: str,
-        user_vault_key_id: str,
-        embed_id: Optional[str] = None,
-        task_id: Optional[str] = None,
-        filename: Optional[str] = None,
-        log_prefix: str = "",
-    ) -> Optional[Dict[str, Any]]:
-        """Create a processing videos.create embed for explicit Remotion fences."""
-        try:
-            from backend.apps.ai.utils.remotion_fences import normalize_remotion_filename
-
-            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
-            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
-            embed_id = embed_id or str(uuid.uuid4())
-            normalized_filename = normalize_remotion_filename(filename)
-            embed_ref = self._generate_direct_embed_ref(
-                "remotion-video",
-                embed_id,
-                {"filename": normalized_filename},
-            )
-            content = {
-                "type": "video_create",
-                "app_id": "videos",
-                "skill_id": "create",
-                "status": "processing",
-                "filename": normalized_filename,
-                "remotion_source": "",
-                "current_source_version": 1,
-                "active_render_version": None,
-                "embed_ref": embed_ref,
-                "timeline_manifest": [],
-            }
-            content_toon = encode(content)
-            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(content_toon, user_vault_key_id)
-            created_at = int(datetime.now().timestamp())
-            embed_data = {
-                "embed_id": embed_id,
-                "type": "app_skill_use",
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "hashed_chat_id": hashed_chat_id,
-                "hashed_message_id": hashed_message_id,
-                "hashed_task_id": hashed_task_id,
-                "status": "processing",
-                "hashed_user_id": user_id_hash,
-                "is_private": False,
-                "is_shared": False,
-                "encryption_mode": "client",
-                "embed_ids": None,
-                "encrypted_content": encrypted_content,
-                "created_at": created_at,
-                "updated_at": created_at,
-            }
-            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
-            await self.send_embed_data_to_client(
-                embed_id=embed_id,
-                embed_type="app_skill_use",
-                content_toon=content_toon,
-                chat_id=chat_id,
-                message_id=message_id,
-                user_id=user_id,
-                user_id_hash=user_id_hash,
-                status="processing",
-                task_id=task_id,
-                is_private=False,
-                is_shared=False,
-                created_at=created_at,
-                updated_at=created_at,
-                log_prefix=log_prefix,
-                app_id="videos",
-                skill_id="create",
-            )
-            embed_reference = json.dumps({"type": "app_skill_use", "embed_id": embed_id, "app_id": "videos", "skill_id": "create"})
-            return {"embed_id": embed_id, "embed_reference": embed_reference}
-        except Exception as e:
-            logger.error(f"{log_prefix} Error creating Remotion video embed placeholder: {e}", exc_info=True)
-            return None
-
-    async def update_remotion_video_embed_content(
-        self,
-        embed_id: str,
-        remotion_source: str,
-        chat_id: str,
-        message_id: str,
-        user_id: str,
-        user_id_hash: str,
-        user_vault_key_id: str,
-        filename: Optional[str] = None,
-        status: str = "processing",
-        source_version: int = 1,
-        render_metadata: Optional[Dict[str, Any]] = None,
-        files: Optional[Dict[str, Any]] = None,
-        thumbnail: Optional[Dict[str, Any]] = None,
-        log_prefix: str = "",
-        final_producer_output: bool = False,
-        generated_child_embed_id: Optional[str] = None,
-        generated_child_embed_ref: Optional[str] = None,
-        terminal_error_output: bool = False,
-    ) -> bool:
-        """Update a videos.create embed with source, render status, and artifacts."""
-        try:
-            from backend.apps.ai.utils.remotion_fences import normalize_remotion_filename
-
-            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
-            if not cached_embed:
-                logger.warning(f"{log_prefix} Remotion video embed {embed_id} not found in cache")
-                return False
-            next_embed_version = None
-            producer = active_verified_output_producer.get()
-            if (status == "finished" and final_producer_output and producer is not None
-                    and producer.classification == "authorized_direct" and producer.intent_kind == "rerender"):
-                if (producer.primary_embed_id != embed_id or producer.target_chat_id != chat_id
-                        or producer.owner_hash != user_id_hash or producer.primary_message_id != message_id
-                        or not isinstance(producer.expected_embed_version, int)):
-                    raise RequiredRecoveryOutputError("Remotion rerender producer identity mismatch")
-                canonical = await self.directus_service.get_items(
-                    "embeds", params={
-                        "filter[embed_id][_eq]": embed_id,
-                        "filter[hashed_user_id][_eq]": user_id_hash,
-                        "fields": "id,version_number,hashed_chat_id",
-                        "limit": 2,
-                    }, admin_required=True, no_cache=True, raise_on_error=True,
-                )
-                if (not isinstance(canonical, list) or len(canonical) != 1
-                        or canonical[0].get("hashed_chat_id") != hashlib.sha256(chat_id.encode()).hexdigest()
-                        or int(canonical[0].get("version_number") or 1) != producer.expected_embed_version):
-                    raise RequiredRecoveryOutputError("Remotion rerender canonical version changed")
-                next_embed_version = producer.expected_embed_version + 1
-            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
-            existing_content: Dict[str, Any] = {}
-            if existing_toon:
-                try:
-                    existing_content = decode(existing_toon)
-                except RequiredRecoveryOutputError:
-                    raise
-                except Exception as exc:
-                    logger.warning(f"{log_prefix} Failed to decode Remotion embed content: {exc}")
-            normalized_filename = normalize_remotion_filename(filename or existing_content.get("filename"))
-            embed_ref = existing_content.get("embed_ref") or self._generate_direct_embed_ref(
-                "remotion-video",
-                embed_id,
-                {"filename": normalized_filename},
-            )
-            updated_content = {
-                **existing_content,
-                "type": "video_create",
-                "app_id": "videos",
-                "skill_id": "create",
-                "status": status,
-                "filename": normalized_filename,
-                "remotion_source": remotion_source,
-                "current_source_version": source_version,
-                "active_render_version": source_version if status == "finished" else existing_content.get("active_render_version"),
-                "embed_ref": embed_ref,
-                "timeline_manifest": existing_content.get("timeline_manifest") or [],
-            }
-            if render_metadata:
-                updated_content["render_metadata"] = render_metadata
-            if files:
-                updated_content["files"] = files
-            if thumbnail:
-                updated_content["thumbnail"] = thumbnail
-            if generated_child_embed_id:
-                updated_content["embed_ids"] = [generated_child_embed_id]
-                updated_content["output_embed_refs"] = [generated_child_embed_ref] if generated_child_embed_ref else []
-
-            content_toon = encode(updated_content)
-            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(content_toon, user_vault_key_id)
-            updated_at = int(datetime.now().timestamp())
-            delivery_status = "finished" if terminal_error_output and status == "error" else status
-            updated_embed_data = {
-                **cached_embed,
-                "type": "app_skill_use",
-                "encrypted_content": encrypted_content,
-                "status": delivery_status,
-                "updated_at": updated_at,
-            }
-            if generated_child_embed_id:
-                updated_embed_data["embed_ids"] = [generated_child_embed_id]
-            if next_embed_version is not None:
-                updated_embed_data["version_number"] = next_embed_version
-            if delivery_status != "finished":
-                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
-            await self.send_embed_data_to_client(
-                embed_id=embed_id,
-                embed_type="app_skill_use",
-                content_toon=content_toon,
-                chat_id=chat_id,
-                message_id=message_id or cached_embed.get("message_id", ""),
-                user_id=user_id,
-                user_id_hash=user_id_hash,
-                status=delivery_status,
-                task_id=cached_embed.get("hashed_task_id"),
-                is_private=cached_embed.get("is_private", False),
-                is_shared=cached_embed.get("is_shared", False),
-                created_at=cached_embed.get("created_at"),
-                updated_at=updated_at,
-                log_prefix=log_prefix,
-                check_cache_status=False,
-                app_id="videos",
-                skill_id="create",
-                version_number=next_embed_version,
-                embed_ids=[generated_child_embed_id] if generated_child_embed_id else None,
-                producer_final_children=(
-                    [{"subject_id": generated_child_embed_id, "output_kind": "embed", "output_version": 1}]
-                    if generated_child_embed_id else []
-                ) if final_producer_output and delivery_status == "finished" else None,
-                finished_cache_data=updated_embed_data if delivery_status == "finished" else None,
-                finished_cache_vault_key_id=user_vault_key_id,
-            )
-            if status in {"finished", "error", "cancelled", "needs_rerender"}:
-                self._schedule_embed_persistence_fallback(embed_id)
-            return True
-        except RequiredRecoveryOutputError:
-            raise
-        except Exception as e:
-            logger.error(f"{log_prefix} Error updating Remotion video embed content: {e}", exc_info=True)
-            return False
-
     async def create_application_embed(
         self,
         *,
@@ -2311,14 +2101,30 @@ class EmbedService:
         task_id: Optional[str] = None,
         provenance: Optional[str] = None,
         log_prefix: str = "",
+        embed_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Create a finished generated-application parent embed for code file embeds."""
+        """Create a finished generated-application parent embed for code file embeds.
+
+        Passing an existing ``embed_id`` re-publishes that parent with a fuller file
+        list as its next ``version_number``: a finished version is sealed for chat
+        recovery once, so the fuller manifest must be a new version, never a
+        rewrite of version 1 (that is refused as ``replay_output_mismatch``).
+        """
         try:
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
-            embed_id = str(uuid.uuid4())
+            version_number: Optional[int] = None
+            if embed_id:
+                client = await self.cache_service.client
+                cached_json = await client.get(f"embed:{embed_id}") if client else None
+                if not cached_json:
+                    logger.warning(f"{log_prefix} Application embed {embed_id} to re-publish is not cached")
+                    return None
+                cached_embed = json.loads(cached_json.decode("utf-8") if isinstance(cached_json, bytes) else cached_json)
+                version_number = int(cached_embed.get("version_number") or 1) + 1
+            embed_id = embed_id or str(uuid.uuid4())
             child_embed_ids = [str(ref.get("embed_id")) for ref in file_refs if ref.get("embed_id")]
             embed_ref = self._generate_direct_embed_ref(
                 "application",
@@ -2341,6 +2147,8 @@ class EmbedService:
             }
             if provenance:
                 content["provenance"] = provenance
+            if version_number is not None:
+                content["version_number"] = version_number
             content_toon = encode(_flatten_for_toon_tabular(content))
             text_length_chars = len(content_toon)
             encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
@@ -2368,10 +2176,13 @@ class EmbedService:
                 "created_at": created_at,
                 "updated_at": created_at,
             }
+            if version_number is not None:
+                embed_data["version_number"] = version_number
 
             delivered = await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="application",
+                version_number=version_number,
                 content_toon=content_toon,
                 chat_id=chat_id,
                 message_id=message_id,
@@ -2451,9 +2262,7 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Application embed {embed_id} not found in cache")
                 return False
 
-            cached_embed = json.loads(
-                cached_json.decode("utf-8") if isinstance(cached_json, bytes) else cached_json
-            )
+            cached_embed = json.loads(cached_json.decode("utf-8") if isinstance(cached_json, bytes) else cached_json)
             existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
             existing_content = decode(existing_toon) if existing_toon else None
             if not isinstance(existing_content, dict) or existing_content.get("type") != "application":
@@ -2503,12 +2312,14 @@ class EmbedService:
                 return False
 
             current_json = await client.get(f"embed:{embed_id}")
-            current_embed = json.loads(
-                current_json.decode("utf-8") if isinstance(current_json, bytes) else current_json
-            ) if current_json else {}
+            current_embed = json.loads(current_json.decode("utf-8") if isinstance(current_json, bytes) else current_json) if current_json else {}
             if int(current_embed.get("version_number") or 1) != previous_version_number:
                 logger.warning(f"{log_prefix} Application embed {embed_id} changed during thumbnail update")
                 return False
+            # Thumbnail is a server-owned field of a Project application link (contract P11).
+            from backend.core.api.app.services.project_embed_server_fields import grant_server_owned_refresh
+            await grant_server_owned_refresh(self.cache_service, embed_id=embed_id, kind="application",
+                                             version_number=version_number, before=existing_content, after=updated_content)
 
             updated_embed_data = {
                 **cached_embed,
@@ -2653,9 +2464,19 @@ class EmbedService:
             role = "dependency_manifest" if planned_file.path in APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS else "source"
             child_refs.append({"path": planned_file.path, "embed_id": child_embed_id, "role": role})
 
+        manifest_file = next(
+            (file for file in plan.files if file.path.rsplit("/", 1)[-1] == "package.json"),
+            None,
+        )
+        derived_name, derived_framework = derive_application_identity(
+            given_name=name,
+            given_framework=framework,
+            package_json_content=manifest_file.content if manifest_file else None,
+            paths=paths,
+        )
         return await self.create_application_embed(
-            name=name or "Generated application",
-            framework=framework or "web",
+            name=derived_name,
+            framework=derived_framework,
             runtime=runtime or "node",
             file_refs=child_refs,
             entrypoints=plan.start_commands,
@@ -4829,6 +4650,7 @@ class EmbedService:
         "aes_nonce",             # AES-GCM nonce — resolved server-side
         "s3_base_url",           # S3 bucket URL — resolved server-side
         "files",                 # Nested s3_key per variant — resolved server-side
+        "vector_script",         # Generator source of a script-made SVG — read server-side for edits
         "content_hash",          # Internal dedup hash — not useful for LLM
         "encrypted_content",     # Client/Vault encrypted content — never for LLM
         "encrypted_diff",        # Client encrypted edit diff — never for LLM
@@ -6740,12 +6562,16 @@ class EmbedService:
         self, payload: dict[str, Any], *, producer_child_index: int | None = None,
         producer_final_children: list[dict[str, Any]] | None = None,
         s3_file_keys: list[dict[str, str]] | None = None,
+        producer_revision: dict[str, Any] | None = None,
     ) -> None:
         """Save each finished AI embed/version before exposing it to downstream work."""
         context = active_recovery_output_context.get()
         producer = active_verified_output_producer.get()
         if producer is not None and producer.classification == "registered_ai" and context is None:
             raise RequiredRecoveryOutputError("Registered embed producer lacks a recovery context")
+        if producer_revision is not None and (context is None or producer is None
+                                              or producer.classification != "registered_ai"):
+            raise RequiredRecoveryOutputError("Embed revision requires a registered producer")
         if context is None:
             references = _validated_recovery_storage_references(s3_file_keys)
             if references is not None and not self._volatile_incognito_publication_required():
@@ -6790,8 +6616,19 @@ class EmbedService:
                 producer_child_index is not None and 0 <= producer_child_index < 32
                 and data.get("embed_id") == self._registered_child_embed_id(producer.primary_embed_id, producer_child_index)
             )
+            revision_matches = False
+            if producer_revision is not None:
+                # The next version of an earlier message's child (images-generate.revision.*).
+                from backend.core.api.app.services.embed_revision_authority import verify_producer_revision
+                if primary or producer_child_index is not None:
+                    raise RequiredRecoveryOutputError("Embed revision cannot be a primary or registered child")
+                await verify_producer_revision(
+                    self.directus_service, producer=producer, data=data, revision=producer_revision,
+                )
+                revision_matches = True
             if (producer.target_chat_id != data.get("chat_id") or producer.owner_hash != context.owner_hash
-                    or not primary and not child_matches or primary and producer_child_index is not None):
+                    or not primary and not child_matches and not revision_matches
+                    or primary and producer_child_index is not None):
                 raise RequiredRecoveryOutputError("Embed producer intent identity mismatch")
         # A Project file requires its approved atomic commit envelope. A bare
         # embed replay would bypass that revision fence, so stop the producer
@@ -6813,6 +6650,10 @@ class EmbedService:
         from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 
         references = _validated_recovery_storage_references(s3_file_keys)
+        # A revised child keeps the hash of the message that created it (the canonical
+        # head's, checked by verify_producer_revision); recovery ACK compares it to the head.
+        message_hash = (producer_revision["hashed_message_id"] if producer_revision is not None
+                        else hashlib.sha256(data["message_id"].encode()).hexdigest())
         outputs = [("embed", int(data.get("version_number") or 1), data)]
         for row in data.get("version_history_rows") or []:
             if isinstance(row, dict) and isinstance(row.get("version_number"), int):
@@ -6825,13 +6666,12 @@ class EmbedService:
                 canonical_bytes = json.dumps(
                     {"subject_id": data["embed_id"], "kind": output_kind,
                      "version": output_version, "content": stable_content,
-                     **({"s3_file_keys": references,
-                         "hashed_message_id": hashlib.sha256(data["message_id"].encode()).hexdigest()}
+                     **({"s3_file_keys": references, "hashed_message_id": message_hash}
                         if output_kind == "embed" and references is not None else {})},
                     sort_keys=True, separators=(",", ":"), ensure_ascii=False,
                 ).encode("utf-8")
                 commitment = recovery_service.content_commitment(canonical_bytes)
-                message_fields = ({"hashed_message_id": hashlib.sha256(data["message_id"].encode()).hexdigest()}
+                message_fields = ({"hashed_message_id": message_hash}
                                   if output_kind == "embed" and references is not None else {})
                 producer_fields = {"content_commitment": commitment, **message_fields}
                 if producer is not None and producer.classification == "registered_ai":
@@ -6971,6 +6811,7 @@ class EmbedService:
         producer_final_children: list[dict[str, Any]] | None = None,
         finished_cache_data: dict[str, Any] | None = None,
         finished_cache_vault_key_id: str | None = None,
+        producer_revision: dict[str, Any] | None = None,
     ) -> bool:
         """
         Send PLAINTEXT TOON embed content to client via WebSocket for client-side encryption and storage.
@@ -7105,9 +6946,17 @@ class EmbedService:
                 payload["payload"]["skill_id"] = skill_id
             if owner_pii_mappings:
                 payload["payload"]["owner_pii_mappings"] = owner_pii_mappings
+            if producer_revision is not None:
+                # Next version of an existing child (wire-contract.md, image-edit-as-embed-version).
+                payload["payload"]["revision"] = {
+                    "base_version": producer_revision.get("expected_version"),
+                    "base_snapshot_required": producer_revision.get("base_snapshot_required"),
+                }
 
             batch = _pending_finished_embed_batch.get()
             if batch is not None and status == "finished" and encryption_mode == "client":
+                if producer_revision is not None:
+                    raise RequiredRecoveryOutputError("Embed revision cannot join an unregistered composite batch")
                 if (batch["service"] is not self or status != "finished" or encryption_mode != "client"
                         or user_id_hash != batch["context"].owner_hash):
                     raise RequiredRecoveryOutputError("Composite publication batch identity mismatch")
@@ -7127,8 +6976,14 @@ class EmbedService:
                 await self._save_completed_embed_recovery(
                     payload, producer_child_index=producer_child_index,
                     producer_final_children=producer_final_children,
-                    s3_file_keys=(finished_cache_data or {}).get("s3_file_keys"),
+                    # A revision carries the file keys of every version in its sealed copy,
+                    # so a client persisting it later through recovery keeps them all.
+                    s3_file_keys=(producer_revision["s3_file_keys"] if producer_revision is not None
+                                  else (finished_cache_data or {}).get("s3_file_keys")),
+                    **({"producer_revision": producer_revision} if producer_revision is not None else {}),
                 )
+            elif producer_revision is not None:
+                raise RequiredRecoveryOutputError("Embed revision must be a finished client-encrypted output")
             return await self._publish_prepared_embed(
                 payload, user_id_hash=user_id_hash, finished_cache_data=finished_cache_data,
                 finished_cache_vault_key_id=finished_cache_vault_key_id,

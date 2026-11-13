@@ -459,3 +459,9 @@ pub fn chat_state_bookmarks_toggle_device(
 pub fn chat_state_bookmarks_decode_device(stored: Option<String>) -> Result<Vec<String>, JsValue> {
     bookmarks::decode_device_bookmarks(stored.as_deref()).map_err(error_code)
 }
+
+/// `identity()` of messageBookmarks.ts for every value: 1..=256 UTF-16 units, no control characters.
+#[wasm_bindgen]
+pub fn chat_state_bookmarks_identity(values: Vec<String>) -> bool {
+    values.iter().all(|value| bookmarks::valid_identity(value))
+}

@@ -42,7 +42,9 @@ Create or update `tasks` in the Plan. Each task must include:
 
 For shared product surfaces, enforce this dependency order: REST API/WebSocket
 on the isolated GitHub stack, CLI, npm and pip SDK parity, web,
-deployed Playwright visual smoke for larger web UI, user confirmation, then Apple.
+deployed Playwright visual smoke for larger web UI, user confirmation, then Apple
+UI parity. This applies to Apple UI parity; Apple client logic comes from the Rust
+core and is not sequenced behind web.
 The CLI and SDK tasks must use the real isolated API/WebSocket stack; mocks can only
 be supplemental unit tasks.
 

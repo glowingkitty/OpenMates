@@ -21,6 +21,7 @@ def build_pdf_billing_payload(
     credits_per_page: int,
     filename: str,
     deduplicated: bool = False,
+    ocr_pages: int | None = None,
 ) -> dict[str, Any]:
     usage_details: dict[str, Any] = {
         "page_count": page_count,
@@ -28,6 +29,8 @@ def build_pdf_billing_payload(
         "filename": filename,
         "embed_id": embed_id,
     }
+    if ocr_pages is not None:
+        usage_details["ocr_pages"] = ocr_pages
     if deduplicated:
         usage_details["deduplicated"] = True
 

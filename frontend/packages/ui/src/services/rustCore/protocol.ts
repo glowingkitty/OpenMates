@@ -59,12 +59,16 @@ export type CoreRequest = Envelope & (
   | { operation: "check_first_session_data";deviceSignals:Record<string,string|null>;deadlineEpochMs:number }
   | { operation: "check_first_session"; key:CryptoKey; profile:ExistingProfileEvidence; persistence:"memory_only";deviceSignals:Record<string,string|null>;deadlineEpochMs:number }
   | { operation: "restore_existing"; key: CryptoKey; profile: ExistingProfileEvidence; persistence: "memory_only" }
+  /** Local-only admission of the same key: no server call, cached reads only; `restore_existing` follows on the same Worker. */
+  | { operation: "restore_local"; key: CryptoKey; profile: ExistingProfileEvidence; persistence: "memory_only" }
   | { operation: "restore"; key: CryptoKey; profile: ProfileEvidence; persistence: BrowserPersistence }
   | { operation: "rotate_credentials"; handle:string; generation:number; scope:CredentialCasScope }
   | { operation: "prepare_credentials"; handle: string; generation: number }
   | { operation: "validate_credentials"; handle: string; generation: number; snapshot: BrowserSealedCredentials }
   | { operation: "read_local_chat" | "read_local_saved_chat"; handle: string; generation: number; chatId: string; expectedPrincipal: string; encryptedRows: unknown }
   | { operation: "read_local_saved_chat_cursor"; handle: string; generation: number; chatId: string; expectedPrincipal: string; selector: LocalCursorSelector }
+  /** Online session: Rust renders its own retained IndexedDB rows (readonly plans) before the server reconcile. */
+  | { operation: "read_online_cached_saved_chat"; handle: string; generation: number; chatId: string; expectedPrincipal: string; selector: LocalCursorSelector }
   | { operation: "read_local_checkpoint_summary"; handle:string; generation:number; chatId:string; expectedPrincipal:string; checkpointId:string }
   | { operation: "read_saved_chat_page"; handle: string; generation: number; chatId: string; selector: SavedPageSelector }
   | { operation: "read_saved_chat"; handle: string; generation: number; chatId: string }
@@ -88,7 +92,7 @@ export type CoreRequest = Envelope & (
   | { operation: "cancel"; requestId: number }
 );
 export type CoreResponse = Envelope & (
-  | { ok: true; status: SessionStatus | null; firstSession?:{httpStatus:number|null;data:Record<string,unknown>|null}; chat?: ChatReadback; savedRead?: SavedChatReadback; localRead?: LocalChatReadback; checkpointRead?:CheckpointPresentation; cachedMetadata?:BrowserCachedMetadataRead; retainedRead?:BrowserRetainedRead;cacheSourceEvidence?:BrowserCacheSourceEvidence; cacheMonitor?:{id:string;state:'started'|'ready'|'idle'|'closed'}; cacheMonitorId?:string; initialSync?:{receivedMetadataCount:number;storedMetadataCount:number}; cacheUpdate?:BrowserIncomingCacheUpdate; send?: SendReply; snapshot?: BrowserSealedCredentials; credentialCas?:CredentialCasValidation }
+  | { ok: true; status: SessionStatus | null; firstSession?:{httpStatus:number|null;data:Record<string,unknown>|null}; chat?: ChatReadback; savedRead?: SavedChatReadback; localRead?: LocalChatReadback; onlineCachedRead?: LocalChatReadback; checkpointRead?:CheckpointPresentation; cachedMetadata?:BrowserCachedMetadataRead; retainedRead?:BrowserRetainedRead;cacheSourceEvidence?:BrowserCacheSourceEvidence; cacheMonitor?:{id:string;state:'started'|'ready'|'idle'|'closed'}; cacheMonitorId?:string; initialSync?:{receivedMetadataCount:number;storedMetadataCount:number}; cacheUpdate?:BrowserIncomingCacheUpdate; send?: SendReply; snapshot?: BrowserSealedCredentials; credentialCas?:CredentialCasValidation }
   | { ok: false; error: CoreFailure;profileCacheAbsent?:true }
 );
 
@@ -195,7 +199,7 @@ export function clearPasswordRequest(value: unknown): void {
 
 /** Release request-owned resource references. CryptoKey bytes are never inspected. */
 export function clearExistingKeyRequest(value: unknown): void {
-  if(typeof value!=="object"||value===null||!["restore_existing","check_first_session"].includes(Object.getOwnPropertyDescriptor(value,"operation")?.value))return;
+  if(typeof value!=="object"||value===null||!["restore_existing","restore_local","check_first_session"].includes(Object.getOwnPropertyDescriptor(value,"operation")?.value))return;
   for(const name of ["key","profile"]){if(!("value"in (Object.getOwnPropertyDescriptor(value,name)||{})))continue;try{(value as Record<string,unknown>)[name]=null;}catch{/* caller-owned immutable container */}}
 }
 
@@ -221,7 +225,7 @@ export function validRequest(value: unknown): value is CoreRequest {
       return closedData(value,[...base,"key","profile","persistence","deviceSignals","deadlineEpochMs"])&&value.persistence==='memory_only'
         &&validExistingProfile(value.profile)&&typeof CryptoKey!=='undefined'&&value.key instanceof CryptoKey
         &&Number.isSafeInteger(value.deadlineEpochMs)&&Number(value.deadlineEpochMs)>0&&validFirstSessionSignals(value.deviceSignals);
-    case "restore_existing":
+    case "restore_existing": case "restore_local":
       return closedData(value,[...base,"key","profile","persistence"]) && value.persistence==="memory_only"
         && validExistingProfile(value.profile) && typeof CryptoKey!=="undefined" && value.key instanceof CryptoKey;
     case "restore":
@@ -264,7 +268,7 @@ export function validRequest(value: unknown): value is CoreRequest {
     case "read_local_checkpoint_summary":
       return closedData(value,[...base,"handle","generation","chatId","expectedPrincipal","checkpointId"])&&identifier(value.handle)&&integer(value.generation)
         &&localCursorUuid(value.chatId)&&localCursorUuid(value.expectedPrincipal)&&validReadMessageId(value.checkpointId)&&boundedJson(value);
-    case "read_local_saved_chat_cursor":
+    case "read_local_saved_chat_cursor": case "read_online_cached_saved_chat":
       return closedData(value, [...base,"handle","generation","chatId","expectedPrincipal","selector"])
         && identifier(value.handle) && integer(value.generation)
         && typeof value.chatId === "string" && value.chatId.length === 36 && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value.chatId)
@@ -330,6 +334,8 @@ export function validResponse(value: unknown): value is CoreResponse {
     // Structural DTO validation only. The pending request checks exact chat/ID.
     return validCheckpointPresentation(data,record(row)?String(row.chatId):value.status.principal,"retained_selected");
   }
+  if (value.ok === true && "onlineCachedRead" in value) return exact(value,["version","id","ok","status","onlineCachedRead"])
+    && validStatus(value.status) && value.status.localReadOnly !== true && validLocalRead(value.onlineCachedRead, true);
   if (value.ok === true && "localRead" in value) return exact(value,["version","id","ok","status","localRead"])
     && validStatus(value.status) && value.status.localReadOnly === true && validLocalRead(value.localRead);
   if (value.ok === true && "savedRead" in value) return exact(value, ["version", "id", "ok", "status", "savedRead"])

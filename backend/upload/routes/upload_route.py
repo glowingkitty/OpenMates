@@ -139,7 +139,9 @@ ALLOWED_MIMES = ALLOWED_IMAGE_MIMES | ALLOWED_PDF_MIMES | ALLOWED_AUDIO_MIMES
 MAX_PDF_PAGES = 1000
 
 # Credits charged per PDF page (3 credits/page)
-PDF_CREDITS_PER_PAGE = 3
+# PDF pricing v2: 2 credits per file + 2 per OCR page, nothing for text-layer pages
+# (backend/apps/pdf/services/pdf_triage.py price_for; spec feature.pdf-processing billing.exact-price).
+PDF_CREDITS_PER_OCR_PAGE = 2
 
 # Maximum upload size: 100 MB
 MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100 MB
@@ -168,6 +170,14 @@ class AIDetectionMetadata(BaseModel):
     provider: str = Field(default="sightengine", description="Detection provider name")
     status: str = Field(default="success", description="Detection status: success or failed")
     error: Optional[str] = Field(None, description="Non-sensitive failure reason when detection failed")
+
+
+def is_svg_upload(content_type: str, file_bytes: bytes) -> bool:
+    """True for an uploaded SVG document, whose vector source is stored beside its raster variants."""
+    head = file_bytes[:2048].lstrip().lower()
+    return content_type == "image/svg+xml" or head.startswith(b"<svg") or (
+        head.startswith(b"<?xml") and b"<svg" in head
+    )
 
 
 def _duplicate_preserves_camera_original(record: Dict[str, Any], file_bytes: bytes) -> bool:
@@ -703,6 +713,7 @@ async def _cache_embed_via_api(
     content_type: str,
     original_filename: str,
     ai_detection: Optional[Dict[str, Any]] = None,
+    pdf_billing: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """
     Cache an upload embed in Redis via the core API's /internal/uploads/cache-embed endpoint.
@@ -724,6 +735,7 @@ async def _cache_embed_via_api(
             "content_type": content_type,
             "original_filename": original_filename,
             "ai_detection": ai_detection,
+            "pdf_billing": pdf_billing,
         }
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
@@ -1211,6 +1223,7 @@ async def upload_file(
 
     # --- 9. AES-256-GCM encryption ---
     # All three variants share the same AES key and nonce, matching generate_task.py.
+    keeps_vector = is_svg_upload(content_type, file_bytes)
     logger.info(f"{log_prefix} [9/13] Encrypting 3 variants with AES-256-GCM (random key per file)...")
     encrypt_start = time.monotonic()
     write_version = load_media_write_version()
@@ -1219,6 +1232,10 @@ async def upload_file(
             "original": preview_result.original_bytes,
             "full": preview_result.full_webp_bytes,
             "preview": preview_result.preview_webp_bytes,
+            # An uploaded SVG keeps its vector source next to the raster
+            # variants, so skills that need the drawing itself (embroidery)
+            # read the exact file the user uploaded.
+            **({"vector": file_bytes} if keeps_vector else {}),
         },
         write_version=write_version,
     )
@@ -1259,6 +1276,7 @@ async def upload_file(
     original_s3_key = f"{s3_prefix}/{timestamp}_original.bin"
     full_s3_key = f"{s3_prefix}/{timestamp}_full.bin"
     preview_s3_key = f"{s3_prefix}/{timestamp}_preview.bin"
+    vector_s3_key = f"{s3_prefix}/{timestamp}_vector.bin"
 
     logger.info(
         f"{log_prefix} [11/13] Uploading 3 encrypted variants to S3 "
@@ -1285,8 +1303,17 @@ async def upload_file(
             preferred_region=original_upload.region,
             allow_region_fallback=False,
         )
-        active_region = _single_upload_region(original_upload, full_upload, preview_upload)
-        storage_active_regions = _active_region_map(original_upload, full_upload, preview_upload)
+        uploads = [original_upload, full_upload, preview_upload]
+        if keeps_vector:
+            uploads.append(await s3_service.upload_file_with_region(
+                s3_key=vector_s3_key,
+                content=encrypted_variants.payloads["vector"],
+                target_env=target_env,
+                preferred_region=original_upload.region,
+                allow_region_fallback=False,
+            ))
+        active_region = _single_upload_region(*uploads)
+        storage_active_regions = _active_region_map(*uploads)
         s3_elapsed = (time.monotonic() - s3_start) * 1000
         logger.info(
             f"{log_prefix} [11/13] S3 upload: OK ({s3_elapsed:.0f} ms) — "
@@ -1331,6 +1358,16 @@ async def upload_file(
             active_region=active_region,
         ),
     }
+    if keeps_vector:
+        files_metadata["vector"] = FileVariantMetadata(
+            s3_key=vector_s3_key,
+            width=preview_result.original_width,
+            height=preview_result.original_height,
+            size_bytes=len(encrypted_variants.payloads["vector"]),
+            format="svg",
+            encryption=encrypted_variants.metadata["vector"].get("encryption"),
+            active_region=active_region,
+        )
 
     # --- 13. Store upload record via core API (never touches Directus directly) ---
     logger.info(f"{log_prefix} [13/13] Storing upload record in Directus (via core API)...")
@@ -1416,6 +1453,9 @@ async def _handle_pdf_dedup(
     core_api_url: str,
     internal_token: str,
     log_prefix: str,
+    credits_to_charge: int,
+    ocr_page_count: int,
+    page_routes: list,
     target_env: str = "prod",
 ) -> UploadFileResponse:
     """
@@ -1451,7 +1491,6 @@ async def _handle_pdf_dedup(
 
     # Always charge credits — every PDF upload costs credits regardless of dedup.
     # The OCR cache copy is our internal cost optimization, not a user discount.
-    credits_to_charge = page_count * PDF_CREDITS_PER_PAGE
     logger.info(
         f"{log_prefix} [PDF-dedup] Fresh embed_id={embed_id} | "
         f"reusing S3 key={pdf_s3_key} | pages={page_count} | "
@@ -1467,7 +1506,8 @@ async def _handle_pdf_dedup(
                     embed_id=embed_id,
                     credits_to_charge=credits_to_charge,
                     page_count=page_count,
-                    credits_per_page=PDF_CREDITS_PER_PAGE,
+                    credits_per_page=PDF_CREDITS_PER_OCR_PAGE,
+                    ocr_pages=ocr_page_count,
                     filename=filename,
                     deduplicated=True,
                 ),
@@ -1527,6 +1567,7 @@ async def _handle_pdf_dedup(
         content_type=content_type,
         original_filename=filename,
         ai_detection=None,
+        pdf_billing={"credits_charged": credits_to_charge, "page_routes": page_routes},
     )
 
     # Trigger OCR for the new embed_id (always — even if the old embed's OCR
@@ -1548,6 +1589,7 @@ async def _handle_pdf_dedup(
                         "page_count": page_count,
                         "credits_charged": credits_to_charge,
                         "user_id_hash": user_id_hash,
+                        "page_routes": page_routes,
                         # Pass old embed_id so OCR task can copy cache instead of re-running
                         "source_embed_id": reuse_s3_data.get("embed_id"),
                     },
@@ -1603,7 +1645,7 @@ async def _handle_pdf_upload(
     """
     Handle the PDF-specific upload pipeline:
       1. Extract page count via pymupdf (no rendering)
-      2. Charge credits upfront (3 credits/page) via core API billing
+      2. Triage pages, charge the exact price (2/file + 2 per OCR page) via core API billing
       3. Encrypt PDF with AES-256-GCM
       4. Vault-wrap the AES key
       5. Upload to S3
@@ -1660,6 +1702,26 @@ async def _handle_pdf_upload(
         logger.warning(f"{log_prefix} [PDF-1/7] REJECTED — PDF has no pages")
         raise HTTPException(status_code=422, detail="PDF has no pages.")
 
+    # --- PDF 1b. Per-page triage (rules only, ~1-2 s) → exact price ---
+    # Borderline pages are billed as OCR here; the processing task asks the decision model about
+    # them and refunds the difference for every page it proves to be text-layer.
+    from backend.apps.pdf.services.pdf_triage import price_for, triage_pages_sync
+
+    try:
+        triage = await asyncio.to_thread(triage_pages_sync, file_bytes)
+    except (RuntimeError, ValueError) as e:
+        logger.error(f"{log_prefix} [PDF-1b] Triage FAILED — unreadable PDF: {e}", exc_info=True)
+        raise HTTPException(status_code=422, detail=f"Invalid or corrupt PDF file: {e}")
+    page_routes = [
+        {**p.to_route_dict(), "borderline": p.borderline} for p in triage.pages
+    ]
+    ocr_page_count = len(triage.ocr_pages) + sum(1 for p in triage.pages if p.borderline)
+    credits_to_charge = price_for(ocr_page_count).credits
+    logger.info(
+        f"{log_prefix} [PDF-1b] Triage: {len(triage.text_layer_pages)} text-layer, "
+        f"{ocr_page_count} OCR pages → price {credits_to_charge} credits"
+    )
+
     # ── Safe PDF dedup shortcut: reuse S3 object, fresh embed_id ──
     # When reuse_s3_data is provided, the S3 object already exists. Skip
     # encryption, vault wrap, S3 upload, and credit charging. Just create
@@ -1677,18 +1739,20 @@ async def _handle_pdf_upload(
             core_api_url=core_api_url,
             internal_token=internal_token,
             log_prefix=log_prefix,
+            credits_to_charge=credits_to_charge,
+            ocr_page_count=ocr_page_count,
+            page_routes=page_routes,
             target_env=target_env,
         )
 
-    # --- PDF 2. Charge credits upfront (3 credits/page) ---
+    # --- PDF 2. Charge the exact price (2 credits/file + 2 per OCR page) ---
     import hashlib as _hashlib
-    credits_to_charge = page_count * PDF_CREDITS_PER_PAGE
     user_id_hash = _hashlib.sha256(user_id.encode("utf-8")).hexdigest()
     embed_id = str(uuid.uuid4())
 
     logger.info(
         f"{log_prefix} [PDF-2/7] Charging {credits_to_charge} credits "
-        f"({page_count} pages × {PDF_CREDITS_PER_PAGE} credits/page)..."
+        f"(2 per file + {PDF_CREDITS_PER_OCR_PAGE} × {ocr_page_count} OCR pages)..."
     )
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -1700,7 +1764,8 @@ async def _handle_pdf_upload(
                     embed_id=embed_id,
                     credits_to_charge=credits_to_charge,
                     page_count=page_count,
-                    credits_per_page=PDF_CREDITS_PER_PAGE,
+                    credits_per_page=PDF_CREDITS_PER_OCR_PAGE,
+                    ocr_pages=ocr_page_count,
                     filename=filename,
                 ),
                 headers={"X-Internal-Service-Token": internal_token},
@@ -1838,6 +1903,7 @@ async def _handle_pdf_upload(
         content_type=content_type,
         original_filename=filename,
         ai_detection=None,
+        pdf_billing={"credits_charged": credits_to_charge, "page_routes": page_routes},
     )
 
     # --- PDF 7. Trigger background OCR processing (fire-and-forget) ---
@@ -1863,6 +1929,7 @@ async def _handle_pdf_upload(
                         "page_count": page_count,
                         "credits_charged": credits_to_charge,
                         "user_id_hash": user_id_hash,
+                        "page_routes": page_routes,
                     },
                     headers={"X-Internal-Service-Token": internal_token},
                 )

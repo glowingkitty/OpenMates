@@ -1,7 +1,10 @@
 <script lang="ts">
+    import { vibrateDevice } from '../../services/eventSounds';
   import { isCreditRejection } from '../../utils/creditRejection';
   import type { Chat, TiptapJSON, Message } from '../../types/chat';
   import { onMount, onDestroy, tick } from 'svelte';
+  import { localizeIndicatorLine } from './utils/chatIndicatorLines'; // Localises indicator lines decided by the Rust chatState unit when the flag is on
+  import type { IndicatorLine } from '../../services/rustCore/chatState/transitionProtocol';
   import { chatSyncService } from '../../services/chatSyncService';
   import { chatDB } from '../../services/db';
   import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
@@ -32,8 +35,8 @@
     getLucideIcon
   } from '../../utils/categoryUtils';
   import { modelsMetadata } from '../../data/modelsMetadata'; // For model name lookup in mentions
-  import { matesMetadata } from '../../data/matesMetadata'; // For mate name lookup in mentions
-  import { appSkillsStore } from '../../stores/appSkillsStore'; // For skill/focus/memory name lookup in mentions
+  import { mateDisplayName } from '../../utils/mateDisplayName';
+  import { convertMentionSyntaxToDisplayName } from '../../utils/mentionDisplay'; // Shared mention display names
   import { skillPreviewService } from '../../services/skillPreviewService'; // For tracking skill usage in background chats
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
   import { settingsMenuVisible } from '../Settings.svelte'; // For controlling Settings visibility
@@ -183,94 +186,6 @@
       console.error('Error extracting text from Tiptap content:', error);
       return '';
     }
-  }
-
-  /**
-   * Convert a name to hyphenated format for mention display.
-   * e.g., "Claude 4.5 Opus" -> "Claude-4.5-Opus"
-   */
-  function toHyphenatedName(name: string): string {
-    return name.replace(/\s+/g, '-');
-  }
-
-  /**
-   * Capitalize first letter of each word for display.
-   * e.g., "get-docs" -> "Get-Docs"
-   */
-  function capitalizeWords(str: string): string {
-    return str.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
-  }
-
-  /**
-   * Convert backend mention syntax to human-readable display names.
-   * This ensures draft previews show "@Claude-4.5-Opus" instead of "@ai-model:claude-4-sonnet"
-   */
-  function convertMentionSyntaxToDisplayName(text: string): string {
-    // Replace @ai-model:{id} with @Model-Name
-    text = text.replace(/@ai-model:([^\s]+)/g, (match, modelId) => {
-      const model = modelsMetadata.find(m => m.id === modelId);
-      if (model) {
-        return `@${toHyphenatedName(model.name)}`;
-      }
-      return match;
-    });
-    
-    // Replace @mate:{id} with @MateName
-    text = text.replace(/@mate:([^\s]+)/g, (match, mateId) => {
-      const mate = matesMetadata.find(m => m.id === mateId);
-      if (mate) {
-        const displayName = capitalizeWords(mate.search_names[0] || mate.id);
-        return `@${displayName}`;
-      }
-      return match;
-    });
-    
-    // Replace @skill:{app_id}:{skill_id} with @App-Skill-Name
-    text = text.replace(/@skill:([^:]+):([^\s]+)/g, (match, appId, skillId) => {
-      const apps = appSkillsStore.apps;
-      const app = apps[appId];
-      if (app) {
-        const skill = app.skills.find(s => s.id === skillId);
-        if (skill) {
-          const appDisplayName = capitalizeWords(appId);
-          const skillDisplayName = capitalizeWords(skillId.replace(/_/g, '-'));
-          return `@${appDisplayName}-${skillDisplayName}`;
-        }
-      }
-      return match;
-    });
-    
-    // Replace @focus:{app_id}:{focus_id} with @App-Focus-Name
-    text = text.replace(/@focus:([^:]+):([^\s]+)/g, (match, appId, focusId) => {
-      const apps = appSkillsStore.apps;
-      const app = apps[appId];
-      if (app) {
-        const focusMode = app.focus_modes.find(f => f.id === focusId);
-        if (focusMode) {
-          const appDisplayName = capitalizeWords(appId);
-          const focusDisplayName = capitalizeWords(focusId.replace(/_/g, '-'));
-          return `@${appDisplayName}-${focusDisplayName}`;
-        }
-      }
-      return match;
-    });
-    
-    // Replace @memory:{app_id}:{memory_id}:{type} with @App-Memory-Name
-    text = text.replace(/@memory:([^:]+):([^:]+):([^\s]+)/g, (match, appId, memoryId) => {
-      const apps = appSkillsStore.apps;
-      const app = apps[appId];
-      if (app) {
-        const memory = app.settings_and_memories.find(m => m.id === memoryId);
-        if (memory) {
-          const appDisplayName = capitalizeWords(appId);
-          const memoryDisplayName = capitalizeWords(memoryId.replace(/_/g, '-'));
-          return `@${appDisplayName}-${memoryDisplayName}`;
-        }
-      }
-      return match;
-    });
-    
-    return text;
   }
 
   /**
@@ -431,9 +346,24 @@
   // 1. App skill usage: "Using Search..." (when an app skill is actively processing)
   // 2. Thinking model: "{mate} is thinking..." (when a reasoning model is in thinking phase)
   // 3. Default: "{mate} is typing..." (standard typing indicator)
+  // Flag on (VITE_OPENMATES_RUST_CORE): the chatState unit decides the title indicator; the page localises it.
+  const RUST_CHAT_INDICATORS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+    && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
+  let rustTitleIndicator = $state<IndicatorLine | null>(null);
+  if (RUST_CHAT_INDICATORS) $effect(() => {
+    const typing = currentTypingMateInfo ? { isTyping: currentTypingMateInfo.isTyping, category: currentTypingMateInfo.category } : null;
+    const skill = activeSkillInfo ? { appId: activeSkillInfo.appId, skillId: activeSkillInfo.skillId } : null;
+    const reasoning = isReasoningModel;
+    let stale = false;
+    void import('../../services/rustCore/chatState/rustTransitions')
+      .then((rust) => rust.rustTitleIndicator(typing, skill, reasoning))
+      .then((line) => { if (!stale) rustTitleIndicator = line; });
+    return () => { stale = true; };
+  });
   let typingIndicatorInTitleView = $derived((() => {
+    if (RUST_CHAT_INDICATORS) return rustTitleIndicator ? localizeIndicatorLine(rustTitleIndicator, $text) : null;
     if (currentTypingMateInfo?.isTyping && currentTypingMateInfo.category) {
-      const mateName = $text(`mates.${currentTypingMateInfo.category}`);
+      const mateName = mateDisplayName(currentTypingMateInfo.category, $text);
       
       // Priority 1: Show active app skill usage (e.g., "Using Search...")
       if (activeSkillInfo) {
@@ -1136,31 +1066,9 @@
   let isPinned = $derived(pinnedOverride ?? !!chat?.pinned);
   let chatForContextMenu = $derived(chat ? { ...chat, pinned: isPinned, unread_count: unreadCount } : undefined);
   
-  // Flag to temporarily suppress auto-clear when user manually marks as unread
-  // This prevents the effect from immediately clearing the unread state
-  let suppressAutoClear = $state(false);
-  
-  // Track previous active state to detect when user navigates away
-  let wasActive = $state(false);
-  
-  // Clear unread count when chat becomes active (user is viewing it)
-  // But NOT if we just marked it as unread (suppressAutoClear flag)
-  $effect(() => {
-    if (isActive && chat?.chat_id && unreadCount > 0 && !suppressAutoClear) {
-      unreadMessagesStore.clearUnread(chat.chat_id);
-    }
-  });
-  
-  // Reset suppressAutoClear when user navigates away from the chat
-  // This ensures that when user opens the chat again, it will be marked as read
-  $effect(() => {
-    if (wasActive && !isActive) {
-      // User navigated away from this chat, reset the suppress flag
-      suppressAutoClear = false;
-    }
-    wasActive = isActive;
-  });
-  
+  // Opening a chat does not mark it read: ActiveChat clears the count only once
+  // the last line of the latest reply has been visible (see unreadMessagesStore).
+
   // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes.
   // CRITICAL: Also check the raw chat object for draft indicators (encrypted_draft_preview / encrypted_draft_md)
   // so isDraftOnly is true immediately on first render, before the async updateDisplayInfo() call resolves
@@ -1217,9 +1125,7 @@
       showContextMenu = true;
       
       // Vibrate to provide haptic feedback (if supported)
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
+      vibrateDevice(50);
       
       console.debug('[Chat] Context menu opened for chat (long-press):', chat?.chat_id);
     }, LONG_PRESS_DURATION);
@@ -1567,6 +1473,25 @@
         return;
       }
       
+      if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
+        // Shared Rust core decides (needs unlock / already hidden / missing key / hide) and
+        // syncs the key-update frame; this component only shows the notices.
+        const { rustHideChat } = await import('../../services/rustCore/chatState/rustHideFlow');
+        const outcome = await rustHideChat(chat);
+        if (outcome === 'needs_unlock') {
+          window.dispatchEvent(new CustomEvent('showOverscrollUnlockForHide', { detail: { chatId: chatIdToHide } }));
+          showContextMenu = false;
+        } else if (outcome === 'already_hidden') {
+          notificationStore.success('Chat is already hidden');
+          showContextMenu = false;
+        } else if (outcome === 'missing_key') {
+          notificationStore.error('Failed to hide chat. Chat key not found.');
+        } else {
+          await finishHideChat(chatIdToHide);
+        }
+        return;
+      }
+
       // Hidden chats are already unlocked - we can use the current combined secret
       // Get the current chat key (decrypted with master key)
       // First try: Check cache (fast path for chats that have been accessed)
@@ -1629,28 +1554,32 @@
       // Sync to server (the encrypted_chat_key will be synced)
       await chatSyncService.sendUpdateEncryptedChatKey(chatIdToHide, encryptedChatKey);
       
-      console.debug('[Chat] Chat hidden successfully:', chatIdToHide);
-      notificationStore.success('Chat hidden successfully');
-      showContextMenu = false;
-
-      // Hide associated new chat suggestions
-      try {
-        await chatDB.hideNewChatSuggestionsForChat(chatIdToHide);
-        console.debug('[Chat] Hidden associated chat suggestions for:', chatIdToHide);
-      } catch (error) {
-        console.warn('[Chat] Failed to hide chat suggestions:', error);
-        // Continue anyway - chat hiding succeeded
-      }
-
-      // Dispatch event to update UI (chat will disappear from main list and move to hidden section)
-      // Chats.svelte listens on `window` and will refresh the chat list
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('chatHidden', { detail: { chat_id: chatIdToHide } }));
-      }
-      
+      await finishHideChat(chatIdToHide);
     } catch (error) {
       console.error('[Chat] Error hiding chat:', chatIdToHide, error);
       notificationStore.error('Failed to hide chat. Please try again.');
+    }
+  }
+
+  /** Notices, suggestion hiding and list refresh after a chat was hidden. */
+  async function finishHideChat(chatIdToHide: string) {
+    console.debug('[Chat] Chat hidden successfully:', chatIdToHide);
+    notificationStore.success('Chat hidden successfully');
+    showContextMenu = false;
+
+    // Hide associated new chat suggestions
+    try {
+      await chatDB.hideNewChatSuggestionsForChat(chatIdToHide);
+      console.debug('[Chat] Hidden associated chat suggestions for:', chatIdToHide);
+    } catch (error) {
+      console.warn('[Chat] Failed to hide chat suggestions:', error);
+      // Continue anyway - chat hiding succeeded
+    }
+
+    // Dispatch event to update UI (chat will disappear from main list and move to hidden section)
+    // Chats.svelte listens on `window` and will refresh the chat list
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('chatHidden', { detail: { chat_id: chatIdToHide } }));
     }
   }
 
@@ -1810,14 +1739,9 @@
       // Set unread count to 1 (marking as unread) - always 1, never increment
       const newUnreadCount = 1;
 
-      // Suppress auto-clear so the effect doesn't immediately clear this
-      // The flag will be cleared when user navigates away and back
-      suppressAutoClear = true;
-
-      // Clear existing count first (to ensure we set to exactly 1, not increment)
-      unreadMessagesStore.clearUnread(chatIdToMarkUnread);
-      // Then set to 1
-      unreadMessagesStore.incrementUnread(chatIdToMarkUnread);
+      // Exactly 1; ActiveChat's visibility-based read detection skips manual
+      // marks until the user leaves the chat.
+      unreadMessagesStore.markManuallyUnread(chatIdToMarkUnread);
 
       // Update the chat in IndexedDB
       const updatedChat = { ...snapshotChatForStorage(), unread_count: newUnreadCount };
@@ -1858,9 +1782,6 @@
 
       // Set unread count to 0 (marking as read)
       const newUnreadCount = 0;
-
-      // Clear the suppress flag since user is marking as read
-      suppressAutoClear = false;
 
       // Clear local unread store for immediate UI feedback
       unreadMessagesStore.clearUnread(chatIdToMarkRead);

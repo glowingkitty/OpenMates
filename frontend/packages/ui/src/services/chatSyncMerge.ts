@@ -10,6 +10,13 @@ import { chatKeysEqual } from "./chatKeyConsistency";
 import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 
 const MAX_CANDIDATE_KEYS = 5;
+/** Opt-in shared Rust core build: the decision runs in the shared Worker `sync` unit. */
+// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+function rustSyncPolicy() {
+  return import("./rustCore/sync/rustChatSyncPolicy");
+}
 
 function newestTimestamp(
   ...timestamps: Array<number | null | undefined>
@@ -24,6 +31,7 @@ export async function hasEncryptedChatKeyMismatch(
   serverChat: Partial<Chat> & { id: string },
   localChat: Chat | null,
 ): Promise<boolean> {
+  if (RUST_SYNC_BUILD) return (await rustSyncPolicy()).hasEncryptedChatKeyMismatch(serverChat, localChat);
   if (serverChat.key_fingerprint && localChat?.key_fingerprint) {
     return serverChat.key_fingerprint !== localChat.key_fingerprint;
   }
@@ -102,6 +110,7 @@ export async function mergeServerChatWithLocal(
   localChat: Chat | null,
   currentUserId?: string,
 ): Promise<Chat> {
+  if (RUST_SYNC_BUILD) return (await rustSyncPolicy()).mergeServerChatWithLocal(serverChat, localChat, currentUserId);
   const nowTimestamp = Math.floor(Date.now() / 1000);
 
   if (!localChat) {
@@ -148,7 +157,7 @@ export async function mergeServerChatWithLocal(
       encrypted_chat_tags: serverChat.encrypted_chat_tags,
       encrypted_top_recommended_apps_for_chat:
         serverChat.encrypted_top_recommended_apps_for_chat,
-      encrypted_quick_tip_slugs: serverChat.encrypted_quick_tip_slugs,
+      encrypted_recommendations: serverChat.encrypted_recommendations,
       encrypted_active_focus_id: serverChat.encrypted_active_focus_id,
       encrypted_focus_phase_state: serverChat.encrypted_focus_phase_state,
       encrypted_auto_speak_response: serverChat.encrypted_auto_speak_response,
@@ -321,10 +330,10 @@ export async function mergeServerChatWithLocal(
         ? localChat.encrypted_top_recommended_apps_for_chat
         : serverChat.encrypted_top_recommended_apps_for_chat ??
           localChat.encrypted_top_recommended_apps_for_chat,
-    encrypted_quick_tip_slugs:
+    encrypted_recommendations:
       keyMismatch
-        ? localChat.encrypted_quick_tip_slugs
-        : serverChat.encrypted_quick_tip_slugs ?? localChat.encrypted_quick_tip_slugs,
+        ? localChat.encrypted_recommendations
+        : serverChat.encrypted_recommendations ?? localChat.encrypted_recommendations,
     encrypted_focus_phase_state:
       keyMismatch ? localChat.encrypted_focus_phase_state : (serverChat.encrypted_focus_phase_state ?? localChat.encrypted_focus_phase_state),
     encrypted_active_focus_id:

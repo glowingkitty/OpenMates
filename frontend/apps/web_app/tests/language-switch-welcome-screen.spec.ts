@@ -157,6 +157,7 @@ test.afterEach(async ({}, testInfo: any) => {
 	}
 });
 
+// contract-test: supporting surface=gui.web assertions=language-preferences.resolution
 test('welcome screen elements update when switching languages (EN → DE → JA → EN)', async ({
 	page
 }: {
@@ -198,11 +199,8 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 	await page.waitForTimeout(3000);
 	await page.getByTestId('daily-inspiration-next').click();
 	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
-	await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute(
-		'data-landing-intro-phase',
-		'regular',
-		{ timeout: 15000 }
-	);
+	// The signed-out welcome uses the ordinary Daily Inspiration banner; there is no expanded landing intro phase.
+	await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
 	await page.getByTestId('guest-interest-select-interests').click();
 	await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
 	await takeScreenshot(page, '01-welcome-english');

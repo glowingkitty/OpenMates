@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Message } from '../../../types/chat';
 import { clearRecentChatWindows, getRecentChatRevision, isRecentChatReadCurrent } from '../../recentChatWindowCache';
 import { getWorkspaceCacheEpoch } from '../../workspaceCacheLifecycle';
-import { applyQueuedMessageRevision, deleteMessage, shouldUpdateMessage, updateMessageRawFields, updateMessageStatus } from '../messageOperations';
+import { applyQueuedMessageRevision, deleteMessage, updateMessageRawFields, updateMessageStatus } from '../messageOperations';
 import { deleteChat } from '../chatCrudOperations';
 
 const row: Message = {
@@ -46,26 +46,6 @@ function mutationDb(sourceRow: Message = row) {
 afterEach(clearRecentChatWindows);
 
 describe('queued message revisions', () => {
-  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
-  it('accepts authoritative processing handoff but rejects a stale queue receipt', () => {
-    const queued: Message = { ...row, status: 'queued', queue_revision: 3, queue_mode: 'follow_up' };
-    expect(shouldUpdateMessage(queued, { ...row, status: 'delivered', queue_revision: 3,
-      queue_dispatch_status: 'processing' })).toBe(true);
-    expect(shouldUpdateMessage(queued, { ...row, status: 'delivered', queue_revision: 2,
-      queue_dispatch_status: 'processing' })).toBe(false);
-    expect(shouldUpdateMessage({ ...row, status: 'delivered', queue_revision: 3,
-      queue_dispatch_status: 'processing' }, { ...queued, queue_dispatch_status: 'queued' })).toBe(false);
-    expect(shouldUpdateMessage({ ...row, queue_dispatch_status: 'paused' }, {
-      ...queued, queue_dispatch_status: 'queued', queue_dispatch_mode: 'follow_up',
-    })).toBe(false);
-    expect(shouldUpdateMessage({ ...queued, queue_dispatch_status: 'queued' }, {
-      ...row, status: 'delivered', queue_revision: 3, queue_dispatch_status: 'paused',
-    })).toBe(true);
-    expect(shouldUpdateMessage({ ...row, status: 'synced', queue_dispatch_status: 'processing' }, {
-      ...row, status: 'delivered', queue_revision: 3, queue_dispatch_status: 'paused',
-    })).toBe(true);
-  });
-
   // contract-test: supporting surface=gui.web assertions=chat-queued-followups.editing.stable-revision
   it('patches only committed ciphertext and queue metadata on the same message ID', async () => {
     const { db, store, complete } = mutationDb({ ...row, content: 'stale plaintext', pii_mappings: [] });

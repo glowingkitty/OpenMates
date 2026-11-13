@@ -274,7 +274,7 @@ async def test_controller_is_not_limited_to_the_sdk_default_command_lifetime(
     monkeypatch.setenv("E2B_BROWSE_PREBOOTED", "true" if prebooted else "false")
     browser = E2BBrowser("placeholder")
     browser.rpc = AsyncMock(
-        return_value={"runtime_protocol": "preboot-v1", "pristine": True}
+        return_value={"runtime_protocol": "preboot-v2", "pristine": True}
     )
     await browser.create(session_id="session", owner="owner", on_created=AsyncMock())
     server = [

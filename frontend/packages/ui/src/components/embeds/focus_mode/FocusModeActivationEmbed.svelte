@@ -22,6 +22,7 @@
 -->
 
 <script lang="ts">
+    import { vibrateDevice } from '../../../services/eventSounds';
   import { onMount } from 'svelte';
   import { text } from '@repo/ui';
   import { pendingFocusActivationStore } from '../../../stores/pendingFocusActivationStore';
@@ -69,6 +70,15 @@
      * Regular click/tap/keyboard triggers this after activation; right-click always works.
      */
     onContextMenu?: (event: MouseEvent | TouchEvent, state: { isActivated: boolean; isRejected: boolean }) => void;
+    /** Assistant created the Project for this turn: show the creation and focus rows. */
+    projectCreated?: boolean;
+    projectId?: string;
+    projectName?: string;
+    /** Persisted undone state (set after a successful undo). */
+    projectCreationUndone?: boolean;
+    /** Undo runs in the client core; Undo is only offered when this is injected. */
+    onUndoCreatedProject?: () => Promise<void>;
+    onOpenProject?: (projectId: string) => void;
   }
 
   let {
@@ -86,6 +96,12 @@
     onDeactivate: _onDeactivate,
     onDetails: _onDetails,
     onContextMenu: _onContextMenu,
+    projectCreated = false,
+    projectId = "",
+    projectName = "",
+    projectCreationUndone = false,
+    onUndoCreatedProject,
+    onOpenProject,
   }: Props = $props();
 
   // These props are used by the renderer for context menu dispatch;
@@ -94,6 +110,30 @@
 
   // Countdown duration in seconds
   const COUNTDOWN_SECONDS = 4;
+
+  let creationUndone = $state(false);
+  let undoing = $state(false);
+  let undoError = $state(false);
+  let isCreationUndone = $derived(projectCreationUndone || creationUndone);
+  let createdName = $derived(projectName || focusModeName.replace(/^Work on /, ''));
+
+  async function handleUndoClick() {
+    if (undoing || !onUndoCreatedProject) return;
+    undoing = true;
+    undoError = false;
+    try {
+      await onUndoCreatedProject();
+      creationUndone = true;
+    } catch {
+      undoError = true;
+    } finally {
+      undoing = false;
+    }
+  }
+
+  function openProject() {
+    if (projectId) onOpenProject?.(projectId);
+  }
 
   // State
   let countdownValue = $state(COUNTDOWN_SECONDS);
@@ -263,9 +303,7 @@
       // Prevent the subsequent touchend from triggering a click/reject
       event.preventDefault();
       // Haptic feedback
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
+      vibrateDevice(50);
       if (!isPending && !isActivated) { _onDetails?.(focusId, appId); return; }
       _onContextMenu?.(event, { isActivated, isRejected });
     }, LONG_PRESS_DURATION);
@@ -338,7 +376,37 @@
   });
 </script>
 
-{#if !isRejected}
+{#if projectCreated}
+  <div class="project-created-card" data-testid="project-created-card" data-focus-id={focusId} data-app-id={appId} data-embed-type="focus-mode-activation">
+    <div class="created-row" data-testid="project-created-row" data-state={isCreationUndone ? 'undone' : 'created'}>
+      <div class="app-icon-circle projects" style={appGradientStyle}>
+        <div class="icon_rounded projects" data-testid="focus-app-icon" data-icon={appIconName}></div>
+      </div>
+      <div class="row-text">
+        {#if isCreationUndone}
+          <span class="row-label" data-testid="project-created-status">{$text('projects.created_project_undone')}</span>
+        {:else}
+          <span class="row-label">{$text('projects.created_project_label')}
+            <button type="button" class="project-link" data-testid="project-created-name" onclick={openProject}>{createdName}</button>
+          </span>
+        {/if}
+        {#if undoError}<span class="row-error" role="alert">{$text('projects.created_project_undo_failed')}</span>{/if}
+      </div>
+      {#if !isCreationUndone && onUndoCreatedProject}
+        <button type="button" class="undo-button" data-testid="project-created-undo" disabled={undoing} onclick={handleUndoClick}>{$text('projects.created_project_undo')}</button>
+      {/if}
+    </div>
+    <div class="created-row" data-testid="project-focus-row" data-state={isCreationUndone ? 'inactive' : 'activated'}>
+      <div class="focus-skill-icon"></div>
+      <div class="row-text">
+        <span class="row-label">{$text('projects.work_on_label')}
+          {#if isCreationUndone}{createdName}{:else}<button type="button" class="project-link" data-testid="project-focus-name" onclick={openProject}>{createdName}</button>{/if}
+        </span>
+        <span class="status-value" class:active-status={!isCreationUndone} data-testid="focus-status-value">{isCreationUndone ? $text('projects.focus_not_active') : $text('embeds.focus_mode.activated')}</span>
+      </div>
+    </div>
+  </div>
+{:else if !isRejected}
   <div
     class="focus-mode-bar"
     class:activated={isActivated}
@@ -404,6 +472,102 @@
 {/if}
 
 <style>
+  .project-created-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    width: 380px;
+    max-width: 100%;
+    padding: var(--spacing-4);
+    box-sizing: border-box;
+    background-color: var(--color-grey-30);
+    border-radius: var(--radius-5);
+  }
+  .created-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    min-height: 44px;
+  }
+  .created-row + .created-row {
+    border-top: 1px solid var(--color-grey-25);
+    padding-top: var(--spacing-3);
+  }
+  .created-row .app-icon-circle {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .created-row .app-icon-circle .icon_rounded {
+    width: 20px;
+    height: 20px;
+    position: relative;
+    bottom: auto;
+    left: auto;
+    z-index: auto;
+    background: transparent !important;
+  }
+  .created-row .app-icon-circle .icon_rounded::after {
+    background-image: var(--focus-app-icon-url);
+    filter: brightness(0) invert(1);
+  }
+  .created-row .focus-skill-icon {
+    width: 36px;
+    height: 29px;
+    min-width: 36px;
+    background-color: var(--icon-focus-background-start, #5951D0);
+    -webkit-mask: url('@openmates/ui/static/icons/insight.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/insight.svg') center / contain no-repeat;
+  }
+  .row-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    gap: var(--spacing-1);
+  }
+  .row-label {
+    font-size: var(--font-size-p);
+    font-weight: 600;
+    color: var(--color-grey-100);
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .row-error {
+    font-size: var(--font-size-small);
+    color: var(--color-error-50, #d93025);
+  }
+  .project-created-card .status-value {
+    font-size: var(--font-size-p);
+    color: var(--color-grey-70);
+  }
+  .project-created-card .status-value.active-status {
+    color: var(--color-success-60, #34a853);
+  }
+  .project-link {
+    border: 0;
+    padding: 0;
+    background: none;
+    font: inherit;
+    color: var(--color-primary);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .undo-button {
+    border: 0;
+    border-radius: var(--spacing-4);
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--color-grey-25);
+    color: var(--color-grey-100);
+    font: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .undo-button:disabled { opacity: 0.5; cursor: wait; }
   /* ===========================================
      Focus Mode Bar - Styled like BasicInfosBar
      =========================================== */

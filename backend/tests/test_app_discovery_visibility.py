@@ -11,14 +11,13 @@ from backend.core.api.app.services.app_discovery_visibility import EXCLUDED_DISC
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 
 
-def source(app_id, *, skill=None, focus=None, memory=False, embeds=()):
+def source(app_id, *, skill=None, focus=None, embeds=()):
     return AppYAML(
         id=app_id, name_translation_key=f"apps.{app_id}",
         description_translation_key=f"apps.{app_id}.description", category="work",
         skills=[dict(id="run", name_translation_key="run", description_translation_key="run.description", **skill)] if skill is not None else [],
         focuses=[dict(id="reflect", name_translation_key="reflect", description_translation_key="reflect.description", system_prompt="Reflect carefully.", **focus)] if focus is not None else [],
         embed_types=list(embeds),
-        memory_fields=[dict(id="saved", type="list", name_translation_key="saved", description_translation_key="saved.description", schema={"type": "object"})] if memory else [],
     )
 
 
@@ -36,12 +35,12 @@ VISIBLE = {"focus_only", "local", "ccc", "docs", "mindmaps", "diagrams", "electr
 @pytest.fixture
 def discovery(monkeypatch):
     definitions = {
-        "memory_only": source("memory_only", memory=True),
-        "source_free": source("source_free", skill={"provider_required": True, "providers": []}, memory=True),
-        "paused": source("paused", skill={"default_enabled": False}, memory=True),
+        "memory_only": source("memory_only"),
+        "source_free": source("source_free", skill={"provider_required": True, "providers": []}),
+        "paused": source("paused", skill={"default_enabled": False}),
         "missing_credentials": source("missing_credentials", skill={"providers": ["UnavailableProvider"]}),
         "mail": source("mail", skill={"providers": [{"name": "PrivateMail", "no_api_key": True}]}),
-        "paused_focus": source("paused_focus", focus={"default_enabled": False}, memory=True),
+        "paused_focus": source("paused_focus", focus={"default_enabled": False}),
         "focus_only": source("focus_only", focus={}),
         **{app_id: source(app_id, embeds=[direct_embed()]) for app_id in ["docs", "mindmaps", "diagrams", "electronics"]},
         "models3d": source("models3d", embeds=[dict(id="saved_model", category="direct", frontend_type="model", backend_type="model")]),
@@ -87,7 +86,6 @@ async def test_lists_require_actual_skill_or_enabled_focus_even_with_compatibili
             assert item.content_types[0]["source"] == "self"
     assert visible == VISIBLE
     assert "mail" not in visible and "missing_credentials" not in visible
-    assert definitions["memory_only"].memory_fields[0].id == "saved"
     assert len(definitions["source_free"].skills) == 1
     secrets.get_secret.assert_not_called()
 
@@ -140,3 +138,11 @@ def test_real_creation_declarations_do_not_reactivate_retired_result_renderers()
     for app_id in ["events", "travel", "health", "home", "models3d"]:
         metadata = yaml.safe_load((root / app_id / "app.yml").read_text())
         assert not app_is_discoverable(app_id, [], [], metadata.get("embed_types", []))
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.catalog.no-typed-types,app-memories.typed.removed
+@pytest.mark.parametrize("key", ["settings_and_memories", "memory", "memory_fields"])
+def test_app_metadata_rejects_removed_typed_memory_declarations(key):
+    with pytest.raises(ValueError, match="typed memories were removed"):
+        AppYAML(id="x", name_translation_key="apps.x", description_translation_key="apps.x.description",
+                category="work", **{key: [dict(id="saved", type="list")]})

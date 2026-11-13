@@ -1,0 +1,74 @@
+# Slides App Configuration
+# Presentations are created via ```slides fenced blocks in the AI response stream
+# (stream_consumer.py) and changed with ```diff:<embed_ref>. Grammar and security
+# rules: docs/architecture/apps/slides-format.md. No skills; a focus mode follows
+# with the templates phase of the slides-core plan.
+
+# Not on the public landing tour until an example chat with a deck exists.
+landing:
+  enabled: false
+
+app_id: slides
+name_translation_key: slides
+description_translation_key: slides.description
+icon_image: |
+  slides.svg
+category: productivity
+embeds:
+  - id: deck
+    description_embed: Slide deck made of positioned text, images, videos, shapes and sandboxed blocks
+embed_types:
+  # Deck — direct-type, auto-detected from ```slides``` blocks by stream_consumer.py.
+  # Preview/fullscreen components are added by the web rendering phase.
+  - id: deck
+    category: direct
+    frontend_type: slides-deck
+    backend_type: deck
+    has_children: false
+    groupable: true
+    preview_component: slides/SlidesDeckEmbedPreview.svelte
+    fullscreen_component: slides/SlidesDeckEmbedFullscreen.svelte
+    icon: slides
+    gradient_var: "--color-app-slides"
+    i18n_namespace: embeds.slides.deck
+    content_catalog:
+      enabled: true
+      diff_editable: true
+      content_type_id: deck
+      name: Presentation
+      description: Slide decks created from structured slides markup.
+      icon: slides
+      example_key: slides.deck
+      order: 10
+    content_fields:
+      - name: slides_markup
+        type: string
+        required: true
+        description: "Normalised slides markup (one element per line)"
+      - name: title
+        type: string
+      - name: slide_count
+        type: number
+        required: true
+      - name: aspect
+        type: string
+
+instructions:
+  - instruction: |
+      **Presentations (Slides App)**
+      When the user asks for a presentation, slide deck, pitch deck or slides, output the whole
+      deck in one ```slides fenced block (never as a code block of another language):
+      - Root `<deck title="..." aspect="16:9" template="builtin:plain">` containing `<slide layout="..." transition="none|fade|slide">` elements. aspect is 16:9 (default), 16:10 or 4:3.
+      - The canvas is 1920 units wide (height 1080, 1200 or 1440). Position every element with x, y, w, h in canvas units.
+      - Elements, one per line: `<text role="title|subtitle|body|caption|quote" size color align weight>` (inner content: plain text plus b, i, u, s, br, ul, ol, li), `<image src="embed:<ref>" alt="..."/>`, `<video src="embed:<ref>|youtube:<id>|vimeo:<id>"/>`, `<shape kind="rect|ellipse|line|triangle" fill="accent"/>`, `<notepad title="..."/>` (an empty notepad for the audience to type into; optional plain-text starter body `<notepad title="...">text</notepad>`, no markup inside), `<todo title="..."><item done="false">...</item></todo>`, `<link href="https://...">label</link>`, and `<notes>` for speaker notes.
+      - Never set `hidden` on notepad or to-do elements; the audience and presenter control that, and hidden elements are not shown.
+      - Colours are template tokens (background, foreground, accent, accent-2, muted, surface) or #hex. Fonts are "heading", "body" or a common safe font name.
+      - Images come only from existing embeds by their embed ref; never use web addresses for images. Other video addresses become a link element.
+      - Add animate="fade|slide-in|appear" and optional step="n" only where it helps the story.
+      - Use `<block>` (free HTML/CSS/JS, rendered in an isolated sandbox) only when the standard elements cannot express the idea.
+      - No script, style, iframe or event-handler attributes outside blocks; they are removed.
+      - To change an existing deck use ```diff:<embed_ref> against its slides markup; keep the x/y/w/h and ids the user already set, and change only what was asked.
+      - Mention the created deck embed inline in the final answer using its returned reference.
+
+skills: []
+focus_modes: []

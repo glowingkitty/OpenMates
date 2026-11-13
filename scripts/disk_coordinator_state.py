@@ -445,15 +445,16 @@ class CoordinatorState:
                 (identity, grant_id, self.clock()),
             )
 
+    def owner_dead(self, row):
+        start = budget._start_time(row["pid"])
+        return bool(start and start != row["start"]) or allocation_exited(row["pid"])
+
     def _reconcile(self, db):
         now = self.clock()
         for row in db.execute(
             "SELECT * FROM requests WHERE state IN ('waiting','granted','claimed')"
         ).fetchall():
-            start = budget._start_time(row["pid"])
-            dead = bool(start and start != row["start"]) or allocation_exited(
-                row["pid"]
-            )
+            dead = self.owner_dead(row)
             group_live = bool(row["owner_group"] and group_alive(row["owner_group"]))
             if row["state"] == "claimed" and dead and not group_live:
                 db.execute(
@@ -463,6 +464,14 @@ class CoordinatorState:
             elif row["state"] in {"waiting", "granted"} and not row["thread"] and dead:
                 db.execute(
                     "UPDATE requests SET state='cancelled',outstanding=0 WHERE id=?",
+                    (row["id"],),
+                )
+            elif row["state"] == "granted" and dead:
+                # A threaded request keeps waiting so its thread is notified, but
+                # a dead owner must not hold committed bytes. A resumed thread
+                # re-attaches via request() and gets a fresh grant.
+                db.execute(
+                    "UPDATE requests SET state='waiting',grant_id='',expires_at=0,acknowledged=0 WHERE id=?",
                     (row["id"],),
                 )
             elif row["state"] == "granted" and row["expires_at"] <= now:

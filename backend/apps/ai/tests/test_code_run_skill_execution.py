@@ -372,3 +372,82 @@ async def test_assistant_inline_code_run_stops_after_two_unprompted_reruns(monke
 
     assert result.status == "requires_confirmation"
     assert "two unprompted reruns" in (result.error or "")
+
+
+# contract-test: direct surface=rest_api assertions=code-run.tests.project-snapshot
+@pytest.mark.anyio
+async def test_test_run_does_not_create_chat_code_embeds_for_project_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
+    cache = FakeCache()
+    dispatch_calls: list[dict[str, object]] = []
+
+    class FakeDirectusService:
+        async def get_user_fields_direct(self, *_args, **_kwargs):
+            raise AssertionError("Assistant Code Run must use cached user credits.")
+
+    async def forbidden_create(**_kwargs):
+        raise AssertionError("test_run must not create chat code embeds for the Project snapshot")
+
+    async def fake_authorize(*_args, **_kwargs):
+        return True, "ok"
+
+    async def fake_prepare(self, request, **_kwargs):
+        return request.model_copy(update={"target": "e2b"}), None
+
+    async def fake_start(**kwargs):
+        dispatch_calls.append(kwargs)
+        return SimpleNamespace(
+            execution_id="execution-test", status="queued", target_filename="web-app/tests/app.spec.ts",
+            files=["web-app/index.html", "web-app/tests/app.spec.ts"], credits_per_minute=5,
+        )
+
+    monkeypatch.setattr(run_code_skill, "create_directus_service", lambda **_kwargs: FakeDirectusService())
+    monkeypatch.setattr(run_code_skill, "create_code_embeds_for_assistant", forbidden_create)
+    monkeypatch.setattr(run_code_skill, "start_code_run_for_assistant", fake_start)
+    monkeypatch.setattr(run_code_skill, "_authorize_assistant_test_run", fake_authorize)
+    monkeypatch.setattr(run_code_skill.RunCodeSkill, "_prepare_test_run", fake_prepare)
+
+    result = await _skill().execute(
+        RunCodeRequest(
+            entry_path="web-app/tests/app.spec.ts",
+            files=[
+                {"path": "web-app/index.html", "code": "<h1>Recipes</h1>"},
+                {"path": "web-app/tests/app.spec.ts", "code": "test('x', () => {})"},
+            ],
+            test_run={
+                "kind": "browser",
+                "revisions": [{"path": "web-app/index.html", "revision": "r1"}, {"path": "web-app/tests/app.spec.ts", "revision": "r2"}],
+                "test_command": {"argv": ["npx", "playwright", "test"], "cwd": "web-app"},
+            },
+        ),
+        user_id=USER_ID, user_vault_key_id=VAULT_KEY_ID, chat_id=CHAT_ID, message_id=MESSAGE_ID,
+        cache_service=cache, encryption_service=object(),
+    )
+
+    assert result.status == "processing"
+    assert result.created_embed_ids == []
+    assert dispatch_calls[0]["target_embed_id"] is None
+    assert [file["path"] for file in dispatch_calls[0]["files"]] == ["web-app/index.html", "web-app/tests/app.spec.ts"]
+
+
+# contract-test: direct surface=rest_api assertions=code-run.tests.project-snapshot
+def test_test_run_accepts_package_json_scripts_but_plain_run_refuses_them() -> None:
+    """A hosted Vite app always has npm scripts; only test runs may carry them."""
+    package_json = '{"scripts": {"dev": "vite"}, "dependencies": {"react": "^18.3.1"}}'
+    files = [
+        {"path": "web-app/package.json", "code": package_json},
+        {"path": "web-app/tests/app.spec.js", "code": "test('x', () => {})"},
+    ]
+    test_run = {
+        "kind": "browser",
+        "revisions": [{"path": "web-app/package.json", "revision": "r1"}],
+        "test_command": {"argv": ["npx", "playwright", "test"], "cwd": "web-app"},
+    }
+    collected, target = run_code_skill.collect_inline_code_files_for_assistant(
+        RunCodeRequest(entry_path="web-app/tests/app.spec.js", files=files, test_run=test_run)
+    )
+    assert target == "web-app/tests/app.spec.js"
+    assert {file["path"] for file in collected} == {"web-app/package.json", "web-app/tests/app.spec.js"}
+    with pytest.raises(run_code_skill.CodeRunInlineValidationError, match="scripts are not supported"):
+        run_code_skill.collect_inline_code_files_for_assistant(
+            RunCodeRequest(entry_path="web-app/tests/app.spec.js", files=files)
+        )

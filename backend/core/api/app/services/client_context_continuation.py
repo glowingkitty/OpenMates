@@ -32,6 +32,7 @@ _ROUTING_ROWS = {
 _DETAILS_ROWS = {
     "custom_memory_documents": (24, {"id", "source", "project_id", "document", "item_revision"}),
     "custom_rule_documents": (24, {"id", "source", "project_id", "document", "item_revision"}),
+    "memory_catalog": (24, {"id", "title", "when_to_use", "load_mode", "source"}),
     "project_focus_documents": (8, {"item_id", "document", "revision"}),
     "project_context_documents": (20, {"item_id", "kind", "title", "description", "document", "revision"}),
     "connected_account_token_refs": (100, None),
@@ -379,7 +380,7 @@ def _complete_empty_admission_context(request: Any) -> None:
     if any(getattr(request, key, None) for key in (
         "active_project_focus", "current_project", "active_focus_id", "accepted_plan_context",
         "project_focus_documents", "project_context_documents",
-        "custom_rule_documents", "mentioned_settings_memories_cleartext",
+        "custom_rule_documents", "memory_catalog", "mentioned_settings_memories_cleartext",
     )):
         return
     if any(isinstance(row, dict) and row.get("explicit_dependency") for row in

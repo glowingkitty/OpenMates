@@ -10,11 +10,11 @@ export {};
 
 const { test, expect } = require('./console-monitor');
 const { deriveApiUrl, runCli } = require('./helpers/cli-test-helpers');
+const { unavailableSkills } = require('./helpers/provider-boundary');
 
 const ELIGIBLE_SKILLS = [
 	['web', 'search'],
 	['news', 'search'],
-	['events', 'search'],
 	['home', 'search'],
 	['maps', 'search'],
 	['shopping', 'search_products'],
@@ -50,6 +50,12 @@ test.describe('App skills: optional search relevance surface parity', () => {
 
 		for (const [appId, skillId] of ELIGIBLE_SKILLS) {
 			const operation = openapi.paths?.[`/v1/apps/${appId}/skills/${skillId}`]?.post;
+			// Skills without an installed provider expose no REST route by design; the
+			// field is only required where the route exists.
+			const providerNotInstalled = unavailableSkills.some(
+				([app, skill]: readonly [string, string]) => app === appId && skill === skillId
+			);
+			if (!operation && providerNotInstalled) continue;
 			expect(operation, `${appId}.${skillId} REST route missing`).toBeTruthy();
 			const bodySchema = resolveSchema(
 				openapi,

@@ -5,12 +5,36 @@ export const MAX_RULE_DOCUMENT_CHARS = 24_000;
 export const MAX_RULE_DOCUMENTS = 24;
 export const MAX_RULE_CATALOG_CHARS = 64_000;
 
+export type MemoryLoadMode = 'auto_include' | 'ask_first' | 'mention_only';
+export const MEMORY_LOAD_MODES: readonly MemoryLoadMode[] = ['auto_include', 'ask_first', 'mention_only'];
+export const MAX_MEMORY_REFERENCES = 50;
+
+export interface MemoryReference {
+  kind: 'embed';
+  id: string;
+}
+
 export interface RuleDocumentFields {
   title: string;
-  description: string;
+  /** Legacy summary; absent in the canonical shape. */
+  description?: string;
+  /** Blank means always considered. */
   when_to_use: string;
   body: string;
+  load_mode?: MemoryLoadMode;
+  valid_from?: string;
+  valid_until?: string;
+  references?: MemoryReference[];
+  /** Unix seconds of the first save; absent on documents saved before this field existed. */
+  created_at?: number;
+  /** Unix seconds of the latest save. */
+  updated_at?: number;
+  /** Optional app the memory belongs to (icon/colour only); unknown ids are ignored by the UI. */
+  app_id?: string;
 }
+
+/** Display metadata kept beside the memory text; never part of the body sent to a model. */
+export const MEMORY_METADATA_FIELDS = ['created_at', 'updated_at', 'app_id'] as const;
 
 export interface CustomRuleDocument {
   id: string;
@@ -35,28 +59,105 @@ export function parseRuleDocument(document: string): RuleDocumentFields {
   const header: unknown = parsed.toJS({ maxAliasCount: 0 });
   if (!header || typeof header !== 'object' || Array.isArray(header)) throw new Error('invalid_rule_document');
   const record = header as Record<string, unknown>;
-  const fields = ['title', 'description', 'when_to_use'] as const;
-  if (Object.keys(record).length !== fields.length) throw new Error('invalid_rule_document');
-  for (const field of fields) {
-    if (typeof record[field] !== 'string' || !record[field].trim()
-      || record[field].trim().length > (field === 'title' ? 180 : 1200)) {
-      throw new Error('invalid_rule_document');
-    }
-  }
+  const allowed = ['title', 'description', 'when_to_use', 'load_mode', 'valid_from', 'valid_until', 'references', ...MEMORY_METADATA_FIELDS];
+  if (Object.keys(record).some((key) => !allowed.includes(key)) || !('title' in record)) throw new Error('invalid_rule_document');
+  const text = (field: string, max: number): string | undefined => {
+    if (!(field in record)) return undefined;
+    const value = record[field];
+    if (typeof value !== 'string' || !value.trim() || value.trim().length > max) throw new Error('invalid_rule_document');
+    return value.trim();
+  };
   const body = match[2].trim();
   if (!body || body.length > 20_000) throw new Error('invalid_rule_document');
-  return {
-    title: (record.title as string).trim(), description: (record.description as string).trim(),
-    when_to_use: (record.when_to_use as string).trim(), body,
-  };
+  const fields: RuleDocumentFields = { title: text('title', 180) as string, when_to_use: text('when_to_use', 1200) ?? '', body };
+  const description = text('description', 1200);
+  if (description !== undefined) fields.description = description;
+  if ('load_mode' in record) {
+    if (!MEMORY_LOAD_MODES.includes(record.load_mode as MemoryLoadMode)) throw new Error('invalid_rule_document');
+    fields.load_mode = record.load_mode as MemoryLoadMode;
+  }
+  for (const field of ['valid_from', 'valid_until'] as const) {
+    if (!(field in record)) continue;
+    const value = record[field];
+    const iso = value instanceof Date ? value.toISOString() : value;
+    if (typeof iso !== 'string' || !Number.isFinite(Date.parse(iso))) throw new Error('invalid_rule_document');
+    fields[field] = iso;
+  }
+  if (fields.valid_from && fields.valid_until && Date.parse(fields.valid_from) > Date.parse(fields.valid_until)) {
+    throw new Error('invalid_rule_document');
+  }
+  for (const field of ['created_at', 'updated_at'] as const) {
+    if (!(field in record)) continue;
+    const value = record[field];
+    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw new Error('invalid_rule_document');
+    fields[field] = value;
+  }
+  if ('app_id' in record) {
+    const value = record.app_id;
+    if (typeof value !== 'string' || !value.trim() || value.length > 64) throw new Error('invalid_rule_document');
+    fields.app_id = value.trim();
+  }
+  if ('references' in record) {
+    const refs = record.references;
+    if (!Array.isArray(refs) || refs.length > MAX_MEMORY_REFERENCES) throw new Error('invalid_rule_document');
+    const seen = new Set<string>();
+    // Legacy stored chat references are dropped on read; only embed references remain supported.
+    const embedRefs = refs.filter((ref) => !(ref && typeof ref === 'object' && !Array.isArray(ref)
+      && (ref as Record<string, unknown>).kind === 'chat'));
+    fields.references = embedRefs.map((ref) => {
+      if (!ref || typeof ref !== 'object' || Array.isArray(ref)) throw new Error('invalid_rule_document');
+      const entry = ref as Record<string, unknown>;
+      if (Object.keys(entry).length !== 2 || entry.kind !== 'embed'
+        || typeof entry.id !== 'string' || !entry.id.trim() || entry.id.length > 240) throw new Error('invalid_rule_document');
+      const key = `${entry.kind}:${entry.id}`;
+      if (seen.has(key)) throw new Error('invalid_rule_document');
+      seen.add(key);
+      return { kind: 'embed' as const, id: entry.id };
+    });
+  }
+  return fields;
 }
 
 export function serializeRuleDocument(fields: RuleDocumentFields): string {
-  const document = `---\n${stringify({
-    title: fields.title.trim(), description: fields.description.trim(), when_to_use: fields.when_to_use.trim(),
-  })}---\n${fields.body.trim()}\n`;
+  const header: Record<string, unknown> = { title: fields.title.trim() };
+  if (fields.description?.trim()) header.description = fields.description.trim();
+  if (fields.when_to_use.trim()) header.when_to_use = fields.when_to_use.trim();
+  if (fields.load_mode) header.load_mode = fields.load_mode;
+  if (fields.valid_from) header.valid_from = fields.valid_from;
+  if (fields.valid_until) header.valid_until = fields.valid_until;
+  if (fields.references?.length) header.references = fields.references.map(({ kind, id }) => ({ kind, id }));
+  if (fields.created_at !== undefined) header.created_at = fields.created_at;
+  if (fields.updated_at !== undefined) header.updated_at = fields.updated_at;
+  if (fields.app_id?.trim()) header.app_id = fields.app_id.trim();
+  const document = `---\n${stringify(header)}---\n${fields.body.trim()}\n`;
   parseRuleDocument(document);
   return document;
+}
+
+/**
+ * Stamps save times: created_at is kept from the stored document (or set now on the
+ * first save), updated_at is always now. Pure; the editor calls it right before saving.
+ */
+export function stampMemorySave(fields: RuleDocumentFields, previous: RuleDocumentFields | null, nowSeconds: number): RuleDocumentFields {
+  const created = previous?.created_at ?? fields.created_at ?? nowSeconds;
+  return { ...fields, created_at: created, updated_at: nowSeconds };
+}
+
+type MemoryWindow = Pick<RuleDocumentFields, 'valid_from' | 'valid_until'>;
+
+/** True when `now` is inside the optional start/expiry window (both bounds inclusive). */
+export function isMemoryActive(fields: MemoryWindow, now: Date | number = Date.now()): boolean {
+  const time = typeof now === 'number' ? now : now.getTime();
+  if (fields.valid_from && time < Date.parse(fields.valid_from)) return false;
+  if (fields.valid_until && time > Date.parse(fields.valid_until)) return false;
+  return true;
+}
+
+/** True as soon as the expiry is in the past (no grace window); clients then delete the memory. */
+export function isMemoryExpired(fields: MemoryWindow, now: Date | number = Date.now()): boolean {
+  if (!fields.valid_until) return false;
+  const time = typeof now === 'number' ? now : now.getTime();
+  return time > Date.parse(fields.valid_until);
 }
 
 export function validateRuleCatalog(documents: CustomRuleDocument[]): CustomRuleDocument[] {

@@ -9,12 +9,12 @@
     {
       "path": "assets/cli-command-catalog.json",
       "source": "config/cli-command-catalog.json",
-      "sha256": "f5e63e843ff8aed151b06923e50084773d02306e216e40afe8d087c796098573"
+      "sha256": "884e7324352a5ffe7d3c7d2e2fcf38b7d8afa34a1bc0896df79abdafe7912e9e"
     },
     {
       "path": "assets/example-chat-index.json",
       "source": "config/cli-example-chat-index.json",
-      "sha256": "6359504ab78ef48a86e54064c1df21e3c71e4af4f0c0668d910c5dacdf411220"
+      "sha256": "2afc4edf5d0761eda13f9f6305a3fda813c82d93f49896fbf04b894188683061"
     },
     {
       "path": "assets/host_reporter/README.md",
@@ -74,7 +74,7 @@
     {
       "path": "assets/selfhost/core/docker-compose.selfhost.yml",
       "source": "frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml",
-      "sha256": "11dfb9c938100a71718081ab76365a656a8711e656cce671939675faae3eed73"
+      "sha256": "a462d51defeebdda9fbf672fa51975344e7334279c996f698d2fdc90cf90f455"
     },
     {
       "path": "assets/selfhost/core/monitoring/alertmanager/alertmanager.yml",

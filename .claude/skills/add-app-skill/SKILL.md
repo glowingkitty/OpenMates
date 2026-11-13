@@ -67,7 +67,13 @@ The spec or inline contract must also define the phase gate for this skill:
    Firecrawl only as a recorded fallback when Playwright is impractical or
    blocked. Playwright specs alone are not enough.
 5. Start Apple parity only after CLI, SDK, web, and user-confirmation evidence are
-   complete, or after the spec records an explicit waiver/blocker.
+   complete, or after the spec records an explicit waiver/blocker. This applies to
+   Apple UI parity; Apple client logic comes from the Rust core and is not
+   sequenced behind web.
+6. A new skill is done only with a result video in the final reply: the skill
+   used on the deployed commit with its real output visible, in the web app or,
+   without UI, as a CLI terminal recording ("Mandatory result video" in
+   `.claude/rules/testing.md`). Test output alone is not enough.
 
 ### Step 2: Create the Skill File
 

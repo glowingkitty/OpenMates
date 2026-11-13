@@ -262,3 +262,45 @@ async fn invalid_input_fails_before_any_network_read() {
     }
     assert!(server.await.unwrap().is_empty());
 }
+
+#[test]
+fn api_key_open_picks_the_server_ordered_position_with_its_decrypted_title() {
+    let chats = vec![
+        json!({"id": CHAT, "title": "Trip plan"}),
+        json!({"id": "22222222-0000-4000-8000-000000000000", "title": null}),
+    ];
+    assert!(
+        matches!(key_open_target(&[], 1), Err(CliError::Invalid(m)) if m == "No chats found. Run 'openmates chats list' to sync.")
+    );
+    assert!(
+        matches!(key_open_target(&chats, 3), Err(CliError::Invalid(m)) if m == "Only 2 chat(s) available — cannot open chat #3.")
+    );
+    let first = key_open_target(&chats, 1).ok().unwrap();
+    assert_eq!((first.id.as_str(), first.title.as_deref()), (CHAT, Some("Trip plan")));
+    let second = key_open_target(&chats, 2).ok().unwrap();
+    assert!(second.title.is_none());
+    assert!(key_open_target(&[json!({"title": "no id"})], 1).is_err());
+}
+
+#[tokio::test]
+async fn api_key_open_rejects_bad_positions_before_any_request() {
+    let mut sdk = openmates_sdk::sdk::OpenMates::new(openmates_sdk::SdkOptions {
+        api_url: "http://127.0.0.1:9".into(),
+        credentials: openmates_sdk::SdkCredentials::ApiKey(
+            openmates_sdk::ApiKey::new("sk-api-synthetic.synthetic").unwrap(),
+        ),
+        device_id: "synthetic".into(),
+        client_options: Default::default(),
+    })
+    .unwrap();
+    for (position, expected) in [
+        ("0", "Invalid position '0'. Must be a positive integer (1 = most recent, 2 = second most recent, ...)."),
+        ("1001", "Chat position #1001 is beyond the 1000-chat server window."),
+    ] {
+        let invocation = parsed(&["openmates", "chats", "open", position, "--api-key", "sk-placeholder"]);
+        match execute_open_key(&invocation, &mut sdk).await {
+            Err(CliError::Invalid(message)) => assert_eq!(message, expected),
+            _ => panic!("expected an invalid position for {position}"),
+        }
+    }
+}

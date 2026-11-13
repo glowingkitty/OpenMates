@@ -2,13 +2,10 @@
 // Markdown Parser for converting markdown text to TipTap JSON
 // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 import MarkdownIt from "markdown-it";
-import { get } from "svelte/store";
 import { preserveUserBlankLines } from "../../../message_parsing/userReadSpacing";
 import { modelsMetadata } from "../../../data/modelsMetadata";
 import { matesMetadata } from "../../../data/matesMetadata";
 import { currentPersonalDocumentMemories } from '../../../stores/personalDocumentMemories';
-import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
-import { appSkillsStore } from "../../../stores/appSkillsStore";
 import { deriveEmbedDisplayTextFromRef } from "../../../utils/embedDisplayText";
 import {
   getRenderableInternalHref,
@@ -674,8 +671,8 @@ function parseMentions(text: string): any[] {
  * Example: ("code", "get_docs") => "Code-Get-Docs"
  */
 /**
- * Resolves the display title for a settings/memory entry from the store.
- * Returns the entry's title field value (e.g., "OpenMates") or null if unavailable.
+ * Resolves the display title of a personal Memory mentioned by id (`@memory-entry:openmates:memories:<id>`).
+ * Returns "memories-<Title>" or null when the Memory is not available on this device.
  */
 function resolveEntryTitle(
   appId: string,
@@ -683,49 +680,14 @@ function resolveEntryTitle(
   entryId: string,
 ): string | null {
   try {
-    const state = get(appSettingsMemoriesStore);
-    const entry = state.decryptedEntries.get(entryId) ?? currentPersonalDocumentMemories().find(entry => entry.id === entryId);
-    if (
-      !entry ||
-      entry.app_id !== appId ||
-      entry.settings_group !== categoryId
-    ) {
-      return null;
-    }
-
-    // Find the is_title field from the app schema
-    const apps = appSkillsStore.apps;
-    const app = apps[appId];
-    if (app) {
-      const memoryMeta = app.settings_and_memories?.find(
-        (m: { id: string }) => m.id === categoryId,
-      );
-      const schema = memoryMeta?.schema_definition;
-      if (schema?.properties) {
-        for (const [key, prop] of Object.entries(schema.properties)) {
-          if ((prop as { is_title?: boolean }).is_title) {
-            const val = entry.item_value[key];
-            if (val && typeof val === "string" && val.trim()) {
-              // Format: "Category-Title" e.g., "Projects-OpenMates"
-              const categoryDisplay = categoryId.replace(/_/g, "-");
-              const titleDisplay = val.trim().replace(/\s+/g, "-");
-              return `${categoryDisplay}-${titleDisplay}`;
-            }
-          }
-        }
-      }
-    }
-
-    // Fallback: try common field names
-    for (const field of ["name", "title", "label"]) {
+    const entry = currentPersonalDocumentMemories().find((memory) => memory.id === entryId);
+    if (!entry || entry.app_id !== appId || entry.settings_group !== categoryId) return null;
+    for (const field of ["title", "name", "label"]) {
       const val = entry.item_value[field];
       if (val && typeof val === "string" && val.trim()) {
-        const categoryDisplay = categoryId.replace(/_/g, "-");
-        const titleDisplay = val.trim().replace(/\s+/g, "-");
-        return `${categoryDisplay}-${titleDisplay}`;
+        return `${categoryId.replace(/_/g, "-")}-${val.trim().replace(/\s+/g, "-")}`;
       }
     }
-
     return null;
   } catch {
     return null;

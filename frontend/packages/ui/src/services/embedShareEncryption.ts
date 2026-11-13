@@ -14,6 +14,8 @@
 
 import { embedStore } from "./embedStore";
 import type { ShareDuration } from "./shareEncryption";
+import { rustWebCrypto } from "./rustCore/crypto/webCryptoClient";
+import { rustDecryptShareKeyBlob, rustGenerateShareKeyBlob } from "./rustCore/crypto/webCryptoFacades";
 
 // Re-export ShareDuration type from shareEncryption for consistency
 export type { ShareDuration } from "./shareEncryption";
@@ -293,6 +295,9 @@ export async function generateEmbedShareKeyBlob(
   if (!embedKey) {
     throw new Error(`Embed key not found for embed ID: ${embedId}`);
   }
+  // Compile-time flag: default builds fold this to null and drop the Rust branch.
+  const rust = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+  if (rust) return rustGenerateShareKeyBlob(rust, "embed", embedId, embedKey, durationSeconds, password);
 
   // Convert embed key to base64 for storage in blob
   const embedKeyBase64 = btoa(uint8ArrayToBinaryString(embedKey));
@@ -371,6 +376,13 @@ export async function decryptEmbedShareKeyBlob(
     | "invalid_password"
     | "decryption_failed";
 }> {
+  // Compile-time flag: default builds fold this to null and drop the Rust branch.
+  const rust = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+  if (rust) {
+    const result = await rustDecryptShareKeyBlob(rust, "embed", embedId, encryptedBlob, serverTime, password);
+    if (result.success) return { success: true, embedKey: result.embedKey, isExpired: false };
+    return result.error === "expired" ? { ...result, isExpired: true } : result;
+  }
   const decoder = new TextDecoder();
 
   try {

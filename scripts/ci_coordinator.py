@@ -26,14 +26,23 @@ POLL_SECONDS = 30
 MAX_ACTIVE = 20  # Confirmed GitHub Free hosted-job entitlement.
 MAX_SELFHOSTED = 1
 DAILY_OWNER = "daily"
-DAILY_MAX_ACTIVE = 6  # Hosted slots the daily batch may hold at once.
+DAILY_MAX_ACTIVE = 6  # Hosted slots the daily batch may hold at once (daytime).
+# Overnight the batch may use more of the 20 slots so ~600 jobs finish before
+# the noon digest; at 6 slots the 03:00 batch ran into the next working day.
+DAILY_NIGHT_MAX_ACTIVE = 14
+DAILY_NIGHT_HOURS_UTC = range(3, 7)  # 03:00-06:59 UTC
 OCCUPANCY_CACHE_SECONDS = 120
 MAX_OCCUPANCY_REQUESTS = 80
 ACTIVE_RUN_LOOKBACK_DAYS = 70
 LIGHTWEIGHT_MODES = frozenset({"component", "pytest", "vitest", "codex", "rust-check"})
+APPLE_MODES = frozenset({"apple-core", "apple-build", "apple-unit", "apple-ui"})  # macos-26 runners, never lightweight
 RATE_RESERVE = 100
 ERROR_BACKOFF = 60
 UNCERTAIN_SECONDS = 600
+# Far beyond GitHub dispatch visibility delay: an attention job with no remote run
+# after this long never dispatched, so it is released (never re-dispatched).
+ATTENTION_RELEASE_SECONDS = 6 * 3600
+RELEASED_ERROR = "dispatch never became visible; released after remote reconciliation"
 WORKFLOW = "isolated-tests.yml"
 ACTIVE = ("dispatching", "submitted", "running", "attention")
 RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
@@ -67,6 +76,11 @@ def canonical_root(root: Path) -> Path:
         ["git", "rev-parse", "--git-common-dir"], cwd=root, text=True
     ).strip()
     return (root / common).resolve().parent
+
+
+# Modes whose web app can be built or served with the Rust client core on: E2E
+# builds it, the Vite-only component profile serves it from `vite dev`.
+WEB_RUST_CORE_MODES = ("e2e", "component")
 
 
 def harness_commit(root: Path) -> str:
@@ -364,6 +378,11 @@ class GitHub:
                     ),
                     "proof_video_profile": job.get("proof_profile", ""),
                     **(
+                        {"web_rust_core": "true"}
+                        if job.get("web_rust_core")
+                        else {}
+                    ),
+                    **(
                         {"capacity_configuration": job["capacity_configuration"]}
                         if job.get("capacity_configuration")
                         else {}
@@ -414,6 +433,7 @@ class Queue:
         max_selfhosted=None,
         hosted_entitlement=None,
         daily_max_active=None,
+        daily_night_max_active=None,
     ):
         self.path = path
         self.daily_max_active = int(
@@ -421,7 +441,12 @@ class Queue:
             if daily_max_active is not None
             else os.environ.get("OPENMATES_CI_DAILY_MAX_ACTIVE", DAILY_MAX_ACTIVE)
         )
-        if self.daily_max_active < 0:
+        self.daily_night_max_active = int(
+            daily_night_max_active
+            if daily_night_max_active is not None
+            else os.environ.get("OPENMATES_CI_DAILY_NIGHT_MAX_ACTIVE", DAILY_NIGHT_MAX_ACTIVE)
+        )
+        if self.daily_max_active < 0 or self.daily_night_max_active < 0:
             raise ValueError("Daily CI slot cap must be nonnegative")
         self.hosted_entitlement = int(
             hosted_entitlement
@@ -494,6 +519,7 @@ class Queue:
                 "capacity_configuration": "TEXT NOT NULL DEFAULT ''",
                 "case_title": "TEXT NOT NULL DEFAULT ''",
                 "runtime_seed": "TEXT NOT NULL DEFAULT ''",
+                "web_rust_core": "INTEGER NOT NULL DEFAULT 0",
             }
             for name, definition in candidate_columns.items():
                 if name not in columns:
@@ -527,7 +553,10 @@ class Queue:
         capacity_configuration: dict | None = None,
         case_title: str = "",
         runtime_seed_job: str = "",
+        web_rust_core: bool = False,
     ) -> dict:
+        if web_rust_core and mode not in WEB_RUST_CORE_MODES:
+            raise ValueError("Web Rust core option requires --mode e2e or component")
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
         if mode not in (
@@ -546,6 +575,10 @@ class Queue:
             "rust-wasm",
             "rust-native-dev",
             "rust-check",
+            "apple-core",
+            "apple-build",
+            "apple-unit",
+            "apple-ui",
         ):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
@@ -628,6 +661,10 @@ class Queue:
             specs = _validate_rust_check(
                 specs, preparation, runtime_seed_job, capacity_configuration, case_title
             )
+        if mode in APPLE_MODES:
+            specs = _validate_apple(
+                mode, specs, preparation, runtime_seed_job, capacity_configuration, case_title
+            )
         if mode == "pytest":
             try:
                 from scripts.ci_pytest_targets import validate_pytest_targets
@@ -684,6 +721,10 @@ class Queue:
                 "rust-wasm",
                 "rust-native-dev",
                 "rust-check",
+                "apple-core",
+                "apple-build",
+                "apple-unit",
+                "apple-ui",
                 "selfhost",
             )
             else specs
@@ -807,6 +848,8 @@ class Queue:
             identity.append(proof_profile)
         if case_title:
             identity.append({"case_title": case_title})
+        if web_rust_core:
+            identity.append({"web_rust_core": True})
         key = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
         now = time.time()
         with self.connect() as db:
@@ -920,6 +963,11 @@ class Queue:
                         key,
                     ),
                 )
+            if web_rust_core:
+                db.execute(
+                    "UPDATE jobs SET web_rust_core=1 WHERE id=? AND state='queued'",
+                    (key,),
+                )
             if runtime_seed:
                 db.execute(
                     "UPDATE jobs SET runtime_seed=? WHERE id=? AND state='queued'",
@@ -937,7 +985,7 @@ class Queue:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             replaced = db.execute(
-                "UPDATE jobs SET state='cancelled',phase='superseded before dispatch',updated=?,error='Replaced by a newer candidate for the same owner and check' WHERE owner=? AND source<>? AND specs=? AND mode=? AND proof_profile=? AND case_title=? AND state='queued' AND sent IS NULL",
+                "UPDATE jobs SET state='cancelled',phase='superseded before dispatch',updated=?,error='Replaced by a newer candidate for the same owner and check' WHERE owner=? AND source<>? AND specs=? AND mode=? AND proof_profile=? AND case_title=? AND web_rust_core=? AND state='queued' AND sent IS NULL",
                 (
                     time.time(),
                     job["owner"],
@@ -946,6 +994,7 @@ class Queue:
                     job["mode"],
                     job["proof_profile"],
                     job["case_title"],
+                    job["web_rust_core"],
                 ),
             ).rowcount
             # A producer may be between creation and child attachment in another
@@ -1010,6 +1059,32 @@ class Queue:
                 "active": [dict(row) for row in running],
             }
 
+    def release_attention(self, github, key: str, reason: str) -> dict:
+        """Release one attention job only if GitHub has no run carrying its token."""
+        if not reason.strip():
+            raise ValueError("An explicit reason is required")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            job = db.execute("SELECT * FROM jobs WHERE id=?", (key,)).fetchone()
+            if not job or job["state"] != "attention":
+                raise ValueError("Only a job in attention can be released")
+            if job["run_id"]:
+                raise ValueError("Job has a recorded run; reconcile it instead")
+            matches = [
+                run
+                for run in github.runs()
+                if job["token"] in run.get("display_title", "")
+            ]
+            if matches:
+                raise ValueError(
+                    "A remote run exists for this job; the tick will adopt it"
+                )
+            db.execute(
+                "UPDATE jobs SET state='failure',updated=?,error=? WHERE id=?",
+                (time.time(), f"{RELEASED_ERROR}: {reason.strip()}", key),
+            )
+            return {"id": key, "state": "failure", "reason": reason.strip()}
+
     def prioritize(self, key: str, owner: str, reason: str):
         """Admit one owned prerequisite ahead of bulk work without adding slots."""
         if not reason.strip():
@@ -1060,6 +1135,13 @@ class Queue:
                     self.set_meta(db, "last_error", str(exc))
                     db.commit()
                     raise
+
+    def daily_cap(self, now: float) -> int:
+        """Hosted slots the daily batch may hold at `now` (larger overnight)."""
+        hour = datetime.fromtimestamp(now, timezone.utc).hour
+        if hour in DAILY_NIGHT_HOURS_UTC:
+            return max(self.daily_max_active, self.daily_night_max_active)
+        return self.daily_max_active
 
     def tick(self, github, now=None):
         now = time.time() if now is None else now
@@ -1182,6 +1264,18 @@ class Queue:
                                     "UPDATE jobs SET phase=?,phase_updated=? WHERE id=?",
                                     (phase, now, job["id"]),
                                 )
+                        elif (
+                            job["state"] == "attention"
+                            and not job["run_id"]
+                            and job["sent"]
+                            and now - job["sent"] > ATTENTION_RELEASE_SECONDS
+                        ):
+                            # Remote reconciliation found no run for this token
+                            # well past the visibility window: release the slot.
+                            db.execute(
+                                "UPDATE jobs SET state='failure',updated=?,error=? WHERE id=?",
+                                (now, RELEASED_ERROR, job["id"]),
+                            )
                         elif job["state"] in ACTIVE:
                             reservations[job["id"]] = 1
                             if job["sent"] and now - job["sent"] > UNCERTAIN_SECONDS:
@@ -1295,7 +1389,7 @@ class Queue:
                             and not (
                                 job["owner"] == DAILY_OWNER
                                 and runner_class(job) == "hosted"
-                                and daily_hosted >= self.daily_max_active
+                                and daily_hosted >= self.daily_cap(now)
                             )
                         ]
                         if not eligible:
@@ -1398,6 +1492,17 @@ def _validate_rust_check(specs, preparation, runtime_seed_job, capacity, case_ti
     return validate_specs(specs)
 
 
+def _validate_apple(mode, specs, preparation, runtime_seed_job, capacity, case_title):
+    """Apple lanes take only their own targets and no preparation, seed or case filter."""
+    try:
+        from scripts.ci_apple import validate_specs
+    except ModuleNotFoundError:
+        from ci_apple import validate_specs
+    if preparation or runtime_seed_job or capacity or case_title:
+        raise ValueError("Apple lanes accept only their own targets")
+    return validate_specs(mode, specs)
+
+
 def enqueue_submission(
     queue: Queue,
     owner: str,
@@ -1414,6 +1519,7 @@ def enqueue_submission(
     capacity_configuration: dict | None = None,
     case_title: str = "",
     runtime_seed_job: str = "",
+    web_rust_core: bool = False,
 ) -> list[dict]:
     """Split E2Es and optionally attach exact private shared preparation."""
     if case_title and (
@@ -1424,6 +1530,8 @@ def enqueue_submission(
         raise ValueError(
             "Case filter requires the exact recovery spec and approved test title"
         )
+    if web_rust_core and mode not in WEB_RUST_CORE_MODES:
+        raise ValueError("Web Rust core option requires --mode e2e or component")
     if prepared_builds and (source_root is None or mode not in ("e2e", "visual-smoke")):
         raise ValueError("Prepared builds require an E2E/visual source root")
     if runtime_seed_job and (mode not in {"backend-probe", "e2e"} or prepared_builds):
@@ -1464,6 +1572,10 @@ def enqueue_submission(
     if mode == "rust-check":
         specs = _validate_rust_check(
             specs, prepared_builds, runtime_seed_job, capacity_configuration, case_title
+        )
+    if mode in APPLE_MODES:
+        specs = _validate_apple(
+            mode, specs, prepared_builds, runtime_seed_job, capacity_configuration, case_title
         )
     selections = list(specs) if mode == "pytest" else sorted(set(specs))
     if mode in ("component", "e2e", "selfhost") and not selections:
@@ -1532,6 +1644,7 @@ def enqueue_submission(
             capacity_configuration,
             case_title,
             runtime_seed_job,
+            web_rust_core,
         )
         for batch in batches
     ]
@@ -1590,6 +1703,7 @@ def print_receipt(value, *, as_json=False):
             "phase_updated",
             "queue_seconds",
             "preparation_wait_seconds",
+            "web_rust_core",
             "preparation_id",
             "prepared_run_id",
             "source_commit",
@@ -1671,6 +1785,10 @@ def main():
             "rust-wasm",
             "rust-native-dev",
             "rust-check",
+            "apple-core",
+            "apple-build",
+            "apple-unit",
+            "apple-ui",
         ],
         default="e2e",
     )
@@ -1698,6 +1816,16 @@ def main():
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
     )
+    submit.add_argument(
+        "--web-rust-core",
+        action="store_true",
+        help="no-op alias: e2e and component builds already use the Rust client core (as dev and production serve it)",
+    )
+    submit.add_argument(
+        "--no-web-rust-core",
+        action="store_true",
+        help="e2e or component only: build the web app with the Rust client core off (legacy configuration)",
+    )
     priority = sub.add_parser("prioritize")
     priority.add_argument("id")
     priority.add_argument("--session", required=True)
@@ -1707,6 +1835,12 @@ def main():
     )
     cancel.add_argument("--owner", required=True)
     cancel.add_argument("--reason", required=True)
+    release = sub.add_parser(
+        "release-attention",
+        help="Release an attention job that has no remote GitHub run",
+    )
+    release.add_argument("--id", required=True)
+    release.add_argument("--reason", required=True)
     status = sub.add_parser("status")
     status.add_argument("id", nargs="?")
     status.add_argument(
@@ -1730,7 +1864,7 @@ def main():
     wait.add_argument("id")
     wait.add_argument("--timeout", type=float, default=7200)
     wait.add_argument("--poll", type=float, default=10)
-    for command in (submit, priority, cancel, status, result, verify, health, wait):
+    for command in (submit, priority, cancel, release, status, result, verify, health, wait):
         command.add_argument(
             "--json", action="store_true", help="Emit complete machine-readable data"
         )
@@ -1820,10 +1954,16 @@ def main():
                 "rust-wasm",
                 "rust-native-dev",
                 "rust-check",
+                "apple-core",
+                "apple-build",
+                "apple-unit",
+                "apple-ui",
             },
             capacity_configuration=capacity_configuration,
             case_title=args.case_title,
             runtime_seed_job=args.runtime_seed_job,
+            web_rust_core=args.mode in WEB_RUST_CORE_MODES
+            and not args.no_web_rust_core,
         )
         print_receipt(
             receipts[0] if len(receipts) == 1 else receipts, as_json=args.json
@@ -1839,6 +1979,11 @@ def main():
         if not args.id and not args.all:
             rows = [row for row in rows if row["state"] not in TERMINAL][:10]
         print_receipt(rows, as_json=args.json)
+    elif args.action == "release-attention":
+        print_receipt(
+            queue.release_attention(GitHub(root), args.id, args.reason),
+            as_json=args.json,
+        )
     elif args.action == "health":
         with queue.connect() as db:
             print_receipt(

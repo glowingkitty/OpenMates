@@ -35,10 +35,24 @@ xcrun simctl install booted <path-to-.app>
 xcrun simctl launch booted org.openmates.app
 ```
 
-If the active session runs on Linux, attempt the redacted remote Mac wrapper
-`python3 scripts/apple_remote.py status` followed by `build-ios` or `test-ios`
-from `docs/contributing/guides/testing.md` and `apple/AGENTS.md` before saying
-Apple verification is unavailable. Record only sanitized evidence or failure
+Compile and test in one job: `apple-unit` and `apple-ui` first build the app and both test
+targets without stopping at the first error; a failed build ends the job with every Swift
+error listed (`failures` in the result, `swift-errors.txt`), a green one runs the tests on
+those products. Submit the unit and UI jobs together. `--mode apple-build --spec all` is
+the same build without tests. Fix all listed errors in one round; no static compile-review lanes.
+
+XCTest/XCUITest run first on GitHub `macos-26` (`ci_coordinator.py submit --mode
+apple-unit|apple-core`, XCUITest: `--mode apple-ui --spec
+OpenMatesUITests/<Class>[/<test>]`); the Mac is for TestFlight, device/APNs and real-account
+tests or when those modes are unavailable. Non-UI logic belongs in the Rust core
+(`.claude/rules/client-core.md`).
+
+If the active session runs on Linux, first submit
+`python3 scripts/ci_coordinator.py submit --mode apple-unit` (or `apple-core`, `apple-ui`).
+Use the redacted remote Mac wrapper `python3 scripts/apple_remote.py status` plus
+`build-ios`/`test-ios` (see `docs/contributing/guides/testing.md` and
+`apple/AGENTS.md`) only for TestFlight, physical device/APNs and real-account
+tests. Record only sanitized evidence or failure
 classes such as `ssh_failed`, `project_not_found`, or `xcode_build_failed`.
 
 ---
@@ -223,6 +237,8 @@ the corresponding web behavior.
 ### Visual Proof Requirement
 - Apple UI parity is not complete without simulator screenshot evidence, a UI test artifact, or an explicit sanitized blocker/skip reason.
 - For composer, header, settings, auth, upload, audio, and navigation controls, verification must prove rendered visibility and clickability. Accessibility existence alone is not sufficient because controls can exist while hidden, covered, or visually misplaced.
+- Show what you see: send each simulator or UI-test screenshot of the changed screen to the user with `SendUserFile` as soon as you have viewed it (one line: what it shows, visible defects, how it differs from the web reference), after the first build that renders the change and after each visible revision, not only in the final reply. When a web reference screenshot exists, send it alongside. Never send personal-account or private screens.
+- No screenshot yet (no Mac or CI run available): say that plainly before continuing and submit the `apple-ui` CI run that produces one; do not describe the UI as verified from source reading.
 - Store durable evidence in the related spec or final summary using generic artifact paths and sanitized failure classes. Do not commit private simulator paths or device details.
 
 ### SwiftUI / UIKit performance strategy

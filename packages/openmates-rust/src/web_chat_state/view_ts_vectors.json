@@ -1,0 +1,7208 @@
+{
+ "urlPlan": [
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": null,
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": false,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": false,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": false,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_hash",
+    "programmatic": true
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": false,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "none",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#other=1"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  },
+  {
+   "input": {
+    "chatId": "chat-a",
+    "appsRoute": true,
+    "hasChatIdParam": true,
+    "workflowHandoff": true,
+    "onSemanticPath": true,
+    "currentHash": "#chat-id=chat-a",
+    "targetHash": "#chat-id=chat-a"
+   },
+   "out": {
+    "action": "replace_root_hash",
+    "programmatic": false
+   }
+  }
+ ],
+ "globalSelected": [
+  {
+   "input": {
+    "selected": null,
+    "newId": "b",
+    "active": null
+   },
+   "out": {
+    "setSelected": true,
+    "writeStore": false
+   }
+  },
+  {
+   "input": {
+    "selected": null,
+    "newId": "b",
+    "active": ""
+   },
+   "out": {
+    "setSelected": true,
+    "writeStore": true
+   }
+  },
+  {
+   "input": {
+    "selected": null,
+    "newId": "b",
+    "active": "a"
+   },
+   "out": {
+    "setSelected": true,
+    "writeStore": true
+   }
+  },
+  {
+   "input": {
+    "selected": null,
+    "newId": "b",
+    "active": "b"
+   },
+   "out": {
+    "setSelected": true,
+    "writeStore": false
+   }
+  },
+  {
+   "input": {
+    "selected": "",
+    "newId": "b",
+    "active": null
+   },
+   "out": {
+    "setSelected": true,
+    "writeStore": false
+   }
+  },
+  {
+   "input": {
+    "selected": "",
+    "newId": "b",
+    "active": ""
+   },
+   "out": {
+    "setSelected": true,
+    "writeStore": true
+   }
+  },
+  {
+   "input": {
+    "selected": "",
+    "newId": "b",
+    "active": "a"
+   },
+   "out": {
+    "setSelected": true,
+    "writeStore": true
+   }
+  },
+  {
+   "input": {
+    "selected": "",
+    "newId": "b",
+    "active": "b"
+   },
+   "out": {
+    "setSelected": true,
+    "writeStore": false
+   }
+  },
+  {
+   "input": {
+    "selected": "a",
+    "newId": "b",
+    "active": null
+   },
+   "out": {
+    "setSelected": true,
+    "writeStore": false
+   }
+  },
+  {
+   "input": {
+    "selected": "a",
+    "newId": "b",
+    "active": ""
+   },
+   "out": {
+    "setSelected": true,
+    "writeStore": true
+   }
+  },
+  {
+   "input": {
+    "selected": "a",
+    "newId": "b",
+    "active": "a"
+   },
+   "out": {
+    "setSelected": true,
+    "writeStore": true
+   }
+  },
+  {
+   "input": {
+    "selected": "a",
+    "newId": "b",
+    "active": "b"
+   },
+   "out": {
+    "setSelected": true,
+    "writeStore": false
+   }
+  },
+  {
+   "input": {
+    "selected": "b",
+    "newId": "b",
+    "active": null
+   },
+   "out": {
+    "setSelected": false,
+    "writeStore": false
+   }
+  },
+  {
+   "input": {
+    "selected": "b",
+    "newId": "b",
+    "active": ""
+   },
+   "out": {
+    "setSelected": false,
+    "writeStore": false
+   }
+  },
+  {
+   "input": {
+    "selected": "b",
+    "newId": "b",
+    "active": "a"
+   },
+   "out": {
+    "setSelected": false,
+    "writeStore": false
+   }
+  },
+  {
+   "input": {
+    "selected": "b",
+    "newId": "b",
+    "active": "b"
+   },
+   "out": {
+    "setSelected": false,
+    "writeStore": false
+   }
+  }
+ ],
+ "draftActivation": [
+  {
+   "input": {
+    "selected": null,
+    "persisted": "b"
+   },
+   "out": {
+    "skip": false
+   }
+  },
+  {
+   "input": {
+    "selected": "",
+    "persisted": "b"
+   },
+   "out": {
+    "skip": false
+   }
+  },
+  {
+   "input": {
+    "selected": "a",
+    "persisted": "b"
+   },
+   "out": {
+    "skip": true
+   }
+  },
+  {
+   "input": {
+    "selected": "b",
+    "persisted": "b"
+   },
+   "out": {
+    "skip": false
+   }
+  }
+ ],
+ "readGate": [
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": false,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": true
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": true
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": true
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "pre",
+    "visible": true,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": false,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": false,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": true
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": true
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": false,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": true,
+    "hasUnread": false,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": false,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": null
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": true
+   },
+   "out": {
+    "proceed": false
+   }
+  },
+  {
+   "input": {
+    "stage": "post",
+    "visible": true,
+    "manual": true,
+    "hasUnread": true,
+    "endVisible": true,
+    "stillOpen": false
+   },
+   "out": {
+    "proceed": false
+   }
+  }
+ ],
+ "unread": [
+  {
+   "name": "increment counts every call without a reply id",
+   "events": [
+    {
+     "type": "increment",
+     "chat": "a"
+    },
+    {
+     "type": "increment",
+     "chat": "a"
+    },
+    {
+     "type": "increment",
+     "chat": "b"
+    }
+   ],
+   "steps": [
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       2
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 2,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       2
+      ],
+      [
+       "b",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "a reply is counted once across local and server signals",
+   "events": [
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "m1"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "m1"
+    },
+    {
+     "type": "set",
+     "chat": "a",
+     "count": 3,
+     "messageId": "m2"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "m2"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "m3"
+    }
+   ],
+   "steps": [
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       3
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 3,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 3,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 3,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       3
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 3,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 3,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 3,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       4
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 4,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 4,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 4,
+       "hasUnread": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "empty message id counts like none",
+   "events": [
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": ""
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": ""
+    }
+   ],
+   "steps": [
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       2
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 2,
+       "hasUnread": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "set zero or negative removes the entry and keeps order of the rest",
+   "events": [
+    {
+     "type": "set",
+     "chat": "a",
+     "count": 2
+    },
+    {
+     "type": "set",
+     "chat": "b",
+     "count": 4
+    },
+    {
+     "type": "set",
+     "chat": "a",
+     "count": 0
+    },
+    {
+     "type": "set",
+     "chat": "a",
+     "count": 5
+    },
+    {
+     "type": "set",
+     "chat": "b",
+     "count": -1
+    }
+   ],
+   "steps": [
+    {
+     "counts": [
+      [
+       "a",
+       2
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 2,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       2
+      ],
+      [
+       "b",
+       4
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": null,
+       "count": 4,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 0,
+       "count": 4,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 2,
+       "count": 4,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "b",
+       4
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 0,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": null,
+       "count": 4,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 0,
+       "count": 4,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 2,
+       "count": 4,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "b",
+       4
+      ],
+      [
+       "a",
+       5
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 5,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 5,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 5,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": null,
+       "count": 4,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 0,
+       "count": 4,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 2,
+       "count": 4,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       5
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 5,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 5,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 5,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": null,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "b",
+       "persisted": 0,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "b",
+       "persisted": 2,
+       "count": 0,
+       "hasUnread": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "set on an existing chat keeps its position",
+   "events": [
+    {
+     "type": "set",
+     "chat": "a",
+     "count": 1
+    },
+    {
+     "type": "set",
+     "chat": "b",
+     "count": 1
+    },
+    {
+     "type": "set",
+     "chat": "a",
+     "count": 7
+    }
+   ],
+   "steps": [
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ],
+      [
+       "b",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       7
+      ],
+      [
+       "b",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 7,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 7,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 7,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "manual unread is exactly one and survives increments until cleared",
+   "events": [
+    {
+     "type": "increment",
+     "chat": "a"
+    },
+    {
+     "type": "increment",
+     "chat": "a"
+    },
+    {
+     "type": "mark_manual",
+     "chat": "a"
+    },
+    {
+     "type": "increment",
+     "chat": "a"
+    },
+    {
+     "type": "clear",
+     "chat": "a"
+    },
+    {
+     "type": "increment",
+     "chat": "a"
+    }
+   ],
+   "steps": [
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       2
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 2,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [
+      "a"
+     ],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       2
+      ]
+     ],
+     "manual": [
+      "a"
+     ],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 2,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 0,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "release keeps the count but drops the manual flag",
+   "events": [
+    {
+     "type": "mark_manual",
+     "chat": "a"
+    },
+    {
+     "type": "mark_manual",
+     "chat": "a"
+    },
+    {
+     "type": "release_manual",
+     "chat": "a"
+    },
+    {
+     "type": "release_manual",
+     "chat": "zzz"
+    },
+    {
+     "type": "clear",
+     "chat": "never-seen"
+    }
+   ],
+   "steps": [
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [
+      "a"
+     ],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [
+      "a"
+     ],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "zzz",
+       "persisted": null,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "zzz",
+       "persisted": 0,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "zzz",
+       "persisted": 2,
+       "count": 0,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "never-seen",
+       "persisted": null,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "never-seen",
+       "persisted": 0,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "never-seen",
+       "persisted": 2,
+       "count": 0,
+       "hasUnread": true
+      },
+      {
+       "chat": "zzz",
+       "persisted": null,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "zzz",
+       "persisted": 0,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "zzz",
+       "persisted": 2,
+       "count": 0,
+       "hasUnread": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "clear all resets counts, counted replies and manual flags",
+   "events": [
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "m1"
+    },
+    {
+     "type": "mark_manual",
+     "chat": "b"
+    },
+    {
+     "type": "clear_all"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "m1"
+    }
+   ],
+   "steps": [
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ],
+      [
+       "b",
+       1
+      ]
+     ],
+     "manual": [
+      "b"
+     ],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 0,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": null,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "b",
+       "persisted": 0,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "b",
+       "persisted": 2,
+       "count": 0,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": null,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "b",
+       "persisted": 0,
+       "count": 0,
+       "hasUnread": false
+      },
+      {
+       "chat": "b",
+       "persisted": 2,
+       "count": 0,
+       "hasUnread": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "only the newest 50 counted replies are remembered per chat",
+   "events": [
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r0"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r1"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r2"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r3"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r4"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r5"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r6"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r7"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r8"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r9"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r10"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r11"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r12"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r13"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r14"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r15"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r16"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r17"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r18"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r19"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r20"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r21"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r22"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r23"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r24"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r25"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r26"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r27"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r28"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r29"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r30"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r31"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r32"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r33"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r34"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r35"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r36"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r37"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r38"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r39"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r40"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r41"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r42"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r43"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r44"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r45"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r46"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r47"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r48"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r49"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r50"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r0"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r50"
+    },
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "r1"
+    }
+   ],
+   "steps": [
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       2
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 2,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 2,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       3
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 3,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 3,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 3,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       4
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 4,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 4,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 4,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       5
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 5,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 5,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 5,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       6
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 6,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 6,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 6,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       7
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 7,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 7,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 7,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       8
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 8,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 8,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 8,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       9
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 9,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 9,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 9,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       10
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 10,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 10,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 10,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       11
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 11,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 11,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 11,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       12
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 12,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 12,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 12,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       13
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 13,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 13,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 13,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       14
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 14,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 14,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 14,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       15
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 15,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 15,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 15,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       16
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 16,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 16,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 16,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       17
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 17,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 17,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 17,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       18
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 18,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 18,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 18,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       19
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 19,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 19,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 19,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       20
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 20,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 20,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 20,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       21
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 21,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 21,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 21,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       22
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 22,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 22,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 22,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       23
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 23,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 23,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 23,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       24
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 24,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 24,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 24,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       25
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 25,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 25,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 25,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       26
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 26,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 26,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 26,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       27
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 27,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 27,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 27,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       28
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 28,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 28,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 28,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       29
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 29,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 29,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 29,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       30
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 30,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 30,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 30,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       31
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 31,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 31,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 31,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       32
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 32,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 32,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 32,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       33
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 33,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 33,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 33,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       34
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 34,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 34,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 34,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       35
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 35,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 35,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 35,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       36
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 36,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 36,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 36,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       37
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 37,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 37,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 37,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       38
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 38,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 38,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 38,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       39
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 39,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 39,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 39,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       40
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 40,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 40,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 40,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       41
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 41,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 41,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 41,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       42
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 42,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 42,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 42,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       43
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 43,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 43,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 43,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       44
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 44,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 44,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 44,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       45
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 45,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 45,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 45,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       46
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 46,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 46,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 46,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       47
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 47,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 47,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 47,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       48
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 48,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 48,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 48,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       49
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 49,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 49,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 49,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       50
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 50,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 50,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 50,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       51
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 51,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 51,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 51,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       52
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 52,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 52,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 52,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       52
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 52,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 52,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 52,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       53
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 53,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 53,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 53,
+       "hasUnread": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "counted replies are per chat",
+   "events": [
+    {
+     "type": "increment",
+     "chat": "a",
+     "messageId": "m"
+    },
+    {
+     "type": "increment",
+     "chat": "b",
+     "messageId": "m"
+    }
+   ],
+   "steps": [
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    },
+    {
+     "counts": [
+      [
+       "a",
+       1
+      ],
+      [
+       "b",
+       1
+      ]
+     ],
+     "manual": [],
+     "queries": [
+      {
+       "chat": "a",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "a",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": null,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 0,
+       "count": 1,
+       "hasUnread": true
+      },
+      {
+       "chat": "b",
+       "persisted": 2,
+       "count": 1,
+       "hasUnread": true
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "placementOrganizable": [
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": null
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": true
+   }
+  },
+  {
+   "input": {
+    "chats": [],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": null
+     },
+     {
+      "incognito": true,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": null
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": true,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": null
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": true,
+      "legal": false,
+      "public": false,
+      "teamId": null
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": true,
+      "public": false,
+      "teamId": null
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": true,
+      "teamId": null
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": "t1"
+     }
+    ],
+    "teamId": "t1"
+   },
+   "out": {
+    "ok": true
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": "t1"
+     }
+    ],
+    "teamId": null
+   },
+   "out": {
+    "ok": false
+   }
+  },
+  {
+   "input": {
+    "chats": [
+     {
+      "incognito": false,
+      "sharedByOthers": false,
+      "demo": false,
+      "legal": false,
+      "public": false,
+      "teamId": null
+     }
+    ],
+    "teamId": "t1"
+   },
+   "out": {
+    "ok": false
+   }
+  }
+ ],
+ "placementPlan": [
+  {
+   "input": {
+    "chatIds": [
+     "c1"
+    ],
+    "location": {
+     "projectId": "zz",
+     "folderId": null
+    },
+    "mode": "add",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "error": "project_unavailable"
+   }
+  },
+  {
+   "input": {
+    "chatIds": [
+     "c1"
+    ],
+    "location": {
+     "projectId": "pa",
+     "folderId": "gone"
+    },
+    "mode": "add",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "error": "folder_unavailable"
+   }
+  },
+  {
+   "input": {
+    "chatIds": [
+     "c1",
+     "c2",
+     "c9"
+    ],
+    "location": {
+     "projectId": "pa",
+     "folderId": null
+    },
+    "mode": "add",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "steps": [
+     {
+      "kind": "move",
+      "itemId": "i2",
+      "chatId": "c2"
+     },
+     {
+      "kind": "add",
+      "chatId": "c9"
+     }
+    ]
+   }
+  },
+  {
+   "input": {
+    "chatIds": [
+     "c1",
+     "c2",
+     "c9"
+    ],
+    "location": {
+     "projectId": "pa",
+     "folderId": "docs"
+    },
+    "mode": "add",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "steps": [
+     {
+      "kind": "move",
+      "itemId": "i1",
+      "chatId": "c1"
+     },
+     {
+      "kind": "add",
+      "chatId": "c9"
+     }
+    ]
+   }
+  },
+  {
+   "input": {
+    "chatIds": [
+     "c1",
+     "c3"
+    ],
+    "location": {
+     "projectId": "pa",
+     "folderId": "sub"
+    },
+    "mode": "move",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "steps": [
+     {
+      "kind": "move",
+      "itemId": "i1",
+      "chatId": "c1"
+     },
+     {
+      "kind": "add",
+      "chatId": "c3"
+     },
+     {
+      "kind": "remove",
+      "sourceId": "pb",
+      "chatId": "c1"
+     },
+     {
+      "kind": "remove",
+      "sourceId": "pb",
+      "chatId": "c3"
+     }
+    ]
+   }
+  },
+  {
+   "input": {
+    "chatIds": [
+     "c1",
+     "c3",
+     "c9"
+    ],
+    "location": {
+     "projectId": "pb",
+     "folderId": null
+    },
+    "mode": "move",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     },
+     {
+      "id": "pc",
+      "name": "pc",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i5",
+        "chatId": "c9",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "steps": [
+     {
+      "kind": "add",
+      "chatId": "c9"
+     },
+     {
+      "kind": "remove",
+      "sourceId": "pa",
+      "chatId": "c1"
+     },
+     {
+      "kind": "remove",
+      "sourceId": "pc",
+      "chatId": "c9"
+     }
+    ]
+   }
+  },
+  {
+   "input": {
+    "chatIds": [],
+    "location": {
+     "projectId": "pa",
+     "folderId": null
+    },
+    "mode": "move",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "steps": []
+   }
+  },
+  {
+   "input": {
+    "chatIds": [
+     "c2"
+    ],
+    "location": {
+     "projectId": "pa",
+     "folderId": "docs"
+    },
+    "mode": "move",
+    "index": [
+     {
+      "id": "pa",
+      "name": "pa",
+      "folders": [
+       {
+        "id": "docs",
+        "hash": "h-docs",
+        "parentHash": null,
+        "name": "docs"
+       },
+       {
+        "id": "sub",
+        "hash": "h-sub",
+        "parentHash": "h-docs",
+        "name": "sub"
+       }
+      ],
+      "chats": [
+       {
+        "id": "i1",
+        "chatId": "c1",
+        "folderHash": null
+       },
+       {
+        "id": "i2",
+        "chatId": "c2",
+        "folderHash": "h-docs"
+       }
+      ]
+     },
+     {
+      "id": "pb",
+      "name": "pb",
+      "folders": [],
+      "chats": [
+       {
+        "id": "i3",
+        "chatId": "c3",
+        "folderHash": null
+       },
+       {
+        "id": "i4",
+        "chatId": "c1",
+        "folderHash": null
+       }
+      ]
+     }
+    ]
+   },
+   "out": {
+    "steps": []
+   }
+  }
+ ],
+ "sharedSubChat": [
+  {
+   "name": "minimal row",
+   "input": {
+    "row": {
+     "id": "s1",
+     "parent_id": "p",
+     "is_sub_chat": true,
+     "created_at": 100
+    },
+    "parent": {
+     "chatId": "p"
+    }
+   },
+   "out": {
+    "chat_id": "s1",
+    "encrypted_title": null,
+    "messages_v": 0,
+    "title_v": 0,
+    "last_edited_overall_timestamp": 100,
+    "unread_count": 0,
+    "created_at": 100,
+    "updated_at": 100,
+    "encrypted_chat_summary": null,
+    "encrypted_icon": null,
+    "encrypted_category": null,
+    "parent_id": "p",
+    "is_sub_chat": true,
+    "is_shared_by_others": true,
+    "share_pii": false,
+    "share_highlights": true,
+    "group_key": "shared_by_others",
+    "budget_limit": null,
+    "budget_spent": 0
+   }
+  },
+  {
+   "name": "full row",
+   "input": {
+    "row": {
+     "id": "s2",
+     "parent_id": "p",
+     "is_sub_chat": true,
+     "created_at": 100,
+     "updated_at": 150,
+     "last_edited_overall_timestamp": 160,
+     "encrypted_title": "T",
+     "encrypted_chat_summary": "S",
+     "encrypted_icon": "I",
+     "encrypted_category": "C",
+     "messages_v": 4,
+     "title_v": 2,
+     "metadata_v": 3,
+     "unread_count": 2,
+     "budget_limit": 5.5,
+     "budget_spent": 1.25
+    },
+    "parent": {
+     "chatId": "p",
+     "sharePii": true,
+     "shareHighlights": false
+    }
+   },
+   "out": {
+    "chat_id": "s2",
+    "encrypted_title": "T",
+    "messages_v": 4,
+    "title_v": 2,
+    "metadata_v": 3,
+    "last_edited_overall_timestamp": 160,
+    "unread_count": 2,
+    "created_at": 100,
+    "updated_at": 150,
+    "encrypted_chat_summary": "S",
+    "encrypted_icon": "I",
+    "encrypted_category": "C",
+    "parent_id": "p",
+    "is_sub_chat": true,
+    "is_shared_by_others": true,
+    "share_pii": true,
+    "share_highlights": false,
+    "group_key": "shared_by_others",
+    "budget_limit": 5.5,
+    "budget_spent": 1.25
+   }
+  },
+  {
+   "name": "nulls fall back like undefined, zero stays",
+   "input": {
+    "row": {
+     "id": "s3",
+     "parent_id": "p",
+     "is_sub_chat": true,
+     "created_at": 10,
+     "updated_at": null,
+     "last_edited_overall_timestamp": null,
+     "encrypted_title": null,
+     "messages_v": null,
+     "title_v": 0,
+     "unread_count": 0,
+     "budget_limit": null,
+     "budget_spent": 0
+    },
+    "parent": {
+     "chatId": "p",
+     "sharePii": null,
+     "shareHighlights": null
+    }
+   },
+   "out": {
+    "chat_id": "s3",
+    "encrypted_title": null,
+    "messages_v": 0,
+    "title_v": 0,
+    "last_edited_overall_timestamp": 10,
+    "unread_count": 0,
+    "created_at": 10,
+    "updated_at": 10,
+    "encrypted_chat_summary": null,
+    "encrypted_icon": null,
+    "encrypted_category": null,
+    "parent_id": "p",
+    "is_sub_chat": true,
+    "is_shared_by_others": true,
+    "share_pii": false,
+    "share_highlights": true,
+    "group_key": "shared_by_others",
+    "budget_limit": null,
+    "budget_spent": 0
+   }
+  },
+  {
+   "name": "edit time falls back to updated time",
+   "input": {
+    "row": {
+     "id": "s4",
+     "parent_id": "p",
+     "is_sub_chat": true,
+     "created_at": 10,
+     "updated_at": 20
+    },
+    "parent": {
+     "chatId": "p2",
+     "shareHighlights": true
+    }
+   },
+   "out": {
+    "chat_id": "s4",
+    "encrypted_title": null,
+    "messages_v": 0,
+    "title_v": 0,
+    "last_edited_overall_timestamp": 20,
+    "unread_count": 0,
+    "created_at": 10,
+    "updated_at": 20,
+    "encrypted_chat_summary": null,
+    "encrypted_icon": null,
+    "encrypted_category": null,
+    "parent_id": "p2",
+    "is_sub_chat": true,
+    "is_shared_by_others": true,
+    "share_pii": false,
+    "share_highlights": true,
+    "group_key": "shared_by_others",
+    "budget_limit": null,
+    "budget_spent": 0
+   }
+  }
+ ]
+}

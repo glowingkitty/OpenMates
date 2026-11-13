@@ -1,0 +1,884 @@
+# SUPERSEDED (2026-11-09): lane planning now follows the capability inventory in
+# docs/plans/client-core-one-core-three-shells/plan.yml (contract
+# specifications/architecture/client-core). Kept because scripts/rust_migration_yaml.py
+# still validates it; "flag-off byte-identical" now applies per capability only until
+# that capability flips. Do not plan new lanes here.
+# Web client logic -> Rust: lane plan and live lane status. HAND-CURATED (edit lane
+# `status` / `commit` as lanes progress, then run python3 scripts/rust_migration_yaml.py).
+# Validated by scripts/rust_migration_yaml.py: every lane has a status; landed lanes name
+# a commit; ranks are 1..N; deps resolve to a lane or a slice id.
+# status: planned | running | landed.  commit: lowercase hex, required when landed.
+# Narrative plan: web-lanes.md. Lane briefs were working files and are not kept in the repo.
+# spec_assertions: ids from specifications/generated/assertion-index.yml (validated). spec_gaps: behavior the
+# lane moves to Rust that no assertion covers. Specification files are never edited from here.
+schema_version: 1
+plan_date: 2026-11-07
+base_commit: f725997112
+goal: Move all web client-side logic into shared Rust in the one shared Worker; Svelte keeps UI/DOM/browser APIs;
+  VITE_OPENMATES_RUST_CORE default off; each capability is flag-gated per spec client-core.web.flag-gated-capability
+  (flag-off keeps the TS path until that capability's old code is deleted).
+units:
+  installed:
+  - core
+  - crypto
+  - auth
+  - apps
+  - embedData
+  - embedWrite
+  - search
+  - transfer
+  - sync
+  - chatState
+  - ws
+  planned: []
+  new_in_wave: [settings, composer, parse]
+hot_files:
+- frontend/packages/ui/src/services/rustCore/host/sharedWorkerProtocol.ts
+- frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts
+- packages/openmates-browser-bindings/src/lib.rs
+- packages/openmates-rust/src/lib.rs
+- '**/mod.rs'
+- config/sdk-capabilities.json
+- config/cli-command-catalog.json
+- docs/architecture/platforms/rust-migration-status.md
+- frontend/packages/ui/src/services/rustCore/sync/syncProtocol.ts
+- frontend/packages/ui/src/services/rustCore/crypto/cryptoUnitInstaller.ts
+- frontend/packages/ui/src/services/rustCore/auth/authProtocol.ts
+- frontend/packages/ui/src/services/rustCore/embeds/embedDataProtocol.ts
+- frontend/packages/ui/src/services/rustCore/chatState/chatStateProtocol.ts
+- frontend/apps/web_app/src/lib/rustCore/shared/coreUnit.ts
+- frontend/packages/ui/src/services/rustCore/workerDispatch.ts
+- frontend/apps/web_app/tests/web-rust-core-bench-run.ts
+landing_protocol:
+- work only in owned and new files
+- all hot hunks in one final registry commit
+- sessions.py worktree refresh-base, then sessions.py edit-lease acquire --file <hot files>; wait once if held
+- regenerate generated files with generators; run the sdk-capabilities matrix validator
+- deploy with ONE --only list; wait-deploy; edit-lease release
+- simultaneous readiness lands in rank order; new namespaces appended to SHARED_NAMESPACES
+- each new namespace proves it does not leak into the flag-off build
+gates:
+  ci:
+  - rust-check
+  - rust-wasm
+  - vitest
+  - sdk-conformance
+  - lane e2e flag-on
+  - flag-off byte-identical
+  bench:
+    workers: 1
+    wasm_instances: 1
+    main_thread_wasm: 0
+    verdict: rust_not_worse
+    per_reload_memory_growth: none
+  perf_budget: wall CI95 upper <= max(+10%, +50 ms); p95 <= +100 ms (+200 ms cold start); CPU CI95 upper <= +15%
+wave3_lanes:
+- name: w3-web-drafts
+  kind: wave3
+  status: running
+  commit: null
+  owns:
+  - services/drafts/*
+  - rustCore/browserDraft*
+  - rustCore/draftEditorAdapter.ts
+  - rustCore/productionDraftBinding.ts
+  notes: Drafts save rust-synced; visible-editor E2E rerun pending.
+  spec_assertions:
+  - drafts.persistence.local-first-encrypted
+  - drafts.sync.version-authoritative
+  - drafts.draft-only.lifecycle
+  - message-input.drafts.preview-persistence
+  spec_gaps: []
+- name: search-snippet-perf
+  kind: wave3
+  status: landed
+  commit: bc918c7
+  owns:
+  - web_search*.rs
+  - browser_search_pii.rs
+  notes: Pipelined worker ingests; 30-pair search bench searchRenderedMs 1.132x [1.02,1.291] rust_worse (+81 ms); query and CPU not worse; extra cost sits in the flag-on chat decrypt/index build, see performance-history.yml. Follow-up from session 8aea - the flag-on page build no longer computes the unused per-entry normalizedContent toLowerCase (the Worker index lowercases itself; flag-off unchanged, no new await). After it, the 30-pair bench measured searchRenderedMs 1.014x [1.003,1.04] rust_not_worse and search:build.ms 633 vs 642 TS (see performance-history.yml 2026-11-07-search-04). Decrypt is already coalesced into crypto-unit batches. Declined - moving stripMarkdown/embed resolution into the Worker (embed resolution is async page IO) and batching ingests across chats (would add an await window).
+  spec_assertions: [chat-awareness.search.device-executed]
+  spec_gaps:
+  - Search ranking, snippets and the performance budget have no assertion.
+- name: w3-web-sync-policy
+  kind: wave3
+  status: landed
+  commit: c577ddd
+  owns:
+  - chatSyncMerge.ts
+  - chatSyncPhasedRetry.ts
+  - chatSyncMessageKeyGuard.ts
+  - chatKeyWriteGuard.ts
+  - chatKeyConsistency.ts
+  - rustCore/sync/*
+  notes: 'Gap: chatKeyWriteGuard/chatKeyConsistency and ChatUpdates/Recovery helpers not moved.'
+  spec_assertions:
+  - sync.client.shared-rust-policy
+  - sync.delta.cursor-gap-free
+  - sync.deletion.partial-window-not-authoritative
+  - chats.sync.key-gated-recovery
+  spec_gaps: []
+- name: w3-web-import-export
+  kind: wave3
+  status: running
+  commit: null
+  owns:
+  - zipExportService.ts
+  - accountExportService.ts
+  - chatExportService.ts
+  - chatImportService.ts
+  - rustCore/transfer/*
+  notes: Scopes 1 (b33404b) and 2 (f7259971) landed; scope 3 zip/account export unverified.
+  spec_assertions: [account-import.source.explicit-selection, account-import.review.confirmed-results, account-import.persistence.client-encrypted]
+  spec_gaps:
+  - Chat export YAML, filenames and ZIP/account export have no assertion.
+- name: w3-web-send-perf
+  kind: wave3
+  status: running
+  commit: null
+  owns:
+  - rustCore/sendOperation.ts
+  - rustCore/sendProtocol.ts
+  - rustCore/originalSavedChatSender.ts
+  - rustCore/browserWsLink.ts
+  - crypto send path
+  notes: Paired send bench exists. Sends stalling in Sending... were the composer aborting an accepted send when its chat binding moved during model restoration (fixed in sendReadiness.ts, CI send bench 78b3bb15 had no stalled sample); 12 pairs in one job can be retried.
+  spec_assertions: [chats.send.immediate-admission, chats.message.identity-idempotent, sdk.web.before-after-performance]
+  spec_gaps: []
+- name: send-correctness
+  kind: wave3
+  status: running
+  commit: null
+  owns: [lib/rustCore/rustChatHistoryBootstrap.ts, lib/rustCore/shared/coreUnit.ts, rustCore/host/sessionBroker.ts]
+  notes: 403/core-retire fix and session broker work.
+  spec_assertions: [owner-consistency.ws.dual-principal, owner-consistency.http.refuse-before-effect, chats.send.immediate-admission]
+  spec_gaps: []
+- name: memory-rss
+  kind: wave3
+  status: landed
+  commit: bd07710
+  owns:
+  - build-rust-core-web.mjs
+  - vite rust plugin
+  - Cargo profiles
+  - browser-bindings lib.rs exports
+  - bench helpers
+  notes: Reload-memory gate rust_not_worse (CI 348d19f1).
+  spec_assertions: [sdk.web.before-after-performance]
+  spec_gaps:
+  - Memory budget (one WASM instance, no per-reload growth) is only in .claude/rules/cli-sdk.md.
+lanes:
+- rank: 1
+  name: chatstate-core
+  kind: wave4
+  status: running
+  commit: null
+  slices:
+  - id: slice-2
+    commit: bc77186697
+    note: active-chat selection, unread bookkeeping, chat metadata
+  - id: slice-3
+    commit: 3c5859ad96
+    note: message-list transitions and typing/streaming indicators
+  - id: slice-4
+    commit: 13c341c23b
+    note: encrypted message bookmarks and highlights
+  - id: slice-5
+    commit: 29534a7cab
+    note: chat-to-project placement plan (organizable verdict, move/add/remove steps)
+  size: M
+  wave: A
+  deps: []
+  unit: chatState
+  installs_namespace: chatState
+  approval_to_enable: true
+  risk: encrypted bookmark/highlight writes; chat key resolved in Worker
+  gated_flows: [open_chat]
+  loc_moved: 2300
+  owns:
+  - frontend/packages/ui/src/services/rustCore/chatState/{chatStateUnit,chatStateProtocol,chatStateClient,chatStateAdapter,chatStateBinding}.ts
+  - frontend/packages/ui/src/services/{visibleMessageReceipts,chatReadState,messageBookmarks,handlersMessageHighlights,sendersMessageHighlights,sendersChatManagement,pendingChatDeletions,chatProjectService,chatMenuActionService,chatMenuUsage}.ts
+  - frontend/packages/ui/src/services/db/messageHighlights.ts
+  - frontend/packages/ui/src/utils/messageHighlights.ts
+  - packages/openmates-rust/src/chat_state/{receipts,bookmarks,highlights,management,projects}*.rs
+  - packages/openmates-browser-bindings/src/browser_chat_state*.rs
+  hot: [sharedWorkerUnits.ts, chatStateProtocol.ts (creates), sdk-capabilities.json]
+  e2e: [message-highlights.spec.ts, message-highlights-touch.spec.ts, web-rust-core-chat.spec.ts]
+  notes: 'Slice 1 landed 6f7afa3, slice 1b (unit prepared at app start, phase marks in rustChatStateStats.phases, 12-pair e2e) follows; perf advisory per the 2026-11-07 policy (12 pairs: +188 ms/+10% then +103 ms/+5%, not gross). First slice installed the chatState namespace: chat list ordering and grouping (sortChats, groupChats, time buckets) in packages/openmates-rust/src/web_chat_state, e2e web-rust-core-chatstate.spec.ts. Slice 2 (CI 78f9a901: rust-check, rust-wasm, sdk-conformance, vitest, flag-off chat-management-flow, flag-on web-rust-core-chatstate green; on the rebased source rust-check green and sdk-conformance red like every other session on dev tip 9f6326e2b2, baseline-red not caused by this diff): active-chat selection plans (activeChatStore URL plan, Chats.svelte global-selection and stale-draft guards), unread bookkeeping reducer and read gate (unreadMessagesStore, chatReadState), shared sub-chat metadata derivation, as ops selection*/unread*/metadata* in web_chat_state/{selection,unread,metadata}.rs with view_ts_vectors.json. Flag on: no TS fallback; the unread store keeps reduced state as view state and mirrors counts asynchronously (getUnreadCount reads the mirror; queryUnread drains the queue). Not moved: initial active chat id at store creation (synchronous module init) and the sidebar unread badge label (inline template expression). Remaining: message-list transitions, typing/streaming indicators and the encrypted bookmark/highlight state. Slice 2 (message-list transitions + typing/streaming indicators, modules web_chat_state/{window,timeline,activity,indicators}.rs, TS vectors transition_vectors.json): decrypted-window pruning and expanded-window preserve, timeline merge/exchange index/response/pairing, running-chat grouping (chatActivityStore) and the ActiveChat composer and Chat title indicator decisions run on the unit with the flag on (ChatHistory timeline, ActiveChat prune/reconcile, chatActivityStore, Chat.svelte). 12-pair advisory e2e: rust median 1469 ms vs ts 1366 ms (rust_not_worse). Slice 4 (session cb4d): encrypted private message bookmarks (account settings decrypt/toggle/encrypt, device and transient toggles, identity and 10 000-limit rules; messageBookmarks.ts) and message highlights (payload encrypt, update stamp, remove frame, inbound decode; sendersMessageHighlights.ts, handlersMessageHighlights.ts) run on the chatState unit with the flag on (ops bookmark*/highlight* in chatState/bookmarkHighlightOps.ts over the existing chat_state_bookmarks_*/chat_state_highlight_* exports plus chat_state_bookmarks_identity). The page keeps the settings POST, owner/epoch/ciphertext scope fences, localStorage, the stores, IndexedDB and the socket send; master/chat keys cross as the CryptoKey/bytes the page already holds (same as hidden/fork). TS-generated vectors: chat_state/bookmark_highlight_ts_vectors.json (30 account toggles, 9 decodes, 12 device toggles, 24 inbound highlights, 9 outbound) generated from the real flag-off services and replayed by bookmark_highlight_vector_tests.rs; bookmarkHighlightVectors.test.ts fails when the TS services drift. Flag-on E2E: web-rust-core-chatstate.spec.ts (bookmark toggle on and off through the unit) and the wrapper web-rust-core-chatstate-message-highlights.spec.ts. Declined with reasons (no async-safe cut): ChatHistory.updateMessages defensive prune (exported synchronous function whose callers read `messages` right after, and per-chunk streaming calls would gain an await window), timelinePreviewText (called inside a Svelte $derived, must stay synchronous), initial active chat id (synchronous module init) and the unread badge label (inline template expression). Not moved by design: the bookmark scope fences and highlight store/IndexedDB writes (platform IO). Advisory 12-pair bench of web-rust-core-chatstate.spec.ts (chat list render after reload): TS median 1663 ms vs Rust 1756 ms (+93 ms, +5.6%), not gross; appended to performance-history.yml as 2026-11-07-chatRendered-10. Slice 5 (29534a7cab): chat-to-project placement decisions (assertOrganizableChats predicate and the move/add/remove step plan of placeChatsInProject) in web_chat_state/placement.rs with TS reference utils/chatProjectPlacement.ts, ops placementOrganizable/placementPlan, 18 TS-generated vectors in view_ts_vectors.json replayed by view_tests.rs and chatViewVectors.test.ts; flag-off keeps the synchronous TS path (no new await), flag-on has no TS fallback; the page keeps all HTTP calls, workspace identity fences and cache invalidation. CI: rust-check fdae641e, rust-wasm ac2ec979, vitest 147c5aab green; chat-sidebar-projects E2E 0b4006fa failed on its disposable-compose precondition (infra, not the diff), so the placement flow was unproven end to end until session ca4d: web-rust-core-chatstate.spec.ts now creates a project from the chat context menu (plan endpoint stubbed) and asserts ops.placementOrganizable and ops.placementPlan > 0 with no failures (CI cc33091f green). Declined (sync callers/page IO): pendingChatDeletions (localStorage helpers with synchronous callers), chatMenuActionService (page IO orchestration).'
+  spec_assertions:
+  - chat-unread.reply.read-at-last-line
+  - chat-unread.followup.implies-read
+  - chat-unread.surfaces.sidebar-and-continue
+  - chat-unread.persistence.cross-device
+  - chat-unread.manual.mark-unread
+  - chat-message-timeline.bookmarks
+  spec_gaps:
+  - Message-list window pruning, timeline merge/pairing, running-chat grouping and typing/streaming indicator decisions have no assertion.
+  - Message highlights and the deletion queue have no assertion.
+- rank: 2
+  name: embeds-3
+  kind: wave4
+  status: running
+  commit: null
+  slices:
+  - id: slice-3
+    commit: aa27557
+    note: embed_read status machine, link/ref parsing and version patch replay
+  - id: slice-4
+    commit: f955969624
+    note: inbound embed event admission (embed_update and send_embed_data status gates)
+  size: M
+  wave: A
+  deps: []
+  unit: embedData
+  approval_to_enable: true
+  approval_note: partial (audioEmbedCrypto)
+  risk: key paths for audio; version reconstruction correctness
+  gated_flows: [embed_ready]
+  loc_moved: 9000
+  owns:
+  - frontend/packages/ui/src/services/{embedResolver,embedStore,embedDiffStore,embedStateMachine,embedRefIndex,embedFullscreenResolver,embedPreviewBackfill,streamedEmbedRevisionHistory,canonicalEmbedWriteCoordinator,embedSenders,personalEmbedReadOperation}.ts
+  - frontend/packages/ui/src/utils/{embedVersionReconstruction,embedLinkUtils,embedContentResolver,embedFragmentUtils}.ts
+  - frontend/packages/ui/src/components/embeds/{sheets/sheetEmbedContent,sheets/sheetFormulaEngine,mindmaps/mindMapContent,docs/docsEmbedContent,resultMapRoutes,audio/audioEmbedCrypto}.ts
+  - frontend/packages/ui/src/services/rustCore/embeds/{resolveOps,versionOps,contentOps}.ts
+  - packages/openmates-rust/src/embed_read/*
+  - packages/openmates-browser-bindings/src/browser_embed_read.rs
+  hot: [embedDataProtocol.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e:
+  - web-rust-core-embeds.spec.ts
+  - embed-fullscreen-followup
+  - anonymous-child-embeds.spec.ts
+  - historical-image-child-recovery.spec.ts
+  - draft-embed-preview.spec.ts
+  notes: 'Slice 3 landed in aa27557: Rust embed_read (status machine, link/ref parsing, version patch replay; 172 TS vectors) and the embedData applyVersionPatches op with flag-on reconstruct via versionOps.ts. Status machine, link parser and ref generator are not yet called from web (their TS callers are synchronous). Remaining: embedResolver, embedStore read paths, sheet/mindmap/docs content, embedSenders, audioEmbedCrypto. embed-ready bench not measured (TS arm fails in the bench). Slice 4: the inbound embed event admission decision (status transition plus the send_embed_data newer-version and finalized-refresh exemptions; embedStateMachine isEmbedEventAdmitted -> embed_read::admission, admitEmbedEvent op, 770 TS-generated vectors in embed_read_ts_vectors.json) runs on the embedData unit with the flag on at both chatSyncServiceHandlersAI gates (already async handlers; no new await flag-off, no TS fallback flag on except the inactive-crypto-arm TS arm). Declined: embedStateMachine validate/normalize at other callers and parseEmbedLinkTarget/generateDirectEmbedRef (synchronous callers: embedLinkUtils markdown/HTML builders, codeEmbedService and projectService ref builders that use the result inline), embedResolver.resolveEmbed (page IO and memory-cache hits, a new await would delay embed render).'
+  spec_assertions:
+  - chats.persistence.client-encrypted
+  - chats.rendering.assistant-document-convergence
+  spec_gaps:
+  - Embed resolve/version reconstruction and audio embed crypto have no assertion.
+- rank: 3
+  name: sync-inbound
+  kind: wave4
+  status: running
+  commit: null
+  slices:
+  - id: slice-1
+    commit: 9150b5601a
+    note: draft-only shell clearing and CoreSync batch preview reuse
+  size: L
+  wave: B
+  deps: [w3-web-sync-policy]
+  unit: sync
+  approval_to_enable: true
+  risk: drives IDB writes; out-of-order frames
+  gated_flows: [cold_start, open_chat]
+  loc_moved: 9000
+  owns:
+  - frontend/packages/ui/src/services/{chatSyncServiceHandlersChatUpdates,chatSyncServiceHandlersCoreSync,chatSyncService,lateChatMetadataGuard,generatedChatMetadataPersistence,chatMetadataWarmup,initialChatHistoryGate,chatSyncServiceHandlersWebhooks,chatSyncServiceHandlersAgentContext,chatSyncServiceHandlersFocusPhases}.ts
+  - frontend/packages/ui/src/stores/phasedSyncStateStore.ts (logic hunks)
+  - frontend/packages/ui/src/services/rustCore/sync/inboundOps.ts
+  - packages/openmates-rust/src/web_sync/inbound*.rs
+  - packages/openmates-browser-bindings/src/browser_sync_inbound.rs
+  hot:
+  - syncProtocol.ts SYNC_OPS
+  - web_sync/mod.rs
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
+  e2e:
+  - web-rust-core-sync.spec.ts
+  - web-rust-core-chat.spec.ts
+  - chat-sync-empty-indexeddb-recovery.spec.ts
+  - chat-metadata-recovery.spec.ts
+  - cross-client-draft-sync.spec.ts
+  notes: 'Slice 1: draft-only shell clearing (web_sync/inbound.rs, chatInboundDecisions.ts) and CoreSync batch preview reuse the updates.rs preview. Slice 2: title/draft frame admission (updateFrame) and draft stale/cleared-version decision (draftApply). Declined: unread/pinned/read-status handlers (no decision beyond IDB writes), ChatDeleted/NewChatMessage/MessageReceived (interleave awaited IDB and key unwrapping with decisions; need the async plan/apply redesign). Plan/apply split re-read and rejected (no safe pure split without changing flag-off interleaving): handleNewChatMessageImpl (chatSyncServiceHandlersChatUpdates.ts) has about 20 awaits where every later branch depends on a prior I/O result (getChat existence, getKeySync after receiveKeyFromServer, withKey success or timeout, pending-flush summaries feeding the messages_v/last_edited max), so a plan returned before I/O would be a multi-step state machine, not a pure function; the only pure content (max of versions/timestamps, new-chat shell defaults, queue-on-withKey-failure) is a few lines, and moving it behind an await would add a new await window versus the synchronous TS interleaving. handleChatDeletedImpl: the tombstone path interleaves chatListCache context-version and workspace identity/epoch fences, activeAITasks/pending-turn checks and the voice-call cleanup guard callbacks (isCurrent/localGuard re-evaluated inside chatDB.deleteEmptyVoiceCallChat) with awaited reads, so the fences must be evaluated live at each await boundary; a precomputed plan would be stale. MessageReceived (handleChatMessageReceivedImpl) is the sole writer of messages_v ordering against ai_typing/finalized-embed flushes, so reordering or adding awaits is a known race zone. These three stay TS by design (callers and fences are live-state bound); revisit only if the sync unit gains an async step-wise op protocol (read request -> Rust decision -> next read) with its own race tests. Remaining: version-wins/apply plans of ChatUpdates and CoreSync, frame routing, guards (IDB-callback and stateful guards need async redesign).'
+  spec_assertions:
+  - sync.delta.cursor-gap-free
+  - sync.delta.metadata-only
+  - sync.delta.reset
+  - sync.delta.scope-revocation
+  - sync.delta.live-hint
+  - sync.phase2.metadata-only
+  - sync.phase2.drafts.authoritative-encrypted
+  - sync.startup.bounded-phases
+  - sync.open.not-gated
+  - sync.status.startup-window-ready
+  - sync.status.incomplete-window-rewarms
+  - chats.local-state.precedence
+  spec_gaps: []
+- rank: 4
+  name: ai-stream-recovery
+  kind: wave4
+  status: running
+  commit: null
+  slices:
+  - id: slice-1
+    commit: 2aa5cd645c
+    note: stateless recovery decisions and stream assembler
+  - id: slice-2
+    commit: d68d2ad91e
+    note: retained admission-phase frame check
+  size: L
+  wave: B
+  deps: [w3-web-sync-policy]
+  soft_deps: [ws-unit]
+  unit: sync (recovery ops) + ws (streamOps)
+  approval_to_enable: true
+  risk: stream correctness; heartbeat delay from long WASM batches
+  gated_flows: [send_stream]
+  loc_moved: 8000
+  owns:
+  - frontend/packages/ui/src/services/{chatSyncServiceHandlersAI,chatSyncServiceHandlersRecovery,pendingAIResponses,fastAdmissionJournal,fastAdmissionPhaseJournal,postAdmissionContextPhases,chatRecoveryVersionApply,chatRecoveryVersionRefresh,recoveryAssistantTimestamp,recoveryEmbedSource}.ts
+  - frontend/packages/ui/src/utils/chatCompletionRecovery.ts
+  - frontend/packages/ui/src/message_parsing/{assistantActivityStatus,assistantActivityCompletion,assistantActivityRuns,assistantResponseTurn}.ts
+  - frontend/packages/ui/src/services/rustCore/sync/recoveryOps.ts
+  - frontend/packages/ui/src/services/rustCore/ws/streamOps.ts
+  - packages/openmates-rust/src/web_stream/*
+  - packages/openmates-browser-bindings/src/browser_stream.rs
+  hot: [syncProtocol.ts SYNC_OPS, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e:
+  - web-rust-core-chat.spec.ts
+  - chat-streaming-render-performance.spec.ts
+  - chat-scroll-streaming.spec.ts
+  - chat-followup-recovery-disabled.spec.ts
+  - historical-image-child-recovery.spec.ts
+  notes: 'Slice 1: stateless recovery ops (version fence, window/assistant version, initial-diff, catalog, history source) on the sync unit behind the flag; stateful thinking/final-timestamp assembler built and vector-tested but mounted by the ws unit. Slice 2 (session f782): the retained admission-phase frame check of fastAdmissionPhaseJournal (undecryptable / invalid JSON / turn identity + phase + context-object rule) runs as sync op recoveryContextFrame (web_stream/recovery.rs context_frame_json) with the flag on, no TS fallback; flag off keeps the TS check inline (no added await). The page still parses the text itself. Vectors: web_stream/context_frame_ts_vectors.json (42 cases) replayed in Rust and contextFrameVectors.test.ts against the real journal. Declined (sync-bound or no decision): assistantActivityRuns/assistantActivityCompletion (called from reactive $derived/render paths, must stay synchronous), postAdmissionContextPhases publish/retain flows (pure control flow around page I/O callbacks and isCurrent closures), chatCompletionRecovery (crypto). Gap: chatCompletionRecovery crypto, UI-reactive assistantActivity*/pendingAIResponses/fastAdmission files not moved. Flag-on E2E (session ca4d): web-rust-core-sync.spec.ts asserts ops.recoveryContextFrame > 0 after the first send (assertion passed in CI 2f20f69d and e66b999a, but no run was fully green: reload-render flake and the strict soft perf gate, now the gross rule); web-rust-core-drafts.spec.ts asserts device B admits the chat_title_updated frame (updateFrame op rises after a rename on device A; CI 2b58d349 green).'
+  spec_assertions:
+  - chats.streaming.ordered-final
+  - chats.streaming.progressive-presentation
+  - chats.completion.recovery-takeover
+  - chats.completion.pending-delivery
+  - chats.completion.lease-fenced
+  - chats.sync.key-gated-recovery
+  spec_gaps:
+  - Heartbeat latency under long WASM batches has no assertion.
+- rank: 5
+  name: persistence
+  kind: wave4
+  status: running
+  commit: null
+  slices:
+  - id: slice-1
+    commit: 6798a8d93c
+    note: IndexedDB message row policy
+  - id: slice-2
+    commit: a974897e24
+    note: cache, quota and chat-row policy
+  - id: slice-3
+    commit: 4fef042de1
+    note: 'duplicate-message cleanup plan (cleanupDuplicateMessages -> web_persist::message_policy::duplicate_cleanup_json, TS-generated policy_vectors.json duplicateCleanup). Declined - decryptionFailureCache, recentChatWindowCache and utils/messageWindowPruning (synchronous callers, ActiveChat/ChatHistory read them without awaiting), pendingEmbedQueue (pure IDB transaction wiring, no decision). Flag-on E2E (session ca4d): web-rust-core-persist.spec.ts asserts ops.duplicateCleanup > 0 on the reloaded Rust arm and, via the settings unit, ops.planPrivacyEntry > 0 after a stored PII settings entry is cold-loaded (CI df51b2cb green).'
+  size: L
+  wave: B
+  deps: [w3-web-drafts, send-correctness]
+  unit: core
+  approval_to_enable: true
+  risk: IndexedDB writes; all historical row versions must read
+  gated_flows: [cold_start, open_chat]
+  loc_moved: 11000
+  owns:
+  - frontend/packages/ui/src/services/db.ts
+  - frontend/packages/ui/src/services/db/{chatCrudOperations,messageOperations,index,decryptionFailureCache,quotaRecovery,pendingEmbedQueue,codeRunOutputs,notebookRunOutputs}.ts
+  - frontend/packages/ui/src/services/{chatListCache,chatMetadataCache,recentChatWindowCache,authenticatedChatMessageWindow}.ts
+  - frontend/packages/ui/src/utils/{messageWindowPruning,contentCache}.ts
+  - frontend/packages/ui/src/services/rustCore/persist/*
+  - packages/openmates-rust/src/web_persist/*
+  - packages/openmates-browser-bindings/src/browser_persist.rs
+  hot:
+  - coreUnit.ts
+  - workerDispatch.ts
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
+  e2e:
+  - web-rust-core-chat.spec.ts
+  - web-rust-core-reload-memory.spec.ts
+  - chat-sync-empty-indexeddb-recovery.spec.ts
+  - persisted-draft-discovery.spec.ts
+  - web-rust-core-sync.spec.ts
+  - web-rust-core-persist.spec.ts
+  notes: 'Slice 1 (message row policy): shouldUpdate/hasNewEncryptedFields/contentDuplicate/safeToEvict decisions of db/messageOperations.ts run in web_persist::message_policy on the persist unit (flag on, CI-proven only); IndexedDB IO stays on the page. CI: rust-check, rust-wasm, sdk-conformance and web-rust-core-persist/-sync green; reload-memory and the reload bench are red for the TS-arm embed preview (embed_write_not_bound) blocker shared with embeds-3, chat-sync-empty-indexeddb-recovery fails on baseline runs too; no paired persist bench numbers yet (performance-history.yml 2026-11-07-chatRendered-persist-01 invalid_measurement). Slice 2 a974897e24 (cache and chat-row policy): window read planning and result cursors, window page records, page eviction/deletion plans, offline cache budget gates and trim loop, the quota-retry flow, chat catalog page size (db/cachePolicy.ts -> web_persist::cache_policy) and chat row defaults, keyless draft-only shell, candidate keys, draft-field merge and Team draft-intent merge (db/chatRowPolicy.ts -> web_persist::chat_policy) run on the persist unit (flag on; TS-generated web_persist/policy_vectors.json). Async verdicts cannot run inside an IndexedDB transaction: eviction decides on a snapshot and the delete transaction only checks the policy fields are unchanged (db/messageEviction.ts); the two draft writes read, decide and compare-and-put (db/chatRowRewrite.ts). Not yet moved: the synchronous in-transaction logic of deleteChatConditionally (empty-call shell checks, embed head/key verification), cursor-position comparison inside window cursors, encryptChatForStorage/decryptChatFromStorage branching, cleanupDuplicateMessages, chatListCache/chatMetadataCache/recentChatWindowCache, utils/messageWindowPruning. No persist bench yet.'
+  spec_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence, sync.status.incomplete-window-rewarms, storage.client.shared-policy-existing-adapters]
+  spec_gaps:
+  - IndexedDB row-version compatibility and quota recovery have no assertion; window planning, cache budget and draft merge parity rest on policy_vectors.json only.
+  - Row policy parity is proven by TS-generated vectors (web_persist/ts_vectors.json) under storage.client.shared-policy-existing-adapters; no assertion names message status priority or duplicate detection.
+- rank: 6
+  name: send-prep-outbox
+  kind: wave4
+  status: running
+  commit: null
+  slices:
+  - id: slice-1
+    commit: 676cdeab80
+    note: offline outbox replay order and batch receipt decision
+  - id: slice-2
+    commit: 767f8aa96a
+    note: per-turn model routing restrictions validation (web_send_prep/routing_restrictions.rs; both async send call sites, flag-on only)
+  - id: slice-3
+    commit: fb10834
+    note: deferred draft deletion replay eligibility (web_send_prep/deferred_delete.rs; sendersSync async loop, flag-on only). Declined as sync-caller or IDB-interleaved - db/offlineChangesAndUpdates.ts queue_order allocation and late-ACK token guard (inside IDB onsuccess callbacks, need a synchronous result), beginOfflineSyncBatch replayRequested check (sync, called under module state), the final fence filter in sendOfflineChangesImpl (must not yield between check and WS call).
+  size: L
+  wave: B
+  deps: [w3-web-send-perf]
+  unit: core
+  approval_to_enable: true
+  risk: outbox IDB writes; send latency gate
+  gated_flows: [send_stream]
+  loc_moved: 10000
+  owns:
+  - frontend/packages/ui/src/services/{sendersChatMessages,chatModelSelection,modelRoutingRestrictions,unavailableModelRecovery,serverCapabilityGate,preparedChatForSend,preparedPrivacyForSend,earlyProjectRoutingForSend,projectFocusSendPreflight,preflightAcknowledgement,personalChatTurnBarrier,ordinaryTeamPreflightRetry,sendersChatMessagesDispatchFailure,outboundMessageSends,offlineSyncBatch,offlineChangeOrder,queuedMessageLifecycle,sendersSync}.ts
+  - frontend/packages/ui/src/services/db/offlineChangesAndUpdates.ts
+  - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts (non-UI, extract-only)
+  - frontend/packages/ui/src/services/rustCore/send/*
+  - packages/openmates-rust/src/web_send_prep/*
+  - packages/openmates-browser-bindings/src/browser_send_prep.rs
+  hot:
+  - coreUnit.ts
+  - workerDispatch.ts
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
+  e2e:
+  - web-rust-core-chat.spec.ts
+  - offline-draft-replay.spec.ts
+  - focus-mode-mention.spec.ts
+  - default-model-settings-proof.spec.ts
+  notes: 'Slice 1 (sendPrep unit, flag-gated): offline outbox replay order (offlineChangeOrder) and batch receipt decision (offlineBatchReceipt) in web_send_prep/*.rs with TS-generated vectors; sendersSync and handleOfflineSyncComplete call the unit when the flag is on. Remaining: message build, model choice, preflight modules, queue lifecycle, Worker-side IDB outbox adapter.'
+  spec_assertions:
+  - chats.send.immediate-admission
+  - chats.message.identity-idempotent
+  - chat-queued-followups.admission.synced
+  - message-input.send.ownership
+  spec_gaps:
+  - Draft assertion chats.offline-outbox.ordered-replay added to feature.chats (draft); needs user approval together with the deployed changes.
+  - Message preparation, preflight refusals and model choice have no dedicated assertion.
+- rank: 7
+  name: ws-unit
+  kind: wave4
+  status: planned
+  commit: null
+  size: L
+  wave: B
+  deps: [w3-web-send-perf, send-correctness]
+  unit: ws
+  installs_namespace: ws
+  approval_to_enable: true
+  risk: session token in Worker; single event loop; supervisor respawn
+  gated_flows: [send_stream, cold_start]
+  loc_moved: 2200
+  owns:
+  - frontend/packages/ui/src/services/websocketService.ts
+  - frontend/packages/ui/src/services/tracing/wsSpans.ts
+  - frontend/packages/ui/src/stores/{connectionFeedbackStore,serverStatusStore}.ts (logic hunks)
+  - frontend/packages/ui/src/services/rustCore/ws/* (except streamOps.ts)
+  - frontend/packages/ui/src/services/rustCore/host/ws/{wsLinkWorkerRuntime,wsLinkPort}.ts
+  - frontend/packages/ui/src/services/rustCore/browserWsLink.ts (after send-perf hands over)
+  - packages/openmates-rust/src/ws_link/*
+  - packages/openmates-browser-bindings/src/browser_ws_link.rs
+  hot:
+  - sharedWorkerUnits.ts
+  - sharedWorkerProtocol.ts NAMESPACE_MAX_PORTS
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
+  e2e: [web-rust-core-chat.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-auth.spec.ts]
+  notes: ''
+  spec_assertions: [owner-consistency.ws.dual-principal, sync.access.first-party-authenticated, chats.send.immediate-admission]
+  spec_gaps:
+  - Session token confined to the Worker and supervisor respawn have no assertion.
+- rank: 8
+  name: keys
+  kind: wave4
+  status: planned
+  commit: null
+  slices:
+  - id: K1
+    commit: cc77c3fbe1
+    note: chat-key admission policy
+  - id: K2
+    commit: 5ce60fbeaf
+    note: Worker-resident chat-key state, async key handles, logout termination
+  - id: K3
+    commit: b4e558abb6
+    note: bulk chat-key load plan (batch ranges, master-key retry step)
+  size: L
+  wave: B
+  deps: [w3-web-sync-policy, w3-web-send-perf, auth-rest-slice-0]
+  unit: crypto
+  approval_to_enable: true
+  risk: key lifecycle; keys concentrate in one realm; logout/account-switch termination
+  gated_flows: [open_chat, send_stream, embed_ready]
+  loc_moved: 5700
+  owns:
+  - frontend/packages/ui/src/services/encryption/{ChatKeyManager,MessageEncryptor,MetadataEncryptor,mediaEncryption}.ts
+  - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+  - frontend/packages/ui/src/services/{cryptoKeyStorage,cryptoService}.ts
+  - frontend/packages/ui/src/services/rustCore/crypto/keyOps.ts
+  - packages/openmates-browser-bindings/src/browser_keys.rs
+  hot: [cryptoUnitInstaller.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e:
+  - web-rust-core-crypto.spec.ts
+  - web-rust-core-chat.spec.ts
+  - web-rust-core-auth.spec.ts
+  - cross-client-draft-sync.spec.ts
+  - recovery-key-login-flow.spec.ts
+  notes: 'K1 landed behind the flag: web_keys.rs (fingerprint, key equality, KeySource priority, injectKey admission) with TS vectors
+    (chatKeyAdmissionVectors.test.ts), browser_keys.rs and rustCore/crypto/keyOps.ts served by the crypto unit. K2 (flag-gated, default
+    off): web_key_state.rs KeyStore in the Worker (keys, provenance, load states, FIFO waiter tickets bounded at 50, provisional/unpersisted
+    flag, remove/clear returning tickets to reject), keysState* exports and keyOps helpers, encryption/chatKeyStateMirror.ts (ChatKeyManager
+    offers every accepted key, forwards removeKey/reloadKey/clearAll so logout and account switch terminate Worker key state; unit disposal
+    clears too) and encryption/chatKeyHandles.ts (async getKeyHandle with the flag branch; flag-on decrypt/encrypt run in the Worker with the
+    stored key). First migrated caller: composerGhostSuggestion.decryptComposerGhostSuggestion. Remaining callers (~180 getKey/getKeySync
+    sites, e.g. sendersMessageHighlights, voiceCallMessages, userTaskService, userPlanService, voiceCallVisuals, ChatMessage/ChatHistory,
+    sendHandlers, sync handlers) migrate to getKeyHandle; ChatKeyManager still loads/wraps/persists and holds the TS copy (K3), and pending
+    operation closures stay in TS (the Rust ticket queue is ready, not yet wired). K3 (needs auth-rest slice 0): chatKeyManagement.ts,
+    cryptoKeyStorage.ts, cryptoService master-key parts, MessageEncryptor/MetadataEncryptor/mediaEncryption page-side key material. K3 slice (session ee5e): the bulk chat-key load of chatKeyManagement.loadChatKeysFromDatabase takes its decrypt batch ranges and the master-key retry step (decrypt/retry/give_up) from web_key_bulk.rs in the Worker (ops keysBulkBatches/keysBulkRetryStep, keyOps.ts) with the flag on, no TS fallback; flag off uses db/chatKeyBulkPlan.ts synchronously (no added await). TS-generated vectors web_key_bulk_ts_vectors.json replayed by web_key_bulk_tests.rs and chatKeyBulkPlanVectors.test.ts. Declined (no async-safe cut): the IndexedDB cursor row selection (chatKeyManager.hasKey inside onsuccess, transaction must stay alive), ChatKeyManager.getKeySync callers (~180 sync sites), cryptoKeyStorage master-key IDB I/O (platform), MessageEncryptor/MetadataEncryptor sync callers; remaining caller migration to getKeyHandle continues. Master key and chat key unwrap stay page-side; no key bytes cross the new ops. Flag-on E2E 2026-11-07 (session c27e): web-rust-core-persist asserts crypto stats keysBulkBatches > 0 on the reloaded Rust arm; web-rust-core-drafts asserts a second device admits chat_draft_updated via sync updateFrame; chat spec perf gates now use the gross-regression rule.'
+  spec_assertions:
+  - auth.keys.client-wrapped
+  - auth.keys.independent-unlock
+  - chats.persistence.client-encrypted
+  - sdk.encryption.local-only
+  spec_gaps:
+  - Key lifecycle and logout/account-switch termination of the Worker have no assertion.
+- rank: 9
+  name: parse
+  kind: wave4
+  status: running
+  commit: null
+  slices:
+  - id: slice-2
+    commit: 7ee4459ff5
+    note: async assistant render plan wiring behind the flag
+  - id: slice-4
+    commit: b49cddac66
+    note: saved generated-image display recovery decisions (imageRecoveryParents/recoverGeneratedImages)
+  size: L
+  wave: A
+  deps: []
+  soft_deps: [ai-stream-recovery, persistence]
+  unit: parse
+  installs_namespace: parse
+  approval_to_enable: false
+  pre_bind: true
+  risk: HIGH perf risk on open chat and streaming; WASM size growth
+  gated_flows: [open_chat, send_stream]
+  loc_moved: 10000
+  owns:
+  - frontend/packages/ui/src/message_parsing/* (except assistantActivity*, assistantResponseTurn, streamingRenderScheduler,
+    streamingRenderMetrics, streamingTextFade)
+  - frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
+  - frontend/packages/ui/src/services/rustCore/parse/*
+  - packages/openmates-rust/src/web_parse/*
+  - packages/openmates-browser-bindings/src/browser_parse.rs
+  hot:
+  - sharedWorkerProtocol.ts
+  - sharedWorkerUnits.ts
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
+  e2e:
+  - chat-rendering-parity-oracle.spec.ts
+  - chat-streaming-render-performance.spec.ts
+  - chat-scroll-streaming.spec.ts
+  - web-rust-core-chat.spec.ts
+  - web-rust-core-embeds.spec.ts
+  notes: 'Slice 1 e4f6092 (web_parse blocks on the parse unit). Slice 2 7ee4459: renderPlanBranch.ts flag branch in ChatHistory G_mapToInternalMessage (flag off unchanged sync; flag on async plan cache + remap on ready, plain-text placeholder before first plan). Slice 3: web_parse::voice_cues::strip_voice_cues + parse_strip_voice_cues export + stripVoiceCues unit op (TS-vector parity, not wired into callers). Declined (stay TS, sync callers): serialize/tipTapToCanonicalMarkdown, parse_message wiring. Slice 4: saved generated-image display recovery (web_parse/image_recovery.rs: lost-image parent ids plus recovered-document assembly; ops imageRecoveryParents/recoverGeneratedImages; 18 TS-generated cases in image_recovery_ts_vectors.json replayed in Rust and imageRecoveryVectors.test.ts). Flag-on ChatMessage recover() (already an async effect with awaited embed reads) goes through imageRecoveryBranch.ts; flag off returns the unchanged TS promise (no new await). The sync lostImageParents gate in the $effect stays TS as a cheap prefilter (sync caller); Rust is authoritative for ids and assembly. Declined: documentEnhancement/embedGrouping/groupHandlers/streamingDocDiff/userReadSpacing (called from synchronous parse_message, TipTap/DOM-bound or render paths). Remaining: parse_message, saved-message parse in Worker.'
+  spec_assertions:
+  - chats.rendering.assistant-document-convergence
+  - chats.rendering.inline-entity-interaction
+  - chats.streaming.progressive-presentation
+  spec_gaps:
+  - Markdown/block-model parse equivalence with the TypeScript parser has no assertion.
+- rank: 10
+  name: settings-memories
+  kind: wave4
+  status: planned
+  commit: null
+  slices:
+  - id: slice-1
+    commit: 04a644d667
+    note: app settings/memories permission request policy
+  - id: slice-2
+    commit: 04645295fb
+    note: response/confirm decisions
+  size: L
+  wave: A
+  deps: []
+  unit: settings
+  installs_namespace: settings
+  approval_to_enable: true
+  risk: encrypted memories/settings; IDB writes
+  gated_flows: [cold_start]
+  loc_moved: 9000
+  owns:
+  - frontend/packages/ui/src/services/{chatSyncServiceHandlersAppSettings,mentionedSettingsMemoriesCleartext,savedEmbedMemoryService,savedPersonalAdmissionHistory,topicPreferencesSync,wikipediaStudyInterest,userDB}.ts
+  - frontend/packages/ui/src/services/db/appSettingsMemories.ts
+  - frontend/packages/ui/src/stores/{appSettingsMemoriesStore,appSettingsMemoriesPermissionStore,personalDataStore,topicPreferencesStore,learningModeStore}.ts
+    (logic hunks)
+  - frontend/packages/ui/src/utils/{settingsHashUtils,appMemoryRequests}.ts
+  - frontend/packages/ui/src/services/rustCore/settings/*
+  - packages/openmates-rust/src/web_settings/*
+  - packages/openmates-browser-bindings/src/browser_settings.rs
+  hot:
+  - sharedWorkerProtocol.ts
+  - sharedWorkerUnits.ts
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
+  e2e:
+  - mention-dropdown-settings-memory.spec.ts
+  - memories-public-catalog.spec.ts
+  - chat-settings-flow.spec.ts
+  - language-settings-flow.spec.ts
+  - ai-settings-breadcrumb.spec.ts
+  notes: 'Slice 1 04a644d667 (request policy). Slice 2 04645295fb (response/confirm: key routing, entry
+    selection, response counts, empty outcome, response content in web_settings_response.rs).
+    Slice 3 (this commit): personalDataStore hydration defaults per privacy entry type
+    (pii/location/personal/other) in web_settings_privacy.rs, mirrored by privacyEntryPolicy.ts;
+    flag-off stays synchronous, flag-on awaits the unit and re-checks current(). Declared
+    difference: a non-object `categories` is ignored by Rust (JS would spread string/array
+    indices). Stays in TS: topicPreferencesStore, userDB, personalDataStore owner guards,
+    mutation epoch and encrypt/save/sync paths.
+    Stays in TS by design: appMemoryRequests (synchronous parse/merge used by the CLI and
+    render), appSettingsMemoriesPermissionStore (reactive view state: toggles/selection are
+    synchronous Svelte store updates), appSettingsMemoriesStore (removed upstream 1eb03c4acf).'
+  spec_assertions:
+  - app-memories.lifecycle.encrypted-crud
+  - app-memories.privacy.client-encrypted
+  - app-memories.access.owner-scoped
+  - app-memories.sync.versioned-convergence
+  spec_gaps:
+  - App-settings sync handler and topic preferences have no assertion.
+  - No dedicated settings-request assertion (request/response policy cites sdk.client.thin-platform-boundary).
+- rank: 11
+  name: composer
+  kind: wave4
+  status: running
+  slices:
+  - id: slice-1
+    commit: dcc2ea813e
+    note: PII detect/redact/rewrite, model span merge, paste classification
+  - id: slice-2
+    commit: 5643d35c26
+    note: mention and saved-embed ranking, ghost-suggestion validation
+  - id: slice-3
+    commit: 0e54730b8a
+    note: 'code-language detection (VS Code clipboard mode, content heuristics) and URL kinds (YouTube, GitHub repo, video id) as ops languageDetect/urlClassify in web_composer/{code_language,url_kinds}.rs; TS-generated vectors language_url_ts_vectors.json (350 language, 93 URL cases) replayed by language_url_tests.rs and languageUrlVectors.test.ts. Flag-on callers (async only): MessageInput DOM paste listener (reached only when the editor handler leaves the paste unhandled, so not E2E-proven), embedHandlers code-file embeds (not E2E-proven), createEmbedFromUrl (E2E web-rust-core-composer URL case, CI 9e72364f). Declined: the ProseMirror handlePaste prop in MessageInput (synchronous, must return a boolean), the URL helpers are not used by other sync callers; xlsxSheetConverter/imageHelpers are platform-bound (SheetJS, canvas/Blob). Known JSON.parse differences: numbers beyond f64, nesting beyond 128 levels and lone-surrogate escapes in pasted JSON (heuristic only).'
+  size: M
+  wave: A
+  deps: [search-snippet-perf]
+  unit: composer
+  installs_namespace: composer
+  approval_to_enable: false
+  pre_bind: true
+  risk: keystroke latency; UTF-16 vs UTF-8 offsets
+  gated_flows: []
+  loc_moved: 9000
+  owns:
+  - frontend/packages/ui/src/components/enter_message/services/{piiDetectionService,webPIIDetectionService,mentionSearchService,pasteClassification,codeEmbedService,urlMetadataService,uploadService}.ts
+  - frontend/packages/ui/src/components/enter_message/{fileHandlers,embedHandlers}.ts
+  - frontend/packages/ui/src/components/enter_message/utils/{xlsxSheetConverter,imageHelpers}.ts
+  - frontend/packages/ui/src/services/{piiDisplayAliases,uploadPrivacy,embedSuggestionSearch,composerGhostSuggestion}.ts
+  - frontend/packages/ui/src/stores/embedPIIStore.ts (logic hunks)
+  - frontend/packages/ui/src/services/rustCore/composer/*
+  - packages/openmates-rust/src/web_composer/*
+  - packages/openmates-browser-bindings/src/browser_composer.rs
+  hot:
+  - sharedWorkerProtocol.ts
+  - sharedWorkerUnits.ts
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
+  e2e:
+  - pii-detection-flow.spec.ts
+  - pii-placeholder-rewrite.spec.ts
+  - paste-classification.spec.ts
+  - mention-dropdown-settings-memory.spec.ts
+  - focus-mode-mention.spec.ts
+  - office-import-notices.spec.ts
+  notes: 'Slice 1 (PII + paste): web_composer Rust (paste, pii_detect, pii_text, rewrite, web_pii) with TS-generated vectors incl. Unicode/emoji offsets; composer unit + adapter wired behind VITE_OPENMATES_RUST_CORE in async callers only (detectPIIForWeb, model window merge, MessageInput async paste, redactEmbedContent). Sync call sites (restorePIIInText in derived values, preparedPrivacyForSend, projectFilePrivacy) stay TypeScript until their callers become async. Slice 2 (mentions + suggestions, web_composer/{mentions,suggestions}.rs, TS vectors suggestion_ts_vectors.json from the real mentionRanking.ts, embedSuggestionSearch.ts and composerGhostDecode.ts): mention score/filter/rank (searchProjectMentions), saved-embed filter/rank (searchSavedEmbeds) and ghost-suggestion validation (decryptComposerGhostSuggestion) run on the unit with the flag on; Rust answers indices and the page reorders its own objects. Declined with reasons: searchMentions (sync call inside MentionDropdown $effect), extractMentionQuery and checkMentionTrigger (sync editor-update hot path), chatAllowsComposerGhostSuggestion (sync store reads), uploadPrivacy (already the @repo/upload-privacy package, IO bound), url/code detection helpers and xlsx/image helpers (large or platform-bound, left for slice 3). Known flag-on difference: a lone UTF-16 surrogate in ranked text is replaced by U+FFFD before crossing the Worker boundary, and a ghost payload containing a lone-surrogate JSON escape validates as invalid.'
+  spec_assertions:
+  - pii.composer.detect-redact-exclude
+  - pii.composer.city-not-personal
+  - pii.outbound.known-original-rewrite
+  - wikipedia-mentions.syntax.explicit-trigger
+  - message-input.suggestions.contextual
+  spec_gaps:
+  - Paste classification, code/URL embed services and upload privacy have no assertion.
+- rank: 12
+  name: auth-rest
+  kind: wave4
+  status: running
+  commit: null
+  size: M
+  wave: A
+  deps: []
+  unit: auth
+  approval_to_enable: true
+  risk: signup/pair/recovery/passkey; existing accounts must keep working
+  gated_flows: [cold_start]
+  loc_moved: 4000
+  slices:
+  - id: slice-0
+    note: extract passkey/PRF/recovery-key/password derivation from cryptoService.ts into services/authKeyDerivation.ts;
+      pure move; unblocks keys
+  - id: slice-1
+    commit: 6df2e95b16
+    note: web_auth_signup/pair/recovery_print/flow in Rust; pairV2.pairRequest errors and printRecoveryKey routed
+  - id: slice-2
+    commit: 6f1e36ffd8
+    note: (initial 52e4a2266c, fail-closed follow-up 6f1e36ffd8) push-to-store adapters (services/rustCore/auth/flowPush.ts) for pairSessionState, pairActivate/rehydrate/auto-logout
+      tick, pairV2.pairExpired, signup getStepFromPath/isSignupPath (primeSignupLocation in login/session auth actions)
+      and config/tfa.ts lists; sync reads return the last pushed value or a neutral default
+      Follow-up (same slice) - pair state fails closed (restricted until Rust's view arrives, while activation is pending and when Rust errors
+      on rehydrate); tfa list is a $state array (config/tfaReactive.svelte.ts); primeSignupLocation in Login, PasswordAndTfaOtp,
+      EnterBackupCode, EnterRecoveryKey, ActiveChat; signup-hash deep link primed in prewarmRustAuth. pairExpired stays UI-only
+      (server enforces pair expiry); unknown deadline reads not-expired until the next poll.
+    ci_note: browser E2E blocked 2026-11-07 by runner image ubuntu26.04 (Playwright chromium unsupported); sdk-conformance red at
+      base 6df2e95b16 too (baseline)
+    remaining:
+    - +page.svelte tab-reload read of the stored profile's last_opened is not primed (neutral false until a prior prime)
+  - id: slice-3
+    status: landed
+    commit: 84cb77e2a6
+    note: web_auth_actions.rs (login_verdict, debug_session_resume, language_reconcile via the existing web_auth_flow export;
+      no new pub symbol) plus services/rustCore/auth/actionsPush.ts. Wired flag-on in authLoginLogoutActions (login reply
+      classification, debug-session resume, logout cookie decision) and authSessionActions (missing-master-key plan with fail-closed
+      constant, language reconciliation, debug-session resume). getPathFromStep/isSettingsStep push-to-store (flowPush.ts,
+      primeSignupStepLocation awaited in Signup.svelte). Vectors in webAuthFlowVectors.json; login_verdict and debug_session_resume
+      replayed through the deployed login() in stores/__tests__/authActionsVectors.test.ts.
+    remaining:
+    - STEP_SEQUENCE stays a TS constant (only read by the TS getStepFromPath, bypassed when the flag is on)
+    - completeSignup stays TS (sync, store writes; its step reads already come from Rust)
+    - authMiscActions setup2FAProvider is pure IO; session classify result (device_verification/authenticated) is still re-read from data in TS
+    - language_reconcile vectors are Rust-pinned only (checkAuth is not replayable in vitest without the full session mocks)
+    - master-key/password-v2 handling intentionally not in the Worker (keys lane K2)
+  blocked:
+  - passwordV2 master-key handling in the Worker needs the keys lane K2 protocol
+  owns:
+  - frontend/packages/ui/src/stores/{authSessionActions,authLoginLogoutActions,authMiscActions,signupState,pairSessionStore}.ts
+  - frontend/packages/ui/src/services/{pairV2,passwordV2,passwordV2Core,passwordV2Worker,authKeyDerivation}.ts
+  - frontend/packages/ui/src/utils/recoveryKeyUtils.ts
+  - frontend/packages/ui/src/config/tfa.ts
+  - frontend/packages/ui/src/components/{PasswordAndTfaOtp,EnterRecoveryKey}.svelte (logic hunks)
+  - frontend/packages/ui/src/services/rustCore/auth/flowOps.ts
+  - packages/openmates-rust/src/{web_auth_signup,web_auth_pair}.rs
+  hot:
+  - authProtocol.ts
+  - browser-bindings lib.rs
+  - sdk-capabilities.json
+  - cryptoService.ts (slice 0 only)
+  e2e:
+  - web-rust-core-auth.spec.ts
+  - recovery-key-login-flow.spec.ts
+  - recovery-key-settings.spec.ts
+  - account-recovery-flow.spec.ts
+  - pair-web-receiver.spec.ts
+  notes: ''
+  spec_assertions:
+  - auth.signup.current-flow
+  - auth.login.method-convergence
+  - auth.passkey.origin-prf-bound
+  - auth.pair-login.single-use-zk
+  - auth.session.lifecycle
+  - auth.recovery.email-delay
+  spec_gaps: []
+- rank: 13
+  name: chatstate-hidden-fork
+  kind: wave4
+  status: planned
+  commit: null
+  slices:
+  - id: slice-1
+    commit: 0f2f1c1d81
+    note: hidden-chat vault and fork operations
+  - id: slice-2
+    commit: 4e972b3312
+    note: hide flow, key-update frame, explain selection, logout vault release
+  size: L
+  wave: C
+  deps: [chatstate-core]
+  unit: chatState
+  approval_to_enable: true
+  risk: PIN-derived key wrapping; fork re-encryption
+  gated_flows: []
+  loc_moved: 1200
+  owns:
+  - frontend/packages/ui/src/services/{hiddenChatService,forkChatService}.ts
+  - frontend/packages/ui/src/stores/{hiddenChatStore,forkProgressStore}.ts (logic hunks)
+  - frontend/packages/ui/src/services/rustCore/chatState/{hiddenChatAdapter,hiddenOps,forkOps}.ts
+  - packages/openmates-rust/src/chat_state/{hidden,fork}*.rs
+  hot: [chatStateProtocol.ts, sdk-capabilities.json]
+  e2e: [hidden-chats-flow.spec.ts, fork-conversation.spec.ts, web-rust-core-crypto.spec.ts]
+  notes: 'Slice 1 (running, session 2f02): hidden-vault ops (unlock/wrap/unwrap/classify/plan_hide/unhide/lock/key-update) and fork ops (select/re-encrypt/copy/title/finalize) served by the chatState unit (hiddenOps.ts, forkOps.ts); hiddenChatService and forkChatService branch on the flag with no TS fallback; lock mirror in hiddenLockMirror.ts. Slice 2: hide in Chat.svelte and chatMenuActionService.ts runs through rustHideFlow.ts (hiddenPlanHide: needs_unlock/already_hidden/missing_key/hide), the encrypted_chat_metadata key-update frame for every hide/unhide/HiddenChatUnlock sender is built by hiddenKeyUpdate in sendUpdateChatKeyImpl, startExplainInNewChat normalizes the selection through forkNormalizeSelection, and the Worker hidden vault is released by hiddenRelease on logout and login even while a lockout is active (the plain hiddenLock keeps the vault during a lockout). Refusal vectors added: missing key-update export, stale/zero versions, missing wrapper on unhide/unwrap/plan_hide, missing master key. Flag-on e2e runs through web-rust-core-chatstate-{hidden-chats-flow,fork-conversation}.spec.ts (wrappers that load the product specs in the web-rust-core CI lane); browser e2e blocked by the ubuntu-latest (26.04) Playwright install failure at the time of writing. Not moved: hiddenChatStore auto-lock timer stays TS (UI timer).'
+  spec_assertions: [chats.fork.non-destructive-boundary]
+  spec_gaps:
+  - Hidden chats with PIN-derived key wrapping have no assertion.
+- rank: 14
+  name: share-guest-crypto
+  kind: wave4
+  status: running
+  commit: null
+  slices:
+  - id: slice-1
+    commit: 535f549d0d
+    note: guest chat promotion plan
+  - id: slice-2
+    commit: c89aa32172
+    note: share/guest decisions
+  size: M
+  wave: C
+  deps: [keys]
+  unit: crypto
+  approval_to_enable: true
+  pre_bind: true
+  risk: existing share links/short URLs must open; guest promotion
+  gated_flows: []
+  loc_moved: 5400
+  note: Rust modules and vectors may start in wave A; land after the keys registry line
+  owns:
+  - frontend/packages/ui/src/services/{shareEncryption,shortUrlEncryption,embedShareEncryption,sharedChatKeyStorage,sharedChatDetailsService,shareMetadataQueue,chatSharing,anonymousChatStorage,anonymousChatKeyWrapping,anonymousChatHistory,anonymousChatIdentity,anonymousChatIds,anonymousChatPromotionService,incognitoChatService}.ts
+  - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.ts
+  - frontend/apps/web_app/src/routes/share/embed/sharedEmbedGraph.ts
+  - frontend/packages/ui/src/services/rustCore/crypto/shareOps.ts
+  - packages/openmates-rust/src/{web_share,web_guest}/*
+  - packages/openmates-browser-bindings/src/browser_share.rs
+  hot: [cryptoUnitInstaller.ts, browser-bindings lib.rs, sdk-capabilities.json]
+  e2e:
+  - anonymous-free-chat.spec.ts
+  - anonymous-child-embeds.spec.ts
+  - incognito-mode.spec.ts
+  - application-preview-share.spec.ts
+  notes: 'Share-link blob, embed-share blob and short-URL encryption already run in shared Rust (crypto/share.rs, browser_web_crypto.rs, shareEncryption/embedShareEncryption/shortUrlEncryption flag branches) before this lane. Slice 1 adds web_guest.rs (anonymous chat promotion plan: promotable rows, system-row deletes, synced re-saves, messages_v and timestamps) with TS vectors (guestPromotionVectors.test.ts, web_guest_ts_vectors.json), browser_guest.rs, rustCore/crypto/guestOps.ts on the crypto unit and the anonymousChatPromotionPlan.ts flag branch. Anonymous session-key wrapping is the master-key format and is not yet routed through masterEncrypt/masterDecrypt (needs a non-extractable session CryptoKey import on the page). Not yet moved: sharedChatKeyStorage, shareMetadataQueue, sharedChatDetailsService, incognitoChatService, anonymousChatStorage. Slice 2 (session 169b): web_share_state/ (35 ops, one generic shareStateDecide export and Worker op) decides short-URL fragment/path parsing and building, sharedChatKeyStorage entry metadata, shareMetadataQueue records/bodies/retry/outcome, sharedChatDetailsService plan/task/sub-chat page and wrapper-window checks, incognitoChatService normalize/metadata/update acceptance, and anonymousChatStorage next-timestamp, assistant message id, title (UTF-16 cut), chunk ends, conversation rows and plaintext strip. Parity: web_share_state_ts_vectors.json (254 cases, produced by tests/crypto_fixtures/ts_web_share_state/generate.mjs running the real TS rules in shareState/*Policy.ts) is replayed in Rust (web_share_state_tests.rs) and vitest (shareStateVectors.test.ts); ts_web_formats.json share-link and short-URL blobs are also replayed through the real TS decrypt functions. Flag-off runs the TS rules unchanged (policy.ts); flag-on has no TS fallback. Page code keeps all IndexedDB and fetch I/O. Flag-off byte-identical: incognito updateMessage/init and anonymousChatStorage.stripPlainChatFields keep their synchronous TS path (directShareState); the Worker awaits exist only with the flag on (shared init promise, row re-found after the answer). anonymousTitle keeps the raw original rule flag-off; the well-formed (U+FFFD) form is the wire form used for Rust parity. Malformed-input behaviour: Rust refuses malformed documents with an error where the TS rule would coerce; callers only send typed inputs, so no change. Not moved: the sortAnonymousMessages comparator (not a total order, V8 TimSort dependent) stays TS.'
+  spec_assertions: [chat-share-settings.generated-link-controls, chat-share-settings.shared-link-open, apps.anonymous.local-results-and-promotion]
+  spec_gaps:
+  - Share, short-URL and embed-share encryption and guest chat promotion have no assertion.
+  - Shared plan/task/sub-chat page validation, share-metadata queue retry and incognito persistence rules have no assertion.
+parked_wave5:
+- name: work
+  loc: 15000
+  files: projectService, project*, appsWorkspace*, userTaskService, teamService, userPlanService, workflow*, workflowWorkspaceStore
+  note: reuse CLI Rust; split in 2 lanes; leads wave 5
+- name: suggestions-inspirations
+  loc: 2600
+  files: dailyInspirationDB, dailyInspirationStore, db/newChatSuggestions, continueCarouselService
+  approval_to_enable: true
+- name: navigation-notifications
+  loc: 3500
+  files: deepLinkHandler, chatUrlService, utils/internalLinkValidation, chatNavigationStore, settingsRoutes, pushNotificationService,
+    chatNotificationVisibility, chatMessageNotificationReceipt, teamNotificationPreview, utils/reminderNotificationContext
+- name: voice-speech
+  loc: 6500
+  files: voiceCall*, assistantSpeech*, audioRealtimeTranscription
+  note: media stays; state machines move
+- name: connected-accounts-coderuns
+  loc: 2300
+  files: connectedAccount*, chatSyncServiceHandlersConnectedAccounts, codeRun*, notebookRun*
+  approval_to_enable: true
+- name: telemetry-debug
+  loc: 7700
+  files: debugUtils, clientLogForwarder, logCollector, userActionTracker, issueReportSubmission, e2eTestHooks
+  note: user decision whether dev-only tooling stays TS
+- name: static-catalogs
+  loc: 7700
+  files: data/appsMetadata, data/modelsMetadata, data/embedRegistry.generated
+  note: single generated source with Rust
+stays_ts:
+- '*.svelte UI'
+- TipTap renderers GroupRenderer.ts / AppSkillUseRenderer.ts (logic audit later)
+- reactive stores as view state; i18n setup; theme/uiFont; codeHighlighting
+- streamingRenderScheduler/Metrics/TextFade (frame timing)
+- media/WebRTC, Push API, file pickers, clipboard, WebSocket object, IndexedDB/WebCrypto primitives as thin adapters
+- demo_chats static content; web_app SSR routes (server-side)

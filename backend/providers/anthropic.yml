@@ -17,21 +17,21 @@ required_keys:
     docs_url: "https://docs.anthropic.com/en/api/getting-started"
 
 models:
-  - id: "claude-fable-5-1" # Official Claude API model ID
-    name: "Claude Fable 5.1"
+  - id: "claude-fable-5-2" # Official Claude API model ID
+    name: "Claude Fable 5.2"
     description: "Anthropic's latest max-capability model for demanding reasoning and long-horizon agentic work."
     country_origin: "US"
     for_app_skill: "ai.ask"
-    release_date: "2026-09-01"
+    release_date: "2026-11-09"
     capability_level: "max"
     allow_auto_select: true
     external_ids:
-      lmarena: "claude-fable-5-1"
-      openrouter: "anthropic/claude-fable-5-1"
+      lmarena: "claude-fable-5-2"
+      openrouter: "anthropic/claude-fable-5-2"
     search_aliases:
-      - "fable 5.1"
-      - "claude 5.1 fable"
-      - "claude-fable-5-1"
+      - "fable 5.2"
+      - "claude 5.2 fable"
+      - "claude-fable-5-2"
       - "best claude"
     input_types:
       - text
@@ -48,47 +48,49 @@ models:
           adaptive_thinking: true
           source_url: https://platform.claude.com/docs/en/build-with-claude/effort
         name: "Anthropic API"
-        model_id: "claude-fable-5-1"
+        model_id: "claude-fable-5-2"
         region: "US"
         country: "US"
     pricing:
       tokens:
         input:
-          per_credit_unit: 35
+          per_credit_unit: 85
         cache_read:
-          per_credit_unit: 1400
+          per_credit_unit: 3335
         cache_write:
-          per_credit_unit: 28
+          per_credit_unit: 70
         cache_write_1h:
-          per_credit_unit: 17
+          per_credit_unit: 45
         output:
-          per_credit_unit: 7
+          per_credit_unit: 20
     cache_pricing:
-      enabled: false
+      enabled: true
       write_billing: separate
       eligible_hosts: [anthropic]
-      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
-      reviewed_on: "2026-10-06"
-      status: proposed_pending_provider_evidence
+      source_url: https://platform.claude.com/docs/en/models/fable-5-2/overview
+      reviewed_on: "2026-11-10"
+      status: verified_for_activation
+      expires_on: "2026-12-10"
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
+      cache_write_1h_hosts: [] # Current direct-API controls create only 5m entries.
     costs:
       input_per_million_token:
-        price: 10.00
+        price: 8.00
         currency: USD
         max_context: 1000000
       output_per_million_token:
-        price: 50.00
+        price: 40.00
         currency: USD
         max_context: 1000000
       cache_write_per_million_token:
-        price: 12.50
+        price: 10.00
         currency: USD
       cache_write_1h_per_million_token:
-        price: 20.0
+        price: 16.0
         currency: USD
       cache_read_per_million_token:
-        price: 0.25
+        price: 0.20
         currency: USD
     features:
       max_output_tokens: 128000
@@ -129,23 +131,23 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 80 # 333.33 / 4.00 = 83.33 -> 80 (conservative round-down)
+          per_credit_unit: 170
         cache_read:
-          per_credit_unit: 1600
+          per_credit_unit: 3335
         cache_write:
-          per_credit_unit: 64
+          per_credit_unit: 135
         cache_write_1h:
-          per_credit_unit: 40
+          per_credit_unit: 85
         output:
-          per_credit_unit: 15 # 333.33 / 20.00 = 16.67 -> 15 (conservative round-down)
+          per_credit_unit: 35
     cache_pricing:
       enabled: true
       write_billing: separate
       eligible_hosts: [anthropic]
       source_url: https://platform.claude.com/docs/en/models/opus-5-5/overview
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
       cache_write_1h_hosts: [] # Current direct-API controls create only 5m entries.
@@ -209,24 +211,24 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 170
+          per_credit_unit: 335
         cache_read:
-          per_credit_unit: 3400
+          per_credit_unit: 6670
         cache_write:
-          per_credit_unit: 136
+          per_credit_unit: 270
         cache_write_1h:
-          per_credit_unit: 85
+          per_credit_unit: 170
         output:
-          per_credit_unit: 35
+          per_credit_unit: 70
     # Pricing verified 2026-10-08 against the official Sonnet 5.5 model card.
     cache_pricing:
       enabled: true
       write_billing: separate
       eligible_hosts: [anthropic]
       source_url: https://platform.claude.com/docs/en/models/sonnet-5-5/overview
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
       cache_write_1h_hosts: [] # Current direct-API controls create only 5m entries.
@@ -292,15 +294,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 3300
+          per_credit_unit: 6670
         cache_read:
-          per_credit_unit: 33000
+          per_credit_unit: 66670
         cache_write:
-          per_credit_unit: 2640
+          per_credit_unit: 5335
         cache_write_1h:
-          per_credit_unit: 1650
+          per_credit_unit: 3335
         output:
-          per_credit_unit: 660
+          per_credit_unit: 1335
       context_bands:
         over_100k:
           min_input_tokens: 100001
@@ -308,24 +310,24 @@ models:
           - anthropic
           tokens:
             input:
-              per_credit_unit: 660
+              per_credit_unit: 1335
             cache_read:
-              per_credit_unit: 6600
+              per_credit_unit: 13335
             cache_write:
-              per_credit_unit: 528
+              per_credit_unit: 1070
             cache_write_1h:
-              per_credit_unit: 330
+              per_credit_unit: 670
             output:
-              per_credit_unit: 132
+              per_credit_unit: 270
     cache_pricing:
       enabled: true
       write_billing: separate
       eligible_hosts:
       - anthropic
       source_url: https://platform.claude.com/docs/en/models/haiku-5-5/overview
-      reviewed_on: '2026-10-08'
+      reviewed_on: '2026-11-09'
       status: verified_for_activation
-      expires_on: '2026-11-08'
+      expires_on: '2026-12-09'
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
       cache_write_1h_hosts: []
@@ -365,6 +367,86 @@ models:
   # Older general-chat models still available via API, reviewed 2026-10-08.
   # The selector applies a rolling 12-calendar-month release window.
   # Source: https://platform.claude.com/docs/en/about-claude/model-deprecations
+  - id: "claude-fable-5-1" # Official Claude API model ID
+    name: "Claude Fable 5.1"
+    description: "Anthropic's previous max-capability model for demanding reasoning and long-horizon agentic work."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-09-01"
+    capability_level: "max"
+    legacy_model: true
+    allow_auto_select: false
+    external_ids:
+      lmarena: "claude-fable-5-1"
+      openrouter: "anthropic/claude-fable-5-1"
+    search_aliases:
+      - "fable 5.1"
+      - "claude 5.1 fable"
+      - "claude-fable-5-1"
+      - "best claude"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    reasoning: true
+    default_server: "anthropic"
+    servers:
+      - id: "anthropic"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          adaptive_thinking: true
+          source_url: https://platform.claude.com/docs/en/build-with-claude/effort
+        name: "Anthropic API"
+        model_id: "claude-fable-5-1"
+        region: "US"
+        country: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 70
+        cache_read:
+          per_credit_unit: 2670
+        cache_write:
+          per_credit_unit: 55
+        cache_write_1h:
+          per_credit_unit: 35
+        output:
+          per_credit_unit: 15
+    cache_pricing:
+      enabled: false
+      write_billing: separate
+      eligible_hosts: [anthropic]
+      source_url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+      reviewed_on: "2026-10-06"
+      status: proposed_pending_provider_evidence
+      requires_cache_write_metric: true
+      requires_cache_retention_metric: true
+    costs:
+      input_per_million_token:
+        price: 10.00
+        currency: USD
+        max_context: 1000000
+      output_per_million_token:
+        price: 50.00
+        currency: USD
+        max_context: 1000000
+      cache_write_per_million_token:
+        price: 12.50
+        currency: USD
+      cache_write_1h_per_million_token:
+        price: 20.0
+        currency: USD
+      cache_read_per_million_token:
+        price: 0.25
+        currency: USD
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
   - id: "claude-fable-5" # Official Claude API model ID
     name: "Claude Fable 5"
     description: "Anthropic's most capable widely released model for long-running agents and frontier reasoning."
@@ -403,15 +485,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 35
+          per_credit_unit: 70
         cache_read:
-          per_credit_unit: 350
+          per_credit_unit: 670
         cache_write:
-          per_credit_unit: 28
+          per_credit_unit: 55
         cache_write_1h:
-          per_credit_unit: 17
+          per_credit_unit: 35
         output:
-          per_credit_unit: 7
+          per_credit_unit: 15
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -481,15 +563,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 70
+          per_credit_unit: 135
         cache_read:
-          per_credit_unit: 700
+          per_credit_unit: 1335
         cache_write:
-          per_credit_unit: 56
+          per_credit_unit: 110
         cache_write_1h:
-          per_credit_unit: 35
+          per_credit_unit: 70
         output:
-          per_credit_unit: 15
+          per_credit_unit: 30
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -557,15 +639,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 170
+          per_credit_unit: 335
         cache_read:
-          per_credit_unit: 1700
+          per_credit_unit: 3335
         cache_write:
-          per_credit_unit: 136
+          per_credit_unit: 270
         cache_write_1h:
-          per_credit_unit: 85
+          per_credit_unit: 170
         output:
-          per_credit_unit: 35
+          per_credit_unit: 70
     # Reviewed 2026-10-07 against the current Claude Sonnet 5 model card.
     # The earlier 2026-08-31 promotional-expiry comment was stale; the
     # current listed $2/$10 MTok input/output rates remain configured.
@@ -574,9 +656,9 @@ models:
       write_billing: separate
       eligible_hosts: [anthropic]
       source_url: https://platform.claude.com/docs/en/models/sonnet-5/overview
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
       requires_cache_write_metric: true
       requires_cache_retention_metric: true
     costs:
@@ -632,15 +714,15 @@ models:
     pricing: # Model-specific base pricing (example structure)
       tokens:
         input:
-          per_credit_unit: 350 # 1 credit per 350 input tokens (cheaper than Sonnet)
+          per_credit_unit: 670
         cache_read:
-          per_credit_unit: 3500
+          per_credit_unit: 6670
         cache_write:
-          per_credit_unit: 280
+          per_credit_unit: 535
         cache_write_1h:
-          per_credit_unit: 175
+          per_credit_unit: 335
         output:
-          per_credit_unit: 70 # 1 credit per 70 output tokens (cheaper than Sonnet)
+          per_credit_unit: 135
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -720,23 +802,23 @@ models:
     pricing: # Model-specific base pricing
       tokens:
         input:
-          per_credit_unit: 110 # 1 credit per 110 input tokens
+          per_credit_unit: 205
         cache_read:
-          per_credit_unit: 1100
+          per_credit_unit: 2025
         cache_write:
-          per_credit_unit: 88
+          per_credit_unit: 165
         cache_write_1h:
-          per_credit_unit: 55
+          per_credit_unit: 105
         output:
-          per_credit_unit: 20 # 1 credit per 20 output tokens
+          per_credit_unit: 45
     cache_pricing:
       enabled: true
       write_billing: separate
       eligible_hosts: [anthropic, aws_bedrock]
       source_url: https://platform.claude.com/docs/en/models/sonnet-4-6/overview
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
       requires_cache_write_metric: true
       requires_cache_retention_metric: false
       cache_write_1h_hosts: [] # Current Anthropic/Bedrock controls create only 5m entries.
@@ -815,15 +897,15 @@ models:
     pricing: # Model-specific base pricing (same as Opus 4.5)
       tokens:
         input:
-          per_credit_unit: 70 # 1 credit per 70 input tokens
+          per_credit_unit: 135
         cache_read:
-          per_credit_unit: 700
+          per_credit_unit: 1335
         cache_write:
-          per_credit_unit: 56
+          per_credit_unit: 110
         cache_write_1h:
-          per_credit_unit: 35
+          per_credit_unit: 70
         output:
-          per_credit_unit: 15 # 1 credit per 15 output tokens
+          per_credit_unit: 30
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -892,15 +974,15 @@ models:
     pricing: # Same pricing as Opus 4.6
       tokens:
         input:
-          per_credit_unit: 70
+          per_credit_unit: 135
         cache_read:
-          per_credit_unit: 700
+          per_credit_unit: 1335
         cache_write:
-          per_credit_unit: 56
+          per_credit_unit: 110
         cache_write_1h:
-          per_credit_unit: 35
+          per_credit_unit: 70
         output:
-          per_credit_unit: 15
+          per_credit_unit: 30
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -965,15 +1047,15 @@ models:
     pricing: # Same token pricing as Opus 4.7 per Anthropic model overview
       tokens:
         input:
-          per_credit_unit: 70
+          per_credit_unit: 135
         cache_read:
-          per_credit_unit: 700
+          per_credit_unit: 1335
         cache_write:
-          per_credit_unit: 56
+          per_credit_unit: 110
         cache_write_1h:
-          per_credit_unit: 35
+          per_credit_unit: 70
         output:
-          per_credit_unit: 15
+          per_credit_unit: 30
     cache_pricing:
       enabled: false
       write_billing: separate
@@ -1035,15 +1117,15 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 70
+          per_credit_unit: 135
         cache_read:
-          per_credit_unit: 700
+          per_credit_unit: 1335
         cache_write:
-          per_credit_unit: 56
+          per_credit_unit: 110
         cache_write_1h:
-          per_credit_unit: 35
+          per_credit_unit: 70
         output:
-          per_credit_unit: 15
+          per_credit_unit: 30
     cache_pricing:
       enabled: false
       write_billing: separate

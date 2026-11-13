@@ -44,10 +44,10 @@ from backend.core.api.app.services.feature_availability_service import (
     app_feature_id,
     embed_feature_id,
     focus_feature_id,
-    memory_feature_id,
     skill_feature_id,
 )
 from backend.core.api.app.utils.config_manager import ConfigManager
+from backend.shared.app_packages.overlay import apply_app_package_overlay
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, skill_has_provider_support
 
 logger = logging.getLogger(__name__)
@@ -123,27 +123,13 @@ def filter_app_components_by_availability(
         and availability.is_enabled(focus_feature_id(app_id, str(f.get("id") or "")))
     ]
 
-    # Memory fields (key may be 'settings_and_memories', 'memory_fields', or 'memory')
-    memory_data: List[Dict[str, Any]] = []
-    if isinstance(filtered.get("settings_and_memories"), list):
-        memory_data = filtered["settings_and_memories"]
-    elif isinstance(filtered.get("memory_fields"), list):
-        memory_data = filtered["memory_fields"]
-    elif isinstance(filtered.get("memory"), list):
-        memory_data = filtered["memory"]
-    filtered["settings_and_memories"] = [
-        m for m in memory_data
-        if isinstance(m, dict)
-        and m.get("schema")
-        and availability.is_enabled(memory_feature_id(app_id, str(m.get("id") or "")))
-    ]
-
     has_valid_skill = bool(filtered.get("skills"))
     has_valid_focus = bool(filtered.get("focuses"))
-    has_valid_memory = bool(filtered.get("settings_and_memories"))
     has_instructions = bool(filtered.get("instructions"))
+    # Embed types keep saved results of retired or authored-only apps renderable.
+    has_valid_embed = bool(filtered.get("embed_types"))
 
-    if has_valid_skill or has_valid_focus or has_valid_memory or has_instructions:
+    if has_valid_skill or has_valid_focus or has_instructions or has_valid_embed:
         return filtered
     return None
 
@@ -227,6 +213,9 @@ def build_skill_registry(
                         if "system_prompt" in instruction_fields:
                             existing.pop("systemprompt", None)
                         existing.update(instruction_fields)
+        # Operator-installed app package providers (off unless enabled) are
+        # merged before availability and parsing so every consumer sees them.
+        raw_config = apply_app_package_overlay(app_id, raw_config)
         raw_configs[app_id] = raw_config
         feature_definitions.extend(collect_feature_definitions_from_app_config(app_id, raw_config, source=app_yml_path))
 

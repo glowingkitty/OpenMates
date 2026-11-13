@@ -1,0 +1,164 @@
+schema_version: 1
+id: feature.app-skill.images-modify
+version: 1
+status: draft
+title: Images Modify Skill
+summary: >
+  Images Modify changes or combines pictures that already exist in the chat by
+  exact, repeatable image operations. The chat model hands over what should be
+  done and the pictures; an author model writes a small editing program that
+  runs in an isolated sandbox on the original files. When the call states
+  requirements, the result is checked against them and clearly unmet ones are
+  corrected within a fixed limit. Progress is shown while it runs, the result is
+  a normal image in the chat, and the user pays exactly for what was used.
+
+inherits:
+  - architecture.app-skill-execution@1
+
+scope:
+  includes:
+    - images.modify calls made by the assistant in first-party chats originating from CLI, npm SDK, pip SDK, web, or Apple clients.
+    - One to six input pictures from the conversation; uploaded or generated pixel images, vector graphics, and design.embroidery results (used as their stitch preview on a transparent background).
+    - Exact operations such as placing pictures on top of each other, scaling, rotating, cropping, collage layouts, colour and brightness changes, blur and sharpen, masks, borders and simple text.
+    - The author program, its sandbox run, the requirement review, bounded correction, progress updates, the stored result and billing.
+    - Changing a result again from its stored program.
+  excludes:
+    - Changes that need new picture content to be invented, such as another camera angle, removing a person, realistic fabric folds or relighting; those are images.generate with reference images, and the assistant chooses between the two skills.
+    - Video, animation and multi-page documents.
+    - Direct manipulation of the picture by the user in the result view.
+    - Standalone public or developer REST access; the skill needs the chat's embed context.
+
+models:
+  ModifyRequest:
+    instructions:
+      type: string
+      required: true
+      constraints: {natural_language: true, max_chars: 2000}
+    images:
+      type: embed_ref_list
+      required: true
+      constraints: {min_items: 1, max_items: 6, exact_conversation_reference: true, accepts: [pixel_image, vector_graphic, embroidery_result, earlier_modify_result], order_is_meaningful: true}
+    requirements:
+      type: string_list
+      required: false
+      constraints: {natural_language: true, max_items: 8, max_chars_each: 300, absent_means_no_review: true}
+    output_filetype:
+      type: enum
+      required: false
+      values: [png, jpg]
+      default: png
+
+  ModifyAuthoring:
+    author_models:
+      type: ordered_model_list
+      required: true
+      constraints: {can_see_images: true, first_valid_result_answers: true}
+    author_input:
+      type: author_context
+      required: true
+      values: [instructions, requirements, reduced_copy_of_each_input, exact_pixel_size_of_each_input, previous_program_when_changing_a_result]
+    program:
+      type: python_module
+      required: true
+      constraints: {allowed_libraries: [pillow, numpy, opencv, cairosvg, python_standard_library], single_output_picture: true, same_inputs_same_output: true}
+    max_correction_rounds:
+      type: integer
+      required: true
+      constraints: {value: 2}
+
+  Sandbox:
+    runtime:
+      type: isolated_runtime
+      required: true
+      constraints: {internet: false, run_limit_seconds: 60, credits_per_started_minute: 5, destroyed_after_use: true}
+    limits:
+      type: picture_limits
+      required: true
+      constraints: {max_input_megabytes_each: 20, max_output_longest_side_px: 4096, max_output_megabytes: 20}
+
+  ModifyResult:
+    image:
+      type: stored_image
+      required: true
+      constraints: {same_result_type_as_generated_images: true, variants: [original, full, preview]}
+    input_embed_ids:
+      type: embed_id_list
+      required: true
+    review_status:
+      type: enum
+      required: true
+      values: [accepted, corrected, unmet_delivered, skipped, unavailable]
+    changed_from_program:
+      type: boolean
+      required: true
+      constraints: {true_when_an_earlier_results_kept_program_was_changed: true}
+    program_kept:
+      type: recallable_program
+      required: true
+      constraints: {kept_hours: 24, encrypted: true, never_shown_as_chat_content: true}
+
+assertions:
+  - id: images-modify.request.pictures-from-the-chat
+    type: behavior
+    must: images.modify accepts one to six exact references of pictures visible in the conversation together with natural-language instructions. Pixel images are used in their full stored resolution, vector graphics as vector source, and a design.embroidery result as its stitch preview with transparent background. A reference that cannot be read, more than six pictures, or a picture over the size limit fails explicitly before any model or sandbox is used; nothing is produced and nothing is charged.
+    depends_on: [models.ModifyRequest, models.Sandbox.limits, examples.request]
+  - id: images-modify.author.program-not-pixels
+    type: behavior
+    must: An author model that can see pictures receives the instructions, the requirements, a reduced copy of every input with its exact pixel size, and writes one editing program restricted to the allowed image libraries. The author never returns the picture itself; the result is always computed by the program from the original input files, so parts of an input that the instructions do not touch stay pixel-identical apart from scaling, and running the same program on the same inputs gives the same picture. When the first author model fails to produce a valid program the next model in the fixed order is used.
+    depends_on: [models.ModifyAuthoring, examples.compose, examples.single]
+  - id: images-modify.sandbox.isolated-run
+    type: invariant
+    must: The program runs only inside an isolated sandbox without internet access, never in an API or worker process, receives only the pictures of this request, is stopped after 60 seconds, and the sandbox is destroyed when the request ends. A program that fails, runs too long, writes no picture or writes one outside the output limits counts as a failed round and is corrected within the correction limit; it never delivers a partial result.
+    depends_on: [models.Sandbox, models.ModifyAuthoring.program, examples.correct]
+  - id: images-modify.review.requirements-checked
+    type: behavior
+    must: When the request states requirements, the computed picture is judged against each one. A requirement that is clearly not met, or a failed round, sends the picture and the reason back to the author for a corrected program, at most two times. When a requirement is still unmet after the last round, the best valid picture is delivered and the assistant is told which requirement was not met. Without requirements no review is made. When the review cannot be reached the picture is delivered as unreviewed. A request with no valid picture after all rounds fails explicitly and is not charged.
+    depends_on: [models.ModifyRequest.requirements, models.ModifyAuthoring.max_correction_rounds, models.ModifyResult.review_status, examples.correct]
+  - id: images-modify.progress.shown-while-running
+    type: behavior
+    must: From the moment the request is accepted the result card shows that the picture is being modified and names the current step (writing the program, running it, checking, correcting). Each computed picture is shown as a draft as soon as it exists and is replaced by the next one or by the final result. Drafts are never stored as chat content.
+    depends_on: [examples.progress]
+  - id: images-modify.result.normal-image
+    type: behavior
+    must: The finished result is an image like a generated one; the same card, opened view, download and sharing, with the input pictures named as its sources. It can itself be passed to images.modify, images.generate, images.vectorize or design.embroidery. The program that produced it is kept encrypted for 24 hours; when a result is passed back to images.modify within that time, the author changes that program and it runs again on the original inputs, so earlier steps are not applied twice and quality is not lost.
+    depends_on: [models.ModifyResult, examples.change]
+  - id: images-modify.routing.exact-or-generative
+    type: behavior
+    must: The assistant uses images.modify when the wish can be met by exact operations on the given pictures, and images.generate with reference images when new picture content must be invented. It may chain them, first composing exactly and then asking images.generate for a realistic look. images.modify never invents picture content itself.
+    depends_on: [examples.routing]
+  - id: images-modify.safety.same-as-generated-media
+    type: privacy
+    must: Input pictures and the result pass the same safety checks as generated images. Input pictures leave the platform only as reduced copies to the author model and the review, and in full only to the sandbox. The result is stored encrypted like other generated media, belongs to the requesting user and follows the chat's existing sharing rules.
+    depends_on: [models.Sandbox.runtime, models.ModifyResult.image, examples.request]
+  - id: images-modify.billing.metered
+    type: invariant
+    must: A request is charged the reported tokens of every author and review call at each model's price plus 5 credits per started minute of each sandbox run. A request that delivers no picture is not charged. The platform minimum charge applies.
+    depends_on: [models.Sandbox.runtime, examples.billing]
+  - id: images-modify.surface.semantic-parity
+    type: parity
+    must: First-party chats originating from CLI, npm SDK, pip SDK, web, or Apple trigger the same authoring, run, review, result and billing; a client without progress drawing still receives the finished image.
+    depends_on: [models.ModifyRequest, models.ModifyResult, examples.compose]
+
+applies_to:
+  rest_api:
+    required: false
+    role: images.modify is not a standalone public or developer API because it needs the chat's embed context to read the input pictures.
+  cli:
+    required: true
+    role: CLI chats trigger the skill through the chat pipeline and receive the finished image.
+  sdks:
+    required: true
+    role: SDK chats trigger the skill through the chat pipeline and receive the same result.
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [request, compose, single, correct, progress, change, routing, billing]

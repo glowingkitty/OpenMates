@@ -125,9 +125,10 @@ async fn pair_with_cancel(caller: CancellationToken) -> (Client, SourceHostSessi
         let register = peer.read().await;
         assert_eq!(register["type"], "project_remote_access_register");
         assert_eq!(register["payload"]["confirmed_takeover"], false);
+        // npm registers `import` alongside `read` (imports are host reads).
         assert_eq!(
             register["payload"]["bindings"][0]["capabilities"],
-            json!(["read"])
+            json!(["read", "import"])
         );
         peer.send("project_remote_access_registered",json!({"source_session_id":"source-session","heartbeat_interval_seconds":15,"deadline_at":now_ms()/1000+45,"replaced_session_id":null})).await;
         peer

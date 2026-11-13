@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#0077b6"/><stop offset="1" stop-color="#52b788"/></linearGradient><filter id="f"><feGaussianBlur stdDeviation="2"/></filter></defs>
+<circle cx="100" cy="100" r="90" fill="url(#g)"/>
+<circle cx="100" cy="100" r="60" fill="#ffffff" filter="url(#f)"/>
+<text x="100" y="105" font-size="2.6" text-anchor="middle" fill="#1d3557">OPENMATES EMBROIDERY TEST</text>
+<image x="80" y="140" width="40" height="20" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="/>
+</svg>

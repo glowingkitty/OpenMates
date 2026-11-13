@@ -47,45 +47,6 @@ embed_types:
       icon: maps
       example_key: maps.location
       order: 10
-settings_and_memories:
-  - id: favorite_places
-    name_translation_key: maps.favorite_places
-    description_translation_key: maps.favorite_places.description
-    type: list
-    example_translation_keys:
-      - "maps.favorite_places.example_1"
-      - "maps.favorite_places.example_2"
-      - "maps.favorite_places.example_3"
-    example_entries:
-      - name: "maps.favorite_places.example_1.name"
-        address: "maps.favorite_places.example_1.address"
-      - name: "maps.favorite_places.example_2.name"
-        address: "maps.favorite_places.example_2.address"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Place name
-          is_title: true
-        address:
-          type: string
-          description: Formatted address
-        place_id:
-          type: string
-          description: Google Places API place ID (auto-filled when available)
-          auto_generated: true
-        location:
-          type: object
-          description: Geographic coordinates (auto-filled when available)
-          auto_generated: true
-          properties:
-            latitude:
-              type: number
-            longitude:
-              type: number
-      required:
-        - name
 skills:
   - id: search
     anonymous_access: inline
@@ -117,8 +78,14 @@ skills:
       - Geoapify
     pricing:
       per_unit:
-        credits: 40
+        credits: 55
     # Follow-up suggestions shown to users after search results
+    supplier_costs:
+      per_unit:
+        price: 0.035
+        currency: USD
+        source_url: https://developers.google.com/maps/billing-and-pricing/pricing
+        note: Google Places Text Search Enterprise; Geoapify within free plan
     suggestions_follow_up_requests:
       - "Show me more places nearby"
       - "Filter by rating"

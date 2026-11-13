@@ -68,9 +68,26 @@ test('generated parent opens both actual image children and drills into the comp
 });
 
 // contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
-test('completed media parent remains a visible card with its output count', async ({ page }) => {
-  await page.goto('/dev/preview/embeds/GeneratedMediaGroupEmbedPreview?chrome=0');
-  await waitForComponentPreview(page);
-  await expect(page.getByTestId('generated-media-parent-preview')).toBeVisible();
-  await expect(page.getByTestId('generated-media-parent-preview')).toContainText('2');
+test('completed media parent shows its generated thumbnails, prompt and output count', async ({ page }, testInfo) => {
+  for (const theme of ['light', 'dark']) {
+    await page.goto(`/dev/preview/embeds/GeneratedMediaGroupEmbedPreview?chrome=0&theme=${theme}`);
+    await waitForComponentPreview(page);
+    const card = page.getByTestId('embed-preview');
+    await expect(page.getByTestId('generated-media-parent-preview')).toBeVisible();
+    await expect(card).toContainText('2');
+    await expect(page.getByTestId('generated-media-thumbnail')).toHaveCount(2);
+    const images = page.getByTestId('generated-media-thumbnail').locator('img');
+    await expect(images).toHaveCount(2);
+    await expect.poll(() => images.first().evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+    // Complete image on a theme surface (never cropped): black in dark mode, white in light mode.
+    await expect(images.first()).toHaveCSS('object-fit', 'contain');
+    await expect(page.getByTestId('generated-media-thumbnail').first())
+      .toHaveCSS('background-color', theme === 'dark' ? 'rgb(0, 0, 0)' : 'rgb(255, 255, 255)');
+    const prompt = page.getByTestId('generated-media-parent-prompt');
+    await expect(prompt).toContainText('A golden retriever puppy');
+    const shell = (await card.boundingBox())!;
+    const promptBox = (await prompt.boundingBox())!;
+    expect(promptBox.y + promptBox.height).toBeLessThanOrEqual(shell.y + shell.height);
+    await testInfo.attach(`generated-parent-${theme}`, { body: await page.screenshot(), contentType: 'image/png' });
+  }
 });

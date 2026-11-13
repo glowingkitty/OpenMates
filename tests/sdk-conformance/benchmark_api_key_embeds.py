@@ -190,6 +190,10 @@ def workloads():
         "capabilities"
     ]["sdk.embeds.family"]
     for v in family["vectors"]:
+        # Project selector vectors prove resolution ranking, not a fixed-width
+        # repeatable workload; their language-specific setup order has no width.
+        if "resolved_project_id" in v:
+            continue
         yield family, v, True
 
 

@@ -6,6 +6,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createWorkflowCliHome, removeWorkflowCliHome, loginWorkflowCliViaPair,
   runWorkflowCliJson, workflowApiUrl } = require('./helpers/workflow-cli-e2e-helpers');
 const { randomUUID, randomBytes, createHash, createCipheriv, createDecipheriv } = require('node:crypto');
+const { naturalProjectName } = require('./helpers/project-names');
 
 function encrypt(key: Buffer, text: string): string {
   const iv = randomBytes(12), cipher = createCipheriv('aes-256-gcm', key, iv);
@@ -38,7 +39,7 @@ test.describe('Project Specification ciphertext lifecycle', () => {
     try {
       await loginWorkflowCliViaPair(page, base, cliHome, 'SPECIFICATION_LIFECYCLE');
       for (const label of ['home', 'unrelated']) {
-        const result = await runWorkflowCliJson(base, cliHome, ['projects', 'create', `Spec lifecycle ${label} ${Date.now()}`, '--write-policy', 'always_ask', '--personal'], 'create disposable Specification Project');
+        const result = await runWorkflowCliJson(base, cliHome, ['projects', 'create', naturalProjectName(`Product requirements ${label}`), '--write-policy', 'always_ask', '--personal'], 'create disposable Specification Project');
         projects.push(result.project.project_id);
       }
       const prefix = `${base}/v1/projects/${projects[0]}/specifications`;

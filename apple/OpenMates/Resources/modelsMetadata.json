@@ -232,7 +232,7 @@
     {
       "id": "claude-fable-5-1",
       "name": "Claude Fable 5.1",
-      "description": "Anthropic's latest max-capability model for demanding reasoning and long-horizon agentic work.",
+      "description": "Anthropic's previous max-capability model for demanding reasoning and long-horizon agentic work.",
       "provider_id": "anthropic",
       "provider_name": "Anthropic",
       "logo_svg": "icons/anthropic.svg",
@@ -280,6 +280,63 @@
         "fable 5.1",
         "claude 5.1 fable",
         "claude-fable-5-1",
+        "best claude"
+      ],
+      "legacy_model": true
+    },
+    {
+      "id": "claude-fable-5-2",
+      "name": "Claude Fable 5.2",
+      "description": "Anthropic's latest max-capability model for demanding reasoning and long-horizon agentic work.",
+      "provider_id": "anthropic",
+      "provider_name": "Anthropic",
+      "logo_svg": "icons/anthropic.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text",
+        "image"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "ai.ask",
+      "tier": "premium",
+      "capability_level": "max",
+      "release_date": "2026-11-09",
+      "servers": [
+        {
+          "id": "anthropic",
+          "name": "Anthropic API",
+          "region": "US"
+        }
+      ],
+      "default_server": "anthropic",
+      "pricing": {
+        "input_tokens_per_credit": 40,
+        "output_tokens_per_credit": 8,
+        "cache_read_tokens_per_credit": 1600,
+        "cache_write_tokens_per_credit": 32,
+        "cache_write_1h_tokens_per_credit": 20
+      },
+      "cache_pricing": {
+        "enabled": true,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/models/fable-5-2/overview",
+        "reviewed_on": "2026-11-10",
+        "status": "verified_for_activation",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true,
+        "expires_on": "2026-12-10",
+        "cache_write_1h_hosts": []
+      },
+      "reasoning": true,
+      "search_aliases": [
+        "fable 5.2",
+        "claude 5.2 fable",
+        "claude-fable-5-2",
         "best claude"
       ]
     },

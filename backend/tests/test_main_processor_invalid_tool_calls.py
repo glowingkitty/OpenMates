@@ -244,7 +244,9 @@ _append_tool_call_turn_to_history = main_processor._append_tool_call_turn_to_his
 _get_skill_execution_args = main_processor._get_skill_execution_args
 _limit_request_batch_to_budget = main_processor._limit_request_batch_to_budget
 _has_diffable_embeds_for_prompt = main_processor._has_diffable_embeds_for_prompt
-_build_pending_app_settings_memories_context = main_processor._build_pending_app_settings_memories_context
+from backend.apps.ai.processing.memory_permission_request import (  # noqa: E402 - follows the guarded main_processor import
+    build_pending_app_settings_memories_context as _build_pending_app_settings_memories_context,
+)
 _apply_benchmark_usage_details = main_processor._apply_benchmark_usage_details
 _is_async_skill_blocked_in_orchestration = main_processor._is_async_skill_blocked_in_orchestration
 _get_result_declared_charge_items = main_processor._get_result_declared_charge_items
@@ -1745,7 +1747,7 @@ def test_orchestrated_async_skills_are_blocked_before_dispatch() -> None:
 
     assert _is_async_skill_blocked_in_orchestration(request, "code", "run") is True
     assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is True
-    assert _is_async_skill_blocked_in_orchestration(request, "videos", "create") is True
+    assert _is_async_skill_blocked_in_orchestration(request, "videos", "generate") is True
     assert _is_async_skill_blocked_in_orchestration(request, "social_media", "search") is True
     assert _is_async_skill_blocked_in_orchestration(request, "web", "search") is False
 
@@ -1755,7 +1757,7 @@ def test_root_async_skills_remain_available_without_orchestration() -> None:
 
     assert _is_async_skill_blocked_in_orchestration(request, "code", "run") is False
     assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is False
-    assert _is_async_skill_blocked_in_orchestration(request, "videos", "create") is False
+    assert _is_async_skill_blocked_in_orchestration(request, "videos", "generate") is False
 
 
 def test_empty_post_tool_turn_requires_answer_recovery() -> None:
@@ -1945,7 +1947,7 @@ def test_chat_skill_billing_uses_audio_result_declared_credits() -> None:
         "audio",
         "generate",
         {"requests": [{"prompt": "ready"}, {"prompt": "done"}]},
-    ) == [20, 20]
+    ) == [15, 15]
     assert _get_variable_preflight_reserved_credits(
         "audio",
         "speak",
@@ -2421,104 +2423,12 @@ def test_async_task_id_collection_keeps_distinct_jobs_in_order() -> None:
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.execution.registered-validated
-def test_only_videos_create_accepts_rendering_as_async_dispatch() -> None:
+def test_only_processing_counts_as_async_dispatch() -> None:
     rendering = {"status": "rendering", "task_id": "render-job"}
-    assert main_processor._is_async_skill_dispatch_result("videos", "create", rendering)
     assert not main_processor._is_async_skill_dispatch_result("videos", "generate", rendering)
-    assert not main_processor._is_async_skill_dispatch_result("web", "search", rendering)
-    assert not main_processor._is_async_skill_dispatch_result(
-        "videos", "create", {"status": "rendering", "render_id": "render-job"},
+    assert main_processor._is_async_skill_dispatch_result(
+        "videos", "generate", {"status": "processing", "task_id": "job"},
     )
-
-
-# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume,app-skills.execution.registered-validated
-async def test_videos_create_rendering_waits_for_terminal_child_before_answer(monkeypatch) -> None:
-    barrier = _load_same_turn_barrier_without_worker_bootstrap(monkeypatch)
-    from backend.shared.python_utils import recent_work_summary_client
-
-    render_task_id = "render-job-1"
-    child_id = "11111111-1111-4111-8111-111111111111"
-    child_ref = "rendered-video-111"
-    dispatched = AsyncMock(return_value=[{
-        "status": "rendering", "task_id": render_task_id,
-        "embed_id": "22222222-2222-4222-8222-222222222222",
-        "render_id": "render-1",
-    }])
-    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
-    monkeypatch.setattr(main_processor, "_publish_skill_status", AsyncMock())
-    monkeypatch.setattr(barrier, "preflight_private_checkpoint_capacity", Mock())
-
-    continuation = types.ModuleType("backend.apps.ai.tasks.async_skill_continuation")
-    continuation.cache_async_skill_continuation_context = AsyncMock()
-    continuation.wait_for_async_skill_completion = AsyncMock(return_value=None)
-    monkeypatch.setitem(sys.modules, continuation.__name__, continuation)
-
-    loop = asyncio.get_running_loop()
-    client = loop.create_future()
-    client.set_result(None)
-    cache = SimpleNamespace(
-        client=client, get=AsyncMock(return_value=None),
-        set=AsyncMock(return_value=True), delete=AsyncMock(return_value=True),
-    )
-    tool = {"type": "function", "function": {"name": "videos-create", "description": "Render a video."}}
-    metadata = {"videos": SimpleNamespace(
-        skills=[SimpleNamespace(
-            id="create", parallel_safe=False, exclude_fields_for_llm=None, pricing=None,
-            tool_schema={"type": "object", "properties": {"source": {"type": "string"}}, "required": ["source"]},
-        )], instructions=[], focuses=[],
-    )}
-    initial_output, initial_calls = await _run_mocked_protocol_guard_main_processor(
-        monkeypatch,
-        [[{"fake_google_tool_call": "videos-create", "arguments": {"source": "export default Video;"},
-           "tool_call_id": "call-render"}]],
-        cache_service=cache, generated_tools=[tool], discovered_apps_metadata=metadata,
-        preprocessing_overrides={"selected_app_ids": ["videos"], "relevant_app_skills": ["videos-create"]},
-    )
-
-    assert len(initial_calls) == 1
-    dispatched.assert_awaited_once()
-    assert dispatched.await_args.kwargs["arguments"]["_same_turn_batch_id"] == "task-1:0"
-    continuation.cache_async_skill_continuation_context.assert_awaited_once()
-    assert continuation.cache_async_skill_continuation_context.await_args.kwargs["async_task_id"] == render_task_id
-    pause = next(item for item in initial_output if isinstance(item, dict)
-                 and item.get("__same_turn_skill_pause__"))
-    assert pause["task_ids"] == [render_task_id]
-    assert pause["checkpoint"]["jobs"] == [{
-        "task_id": render_task_id, "tool_call_id": "call-render",
-        "app_id": "videos", "skill_id": "create", "request_count": 1,
-    }]
-    assert not any(isinstance(item, str) and item.strip() for item in initial_output)
-
-    async def restore_terminal(_context):
-        return {"async_tool_completion": {
-            "status": "finished", "tool_name": "videos-create", "results": [{
-                "status": "finished", "child_embed_id": child_id,
-                "embed_ref": child_ref, "request_index": 0,
-            }], "request_metadata": {},
-        }}
-
-    monkeypatch.setattr(recent_work_summary_client, "restore_private_context_payload", restore_terminal)
-    resumed_output, resumed_calls = await _run_mocked_protocol_guard_main_processor(
-        monkeypatch,
-        [[f"Your rendered video is ready: [!](embed:{child_ref})"]],
-        cache_service=cache, generated_tools=[tool], discovered_apps_metadata=metadata,
-        preprocessing_overrides={"selected_app_ids": ["videos"], "relevant_app_skills": ["videos-create"]},
-        request_overrides={
-            "same_turn_batch_id": pause["batch_id"], "same_turn_checkpoint": pause["checkpoint"],
-            "same_turn_slots": [{"task_id": render_task_id, "status": "finished", "payload_ref": "sealed-terminal"}],
-            "is_async_skill_continuation": True, "continuation_message_id": "task-1",
-        },
-    )
-    assert len(resumed_calls) == 1
-    completed = [message for message in resumed_calls[0]["message_history"]
-                 if message.get("role") == "tool" and message.get("tool_call_id") == "call-render"]
-    assert len(completed) == 1
-    assert json.loads(completed[0]["content"])["results"][0]["embed_ref"] == child_ref
-    assert child_ref in "".join(item for item in resumed_output if isinstance(item, str))
-    authored = [item["__authored_inline_outputs__"] for item in resumed_output
-                if isinstance(item, dict) and "__authored_inline_outputs__" in item]
-    assert any(row["embed_id"] == child_id and row["embed_ref"] == child_ref
-               for rows in authored for row in rows)
 
 
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.instructions.required-safety,ai-model-routing.preprocessing.contextual-compact-assembly

@@ -7,16 +7,17 @@ from pathlib import Path
 import pytest
 import yaml
 
+from backend.shared.python_utils.cost_plus_pricing import load_pricing_settings
 from backend.apps.ai.processing.model_usage_tracker import build_model_usage_breakdown
 from backend.shared.python_utils.billing_utils import is_cache_tariff_admissible, snapshot_model_tariff
 
 
 PROVIDERS = Path(__file__).resolve().parents[1] / "providers"
 ACTIVE = {
-    "google": {"gemini-3.7-flash", "gemini-3.8-flash"},
+    "google": {"gemini-3.7-flash", "gemini-3.8-flash", "gemini-4-carbon"},
     "openai": {"gpt-6-astra", "gpt-6.1-sol", "gpt-6-luna", "gpt-5.6-terra"},
     "anthropic": {
-        "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5",
+        "claude-fable-5-2", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5",
         "claude-sonnet-5", "claude-sonnet-4-6",
     },
     "mistral": {"mistral-large-4", "mistral-small-latest"},
@@ -35,14 +36,14 @@ UPSTREAM_ANTHROPIC_TARIFFS = {
         "eligible_hosts": ["anthropic"],
         "requires_cache_retention_metric": True,
         "source_url": "https://platform.claude.com/docs/en/models/sonnet-5/overview",
-        "credits_per_million": {"input": 170, "cache_read": 1700, "cache_write": 136, "cache_write_1h": 85, "output": 35},
+        "credits_per_million": {"input": 335, "cache_read": 3335, "cache_write": 270, "cache_write_1h": 170, "output": 70},
         "supplier_per_million": {"input": 2.0, "cache_read": 0.2, "cache_write": 2.5, "cache_write_1h": 4.0, "output": 10.0},
     },
     "claude-sonnet-4-6": {
         "eligible_hosts": ["anthropic", "aws_bedrock"],
         "requires_cache_retention_metric": False,
         "source_url": "https://platform.claude.com/docs/en/models/sonnet-4-6/overview",
-        "credits_per_million": {"input": 110, "cache_read": 1100, "cache_write": 88, "cache_write_1h": 55, "output": 20},
+        "credits_per_million": {"input": 205, "cache_read": 2025, "cache_write": 165, "cache_write_1h": 105, "output": 45},
         "supplier_per_million": {"input": 3.0, "cache_read": 0.3, "cache_write": 3.75, "cache_write_1h": 6.0, "output": 15.0},
     },
 }
@@ -55,13 +56,14 @@ def test_only_verified_models_have_active_cache_tariffs(provider: str) -> None:
     models = {model["id"]: model for model in catalog["models"] if "cache_pricing" in model}
     assert {model_id for model_id, model in models.items() if model["cache_pricing"]["enabled"]} == ACTIVE[provider]
 
-    review_date = date(2026, 10, 10) if provider == "zai" else REVIEW_DATE
     for model_id in ACTIVE[provider]:
         model = models[model_id]
         policy = model["cache_pricing"]
         assert policy["status"] == "verified_for_activation"
-        assert date.fromisoformat(policy["reviewed_on"]) == review_date
-        assert date.fromisoformat(policy["expires_on"]) >= review_date
+        # Reviews are renewed monthly, so the dates are checked for shape, not value.
+        review_date = date.fromisoformat(policy["reviewed_on"])
+        assert review_date >= REVIEW_DATE or provider == "zai"
+        assert date.fromisoformat(policy["expires_on"]) > review_date
         assert policy["source_url"].startswith("https://")
         assert set(policy["eligible_hosts"]) <= {server["id"] for server in model["servers"]}
         for host in policy["eligible_hosts"]:
@@ -79,9 +81,9 @@ def test_existing_sonnet_tariffs_keep_their_verified_hosts_and_rates(model_id: s
         "write_billing": "separate",
         "eligible_hosts": expected["eligible_hosts"],
         "source_url": expected["source_url"],
-        "reviewed_on": "2026-10-08",
+        "reviewed_on": policy["reviewed_on"],
         "status": "verified_for_activation",
-        "expires_on": "2026-11-08",
+        "expires_on": policy["expires_on"],
         "requires_cache_write_metric": True,
         "requires_cache_retention_metric": expected["requires_cache_retention_metric"],
         **({"cache_write_1h_hosts": []} if model_id == "claude-sonnet-4-6" else {}),
@@ -106,12 +108,8 @@ def test_active_category_prices_cover_configured_supplier_costs(provider: str, m
     for host in model["cache_pricing"]["eligible_hosts"]:
         profile = model.get("supplier_cost_profiles", {}).get(host, {})
         host_multiplier = Decimal(str(profile.get("multiplier", 1)))
-        # Direct routes target about 3x the supplier category cost. Regional
-        # gross premiums narrow the configured contribution on fallback hosts.
-        minimum_markup = (
-            Decimal("1.45") if host == "google" else
-            Decimal("2.5") if host == "aws_bedrock" else Decimal("2.7")
-        )
+        # Every eligible route sells at least at supplier cost plus the configured margin.
+        minimum_markup = load_pricing_settings().multiplier
         rates = model["pricing"]["tokens"]
         bands = [(None, rates)] + [
             (band_name, band["tokens"])
@@ -129,14 +127,29 @@ def test_active_category_prices_cover_configured_supplier_costs(provider: str, m
                     cost_key = "cache_read_per_million_token"
                 supplier = Decimal(str(model["costs"][cost_key]["price"])) * host_multiplier
                 supplier *= Decimal(str(profile.get("context_bands", {}).get(band_name, {}).get(category, 1)))
-                customer = Decimal(1000) / Decimal(str(rate["per_credit_unit"]))
-                assert customer >= supplier * minimum_markup, (provider, model_id, host, band_name, category)
+                # Token counts round up to the next 5 tokens per credit: the rate is a
+                # multiple of 5 within [exact, exact + 5) of cost x margin (0.01 steps below 5).
+                unit = Decimal(str(rate["per_credit_unit"]))
+                exact = Decimal(1000) / (supplier * minimum_markup)
+                step = Decimal(5) if exact >= 5 else Decimal("0.01")
+                # The catalog rate is derived for the dearest eligible host, so cheaper hosts only
+                # need the upper bound; the dearest host needs the full [exact, exact + step) window.
+                dearest = host_multiplier == max(
+                    Decimal(str(model.get("supplier_cost_profiles", {}).get(h, {}).get("multiplier", 1)))
+                    for h in model["cache_pricing"]["eligible_hosts"]
+                )
+                assert unit % step == 0 and unit < exact + step, (provider, model_id, host, band_name, category)
+                if dearest:
+                    assert unit >= exact, (provider, model_id, host, band_name, category)
 
             # A missing write counter falls back to ordinary input pricing.
             if provider == "openai" and model["cache_pricing"]["requires_cache_write_metric"]:
                 write_cost = Decimal(str(model["costs"]["cache_write_per_million_token"]["price"]))
                 write_cost *= Decimal(str(profile.get("context_bands", {}).get(band_name, {}).get("cache_write", 1)))
-                assert Decimal(1000) / Decimal(str(category_rates["input"]["per_credit_unit"])) >= write_cost * Decimal("2.4")
+                # Writes cost 1.25x input, so the input fallback keeps cost + 50% / 1.25 = cost x 1.2.
+                fallback_floor = load_pricing_settings().multiplier / Decimal("1.25")
+                exact_input = Decimal(1000) / (write_cost * fallback_floor)
+                assert Decimal(str(category_rates["input"]["per_credit_unit"])) < exact_input + 5
 
 
 @pytest.mark.parametrize("provider,model_id,host,raw,expected_read,expected_write", [
@@ -225,5 +238,5 @@ def test_mistral_large_4_missing_read_counter_uses_regular_full_input_rate() -> 
     entry = build_model_usage_breakdown([bucket], lambda _provider, _model: model)["entries"][0]
     assert entry["billing_mode"] == "ordinary_input"
     assert entry["billed_input_tokens"] == 1000
-    assert entry["rates"]["input"] == "245"
+    assert entry["rates"]["input"] == "955"
     assert float(entry["category_credits"]["cache_read"]) == 0

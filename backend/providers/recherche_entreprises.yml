@@ -1,0 +1,12 @@
+# backend/providers/recherche_entreprises.yml
+#
+# Metadata for the French State company directory API (Recherche d'entreprises,
+# DINUM) used by business.company_ownership. Open data, no API key.
+
+provider_id: recherche_entreprises
+name: Annuaire des Entreprises
+description: Official French company directory with company identity and directors.
+logo_svg: icons/business.svg
+region: FR
+no_api_key: true
+privacy_policy: https://annuaire-entreprises.data.gouv.fr/donnees-personnelles # verified 2026-11-12

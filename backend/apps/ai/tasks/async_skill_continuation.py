@@ -23,6 +23,7 @@ except ImportError:  # pragma: no cover - test environments may not install opti
     def toon_encode(value: Any) -> str:
         return json.dumps(value, ensure_ascii=False)
 
+from backend.apps.ai.tasks.result_embed_references import completed_result_embed_ids  # noqa: F401 - re-exported for the continuation request
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.utils.embeds_map_view import (
     EMBEDS_MAP_VIEW_INSTRUCTION,
@@ -290,6 +291,38 @@ async def claim_async_recovery_handoff(
     from backend.shared.python_utils.recent_work_summary_client import bind_verified_async_handoff_delivery
     bind_verified_async_handoff_delivery(request, delivery_id)
     return True
+
+
+async def release_unoffered_async_recovery_handoff(
+    *, cache: Any, directus: Any, request: AskSkillRequest, producer_id: str, awaiting_before: bool,
+) -> None:
+    """Undo the pause of a Project operation that was never offered to a client.
+
+    ``cache_async_skill_continuation_context`` pauses the source inference before
+    the operation is created. When creating it fails (for example an invalid
+    path), nothing will ever claim that pause: left in place it rejects every
+    later Project operation of the turn and holds back the turn's completion.
+    The source delivery keeps the turn, so no client event is sent.
+    """
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    if getattr(request, "_pending_async_recovery_handoff", None) == producer_id:
+        request.__dict__.pop("_pending_async_recovery_handoff", None)
+        request.awaiting_async_skill_continuation = awaiting_before
+    key = _async_handoff_key(producer_id)
+    authority = await cache.get(key)
+    if not isinstance(authority, dict) or authority.get("claimed"):
+        return
+    resumed = await ChatRecoveryService(directus).execute("resume_inference_for_skill", {
+        "protocol_version": 1, "inference_task_id": authority["inference_task_id"],
+        "delivery_task_id": authority["source_delivery_id"], "step_id": authority["step_id"],
+    })
+    if resumed.get("claimed") is not True:
+        raise RuntimeError("Unoffered Project operation pause could not be released")
+    source_key = f"{ASYNC_RECOVERY_HANDOFF_PREFIX}:source:{authority['source_delivery_id']}"
+    if await cache.get(source_key) == producer_id:
+        await cache.delete(source_key)
+    await cache.delete(key)
 
 
 async def settle_async_recovery_handoff(
@@ -707,9 +740,13 @@ async def dispatch_async_skill_continuation(
         )
     )
 
+    # An assistant-inferred creation (project_create_request) ends like a Project
+    # consent: created means the new Project focus is active, otherwise declined.
+    project_created = context.get("skill_id") == "project_create_request"
     project_focus_accepted = (
-        context.get("skill_id") == "activate_focus_mode"
-        and str((context.get("tool_arguments") or {}).get("focus_id", "")).startswith("project-")
+        (project_created or (
+            context.get("skill_id") == "activate_focus_mode"
+            and str((context.get("tool_arguments") or {}).get("focus_id", "")).startswith("project-")))
         and any(result.get("access_granted") is True for result in completed_results)
     )
     continuation_request = AskSkillRequest(
@@ -745,7 +782,7 @@ async def dispatch_async_skill_continuation(
                                else original_request.project_focus_catalog),
         project_focus_documents=project_focus_documents or original_request.project_focus_documents,
         project_access_declined=original_request.project_access_declined or (
-            context.get("skill_id") == "activate_focus_mode"
+            context.get("skill_id") in {"activate_focus_mode", "project_create_request"}
             and any(result.get("access_granted") is False for result in completed_results)
         ),
         active_project_focus=original_request.active_project_focus,
@@ -761,6 +798,13 @@ async def dispatch_async_skill_continuation(
             original_request.original_user_message_id or original_request.message_id
         ),
         async_skill_task_id=async_task_id,
+        # A continuation that starts another async skill (e.g. a commit after
+        # green tests) is rewritten by the next continuation under the same
+        # message id, so the earlier run's test results stay referenced.
+        completed_result_embed_ids=list(dict.fromkeys([
+            *(original_request.completed_result_embed_ids or []),
+            *completed_result_embed_ids(completed_results),
+        ])),
         preprocessing_resume_ref=original_request.preprocessing_resume_ref,
         recovery_inference_task_id=(
             original_request.recovery_task_id

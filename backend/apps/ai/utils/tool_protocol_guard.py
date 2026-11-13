@@ -17,7 +17,7 @@ from backend.apps.ai.utils.pseudo_tool_call import (
     known_tool_names,
     pseudo_tool_call_reason,
 )
-from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
+from backend.apps.ai.utils.stream_utils import PROGRESSIVE_CODE_LANGUAGES, aggregate_paragraphs
 
 
 _PROTOCOL_FENCE = re.compile(r"^```(toon|tool_code)(?:[^\n]*)\n", re.IGNORECASE)
@@ -137,7 +137,9 @@ class ToolProtocolGuard:
 
         pending = ""
         language = ""
-        async for chunk in aggregate_paragraphs(text_stream(), early_prose=True):
+        async for chunk in aggregate_paragraphs(
+            text_stream(), early_prose=True, progressive_code_languages=PROGRESSIVE_CODE_LANGUAGES,
+        ):
             if isinstance(chunk, SuppressedToolCallMarkup):
                 self._record_pseudo_tool_call("tool_call_markup", chunk.text)
                 continue

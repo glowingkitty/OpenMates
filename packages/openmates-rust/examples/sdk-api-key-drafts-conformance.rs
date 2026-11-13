@@ -100,15 +100,6 @@ async fn run_case() -> std::result::Result<(), &'static str> {
             .get("missing")
             .await
             .and_then(|v| serde_json::to_value(v).map_err(Error::from)),
-        "open-parity-limit" => {
-            let id = field(&vector["draft"], "chat_id")?;
-            client
-                .drafts()
-                .get(id)
-                .await
-                .and_then(|v| v.ok_or(Error::Protocol))
-                .map(|v| json!({"markdown":v.markdown,"preview":v.preview}))
-        }
         "wrong-account-key"
         | "project-grant-not-account-key"
         | "corrupt-markdown"

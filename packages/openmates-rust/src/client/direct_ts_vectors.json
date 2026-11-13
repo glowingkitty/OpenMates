@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic keys. OMDM1 envelopes produced by frontend/packages/pairing-crypto/src/directChatCrypto.ts sealDirectChatKey with a deterministic tweetnacl PRNG (32-byte ephemeral secret, then 24-byte nonce) and self-checked with openDirectChatKey. The identity backup and title come from frontend/packages/openmates-cli/src/crypto.ts encryptWithAesGcmCombined, as directChats.ts createAccountChatIdentity and client.ts openTeamDirectChat use it.",
+  "team_id": "88888888-8888-4888-8888-888888888888",
+  "chat_id": "aabbccdd-3333-4333-8333-aabbccddeeff",
+  "chat_key_b64url": "Hx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8",
+  "master_key_b64url": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+  "recipient": {
+    "account_id": "synthetic-account-recipient",
+    "hash": "2da2bf551ff7d50305ce6c034c8f785c6c17fa53ae8144100b5717a681177dda",
+    "private_key": "ERERERERERERERERERERERERERERERERERERERERERE",
+    "public_key": "e06Qm75__kTEZaIgA31gjuNYl9Me-XLwf3SJLLD3PxM",
+    "key_id": "d19bf3f082782c87b783fe7134698aeff6e66d9f86afaf7cf9e9b8bf40bab3ff",
+    "ephemeral_secret_b64url": "FxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxc",
+    "nonce_b64url": "HR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0d",
+    "envelope": "OMDM1.eyJ2IjoxLCJlcGhlbWVyYWxfcHVibGljX2tleSI6IjhUX3ZQdnFWbUtLaVA4ZFd2MmlQNkx2WDlzLVZLTHV1ODdSRUpvandxekUiLCJub25jZSI6IkhSMGRIUjBkSFIwZEhSMGRIUjBkSFIwZEhSMGRIUjBkIiwiY2lwaGVydGV4dCI6IjJxWVVWME5CUnZOWFdTbDJORkhuUGlPNmhGeGdmTkZlT05qV2dpMmlLNWJBVUVqRUt3Q2pNZUxVZElvSU1yYmNmRlVnbERhSnZPMzVPdVRmR1RTOXNQbnFCUTdGbUdqYTBSMFpiRS1jWHJrSzkydEhiM1A1Uk16U2NMMXF2TW0zc19uM2oxMjBudmllRjRFcm8zV2ZqdUFxN0hULXhfNG9PSl9qMk1YUzZVUExfNTZkZ055MmVTSHYxNUtPSHlmME1WYlc0ZVY2NllkcnBkeUNGTElhWklPaWN0dHRfZ2tWVXBlZUtxNVRxRHRKanVKVjJaYkNSQ3JaNG1uaDR3NHVYYXg1QnZrZTdBRjBkSE1XU0c1TTRVTHRmQ2Y3WU51VnMwc05kZmpUUTR3TkRXb1lMclJtUkNyYjVqY2o1Njc0SldCbXNmd1p0MWVxSjVvdUtCZjRsUkFVWmE5Y1J4NjVZaXQ0U3BBc2VMTTBrVGR6MFNoQ0dneklXeEdXZlF3cVNVRGxiVWpxRGdqdElKSmYtRnJ4akpfUENaVFVzS2Z0ZjhnUDBxOE5lNG9VMk82UUZpME9CSHFud0R5WCJ9"
+  },
+  "own": {
+    "account_id": "synthetic-account-own",
+    "hash": "7f0cdd2396f9dd391c96e39526428b31a753f5e4280a938bd5cc0245f3fb6d80",
+    "private_key": "ExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExM",
+    "public_key": "GX_CxWfcA-4qrfDthmgdrCTap26DylVYdd075zduUwY",
+    "key_id": "462fd7511e4af049415063635a32ef6621e06e90944a4c1d6717fd4c64d9f963",
+    "ephemeral_secret_b64url": "JSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSUlJSU",
+    "nonce_b64url": "KSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkp",
+    "envelope": "OMDM1.eyJ2IjoxLCJlcGhlbWVyYWxfcHVibGljX2tleSI6Ik5ERGdBVTNWQzJFbjVMNjA3c3hCRlpIZ1llLVhrcU1YdzJCV0dSQUN0eTgiLCJub25jZSI6IktTa3BLU2twS1NrcEtTa3BLU2twS1NrcEtTa3BLU2twIiwiY2lwaGVydGV4dCI6ImxRaE5rektsOVVzc3dqaFVNTDBGZDdBcTRPUXd1RW5CNWNIaVJNeHVBM01XSlViejhHNXp6Smx0ZTBncDlkdURHNWc5Q2NTakVlVzZkWUhuMmtVQkRzWkYtc25IdlJldEwyQ3ZzOC1sNnB4SXRUc3VBdXJxZjc3MVpEa3ZPRDJyQmZfT19qWFVnUlhaXzg4RDRWX2UwUGU4aVFKUkdUbnYtOHlnOEpEQi1TUl9RT1gyOHdzWDdnYVNwemlRUjRCUFNwUld6Tl8yTEtTeDcyb05tNFMtUlFiVmc1OVhrVkxqaS1iQVhqVzZMNTIwNnlvdmRWVDFXdkpOTnVZZUx3UF8xektOUENvT09UVy1yZEVlMWRoblZxVDltbEI4VmVVNXprUkduS29nNnVhQi1GVVlucHFfV2JUR0JFdllmNlBldmV6M2FNc1JyQXRmR1hsNXdEWGF4OWhYVmtzalVkdE5rUTFKaWhhamh2SkJNcDAwLXFCNmx4VTd4elp2OFU2bmdnY1ZwY1VnSzNNNFh6NHFoV005MFhhMHk0YW84aFE0VVZiMzFnTjhxS1V3VUs3OFp4Z3VHWGV6LUdxMCJ9",
+    "identity_record": {
+      "version": 1,
+      "algorithm": "x25519-xsalsa20poly1305",
+      "key_id": "462fd7511e4af049415063635a32ef6621e06e90944a4c1d6717fd4c64d9f963",
+      "public_key": "GX_CxWfcA-4qrfDthmgdrCTap26DylVYdd075zduUwY",
+      "encrypted_private_key": "cMTsFnGDFt0zBHqpXFco_rS1UDx6xWeh2HmAIPoV22yXfIZi4tPa079p5rBjQIqvlDjhssQDGBKQIpqtNaayNI42swBGB58"
+    }
+  },
+  "title": "Private Team message",
+  "encrypted_title": "uQNnNjAhcy+0TINfnRiwvTBLDDfwNrEOn1mr8qD+exiSc/FVAQuiGoEDtJdcUlvi"
+}

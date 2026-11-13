@@ -230,13 +230,13 @@ export class BrowserCoreWorkerHost {
     const ownedCache=body.operation==='read_cold_retained_saved_chat'||body.operation==='read_cache_monitor_update'&&!!selectedProgress;
     const message:unknown = { ...body, version: 1, id,...(ownedCache?{ownedCache:true}:{}) };
     if (!validRequest(message)) return reject("invalid_request");
-    if((message.operation==="restore_existing"||message.operation==='check_first_session')&&(this.expectedPrincipal===null||message.profile.principal!==this.expectedPrincipal))return reject("invalid_request");
+    if((message.operation==="restore_existing"||message.operation==="restore_local"||message.operation==='check_first_session')&&(this.expectedPrincipal===null||message.profile.principal!==this.expectedPrincipal))return reject("invalid_request");
     if(message.operation==='check_first_session_data'&&this.expectedPrincipal===null)return reject('invalid_request');
     if(this.expectedPrincipal!==null&&(message.operation==="restore"||message.operation==="login_password"))return reject("unavailable");
-    if((message.operation==="read_local_chat"||message.operation==="read_local_saved_chat"||message.operation==="read_local_saved_chat_cursor"||message.operation==="read_local_checkpoint_summary")
+    if((message.operation==="read_local_chat"||message.operation==="read_local_saved_chat"||message.operation==="read_local_saved_chat_cursor"||message.operation==="read_online_cached_saved_chat"||message.operation==="read_local_checkpoint_summary")
       && (!this.existingKeyMode||this.expectedPrincipal!==message.expectedPrincipal))return reject("unavailable");
-    if((message.operation==="read_local_saved_chat_cursor"||message.operation==="read_local_checkpoint_summary")&&!localEffects)return reject("unavailable");
-    if(message.operation!=="read_local_saved_chat_cursor"&&message.operation!=="read_local_checkpoint_summary"&&localEffects)return reject("invalid_request");
+    if((message.operation==="read_local_saved_chat_cursor"||message.operation==="read_online_cached_saved_chat"||message.operation==="read_local_checkpoint_summary")&&!localEffects)return reject("unavailable");
+    if(message.operation!=="read_local_saved_chat_cursor"&&message.operation!=="read_online_cached_saved_chat"&&message.operation!=="read_local_checkpoint_summary"&&localEffects)return reject("invalid_request");
     const cacheOperation=message.operation==='restore_cached_metadata'||message.operation==='read_cached_chat_items'||(message.operation==='read_retained_saved_chat'||message.operation==='read_cold_retained_saved_chat'||message.operation==='read_monitored_retained_saved_chat'||message.operation==='read_cache_monitor_update');
     if(cacheOperation&&!cacheEffects||!cacheOperation&&cacheEffects)return reject('invalid_request');
     if(selectedProgress&&(message.operation!=='read_cache_monitor_update'||typeof selectedProgress.onSelected!=='function'||typeof selectedProgress.createContinuationEffects!=='function'))return reject('invalid_request');
@@ -274,13 +274,14 @@ export class BrowserCoreWorkerHost {
           ...(message.operation==='read_cache_monitor_update'?{monitorId:message.monitorId}:{}),
           ...(message.operation==='read_cached_chat_items'?{}:{scope:{...message.scope}}),handler:cacheEffects!,controller:new AbortController(),
           state:{effects:0,rows:new Map()},...(message.operation==='read_cold_retained_saved_chat'&&(message.localFirst||message.profileCache)?{localRead:createOwnedLocalReadState(),...(message.profileCache?{profileCache:true as const}:{})}:{}),effectId:0,inFlight:false,terminal:Promise.resolve(),draining:false,drained:false,publicationId:null,originalCurrent:cacheCurrent!,...(progressOwner?{progressOwner}:{}),...(ownedIdentity?{ownedIdentity,dispatched:false}:{})}}:{}),
-        ...((message.operation==="read_local_saved_chat_cursor"||message.operation==="read_local_checkpoint_summary")?{localCursor:{selector:message.operation==="read_local_checkpoint_summary"?{direction:"checkpoint_summary" as const,checkpointId:message.checkpointId}:structuredClone(message.selector),planState:{effects:0,payloadRows:0},handler:localEffects!,controller:new AbortController(),effectId:0,inFlight:false,terminal:Promise.resolve()}}:{}),
+        ...((message.operation==="read_local_saved_chat_cursor"||message.operation==="read_online_cached_saved_chat"||message.operation==="read_local_checkpoint_summary")?{localCursor:{selector:message.operation==="read_local_checkpoint_summary"?{direction:"checkpoint_summary" as const,checkpointId:message.checkpointId}:structuredClone(message.selector),planState:{effects:0,payloadRows:0},handler:localEffects!,controller:new AbortController(),effectId:0,inFlight:false,terminal:Promise.resolve()}}:{}),
         ...(message.operation==="read_local_checkpoint_summary"?{expectedCheckpoint:{handle:message.handle,generation:message.generation,principal:message.expectedPrincipal,chatId:message.chatId,checkpointId:message.checkpointId}}:{}),
         ...((message.operation==="read_local_chat"||message.operation==="read_local_saved_chat"||message.operation==="read_local_saved_chat_cursor")?{expectedLocal:{handle:message.handle,generation:message.generation,principal:message.expectedPrincipal,chatId:message.chatId,saved:message.operation!=="read_local_chat"}}:{}),
+        ...(message.operation==="read_online_cached_saved_chat"?{expectedLocal:{handle:message.handle,generation:message.generation,principal:message.expectedPrincipal,chatId:message.chatId,saved:true,online:true as const}}:{}),
         ...(message.operation==='run_initial_sync'?{expectedInitialSync:{handle:message.handle,generation:message.generation,owner:message.expectedPrincipal}}:{}),
         ...((message.operation==='start_cache_monitor'||message.operation==='wait_cache_monitor'||message.operation==='stop_cache_monitor')?{expectedMonitor:{handle:message.handle,generation:message.generation,owner:message.expectedPrincipal,operation:message.operation,...('monitorId' in message?{id:message.monitorId}:{})}}:{}),
         ...(message.operation === "login_password" ? {passwordLogin:true as const} : {}),
-        ...(message.operation === "restore_existing" ? {existingKeyRestore:{principal:message.profile.principal}} : {}),
+        ...(message.operation === "restore_existing" ? {existingKeyRestore:{principal:message.profile.principal}} : message.operation === "restore_local" ? {existingKeyRestore:{principal:message.profile.principal,local:true as const}} : {}),
         ...(message.operation === 'check_first_session' ? {firstSession:{principal:message.profile.principal}} : message.operation==='check_first_session_data'?{firstSession:{principal:this.expectedPrincipal!,dataOnly:true as const}}:{}),
         ...(message.operation==="rotate_credentials"?{credentialCas:{handle:message.handle,generation:message.generation,scope:message.scope,signal,effectId:0,inFlight:false}}:{}),
         ...((message.operation==="prepare_credentials"||message.operation==="validate_credentials")?{expectedSnapshot:{handle:message.handle,generation:message.generation,...(message.operation==="validate_credentials"?{exact:JSON.stringify(message.snapshot)}:{})}}:{}),
@@ -650,14 +651,15 @@ export class BrowserCoreWorkerHost {
     }else if(data.ok&&'firstSession' in data){this.close('unavailable');return;}
     if(pending.existingKeyRestore && data.ok){
       const status=data.status;
-      if(!status||status.principal!==pending.existingKeyRestore.principal||status.persistence!=="memory_only"||typeof status.localReadOnly!=="boolean"){
+      if(!status||status.principal!==pending.existingKeyRestore.principal||status.persistence!=="memory_only"||typeof status.localReadOnly!=="boolean"
+        ||pending.existingKeyRestore.local&&status.localReadOnly!==true){
         this.close("unavailable");return;
       }
       this.existingKeyMode=true;
       // Recording is optional and never changes legacy/fake-transport behavior.
       // Only the original trusted event from the factory-owned native Worker
       // can later enroll a routing root; copied responses remain insufficient.
-      if(this.nativeChatIssuer && event.isTrusted === true && event.target === this.worker){
+      if(!pending.existingKeyRestore.local && this.nativeChatIssuer && event.isTrusted === true && event.target === this.worker){
         try{recordNativeRustChatRestoreAdmission(this.nativeChatIssuer,this.worker,event,data.id);this.nativeRestoreEvent=event;this.profileCacheRestoreStatus=Object.freeze({...status});}
         catch{/* Untrusted/fabricated transport can never enroll optional IO. */}
       }
@@ -749,7 +751,13 @@ export class BrowserCoreWorkerHost {
         ||reply.status.principal!==expected.principal||reply.status.localReadOnly!==true||reply.checkpointRead.coverage!=="retained_selected"
         ||reply.checkpointRead.checkpoint!==null&&(reply.checkpointRead.checkpoint.chatId!==expected.chatId||reply.checkpointRead.checkpoint.id!==expected.checkpointId))){this.close("unavailable");return;}
     }else if(data.ok&&"checkpointRead" in data){this.close("unavailable");return;}
-    if(data.ok && pending.expectedLocal){
+    if(data.ok && pending.expectedLocal?.online){
+      const expected=pending.expectedLocal,reply=data;
+      if(!reply.onlineCachedRead||!reply.status||reply.status.handle!==expected.handle||reply.status.generation!==expected.generation
+        ||reply.status.localReadOnly===true||reply.status.principal!==expected.principal||reply.onlineCachedRead.chat.id!==expected.chatId
+        ||!("chatMetadata" in reply.onlineCachedRead)){this.close("unavailable");return;}
+    } else if(data.ok && "onlineCachedRead" in data){this.close("unavailable");return;
+    } else if(data.ok && pending.expectedLocal){
       const expected=pending.expectedLocal,reply=data;
       if(!reply.localRead||!reply.status||reply.status.handle!==expected.handle||reply.status.generation!==expected.generation
         ||reply.status.localReadOnly!==true||reply.status.principal!==expected.principal||reply.localRead.chat.id!==expected.chatId

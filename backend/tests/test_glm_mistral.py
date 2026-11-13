@@ -46,8 +46,9 @@ def test_glm_default_host_uses_mistral_api_id_and_verified_rates(monkeypatch):
         ('output', 'output_per_million_token', 4.4),
     ]:
         assert model['costs'][cost_key]['price'] == rate
-        customer = 1000 / model['pricing']['tokens'][category]['per_credit_unit']
-        assert 3 <= customer / rate < 3.05
+        unit = model['pricing']['tokens'][category]['per_credit_unit']
+        exact = 1000 / (rate * 1.5)
+        assert unit % 5 == 0 and exact <= unit < exact + 5
 
 
 @pytest.mark.parametrize('effort', ['low', 'high', 'max'])
@@ -149,7 +150,7 @@ def test_main_stream_forwards_glm_reasoning_and_cache_key_and_preserves_billing_
     assert normalized['uncached_input_tokens'] == 1000 - (cached_tokens or 0)
     entry = build_model_usage_breakdown([normalized], lambda *_: _model())['entries'][0]
     assert entry['billing_mode'] == ('ordinary_input' if cached_tokens is None else 'cache_aware')
-    assert float(entry['category_credits']['cache_read']) == pytest.approx((cached_tokens or 0) / 2380)
+    assert float(entry['category_credits']['cache_read']) == pytest.approx((cached_tokens or 0) / 4765)
     assert float(entry['category_credits']['cache_write']) == 0
 
 

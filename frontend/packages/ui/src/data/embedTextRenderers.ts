@@ -52,7 +52,7 @@ export function resolveResultCount(c: Record<string, unknown>): number | null {
 import { renderWebSearch, renderWebRead, renderWebsite } from '../components/embeds/web/webEmbedText';
 import { renderBrowse } from '../components/embeds/web/browseEmbedText';
 import { renderTravelConnections, renderTravelStays, renderPriceCalendar, renderFlight, renderConnection, renderStay } from '../components/embeds/travel/travelEmbedText';
-import { renderApplication, renderCode, renderCodeDocs, renderCodeRepo, renderCodeRepoSearch, renderNotebook } from '../components/embeds/code/codeEmbedText';
+import { renderApplication, renderCode, renderCodeDocs, renderCodeRepo, renderCodeRepoSearch, renderNotebook, renderTestResult } from '../components/embeds/code/codeEmbedText';
 import { renderVideosSearch, renderVideoTranscript, renderVideoGenerate, renderVideoCreate, renderVideo } from '../components/embeds/videos/videoEmbedText';
 import { renderImageGenerate, renderImagesSearch, renderImage, renderImageResult } from '../components/embeds/images/imageEmbedText';
 import { renderMapsSearch, renderMapsPlace } from '../components/embeds/maps/mapsEmbedText';
@@ -72,13 +72,16 @@ import { renderShoppingSearch, renderShoppingProduct } from '../components/embed
 import { renderJobsSearch, renderJobResult } from '../components/embeds/jobs/jobsEmbedText';
 import { renderHostingSearch, renderHostingDomain } from '../components/embeds/hosting/hostingEmbedText';
 import { renderElectronicsSearch, renderElectronicsComponent, renderPcbSchematic } from '../components/embeds/electronics/electronicsEmbedText';
-import { renderDesignIconResult, renderDesignIconSearch } from '../components/embeds/design/designEmbedText';
+import { renderDesignEmbroidery, renderDesignIconResult, renderDesignIconSearch } from '../components/embeds/design/designEmbedText';
 import { renderNutritionSearch, renderNutritionRecipe } from '../components/embeds/nutrition/nutritionEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
+import { renderSlidesDeck } from '../components/embeds/slides/slidesEmbedText';
 import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
 import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from '../components/embeds/weather/weatherEmbedText';
 import { renderCompanyFinancialResult, renderCompanyFinancials, renderTrademarkSearch } from '../components/embeds/business/businessEmbedText';
+import { renderInvestorSearchText } from '../components/embeds/business/investorSearchContent';
+import { renderCompanyOwnershipText } from '../components/embeds/business/companyOwnershipContent';
 import { normalizeFinanceOverview } from '../components/embeds/finance/financeCheckAccountsContent';
 import { renderMindMapText } from '../components/embeds/mindmaps/mindMapContent';
 import { renderDiagramText } from '../components/embeds/diagrams/diagramHtmlContent';
@@ -211,6 +214,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:hosting:search_domains': renderHostingSearch,
 	'app:electronics:search_components': renderElectronicsSearch,
 	'app:design:search_icons': renderDesignIconSearch,
+	'app:design:embroidery': renderGenericAppSkill,
 	'app:nutrition:search_recipes': renderNutritionSearch,
 	'app:events:search': renderEventsSearch,
 	'app:videos:search': renderVideosSearch,
@@ -237,6 +241,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:images:search': renderImagesSearch,
 	'app:images:view': renderImage,
 	'app:images:vectorize': renderGenericAppSkill,
+	'app:images:modify': renderImageGenerate,
 	'app:music:generate': renderMusicGenerate,
 	'app:health:search_appointments': renderHealthSearch,
 	'app:health:create_report': renderGenericAppSkill,
@@ -268,6 +273,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:weather:rain_radar': renderWeatherRainRadar,
 	'app:business:company_financials': renderCompanyFinancials,
 	'app:business:search_trademarks': renderTrademarkSearch,
+	'app:business:search_investors': renderInvestorSearchText,
+	'app:business:company_ownership': renderCompanyOwnershipText,
 	'app:finance:check_accounts': renderFinanceCheckAccounts,
 	'app:tasks:create': renderTasksParent,
 	'app:tasks:search': renderTasksParent,
@@ -288,8 +295,10 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'code-notebook': renderNotebook,
 	'code-application': renderApplication,
 	'code-repo': renderCodeRepo,
+	'code-test-result': renderTestResult,
 	'file-file': renderFile,
 	'docs-doc': renderDoc,
+	'slides-deck': renderSlidesDeck,
 	'sheets-sheet': renderSheet,
 	'pdf': renderPdf,
 	'image': renderImage,
@@ -325,6 +334,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'electronics-pcb-schematic': renderPcbSchematic,
 	'electronics-component': renderElectronicsComponent,
 	'design-icon-result': renderDesignIconResult,
+	'design-embroidery': renderDesignEmbroidery,
 	'nutrition-recipe': renderNutritionRecipe,
 	'weather-day': renderWeatherDay,
 	'business-company-financial-result': renderCompanyFinancialResult,

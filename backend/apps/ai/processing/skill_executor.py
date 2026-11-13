@@ -33,6 +33,17 @@ logger = logging.getLogger(__name__)
 DEFAULT_SKILL_TIMEOUT = 20.0
 
 
+def _names_relevance_criteria(arguments: Any) -> bool:
+    """True when any request of the call carries non-empty ranking criteria."""
+    if not isinstance(arguments, dict):
+        return False
+    requests = arguments.get("requests", [arguments])
+    return isinstance(requests, list) and any(
+        isinstance(request, dict) and isinstance(request.get("relevance_criteria"), str)
+        and request["relevance_criteria"].strip() for request in requests
+    )
+
+
 def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> float:
     """Select the assistant's default envelope without overriding explicit timeouts.
 
@@ -47,6 +58,10 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     # inherited output-safety scan before delivery of complete extracted text.
     if (app_id, skill_id) == ("web", "read"):
         return 75.0
+    # The assistant calls PDF skills while the upload's OCR task may still be
+    # running; they wait up to PDF_OCR_MAX_WAIT_SECONDS (150s) for it, then read.
+    if app_id == "pdf" and skill_id in ("read", "search", "view"):
+        return 180.0
     if (app_id, skill_id) == ("web", "browse"):
         from backend.shared.python_schemas.web_browse import BrowseRequest
         # Main processing attaches private dispatch context before selecting the
@@ -67,6 +82,12 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     # parallel batch can wait up to SEARCH_SLOT_BUDGET_SECONDS before its call.
     if (app_id, skill_id) == ("nutrition", "search_recipes"):
         return 60.0
+    # General event discovery also reads public web pages and extracts events from them.
+    if (app_id, skill_id) == ("events", "search"):
+        return 40.0
+    if (app_id, skill_id) == ("travel", "search_stays"):
+        # Ranking stays by their photos adds bounded image loading and decision time.
+        return 45.0 if _names_relevance_criteria(arguments) else DEFAULT_SKILL_TIMEOUT
     if (app_id, skill_id) != ("shopping", "search_products") or not isinstance(arguments, dict):
         return DEFAULT_SKILL_TIMEOUT
     requests = arguments.get("requests", [arguments])
@@ -607,12 +628,14 @@ async def execute_skill_with_multiple_requests(
     # A Code Run file/dependency/argv list belongs to one execution bundle.
     # Legacy expansion would wrap the bundle in requests and move private Vault
     # context off the top level, so RunCodeSkill cannot validate or execute it.
-    # Names, regions and classes likewise belong to one trademark search.
+    # Names, regions and classes likewise belong to one trademark search, and
+    # regions, investor types and stages to one investor search.
     # PDF read/view take one file plus a page list. Splitting the list into one
     # request per page would also move the server-injected file index and Vault
     # key off the top level, so the skill could no longer resolve its PDF.
     if should_keep_tasks_create_payload_as_single_request(app_id, skill_id, arguments) or (
         (app_id, skill_id) in {
+            ("business", "search_investors"),
             ("business", "search_trademarks"),
             ("code", "run"),
             ("pdf", "read"),

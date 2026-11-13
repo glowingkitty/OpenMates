@@ -7,6 +7,8 @@ import uuid
 from typing import Any, Mapping, Sequence
 from contextvars import ContextVar
 
+from backend.shared.python_utils.skill_use_body_refs import is_skill_use_ref
+
 try:
     from toon_format import encode as toon_encode
 except ImportError:  # pragma: no cover - lightweight contract-test environments
@@ -24,6 +26,8 @@ MEDIA_CHILD_TYPES = {
     "music": "generated_music",
     "videos": "generated_video",
     "models3d": "generated_model",
+    # design has one generated output type; search_icons results are not media children.
+    "design": "embroidery_design",
 }
 
 # Match the former per-output Celery soft limits. A batch keeps every advertised
@@ -32,11 +36,15 @@ PER_CHILD_TIMEOUT_SECONDS = {
     ("images", "generate"): 600,
     ("images", "generate_draft"): 600,
     ("images", "vectorize"): 180,
+    # Up to three author/review rounds per model plus model fallback; each sandbox run stops at 60 s.
+    ("images", "modify"): 600,
     ("audio", "generate"): 600,
     ("audio", "speak"): 600,
     ("music", "generate"): 900,
     ("videos", "generate"): 1800,
     ("models3d", "generate"): 900,
+    # 180 s sandbox limit plus one model rework, below the task's 420 s soft limit.
+    ("design", "embroidery"): 400,
 }
 
 active_media_batch_child: ContextVar[bool] = ContextVar("active_media_batch_child", default=False)
@@ -48,14 +56,23 @@ COMPLETION_RESULT_FIELDS = frozenset({
     "id", "type", "prompt", "text_preview", "model", "provider_model",
     "provider", "mode", "generation_type", "duration_seconds", "aspect_ratio",
     "resolution", "filename", "output_filetype", "billing_status", "generated_at", "input_embed_ids",
+    # images.modify: how the result was checked, so the assistant can name unmet requirements.
+    "review_status", "unmet_requirements", "attempts", "changed_from_program",
+    # design.embroidery: the numbers, threads and notes the assistant reports to the user.
+    "title", "width_mm", "height_mm", "stitch_count", "thread_changes", "estimated_minutes",
+    "thread_length_m", "hoop", "fits_hoop", "fabric", "reworked", "threads", "notes",
+    # images.generate revision: which version of the existing image this change made.
+    "version", "previous_version", "revision_note",
+    # videos.generate: how the video was made and what it shows.
+    "made_by", "routing_decided_by", "width", "height", "fps", "source_titles", "author_model",
 })
 
 _INLINE_CARD_SKILLS = frozenset({("nutrition", "search_recipes"), ("design", "search_icons")})
 _GENERATED_OUTPUT_SKILLS = frozenset({
-    ("images", "generate"), ("images", "generate_draft"), ("images", "vectorize"),
+    ("images", "generate"), ("images", "generate_draft"), ("images", "vectorize"), ("images", "modify"),
     ("audio", "generate"), ("audio", "speak"), ("music", "generate"),
-    ("videos", "generate"), ("videos", "create"), ("models3d", "generate"),
-    ("code", "image_to_html"),
+    ("videos", "generate"), ("models3d", "generate"),
+    ("code", "image_to_html"), ("design", "embroidery"),
 })
 _OUTPUT_REF_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._~:-]{0,127}\Z")
 _MARKDOWN_EMBED_LINK = re.compile(
@@ -139,6 +156,8 @@ def finalize_trusted_inline_refs(
             continue
         ref, identity = row.get("embed_ref"), _canonical_output_id(row.get("embed_id"))
         if not isinstance(ref, str) or not _OUTPUT_REF_PATTERN.fullmatch(ref) or identity is None:
+            continue
+        if is_skill_use_ref(ref):  # rows sealed before the result-only rule
             continue
         if (row.get("app_id"), row.get("skill_id")) not in (_INLINE_CARD_SKILLS | _GENERATED_OUTPUT_SKILLS):
             continue
@@ -284,7 +303,7 @@ def finalize_trusted_inline_refs(
 def authenticated_generated_outputs(
     authored_outputs: Sequence[Mapping[str, Any]],
 ) -> dict[str, Mapping[str, Any]]:
-    """Return exact generated refs from finished server-authored UUID pairs.
+    """Return exact generated result refs from finished server-authored UUID pairs.
 
     A cache miss cannot revoke a completed writer's authority. Arbitrary refs,
     failed outputs and conflicting identities never receive that authority.
@@ -301,13 +320,28 @@ def authenticated_generated_outputs(
                 or not isinstance(ref, str) or identity is None
                 or (app_id, skill_id) not in _GENERATED_OUTPUT_SKILLS):
             continue
-        if ref not in {generated_media_embed_ref(app_id, identity),
-                       generated_media_parent_ref(app_id, identity)}:
+        # Only result children; the skill-use parent never enters the answer body.
+        if ref != generated_media_embed_ref(app_id, identity):
             continue
         if ref in outputs and outputs[ref].get("embed_id") != identity:
             conflicts.add(ref)
         outputs[ref] = {**row, "embed_id": identity}
     return {ref: row for ref, row in outputs.items() if ref not in conflicts}
+
+
+def generated_output_file_index(authored_outputs: Sequence[Mapping[str, Any]]) -> dict[str, str]:
+    """Map this turn's finished generated refs and filenames to their embed IDs.
+
+    Lets a later skill call in the same turn (vectorize, modify, embroidery)
+    name a result that an earlier call in that turn produced.
+    """
+    index: dict[str, str] = {}
+    for ref, output in authenticated_generated_outputs(authored_outputs).items():
+        index[ref] = output["embed_id"]
+        filename = output.get("filename")
+        if isinstance(filename, str) and filename:
+            index[filename] = output["embed_id"]
+    return index
 
 
 def generated_image_filename(prompt: str, embed_id: str, extension: str) -> str:
@@ -361,6 +395,10 @@ async def run_generated_media_batch(
     if child_timeout is None:
         raise ValueError("Generated media batch has no bounded child timeout")
     children: list[dict[str, Any]] = []
+    # A producer may publish a failed child that shows its reason (status "failed"
+    # plus child_published). It is sealed under the parent like any child but
+    # reported to the assistant as a failure with its plain-language reason.
+    failed_children: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
     for index, request in enumerate(requests):
         if not isinstance(request, dict):
@@ -383,14 +421,31 @@ async def run_generated_media_batch(
                 )
             finally:
                 active_media_batch_child.reset(token)
+            if isinstance(result, dict) and result.get("status") == "failed" and result.get("child_published") is True:
+                failed_children.append({
+                    "request_index": index,
+                    "child_embed_id": child_id,
+                    "embed_ref": generated_media_embed_ref(app_id, child_id),
+                    "result": result,
+                    "failed": True,
+                })
+                failures.append({
+                    "request_index": index,
+                    "error": str(result.get("error") or "Generation failed"),
+                    **({"error_code": str(result["error_code"])} if result.get("error_code") else {}),
+                })
+                continue
             if not isinstance(result, dict) or result.get("status") != "finished":
                 failures.append({"request_index": index, "error": "Generation did not finish"})
                 continue
+            # A revision is the next version of an earlier message's child, never this producer's own child.
+            output_id = str(result["embed_id"]) if result.get("revision") is True else child_id
             children.append({
                 "request_index": index,
-                "child_embed_id": child_id,
-                "embed_ref": generated_media_embed_ref(app_id, child_id),
+                "child_embed_id": output_id,
+                "embed_ref": generated_media_embed_ref(app_id, output_id),
                 "result": result,
+                **({"revision": True} if output_id != child_id else {}),
             })
         except RequiredRecoveryOutputError:
             raise
@@ -405,7 +460,7 @@ async def run_generated_media_batch(
             user_id = str(arguments["user_id"])
             await finalize_generated_media_parent(
                 service, parent_embed_id=parent_id, app_id=app_id, skill_id=skill_id,
-                children=children, failures=failures,
+                children=[*children, *failed_children], failures=failures,
                 input_embed_ids=list(dict.fromkeys(
                     source_id for request in requests if isinstance(request, dict)
                     for source_id in request.get("input_embed_ids", []) if isinstance(source_id, str)
@@ -424,7 +479,6 @@ async def run_generated_media_batch(
                 {
                     **media_completion_result(row["result"]),
                     "parent_embed_id": parent_id,
-                    "parent_embed_ref": generated_media_parent_ref(app_id, parent_id),
                     "request_index": row["request_index"],
                     "child_embed_id": row["child_embed_id"],
                     "embed_ref": row["embed_ref"],
@@ -434,8 +488,8 @@ async def run_generated_media_batch(
             ] + [
                 {
                     "parent_embed_id": parent_id,
-                    "parent_embed_ref": generated_media_parent_ref(app_id, parent_id),
                     "request_index": row["request_index"], "status": "error", "error": row["error"],
+                    **({"error_code": row["error_code"]} if row.get("error_code") else {}),
                 }
                 for row in failures
             ]
@@ -448,7 +502,6 @@ async def run_generated_media_batch(
                 request_metadata={
                     "app_id": app_id, "skill_id": skill_id,
                     "parent_embed_id": parent_id,
-                    "parent_embed_ref": generated_media_parent_ref(app_id, parent_id),
                     "user_id": str(arguments["user_id"]),
                     "chat_id": str(arguments["chat_id"]),
                     "message_id": str(arguments["message_id"]),
@@ -463,7 +516,7 @@ async def run_generated_media_batch(
         "status": "finished" if not failures else "partial" if children else "error",
         "results": [row["result"] for row in children],
         "completed_results": children,
-        "child_embed_ids": [row["child_embed_id"] for row in children],
+        "child_embed_ids": [row["child_embed_id"] for row in children if not row.get("revision")],
         "failed_results": failures,
         "input_embed_ids": list(dict.fromkeys(
             source_id for row in children for source_id in row.get("result", {}).get("input_embed_ids", [])
@@ -538,17 +591,26 @@ async def finalize_generated_media_parent(
     log_prefix: str,
     input_embed_ids: list[str] | None = None,
 ) -> None:
-    """Close the one producer after all request slots have reached a terminal state."""
+    """Close the one producer after all request slots have reached a terminal state.
+
+    A revision child (the next version of an earlier message's image) is never
+    listed in ``embed_ids``: a child has one parent and its key. The parent
+    records it as a pinned pointer ``pinned_embeds: [{embed_id, version, embed_ref}]``.
+    """
     ordered = sorted(children, key=lambda row: int(row["request_index"]))
-    child_ids = [str(row["child_embed_id"]) for row in ordered]
+    owned = [row for row in ordered if not row.get("revision")]
+    revisions = [row for row in ordered if row.get("revision")]
+    child_ids = [str(row["child_embed_id"]) for row in owned]
+    pinned = [dict(row["result"]["pinned_embed"]) for row in revisions]
     content = {
         "app_id": app_id,
         "skill_id": skill_id,
         "embed_ref": generated_media_parent_ref(app_id, parent_embed_id),
-        "status": "finished" if child_ids else "error",
-        "result_count": len(child_ids),
+        "status": "finished" if child_ids or pinned else "error",
+        "result_count": len(child_ids) + len(pinned),
         "embed_ids": child_ids,
-        "output_embed_refs": [str(row["embed_ref"]) for row in ordered],
+        "output_embed_refs": [str(row["embed_ref"]) for row in owned],
+        **({"pinned_embeds": pinned} if pinned else {}),
         "failed_results": failures,
         "input_embed_ids": list(dict.fromkeys([*(input_embed_ids or []), *(
             source_id for row in ordered for source_id in row.get("result", {}).get("input_embed_ids", [])
@@ -556,7 +618,7 @@ async def finalize_generated_media_parent(
         )])),
     }
     if failures:
-        content["partial_failure"] = bool(child_ids)
+        content["partial_failure"] = any(not row.get("failed") for row in ordered)
         content["error"] = f"{len(failures)} output(s) could not be generated"
     await embed_service.send_embed_data_to_client(
         embed_id=parent_embed_id,
@@ -574,7 +636,7 @@ async def finalize_generated_media_parent(
         log_prefix=log_prefix,
         check_cache_status=False,
         producer_final_children=[
-            {"subject_id": child_id, "output_kind": "embed", "output_version": 1}
-            for child_id in child_ids
+            *({"subject_id": child_id, "output_kind": "embed", "output_version": 1} for child_id in child_ids),
+            *(output for row in revisions for output in row["result"]["producer_outputs"]),
         ],
     )

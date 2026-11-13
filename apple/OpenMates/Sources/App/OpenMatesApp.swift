@@ -9,6 +9,8 @@
 // Assertions: chat-navigation.open.local-first-coherent
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.focus.parent-state
+// Specification: specifications/architecture/client-core/specification.yml
+// Assertions: client-core.viewmodel.capability-contract
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
@@ -217,7 +219,7 @@ final class AppSessionCoordinator: ObservableObject {
     private var offlineBridgeStorage: OfflineSyncBridge?
     private var didLoadFromDisk = false
     private var didStartNetworkMonitoring = false
-    private var didConfigureDraftSync = false
+    private var didConfigureDrafts = false
     private var windowOwnership = SharedSocketWindowOwnership()
     @Published var isInitialSyncComplete = false
     #if DEBUG
@@ -278,10 +280,10 @@ final class AppSessionCoordinator: ObservableObject {
         return bridge
     }
 
-    func configureDraftSyncIfNeeded() {
-        guard !didConfigureDraftSync, let bridge = offlineBridgeStorage else { return }
-        DraftService.shared.configureSync(chatStore: chatStore, transport: webSocketManager, offlineActions: bridge)
-        didConfigureDraftSync = true
+    func configureDraftsIfNeeded() {
+        guard !didConfigureDrafts, let bridge = offlineBridgeStorage else { return }
+        DraftService.shared.configure(chatStore: chatStore, draftOnlyCleanup: bridge)
+        didConfigureDrafts = true
     }
 
     func resetTransientRuntime() {
@@ -297,7 +299,7 @@ final class AppSessionCoordinator: ObservableObject {
         webSocketManager.recoveryCoordinator?.reset()
         chatStore.clearInMemory()
         didLoadFromDisk = false
-        didConfigureDraftSync = false
+        didConfigureDrafts = false
         isInitialSyncComplete = false
         // Keep mounted windows registered through logout/account replacement.
         // OfflineStore scope and transport generations fence old account work.
@@ -358,6 +360,23 @@ struct OpenMatesApp: App {
         // Isolated component fixtures must not start account telemetry.
         if DevPreviewLaunchConfiguration.current != nil || NativeUnitTestHostPolicy.isUnitTestHost { return }
         #endif
+        // The client core, its cache and its listener exist from app start,
+        // and so do its chat list, which holds the cached list before the network,
+        // and its chat window, the message source of the open chat, and its chat
+        // actions (send, edit, stop, delete, fork), which stream into that window,
+        // and its composer drafts (save, clear).
+        #if OPENMATES_CORE_TEST_SUPPORT
+        // UI-test fixtures: the core starts over seeded rows; `launch()` keeps it.
+        _ = CoreUITestSeed.launchIfRequested()
+        #endif
+        CoreSession.launch()
+        CoreChatList.launch()
+        CoreChatWindow.launch()
+        CoreChatActions.launch()
+        CoreDrafts.launch()
+        #if OPENMATES_CORE_TEST_SUPPORT
+        CoreUITestSeed.startIfLaunched()
+        #endif
         NativeMetricKitReporter.shared.start()
     }
 
@@ -405,6 +424,7 @@ struct OpenMatesApp: App {
                     }
                     #endif
                     await locManager.restoreSavedLanguage()
+                    // Starts the core's session restore and follows its events.
                     await authManager.checkSession()
                 }
                 .onChange(of: authManager.state) { _, newState in
@@ -1254,9 +1274,10 @@ struct MacMenuBarQuickCaptureView: View {
         if MacMenuBarQuickCaptureAuthPolicy.shouldRefreshSession(
             state: authManager.state,
             hasCurrentUser: authManager.currentUser != nil,
-            hasWebSocketToken: authManager.webSocketToken?.isEmpty == false
+            // Admitted by the core = a socket grant is available.
+            hasWebSocketToken: authManager.hasNetworkAuthority
         ) {
-            await authManager.validateSessionAfterOfflineBootstrap()
+            await authManager.ensureAdmitted()
         }
         guard MacMenuBarQuickCaptureAuthPolicy.canUseQuickCapture(state: authManager.state) else {
             viewModel.error = BackgroundChatSendError.notAuthenticated.localizedDescription

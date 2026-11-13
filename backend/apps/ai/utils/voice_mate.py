@@ -11,14 +11,19 @@ GEMINI_MATE_VOICES = {
 }
 
 
-def mate_voice_configuration(mate: Any, *, learning_mode: bool = False) -> dict[str, str]:
+def mate_voice_configuration(
+    mate: Any, *, learning_mode: bool = False, collaborative_build: bool = False,
+) -> dict[str, str]:
     profile = mate.voice_profile
     voice = GEMINI_MATE_VOICES.get(profile.key) if profile.version == 1 else None
     if not voice:
         raise ValueError("Mate live voice profile unavailable")
     # Preserve the canonical prompt verbatim. The provider's shared voice
     # overlay handles conversational delivery instead of changing its meaning.
-    prompt = mate.learning_mode_system_prompt if learning_mode else mate.default_system_prompt
+    learning_prompt = mate.learning_mode_system_prompt
+    if collaborative_build and getattr(mate, "collaborative_build_system_prompt", None):
+        learning_prompt = mate.collaborative_build_system_prompt
+    prompt = learning_prompt if learning_mode else mate.default_system_prompt
     if not prompt or not prompt.strip():
         raise ValueError("Mate voice instructions unavailable")
     return {"mate_instruction": f"Your mate identity is {mate.name}.\n\n{prompt}",

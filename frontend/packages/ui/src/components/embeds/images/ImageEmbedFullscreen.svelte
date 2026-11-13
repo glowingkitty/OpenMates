@@ -20,7 +20,8 @@
 -->
 
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, getContext, untrack } from 'svelte';
+  import { get } from 'svelte/store';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import ImageAuthenticityBadge from './ImageAuthenticityBadge.svelte';
@@ -29,7 +30,16 @@
   const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
 
   import { text } from '@repo/ui';
-  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedFullscreenRawData, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
+  import { notificationStore } from '../../../stores/notificationStore';
+  import { activeTeamId } from '../../../stores/teamStore';
+  import { resolveEmbed, decodeToonContent, requestEmbedFromServerOnce } from '../../../services/embedResolver';
+  import { embedContentAtVersion, embedHead, noteEmbedHeadChanged } from '../../../services/rustCore/embeds/messageEmbedVersion';
+  import { EMBED_EDITS_ENABLED, enhanceImage, runningEnhance } from '../../../services/rustCore/embeds/embedEditSession';
+  import { createImageEnhance, imageEditAvailability } from './imageEnhance.svelte';
+
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
 
   /** Max display length for the filename in the embed header title (chars) */
@@ -58,6 +68,17 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
+    /** Embed id of the upload; without it the photo cannot be enhanced. */
+    embedId?: string;
+    /** Enhance button (presentation only; the caller runs the Enhance). Omit onEnhance to use the core. */
+    onEnhance?: () => void;
+    /** False shows the button disabled with a reason (viewer without edit rights). Default true. */
+    canEnhance?: boolean;
+    enhanceState?: 'idle' | 'running' | 'failed';
+    enhanceError?: string;
+    /** Opened from the Projects workspace: Enhance saves in this Project. */
+    projectId?: string;
+    teamId?: string | null;
   }
 
   let {
@@ -70,10 +91,19 @@
     navigateDirection = null,
     showChatButton = false,
     onShowChat,
+    embedId,
+    onEnhance,
+    canEnhance = true,
+    enhanceState = 'idle',
+    enhanceError,
+    projectId,
+    teamId,
   }: Props = $props();
 
   // Extract fields from data.decodedContent
-  let dc = $derived(data.decodedContent);
+  /** Content of the head after an Enhance; null shows the content the caller passed. */
+  let versionContent = $state<Record<string, unknown> | null>(null);
+  let dc = $derived(versionContent ?? data.decodedContent);
   let s3BaseUrl = $derived(typeof dc.s3BaseUrl === 'string' ? dc.s3BaseUrl : (typeof dc.s3_base_url === 'string' ? dc.s3_base_url : undefined));
   let files = $derived(
     (typeof dc.files === 'object' && dc.files !== null ? dc.files : undefined) as {
@@ -184,6 +214,68 @@
     if (typeLabel) return typeLabel;
     if (sizeLabel) return sizeLabel;
     return $text('app_skills.images.view.description');
+  });
+
+  // -------------------------------------------------------------------------
+  // Enhance through the client core (embed-user-edits); the preview passes its own onEnhance.
+  // -------------------------------------------------------------------------
+
+  let chatTeamId = $state<string | null | undefined>(undefined);
+  $effect(() => {
+    const chatId = sourceChatContext?.chatId;
+    if (!EMBED_EDITS_ENABLED || projectId || !chatId) { chatTeamId = null; return; }
+    void import('../../../services/db').then(({ chatDB }) => chatDB.getChat(chatId))
+      .then((chat) => { chatTeamId = chat?.team_id ?? get(activeTeamId) ?? null; })
+      .catch((err: unknown) => { console.error('[ImageEmbedFullscreen] Chat of the image unreadable:', err); chatTeamId = null; });
+  });
+  let editPlace = $derived(chatTeamId === undefined ? null : imageEditAvailability({
+    chatId: sourceChatContext?.chatId ?? null, chatTeamId, projectId, projectTeamId: teamId,
+    readOnly: sourceChatContext?.isReadOnly === true || !!sourceChatContext?.exampleChatId,
+  }));
+  let coreEditable = $derived(EMBED_EDITS_ENABLED && !!embedId && !onEnhance && isAuthenticated && !!files?.original);
+  let editScope = $derived(editPlace?.kind === 'available' ? editPlace.scope : null);
+
+  /** After a save: load the new head from the server and show its files. */
+  async function reloadHead(version: number | null) {
+    if (!embedId) return;
+    await requestEmbedFromServerOnce(embedId, 'user embed version saved', { chatId: projectId ? null : sourceChatId, refresh: true });
+    noteEmbedHeadChanged(embedId);
+    const head = await embedHead(embedId);
+    // The local row can still be the old head right after the save: open the saved version by number.
+    const toon = version !== null && !projectId && sourceChatId
+      ? await embedContentAtVersion(sourceChatId, embedId, version)
+      : (await resolveEmbed(embedId, { chatId: projectId ? null : sourceChatId }))?.content;
+    const content = typeof toon === 'string' ? await decodeToonContent(toon) : null;
+    if (!content) throw new Error(`embed_version_content_undecodable:${head?.version ?? version ?? ''}`);
+    if (retainedPreviewKey) releaseCachedImage(retainedPreviewKey);
+    if (retainedFullKey) releaseCachedImage(retainedFullKey);
+    retainedPreviewKey = undefined;
+    retainedFullKey = undefined;
+    previewImageUrl = undefined;
+    fullImageUrl = undefined;
+    imageError = undefined;
+    loadRetryCount = 0;
+    versionContent = content as Record<string, unknown>;
+  }
+  const coreEnhance = createImageEnhance(() => embedId, () => editScope, {
+    enhance: enhanceImage, running: runningEnhance, translate: (key) => $text(key), reloadHead,
+  });
+  $effect(() => { if (coreEditable && editScope) void untrack(() => coreEnhance.resume()); });
+
+  let shownEnhance = $derived(coreEditable && editPlace ? {
+    onEnhance: coreEnhance.start,
+    state: editScope ? coreEnhance.state : 'unavailable' as const,
+    error: coreEnhance.error,
+    reason: $text(editPlace.kind === 'unavailable' && editPlace.reason === 'team'
+      ? 'embed_user_edits.enhance_unavailable_team' : 'embed_user_edits.enhance_unavailable'),
+  } : null);
+
+  let notifiedEnhanceError: string | undefined;
+  $effect(() => {
+    const failed = (shownEnhance?.state ?? enhanceState) === 'failed'
+      ? (shownEnhance?.error ?? enhanceError ?? $text('embed_user_edits.enhance_failed')) : undefined;
+    if (failed && failed !== notifiedEnhanceError) notificationStore.error(failed);
+    notifiedEnhanceError = failed;
   });
 
   // -------------------------------------------------------------------------
@@ -361,6 +453,11 @@
   showShare={!!files?.original}
   {onClose}
   onDownload={files?.original ? handleDownload : undefined}
+  onEnhance={shownEnhance?.onEnhance ?? onEnhance}
+  enhanceState={shownEnhance?.state ?? (canEnhance ? enhanceState : 'unavailable')}
+  enhanceError={shownEnhance?.error ?? enhanceError ?? $text('embed_user_edits.enhance_failed')}
+  enhanceUnavailableReason={shownEnhance?.reason ?? $text('embed_user_edits.enhance_unavailable')}
+  currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

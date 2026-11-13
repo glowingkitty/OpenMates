@@ -837,7 +837,7 @@ struct AppSkillInputPreviewModel {
         "fitness.search_classes": ["query", "city", "start_date", "end_date"],
         "health.search_appointments": ["query", "speciality", "city"],
         "home.search": ["query"], "hosting.search_domains": ["query", "tlds"],
-        "images.generate": ["prompt"], "images.generate_draft": ["prompt"],
+        "images.generate": ["prompt"], "images.generate_draft": ["prompt"], "images.modify": ["prompt"],
         "images.search": ["query", "file_path"], "images.view": ["file_path"],
         "images.vectorize": ["source_image"], "mail.search": ["query", "mailbox"],
         "maps.search": ["query", "area"], "math.calculate": ["expression", "query"],

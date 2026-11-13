@@ -8,18 +8,22 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 from typing import Any
 
 from backend.apps.ai.processing.agentic_context import first_party, fresh_project
 from backend.apps.ai.processing.rule_context import (
     MAX_APPLIED_RULE_CHARS, MAX_DISCOVERY_CHARS, MAX_RULE_CANDIDATES,
-    authorized_project_memory_documents, eligible_rule_catalog, parse_custom_rule_documents,
+    authorized_project_memory_documents, bound_always_on, catalog_discovery,
+    eligible_rule_catalog, parse_custom_rule_documents, request_memory_catalog, requestable_catalog, rule_discovery,
 )
 from backend.shared.python_utils.rule_loader import rules_prompt
 
 # Sliding retention for encrypted discovery only. Selection still reloads the
 # current owner-authorized Workflow version before reading any graph.
 WORKFLOW_METADATA_TTL_SECONDS = 2 * 60 * 60
+
+logger = logging.getLogger(__name__)
 
 
 def _workflow_metadata_cache_key(user_id: str, team_id: str | None, vault_key_id: str) -> str:
@@ -75,19 +79,37 @@ async def discover_rule_metadata(request: Any, directus: Any, cache: Any,
         binding = await fresh_project(request, directus, cache)
         request._preselected_rule_project_activation = (binding or {}).get("activation_id")
         catalog = await _rules(request, directus, cache, eligible_app_ids)
+        # Personal Memories are catalog-only: just title and when-to-use reach the
+        # decision provider, for Auto include and Ask first alike. No body exists here.
+        body_ids = {rule.id for rule in catalog}
+        project_id = (binding or {}).get("project_id")
+        # Ask first Project Memories are catalog-only like personal ones; a row
+        # whose id also arrived as an authorized body is offered once.
+        memory_catalog = request_memory_catalog(request)
+        requestable = requestable_catalog(memory_catalog, active_project_id=project_id)
+        # Counts only: which catalog rows this turn could offer for selection.
+        logger.info("[RULE_DISCOVERY] catalog personal=%d project=%d requestable_project=%d active_project=%s bodies=%d",
+                    sum(entry.source == "personal" for entry in memory_catalog),
+                    sum(entry.source == "project" for entry in memory_catalog),
+                    sum(entry.source == "project" for entry in requestable), bool(project_id), len(body_ids))
+        private_rows = [rule_discovery(rule) for rule in catalog if rule.source != "app"] + [
+            catalog_discovery(entry, active_project_id=project_id) for entry in requestable if entry.id not in body_ids
+        ]
+        app_rows = [rule_discovery(rule) for rule in catalog if rule.source == "app"]
         result = []
-        # Newly authorized Project guides must not be displaced by the bounded
-        # public app catalogue. Stable sorting preserves order within each scope.
-        for rule in sorted(catalog, key=lambda item: item.source != "project"):
+        # Newly authorized Project/personal Memories must not be displaced by the
+        # bounded public app catalogue; blank-when rows have a small own budget.
+        ordered = sorted(bound_always_on(private_rows), key=lambda row: row["source"] != "project") + app_rows
+        for entry in ordered:
             if len(result) >= MAX_RULE_CANDIDATES:
                 break
-            entry = {key: getattr(rule, key) for key in
-                     ("id", "title", "description", "when_to_use", "revision", "source", "app_id", "project_id")}
             if len(json.dumps([*result, entry], ensure_ascii=True)) <= MAX_DISCOVERY_CHARS:
                 result.append(entry)
         request._rule_metadata_discovery_complete = True
         return result
-    except Exception:
+    except Exception as error:  # noqa: BLE001 - discovery is optional; the turn continues without Memories
+        # Logged by type only: the message could echo untrusted catalog metadata.
+        logger.warning("[RULE_DISCOVERY] failed: %s", type(error).__name__)
         return []
 
 
@@ -112,6 +134,11 @@ async def reload_preselected_rules(request: Any, directus: Any, cache: Any,
             seen.add(rule.id)
             if len(rules_prompt([*result, rule])) <= MAX_APPLIED_RULE_CHARS:
                 result.append(rule)
+        # Counts only: shows whether a selected Project Memory survived the
+        # fresh authorization and revision check.
+        logger.info("[RULE_RELOAD] selected=%d selected_project=%d loaded=%d loaded_project=%d",
+                    len(selected), sum(row.get("source") == "project" for row in selected),
+                    len(result), sum(rule.source == "project" for rule in result))
         return result
     except Exception:
         return []

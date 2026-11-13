@@ -33,18 +33,26 @@ _ACKS = frozenset({
 })
 
 
+def _squeeze(text: str) -> str:
+    """Collapse stretched letters so "mhmm", "mmhmm" and "hmmmm" match one cue."""
+    return re.sub(r"(\w)\1+", r"\1", text)
+
+
+_ACKS_SQUEEZED = frozenset(_squeeze(cue) for cue in _ACKS) | {"ah", "oh", "ooh", "uh"}
+
+
 def is_explicit_voice_stop(text: str) -> bool:
     """Whole-utterance controls only: never match 'stop by the station'."""
     return _words(text) in _STOPS
 
 
 def is_listener_acknowledgement(text: str) -> bool:
-    normalized = _words(text)
-    if normalized in _ACKS:
+    normalized = _squeeze(_words(text))
+    if normalized in _ACKS_SQUEEZED:
         return True
     # Common repeated listening cues; never discard the rest of a correction.
     tokens = normalized.split()
-    return bool(tokens) and len(tokens) <= 4 and all(token in _ACKS for token in tokens)
+    return bool(tokens) and len(tokens) <= 4 and all(token in _ACKS_SQUEEZED for token in tokens)
 
 
 def assistant_question_pending(text: str) -> bool:
@@ -68,6 +76,29 @@ def _supports_echo_verdict(text: str, assistant_text: str) -> bool:
         return False
     windows = {tuple(spoken[index:index + 5]) for index in range(len(spoken) - 4)}
     return any(tuple(incoming[index:index + 5]) in windows for index in range(len(incoming) - 4))
+
+
+def is_immediate_barge_in(text: str, assistant_text: str, *, assistant_speaking: bool) -> bool:
+    """Deterministic first-words decision: the user has taken the floor.
+
+    Real speech over the assistant must stop playback without waiting for the
+    endpoint or a model verdict. Listening cues stay uninterrupted unless they
+    answer a pending assistant question, and a 3+ word run that is a verbatim
+    slice of the assistant's own prose is treated as microphone recapture.
+    """
+    words = _words(text).split()
+    if not words:
+        return False
+    if is_explicit_voice_stop(text):
+        return True
+    if is_listener_acknowledgement(text):
+        return assistant_question_pending(assistant_text)
+    if assistant_speaking and len(words) >= 3:
+        spoken = _words(assistant_text).split()
+        size = len(words)
+        if any(spoken[index:index + size] == words for index in range(len(spoken) - size + 1)):
+            return False
+    return True
 
 
 async def classify_voice_interruption(

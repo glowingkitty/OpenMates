@@ -6,20 +6,20 @@
  *
  * 1. Login with test account + 2FA
  * 2. Navigate to Settings → AI
- * 3. Toggle auto-select OFF → select "Mistral Small 4" for Simple requests
+ * 3. Open the Simple requests tier editor → select "Mistral Small 4"
  * 4. Close settings, send "Capital of Germany?" and verify Mistral Small 4 is used
- * 5. Re-open settings, toggle auto-select back ON
+ * 5. Re-open settings, verify the selection persisted, switch back to Auto
  * 6. Start new chat, send same question, verify a different model is used (not Mistral Small 4)
  * 7. Cleanup: reset to auto-select, delete test chats
  *
  * This test validates:
- * - The auto-select toggle saves immediately when switched on/off
- * - Selecting a specific model in the dropdown persists and is used for the next message
+ * - Choosing Auto or an exact model in the tier editor saves immediately
+ * - Selecting a specific model in the tier editor persists and is used for the next message
  * - Switching back to auto-select uses a different (auto-selected) model
- * - Notifications appear only for real value changes and include descriptive change text
+ * - The overview row shows the saved selection and keeps it after re-opening settings
  *
  * Architecture context: docs/architecture/ai_model_selection.md
- * Component: frontend/packages/ui/src/components/settings/SettingsAI.svelte
+ * Components: SettingsAI.svelte, AiTierSettings.svelte
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL
@@ -54,9 +54,7 @@ const {
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const MODEL_CHANGE_NOTIFICATION_RE = /Changed model for/i;
-const MISTRAL_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'Auto' to 'Mistral Small 4'";
-const AUTO_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'Mistral Small 4' to 'Auto'";
+const MISTRAL_MODEL_NAME = 'Mistral Small 4';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -118,12 +116,39 @@ async function closeSettings(
 	}
 }
 
-function modelChangeNotifications(page: any) {
-	return page.getByTestId('notification').filter({ hasText: MODEL_CHANGE_NOTIFICATION_RE });
+/**
+ * Open the Simple requests tier editor from the AI settings overview.
+ */
+async function openSimpleTierEditor(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	const modifyButton = settingsMenu
+		.getByTestId('ai-settings')
+		.getByTestId('ai-tier-row-simple-modify-button');
+	await modifyButton.scrollIntoViewIfNeeded();
+	await modifyButton.click();
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'ai/tier/simple', {
+		timeout: 10000
+	});
+	await expect(settingsMenu.getByTestId('ai-tier-provider-catalog')).toBeVisible({
+		timeout: 10000
+	});
+	logCheckpoint('Opened Simple requests tier editor.');
 }
 
-function modelChangeNotification(page: any, expectedText: string) {
-	return modelChangeNotifications(page).filter({ hasText: expectedText });
+/**
+ * Go back through settings pages until the AI settings overview is visible.
+ */
+async function backToAiOverview(page: any): Promise<void> {
+	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	for (let i = 0; i < 4; i += 1) {
+		if (await settingsMenu.getByTestId('ai-settings').isVisible().catch(() => false)) return;
+		await settingsMenu.getByTestId('banner-back-button').click({ timeout: 5000 });
+		await page.waitForTimeout(500);
+	}
+	await expect(settingsMenu.getByTestId('ai-settings')).toBeVisible({ timeout: 5000 });
 }
 
 /**
@@ -213,71 +238,42 @@ test('change default model to Mistral Small 4, verify it is used, then switch ba
 	logCheckpoint('Phase 2: Navigating to AI settings...');
 	await navigateToAiSettings(page, logCheckpoint, takeStepScreenshot, '02');
 
-	// Find the auto-select toggle in the AI settings page.
-	// The toggle wrapper is inside the settings-content of the Default Models section.
 	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	const aiSettings = settingsMenu.getByTestId('ai-settings');
+	const simpleRow = aiSettings.getByTestId('ai-tier-row-simple');
+	await expect(simpleRow).toBeVisible({ timeout: 5000 });
+	await expect(simpleRow).toContainText('Auto');
+	logCheckpoint('Simple requests default starts as Auto.');
 
-	// The auto-select toggle is a Toggle component wrapped in a clickable div.
-	// The toggle's aria-label is the i18n text for "Auto-select model".
-	// We target the outer clickable wrapper div (parent of the pointer-events:none div).
-	const autoSelectRow = aiSettings.getByTestId('setting-row').first();
-	await expect(autoSelectRow).toBeVisible({ timeout: 5000 });
+	await openSimpleTierEditor(page, logCheckpoint);
+	const tierCatalog = settingsMenu.getByTestId('ai-tier-provider-catalog');
+	await tierCatalog.getByTestId('ai-provider-family-card').filter({ hasText: /Mistral/i }).click();
+	await expect(settingsMenu).toHaveAttribute(
+		'data-active-view',
+		'ai/tier/simple/provider/mistral',
+		{ timeout: 10000 }
+	);
 
-	// Check if auto-select is currently ON (toggle is checked)
-	const toggleInput = autoSelectRow.locator('input[type="checkbox"]');
-	const isAutoOn = await toggleInput.evaluate((el: HTMLInputElement) => el.checked);
-	logCheckpoint(`Auto-select toggle is currently: ${isAutoOn ? 'ON' : 'OFF'}`);
-
-	if (isAutoOn) {
-		// Click the toggle wrapper to turn auto-select OFF
-		const toggleWrapper = autoSelectRow.locator('[role="button"]').first();
-		await toggleWrapper.click();
-		logCheckpoint('Toggled auto-select OFF.');
-		await page.waitForTimeout(1000);
-
-		// Verify the toggle actually changed state (checkbox should now be unchecked)
-		const isNowOff = await toggleInput.evaluate((el: HTMLInputElement) => !el.checked);
-		logCheckpoint(`Toggle state after click: ${isNowOff ? 'OFF (expected)' : 'still ON (unexpected)'}`);
-		expect(isNowOff).toBe(true);
+	// Older models are collapsed behind a button; expand it if the model is not listed yet.
+	const mistralOption = settingsMenu
+		.getByTestId('ai-model-option-exact')
+		.filter({ hasText: MISTRAL_MODEL_NAME });
+	const showOld = settingsMenu.getByTestId('ai-tier-show-old-models');
+	if (!(await mistralOption.isVisible().catch(() => false)) && (await showOld.isVisible().catch(() => false))) {
+		await showOld.click();
 	}
-
-	await takeStepScreenshot(page, '02-auto-select-off');
-
-	// Toggling OFF auto-select without changing any values should NOT trigger save/notification
-	const noChangeNotification = modelChangeNotifications(page);
-	await page.waitForTimeout(1200);
-	await expect(noChangeNotification).toHaveCount(0);
-	logCheckpoint('No notification after toggling auto-select OFF with unchanged values (expected).');
-
-	// The model dropdowns should now be visible.
-	// Use page-level locator (not scoped through settingsMenu chain) to avoid issues
-	// if the .visible class on the settings menu flickers during Svelte re-render.
-	// Also scroll into view since the dropdowns render below the toggle and may be
-	// below the settings panel fold.
-	const simpleDropdown = page.locator('#default-simple-select');
-	// Wait for the {#if} block to render the select element
-	await expect(simpleDropdown).toBeAttached({ timeout: 10000 });
-	await simpleDropdown.scrollIntoViewIfNeeded();
-	await expect(simpleDropdown).toBeVisible({ timeout: 10000 });
-	logCheckpoint('Simple requests dropdown is visible.');
-
-	// Select "Mistral Small 4" in the Simple requests dropdown.
-	// The value format is "provider_id/model_id" = "mistral/mistral-small-latest"
-	await simpleDropdown.selectOption({ label: 'Mistral Small 4' });
-	logCheckpoint('Selected "Mistral Small 4" in Simple requests dropdown.');
-	await page.waitForTimeout(1000);
-
+	await expect(mistralOption).toBeVisible({ timeout: 10000 });
+	await mistralOption.getByTestId('ai-model-option-exact-toggle').click();
+	await expect(mistralOption.locator('input[type="checkbox"]')).toBeChecked({ timeout: 5000 });
+	logCheckpoint('Selected "Mistral Small 4" for Simple requests.');
 	await takeStepScreenshot(page, '02-mistral-small-selected');
 
-	// Verify success notification appears with descriptive change text
-	const notification2 = modelChangeNotification(page, MISTRAL_SELECTED_NOTIFICATION);
-	await expect(notification2).toBeVisible({ timeout: 5000 });
-	await expect(notification2).toContainText(MISTRAL_SELECTED_NOTIFICATION);
-	logCheckpoint('Descriptive success notification appeared after selecting Mistral Small 4.');
-
-	// Wait for notification to disappear
-	await page.waitForTimeout(3000);
+	// The overview row shows the saved selection.
+	await backToAiOverview(page);
+	await expect(aiSettings.getByTestId('ai-tier-row-simple')).toContainText(MISTRAL_MODEL_NAME, {
+		timeout: 5000
+	});
+	logCheckpoint('Simple requests row shows Mistral Small 4.');
 
 	// Close settings
 	await closeSettings(page, logCheckpoint);
@@ -301,7 +297,7 @@ test('change default model to Mistral Small 4, verify it is used, then switch ba
 	);
 
 	// Verify the response was generated by Mistral Small 4
-	expect(generatedByText1.toLowerCase()).toContain('mistral small 3.2');
+	expect(generatedByText1.toLowerCase()).toContain('mistral small 4');
 	logCheckpoint(`Verified: response was generated by Mistral Small 4. Text: "${generatedByText1}"`);
 
 	// Verify the response contains the expected answer
@@ -323,35 +319,26 @@ test('change default model to Mistral Small 4, verify it is used, then switch ba
 	const settingsMenu2 = page.locator('[data-testid="settings-menu"].visible');
 	const aiSettings2 = settingsMenu2.getByTestId('ai-settings');
 
-	// The auto-select toggle should be OFF now. Toggle it back ON.
-	const autoSelectRow2 = aiSettings2.getByTestId('setting-row').first();
-	await expect(autoSelectRow2).toBeVisible({ timeout: 5000 });
+	// The selection persisted across closing and re-opening settings.
+	await expect(aiSettings2.getByTestId('ai-tier-row-simple')).toContainText(MISTRAL_MODEL_NAME, {
+		timeout: 5000
+	});
+	logCheckpoint('Mistral Small 4 selection persisted after re-opening settings.');
 
-	const toggleInput2 = autoSelectRow2.locator('input[type="checkbox"]');
-	const isAutoOn2 = await toggleInput2.evaluate((el: HTMLInputElement) => el.checked);
-	logCheckpoint(`Auto-select toggle is currently: ${isAutoOn2 ? 'ON' : 'OFF'}`);
-
-	if (!isAutoOn2) {
-		const toggleWrapper2 = autoSelectRow2.locator('[role="button"]').first();
-		await toggleWrapper2.click();
-		logCheckpoint('Toggled auto-select back ON.');
-
-		// Assert before taking screenshots so the transient toast cannot expire first.
-		const notification3 = modelChangeNotification(page, AUTO_SELECTED_NOTIFICATION);
-		await expect(notification3).toBeVisible({ timeout: 5000 });
-		await expect(notification3).toContainText(AUTO_SELECTED_NOTIFICATION);
-		logCheckpoint('Descriptive success notification appeared after toggling auto-select ON.');
-	}
-
+	await openSimpleTierEditor(page, logCheckpoint);
+	const autoOption = settingsMenu2.getByTestId('ai-model-option-auto');
+	await autoOption.getByTestId('ai-model-option-auto-toggle').click();
+	await expect(autoOption.locator('input[type="checkbox"]')).toBeChecked({ timeout: 5000 });
+	logCheckpoint('Switched Simple requests back to Auto.');
 	await takeStepScreenshot(page, '04-auto-select-on');
 
-	// Wait for notification to dismiss
-	await page.waitForTimeout(3000);
-
-	// Verify the dropdowns are no longer visible (auto-select is ON)
-	const simpleDropdown2 = aiSettings2.locator('#default-simple-select');
-	await expect(simpleDropdown2).not.toBeVisible({ timeout: 3000 });
-	logCheckpoint('Dropdowns hidden - auto-select is ON.');
+	await backToAiOverview(page);
+	await expect(aiSettings2.getByTestId('ai-tier-row-simple')).not.toContainText(
+		MISTRAL_MODEL_NAME,
+		{ timeout: 5000 }
+	);
+	await expect(aiSettings2.getByTestId('ai-tier-row-simple')).toContainText('Auto');
+	logCheckpoint('Simple requests row shows Auto again.');
 
 	// Close settings
 	await closeSettings(page, logCheckpoint);
@@ -376,7 +363,7 @@ test('change default model to Mistral Small 4, verify it is used, then switch ba
 
 	// Verify the model used is NOT Mistral Small 4 (auto-select should pick a different model)
 	// Auto-select typically picks premium/standard models for simple requests, not economy tier Mistral Small 4.
-	expect(generatedByText2.toLowerCase()).not.toContain('mistral small 3.2');
+	expect(generatedByText2.toLowerCase()).not.toContain('mistral small 4');
 	logCheckpoint(
 		`Verified: auto-select used a different model (not Mistral Small 4). Text: "${generatedByText2}"`
 	);

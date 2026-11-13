@@ -3,7 +3,7 @@
 // deferred to the verified web flow in ChatImportView. Strings use AppStrings/i18n.
 // Uses OMSettingsPage/Section/Row primitives — no Form/List/Toggle/Picker/.navigationTitle.
 // Specification: specifications/features/notifications/specification.yml
-// Assertions: notifications.settings.ack-persisted, notifications.content.privacy-boundary
+// Assertions: notifications.settings.ack-persisted, notifications.content.privacy-boundary, notifications.sounds.silent-mode
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/SettingsAccount.svelte
@@ -406,7 +406,10 @@ struct SettingsPasswordView: View {
     }
 
     var body: some View {
-        OMSettingsPage(title: AppStrings.password, scrollAccessibilityIdentifier: "settings-password-form-scroll") {
+        // Keep the fields mounted: in a landscape panel the keyboard leaves no
+        // visible rows, and a lazy stack would unload the focused field.
+        OMSettingsPage(title: AppStrings.password, scrollAccessibilityIdentifier: "settings-password-form-scroll",
+                       lazyContent: false) {
             OMSettingsSection {
                 VStack(alignment: .leading, spacing: .spacing3) {
                     if usesEmail {
@@ -1262,8 +1265,7 @@ struct SettingsAutoDeleteView: View {
         .task {
             guard !isLoaded else { return }
             do {
-                let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
-                autoDeleteDays = response.user?.autoDeleteChatsAfterDays ?? 0
+                autoDeleteDays = try await AuthManager.admittedProfile().autoDeleteChatsAfterDays ?? 0
             } catch {}
             isLoaded = true
         }
@@ -1356,6 +1358,7 @@ struct SettingsNotificationsView: View {
     @State private var isSavingEmail = false
     @State private var isLoaded = false
     @State private var errorMessage: String?
+    @State private var silentMode = NativeHaptics.isSilentMode()
 
     init(deepLinkPath: String? = nil) {
         _destination = State(initialValue: deepLinkPath == "chat" ? .chat
@@ -1377,6 +1380,12 @@ struct SettingsNotificationsView: View {
         } else {
             OMSettingsPage(title: AppStrings.settingsNotifications, showsHeader: false) {
                 OMSettingsSection {
+                    // Device-only quick toggle; mirrors web data-testid "silent-mode".
+                    OMSettingsToggleRow(
+                        title: L("settings.notifications.sounds.silent_mode"),
+                        subtitle: L("settings.notifications.sounds.silent_mode_info"),
+                        icon: "mute", isOn: $silentMode, toggleIdentifier: "silent-mode")
+                        .onChange(of: silentMode) { _, value in NativeHaptics.setSilentMode(value) }
                     OMSettingsRow(
                         title: L("settings.notifications.chat"),
                         icon: "notification",
@@ -1445,8 +1454,7 @@ struct SettingsNotificationsView: View {
     private func load() async {
         guard !isLoaded else { return }
         do {
-            let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
-            chatNotifications = response.user?.pushNotificationEnabled ?? false
+            chatNotifications = try await AuthManager.admittedProfile().pushNotificationEnabled ?? false
             let snapshot = try await requestEmailNotificationSettings(
                 using: webSocketManager, type: "email_notification_settings_get",
                 payload: [:], responseType: "email_notification_settings_snapshot")

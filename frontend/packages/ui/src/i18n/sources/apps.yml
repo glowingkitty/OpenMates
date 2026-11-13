@@ -3580,3 +3580,51 @@ skill_form.requirements_placeholder:
   context: Placeholder for optional natural-language search result criteria in an app skill form
   en: Describe what the results should match.
   de: Beschreibe, was die Ergebnisse erfüllen sollen.
+slides:
+  context: App name for the Slides app
+  en: Slides
+  de: Folien
+  zh: 幻灯片
+  es: Diapositivas
+  fr: Diapositives
+  pt: Slides
+  ru: Слайды
+  ja: スライド
+  ko: 슬라이드
+  it: Diapositive
+  tr: Slaytlar
+  vi: Trang chiếu
+  id: Slide
+  pl: Slajdy
+  nl: "Dia's"
+  ar: العروض التقديمية
+  hi: स्लाइड
+  th: สไลด์
+  cs: Prezentace
+  sv: Bildspel
+  he: מצגות
+  verified_by_human: []
+slides.description:
+  context: Description for the Slides app
+  en: Create, edit and present slide decks.
+  de: Erstelle, bearbeite und präsentiere Foliensätze.
+  zh: 创建、编辑和演示幻灯片。
+  es: Crea, edita y presenta diapositivas.
+  fr: Créez, modifiez et présentez des diaporamas.
+  pt: Crie, edite e apresente slides.
+  ru: Создавайте, редактируйте и показывайте презентации.
+  ja: スライドを作成、編集、発表できます。
+  ko: 슬라이드를 만들고, 편집하고, 발표하세요.
+  it: Crea, modifica e presenta diapositive.
+  tr: Slayt desteleri oluşturun, düzenleyin ve sunun.
+  vi: Tạo, chỉnh sửa và trình chiếu các bản trình bày.
+  id: Buat, edit, dan presentasikan slide.
+  pl: Twórz, edytuj i prezentuj slajdy.
+  nl: Maak, bewerk en presenteer diavoorstellingen.
+  ar: أنشئ العروض التقديمية وعدّلها وقدّمها.
+  hi: स्लाइड डेक बनाएं, संपादित करें और प्रस्तुत करें।
+  th: สร้าง แก้ไข และนำเสนอสไลด์
+  cs: Vytvářejte, upravujte a prezentujte snímky.
+  sv: Skapa, redigera och presentera bildspel.
+  he: צרו, ערכו והציגו מצגות.
+  verified_by_human: []

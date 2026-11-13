@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchAndDecryptDocArtifact } from './docsArtifactCrypto';
-import { prepareDocsDownload } from './docsDownload';
+import { docsPdfDownloadFilename, prepareDocsDownload, prepareDocsPdfDownload } from './docsDownload';
 import { asBlob } from 'html-docx-js-typescript';
 import { replaceEmbedRefsWithUrlsInHtml } from '../../../utils/embedLinkUtils';
 
@@ -66,5 +66,22 @@ describe('shared document downloads', () => {
   it('uses the owner reveal setting when generating fallback HTML', async () => {
     await prepareDocsDownload({ htmlContent: '<p>[EMAIL_1]</p>', piiRevealed: true, piiMappings: [{ original: 'alex@example.test', placeholder: '[EMAIL_1]', type: 'email' }] });
     expect(vi.mocked(asBlob).mock.calls[0][0]).toContain('alex@example.test');
+  });
+});
+
+describe('PDF downloads', () => {
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it('decrypts the stored PDF artifact and names it after the document', async () => {
+    const pdf = new Blob(['%PDF-1.7']);
+    vi.mocked(fetchAndDecryptDocArtifact).mockResolvedValue(pdf);
+    expect(await prepareDocsPdfDownload({ filename: 'Report.docx', pdfS3Key: 'private/pdf-key', aesKey: 'private-key' })).toEqual({ filename: 'Report.pdf', blob: pdf });
+    expect(fetchAndDecryptDocArtifact).toHaveBeenCalledWith('private/pdf-key', 'private-key', 'application/pdf');
+    expect(docsPdfDownloadFilename()).toBe('document.pdf');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it('reports PDF decryption failure instead of substituting another file', async () => {
+    vi.mocked(fetchAndDecryptDocArtifact).mockRejectedValue(new Error('decrypt failed'));
+    await expect(prepareDocsPdfDownload({ pdfS3Key: 'k', aesKey: 'a' })).rejects.toThrow('decrypt failed');
   });
 });

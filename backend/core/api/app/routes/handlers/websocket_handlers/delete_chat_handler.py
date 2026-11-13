@@ -13,6 +13,9 @@ from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProt
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
     invalidate_recovery_jobs_for_chat_deletion,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.draft_shell_deletion import (
+    delete_draft_shell_drafts,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +173,10 @@ async def handle_delete_chat(
                 if rows != []:
                     raise RuntimeError("Could not confirm draft-only chat is unpersisted")
                 local_only_chat = True
+                # No persistence worker runs for a draft-only chat, so its
+                # encrypted draft must be removed here; clients may send only
+                # delete_chat (the CLI does). Fails closed via the outer handler.
+                await delete_draft_shell_drafts(cache_service, directus_service, user_id, chat_id)
 
             # 1. Mark chat as deleted in general cache (tombstone)
             # Cached drafts will be allowed to expire naturally.
@@ -222,6 +229,13 @@ async def handle_delete_chat(
             deleted_embed_count = await cache_service.delete_chat_embed_cache(chat_id)
             if deleted_embed_count > 0:
                 logger.info(f"Deleted {deleted_embed_count} embed cache entries for deleted chat {chat_id}")
+
+            # The AI inference context of a deleted chat must leave the per-user
+            # LRU too: a leftover entry whose embeds are still pending cannot be
+            # evicted, so after a few deleted chats every new chat's message is
+            # refused AI-cache admission until the TTL ends.
+            if not await cache_service.delete_ai_messages_history(user_id, chat_id):
+                logger.warning(f"Failed to delete AI context cache for deleted chat {chat_id}")
         
             tombstone_success = tombstone_written or removed_from_set or deleted_specific_keys_count > 0
             if tombstone_success:

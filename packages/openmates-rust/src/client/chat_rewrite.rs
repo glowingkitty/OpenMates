@@ -30,6 +30,49 @@ impl Drop for ChatRewriteState {
     }
 }
 impl ChatRewriteState {
+    /// Build the state from an owner-scoped chat row, its complete ciphertext
+    /// history and the already opened chat key. Used by the explicit API-key
+    /// backend (`GET /v1/sdk/chats/{id}`); rows are decoded and placeholders
+    /// restored by the same authenticated decoder as the session read.
+    pub(crate) fn from_encrypted_rows(
+        chat_id: &str,
+        chat_row: &Value,
+        raw_rows: &[Value],
+        key: &[u8; 32],
+    ) -> Result<Self> {
+        if text(chat_row, "id") != chat_id {
+            return Err(Error::Forbidden);
+        }
+        if text(chat_row, "chat_visibility") == "direct" || !text(chat_row, "hashed_team_id").is_empty() {
+            return Err(Error::Invalid(PERSONAL_ONLY));
+        }
+        if text(chat_row, "encrypted_chat_key").is_empty() {
+            return Err(Error::Invalid(KEY_MISSING));
+        }
+        let mut seen = std::collections::HashSet::new();
+        let mut rows = Vec::with_capacity(raw_rows.len());
+        let mut chat = Plain::new(Chat {
+            id: chat_id.to_owned(),
+            title: decrypt_optional(chat_row, "encrypted_title", key)?,
+            category: String::new(),
+            messages: Vec::with_capacity(raw_rows.len()),
+        });
+        for raw in raw_rows {
+            let (row, message) = super::sync::decode_chat_message(raw, chat_id, key, &mut seen)?;
+            rows.push(row);
+            chat.messages.push(message);
+        }
+        super::sync::restore_chat_tokens_from_rows(&mut *chat, key, &rows)?;
+        let messages_v = chat_row
+            .get("messages_v")
+            .and_then(Value::as_u64)
+            .unwrap_or(rows.len() as u64);
+        Ok(Self {
+            chat: chat.into_inner(),
+            rows,
+            messages_v,
+        })
+    }
     pub fn chat_id(&self) -> &str {
         &self.chat.id
     }
@@ -181,6 +224,76 @@ pub(super) fn fork_messages(
     Ok(out)
 }
 
+/// `POST …/chats/{id}/fork` body shared by the session and API-key routes:
+/// the source slice re-encrypted under `key`, whose wrapped form the caller
+/// supplies (session master capability or API-key-unwrapped account key).
+pub(crate) fn fork_request(
+    state: &ChatRewriteState,
+    boundary_index: usize,
+    title: Option<&str>,
+    source_key: &[u8; 32],
+    key: &[u8; 32],
+    wrapped_key: String,
+) -> Result<Value> {
+    let from = state.server_message_id(boundary_index)?;
+    let new_id = uuid::Uuid::new_v4().to_string();
+    let now = i64::try_from(now_ms() / 1000).map_err(|_| Error::Protocol)?;
+    let messages = fork_messages(&state.rows[..=boundary_index], source_key, &new_id, key, now)?;
+    let default_title;
+    let title = match title {
+        Some(title) => title,
+        None => {
+            let source = if state.title().is_empty() { state.chat_id() } else { state.title() };
+            default_title = Zeroizing::new(format!("Fork of {source}"));
+            default_title.as_str()
+        }
+    };
+    Ok(json!({
+        "protocol_version": 1,
+        "from_message_id": from,
+        "new_chat_id": new_id,
+        "expected_source_messages_v": state.messages_v(),
+        "encrypted_chat_metadata": {
+            "id": new_id,
+            "encrypted_title": crypto::encrypt_combined(title, key)?,
+            "encrypted_chat_key": wrapped_key,
+            "created_at": now,
+            "updated_at": now,
+        },
+        "encrypted_messages": messages,
+    }))
+}
+/// `POST …/chats/{id}/rewind` body; a destructive rewind needs confirmation.
+pub(crate) fn rewind_request(
+    state: &ChatRewriteState,
+    boundary_index: usize,
+    dry_run: bool,
+    confirm_destructive: bool,
+) -> Result<Value> {
+    if !dry_run && !confirm_destructive {
+        return Err(Error::Invalid(REWIND_CONFIRM));
+    }
+    let to = state.server_message_id(boundary_index)?;
+    Ok(json!({
+        "protocol_version": 1,
+        "to_message_id": to,
+        "expected_messages_v": state.messages_v(),
+        "dry_run": dry_run,
+        "confirm_destructive": confirm_destructive,
+    }))
+}
+/// Retry plan check shared by both backends: confirmation, then the target.
+pub(crate) fn retry_plan(
+    state: &ChatRewriteState,
+    dry_run: bool,
+    confirm_destructive: bool,
+) -> Result<ChatRetryTarget> {
+    if !dry_run && !confirm_destructive {
+        return Err(Error::Invalid(RETRY_CONFIRM));
+    }
+    state.retry_target()
+}
+
 impl Client {
     /// Read exactly the selected personal chat (full history) for a rewrite.
     pub async fn chat_rewrite_state(&mut self, chat_id: &str) -> Result<ChatRewriteState> {
@@ -219,39 +332,14 @@ impl Client {
         boundary_index: usize,
         title: Option<&str>,
     ) -> Result<Value> {
-        let from = state.server_message_id(boundary_index)?;
+        state.server_message_id(boundary_index)?;
         self.verify_private_operation()?;
         let row = self.chats.get(state.chat_id()).cloned().ok_or(Error::Offline)?;
         let master = self.master_capability()?;
         let source_key = self.chat_key_with_capability(&row, &master).await?;
-        let new_id = uuid::Uuid::new_v4().to_string();
         let key = crypto::random_key();
-        let now = i64::try_from(now_ms() / 1000).map_err(|_| Error::Protocol)?;
-        let messages = fork_messages(&state.rows[..=boundary_index], &source_key, &new_id, &key, now)?;
-        let default_title;
-        let title = match title {
-            Some(title) => title,
-            None => {
-                let source = if state.title().is_empty() { state.chat_id() } else { state.title() };
-                default_title = Zeroizing::new(format!("Fork of {source}"));
-                default_title.as_str()
-            }
-        };
         let wrapped = master.encrypt_server_bytes(&key[..]).await?;
-        let body = json!({
-            "protocol_version": 1,
-            "from_message_id": from,
-            "new_chat_id": new_id,
-            "expected_source_messages_v": state.messages_v(),
-            "encrypted_chat_metadata": {
-                "id": new_id,
-                "encrypted_title": crypto::encrypt_combined(title, &key)?,
-                "encrypted_chat_key": wrapped,
-                "created_at": now,
-                "updated_at": now,
-            },
-            "encrypted_messages": messages,
-        });
+        let body = fork_request(state, boundary_index, title, &source_key, &key, wrapped)?;
         self.verify_private_operation()?;
         let path = format!("/v1/chats/{}/fork", segment(state.chat_id()));
         let result = self.request(Method::POST, &path, Some(body)).await?;
@@ -266,18 +354,8 @@ impl Client {
         dry_run: bool,
         confirm_destructive: bool,
     ) -> Result<Value> {
-        if !dry_run && !confirm_destructive {
-            return Err(Error::Invalid(REWIND_CONFIRM));
-        }
-        let to = state.server_message_id(boundary_index)?;
+        let body = rewind_request(state, boundary_index, dry_run, confirm_destructive)?;
         self.verify_private_operation()?;
-        let body = json!({
-            "protocol_version": 1,
-            "to_message_id": to,
-            "expected_messages_v": state.messages_v(),
-            "dry_run": dry_run,
-            "confirm_destructive": confirm_destructive,
-        });
         let path = format!("/v1/chats/{}/rewind", segment(state.chat_id()));
         let result = self.request(Method::POST, &path, Some(body)).await?;
         if !dry_run {
@@ -297,10 +375,7 @@ impl Client {
         dry_run: bool,
         confirm_destructive: bool,
     ) -> Result<(Value, Option<Zeroizing<String>>)> {
-        if !dry_run && !confirm_destructive {
-            return Err(Error::Invalid(RETRY_CONFIRM));
-        }
-        let target = state.retry_target()?;
+        let target = retry_plan(state, dry_run, confirm_destructive)?;
         let result = self
             .rewind_chat(state, target.boundary_index, dry_run, confirm_destructive)
             .await?;

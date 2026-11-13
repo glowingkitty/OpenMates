@@ -139,6 +139,38 @@ async fn host_local_packet(request:String,host_effect:&js_sys::Function,guard:&i
     guard()?;let mut value=value?;if value.len()>MAX_CHAT_UTF8_BYTES{return Err(openmates_sdk::Error::Protocol);}
     Ok(std::mem::take(&mut *value))
 }
+/// Fixed error-variant name only (never content) for a cache-first miss, so a
+/// miss that falls back to the server read stays diagnosable in the Worker log.
+fn log_cached_view_miss(error: &openmates_sdk::Error) {
+    use openmates_sdk::Error as E;
+    let code = match error {
+        E::Invalid(_) => "invalid",
+        E::Crypto => "crypto",
+        E::Authentication => "authentication",
+        E::Unavailable { .. } => "unavailable",
+        E::Locked => "locked",
+        E::Offline => "offline",
+        E::Forbidden => "forbidden",
+        E::Expired => "expired",
+        E::Cancelled => "cancelled",
+        E::Io => "io",
+        E::Protocol => "protocol",
+        E::Conflict => "conflict",
+        _ => "other",
+    };
+    let console = js_sys::Reflect::get(&js_sys::global(), &JsValue::from_str("console")).ok();
+    let info = console
+        .as_ref()
+        .and_then(|c| js_sys::Reflect::get(c, &JsValue::from_str("info")).ok())
+        .and_then(|f| f.dyn_into::<js_sys::Function>().ok());
+    if let (Some(console), Some(info)) = (console, info) {
+        let _ = info.call2(
+            &console,
+            &JsValue::from_str("[RustCore] online cached view miss:"),
+            &JsValue::from_str(code),
+        );
+    }
+}
 fn saved_page_options(selector_json:&str)->Result<openmates_sdk::client::saved_chat_read::SavedChatReadOptions,JsValue>{
     use openmates_sdk::client::saved_chat_read::{SavedChatContentMode,SavedChatReadOptions};
     if selector_json.len()>2048{return Err(JsValue::from_str("invalid_request"));}
@@ -255,6 +287,34 @@ impl BrowserCoreClient {
         Ok(Self { client, handle: uuid::Uuid::new_v4().to_string(),cache:Default::default(),#[cfg(feature="browser-metadata-prototype")] initial_sync_store:None })
     }
 
+    /// Local-only admission of the existing key (no server call): cached-profile
+    /// reads only. The Worker later runs `restore` on the same Worker as the
+    /// server check, which replaces (and frees) this client.
+    pub fn restore_local(
+        api_url: &str,
+        app_origin: &str,
+        session_id: &str,
+        prepared: PreparedBrowserProfile,
+    ) -> Result<BrowserCoreClient, JsValue> {
+        worker_only()?;
+        let client =
+            Client::browser_session_local(api_url, app_origin, session_id, prepared.profile)
+                .map_err(|_| JsValue::from_str("unavailable"))?;
+        if !client
+            .browser_session_status()
+            .is_some_and(|status| status.is_local_read_only())
+        {
+            return Err(JsValue::from_str("unavailable"));
+        }
+        Ok(Self {
+            client,
+            handle: uuid::Uuid::new_v4().to_string(),
+            cache: Default::default(),
+            #[cfg(feature = "browser-metadata-prototype")]
+            initial_sync_store: None,
+        })
+    }
+
     pub fn status(&self, handle: &str, generation: f64) -> Result<BrowserCoreStatus, JsValue> {
         worker_only()?;
         let status = self.client.browser_session_status().ok_or_else(|| JsValue::from_str("session_expired"))?;
@@ -297,6 +357,57 @@ impl BrowserCoreClient {
         Ok(std::mem::take(&mut *encoded))
     }
 
+    /// Online-session render of the existing retained IndexedDB rows (readonly
+    /// plans, same shared local saved-read helper). The caller reconciles with
+    /// the server separately; this confers no freshness, write or server IO.
+    pub async fn read_online_cached_saved_chat(
+        &self,
+        handle: &str,
+        generation: f64,
+        expected_principal: &str,
+        chat_id: &str,
+        selector_json: &str,
+        host_effect: js_sys::Function,
+    ) -> Result<String, JsValue> {
+        let guard = || -> openmates_sdk::Result<()> {
+            let status = self
+                .status(handle, generation)
+                .map_err(|_| openmates_sdk::Error::Cancelled)?;
+            if status.local_read_only || status.principal != expected_principal {
+                return Err(openmates_sdk::Error::Forbidden);
+            }
+            Ok(())
+        };
+        guard().map_err(|_| JsValue::from_str("session_expired"))?;
+        let options = saved_page_options(selector_json)?;
+        let result = self
+            .client
+            .browser_online_cached_saved_chat_read_with_io_json(
+                expected_principal,
+                chat_id,
+                options,
+                |request| host_local_packet(request, &host_effect, &guard),
+            )
+            .await;
+        if let Err(error) = &result {
+            log_cached_view_miss(error);
+        }
+        guard().map_err(|_| JsValue::from_str("session_expired"))?;
+        let mut encoded = result.map_err(|error| {
+            JsValue::from_str(match error {
+                openmates_sdk::Error::Cancelled
+                | openmates_sdk::Error::Expired
+                | openmates_sdk::Error::Authentication
+                | openmates_sdk::Error::Forbidden => "session_expired",
+                _ => "chat_unavailable",
+            })
+        })?;
+        guard().map_err(|_| JsValue::from_str("session_expired"))?;
+        Ok(std::mem::take(&mut *encoded))
+    }
+
+    /// Exact retained checkpoint presentation; the callback executes only the
+    /// existing bounded metadata plan. No key export, PII lookup or remote read.
     /// Exact retained checkpoint presentation; the callback executes only the
     /// existing bounded metadata plan. No key export, PII lookup or remote read.
     pub async fn read_local_checkpoint_summary(&self,handle:&str,generation:f64,expected_principal:&str,chat_id:&str,checkpoint_id:&str,host_effect:js_sys::Function)->Result<String,JsValue>{
@@ -590,3 +701,7 @@ pub use initial_sync::{BrowserInitialSyncHandle,BrowserInitialSyncControl,Browse
 
 #[cfg(feature="browser-metadata-prototype")]
 pub use initial_sync::{BrowserInitialSyncStoreBootstrap,BrowserInitialSyncStoreDriver,BrowserInitialSyncNativeTerminal,BrowserInitialSyncStored,capture_initial_sync_store};
+
+#[path="browser_embed_user_edit.rs"]
+mod embed_user_edit;
+pub use embed_user_edit::BrowserImageEnhanceWaker;

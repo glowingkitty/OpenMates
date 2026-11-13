@@ -4,7 +4,7 @@ import type { PersonalDataEntry, PIIDetectionSettings } from '../../stores/perso
 const mocks = vi.hoisted(() => ({
   connection: {} as object, scope: 'account-a|key-1', session: 'session-a', handlers: new Map<string, (data: any) => void>(),
   listeners: new Map<string, () => void>(), invalidators: [] as Array<() => void>,
-  send: vi.fn(), checkAuth: vi.fn(async () => false), serializeRead: vi.fn((read: () => Promise<unknown>) => read()), waitMutations: vi.fn(async () => true), decrypt: vi.fn(async (value: string) => value),
+  send: vi.fn(), connect: vi.fn(async () => undefined), checkAuth: vi.fn(async () => false), serializeRead: vi.fn((read: () => Promise<unknown>) => read()), waitMutations: vi.fn(async () => true), decrypt: vi.fn(async (value: string) => value),
   store: { subscribe(callback: (value: any) => void) { callback({ user_id: 'account-a', isAuthenticated: true }); return () => {}; } },
   entries: null as unknown as Writable<PersonalDataEntry[]>,
   settings: null as unknown as Writable<PIIDetectionSettings>, pending: false,
@@ -31,6 +31,7 @@ vi.mock('../websocketService', () => ({ webSocketService: {
   addEventListener: (type: string, handler: () => void) => mocks.listeners.set(type, handler),
   removeEventListener: (type: string) => mocks.listeners.delete(type),
   sendMessage: mocks.send,
+  connect: mocks.connect,
   getConnectionForSend: () => mocks.connection,
 } }));
 const snapshot = (text = 'Secret Orchard') => ({ encrypted_settings: '{"memories":[{"id":"private-doc","document":"My local document"}]}', memories: [
@@ -46,7 +47,7 @@ describe('prepared Personal privacy', () => {
     mocks.pending = false;
     mocks.entries?.set([]);
     mocks.settings?.set({ masterEnabled: true, enhancedEnabled: true, categories: { email: true, phone: true } });
-    mocks.scope = 'account-a|key-1'; mocks.session = 'session-a'; mocks.send.mockReset(); mocks.decrypt.mockImplementation(async (value: string) => value); mocks.decrypt.mockClear(); mocks.waitMutations.mockReset().mockResolvedValue(true); mocks.checkAuth.mockReset().mockResolvedValue(false); mocks.serializeRead.mockClear(); });
+    mocks.scope = 'account-a|key-1'; mocks.session = 'session-a'; mocks.send.mockReset(); mocks.connect.mockClear(); mocks.decrypt.mockImplementation(async (value: string) => value); mocks.decrypt.mockClear(); mocks.waitMutations.mockReset().mockResolvedValue(true); mocks.checkAuth.mockReset().mockResolvedValue(false); mocks.serializeRead.mockClear(); });
 
 
   // contract-test: direct surface=gui.web assertions=pii.web.enhanced-default-and-opt-out,ai-model-routing.preprocessing.prepared-privacy
@@ -146,6 +147,33 @@ describe('prepared Personal privacy', () => {
       return value;
     });
     await expect(service.freshPersonalPrivacyForSend('scope-fence')).rejects.toThrow('scope changed');
+  });
+
+  // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy,chats.send.immediate-admission
+  it('asks once more on the new socket when the connection changes during the send check', async () => {
+    const service = await import('../preparedPrivacyForSend');
+    mocks.handlers.get('server_capabilities')!({ capabilities: ['personal_send_context_snapshot_v2'] });
+    let attempt = 0;
+    mocks.send.mockImplementation(async (_type: string, request: any) => {
+      attempt += 1;
+      if (attempt === 1) return mocks.listeners.get('close')!();
+      mocks.handlers.get('personal_send_context_snapshot_result')!(full('send', request));
+    });
+    const receipt = await service.freshPersonalPrivacyForSend('reconnected-turn');
+    expect(receipt.receiptId).toBe('receipt-a');
+    expect(mocks.connect).toHaveBeenCalledTimes(1);
+    expect(mocks.send).toHaveBeenCalledTimes(2);
+  });
+
+  // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy,auth.session.authoritative-enforcement
+  it('never retries a server refusal of the send check', async () => {
+    const service = await import('../preparedPrivacyForSend');
+    mocks.handlers.get('server_capabilities')!({ capabilities: ['personal_send_context_snapshot_v2'] });
+    mocks.send.mockImplementation(async (_type: string, request: any) =>
+      mocks.handlers.get('personal_send_context_snapshot_result')!({ request_id: request.request_id, success: false, error: { code: 'unauthorized' } }));
+    await expect(service.freshPersonalPrivacyForSend('refused-turn')).rejects.toThrow('freshness check failed');
+    expect(mocks.connect).not.toHaveBeenCalled();
+    expect(mocks.send).toHaveBeenCalledTimes(1);
   });
 
   // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy

@@ -37,6 +37,14 @@ describe('workflow input stream', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=workflows-ui.authoring.edit-control-and-undo
+  it('refuses a source chat without the Rust core instead of dropping it', async () => {
+    apiFetch.mockClear();
+    await expect(streamWorkflowInstruction('Create a report', undefined, () => undefined, undefined, undefined, { sourceChatId: 'chat-1' }))
+      .rejects.toThrow('requires the Rust core');
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=workflows.authoring.provisional-validation
   it('rejects a stream that closes without a final session', async () => {
     apiFetch.mockResolvedValueOnce(fragmentedResponse(['data: {"type":"progress","phase":"saving"}\n\n']));
     await expect(streamWorkflowInstruction('Incomplete', undefined, () => undefined)).rejects.toThrow('before a result');

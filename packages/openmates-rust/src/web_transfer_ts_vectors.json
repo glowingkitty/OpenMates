@@ -1,0 +1,2122 @@
+{
+ "utcOffsetMinutes": 0,
+ "json": [
+  {
+   "name": "claude-array",
+   "fileName": "Conversations.JSON",
+   "text": "[{\"uuid\":\"c-old\",\"name\":\"Older chat\",\"created_at\":\"2024-01-01T10:00:00Z\",\"updated_at\":\"2024-01-02T10:00:00Z\",\"chat_messages\":[{\"uuid\":\"m1\",\"sender\":\"human\",\"created_at\":\"2024-01-01T10:00:00Z\",\"content\":[{\"type\":\"text\",\"text\":\"Hello there\"}],\"attachments\":[{\"file_name\":\"notes.txt\",\"file_size\":1234,\"file_type\":\"text/plain\"}],\"files\":[{\"name\":\"img.png\",\"uuid\":\"f-1\"},null,{\"id\":7}]},{\"uuid\":\"m2\",\"sender\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"Hi! 👋\"},{\"type\":\"tool_use\"},{\"type\":\"tool_result\",\"content\":\"tool out\"},null,\"x\"]},{\"sender\":\"other\",\"text\":\"fallback text\",\"content\":[]},{\"sender\":\"assistant\",\"content\":[{\"type\":\"thinking\"}],\"text\":42},null,[\"array-message\"]]},{\"uuid\":\"c-new\",\"name\":null,\"created_at\":\"2025-03-01T08:00:00.123+02:00\",\"updated_at\":null,\"chat_messages\":[{\"uuid\":\"n1\",\"sender\":\"human\",\"content\":[{\"type\":\"text\",\"text\":\"  \"}]},{\"uuid\":\"n2\",\"sender\":\"assistant\",\"text\":\"Answer with\\nlines\"}]},{\"uuid\":\"c-mid\",\"created_at\":\"2024-06-01\",\"chat_messages\":\"nope\"},{\"uuid\":\"c-bad-date\",\"updated_at\":\"not a date\",\"chat_messages\":[]},null]",
+   "out": {
+    "ok": true,
+    "parsed": {
+     "source": "claude",
+     "parserFormat": "claude",
+     "fileType": "claude-json",
+     "chats": [
+      {
+       "provider": "claude",
+       "source_chat_id": "c-new",
+       "source_fingerprint": "4b59a5971a5fbb72710df6c9f51f454d819cc176ad9d17cba78a4fa4df9f94f0",
+       "title": null,
+       "created_at": "2025-03-01T08:00:00.123+02:00",
+       "updated_at": null,
+       "messages": [
+        {
+         "role": "user",
+         "content": "  ",
+         "created_at": null,
+         "source_message_id": "n1",
+         "provider_metadata": {
+          "content_block_types": [
+           "text"
+          ]
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "Answer with\nlines",
+         "created_at": null,
+         "source_message_id": "n2",
+         "provider_metadata": {
+          "content_block_types": []
+         },
+         "imported_assistant_identity": {
+          "category": "claude",
+          "sender_name": "Claude",
+          "model_name": "Claude"
+         }
+        }
+       ],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "claude"
+       ],
+       "source_metadata": {
+        "source_name": "Conversations.JSON",
+        "message_count": 2
+       },
+       "parser_format": "claude",
+       "selected_source": "claude"
+      },
+      {
+       "provider": "claude",
+       "source_chat_id": "c-mid",
+       "source_fingerprint": "562422813b9f51ac3f9926c326f7ee6f7100285a20e7c490954900cb84c58f01",
+       "title": null,
+       "created_at": "2024-06-01",
+       "updated_at": null,
+       "messages": [],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "claude"
+       ],
+       "source_metadata": {
+        "source_name": "Conversations.JSON",
+        "message_count": 0
+       },
+       "parser_format": "claude",
+       "selected_source": "claude"
+      },
+      {
+       "provider": "claude",
+       "source_chat_id": "c-old",
+       "source_fingerprint": "b6c96d7801a58cf6facf38aeaf33a435160205da70d572219453008d02fb3b40",
+       "title": "Older chat",
+       "created_at": "2024-01-01T10:00:00Z",
+       "updated_at": "2024-01-02T10:00:00Z",
+       "messages": [
+        {
+         "role": "user",
+         "content": "Hello there",
+         "created_at": "2024-01-01T10:00:00Z",
+         "source_message_id": "m1",
+         "provider_metadata": {
+          "content_block_types": [
+           "text"
+          ]
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "Hi! 👋\ntool out",
+         "created_at": null,
+         "source_message_id": "m2",
+         "provider_metadata": {
+          "content_block_types": [
+           "text",
+           "tool_use",
+           "tool_result"
+          ]
+         },
+         "imported_assistant_identity": {
+          "category": "claude",
+          "sender_name": "Claude",
+          "model_name": "Claude"
+         }
+        },
+        {
+         "role": "system",
+         "content": "fallback text",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "content_block_types": []
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "42",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "content_block_types": [
+           "thinking"
+          ]
+         },
+         "imported_assistant_identity": {
+          "category": "claude",
+          "sender_name": "Claude",
+          "model_name": "Claude"
+         }
+        },
+        {
+         "role": "system",
+         "content": "",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "content_block_types": []
+         },
+         "imported_assistant_identity": null
+        }
+       ],
+       "embeds": [],
+       "uploads": [
+        {
+         "source_upload_id": "notes.txt",
+         "file_name": "notes.txt",
+         "mime_type": "text/plain",
+         "bytes": 1234,
+         "content_ref": "notes.txt"
+        },
+        {
+         "source_upload_id": "f-1",
+         "file_name": "img.png",
+         "mime_type": null,
+         "bytes": null,
+         "content_ref": "img.png"
+        },
+        {
+         "source_upload_id": "7",
+         "file_name": "attachment-3",
+         "mime_type": null,
+         "bytes": null,
+         "content_ref": "attachment-3"
+        }
+       ],
+       "provider_labels": [
+        "claude"
+       ],
+       "source_metadata": {
+        "source_name": "Conversations.JSON",
+        "message_count": 5
+       },
+       "parser_format": "claude",
+       "selected_source": "claude"
+      },
+      {
+       "provider": "claude",
+       "source_chat_id": "c-bad-date",
+       "source_fingerprint": "bb88410d751bfa5bd2df9c8981e5ecbd528fdeedec78e4a9e125818bdce74fe2",
+       "title": null,
+       "created_at": null,
+       "updated_at": "not a date",
+       "messages": [],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "claude"
+       ],
+       "source_metadata": {
+        "source_name": "Conversations.JSON",
+        "message_count": 0
+       },
+       "parser_format": "claude",
+       "selected_source": "claude"
+      }
+     ],
+     "skippedDomains": []
+    },
+    "estimates": [
+     [
+      5,
+      1
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      12,
+      4
+     ],
+     [
+      0,
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "claude-wrapped-selected-other-source",
+   "fileName": "c.json",
+   "selectedSource": "chatgpt",
+   "text": "{\"conversations\":[{\"uuid\":\"c-old\",\"name\":\"Older chat\",\"created_at\":\"2024-01-01T10:00:00Z\",\"updated_at\":\"2024-01-02T10:00:00Z\",\"chat_messages\":[{\"uuid\":\"m1\",\"sender\":\"human\",\"created_at\":\"2024-01-01T10:00:00Z\",\"content\":[{\"type\":\"text\",\"text\":\"Hello there\"}],\"attachments\":[{\"file_name\":\"notes.txt\",\"file_size\":1234,\"file_type\":\"text/plain\"}],\"files\":[{\"name\":\"img.png\",\"uuid\":\"f-1\"},null,{\"id\":7}]},{\"uuid\":\"m2\",\"sender\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"Hi! 👋\"},{\"type\":\"tool_use\"},{\"type\":\"tool_result\",\"content\":\"tool out\"},null,\"x\"]},{\"sender\":\"other\",\"text\":\"fallback text\",\"content\":[]},{\"sender\":\"assistant\",\"content\":[{\"type\":\"thinking\"}],\"text\":42},null,[\"array-message\"]]},{\"uuid\":\"c-new\",\"name\":null,\"created_at\":\"2025-03-01T08:00:00.123+02:00\",\"updated_at\":null,\"chat_messages\":[{\"uuid\":\"n1\",\"sender\":\"human\",\"content\":[{\"type\":\"text\",\"text\":\"  \"}]},{\"uuid\":\"n2\",\"sender\":\"assistant\",\"text\":\"Answer with\\nlines\"}]}]}",
+   "out": {
+    "ok": true,
+    "parsed": {
+     "source": "chatgpt",
+     "parserFormat": "claude",
+     "fileType": "claude-json",
+     "chats": [
+      {
+       "provider": "chatgpt",
+       "source_chat_id": "c-new",
+       "source_fingerprint": "4b59a5971a5fbb72710df6c9f51f454d819cc176ad9d17cba78a4fa4df9f94f0",
+       "title": null,
+       "created_at": "2025-03-01T08:00:00.123+02:00",
+       "updated_at": null,
+       "messages": [
+        {
+         "role": "user",
+         "content": "  ",
+         "created_at": null,
+         "source_message_id": "n1",
+         "provider_metadata": {
+          "content_block_types": [
+           "text"
+          ]
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "Answer with\nlines",
+         "created_at": null,
+         "source_message_id": "n2",
+         "provider_metadata": {
+          "content_block_types": []
+         },
+         "imported_assistant_identity": {
+          "category": "chatgpt",
+          "sender_name": "ChatGPT",
+          "model_name": "ChatGPT"
+         }
+        }
+       ],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "claude"
+       ],
+       "source_metadata": {
+        "source_name": "c.json",
+        "message_count": 2
+       },
+       "parser_format": "claude",
+       "selected_source": "chatgpt"
+      },
+      {
+       "provider": "chatgpt",
+       "source_chat_id": "c-old",
+       "source_fingerprint": "b6c96d7801a58cf6facf38aeaf33a435160205da70d572219453008d02fb3b40",
+       "title": "Older chat",
+       "created_at": "2024-01-01T10:00:00Z",
+       "updated_at": "2024-01-02T10:00:00Z",
+       "messages": [
+        {
+         "role": "user",
+         "content": "Hello there",
+         "created_at": "2024-01-01T10:00:00Z",
+         "source_message_id": "m1",
+         "provider_metadata": {
+          "content_block_types": [
+           "text"
+          ]
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "Hi! 👋\ntool out",
+         "created_at": null,
+         "source_message_id": "m2",
+         "provider_metadata": {
+          "content_block_types": [
+           "text",
+           "tool_use",
+           "tool_result"
+          ]
+         },
+         "imported_assistant_identity": {
+          "category": "chatgpt",
+          "sender_name": "ChatGPT",
+          "model_name": "ChatGPT"
+         }
+        },
+        {
+         "role": "system",
+         "content": "fallback text",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "content_block_types": []
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "42",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "content_block_types": [
+           "thinking"
+          ]
+         },
+         "imported_assistant_identity": {
+          "category": "chatgpt",
+          "sender_name": "ChatGPT",
+          "model_name": "ChatGPT"
+         }
+        },
+        {
+         "role": "system",
+         "content": "",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "content_block_types": []
+         },
+         "imported_assistant_identity": null
+        }
+       ],
+       "embeds": [],
+       "uploads": [
+        {
+         "source_upload_id": "notes.txt",
+         "file_name": "notes.txt",
+         "mime_type": "text/plain",
+         "bytes": 1234,
+         "content_ref": "notes.txt"
+        },
+        {
+         "source_upload_id": "f-1",
+         "file_name": "img.png",
+         "mime_type": null,
+         "bytes": null,
+         "content_ref": "img.png"
+        },
+        {
+         "source_upload_id": "7",
+         "file_name": "attachment-3",
+         "mime_type": null,
+         "bytes": null,
+         "content_ref": "attachment-3"
+        }
+       ],
+       "provider_labels": [
+        "claude"
+       ],
+       "source_metadata": {
+        "source_name": "c.json",
+        "message_count": 5
+       },
+       "parser_format": "claude",
+       "selected_source": "chatgpt"
+      }
+     ],
+     "skippedDomains": []
+    },
+    "estimates": [
+     [
+      5,
+      1
+     ],
+     [
+      12,
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "name": "claude-missing-uuid",
+   "fileName": "c.json",
+   "text": "[{\"name\":\"x\",\"chat_messages\":[]}]",
+   "out": {
+    "ok": false,
+    "message": "Claude conversation is missing uuid.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "unknown-object",
+   "fileName": "c.json",
+   "text": "{\"hello\":1}",
+   "out": {
+    "ok": false,
+    "message": "Claude export conversations must be an array.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "empty-array",
+   "fileName": "c.json",
+   "text": "[]",
+   "out": {
+    "ok": true,
+    "parsed": {
+     "source": "claude",
+     "parserFormat": "claude",
+     "fileType": "claude-json",
+     "chats": [],
+     "skippedDomains": []
+    },
+    "estimates": []
+   }
+  },
+  {
+   "name": "chatgpt",
+   "fileName": "conversations.json",
+   "text": "[{\"conversation_id\":\"g-1\",\"title\":\"GPT g-1\",\"create_time\":1700000000.5,\"update_time\":1700003600,\"current_node\":\"n4\",\"mapping\":{\"root\":{\"id\":\"root\",\"message\":null,\"parent\":null,\"children\":[\"n1\"]},\"n1\":{\"id\":\"n1\",\"parent\":\"root\",\"message\":{\"id\":\"n1\",\"author\":{\"role\":\"system\"},\"content\":{\"content_type\":\"text\",\"parts\":[\"\"]},\"create_time\":null}},\"n2\":{\"id\":\"n2\",\"parent\":\"n1\",\"message\":{\"id\":\"n2\",\"author\":{\"role\":\"user\"},\"content\":{\"content_type\":\"multimodal_text\",\"parts\":[\"Show me\",{\"asset_pointer\":\"file-1\"},\"﻿ \"]},\"create_time\":1700000001}},\"n3\":{\"id\":\"n3\",\"parent\":\"n2\",\"message\":{\"id\":\"n3\",\"author\":{\"role\":\"tool\"},\"content\":{\"content_type\":\"text\",\"parts\":[\"tool\"]}}},\"n3b\":{\"id\":\"n3b\",\"parent\":\"n2\",\"message\":{\"id\":\"n3b\",\"author\":{\"role\":\"assistant\"},\"content\":{\"content_type\":\"text\",\"parts\":[\"abandoned branch\"]}}},\"n4\":{\"id\":\"n4\",\"parent\":\"n3\",\"message\":{\"id\":\"n4\",\"author\":{\"role\":\"assistant\"},\"content\":{\"content_type\":\"code\",\"content\":\"print(1)\"},\"create_time\":1700000002.25,\"metadata\":{\"model_slug\":\"gpt-4o\"}}}}},{\"conversation_id\":\"g-2\",\"title\":\"GPT g-2\",\"create_time\":1700000000.5,\"update_time\":1800000000,\"current_node\":\"n4\",\"mapping\":{\"root\":{\"id\":\"root\",\"message\":null,\"parent\":null,\"children\":[\"n1\"]},\"n1\":{\"id\":\"n1\",\"parent\":\"root\",\"message\":{\"id\":\"n1\",\"author\":{\"role\":\"system\"},\"content\":{\"content_type\":\"text\",\"parts\":[\"\"]},\"create_time\":null}},\"n2\":{\"id\":\"n2\",\"parent\":\"n1\",\"message\":{\"id\":\"n2\",\"author\":{\"role\":\"user\"},\"content\":{\"content_type\":\"multimodal_text\",\"parts\":[\"Show me\",{\"asset_pointer\":\"file-1\"},\"﻿ \"]},\"create_time\":1700000001}},\"n3\":{\"id\":\"n3\",\"parent\":\"n2\",\"message\":{\"id\":\"n3\",\"author\":{\"role\":\"tool\"},\"content\":{\"content_type\":\"text\",\"parts\":[\"tool\"]}}},\"n3b\":{\"id\":\"n3b\",\"parent\":\"n2\",\"message\":{\"id\":\"n3b\",\"author\":{\"role\":\"assistant\"},\"content\":{\"content_type\":\"text\",\"parts\":[\"abandoned branch\"]}}},\"n4\":{\"id\":\"n4\",\"parent\":\"n3\",\"message\":{\"id\":\"n4\",\"author\":{\"role\":\"assistant\"},\"content\":{\"content_type\":\"code\",\"content\":\"print(1)\"},\"create_time\":1700000002.25,\"metadata\":{\"model_slug\":\"gpt-4o\"}}}}},5]",
+   "out": {
+    "ok": true,
+    "parsed": {
+     "source": "chatgpt",
+     "parserFormat": "chatgpt",
+     "fileType": "chatgpt-json",
+     "chats": [
+      {
+       "provider": "chatgpt",
+       "source_chat_id": "g-2",
+       "source_fingerprint": "8d9fc3235012aee2f234883ead27daead43355fd3df6d1508c6124efbaf44370",
+       "title": "GPT g-2",
+       "created_at": "2023-11-14T22:13:20.500Z",
+       "updated_at": "2027-01-15T08:00:00.000Z",
+       "messages": [
+        {
+         "role": "user",
+         "content": "Show me",
+         "created_at": "2023-11-14T22:13:21.000Z",
+         "source_message_id": "n2",
+         "provider_metadata": {
+          "content_type": "multimodal_text",
+          "asset_count": 1
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "print(1)",
+         "created_at": "2023-11-14T22:13:22.250Z",
+         "source_message_id": "n4",
+         "provider_metadata": {
+          "content_type": "code",
+          "asset_count": 0
+         },
+         "imported_assistant_identity": {
+          "category": "chatgpt",
+          "sender_name": "ChatGPT",
+          "model_name": "ChatGPT"
+         }
+        }
+       ],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "chatgpt"
+       ],
+       "source_metadata": {
+        "source_name": "conversations.json",
+        "message_count": 2
+       },
+       "parser_format": "chatgpt",
+       "selected_source": "chatgpt"
+      },
+      {
+       "provider": "chatgpt",
+       "source_chat_id": "g-1",
+       "source_fingerprint": "d03517e0c16c233eafffd0649623c80409858cad5d981155b3ebcc65d8aa6290",
+       "title": "GPT g-1",
+       "created_at": "2023-11-14T22:13:20.500Z",
+       "updated_at": "2023-11-14T23:13:20.000Z",
+       "messages": [
+        {
+         "role": "user",
+         "content": "Show me",
+         "created_at": "2023-11-14T22:13:21.000Z",
+         "source_message_id": "n2",
+         "provider_metadata": {
+          "content_type": "multimodal_text",
+          "asset_count": 1
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "print(1)",
+         "created_at": "2023-11-14T22:13:22.250Z",
+         "source_message_id": "n4",
+         "provider_metadata": {
+          "content_type": "code",
+          "asset_count": 0
+         },
+         "imported_assistant_identity": {
+          "category": "chatgpt",
+          "sender_name": "ChatGPT",
+          "model_name": "ChatGPT"
+         }
+        }
+       ],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "chatgpt"
+       ],
+       "source_metadata": {
+        "source_name": "conversations.json",
+        "message_count": 2
+       },
+       "parser_format": "chatgpt",
+       "selected_source": "chatgpt"
+      }
+     ],
+     "skippedDomains": []
+    },
+    "estimates": [
+     [
+      4,
+      2
+     ],
+     [
+      4,
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "chatgpt-no-current-node",
+   "fileName": "conversations.json",
+   "text": "[{\"conversation_id\":\"g-3\",\"title\":\"GPT g-3\",\"create_time\":1700000000.5,\"update_time\":1700003600,\"current_node\":\"missing\",\"mapping\":{\"root\":{\"id\":\"root\",\"message\":null,\"parent\":null,\"children\":[\"n1\"]},\"n1\":{\"id\":\"n1\",\"parent\":\"root\",\"message\":{\"id\":\"n1\",\"author\":{\"role\":\"system\"},\"content\":{\"content_type\":\"text\",\"parts\":[\"\"]},\"create_time\":null}},\"n2\":{\"id\":\"n2\",\"parent\":\"n1\",\"message\":{\"id\":\"n2\",\"author\":{\"role\":\"user\"},\"content\":{\"content_type\":\"multimodal_text\",\"parts\":[\"Show me\",{\"asset_pointer\":\"file-1\"},\"﻿ \"]},\"create_time\":1700000001}},\"n3\":{\"id\":\"n3\",\"parent\":\"n2\",\"message\":{\"id\":\"n3\",\"author\":{\"role\":\"tool\"},\"content\":{\"content_type\":\"text\",\"parts\":[\"tool\"]}}},\"n3b\":{\"id\":\"n3b\",\"parent\":\"n2\",\"message\":{\"id\":\"n3b\",\"author\":{\"role\":\"assistant\"},\"content\":{\"content_type\":\"text\",\"parts\":[\"abandoned branch\"]}}},\"n4\":{\"id\":\"n4\",\"parent\":\"n3\",\"message\":{\"id\":\"n4\",\"author\":{\"role\":\"assistant\"},\"content\":{\"content_type\":\"code\",\"content\":\"print(1)\"},\"create_time\":1700000002.25,\"metadata\":{\"model_slug\":\"gpt-4o\"}}}}}]",
+   "out": {
+    "ok": true,
+    "parsed": {
+     "source": "chatgpt",
+     "parserFormat": "chatgpt",
+     "fileType": "chatgpt-json",
+     "chats": [
+      {
+       "provider": "chatgpt",
+       "source_chat_id": "g-3",
+       "source_fingerprint": "5496d177a53d0501e01fe907965793a068cc958299dbc835d1d7a4a5839a11b4",
+       "title": "GPT g-3",
+       "created_at": "2023-11-14T22:13:20.500Z",
+       "updated_at": "2023-11-14T23:13:20.000Z",
+       "messages": [
+        {
+         "role": "assistant",
+         "content": "abandoned branch",
+         "created_at": null,
+         "source_message_id": "n3b",
+         "provider_metadata": {
+          "content_type": "text",
+          "asset_count": 0
+         },
+         "imported_assistant_identity": {
+          "category": "chatgpt",
+          "sender_name": "ChatGPT",
+          "model_name": "ChatGPT"
+         }
+        },
+        {
+         "role": "user",
+         "content": "Show me",
+         "created_at": "2023-11-14T22:13:21.000Z",
+         "source_message_id": "n2",
+         "provider_metadata": {
+          "content_type": "multimodal_text",
+          "asset_count": 1
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "print(1)",
+         "created_at": "2023-11-14T22:13:22.250Z",
+         "source_message_id": "n4",
+         "provider_metadata": {
+          "content_type": "code",
+          "asset_count": 0
+         },
+         "imported_assistant_identity": {
+          "category": "chatgpt",
+          "sender_name": "ChatGPT",
+          "model_name": "ChatGPT"
+         }
+        }
+       ],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "chatgpt"
+       ],
+       "source_metadata": {
+        "source_name": "conversations.json",
+        "message_count": 3
+       },
+       "parser_format": "chatgpt",
+       "selected_source": "chatgpt"
+      }
+     ],
+     "skippedDomains": []
+    },
+    "estimates": [
+     [
+      8,
+      3
+     ]
+    ]
+   }
+  },
+  {
+   "name": "chatgpt-missing-mapping",
+   "fileName": "conversations.json",
+   "text": "[{\"conversation_id\":\"g-4\",\"current_node\":\"x\"}]",
+   "out": {
+    "ok": false,
+    "message": "ChatGPT export conversation is missing mapping.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "chatgpt-missing-id",
+   "fileName": "conversations.json",
+   "text": "[{\"mapping\":{}}]",
+   "out": {
+    "ok": false,
+    "message": "ChatGPT conversation is missing id.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "opencode",
+   "fileName": "session.json",
+   "text": "{\"info\":{\"id\":\"ses_1\",\"title\":\"OpenCode session\",\"time\":{\"created\":1700000000000,\"updated\":1700000500000}},\"messages\":[{\"info\":{\"id\":\"msg_1\",\"role\":\"user\",\"time\":{\"created\":1700000000100}},\"parts\":[{\"type\":\"text\",\"text\":\"Fix the bug\"},{\"type\":\"file\",\"text\":\"x\"}]},{\"info\":{\"id\":\"msg_2\",\"role\":\"assistant\",\"time\":{}},\"parts\":[{\"type\":\"reasoning\",\"text\":\"think\"},{\"type\":\"text\",\"text\":\"Done\",\"ignored\":false},{\"type\":\"text\",\"text\":\"hidden\",\"ignored\":true},{\"type\":\"text\",\"text\":\"  \"},{\"type\":\"tool\"}]},{\"info\":{\"role\":\"assistant\"},\"parts\":[{\"type\":\"tool\",\"text\":\"only tool\"}]},{\"info\":{\"role\":\"system\"},\"parts\":[{\"type\":\"text\",\"text\":\"sys\"}]},null]}",
+   "out": {
+    "ok": true,
+    "parsed": {
+     "source": "opencode",
+     "parserFormat": "opencode",
+     "fileType": "opencode-json",
+     "chats": [
+      {
+       "provider": "opencode",
+       "source_chat_id": "ses_1",
+       "source_fingerprint": "b931543f4df77fee525735307b320a1d1e003f099f3fd53ee43092e35982d12d",
+       "title": "OpenCode session",
+       "created_at": "2023-11-14T22:13:20.000Z",
+       "updated_at": "2023-11-14T22:21:40.000Z",
+       "messages": [
+        {
+         "role": "user",
+         "content": "Fix the bug",
+         "created_at": "2023-11-14T22:13:20.100Z",
+         "source_message_id": "msg_1",
+         "provider_metadata": {
+          "part_types": [
+           "text",
+           "file"
+          ],
+          "text_part_count": 1
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "Done",
+         "created_at": null,
+         "source_message_id": "msg_2",
+         "provider_metadata": {
+          "part_types": [
+           "reasoning",
+           "text",
+           "text",
+           "text",
+           "tool"
+          ],
+          "text_part_count": 2
+         },
+         "imported_assistant_identity": {
+          "category": "opencode",
+          "sender_name": "OpenCode",
+          "model_name": "OpenCode"
+         }
+        }
+       ],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "opencode"
+       ],
+       "source_metadata": {
+        "source_name": "session.json",
+        "message_count": 2
+       },
+       "parser_format": "opencode",
+       "selected_source": "opencode"
+      }
+     ],
+     "skippedDomains": []
+    },
+    "estimates": [
+     [
+      4,
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "opencode-as-claude-source",
+   "fileName": "session.json",
+   "selectedSource": "claude",
+   "text": "{\"info\":{\"id\":\"ses_1\",\"title\":\"OpenCode session\",\"time\":{\"created\":1700000000000,\"updated\":1700000500000}},\"messages\":[{\"info\":{\"id\":\"msg_1\",\"role\":\"user\",\"time\":{\"created\":1700000000100}},\"parts\":[{\"type\":\"text\",\"text\":\"Fix the bug\"},{\"type\":\"file\",\"text\":\"x\"}]},{\"info\":{\"id\":\"msg_2\",\"role\":\"assistant\",\"time\":{}},\"parts\":[{\"type\":\"reasoning\",\"text\":\"think\"},{\"type\":\"text\",\"text\":\"Done\",\"ignored\":false},{\"type\":\"text\",\"text\":\"hidden\",\"ignored\":true},{\"type\":\"text\",\"text\":\"  \"},{\"type\":\"tool\"}]},{\"info\":{\"role\":\"assistant\"},\"parts\":[{\"type\":\"tool\",\"text\":\"only tool\"}]},{\"info\":{\"role\":\"system\"},\"parts\":[{\"type\":\"text\",\"text\":\"sys\"}]},null]}",
+   "out": {
+    "ok": true,
+    "parsed": {
+     "source": "claude",
+     "parserFormat": "opencode",
+     "fileType": "opencode-json",
+     "chats": [
+      {
+       "provider": "claude",
+       "source_chat_id": "ses_1",
+       "source_fingerprint": "b931543f4df77fee525735307b320a1d1e003f099f3fd53ee43092e35982d12d",
+       "title": "OpenCode session",
+       "created_at": "2023-11-14T22:13:20.000Z",
+       "updated_at": "2023-11-14T22:21:40.000Z",
+       "messages": [
+        {
+         "role": "user",
+         "content": "Fix the bug",
+         "created_at": "2023-11-14T22:13:20.100Z",
+         "source_message_id": "msg_1",
+         "provider_metadata": {
+          "part_types": [
+           "text",
+           "file"
+          ],
+          "text_part_count": 1
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "Done",
+         "created_at": null,
+         "source_message_id": "msg_2",
+         "provider_metadata": {
+          "part_types": [
+           "reasoning",
+           "text",
+           "text",
+           "text",
+           "tool"
+          ],
+          "text_part_count": 2
+         },
+         "imported_assistant_identity": {
+          "category": "claude",
+          "sender_name": "Claude",
+          "model_name": "Claude"
+         }
+        }
+       ],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "opencode"
+       ],
+       "source_metadata": {
+        "source_name": "session.json",
+        "message_count": 2
+       },
+       "parser_format": "opencode",
+       "selected_source": "claude"
+      }
+     ],
+     "skippedDomains": []
+    },
+    "estimates": [
+     [
+      4,
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "opencode-missing-id",
+   "fileName": "session.json",
+   "text": "{\"info\":{\"title\":\"x\"},\"messages\":[]}",
+   "out": {
+    "ok": false,
+    "message": "OpenCode transcript export is missing info.id or messages.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "generic-gemini",
+   "fileName": "gem.json",
+   "selectedSource": "gemini",
+   "text": "{\"id\":\"gem-1\",\"title\":\"Gemini chat\",\"created_at\":\"2024-02-02T00:00:00Z\",\"messages\":[{\"role\":\"user\",\"content\":\"Question?\",\"id\":\"g1\",\"created_at\":\"2024-02-02T00:00:01Z\"},{\"role\":\"assistant\",\"content\":\"Answer.\",\"model\":\"gemini-2.5-pro\",\"metadata\":{\"tokens\":12,\"model\":\"gemini-flash\"}},{\"role\":\"assistant\",\"content\":\"\",\"model\":\"   \"},{\"role\":\"system\",\"content\":\"note\",\"metadata\":[\"ignored\"]}]}",
+   "out": {
+    "ok": true,
+    "parsed": {
+     "source": "gemini",
+     "parserFormat": "generic",
+     "fileType": "generic-json",
+     "chats": [
+      {
+       "provider": "gemini",
+       "source_chat_id": "gem-1",
+       "source_fingerprint": "d16397de9c7fce1ee99a6e5e8c49a84af20b73b3c1e2bc934aa5648b57d16f5d",
+       "title": "Gemini chat",
+       "created_at": "2024-02-02T00:00:00Z",
+       "updated_at": null,
+       "messages": [
+        {
+         "role": "user",
+         "content": "Question?",
+         "created_at": "2024-02-02T00:00:01Z",
+         "source_message_id": "g1",
+         "provider_metadata": {},
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "Answer.",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "model": "gemini-flash",
+          "tokens": 12
+         },
+         "imported_assistant_identity": {
+          "category": "gemini",
+          "sender_name": "Gemini",
+          "model_name": "gemini-flash"
+         }
+        },
+        {
+         "role": "assistant",
+         "content": "",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "model": "   "
+         },
+         "imported_assistant_identity": {
+          "category": "gemini",
+          "sender_name": "Gemini",
+          "model_name": "Gemini"
+         }
+        },
+        {
+         "role": "system",
+         "content": "note",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {},
+         "imported_assistant_identity": null
+        }
+       ],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "generic"
+       ],
+       "source_metadata": {
+        "source_name": "gem.json",
+        "message_count": 4
+       },
+       "parser_format": "generic",
+       "selected_source": "gemini"
+      }
+     ],
+     "skippedDomains": []
+    },
+    "estimates": [
+     [
+      6,
+      3
+     ]
+    ]
+   }
+  },
+  {
+   "name": "generic-other-blank-id",
+   "fileName": "other.json",
+   "selectedSource": "other",
+   "text": "{\"id\":\"  \",\"title\":\"Gemini chat\",\"created_at\":\"2024-02-02T00:00:00Z\",\"messages\":[{\"role\":\"user\",\"content\":\"Question?\",\"id\":\"g1\",\"created_at\":\"2024-02-02T00:00:01Z\"},{\"role\":\"assistant\",\"content\":\"Answer.\",\"model\":\"gemini-2.5-pro\",\"metadata\":{\"tokens\":12,\"model\":\"gemini-flash\"}},{\"role\":\"assistant\",\"content\":\"\",\"model\":\"   \"},{\"role\":\"system\",\"content\":\"note\",\"metadata\":[\"ignored\"]}]}",
+   "out": {
+    "ok": true,
+    "parsed": {
+     "source": "other",
+     "parserFormat": "generic",
+     "fileType": "generic-json",
+     "chats": [
+      {
+       "provider": "other",
+       "source_chat_id": "generic-other.json",
+       "source_fingerprint": "70c5d8af79962f9fc999049e6a089bee296f7c940318ce5f914c7be716fbbd7b",
+       "title": "Gemini chat",
+       "created_at": "2024-02-02T00:00:00Z",
+       "updated_at": null,
+       "messages": [
+        {
+         "role": "user",
+         "content": "Question?",
+         "created_at": "2024-02-02T00:00:01Z",
+         "source_message_id": "g1",
+         "provider_metadata": {},
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "Answer.",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "model": "gemini-flash",
+          "tokens": 12
+         },
+         "imported_assistant_identity": {
+          "category": "other",
+          "sender_name": "AI assistant",
+          "model_name": "gemini-flash"
+         }
+        },
+        {
+         "role": "assistant",
+         "content": "",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "model": "   "
+         },
+         "imported_assistant_identity": {
+          "category": "other",
+          "sender_name": "AI assistant",
+          "model_name": "Other"
+         }
+        },
+        {
+         "role": "system",
+         "content": "note",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {},
+         "imported_assistant_identity": null
+        }
+       ],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "generic"
+       ],
+       "source_metadata": {
+        "source_name": "other.json",
+        "message_count": 4
+       },
+       "parser_format": "generic",
+       "selected_source": "other"
+      }
+     ],
+     "skippedDomains": []
+    },
+    "estimates": [
+     [
+      6,
+      3
+     ]
+    ]
+   }
+  },
+  {
+   "name": "generic-array",
+   "fileName": "other.json",
+   "selectedSource": "other",
+   "text": "[{\"id\":\"gem-1\",\"title\":\"Gemini chat\",\"created_at\":\"2024-02-02T00:00:00Z\",\"messages\":[{\"role\":\"user\",\"content\":\"Question?\",\"id\":\"g1\",\"created_at\":\"2024-02-02T00:00:01Z\"},{\"role\":\"assistant\",\"content\":\"Answer.\",\"model\":\"gemini-2.5-pro\",\"metadata\":{\"tokens\":12,\"model\":\"gemini-flash\"}},{\"role\":\"assistant\",\"content\":\"\",\"model\":\"   \"},{\"role\":\"system\",\"content\":\"note\",\"metadata\":[\"ignored\"]}]}]",
+   "out": {
+    "ok": false,
+    "message": "Generic role/content JSON must be an object with a messages array.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "generic-takeout",
+   "fileName": "other.json",
+   "selectedSource": "gemini",
+   "text": "{\"items\":[]}",
+   "out": {
+    "ok": false,
+    "message": "Gemini and Other require generic role/content JSON; raw Gemini Takeout exports are not supported yet.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "generic-bad-message",
+   "fileName": "other.json",
+   "selectedSource": "other",
+   "text": "{\"messages\":[{\"role\":\"user\",\"content\":\"a\"},\"b\"]}",
+   "out": {
+    "ok": false,
+    "message": "Generic message 2 must contain role and content.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "generic-bad-role",
+   "fileName": "other.json",
+   "selectedSource": "other",
+   "text": "{\"messages\":[{\"role\":\"tool\",\"content\":\"a\"}]}",
+   "out": {
+    "ok": false,
+    "message": "Generic message 1 must contain a valid role and content string.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "generic-empty",
+   "fileName": "other.json",
+   "selectedSource": "other",
+   "text": "{\"messages\":[]}",
+   "out": {
+    "ok": false,
+    "message": "Generic role/content JSON contains no messages.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "generic-on-claude-export",
+   "fileName": "other.json",
+   "selectedSource": "other",
+   "text": "[{\"uuid\":\"c-old\",\"name\":\"Older chat\",\"created_at\":\"2024-01-01T10:00:00Z\",\"updated_at\":\"2024-01-02T10:00:00Z\",\"chat_messages\":[{\"uuid\":\"m1\",\"sender\":\"human\",\"created_at\":\"2024-01-01T10:00:00Z\",\"content\":[{\"type\":\"text\",\"text\":\"Hello there\"}],\"attachments\":[{\"file_name\":\"notes.txt\",\"file_size\":1234,\"file_type\":\"text/plain\"}],\"files\":[{\"name\":\"img.png\",\"uuid\":\"f-1\"},null,{\"id\":7}]},{\"uuid\":\"m2\",\"sender\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"Hi! 👋\"},{\"type\":\"tool_use\"},{\"type\":\"tool_result\",\"content\":\"tool out\"},null,\"x\"]},{\"sender\":\"other\",\"text\":\"fallback text\",\"content\":[]},{\"sender\":\"assistant\",\"content\":[{\"type\":\"thinking\"}],\"text\":42},null,[\"array-message\"]]},{\"uuid\":\"c-new\",\"name\":null,\"created_at\":\"2025-03-01T08:00:00.123+02:00\",\"updated_at\":null,\"chat_messages\":[{\"uuid\":\"n1\",\"sender\":\"human\",\"content\":[{\"type\":\"text\",\"text\":\"  \"}]},{\"uuid\":\"n2\",\"sender\":\"assistant\",\"text\":\"Answer with\\nlines\"}]},{\"uuid\":\"c-mid\",\"created_at\":\"2024-06-01\",\"chat_messages\":\"nope\"},{\"uuid\":\"c-bad-date\",\"updated_at\":\"not a date\",\"chat_messages\":[]},null]",
+   "out": {
+    "ok": false,
+    "message": "Generic role/content JSON must be an object with a messages array.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "syntax-error",
+   "fileName": "bad.json",
+   "text": "{\"a\": ",
+   "out": {
+    "ok": false,
+    "message": "Unexpected end of JSON input",
+    "syntax": true
+   }
+  },
+  {
+   "name": "unsupported-extension",
+   "fileName": "notes.txt",
+   "text": "hello",
+   "out": {
+    "ok": false,
+    "message": "Unsupported import file. Choose a Claude/ChatGPT/OpenCode export .zip/.json file or an OpenMates Export V1 .zip archive.",
+    "syntax": false
+   }
+  }
+ ],
+ "zip": [
+  {
+   "name": "chatgpt-zip-nested",
+   "fileName": "export.zip",
+   "entries": {
+    "__MACOSX/export/._conversations.json": "junk",
+    "export/conversations.json": "[{\"conversation_id\":\"z-1\",\"title\":\"GPT z-1\",\"create_time\":1700000000.5,\"update_time\":1700003600,\"current_node\":\"n4\",\"mapping\":{\"root\":{\"id\":\"root\",\"message\":null,\"parent\":null,\"children\":[\"n1\"]},\"n1\":{\"id\":\"n1\",\"parent\":\"root\",\"message\":{\"id\":\"n1\",\"author\":{\"role\":\"system\"},\"content\":{\"content_type\":\"text\",\"parts\":[\"\"]},\"create_time\":null}},\"n2\":{\"id\":\"n2\",\"parent\":\"n1\",\"message\":{\"id\":\"n2\",\"author\":{\"role\":\"user\"},\"content\":{\"content_type\":\"multimodal_text\",\"parts\":[\"Show me\",{\"asset_pointer\":\"file-1\"},\"﻿ \"]},\"create_time\":1700000001}},\"n3\":{\"id\":\"n3\",\"parent\":\"n2\",\"message\":{\"id\":\"n3\",\"author\":{\"role\":\"tool\"},\"content\":{\"content_type\":\"text\",\"parts\":[\"tool\"]}}},\"n3b\":{\"id\":\"n3b\",\"parent\":\"n2\",\"message\":{\"id\":\"n3b\",\"author\":{\"role\":\"assistant\"},\"content\":{\"content_type\":\"text\",\"parts\":[\"abandoned branch\"]}}},\"n4\":{\"id\":\"n4\",\"parent\":\"n3\",\"message\":{\"id\":\"n4\",\"author\":{\"role\":\"assistant\"},\"content\":{\"content_type\":\"code\",\"content\":\"print(1)\"},\"create_time\":1700000002.25,\"metadata\":{\"model_slug\":\"gpt-4o\"}}}}}]",
+    "export/chat.html": "<html>"
+   },
+   "zipEntries": [
+    {
+     "name": "__MACOSX/",
+     "dir": true
+    },
+    {
+     "name": "__MACOSX/export/",
+     "dir": true
+    },
+    {
+     "name": "__MACOSX/export/._conversations.json",
+     "dir": false
+    },
+    {
+     "name": "export/",
+     "dir": true
+    },
+    {
+     "name": "export/conversations.json",
+     "dir": false
+    },
+    {
+     "name": "export/chat.html",
+     "dir": false
+    }
+   ],
+   "yaml": {},
+   "out": {
+    "ok": true,
+    "parsed": {
+     "source": "chatgpt",
+     "parserFormat": "chatgpt",
+     "fileType": "chatgpt-zip",
+     "chats": [
+      {
+       "provider": "chatgpt",
+       "source_chat_id": "z-1",
+       "source_fingerprint": "83300e58a6a85ec3dda30661396aa06c1056eb76ed2990779f4cf7f5d0f3ca6a",
+       "title": "GPT z-1",
+       "created_at": "2023-11-14T22:13:20.500Z",
+       "updated_at": "2023-11-14T23:13:20.000Z",
+       "messages": [
+        {
+         "role": "user",
+         "content": "Show me",
+         "created_at": "2023-11-14T22:13:21.000Z",
+         "source_message_id": "n2",
+         "provider_metadata": {
+          "content_type": "multimodal_text",
+          "asset_count": 1
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "print(1)",
+         "created_at": "2023-11-14T22:13:22.250Z",
+         "source_message_id": "n4",
+         "provider_metadata": {
+          "content_type": "code",
+          "asset_count": 0
+         },
+         "imported_assistant_identity": {
+          "category": "chatgpt",
+          "sender_name": "ChatGPT",
+          "model_name": "ChatGPT"
+         }
+        }
+       ],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "chatgpt"
+       ],
+       "source_metadata": {
+        "source_name": "export.zip",
+        "message_count": 2
+       },
+       "parser_format": "chatgpt",
+       "selected_source": "chatgpt"
+      }
+     ],
+     "skippedDomains": []
+    },
+    "estimates": [
+     [
+      4,
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "claude-zip",
+   "fileName": "claude.zip",
+   "entries": {
+    "conversations.json": "[{\"uuid\":\"c-old\",\"name\":\"Older chat\",\"created_at\":\"2024-01-01T10:00:00Z\",\"updated_at\":\"2024-01-02T10:00:00Z\",\"chat_messages\":[{\"uuid\":\"m1\",\"sender\":\"human\",\"created_at\":\"2024-01-01T10:00:00Z\",\"content\":[{\"type\":\"text\",\"text\":\"Hello there\"}],\"attachments\":[{\"file_name\":\"notes.txt\",\"file_size\":1234,\"file_type\":\"text/plain\"}],\"files\":[{\"name\":\"img.png\",\"uuid\":\"f-1\"},null,{\"id\":7}]},{\"uuid\":\"m2\",\"sender\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"Hi! 👋\"},{\"type\":\"tool_use\"},{\"type\":\"tool_result\",\"content\":\"tool out\"},null,\"x\"]},{\"sender\":\"other\",\"text\":\"fallback text\",\"content\":[]},{\"sender\":\"assistant\",\"content\":[{\"type\":\"thinking\"}],\"text\":42},null,[\"array-message\"]]},{\"uuid\":\"c-new\",\"name\":null,\"created_at\":\"2025-03-01T08:00:00.123+02:00\",\"updated_at\":null,\"chat_messages\":[{\"uuid\":\"n1\",\"sender\":\"human\",\"content\":[{\"type\":\"text\",\"text\":\"  \"}]},{\"uuid\":\"n2\",\"sender\":\"assistant\",\"text\":\"Answer with\\nlines\"}]}]",
+    "users.json": "[]"
+   },
+   "zipEntries": [
+    {
+     "name": "conversations.json",
+     "dir": false
+    },
+    {
+     "name": "users.json",
+     "dir": false
+    }
+   ],
+   "yaml": {},
+   "out": {
+    "ok": true,
+    "parsed": {
+     "source": "claude",
+     "parserFormat": "claude",
+     "fileType": "claude-zip",
+     "chats": [
+      {
+       "provider": "claude",
+       "source_chat_id": "c-new",
+       "source_fingerprint": "4b59a5971a5fbb72710df6c9f51f454d819cc176ad9d17cba78a4fa4df9f94f0",
+       "title": null,
+       "created_at": "2025-03-01T08:00:00.123+02:00",
+       "updated_at": null,
+       "messages": [
+        {
+         "role": "user",
+         "content": "  ",
+         "created_at": null,
+         "source_message_id": "n1",
+         "provider_metadata": {
+          "content_block_types": [
+           "text"
+          ]
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "Answer with\nlines",
+         "created_at": null,
+         "source_message_id": "n2",
+         "provider_metadata": {
+          "content_block_types": []
+         },
+         "imported_assistant_identity": {
+          "category": "claude",
+          "sender_name": "Claude",
+          "model_name": "Claude"
+         }
+        }
+       ],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "claude"
+       ],
+       "source_metadata": {
+        "source_name": "claude.zip",
+        "message_count": 2
+       },
+       "parser_format": "claude",
+       "selected_source": "claude"
+      },
+      {
+       "provider": "claude",
+       "source_chat_id": "c-old",
+       "source_fingerprint": "b6c96d7801a58cf6facf38aeaf33a435160205da70d572219453008d02fb3b40",
+       "title": "Older chat",
+       "created_at": "2024-01-01T10:00:00Z",
+       "updated_at": "2024-01-02T10:00:00Z",
+       "messages": [
+        {
+         "role": "user",
+         "content": "Hello there",
+         "created_at": "2024-01-01T10:00:00Z",
+         "source_message_id": "m1",
+         "provider_metadata": {
+          "content_block_types": [
+           "text"
+          ]
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "Hi! 👋\ntool out",
+         "created_at": null,
+         "source_message_id": "m2",
+         "provider_metadata": {
+          "content_block_types": [
+           "text",
+           "tool_use",
+           "tool_result"
+          ]
+         },
+         "imported_assistant_identity": {
+          "category": "claude",
+          "sender_name": "Claude",
+          "model_name": "Claude"
+         }
+        },
+        {
+         "role": "system",
+         "content": "fallback text",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "content_block_types": []
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "42",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "content_block_types": [
+           "thinking"
+          ]
+         },
+         "imported_assistant_identity": {
+          "category": "claude",
+          "sender_name": "Claude",
+          "model_name": "Claude"
+         }
+        },
+        {
+         "role": "system",
+         "content": "",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "content_block_types": []
+         },
+         "imported_assistant_identity": null
+        }
+       ],
+       "embeds": [],
+       "uploads": [
+        {
+         "source_upload_id": "notes.txt",
+         "file_name": "notes.txt",
+         "mime_type": "text/plain",
+         "bytes": 1234,
+         "content_ref": "notes.txt"
+        },
+        {
+         "source_upload_id": "f-1",
+         "file_name": "img.png",
+         "mime_type": null,
+         "bytes": null,
+         "content_ref": "img.png"
+        },
+        {
+         "source_upload_id": "7",
+         "file_name": "attachment-3",
+         "mime_type": null,
+         "bytes": null,
+         "content_ref": "attachment-3"
+        }
+       ],
+       "provider_labels": [
+        "claude"
+       ],
+       "source_metadata": {
+        "source_name": "claude.zip",
+        "message_count": 5
+       },
+       "parser_format": "claude",
+       "selected_source": "claude"
+      }
+     ],
+     "skippedDomains": []
+    },
+    "estimates": [
+     [
+      5,
+      1
+     ],
+     [
+      12,
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "name": "zip-conversations-syntax",
+   "fileName": "x.zip",
+   "entries": {
+    "conversations.json": "[{"
+   },
+   "zipEntries": [
+    {
+     "name": "conversations.json",
+     "dir": false
+    }
+   ],
+   "yaml": {},
+   "out": {
+    "ok": false,
+    "message": "Expected property name or '}' in JSON at position 2 (line 1 column 3)",
+    "syntax": true
+   }
+  },
+  {
+   "name": "openmates-archive",
+   "fileName": "openmates-export.zip",
+   "selectedSource": "openmates",
+   "entries": {
+    "manifest.yml": "format: openmates-account-export\nversion: 1\ndomains:\n  chats: {}\n  embeds: {}\n  uploads: {}\n  settings: {}\n  memories: {}\n",
+    "chats/b.yml": "id: chat-b\ntitle: Chat chat-b\ncreated_at: \"2024-01-01T00:00:00Z\"\nupdated_at: \"2024-05-01T00:00:00Z\"\nembed_refs: [e1, e2]\nupload_refs: [u1, u9]\nmessages:\n  - id: m-chat-b-1\n    role: user\n    content: Hello chat-b\n    embed_refs: [e1]\n  - role: assistant\n    content: Reply\n    created_at: \"2024-01-01T00:00:05Z\"\n  - role: tool\n    content: 5\n",
+    "chats/a.YAML": "id: chat-a\ntitle: Chat chat-a\ncreated_at: \"2024-01-01T00:00:00Z\"\nupdated_at: \"2024-07-01T00:00:00Z\"\nembed_refs: [e1, e2]\nupload_refs: [u1, u9]\nmessages:\n  - id: m-chat-a-1\n    role: user\n    content: Hello chat-a\n    embed_refs: [e1]\n  - role: assistant\n    content: Reply\n    created_at: \"2024-01-01T00:00:05Z\"\n  - role: tool\n    content: 5\n",
+    "chats/noid.yml": "title: No id\nmessages: []\n",
+    "chats/list.yml": "- just a list\n",
+    "chats/scalar.yml": "hello\n",
+    "embeds/e1.yml": "id: e1\ntype: web-website\ncontent:\n  url: https://example.test\nreferenced_upload_ids: [u1]\n",
+    "embeds/e1-dup.yml": "id: e1\ntype: code\n",
+    "uploads/u1.yml": "id: u1\nfile_name: photo.jpg\nmime_type: image/jpeg\nbytes: 2048\npath: uploads/files/photo.jpg\n",
+    "uploads/files/photo.jpg": "binary",
+    "README.md": "readme"
+   },
+   "zipEntries": [
+    {
+     "name": "manifest.yml",
+     "dir": false
+    },
+    {
+     "name": "chats/",
+     "dir": true
+    },
+    {
+     "name": "chats/b.yml",
+     "dir": false
+    },
+    {
+     "name": "chats/a.YAML",
+     "dir": false
+    },
+    {
+     "name": "chats/noid.yml",
+     "dir": false
+    },
+    {
+     "name": "chats/list.yml",
+     "dir": false
+    },
+    {
+     "name": "chats/scalar.yml",
+     "dir": false
+    },
+    {
+     "name": "embeds/",
+     "dir": true
+    },
+    {
+     "name": "embeds/e1.yml",
+     "dir": false
+    },
+    {
+     "name": "embeds/e1-dup.yml",
+     "dir": false
+    },
+    {
+     "name": "uploads/",
+     "dir": true
+    },
+    {
+     "name": "uploads/u1.yml",
+     "dir": false
+    },
+    {
+     "name": "uploads/files/",
+     "dir": true
+    },
+    {
+     "name": "uploads/files/photo.jpg",
+     "dir": false
+    },
+    {
+     "name": "README.md",
+     "dir": false
+    }
+   ],
+   "yaml": {
+    "manifest.yml": {
+     "format": "openmates-account-export",
+     "version": 1,
+     "domains": {
+      "chats": {},
+      "embeds": {},
+      "uploads": {},
+      "settings": {},
+      "memories": {}
+     }
+    },
+    "chats/b.yml": {
+     "id": "chat-b",
+     "title": "Chat chat-b",
+     "created_at": "2024-01-01T00:00:00Z",
+     "updated_at": "2024-05-01T00:00:00Z",
+     "embed_refs": [
+      "e1",
+      "e2"
+     ],
+     "upload_refs": [
+      "u1",
+      "u9"
+     ],
+     "messages": [
+      {
+       "id": "m-chat-b-1",
+       "role": "user",
+       "content": "Hello chat-b",
+       "embed_refs": [
+        "e1"
+       ]
+      },
+      {
+       "role": "assistant",
+       "content": "Reply",
+       "created_at": "2024-01-01T00:00:05Z"
+      },
+      {
+       "role": "tool",
+       "content": 5
+      }
+     ]
+    },
+    "chats/a.YAML": {
+     "id": "chat-a",
+     "title": "Chat chat-a",
+     "created_at": "2024-01-01T00:00:00Z",
+     "updated_at": "2024-07-01T00:00:00Z",
+     "embed_refs": [
+      "e1",
+      "e2"
+     ],
+     "upload_refs": [
+      "u1",
+      "u9"
+     ],
+     "messages": [
+      {
+       "id": "m-chat-a-1",
+       "role": "user",
+       "content": "Hello chat-a",
+       "embed_refs": [
+        "e1"
+       ]
+      },
+      {
+       "role": "assistant",
+       "content": "Reply",
+       "created_at": "2024-01-01T00:00:05Z"
+      },
+      {
+       "role": "tool",
+       "content": 5
+      }
+     ]
+    },
+    "chats/noid.yml": {
+     "title": "No id",
+     "messages": []
+    },
+    "chats/list.yml": [
+     "just a list"
+    ],
+    "chats/scalar.yml": "hello",
+    "embeds/e1.yml": {
+     "id": "e1",
+     "type": "web-website",
+     "content": {
+      "url": "https://example.test"
+     },
+     "referenced_upload_ids": [
+      "u1"
+     ]
+    },
+    "embeds/e1-dup.yml": {
+     "id": "e1",
+     "type": "code"
+    },
+    "uploads/u1.yml": {
+     "id": "u1",
+     "file_name": "photo.jpg",
+     "mime_type": "image/jpeg",
+     "bytes": 2048,
+     "path": "uploads/files/photo.jpg"
+    }
+   },
+   "out": {
+    "ok": true,
+    "parsed": {
+     "source": "openmates",
+     "parserFormat": "openmates",
+     "fileType": "openmates-zip",
+     "chats": [
+      {
+       "provider": "openmates",
+       "source_chat_id": "chat-a",
+       "source_fingerprint": "880d82288d4e1ae3359c4dfc8b57a08c233e9f2a7855f19dd9ab964aea945049",
+       "title": "Chat chat-a",
+       "created_at": "2024-01-01T00:00:00Z",
+       "updated_at": "2024-07-01T00:00:00Z",
+       "messages": [
+        {
+         "role": "user",
+         "content": "Hello chat-a",
+         "created_at": null,
+         "source_message_id": "m-chat-a-1",
+         "provider_metadata": {
+          "embed_refs": [
+           "e1"
+          ]
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "Reply",
+         "created_at": "2024-01-01T00:00:05Z",
+         "source_message_id": null,
+         "provider_metadata": {
+          "embed_refs": []
+         },
+         "imported_assistant_identity": {
+          "category": "openmates",
+          "sender_name": "OpenMates",
+          "model_name": "OpenMates"
+         }
+        },
+        {
+         "role": "user",
+         "content": "",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "embed_refs": []
+         },
+         "imported_assistant_identity": null
+        }
+       ],
+       "embeds": [
+        {
+         "source_embed_id": "e1",
+         "type": "code",
+         "content": {},
+         "referenced_upload_ids": []
+        },
+        {
+         "source_embed_id": "e2",
+         "type": "unknown",
+         "content": {},
+         "referenced_upload_ids": []
+        }
+       ],
+       "uploads": [
+        {
+         "source_upload_id": "u1",
+         "file_name": "photo.jpg",
+         "mime_type": "image/jpeg",
+         "bytes": 2048,
+         "content_ref": "uploads/files/photo.jpg"
+        },
+        {
+         "source_upload_id": "u9",
+         "file_name": "u9",
+         "mime_type": null,
+         "bytes": null,
+         "content_ref": ""
+        }
+       ],
+       "provider_labels": [
+        "openmates"
+       ],
+       "source_metadata": {
+        "source_name": "openmates-export.zip",
+        "archive_path": "chats/a.YAML"
+       },
+       "parser_format": "openmates",
+       "selected_source": "openmates"
+      },
+      {
+       "provider": "openmates",
+       "source_chat_id": "chat-b",
+       "source_fingerprint": "4634cd241883f132a07df2aae370a046d24f90e345e1f4e805ee08fcbd4ccee0",
+       "title": "Chat chat-b",
+       "created_at": "2024-01-01T00:00:00Z",
+       "updated_at": "2024-05-01T00:00:00Z",
+       "messages": [
+        {
+         "role": "user",
+         "content": "Hello chat-b",
+         "created_at": null,
+         "source_message_id": "m-chat-b-1",
+         "provider_metadata": {
+          "embed_refs": [
+           "e1"
+          ]
+         },
+         "imported_assistant_identity": null
+        },
+        {
+         "role": "assistant",
+         "content": "Reply",
+         "created_at": "2024-01-01T00:00:05Z",
+         "source_message_id": null,
+         "provider_metadata": {
+          "embed_refs": []
+         },
+         "imported_assistant_identity": {
+          "category": "openmates",
+          "sender_name": "OpenMates",
+          "model_name": "OpenMates"
+         }
+        },
+        {
+         "role": "user",
+         "content": "",
+         "created_at": null,
+         "source_message_id": null,
+         "provider_metadata": {
+          "embed_refs": []
+         },
+         "imported_assistant_identity": null
+        }
+       ],
+       "embeds": [
+        {
+         "source_embed_id": "e1",
+         "type": "code",
+         "content": {},
+         "referenced_upload_ids": []
+        },
+        {
+         "source_embed_id": "e2",
+         "type": "unknown",
+         "content": {},
+         "referenced_upload_ids": []
+        }
+       ],
+       "uploads": [
+        {
+         "source_upload_id": "u1",
+         "file_name": "photo.jpg",
+         "mime_type": "image/jpeg",
+         "bytes": 2048,
+         "content_ref": "uploads/files/photo.jpg"
+        },
+        {
+         "source_upload_id": "u9",
+         "file_name": "u9",
+         "mime_type": null,
+         "bytes": null,
+         "content_ref": ""
+        }
+       ],
+       "provider_labels": [
+        "openmates"
+       ],
+       "source_metadata": {
+        "source_name": "openmates-export.zip",
+        "archive_path": "chats/b.yml"
+       },
+       "parser_format": "openmates",
+       "selected_source": "openmates"
+      },
+      {
+       "provider": "openmates",
+       "source_chat_id": "chats/list",
+       "source_fingerprint": "90e82aef4b943f072a7e15828559324ea4c69814d1f5e162ed432360026b0b34",
+       "title": null,
+       "created_at": null,
+       "updated_at": null,
+       "messages": [],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "openmates"
+       ],
+       "source_metadata": {
+        "source_name": "openmates-export.zip",
+        "archive_path": "chats/list.yml"
+       },
+       "parser_format": "openmates",
+       "selected_source": "openmates"
+      },
+      {
+       "provider": "openmates",
+       "source_chat_id": "chats/noid",
+       "source_fingerprint": "27bfa015365d3b408e7f673a1f5eba4d9008e7b4ce263fbcbc0a99b649a19a66",
+       "title": "No id",
+       "created_at": null,
+       "updated_at": null,
+       "messages": [],
+       "embeds": [],
+       "uploads": [],
+       "provider_labels": [
+        "openmates"
+       ],
+       "source_metadata": {
+        "source_name": "openmates-export.zip",
+        "archive_path": "chats/noid.yml"
+       },
+       "parser_format": "openmates",
+       "selected_source": "openmates"
+      }
+     ],
+     "skippedDomains": [
+      "memories",
+      "settings"
+     ]
+    },
+    "estimates": [
+     [
+      5,
+      2
+     ],
+     [
+      5,
+      2
+     ],
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "openmates-bad-version",
+   "fileName": "o.zip",
+   "entries": {
+    "manifest.yml": "format: openmates-account-export\nversion: \"2\"\n",
+    "chats/a.yml": "id: a\n"
+   },
+   "zipEntries": [
+    {
+     "name": "manifest.yml",
+     "dir": false
+    },
+    {
+     "name": "chats/",
+     "dir": true
+    },
+    {
+     "name": "chats/a.yml",
+     "dir": false
+    }
+   ],
+   "yaml": {
+    "manifest.yml": {
+     "format": "openmates-account-export",
+     "version": "2"
+    },
+    "chats/a.yml": {
+     "id": "a"
+    }
+   },
+   "out": {
+    "ok": false,
+    "message": "Unsupported OpenMates Export V1 archive format or version.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "openmates-no-chats",
+   "fileName": "o.zip",
+   "entries": {
+    "manifest.yml": "format: openmates-account-export\nversion: 1\ndomains:\n  chats: {}\n  embeds: {}\n  uploads: {}\n  settings: {}\n  memories: {}\n",
+    "embeds/e.yml": "id: e\n"
+   },
+   "zipEntries": [
+    {
+     "name": "manifest.yml",
+     "dir": false
+    },
+    {
+     "name": "embeds/",
+     "dir": true
+    },
+    {
+     "name": "embeds/e.yml",
+     "dir": false
+    }
+   ],
+   "yaml": {
+    "manifest.yml": {
+     "format": "openmates-account-export",
+     "version": 1,
+     "domains": {
+      "chats": {},
+      "embeds": {},
+      "uploads": {},
+      "settings": {},
+      "memories": {}
+     }
+    },
+    "embeds/e.yml": {
+     "id": "e"
+    }
+   },
+   "out": {
+    "ok": false,
+    "message": "OpenMates Export V1 archive contains no chat YAML files.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "openmates-empty-id",
+   "fileName": "o.zip",
+   "entries": {
+    "manifest.yml": "format: openmates-account-export\nversion: 1\ndomains:\n  chats: {}\n  embeds: {}\n  uploads: {}\n  settings: {}\n  memories: {}\n",
+    "chats/a.yml": "id: \"\"\n"
+   },
+   "zipEntries": [
+    {
+     "name": "manifest.yml",
+     "dir": false
+    },
+    {
+     "name": "chats/",
+     "dir": true
+    },
+    {
+     "name": "chats/a.yml",
+     "dir": false
+    }
+   ],
+   "yaml": {
+    "manifest.yml": {
+     "format": "openmates-account-export",
+     "version": 1,
+     "domains": {
+      "chats": {},
+      "embeds": {},
+      "uploads": {},
+      "settings": {},
+      "memories": {}
+     }
+    },
+    "chats/a.yml": {
+     "id": ""
+    }
+   },
+   "out": {
+    "ok": false,
+    "message": "OpenMates chat YAML is missing id.",
+    "syntax": false
+   }
+  },
+  {
+   "name": "zip-unsupported",
+   "fileName": "other.zip",
+   "entries": {
+    "data.txt": "x"
+   },
+   "zipEntries": [
+    {
+     "name": "data.txt",
+     "dir": false
+    }
+   ],
+   "yaml": {},
+   "out": {
+    "ok": false,
+    "message": "Unsupported ZIP archive. Expected Claude/ChatGPT conversations.json or OpenMates Export V1 manifest.yml.",
+    "syntax": false
+   }
+  }
+ ],
+ "batches": [
+  {
+   "maxMessages": 2,
+   "counts": [
+    0,
+    1,
+    2,
+    5
+   ],
+   "fingerprints": [
+    "0abcdef0123456789abcdef",
+    "1abcdef0123456789abcdef",
+    "2abcdef0123456789abcdef",
+    "3abcdef0123456789abcdef"
+   ],
+   "out": {
+    "ok": true,
+    "batches": [
+     [
+      0,
+      0,
+      0,
+      0,
+      "scan-0abcdef012345678-0"
+     ],
+     [
+      1,
+      0,
+      0,
+      1,
+      "scan-1abcdef012345678-0"
+     ],
+     [
+      2,
+      0,
+      0,
+      2,
+      "scan-2abcdef012345678-0"
+     ],
+     [
+      3,
+      0,
+      0,
+      2,
+      "scan-3abcdef012345678-0"
+     ],
+     [
+      3,
+      1,
+      2,
+      4,
+      "scan-3abcdef012345678-1"
+     ],
+     [
+      3,
+      2,
+      4,
+      5,
+      "scan-3abcdef012345678-2"
+     ]
+    ]
+   }
+  },
+  {
+   "maxMessages": 250,
+   "counts": [
+    600
+   ],
+   "fingerprints": [
+    "0abcdef0123456789abcdef"
+   ],
+   "out": {
+    "ok": true,
+    "batches": [
+     [
+      0,
+      0,
+      0,
+      250,
+      "scan-0abcdef012345678-0"
+     ],
+     [
+      0,
+      1,
+      250,
+      500,
+      "scan-0abcdef012345678-1"
+     ],
+     [
+      0,
+      2,
+      500,
+      600,
+      "scan-0abcdef012345678-2"
+     ]
+    ]
+   }
+  },
+  {
+   "maxMessages": 0,
+   "counts": [
+    1
+   ],
+   "fingerprints": [
+    "0abcdef0123456789abcdef"
+   ],
+   "out": {
+    "ok": false,
+    "message": "Import message batch size must be positive."
+   }
+  },
+  {
+   "maxMessages": 1.5,
+   "counts": [
+    1
+   ],
+   "fingerprints": [
+    "0abcdef0123456789abcdef"
+   ],
+   "out": {
+    "ok": false,
+    "message": "Import message batch size must be positive."
+   }
+  }
+ ]
+}

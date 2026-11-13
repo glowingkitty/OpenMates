@@ -1,0 +1,40 @@
+schema_version: 2
+profile: concise
+id: pdf-processing-v2
+title: PDF processing v2 - per-page triage, parallel OCR, Jev safety, answer hold, exact pricing
+status: implementing
+goal: Make PDF processing much faster, cheaper for the user and more accurate, and never let the assistant answer about
+  a PDF before every page is final.
+recorded_on: '2026-11-08'
+task: TASK-6861
+authorization: The founder approved the four design decisions on 2026-11-08 (Jev may receive PDF text and images; Sightengine
+  removed from the PDF pipeline; 2 credits per file plus 2 per OCR page; images allowed only at 0.95 harmless confidence)
+  and then instructed to update the Specification and the code accordingly, with the assistant only continuing once
+  the PDFs are processed. Final Specification approval is requested once after the deploy.
+scope:
+  in:
+  - Per-page triage (text layer, OCR, Jev for borderline pages) and exact post-triage pricing with refunds.
+  - Chunked parallel OCR with provider fallback and explicit unreadable-page markers.
+  - Jev prompt-injection scores per page and Jev image decisions (fail closed); Sightengine removed for PDFs.
+  - On-demand page renders, PDF outline table of contents, BM25 plus Jev search, whole-document reads for small PDFs.
+  - Turn hold in the AI worker until every PDF in the turn is final; failed processing ends the turn with a refund.
+  out:
+  - Image-upload safety (Sightengine stays for image uploads).
+  - Memory system changes (TASK-3369).
+proposed_sequence:
+- outcome: Specification updated (feature.pdf-processing) with the readiness invariant.
+- outcome: Backend pipeline, gate, pricing, safety, search and read implemented with unit checks.
+- outcome: Dev deploy, real-PDF benchmark against the recorded baselines, E2E proof for the deployed commit.
+- outcome: Final Specification approval requested once after the deploy; privacy and provider docs updated.
+checks:
+  required_for_this_proposal:
+  - python3 scripts/plan_validate.py docs/plans/pdf-processing-v2/plan.yml
+  future_implementation: Focused backend unit tests; web E2E (pdf-flow) with the hold case; real-PDF corpus on dev with
+    the Gemini 3.8 Flash model compared with baselines (SN74HC00 77.7 s, Juki manual 106.3 s, ATmega328P 226.1 s).
+approval_prompt_waiver:
+  source: Current user instruction in this chat on 2026-11-08.
+  instruction: No, update the spec, then update the code accordingly! Assistant can only continue working once the pdf file/s are processed
+  scope: Specification feature.pdf-processing draft updates and PDF processing v2 implementation; no production publication.
+specification_refs:
+- id: feature.pdf-processing
+  version: 1

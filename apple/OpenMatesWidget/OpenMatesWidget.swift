@@ -90,6 +90,11 @@ private extension DefaultInspirationsResponse.InspirationItem.VideoInfo {
 
 // MARK: - Timeline provider
 
+/// Carries WidgetKit's non-Sendable timeline completion into the single task that calls it.
+private struct TimelineCompletionBox: @unchecked Sendable {
+    let call: (Timeline<InspirationEntry>) -> Void
+}
+
 struct InspirationTimelineProvider: TimelineProvider {
     typealias Entry = InspirationEntry
 
@@ -106,7 +111,9 @@ struct InspirationTimelineProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<InspirationEntry>) -> Void) {
-        nonisolated(unsafe) let completion = completion
+        // WidgetKit hands over a non-Sendable completion; the box moves it into the task,
+        // which is its only caller (a bare capture is rejected as a `sending` data race).
+        let completion = TimelineCompletionBox(call: completion)
         Task {
             let inspiration = await fetchInspiration()
             let entry = InspirationEntry(date: Date(), inspiration: inspiration)
@@ -114,7 +121,7 @@ struct InspirationTimelineProvider: TimelineProvider {
             // Refresh every 4 hours — aligns with the daily inspiration cadence
             let nextRefresh = Calendar.current.date(byAdding: .hour, value: 4, to: Date()) ?? Date()
             let timeline = Timeline(entries: [entry], policy: .after(nextRefresh))
-            completion(timeline)
+            completion.call(timeline)
         }
     }
 

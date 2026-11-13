@@ -17,6 +17,10 @@ from backend.core.api.app.services.embed_version_transaction_service import (
     validate_canonical_precondition,
 )
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.project_embed_server_fields import (
+    clear_server_owned_refresh,
+    find_server_owned_refresh,
+)
 from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
 
 logger = logging.getLogger(__name__)
@@ -337,7 +341,13 @@ async def handle_store_embed(
             # UUIDv5 candidates are checked against durable registered-child
             # provenance by the serialized Directus transaction. Its default
             # denial still protects initial Project-file creates.
-            if (not is_hosted_project_embed_id(embed_id)
+            # A server-issued thumbnail/run-status refresh for this exact version
+            # may pass the fence for application/test-result links only; the
+            # transaction extension re-checks the link kind under its lock.
+            server_owned_refresh = (await find_server_owned_refresh(
+                cache_service, embed_id, payload.get("version_number"),
+            ) if enrichment is None and not has_recovery_bundle else None)
+            if (server_owned_refresh is None and not is_hosted_project_embed_id(embed_id)
                     and await requires_atomic_project_embed_write(directus_service, embed_id)):
                 await _reject_store_embed_write(
                     manager,
@@ -426,6 +436,8 @@ async def handle_store_embed(
                     **({"authored_asset_binding": authored_asset_binding}
                        if authored_asset_binding is not None else {}),
                     **({"bundle_context": bundle_context} if bundle_context is not None else {}),
+                    **({"server_owned_refresh": server_owned_refresh}
+                       if server_owned_refresh is not None else {}),
                 )
             except EmbedVersionTransactionError as exc:
                 if exc.status_code == 409:
@@ -445,6 +457,8 @@ async def handle_store_embed(
                     return
                 raise
             logger.info("Stored client-encrypted embed %s (%s)", embed_id, write_result.get("status"))
+            if server_owned_refresh is not None:
+                await clear_server_owned_refresh(cache_service, embed_id)
             try:
                 await cache_service.remove_pending_embed(user_id, embed_id)
             except Exception as e:

@@ -49,6 +49,8 @@
   import { AUTOMATIC_DEPENDENCY_VERSION, defaultDependencyVersion, dependencyPackageSpec, isCodeRunSupported } from './codeRunSupport';
   import CodePreviewPane from './CodePreviewPane.svelte';
   import InteractiveHtmlFrame from './InteractiveHtmlFrame.svelte';
+  import ProgressiveHtmlFrame from './ProgressiveHtmlFrame.svelte';
+  import SvgEmbedImage from './SvgEmbedImage.svelte';
   import { resolveCodePreviewKind } from './interactiveHtmlSandbox';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
@@ -383,9 +385,12 @@
 
   // ── Preview/Render mode ─────────────────────────────────────────────
 
-  let previewKind = $derived(resolveCodePreviewKind(renderLanguage, renderFilename));
+  let previewKind = $derived(resolveCodePreviewKind(renderLanguage, renderFilename, renderCodeContent));
   let isPreviewable = $derived(previewKind !== null);
-  let isInteractiveHtml = $derived(previewKind === 'interactive-html');
+  /** Visual kinds (live HTML, SVG image) open on the visual with a one-click switch to code. */
+  let isInteractiveHtml = $derived(previewKind === 'interactive-html' || previewKind === 'svg');
+  /** True while the embed is still being generated (partial source). */
+  let isStreamingEmbed = $derived(data.embedData?.status === 'processing');
   let previewType = $derived(previewKind === 'markdown' ? ('markdown' as const) : ('html' as const));
 
   /** Preview toggle state. HTML visuals open live by default; code is one click away. */
@@ -1640,7 +1645,7 @@
           <!-- Preview panel keeps the existing side-by-side rendering behavior. -->
           {#if previewActive}
             <div class="preview-panel">
-              {#if isInteractiveHtml}<InteractiveHtmlFrame code={renderCodeContent} title={renderFilename || displayLanguage} interactive={true} />{:else}<CodePreviewPane code={renderCodeContent} {previewType} />{/if}
+              {#if previewKind === 'svg'}<SvgEmbedImage code={renderCodeContent} title={renderFilename || displayLanguage} streaming={isStreamingEmbed} />{:else if isInteractiveHtml && isStreamingEmbed}<ProgressiveHtmlFrame code={renderCodeContent} title={renderFilename || displayLanguage} />{:else if isInteractiveHtml}<InteractiveHtmlFrame code={renderCodeContent} title={renderFilename || displayLanguage} interactive={true} />{:else}<CodePreviewPane code={renderCodeContent} {previewType} />{/if}
             </div>
           {/if}
 

@@ -457,7 +457,7 @@ struct Message: Identifiable, Decodable, Sendable {
     let role: MessageRole
     var content: String? {         // Decrypted content (set client-side after decryption)
         didSet {
-            guard content != oldValue else { return }
+            guard !deferRenderRebuild, content != oldValue else { return }
             renderDocument = ChatHistoryRenderDocument.build(for: self)
         }
     }
@@ -469,19 +469,19 @@ struct Message: Identifiable, Decodable, Sendable {
     let embedRefs: [EmbedRef]?
     var modelName: String? {
         didSet {
-            guard modelName != oldValue else { return }
+            guard !deferRenderRebuild, modelName != oldValue else { return }
             renderDocument = ChatHistoryRenderDocument.build(for: self)
         }
     }
     var senderName: String? {
         didSet {
-            guard senderName != oldValue else { return }
+            guard !deferRenderRebuild, senderName != oldValue else { return }
             renderDocument = ChatHistoryRenderDocument.build(for: self)
         }
     }
     var category: String? {
         didSet {
-            guard category != oldValue else { return }
+            guard !deferRenderRebuild, category != oldValue else { return }
             renderDocument = ChatHistoryRenderDocument.build(for: self)
         }
     }
@@ -495,6 +495,26 @@ struct Message: Identifiable, Decodable, Sendable {
     let encryptedThinkingSignature: String?
     let thinkingTokenCount: Int?
     private(set) var renderDocument: ChatHistoryRenderDocument?
+    /// True only inside `applyDecryptedDisplayFields`, which rebuilds the render
+    /// document once instead of once per changed field.
+    private var deferRenderRebuild = false
+
+    /// Applies decrypted display fields and rebuilds the render document at most
+    /// once (the per-field `didSet` rebuilds re-parse the markdown each time).
+    mutating func applyDecryptedDisplayFields(
+        content: String?, modelName: String?, senderName: String?, category: String?
+    ) {
+        let before = (self.content, self.modelName, self.senderName, self.category)
+        deferRenderRebuild = true
+        if let content { self.content = content }
+        if let modelName { self.modelName = modelName }
+        if let senderName { self.senderName = senderName }
+        if let category { self.category = category }
+        deferRenderRebuild = false
+        let changed = before.0 != self.content || before.1 != self.modelName
+            || before.2 != self.senderName || before.3 != self.category
+        if changed { renderDocument = ChatHistoryRenderDocument.build(for: self) }
+    }
 
     /// Resolve an explicit database alias without borrowing plaintext from an
     /// older edit or another chat. A valid canonical body always wins.
@@ -902,63 +922,6 @@ struct ChatPreparedPrivacyGeneration: Equatable, Sendable {
               now >= touchedAt, now.timeIntervalSince(touchedAt) < 7_200 else { return false }
         touchedAt = now
         return true
-    }
-}
-
-enum ChatQueuedRevisionError: Error, Equatable {
-    case invalidRequest
-    case rejected(reason: String, currentRevision: Int?, retryable: Bool)
-    case invalidReceipt
-}
-
-/// Immutable transport package for the existing revision API. Plaintext is only
-/// the privacy-filtered inference value paired with its encrypted durable body.
-struct ChatQueuedRevisionRequest: Sendable {
-    let chatID: String
-    let messageID: String
-    let expectedRevision: Int
-    let clientRequestID: String
-    private let bytes: Data
-    enum Mode: String, Sendable { case followUp = "follow_up", steer }
-
-    init(chatID: String, messageID: String, expectedRevision: Int, clientRequestID: String = UUID().uuidString,
-         mode: Mode, teamID: String?, content: String? = nil, encryptedContent: String? = nil,
-         encryptedPIIMappings: String? = nil) throws {
-        guard !chatID.isEmpty, (1...255).contains(messageID.count), expectedRevision >= 1,
-              expectedRevision < Int.max, (1...128).contains(clientRequestID.count) else { throw ChatQueuedRevisionError.invalidRequest }
-        var fields: [String: Any] = ["chat_id": chatID, "message_id": messageID,
-            "expected_revision": expectedRevision, "client_request_id": clientRequestID, "queue_mode": mode.rawValue]
-        if let teamID { fields["team_id"] = teamID }
-        if let content {
-            guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  content.utf8.count <= 2 * 1024 * 1024, let encryptedContent, !encryptedContent.isEmpty else { throw ChatQueuedRevisionError.invalidRequest }
-            fields["content"] = content; fields["encrypted_content"] = encryptedContent
-            fields["encrypted_pii_mappings"] = encryptedPIIMappings.map { $0 as Any } ?? NSNull()
-        } else if encryptedContent != nil || encryptedPIIMappings != nil { throw ChatQueuedRevisionError.invalidRequest }
-        self.chatID = chatID; self.messageID = messageID; self.expectedRevision = expectedRevision; self.clientRequestID = clientRequestID
-        bytes = try JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys])
-    }
-    func payload() throws -> [String: Any] {
-        guard let fields = try JSONSerialization.jsonObject(with: bytes) as? [String: Any] else { throw ChatQueuedRevisionError.invalidRequest }
-        return fields
-    }
-    func validateReceipt(_ fields: [String: Any], type: String) throws -> Int {
-        guard fields["chat_id"] as? String == chatID, fields["message_id"] as? String == messageID,
-              fields["client_request_id"] as? String == clientRequestID else { throw ChatQueuedRevisionError.invalidReceipt }
-        if type == "queued_message_revision_rejected" {
-            guard let reason = fields["reason_code"] as? String, !reason.isEmpty else { throw ChatQueuedRevisionError.invalidReceipt }
-            throw ChatQueuedRevisionError.rejected(reason: reason, currentRevision: fields["current_revision"] as? Int,
-                retryable: fields["retryable"] as? Bool == true)
-        }
-        guard type == "queued_message_updated", let revision = fields["queue_revision"] as? Int,
-              revision == expectedRevision + 1,
-              fields["queue_mode"] as? String == (try payload())["queue_mode"] as? String else { throw ChatQueuedRevisionError.invalidReceipt }
-        if let content = (try payload())["encrypted_content"] as? String {
-            guard fields["encrypted_content"] as? String == content else { throw ChatQueuedRevisionError.invalidReceipt }
-            let expectedMappings = (try payload())["encrypted_pii_mappings"]
-            guard NSDictionary(dictionary: ["value": fields["encrypted_pii_mappings"] ?? NSNull()]).isEqual(to: ["value": expectedMappings ?? NSNull()]) else { throw ChatQueuedRevisionError.invalidReceipt }
-        }
-        return revision
     }
 }
 

@@ -95,12 +95,11 @@ def _validate_types(payload: dict[str, Any]) -> dict[str, int]:
     by_id = {str(app.get("id") or app.get("app_id") or ""): app for app in apps}
     ai_types = _memory_types(by_id.get(REMOVED_APP_ID, {}))
     retained_types = _memory_types(by_id.get(RETAINED_APP_ID, {}))
-    retained_ids = {str(item.get("id") or item.get("item_type") or "") for item in retained_types}
     _require(
         not ai_types,
         f"AI memory types remain discoverable: {[str(item.get('id') or item.get('item_type') or '') for item in ai_types]}",
     )
-    _require(RETAINED_ITEM_TYPE in retained_ids, "Retained Code memory type is not discoverable")
+    _require(not retained_types, "App-specific typed memories were removed but types are still discoverable")
     return {"aiTypeCount": len(ai_types), "retainedTypeCount": len(retained_types)}
 
 
@@ -143,7 +142,7 @@ def verify_cli(*, env: dict[str, str]) -> dict[str, Any]:
     ai_types = _run_cli_json(["settings", "memories", "types", "--app-id", REMOVED_APP_ID], env=env)
     retained_types = _run_cli_json(["settings", "memories", "types", "--app-id", RETAINED_APP_ID], env=env)
     _require(ai_types == [], "CLI still exposes AI memory types")
-    _require(any(item.get("item_type") == RETAINED_ITEM_TYPE for item in retained_types), "CLI lost the retained Code memory type")
+    _require(not retained_types, "CLI still lists removed typed memory types")
     command = [
         "node",
         "dist/cli.js",

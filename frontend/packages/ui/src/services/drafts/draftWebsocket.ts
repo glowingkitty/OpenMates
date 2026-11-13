@@ -19,6 +19,7 @@ import { getEditorInstance } from "./draftCore";
 import { incomingDraftOmitsLocalEmbed } from "./draftContent";
 import { isDraftUpdateBlockedByLocalDeletion } from "../chatSyncMerge";
 import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../../utils/chatDraftState";
+import { isDraftChatClaimedForSend } from "./draftSendClaims";
 import { activeTeamContext, isActiveTeamContext } from "../../stores/teamStore";
 
 // --- WebSocket Handlers ---
@@ -520,7 +521,8 @@ const handleDraftVersionsResponse = async (payload: {
         }
         const editorState = get(draftEditorUIState);
         if (editorState.currentChatId === chat_id && editorState.hasUnsavedChanges) continue;
-        if (isPersistedDraftOnlyChat(chat) || isClearedDraftOnlyShell) {
+        // A send in progress stores its first message in this chat next.
+        if ((isPersistedDraftOnlyChat(chat) || isClearedDraftOnlyShell) && !isDraftChatClaimedForSend(chat_id)) {
           await chatDB.deleteChat(chat_id);
           const { chatListCache } = await import("../chatListCache");
           chatListCache.removeChat(chat_id);

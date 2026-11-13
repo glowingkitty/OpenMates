@@ -33,6 +33,9 @@ import {
   canPersistPreviewBackfill,
   canStorePreviewBackfillLocally,
 } from "./embedPreviewBackfill";
+import { decodeToonInRust, openedEmbedField, RUST_TOON_INACTIVE, openStoredEmbedContent } from "./rustCore/embeds/embedDataClient";
+import { workerEmbedKey } from "./rustCore/embeds/embedKeyClient";
+import { isTransientRustWorkerError } from "./rustCore/embeds/embedWriteSession";
 import {
   clearEmbedRefIndexEntries,
   embedRefIndexVersion,
@@ -167,6 +170,12 @@ async function decodeToonContentLocal(
     return null;
   }
 
+  // Compile-time flag (default builds keep only the TS decoder): the Worker's Rust TOON parser.
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+    const decoded = await decodeToonInRust(toonContent);
+    if (decoded !== RUST_TOON_INACTIVE) return decoded;
+  }
+
   await initToonDecoder();
 
   if (toonDecode) {
@@ -196,6 +205,11 @@ async function decodeToonContentSilently(
 ): Promise<unknown> {
   if (!toonContent || typeof toonContent !== "string") {
     return typeof toonContent === "object" ? toonContent : null;
+  }
+
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+    const decoded = await decodeToonInRust(toonContent);
+    if (decoded !== RUST_TOON_INACTIVE) return decoded;
   }
 
   await initToonDecoder();
@@ -1016,7 +1030,8 @@ export class EmbedStore {
       type === "sheets-sheet" ||
       type === "math-plot" ||
       type === "document" ||
-      type === "docs-doc";
+      type === "docs-doc" ||
+      type === "deck";
     if (!isAppSkillUse && !isAutoConverted) {
       return {};
     }
@@ -1477,6 +1492,15 @@ export class EmbedStore {
       this.updateUploadedFileSearchCandidate(entry);
       embedAvailabilityVersion.update((version) => version + 1);
     };
+    if ((await this.keptNewerChildHeads([{ contentRef, data: encryptedData }])).has(contentRef)) {
+      // Only this older row is not stored; every other effect of the write runs:
+      // readers re-read the stored head, and ref indexes and listeners update.
+      options?.writeGuard?.();
+      this.removeFromMemoryCache(contentRef);
+      embedAvailabilityVersion.update((version) => version + 1);
+      if (pendingChildRefIndex) await this.indexChildEmbedRefs(pendingChildRefIndex);
+      return;
+    }
     // Unguarded chat sync keeps its existing early pin guarantee. Guarded Apps
     // hydration defers even the memory write until after async IDB setup.
     if (!options?.writeGuard) pinEntry();
@@ -1534,10 +1558,16 @@ export class EmbedStore {
     }>,
   ): Promise<void> {
     if (items.length === 0) return;
+    const kept = await this.keptNewerChildHeads(items);
 
     // Build entries and populate memory cache
     const entries: EmbedStoreEntry[] = [];
     for (const item of items) {
+      if (kept.has(item.contentRef)) {
+        // The stored head stays; readers re-read it (availability bumps below).
+        this.removeFromMemoryCache(item.contentRef);
+        continue;
+      }
       const normalizedType = this.normalizeEmbedType(
         item.type as unknown as string,
       );
@@ -1649,7 +1679,9 @@ export class EmbedStore {
     if (entry.encrypted_content) {
       try {
         const embedId = entry.embed_id || contentRef.replace("embed:", "");
-        const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
+        const embedKey = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+          ? await workerEmbedKey(embedId, entry.hashed_chat_id, entry, this, () => this.getEmbedKey(embedId, entry.hashed_chat_id))
+          : await this.getEmbedKey(embedId, entry.hashed_chat_id);
 
         if (embedKey) {
           // Clean the base64 string before decryption (trim whitespace only).
@@ -1659,7 +1691,12 @@ export class EmbedStore {
           // with a DOMException OperationError.
           const cleanedContent = entry.encrypted_content.trim();
 
-          const decryptedContent = await decryptWithEmbedKey(
+          // Compile-time flag (default builds keep only the TS call): the Rust
+          // shared Worker `embedData` unit opens content, type and preview at once.
+          const decryptedContent = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+            ? await openStoredEmbedContent(embedKey, entry, () =>
+                decryptWithEmbedKey(cleanedContent, embedKey, { embedId, fieldName: "encrypted_content" }))
+            : await decryptWithEmbedKey(
             cleanedContent,
             embedKey,
             { embedId, fieldName: "encrypted_content" },
@@ -1731,17 +1768,24 @@ export class EmbedStore {
           `[EmbedStore] Error decrypting encrypted_content from separate fields: embed_id=${embedId} field=encrypted_content`,
           error,
         );
-        embed._decryptionFailed = true;
-        embed.status = "error";
-        embed.content = null;
-        // Cache the failed result so subsequent in-memory lookups don't retry decryption.
-        /* eslint-disable @typescript-eslint/no-explicit-any */
-        embedCache.set(contentRef, {
-          ...entry,
-          _decryptionFailed: true,
-          status: "error",
-        } as any);
-        /* eslint-enable @typescript-eslint/no-explicit-any */
+        if (isTransientRustWorkerError(error)) {
+          // A stalled or restarting Worker is not a decryption verdict: stay
+          // pending and uncached so the next read retries.
+          embed._decryptionPending = true;
+          embed.content = null;
+        } else {
+          embed._decryptionFailed = true;
+          embed.status = "error";
+          embed.content = null;
+          // Cache the failed result so subsequent in-memory lookups don't retry decryption.
+          /* eslint-disable @typescript-eslint/no-explicit-any */
+          embedCache.set(contentRef, {
+            ...entry,
+            _decryptionFailed: true,
+            status: "error",
+          } as any);
+          /* eslint-enable @typescript-eslint/no-explicit-any */
+        }
       }
     } else if (entry.data) {
       // Fallback: If encrypted_content not set but data is, try old format decryption
@@ -1798,10 +1842,15 @@ export class EmbedStore {
     if (entry.encrypted_type) {
       try {
         const embedId = entry.embed_id || contentRef.replace("embed:", "");
-        const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
+        const embedKey = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+          ? await workerEmbedKey(embedId, entry.hashed_chat_id, entry, this, () => this.getEmbedKey(embedId, entry.hashed_chat_id))
+          : await this.getEmbedKey(embedId, entry.hashed_chat_id);
 
         if (embedKey) {
-          const decryptedType = await decryptWithEmbedKey(
+          const decryptedType = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+            ? await openedEmbedField(entry, "type", entry.encrypted_type, (data) =>
+                decryptWithEmbedKey(data, embedKey, { embedId, fieldName: "encrypted_type" }))
+            : await decryptWithEmbedKey(
             entry.encrypted_type,
             embedKey,
             { embedId, fieldName: "encrypted_type" },
@@ -1824,10 +1873,15 @@ export class EmbedStore {
     if (entry.encrypted_text_preview) {
       try {
         const embedId = entry.embed_id || contentRef.replace("embed:", "");
-        const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
+        const embedKey = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+          ? await workerEmbedKey(embedId, entry.hashed_chat_id, entry, this, () => this.getEmbedKey(embedId, entry.hashed_chat_id))
+          : await this.getEmbedKey(embedId, entry.hashed_chat_id);
 
         if (embedKey) {
-          const decryptedPreview = await decryptWithEmbedKey(
+          const decryptedPreview = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+            ? await openedEmbedField(entry, "text_preview", entry.encrypted_text_preview, (data) =>
+                decryptWithEmbedKey(data, embedKey, { embedId, fieldName: "encrypted_text_preview" }))
+            : await decryptWithEmbedKey(
             entry.encrypted_text_preview,
             embedKey,
             { embedId, fieldName: "encrypted_text_preview" },
@@ -2536,6 +2590,46 @@ export class EmbedStore {
    * @param contentRef - The embed reference key
    * @returns The raw stored data (may be encrypted) with parent_embed_id and embed_ids if present
    */
+  /**
+   * Content refs whose stored child head is newer than the row about to be
+   * written over it (`images-generate.revision.message-shows-its-version`): a
+   * synced or fetched server row can still be at version N while this device
+   * already stored the N+1 head it wrote, and replacing it would leave every
+   * message pinning N+1 waiting for a head it had. The comparison is the core's
+   * (`keptStoredHeads`); only child rows are asked, in one Worker request. A
+   * head still pending inside its revision write is never kept (that write
+   * stores the confirmed head itself). Callers skip only the IDB put and memory
+   * pin of a kept row, never the write's other effects.
+   * VITE_OPENMATES_RUST_CORE builds only; other builds write as before.
+   */
+  private async keptNewerChildHeads(
+    items: ReadonlyArray<{ contentRef: string; data: Record<string, unknown> }>,
+  ): Promise<Set<string>> {
+    if (import.meta.env.VITE_OPENMATES_RUST_CORE !== "1") return new Set();
+    const candidates = items.flatMap(({ contentRef, data }) => {
+      const parent = data.parent_embed_id;
+      if (typeof parent !== "string" || !parent) return [];
+      const embedId = typeof data.embed_id === "string" && data.embed_id ? data.embed_id : contentRef.replace(/^embed:/, "");
+      const version = typeof data.version_number === "number" ? data.version_number : null;
+      return [{ contentRef, embedId, incoming: { embed_id: embedId, parent_embed_id: parent, version_number: version } }];
+    });
+    if (candidates.length === 0) return new Set();
+    try {
+      const { keptStoredHeads } = await import("./rustCore/embeds/messageEmbedVersion");
+      const kept = await keptStoredHeads(candidates.map(({ embedId, incoming }) => ({ embedId, incoming })));
+      const refs = new Set(candidates.filter(({ embedId }) => kept.has(embedId)).map(({ contentRef }) => contentRef));
+      // The writer's frame names which sync or read path brought the older row.
+      const writer = refs.size > 0 ? new Error().stack?.split("\n").slice(3, 6).join(" | ") : undefined;
+      for (const ref of refs) console.debug("[EmbedStore] Kept newer local child head over an older synced row:", ref, { writer });
+      return refs;
+    } catch (error) {
+      // The guard only prevents a version regression; a sync write must not be
+      // lost because the Worker cannot answer, so the row is written as before.
+      console.error("[EmbedStore] Child head version guard unavailable:", (error as { code?: unknown })?.code ?? error);
+      return new Set();
+    }
+  }
+
   async getRawEntry(
     contentRef: string,
   ): Promise<{
@@ -2553,6 +2647,8 @@ export class EmbedStore {
     hashed_user_id?: string;
     hashed_team_id?: string;
     encryption_mode?: EmbedStoreEntry["encryption_mode"];
+    /** Head content hash as stored for the server head (new-format entries only). */
+    content_hash?: string;
   } | null> {
     // Check memory cache first
     let entry = embedCache.get(contentRef) as
@@ -2611,6 +2707,7 @@ export class EmbedStore {
         hashed_user_id: entry.hashed_user_id,
         hashed_team_id: entry.hashed_team_id,
         encryption_mode: entry.encryption_mode,
+        content_hash: entry.content_hash,
       };
     }
 

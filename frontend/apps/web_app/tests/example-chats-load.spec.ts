@@ -200,6 +200,34 @@ test.describe('Example chats loading for new users', () => {
 		);
 	}
 
+	// contract-test: supporting surface=gui.web assertions=chat-navigation.order.sidebar-header-match
+	test('open chat sidebar on a phone shows only its close button, no header profile icons', async ({
+		page
+	}: {
+		page: any;
+	}, testInfo: any) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await expectGuestWelcome(page);
+		await expect(page.getByTestId('profile-container')).toBeInViewport();
+
+		await ensureSidebarVisible(page);
+
+		const sidebarClose = page.getByTestId('chats-close-button');
+		await expect(sidebarClose).toBeInViewport();
+		await expect(
+			page.getByTestId('active-chat-container'),
+			'main content should slide fully off-screen behind the open sidebar'
+		).not.toBeInViewport();
+		await expect(page.getByTestId('profile-container')).not.toBeInViewport();
+		await testInfo.attach('mobile-sidebar-open', {
+			body: await page.screenshot(),
+			contentType: 'image/png'
+		});
+
+		await sidebarClose.click();
+		await expect(page.getByTestId('profile-container')).toBeInViewport();
+	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity
 	test('guest show-all examples uses expanded resume cards and global search covers every example', async ({
@@ -353,9 +381,14 @@ test.describe('Example chats loading for new users', () => {
 		await expect(webPreview).not.toContainText('Open to view results');
 
 		await expect(page.getByTestId('chat-share-button')).toBeVisible({ timeout: 10000 });
-		await expect(page.getByTestId('chat-details-button')).toBeVisible({ timeout: 10000 });
+		// Chat settings live in the header More menu once the example offers several chat actions.
+		const detailsButton = page.getByTestId('chat-details-button');
+		if (!(await detailsButton.isVisible())) {
+			await page.getByTestId('chat-more-button').click();
+		}
+		await expect(detailsButton).toBeVisible({ timeout: 10000 });
 
-		await page.getByTestId('chat-details-button').click();
+		await detailsButton.click();
 		const settingsMenu = page.getByTestId('settings-menu');
 		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
 		await expect(settingsMenu).toHaveAttribute('data-active-view', `chats/${exampleChatId}`, {
@@ -382,35 +415,18 @@ test.describe('Example chats loading for new users', () => {
 		await expect(settingsMenu).not.toContainText(/\[T:settings\.chats\]/i);
 	});
 
-	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable
-	test('memory settings keep sample entries without retired public memory chats', async ({
-		page
-	}: {
-		page: any;
-	}) => {
+	// contract-test: direct surface=gui.web assertions=app-memories.catalog.no-typed-types,app-memories.typed.removed
+	test('typed app memory category routes no longer exist', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
 		await page.setViewportSize({ width: 1600, height: 900 });
-
 		await page.goto(getE2EDebugUrl('/#settings/apps/books/settings_memories/currently_reading'), {
 			waitUntil: 'domcontentloaded'
 		});
 		await page.waitForLoadState('networkidle');
-
-		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
-		await expect(settingsMenu).toBeVisible({ timeout: 15000 });
-		const memoryCategory = settingsMenu.getByTestId('app-settings-memories-category');
-		await expect(memoryCategory).toHaveAttribute('data-app-id', 'books');
-		await expect(memoryCategory).toHaveAttribute('data-category-id', 'currently_reading');
-		await expect(memoryCategory.getByTestId('app-store-memory-example-chats')).toHaveCount(0);
-		const sampleEntries = memoryCategory.locator('.examples-list');
-		await expect(sampleEntries).toBeVisible({ timeout: 15000 });
-		await expect(sampleEntries.locator('.settings-item')).toHaveCount(2);
-		await sampleEntries.locator('.settings-item').first().click();
-		await expect(settingsMenu).toHaveAttribute(
-			'data-active-view',
-			'apps/books/settings_memories/currently_reading/entry/example_0',
-			{ timeout: 10000 }
-		);
+		// Legacy Settings app links forward to the Apps workspace.
+		await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('app-settings-memories-category')).toHaveCount(0);
+		await expect(page.getByTestId('published-memory-route')).toHaveCount(0);
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.history.explicit-forgotten-reveal,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
@@ -486,7 +502,11 @@ test.describe('Example chats loading for new users', () => {
 
 		await page.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]').first().click();
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
-		await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
+		// ActiveChat.handleNewChatClick intentionally does not start a typing session; focus is explicit.
+		const newChatEditor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+		await expect(newChatEditor).toBeVisible({ timeout: 5000 });
+		await newChatEditor.click();
+		await expect(newChatEditor).toBeFocused({ timeout: 5000 });
 		await expect(
 			page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first()
 		).toBeVisible({ timeout: 10000 });
@@ -526,7 +546,11 @@ test.describe('Example chats loading for new users', () => {
 			.first();
 		await expect(assistantMessageWithNutritionCard).toBeVisible({ timeout: 15000 });
 
-		const nutritionSearchCard = assistantMessageWithNutritionCard.locator(nutritionSearchCardSelector);
+		// The search parent card and its child result cards all carry this testid; the parent is the one showing the query.
+		const nutritionSearchCard = assistantMessageWithNutritionCard
+			.locator(nutritionSearchCardSelector)
+			.filter({ hasText: 'spinach chickpea bell pepper carrot' })
+			.first();
 		await expect(nutritionSearchCard).toBeVisible({ timeout: 15000 });
 		await expect(nutritionSearchCard).toContainText('spinach chickpea bell pepper carrot');
 		await expect(nutritionSearchCard).toContainText('Edamam');
@@ -687,8 +711,9 @@ test.describe('Example chats loading for new users', () => {
 		await expect(map.getByTestId('search-result-route-path')).toHaveCount(2);
 		const cards = page.locator('.search-result-card');
 		await expect(cards).toHaveCount(2);
-		await expect(cards.first()).toContainText('Hamburg Central Station');
-		await expect(cards.last()).toContainText('Leipzig Central Station');
+		// Result cards use the compact city label; the full station name is in the child details.
+		await expect(cards.first()).toContainText('Hamburg');
+		await expect(cards.last()).toContainText('Leipzig');
 		for (const card of await cards.all()) {
 			const details = card.getByTestId('connection-preview-details');
 			await expect(details).toBeVisible();

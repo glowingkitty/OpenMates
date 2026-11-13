@@ -220,6 +220,15 @@ conversation_fork:
     source_messages_unchanged: true
     active_chat_replaced_automatically: false
     open_action_available: true
+hidden_chats:
+- id: hide-first-chat-with-vault-password
+  given: The vault is locked and the user has a chat about the capital of France.
+  when: The user chooses Hide in the chat menu and submits their vault password in the inline form.
+  then: The form closes and the chat appears in the hidden chats section instead of the regular list.
+- id: hide-second-chat-while-unlocked
+  given: The vault is already unlocked with one hidden chat.
+  when: The user hides another chat.
+  then: No password form appears and the chat shows up in the hidden chats section.
 streaming_delivery:
 - id: bounded-content-coalescing
   given:
@@ -411,6 +420,22 @@ web_history_entrance:
   given: Alice has enabled reduced motion and opens a saved chat.
   when: Its history loads.
   then: The history immediately appears at full opacity with its message interactions available.
+offline_outbox_replay:
+- id: edits-replay-in-typing-order
+  assertion_ids: [chats.offline-outbox.ordered-replay]
+  given: Alice edits one chat's draft three times while offline, then deletes it, then types a new draft, and the draft version counter reset at the deletion.
+  when: The connection returns and the queued changes replay.
+  then: They are sent in the order she made them, so the final draft is the newest text and the older deletion cannot wipe it. A second chat's changes replay independently.
+- id: ambiguous-order-stays-queued
+  assertion_ids: [chats.offline-outbox.ordered-replay]
+  given: An older tab left two queued draft changes for one chat without recorded insertion order.
+  when: The connection returns.
+  then: Neither change is sent and both remain queued, while other chats replay normally; nothing is guessed from version numbers.
+- id: deferred-delete-yields-to-newer-draft
+  assertion_ids: [chats.offline-outbox.ordered-replay]
+  given: Alice queued a draft deletion offline, then typed a new draft in that chat before reconnecting.
+  when: The queue replays.
+  then: The deletion is not sent and the new draft is saved; a late acknowledgement for the old deletion does not remove the replacement row.
 immediate_admission:
 - id: cold-context-does-not-delay-send
   assertion_ids: [chats.send.immediate-admission]

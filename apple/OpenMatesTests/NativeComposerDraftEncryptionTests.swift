@@ -1,8 +1,9 @@
-// Red tests for the intended encrypted native composer draft service seam.
-// Draft persistence must contain Format D ciphertext, never canonical plaintext.
-// Legacy UserDefaults drafts migrate only after unlock and decrypt verification.
-// Repository, legacy store, and master-key provider dependencies are injectable.
-// Production SwiftData coverage verifies the same ciphertext-only contract.
+// Tests of the composer's encrypted read-back copy (DraftService): it holds
+// Format D ciphertext only, never canonical plaintext, restores text and
+// attachments, and never publishes a snapshot cleared or replaced meanwhile.
+// Repository and master-key provider dependencies are injectable; production
+// SwiftData coverage verifies the same ciphertext-only contract. The server
+// draft (sync, versions, tombstones) is the core's, see CoreDraftsTests.
 
 import CryptoKit
 import SwiftData
@@ -22,7 +23,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         ]]
         let serialized = String(decoding: try JSONSerialization.data(withJSONObject: document), as: UTF8.self)
         let service = DraftService(repository: RecordingComposerDraftRepository(),
-            legacyStore: RecordingLegacyComposerDraftStore(), masterKeyProvider: { nil })
+            masterKeyProvider: { nil }, coreDrafts: CoreDrafts())
         service.seedUITestDraftPreview(chatId: "literal-json-draft", preview: serialized)
         let cached = try XCTUnwrap(service.displayDraftPreviews["literal-json-draft"])
         XCTAssertEqual(cached, literal)
@@ -48,22 +49,19 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
-    func testUnlockedWhitespaceDraftIsTombstonedWithoutPublishingBlankPreview() async throws {
+    func testUnlockedWhitespaceDraftIsRemovedWithoutPublishingBlankPreview() async throws {
         let key = try masterKey(loadFixture())
         let repository = RecordingComposerDraftRepository()
         let markdown = try await CryptoManager.shared.encryptWithMasterKey(" \n\t ", masterKey: key)
         let preview = try await CryptoManager.shared.encryptWithMasterKey(" ", masterKey: key)
         try await repository.upsert(.init(chatId: chatId, encryptedMarkdown: markdown,
             encryptedPreview: preview, revision: 4, draftVersion: 7))
-        let service = DraftService(repository: repository, legacyStore: RecordingLegacyComposerDraftStore(), masterKeyProvider: { key })
+        let service = DraftService(repository: repository, masterKeyProvider: { key }, coreDrafts: CoreDrafts())
         let loaded = try await service.loadDraft(chatId: chatId)
         XCTAssertNil(loaded)
         XCTAssertNil(service.draftPreview(chatId: chatId))
-        let tombstones = try await repository.allDeletionVersions()
-        XCTAssertEqual(tombstones[chatId], 7)
-        let stale = try await repository.apply(.content(.init(chatId: chatId, encryptedMarkdown: markdown,
-            encryptedPreview: preview, revision: 4, draftVersion: 7)), knownVersion: 0, knownClearedVersion: 0, expectedScope: nil)
-        XCTAssertFalse(stale.applied, "An old encrypted empty draft must not resurrect after cleanup")
+        let cleared = await repository.record(chatId: chatId)
+        XCTAssertNil(cleared, "The verified empty copy is removed")
     }
 
     // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
@@ -85,16 +83,16 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let preview = try await CryptoManager.shared.encryptWithMasterKey(" ", masterKey: key)
         try await repository.upsert(.init(chatId: chatId, encryptedMarkdown: markdown,
             encryptedPreview: preview, revision: 1, draftVersion: 1))
-        let service = DraftService(repository: repository, legacyStore: RecordingLegacyComposerDraftStore(), masterKeyProvider: { key })
+        let service = DraftService(repository: repository, masterKeyProvider: { key }, coreDrafts: CoreDrafts())
         let loaded = try await service.loadDraft(chatId: chatId)
         XCTAssertEqual(loaded?.canonicalMarkdown, source)
         XCTAssertEqual(ChatDraftPreviewFormatter.format(loaded?.preview), "[Audio]")
         XCTAssertEqual(service.displayDraftPreviews[chatId], "[Audio]")
-        let tombstones = try await repository.allDeletionVersions()
-        XCTAssertNil(tombstones[chatId])
+        let retained = await repository.record(chatId: chatId)
+        XCTAssertNotNil(retained, "An attachment-only draft is not empty")
     }
 
-    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.presentation,drafts.sync.version-authoritative
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.presentation
     func testReconnectHydratesSavedPreviewAfterMasterKeyBecomesAvailable() async throws {
         let key = try masterKey(loadFixture())
         let gate = DraftPreviewUnlockKey()
@@ -103,13 +101,12 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let preview = try await CryptoManager.shared.encryptWithMasterKey("Saved synthetic preview", masterKey: key)
         try await repository.upsert(.init(chatId: chatId, encryptedMarkdown: markdown,
             encryptedPreview: preview, revision: 2, draftVersion: 5))
-        let service = DraftService(repository: repository, legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKeyProvider: { await gate.current() })
+        let service = DraftService(repository: repository, masterKeyProvider: { await gate.current() }, coreDrafts: CoreDrafts())
         do { _ = try await service.loadDraft(chatId: chatId); XCTFail("Locked draft must stay encrypted") }
         catch ComposerDraftError.masterKeyUnavailable { }
         XCTAssertNil(service.draftPreview(chatId: chatId))
         await gate.unlock(key)
-        await service.reconcileAfterReconnect()
+        await service.refreshLocalPreviews()
         XCTAssertEqual(service.draftPreview(chatId: chatId), "Saved synthetic preview")
         XCTAssertEqual(service.displayDraftPreviews[chatId], "Saved synthetic preview")
         let stored = try await repository.record(chatId: chatId)
@@ -126,8 +123,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let preview = try await CryptoManager.shared.encryptWithMasterKey(" ", masterKey: key)
         try await repository.upsert(.init(chatId: chatId, encryptedMarkdown: markdown,
             encryptedPreview: preview, revision: 1, draftVersion: 2))
-        let service = DraftService(repository: repository, legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKeyProvider: { key })
+        let service = DraftService(repository: repository, masterKeyProvider: { key }, coreDrafts: CoreDrafts())
         let loaded = try await service.loadDraft(chatId: chatId)
         XCTAssertEqual(loaded?.canonicalMarkdown, source)
         XCTAssertEqual(loaded?.preview, AppStrings.draftEmbedPreviewLabel(type: "image"))
@@ -142,13 +138,11 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let repository = RecordingComposerDraftRepository()
         try await repository.upsert(.init(chatId: chatId, encryptedMarkdown: "invalid-ciphertext",
             encryptedPreview: "invalid-preview", revision: 1, draftVersion: 7))
-        let service = DraftService(repository: repository, legacyStore: RecordingLegacyComposerDraftStore(), masterKeyProvider: { key })
+        let service = DraftService(repository: repository, masterKeyProvider: { key }, coreDrafts: CoreDrafts())
         do { _ = try await service.loadDraft(chatId: chatId); XCTFail("Invalid ciphertext must fail") }
         catch ComposerDraftError.verificationFailed { }
         let stored = await repository.record(chatId: chatId)
         XCTAssertEqual(stored?.draftVersion, 7)
-        let tombstones = try await repository.allDeletionVersions()
-        XCTAssertNil(tombstones[chatId])
     }
 
     // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
@@ -161,18 +155,17 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let repository = RecordingComposerDraftRepository()
         try await repository.upsert(ComposerDraftRecord(chatId: target, encryptedMarkdown: md,
             encryptedPreview: preview, revision: 1, draftVersion: 7))
-        let service = DraftService(repository: repository, legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKeyProvider: {
-                _ = try await repository.apply(.deletion(chatId: target, version: 8),
-                    knownVersion: 7, knownClearedVersion: 0, expectedScope: nil)
+        let service = DraftService(repository: repository, masterKeyProvider: {
+                _ = try await repository.apply(.localDeletion(chatId: target),
+                    knownVersion: 0, knownClearedVersion: 0, expectedScope: nil)
                 return key
-            })
+            }, coreDrafts: CoreDrafts())
         do { _ = try await service.loadDraft(chatId: target); XCTFail("Deleted snapshot must not publish") }
         catch ComposerDraftError.verificationFailed { }
         XCTAssertTrue(service.currentDraft.isEmpty)
         XCTAssertNil(service.draftPreviews[target])
-        let deletions = try await repository.allDeletionVersions()
-        XCTAssertEqual(deletions[target], 8)
+        let active = await repository.record(chatId: target)
+        XCTAssertNil(active)
     }
 
     // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
@@ -187,11 +180,10 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let repository = RecordingComposerDraftRepository()
         try await repository.upsert(ComposerDraftRecord(chatId: target, encryptedMarkdown: md,
             encryptedPreview: preview, revision: 1, draftVersion: 7))
-        let service = DraftService(repository: repository, legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKeyProvider: {
+        let service = DraftService(repository: repository, masterKeyProvider: {
                 try await repository.upsert(replacement)
                 return key
-            })
+            }, coreDrafts: CoreDrafts())
         do { _ = try await service.loadDraft(chatId: target); XCTFail("Replaced snapshot must not publish") }
         catch ComposerDraftError.verificationFailed { }
         XCTAssertTrue(service.currentDraft.isEmpty)
@@ -209,18 +201,15 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let repository = RecordingComposerDraftRepository()
         try await repository.upsert(ComposerDraftRecord(chatId: target, encryptedMarkdown: ciphertext,
             encryptedPreview: "", revision: 1, draftVersion: 7))
-        let service = DraftService(repository: repository, legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKeyProvider: {
-                _ = try await repository.apply(.deletion(chatId: target, version: 8),
-                    knownVersion: 7, knownClearedVersion: 0, expectedScope: nil)
+        let service = DraftService(repository: repository, masterKeyProvider: {
+                _ = try await repository.apply(.localDeletion(chatId: target),
+                    knownVersion: 0, knownClearedVersion: 0, expectedScope: nil)
                 return key
-            })
+            }, coreDrafts: CoreDrafts())
         do { _ = try await service.loadDraft(chatId: target); XCTFail("A stale preview repair must fail") }
         catch ComposerDraftError.verificationFailed { }
         let active = await repository.record(chatId: target)
-        let deletions = try await repository.allDeletionVersions()
         XCTAssertNil(active)
-        XCTAssertEqual(deletions[target], 8)
         XCTAssertTrue(service.currentDraft.isEmpty)
         XCTAssertNil(service.draftPreviews[target])
     }
@@ -235,8 +224,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let repository = RecordingComposerDraftRepository()
         try await repository.upsert(ComposerDraftRecord(chatId: target, encryptedMarkdown: ciphertext,
             encryptedPreview: "", revision: 5, draftVersion: 7))
-        let service = DraftService(repository: repository, legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKeyProvider: { key })
+        let service = DraftService(repository: repository, masterKeyProvider: { key }, coreDrafts: CoreDrafts())
         let loaded = try await service.loadDraft(chatId: target)
         let repaired = await repository.record(chatId: target)
         XCTAssertEqual(loaded?.preview, plaintext)
@@ -250,10 +238,8 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
     func testSaveAndUpdatePersistOnlyFormatDCiphertext() async throws {
         let fixture = try loadFixture()
         let repository = RecordingComposerDraftRepository()
-        let legacyStore = RecordingLegacyComposerDraftStore()
         let service = makeService(
             repository: repository,
-            legacyStore: legacyStore,
             masterKey: try masterKey(fixture)
         )
 
@@ -308,8 +294,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let repository = OfflineStore(modelContainer: container)
         let service = DraftService(
             repository: repository,
-            legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKeyProvider: { key }
+            masterKeyProvider: { key }, coreDrafts: CoreDrafts()
         )
         let referenced = recordingFixture(
             id: "recording-referenced",
@@ -390,8 +375,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         """
         let savingService = DraftService(
             repository: repository,
-            legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKeyProvider: { key }
+            masterKeyProvider: { key }, coreDrafts: CoreDrafts()
         )
 
         try await savingService.saveDraft(
@@ -411,8 +395,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
 
         let relaunchedService = DraftService(
             repository: repository,
-            legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKeyProvider: { key }
+            masterKeyProvider: { key }, coreDrafts: CoreDrafts()
         )
         let restoredDraft = try await relaunchedService.loadDraft(chatId: chatId)
         let restored = try XCTUnwrap(restoredDraft)
@@ -427,8 +410,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let repository = RecordingComposerDraftRepository()
         let service = makeService(
             repository: repository,
-            legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKey: try masterKey(fixture)
+                        masterKey: try masterKey(fixture)
         )
 
         try await service.saveDraft(
@@ -447,166 +429,13 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         XCTAssertEqual(loaded.draftVersion, 1)
     }
 
-    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
-    func testOlderSynchronizedDraftVersionCannotOverwriteNewerCiphertext() async throws {
-        let fixture = try loadFixture()
-        let repository = RecordingComposerDraftRepository()
-        let service = makeService(
-            repository: repository,
-            legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKey: try masterKey(fixture)
-        )
-        try await service.saveDraft(
-            canonicalMarkdown: fixture.plaintext.canonicalDraftMarkdown,
-            preview: fixture.plaintext.draftPreview,
-            chatId: chatId,
-            revision: 20,
-            draftVersion: 2
-        )
-
-        do {
-            try await service.saveDraft(
-                canonicalMarkdown: "Stale synthetic draft",
-                preview: "Stale preview",
-                chatId: chatId,
-                revision: 21,
-                draftVersion: 1
-            )
-            XCTFail("Expected the stale synchronized draft version to be rejected")
-        } catch {
-            XCTAssertEqual(error as? ComposerDraftError, .versionConflict)
-        }
-        let retainedRecord = await repository.record(chatId: chatId)
-        let retained = try XCTUnwrap(retainedRecord)
-        XCTAssertEqual(retained.draftVersion, 2)
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=drafts.boundaries.session-and-incognito
-    func testUnlockedMigrationEncryptsVerifiesThenRemovesLegacyPlaintext() async throws {
-        let fixture = try loadFixture()
-        let repository = RecordingComposerDraftRepository()
-        let legacyStore = RecordingLegacyComposerDraftStore(drafts: [
-            chatId: fixture.plaintext.canonicalDraftMarkdown,
-        ])
-        let service = makeService(
-            repository: repository,
-            legacyStore: legacyStore,
-            masterKey: try masterKey(fixture)
-        )
-
-        try await service.migrateLegacyDraftsAfterUnlock()
-
-        let migratedRecord = await repository.record(chatId: chatId)
-        let migrated = try XCTUnwrap(migratedRecord)
-        XCTAssertFalse(migrated.encryptedMarkdown.contains(fixture.plaintext.canonicalDraftMarkdown))
-        let decryptedMarkdown = try await CryptoManager.shared.decryptContent(
-            base64String: migrated.encryptedMarkdown,
-            key: try masterKey(fixture)
-        )
-        XCTAssertEqual(decryptedMarkdown, fixture.plaintext.canonicalDraftMarkdown)
-        let remainingLegacyDrafts = await legacyStore.drafts()
-        XCTAssertNil(remainingLegacyDrafts[chatId])
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=drafts.boundaries.session-and-incognito
-    func testMigrationPreservesNewerEncryptedDraftAndLegacyConflict() async throws {
-        let fixture = try loadFixture()
-        let repository = RecordingComposerDraftRepository()
-        let legacyMarkdown = "Older synthetic legacy draft at https://composer-fixture.invalid/legacy."
-        let legacyStore = RecordingLegacyComposerDraftStore(drafts: [chatId: legacyMarkdown])
-        let service = makeService(
-            repository: repository,
-            legacyStore: legacyStore,
-            masterKey: try masterKey(fixture)
-        )
-        try await service.saveDraft(
-            canonicalMarkdown: fixture.plaintext.canonicalDraftMarkdown,
-            preview: fixture.plaintext.draftPreview,
-            chatId: chatId,
-            revision: 14,
-            draftVersion: 1
-        )
-
-        await assertComposerDraftError(.migrationConflict) {
-            try await service.migrateLegacyDraftsAfterUnlock()
-        }
-
-        let storedRecord = await repository.record(chatId: chatId)
-        let encryptedRecord = try XCTUnwrap(storedRecord)
-        let encryptedMarkdown = try await CryptoManager.shared.decryptContent(
-            base64String: encryptedRecord.encryptedMarkdown,
-            key: try masterKey(fixture)
-        )
-        XCTAssertEqual(encryptedMarkdown, fixture.plaintext.canonicalDraftMarkdown)
-        let remainingLegacyDrafts = await legacyStore.drafts()
-        XCTAssertEqual(remainingLegacyDrafts[chatId], legacyMarkdown)
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=drafts.boundaries.session-and-incognito
-    func testUnavailableKeyPreservesLegacyDraftAndReturnsTypedError() async throws {
-        let fixture = try loadFixture()
-        let repository = RecordingComposerDraftRepository()
-        let legacyStore = RecordingLegacyComposerDraftStore(drafts: [
-            chatId: fixture.plaintext.canonicalDraftMarkdown,
-        ])
-        let service = DraftService(
-            repository: repository,
-            legacyStore: legacyStore,
-            masterKeyProvider: { nil }
-        )
-
-        await assertComposerDraftError(.masterKeyUnavailable) {
-            try await service.migrateLegacyDraftsAfterUnlock()
-        }
-        let encryptedRecord = await repository.record(chatId: chatId)
-        XCTAssertNil(encryptedRecord)
-        let remainingLegacyDrafts = await legacyStore.drafts()
-        XCTAssertEqual(
-            remainingLegacyDrafts[chatId],
-            fixture.plaintext.canonicalDraftMarkdown
-        )
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=drafts.boundaries.session-and-incognito
-    func testFailedWriteOrVerificationPreservesRecoverableLegacyPlaintext() async throws {
-        let fixture = try loadFixture()
-        let legacyStore = RecordingLegacyComposerDraftStore(drafts: [
-            chatId: fixture.plaintext.canonicalDraftMarkdown,
-        ])
-        let failingRepository = RecordingComposerDraftRepository(writeError: .syntheticWriteFailure)
-        let writeFailureService = makeService(
-            repository: failingRepository,
-            legacyStore: legacyStore,
-            masterKey: try masterKey(fixture)
-        )
-
-        await assertComposerDraftError(.encryptedWriteFailed) {
-            try await writeFailureService.migrateLegacyDraftsAfterUnlock()
-        }
-        var remainingLegacyDrafts = await legacyStore.drafts()
-        XCTAssertEqual(remainingLegacyDrafts[chatId], fixture.plaintext.canonicalDraftMarkdown)
-
-        let corruptingRepository = RecordingComposerDraftRepository(corruptReads: true)
-        let verificationService = makeService(
-            repository: corruptingRepository,
-            legacyStore: legacyStore,
-            masterKey: try masterKey(fixture)
-        )
-        await assertComposerDraftError(.verificationFailed) {
-            try await verificationService.migrateLegacyDraftsAfterUnlock()
-        }
-        remainingLegacyDrafts = await legacyStore.drafts()
-        XCTAssertEqual(remainingLegacyDrafts[chatId], fixture.plaintext.canonicalDraftMarkdown)
-    }
-
     // contract-test: supporting surface=gui.apple assertions=drafts.boundaries.session-and-incognito
     func testClearAndLogoutDeleteEncryptedRecordsWithoutPlaintextFallback() async throws {
         let fixture = try loadFixture()
         let repository = RecordingComposerDraftRepository()
         let service = makeService(
             repository: repository,
-            legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKey: try masterKey(fixture)
+                        masterKey: try masterKey(fixture)
         )
         let secondChatId = "second-chat.composer-fixture.invalid"
 
@@ -633,30 +462,6 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
             String(reflecting: remainingRecords)
                 .contains(fixture.plaintext.canonicalDraftMarkdown)
         )
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=drafts.boundaries.session-and-incognito
-    func testLogoutRemovesLegacyPlaintextEvenWhenEncryptedRepositoryCleanupFails() async throws {
-        let fixture = try loadFixture()
-        let repository = RecordingComposerDraftRepository(removeAllError: .syntheticRemoveFailure)
-        let legacyStore = RecordingLegacyComposerDraftStore(drafts: [
-            chatId: fixture.plaintext.canonicalDraftMarkdown,
-        ])
-        let service = makeService(
-            repository: repository,
-            legacyStore: legacyStore,
-            masterKey: try masterKey(fixture)
-        )
-
-        do {
-            try await service.clearAll()
-            XCTFail("Expected encrypted repository cleanup to fail")
-        } catch RecordingComposerDraftRepository.RepositoryError.syntheticRemoveFailure {
-            // The encrypted record can remain recoverable, but plaintext must not.
-        }
-
-        let remainingLegacyDrafts = await legacyStore.drafts()
-        XCTAssertTrue(remainingLegacyDrafts.isEmpty)
     }
 
     // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted
@@ -715,8 +520,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let gate = SuspendedDraftMasterKey()
         let service = DraftService(
             repository: repository,
-            legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKeyProvider: { await gate.waitForKey() }
+            masterKeyProvider: { await gate.waitForKey() }, coreDrafts: CoreDrafts()
         )
         let pendingSave = Task { @MainActor in
             try await service.saveDraft(
@@ -743,8 +547,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
     func testLocalSaveAndClearNotifySidebarWithoutReloadingComposer() async throws {
         let repository = RecordingComposerDraftRepository()
         let service = makeService(
-            repository: repository, legacyStore: RecordingLegacyComposerDraftStore(),
-            masterKey: SymmetricKey(size: .bits256)
+            repository: repository,             masterKey: SymmetricKey(size: .bits256)
         )
         let notification = expectation(description: "Local save and clear publish non-reloading updates")
         notification.expectedFulfillmentCount = 2
@@ -765,146 +568,13 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         await fulfillment(of: [notification], timeout: 1)
     }
 
-    // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
-    func testSwiftDataTombstoneSurvivesNewRepositoryAndDraftOnlyShellRemoval() async throws {
-        let schema = Schema([PersistedChat.self, PersistedMessage.self, PersistedEmbed.self,
-            PersistedEmbedKey.self, PersistedComposerDraft.self, PendingOfflineAction.self])
-        let configuration = ModelConfiguration("DraftTombstoneTests", schema: schema, isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: schema, configurations: [configuration])
-        let first = OfflineStore(modelContainer: container)
-        let current = ComposerDraftRecord(chatId: "draft-only", encryptedMarkdown: "cipher-seven",
-            encryptedPreview: "preview-seven", revision: 1, draftVersion: 7)
-        try await first.upsert(current)
-        let deletion = try await first.apply(.deletion(chatId: current.chatId, version: 8),
-            knownVersion: 7, knownClearedVersion: 0, expectedScope: first.scopeGeneration)
-        XCTAssertTrue(deletion.applied)
-        let beforeCleanup = try container.mainContext.fetch(FetchDescriptor<PersistedComposerDraft>())
-        XCTAssertEqual(beforeCleanup.count, 1)
-        XCTAssertEqual(beforeCleanup.first?.isDraftTombstone, true)
-        XCTAssertEqual(beforeCleanup.first?.clearedDraftVersion, 8)
-        let activeBeforeCleanup = try await first.record(chatId: current.chatId)
-        XCTAssertNil(activeBeforeCleanup, "A semantic tombstone is not a live draft or a deleted SwiftData object")
-        first.deleteChat(current.chatId, preservingDraftTombstone: true)
-        let afterCleanup = try container.mainContext.fetch(FetchDescriptor<PersistedComposerDraft>())
-        XCTAssertEqual(afterCleanup.count, 1)
-        XCTAssertEqual(afterCleanup.first?.isDraftTombstone, true)
-        XCTAssertEqual(afterCleanup.first?.clearedDraftVersion, 8)
-        let cold = OfflineStore(modelContainer: container)
-        let late = try await cold.apply(.content(current), knownVersion: 0, knownClearedVersion: 0,
-                                        expectedScope: cold.scopeGeneration)
-        XCTAssertFalse(late.applied)
-        XCTAssertEqual(late.record?.clearedDraftVersion, 8)
-        let active = try await cold.record(chatId: current.chatId)
-        let allActive = try await cold.allRecords()
-        XCTAssertNil(active)
-        XCTAssertTrue(allActive.isEmpty)
-        let rows = try container.mainContext.fetch(FetchDescriptor<PersistedComposerDraft>())
-        XCTAssertEqual(rows.count, 1)
-        XCTAssertEqual(rows.first?.encryptedMarkdown, "")
-        XCTAssertEqual(rows.first?.encryptedPreview, "")
-        let newer = ComposerDraftRecord(chatId: current.chatId, encryptedMarkdown: "cipher-nine",
-            encryptedPreview: "preview-nine", revision: 2, draftVersion: 9)
-        let accepted = try await cold.apply(.content(newer), knownVersion: 0, knownClearedVersion: 0,
-                                            expectedScope: cold.scopeGeneration)
-        XCTAssertTrue(accepted.applied)
-        cold.deleteChat(current.chatId)
-        let removed = try container.mainContext.fetch(FetchDescriptor<PersistedComposerDraft>())
-        XCTAssertTrue(removed.isEmpty, "An actual chat deletion still removes its entire draft state")
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
-    func testProductionRepeatedTombstoneSkipsSaveButPersistsHigherKnownFence() async throws {
-        let schema = Schema([PersistedComposerDraft.self])
-        let config = ModelConfiguration("DraftRepeatedTombstoneTests", schema: schema, isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: schema, configurations: [config])
-        let context = container.mainContext
-        context.autosaveEnabled = false
-        let repository = OfflineStore(modelContainer: container)
-        let mutation = ComposerDraftMutation.deletion(chatId: "cleared-chat", version: 0)
-        let first = try await repository.apply(mutation, knownVersion: 0, knownClearedVersion: 0,
-            expectedScope: repository.scopeGeneration)
-        XCTAssertTrue(first.applied, "A first-use zero-version clear must create a durable tombstone")
-        let firstRows = try context.fetch(FetchDescriptor<PersistedComposerDraft>())
-        XCTAssertEqual(firstRows.count, 1)
-        XCTAssertEqual(firstRows.first?.isDraftTombstone, true)
-
-        // An unrelated pending insert exposes accidental context.save(): a save
-        // would flush it too. Autosave is disabled so this evidence is deterministic.
-        context.insert(PersistedComposerDraft(record: ComposerDraftRecord(chatId: "pending-chat",
-            encryptedMarkdown: "pending-cipher", encryptedPreview: "pending-preview", revision: 1, draftVersion: 1)))
-        XCTAssertTrue(context.hasChanges)
-        let repeated = try await repository.apply(mutation, knownVersion: 0, knownClearedVersion: 0,
-            expectedScope: repository.scopeGeneration)
-        XCTAssertFalse(repeated.applied)
-        XCTAssertTrue(context.hasChanges, "An unchanged tombstone must not save unrelated pending work")
-        let higher = try await repository.apply(mutation, knownVersion: 0, knownClearedVersion: 8,
-            expectedScope: repository.scopeGeneration)
-        XCTAssertTrue(higher.applied, "A higher known cleared fence must become durable even for draft_v=0")
-        XCTAssertEqual(higher.record?.clearedDraftVersion, 8)
-        XCTAssertFalse(context.hasChanges)
-        context.insert(PersistedComposerDraft(record: ComposerDraftRecord(chatId: "pending-fence-chat",
-            encryptedMarkdown: "pending-cipher", encryptedPreview: "pending-preview", revision: 1, draftVersion: 1)))
-        let positiveMutation = ComposerDraftMutation.deletion(chatId: "cleared-chat", version: 8)
-        let positiveRepeat = try await repository.apply(positiveMutation, knownVersion: 0, knownClearedVersion: 8,
-            expectedScope: repository.scopeGeneration)
-        XCTAssertFalse(positiveRepeat.applied)
-        XCTAssertTrue(context.hasChanges, "Repeated positive tombstones must also skip context.save()")
-        let higherKnownFence = try await repository.apply(positiveMutation, knownVersion: 0, knownClearedVersion: 9,
-            expectedScope: repository.scopeGeneration)
-        XCTAssertTrue(higherKnownFence.applied)
-        XCTAssertEqual(higherKnownFence.record?.clearedDraftVersion, 9)
-        XCTAssertFalse(context.hasChanges)
-        let cold = OfflineStore(modelContainer: container)
-        let versions = try await cold.allDeletionVersions()
-        XCTAssertEqual(versions["cleared-chat"], 9)
-        let late = try await cold.apply(.content(ComposerDraftRecord(chatId: "cleared-chat",
-            encryptedMarkdown: "late-cipher", encryptedPreview: "late-preview", revision: 2, draftVersion: 7)),
-            knownVersion: 0, knownClearedVersion: 0, expectedScope: cold.scopeGeneration)
-        XCTAssertFalse(late.applied)
-    }
-
-    // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
-    func testDeletionNormalizesEveryDurableTombstoneFieldBeforeBecomingUnchanged() throws {
-        let normalized = ComposerDraftRecord(chatId: "cleared-chat", encryptedMarkdown: "",
-            encryptedPreview: "", revision: 4, draftVersion: 0, clearedDraftVersion: 8, isDeleted: true)
-        let malformed: [ComposerDraftRecord] = [
-            ComposerDraftRecord(chatId: normalized.chatId, encryptedMarkdown: "stale-cipher",
-                encryptedPreview: "", revision: 4, draftVersion: 0, clearedDraftVersion: 8, isDeleted: true),
-            ComposerDraftRecord(chatId: normalized.chatId, encryptedMarkdown: "",
-                encryptedPreview: "stale-preview", revision: 4, draftVersion: 0, clearedDraftVersion: 8, isDeleted: true),
-            ComposerDraftRecord(chatId: normalized.chatId, encryptedMarkdown: "",
-                encryptedPreview: "", encryptedRecordingPayload: "stale-companion", revision: 4,
-                draftVersion: 0, clearedDraftVersion: 8, isDeleted: true),
-            ComposerDraftRecord(chatId: normalized.chatId, encryptedMarkdown: "",
-                encryptedPreview: "", revision: 4, draftVersion: 7, clearedDraftVersion: 8, isDeleted: true),
-            ComposerDraftRecord(chatId: normalized.chatId, encryptedMarkdown: "",
-                encryptedPreview: "", revision: 4, draftVersion: 0, clearedDraftVersion: 8, isDeleted: false)
-        ]
-        let deletion = ComposerDraftMutation.deletion(chatId: normalized.chatId, version: 8)
-        XCTAssertFalse(deletion.applying(to: normalized).applied)
-        for local in malformed {
-            let result = deletion.applying(to: local)
-            XCTAssertTrue(result.applied)
-            let record = try XCTUnwrap(result.record)
-            XCTAssertTrue(record.isDeleted)
-            XCTAssertEqual(record.draftVersion, 0)
-            XCTAssertEqual(record.clearedDraftVersion, 8)
-            XCTAssertEqual(record.revision, 4)
-            XCTAssertEqual(record.encryptedMarkdown, "")
-            XCTAssertEqual(record.encryptedPreview, "")
-            XCTAssertNil(record.encryptedRecordingPayload)
-            XCTAssertFalse(deletion.applying(to: record).applied)
-        }
-    }
-
     // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted
     func testProductionDraftMutationRejectsForeignCacheScopeBeforeWriting() async throws {
         let schema = Schema([PersistedComposerDraft.self])
         let config = ModelConfiguration("DraftScopeTests", schema: schema, isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: schema, configurations: [config])
         let repository = OfflineStore(modelContainer: container)
-        let mutation = ComposerDraftMutation.content(ComposerDraftRecord(chatId: "foreign-chat",
-            encryptedMarkdown: "cipher", encryptedPreview: "preview", revision: 1, draftVersion: 7))
+        let mutation = ComposerDraftMutation.localDeletion(chatId: "foreign-chat")
         do {
             _ = try await repository.apply(mutation, knownVersion: 0, knownClearedVersion: 0, expectedScope: UUID())
             XCTFail("A previous account's request must not write into the current cache")
@@ -915,13 +585,11 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
 
     private func makeService(
         repository: RecordingComposerDraftRepository,
-        legacyStore: RecordingLegacyComposerDraftStore,
         masterKey: SymmetricKey
     ) -> DraftService {
         DraftService(
             repository: repository,
-            legacyStore: legacyStore,
-            masterKeyProvider: { masterKey }
+            masterKeyProvider: { masterKey }, coreDrafts: CoreDrafts()
         )
     }
 
@@ -946,20 +614,6 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         )
     }
 
-    private func assertComposerDraftError(
-        _ expected: ComposerDraftError,
-        operation: () async throws -> Void
-    ) async {
-        do {
-            try await operation()
-            XCTFail("Expected ComposerDraftError.\(expected)")
-        } catch let error as ComposerDraftError {
-            XCTAssertEqual(error, expected)
-        } catch {
-            XCTFail("Expected ComposerDraftError.\(expected), got \(type(of: error))")
-        }
-    }
-
     private func masterKey(_ fixture: DraftEncryptionFixture) throws -> SymmetricKey {
         SymmetricKey(data: try XCTUnwrap(Data(base64Encoded: fixture.keys.masterKeyBase64)))
     }
@@ -977,34 +631,15 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
 
 private actor RecordingComposerDraftRepository: ComposerDraftRepository {
     private var records: [String: ComposerDraftRecord] = [:]
-    private let writeError: RepositoryError?
-    private let removeAllError: RepositoryError?
-    private let corruptReads: Bool
-
-    init(
-        writeError: RepositoryError? = nil,
-        removeAllError: RepositoryError? = nil,
-        corruptReads: Bool = false
-    ) {
-        self.writeError = writeError
-        self.removeAllError = removeAllError
-        self.corruptReads = corruptReads
-    }
 
     func upsert(_ record: ComposerDraftRecord) async throws {
-        if let writeError {
-            throw writeError
-        }
         var resolved = record
         resolved.clearedDraftVersion = max(records[record.chatId]?.clearedDraftVersion ?? 0, record.clearedDraftVersion)
         records[record.chatId] = resolved
     }
 
     func record(chatId: String) async -> ComposerDraftRecord? {
-        guard var record = records[chatId], !record.isDeleted else { return nil }
-        if corruptReads {
-            record.encryptedPreview = "corrupt-synthetic-ciphertext.invalid"
-        }
+        guard let record = records[chatId], !record.isDeleted else { return nil }
         return record
     }
 
@@ -1013,9 +648,6 @@ private actor RecordingComposerDraftRepository: ComposerDraftRepository {
     }
 
     func removeAll() async throws {
-        if let removeAllError {
-            throw removeAllError
-        }
         records.removeAll()
     }
 
@@ -1023,38 +655,12 @@ private actor RecordingComposerDraftRepository: ComposerDraftRepository {
         records.values.filter { !$0.isDeleted }
     }
 
-    func allDeletionVersions() async throws -> [String: Int] {
-        Dictionary(uniqueKeysWithValues: records.values.filter { $0.isDeleted }
-            .map { ($0.chatId, $0.clearedDraftVersion) })
-    }
     func apply(_ mutation: ComposerDraftMutation, knownVersion: Int, knownClearedVersion: Int,
                expectedScope: UUID?) async throws -> ComposerDraftApplication {
-        if let writeError { throw writeError }
         let result = mutation.applying(to: records[mutation.chatId], knownVersion: knownVersion,
                                       knownClearedVersion: knownClearedVersion)
         if result.applied { records[mutation.chatId] = result.record }
         return result
-    }
-
-    enum RepositoryError: Error {
-        case syntheticWriteFailure
-        case syntheticRemoveFailure
-    }
-}
-
-private actor RecordingLegacyComposerDraftStore: LegacyComposerDraftStore {
-    private var values: [String: String]
-
-    init(drafts: [String: String] = [:]) {
-        values = drafts
-    }
-
-    func drafts() async -> [String: String] {
-        values
-    }
-
-    func removeDraft(chatId: String) async {
-        values.removeValue(forKey: chatId)
     }
 }
 

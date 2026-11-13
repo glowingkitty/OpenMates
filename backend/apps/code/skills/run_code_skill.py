@@ -21,11 +21,15 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.code.skills.dependency_install import with_dependency_install
+from backend.apps.code.test_run_target import resolve_test_run_target
+from backend.shared.python_schemas.code_test_run import TestRunSpec
 
 
 CODE_RUN_ASSISTANT_AUTH_TTL_SECONDS = 60 * 60
 CODE_RUN_ASSISTANT_MAX_UNPROMPTED_RERUNS = 2
 CODE_RUN_ASSISTANT_MAX_AUTO_RUNS = 1 + CODE_RUN_ASSISTANT_MAX_UNPROMPTED_RERUNS
+CODE_RUN_ASSISTANT_MAX_TEST_RUNS_PER_TURN = 10
 CODE_RUN_ASSISTANT_MAX_FILES = 50
 CODE_RUN_ASSISTANT_MAX_FILE_CHARS = 1_000_000
 CODE_RUN_ASSISTANT_MAX_TOTAL_CHARS = 10_000_000
@@ -80,6 +84,10 @@ class RunCodeRequest(BaseModel):
     writable_profiles: list[str] = Field(default_factory=list)
     network_profile: str | None = None
     credential_profiles: list[str] = Field(default_factory=list)
+    test_run: TestRunSpec | None = Field(
+        default=None,
+        description="Test-run mode: run a Project's tests (unit, browser or cli) and return a structured, recorded result.",
+    )
 
 
 class RunCodeResponse(BaseModel):
@@ -107,6 +115,10 @@ def assistant_code_run_attempt_key(chat_id: str, message_id: str, target_embed_i
 
 def assistant_code_run_inline_attempt_key(chat_id: str, message_id: str, target_path: str) -> str:
     return f"code_run_assistant_inline_attempts:{chat_id}:{message_id}:{target_path}"
+
+
+def assistant_test_run_budget_key(chat_id: str, message_id: str) -> str:
+    return f"code_run_assistant_test_runs:{chat_id}:{message_id}"
 
 
 async def _maybe_await(value: Any) -> Any:
@@ -201,6 +213,29 @@ async def _authorize_assistant_code_run(
     if attempt_count > CODE_RUN_ASSISTANT_MAX_AUTO_RUNS:
         return False, "Code Run already used the initial run and two unprompted reruns for this code. Ask the user before running it again."
     return True, "assistant_current_turn"
+
+
+async def _authorize_assistant_test_run(
+    cache_service: Any,
+    *,
+    chat_id: str,
+    message_id: str,
+) -> tuple[bool, str]:
+    """Count one automatic E2B test run against the turn's own budget of ten.
+
+    The counter is independent of the tool-call budget and of the per-code rerun limit.
+    """
+    run_count = await _increment_cache_counter(
+        cache_service,
+        assistant_test_run_budget_key(chat_id, message_id),
+        CODE_RUN_ASSISTANT_AUTH_TTL_SECONDS,
+    )
+    if run_count > CODE_RUN_ASSISTANT_MAX_TEST_RUNS_PER_TURN:
+        return False, (
+            f"Code Run already used {CODE_RUN_ASSISTANT_MAX_TEST_RUNS_PER_TURN} automatic test runs "
+            "in this turn. Ask the user before running tests again."
+        )
+    return True, "assistant_test_run_current_turn"
 
 
 async def _authorize_assistant_inline_code_run(
@@ -411,14 +446,17 @@ def _is_safe_npm_version(value: str) -> bool:
     )
 
 
-def _validate_package_json_manifest(content: str) -> None:
+def _validate_package_json_manifest(content: str, *, allow_scripts: bool = False) -> None:
     try:
         package_json = json.loads(content)
     except json.JSONDecodeError as exc:
         raise CodeRunInlineValidationError("package.json is not valid JSON") from exc
     if not isinstance(package_json, dict):
         raise CodeRunInlineValidationError("package.json must be an object")
-    if package_json.get("scripts"):
+    # Plain Code Run executes one entry file, so npm scripts would be a hidden
+    # second entry point. A test run already executes its own declared commands
+    # (setup, server, test) in the sandbox, and every hosted app has scripts.
+    if package_json.get("scripts") and not allow_scripts:
         raise CodeRunInlineValidationError("package.json scripts are not supported in Code Run")
     for section in CODE_RUN_PACKAGE_JSON_UNSUPPORTED_DEPENDENCY_SECTIONS:
         if package_json.get(section):
@@ -436,12 +474,12 @@ def _validate_package_json_manifest(content: str) -> None:
                 raise CodeRunInlineValidationError("package.json contains unsupported dependency versions")
 
 
-def _validate_dependency_manifest(path: str, content: str) -> None:
+def _validate_dependency_manifest(path: str, content: str, *, allow_scripts: bool = False) -> None:
     filename = path.rsplit("/", 1)[-1]
     if filename == "requirements.txt":
         _validate_python_requirements_manifest(content)
     elif filename == "package.json":
-        _validate_package_json_manifest(content)
+        _validate_package_json_manifest(content, allow_scripts=allow_scripts)
 
 
 def collect_inline_code_files_for_assistant(request: RunCodeRequest) -> tuple[list[dict[str, Any]], str]:
@@ -468,7 +506,7 @@ def collect_inline_code_files_for_assistant(request: RunCodeRequest) -> tuple[li
             raise CodeRunInlineValidationError("Code Run file bundle is too large")
         if _looks_like_secret(content):
             raise CodeRunInlineValidationError(f"Code Run file {path} appears to contain a secret")
-        _validate_dependency_manifest(path, content)
+        _validate_dependency_manifest(path, content, allow_scripts=request.test_run is not None)
         content_bytes = content.encode("utf-8")
         files.append({
             "path": path,
@@ -509,6 +547,20 @@ class RunCodeSkill(BaseSkill):
         if not chat_id or not message_id or not user_id or not user_vault_key_id or cache_service is None or encryption_service is None:
             return RunCodeResponse(status="error", error="Code Run requires chat, message, user, cache, and encryption context.")
 
+        if request.test_run is not None:
+            request, rejection = await self._prepare_test_run(
+                request, chat_id=str(chat_id), user_id=str(user_id),
+                cache_service=cache_service, encryption_service=encryption_service,
+            )
+            if rejection is not None:
+                return rejection
+            if request.target == "e2b":
+                authorized, reason = await _authorize_assistant_test_run(
+                    cache_service, chat_id=str(chat_id), message_id=str(message_id),
+                )
+                if not authorized:
+                    return RunCodeResponse(status="requires_confirmation", error=reason)
+
         if request.target == "remote_source":
             return await self._execute_remote(
                 request,
@@ -528,7 +580,8 @@ class RunCodeSkill(BaseSkill):
                 files, target_path = collect_inline_code_files_for_assistant(request)
             except CodeRunInlineValidationError as exc:
                 return RunCodeResponse(status="error", error=str(exc))
-            authorized, reason = await _authorize_assistant_inline_code_run(
+            # Test runs are limited by their own per-turn budget above, not by the per-code rerun limit.
+            authorized, reason = (True, "assistant_test_run_current_turn") if request.test_run is not None else await _authorize_assistant_inline_code_run(
                 cache_service,
                 chat_id=str(chat_id),
                 message_id=str(message_id),
@@ -563,7 +616,9 @@ class RunCodeSkill(BaseSkill):
             credits=credits,
         )
 
-        if request.files:
+        # Test runs execute the Project snapshot; it must not be duplicated as chat code embeds.
+        # The test_result embed records the paths (and revisions) instead.
+        if request.files and request.test_run is None:
             target_embed_id, created_embed_ids = await create_code_embeds_for_assistant(
                 files=files,
                 target_path=target_path,
@@ -575,7 +630,7 @@ class RunCodeSkill(BaseSkill):
                 directus_service=directus_service,
                 encryption_service=encryption_service,
             )
-        else:
+        elif not request.files:
             files, target_path = await collect_code_files_for_assistant(
                 chat_id=str(chat_id),
                 target_embed_id=target_embed_id,
@@ -601,6 +656,7 @@ class RunCodeSkill(BaseSkill):
             device_hash=kwargs.get("device_hash"),
             assistant_async_task=True,
             same_turn_batch_id=kwargs.get("same_turn_batch_id"),
+            **({"test_run": request.test_run.model_dump()} if request.test_run is not None else {}),
         )
         return RunCodeResponse(
             execution_id=execution.execution_id,
@@ -615,6 +671,48 @@ class RunCodeSkill(BaseSkill):
             stream_path=f"/v1/code/run/{execution.execution_id}/stream",
             status_path=f"/v1/code/run/{execution.execution_id}",
         )
+
+    async def _prepare_test_run(
+        self,
+        request: RunCodeRequest,
+        *,
+        chat_id: str,
+        user_id: str,
+        cache_service: Any,
+        encryption_service: Any,
+    ) -> tuple[RunCodeRequest, RunCodeResponse | None]:
+        """Resolve the target and map a test run onto the E2B or remote path."""
+        from backend.core.api.app.services.project_write_authorization_service import (
+            ProjectWriteAuthorizationService,
+        )
+
+        spec = request.test_run
+        assert spec is not None
+        directus_service = create_directus_service(cache_service=cache_service, encryption_service=encryption_service)
+        focus = await ProjectWriteAuthorizationService(directus_service, cache_service).get_active_focus(
+            user_id=user_id, chat_id=chat_id,
+        )
+        target, project_id, source_id = await resolve_test_run_target(
+            spec, directus_service=directus_service, focus=focus, user_id=user_id,
+        )
+        resolved = spec.model_copy(update={"target": target, "project_id": project_id, "source_id": source_id})
+        if target == "remote_source":
+            if resolved.setup_commands or resolved.server is not None:
+                return request, RunCodeResponse(
+                    status="error",
+                    error="Remote test runs accept only test_command until multi-command remote runs ship; use target e2b for setup or server steps.",
+                )
+            command = resolved.test_command
+            return request.model_copy(update={
+                "target": "remote_source", "test_run": resolved, "project_id": project_id,
+                "source_id": source_id, "argv": command.argv, "cwd": command.cwd,
+                "timeout_seconds": command.timeout_seconds,
+            }), None
+        if not request.files:
+            return request, RunCodeResponse(status="error", error="E2B test runs require the Project snapshot as files.")
+        # A fresh sandbox has no node_modules; add the install the model often omits.
+        resolved = with_dependency_install(resolved, (file.path for file in request.files))
+        return request.model_copy(update={"target": "e2b", "test_run": resolved, "enable_internet": resolved.enable_internet}), None
 
     async def _execute_remote(
         self,

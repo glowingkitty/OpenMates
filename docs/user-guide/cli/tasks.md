@@ -54,6 +54,18 @@ assignment, not automatic execution. Changing an old assignment does not grant
 eligibility. Existing Codex links remain readable with their original labels;
 resuming an Codex link is rejected. No historical records are rewritten.
 
+## Due dates
+
+Set a due date when you create a Task, or set and change it later on an existing Task:
+
+```bash
+openmates tasks create --title "Send the press release" --due 2026-11-17
+openmates tasks edit TASK-1234 --due "2026-11-17T11:00:00+01:00"
+```
+
+`--due` takes a date (`2026-11-17`, stored as that day at 00:00 UTC), a date and time with a
+UTC offset, or Unix seconds. A due date can be replaced but not cleared from the CLI.
+
 ## Link a Task to a Claude Code session
 
 Claude Code exports its session UUID as `CLAUDE_CODE_SESSION_ID`. Inside that

@@ -88,15 +88,15 @@
     {:else if iconSrc}
         <span class="item-image"><img src={iconSrc} alt={iconAlt} /></span>
     {:else if icon}
-        <span class={itemIconClass}></span>
+        <span class={itemIconClass} data-testid={testid ? `${testid}-icon` : undefined}></span>
     {/if}
     <div class="item-text">
-        <span class="item-title">{title}</span>
+        <span class="item-title" data-testid={testid ? `${testid}-title` : undefined}>{title}</span>
         {#if subtitleTop}
-            <span class="item-subtitle">{subtitleTop}</span>
+            <span class="item-subtitle" data-testid={testid ? `${testid}-subtitle` : undefined}>{subtitleTop}</span>
         {/if}
         {#if subtitleBottom}
-            <span class="item-subtitle">{subtitleBottom}</span>
+            <span class="item-subtitle" data-testid={testid ? `${testid}-subtitle-bottom` : undefined}>{subtitleBottom}</span>
         {/if}
     </div>
     {#if hasToggle}

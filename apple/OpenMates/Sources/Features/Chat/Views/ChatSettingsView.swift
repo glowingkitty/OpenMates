@@ -479,7 +479,7 @@ struct ChatSettingsView: View {
     }
     #if DEBUG
     static func preview(shared: Bool = false, example: Bool = false, populatedUsage: Bool = false, receiptUsage: Bool = false, ordinaryReceipt: Bool = false, summaryReceipt: Bool = false, allPlans: Bool = false) -> ChatSettingsView {
-        let chat = Chat(id: example ? "example-audio-speak-openmates-welcome-message" : "preview-chat-settings", title: "Launch preparation", lastMessageAt: nil, createdAt: "2026-10-01T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false, appId: nil,
+        let chat = Chat(id: example ? "example-audio-generate-openmates-success-chime" : "preview-chat-settings", title: "Launch preparation", lastMessageAt: nil, createdAt: "2026-10-01T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false, appId: nil,
             chatSummary: "Coordinate the work and verify the outcome before completion.", encryptedTitle: nil, encryptedChatKey: nil, budgetSpent: example ? nil : 24)
         let rows: [ChatSettingsUsageRow] = example ? PublicChatUsageCatalog.rows(chatID: chat.id) : receiptUsage || ordinaryReceipt || summaryReceipt ? [previewReceiptRow(ordinary: ordinaryReceipt, summary: summaryReceipt)] : populatedUsage ? [
             .init(id: "preview-usage-ai", label: "ai | ask", provider: "Google AI Studio / US", credits: 12, timestamp: "2026-10-01T12:00:00Z", appID: "ai"),

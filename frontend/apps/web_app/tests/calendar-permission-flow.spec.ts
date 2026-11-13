@@ -77,6 +77,7 @@ test.describe('Calendar permission flow', () => {
 	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.permissions.deterministic
 	test('renders Calendar skill embed, selected-action approval, and account switching', async ({ page }: { page: any }) => {
 		const logCheckpoint = createSignupLogger('CALENDAR_PERMISSION_FLOW');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -89,6 +90,12 @@ test.describe('Calendar permission flow', () => {
 		await seedCalendarPermissionChat(page);
 		await page.goto(getE2EDebugUrl(`/#chat-id=${CHAT_ID}`), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('message-user').first()).toBeVisible({ timeout: 20000 });
+		// Completed assistant work collapses into an activity summary (since the
+		// 2026-10 activity-group change); open it so the real embed node is rendered.
+		const activityToggle = page.getByTestId('assistant-activity-toggle').first();
+		await expect(activityToggle).toBeVisible({ timeout: 15000 });
+		if ((await activityToggle.getAttribute('aria-expanded')) === 'false') await activityToggle.click();
+		await expect(activityToggle).toHaveAttribute('aria-expanded', 'true');
 		const calendarSkillEmbed = page.locator(
 			'[data-testid="embed-preview"][data-app-id="calendar"][data-skill-id="get-events"]'
 		);

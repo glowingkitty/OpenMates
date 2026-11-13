@@ -10,7 +10,7 @@ CREATE TABLE chats (
     encrypted_follow_up_request_suggestions text, encrypted_chat_key varchar(255),
     encrypted_icon varchar(255), encrypted_category varchar(255),
     encrypted_top_recommended_apps_for_chat text, is_private boolean, is_shared boolean,
-    pinned boolean, encrypted_quick_tip_slugs text, parent_id uuid, is_sub_chat boolean,
+    pinned boolean, encrypted_recommendations text, parent_id uuid, is_sub_chat boolean,
     budget_limit integer, budget_spent integer, encrypted_shared_short_url text,
     encrypted_share_cta_text text, storage_state varchar(255), encrypted_auto_speak_response varchar(255),
     encrypted_focus_phase_state text, archive_mutation_v integer, chat_visibility varchar(255),

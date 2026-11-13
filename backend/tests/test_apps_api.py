@@ -197,7 +197,7 @@ async def test_decide_rest_billing_uses_only_server_result_native_credits() -> N
 # contract-test: direct surface=rest_api assertions=ai-decide.request.bounded,ai-decide.billing.bounded
 def test_decide_rest_preflight_validates_entire_request_and_quotes_fallback() -> None:
     body = {"state": "hello", "questions": {"ok": {"type": "noul", "instructions": "Is this a greeting?"}}}
-    assert apps_api.get_variable_preflight_reserved_credits("ai", "decide", body) == 43
+    assert apps_api.get_variable_preflight_reserved_credits("ai", "decide", body) == 22
     with pytest.raises(HTTPException) as caught:
         apps_api.get_variable_preflight_reserved_credits("ai", "decide", {**body, "model": "other/model"})
     assert caught.value.status_code == 422
@@ -921,7 +921,7 @@ def test_apps_api_uses_audio_result_declared_credits() -> None:
         "audio",
         "generate",
         {"requests": [{"prompt": "success"}, {"prompt": "alert"}]},
-    ) == 40
+    ) == 30
     assert apps_api.get_variable_preflight_reserved_credits(
         "audio",
         "speak",
@@ -1010,7 +1010,7 @@ def test_audio_generate_route_charges_successful_result_indices(monkeypatch) -> 
 
     assert response.status_code == 200
     assert response.json()["credits_charged"] == 14
-    assert captured["sequence"][:2] == ["budget:40", "call"]
+    assert captured["sequence"][:2] == ["budget:30", "call"]
     assert captured["budget_checks"][-1]["requested_credits"] == 14
     assert captured["charges"] == [{
         "user_id": "user-1",

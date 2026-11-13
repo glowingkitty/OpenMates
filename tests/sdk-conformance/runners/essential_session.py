@@ -154,7 +154,7 @@ async def run_vector(capability, suite, vector, fixture):
         "--identity",
         "pip",
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.DEVNULL,
+        stderr=None,  # inherited: the driver projects only class and tracked frames
     )
     first = second = monitor = None
     try:

@@ -8,13 +8,13 @@ async function verify(batch){
  if(fixture.version!==1||fixture.wire.iv_bytes!==12||fixture.wire.tag_bytes!==16||fixture.wire.prefix_bytes!==0)throw Error('fixture_contract');
  if(!batch||batch.version!==1||!Array.isArray(batch.cases)||batch.cases.length<1||batch.cases.length>128)throw Error('input');
  const load=createRequire(path.join(root,'frontend/apps/web_app/package.json')),ts=load('typescript');
- const source=fs.readFileSync(path.join(root,'frontend/packages/ui/src/services/encryption/MetadataEncryptor.ts'),'utf8');
+ const source=fs.readFileSync(path.join(root,'frontend/packages/ui/src/services/encryption/MetadataEncryptor.ts'),'utf8').replaceAll('import.meta.env.VITE_OPENMATES_RUST_CORE','undefined');
  const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022},reportDiagnostics:true});if(compiled.diagnostics.length)throw Error('syntax');
  let activeMaster=null,exportsAttempted=0;
  Object.defineProperty(webcrypto.subtle,'exportKey',{configurable:true,value(){exportsAttempted++;throw Error('export_forbidden');}});
  const platform={uint8ArrayToBase64:bytes=>Buffer.from(bytes).toString('base64'),base64ToUint8Array:value=>new Uint8Array(Buffer.from(value,'base64')),getKeyFromStorage:async()=>activeMaster};
  const module={exports:{}};
- vm.runInNewContext('(function(exports,require,module){'+compiled.outputText+'})',{crypto:webcrypto,CryptoKey:globalThis.CryptoKey,Uint8Array,ArrayBuffer,TextEncoder,TextDecoder,console:{error(){},warn(){},debug(){},log(){}}})(module.exports,name=>{if(name!=='../cryptoService')throw Error('dependency');return platform;},module);
+ vm.runInNewContext('(function(exports,require,module){'+compiled.outputText+'})',{crypto:webcrypto,CryptoKey:globalThis.CryptoKey,Uint8Array,ArrayBuffer,TextEncoder,TextDecoder,console:{error(){},warn(){},debug(){},log(){}}})(module.exports,name=>{if(name==='../rustCore/crypto/webCryptoClient')return{rustWebCrypto:()=>null};if(name==='../rustCore/crypto/webCryptoFacades')return{};if(name!=='../cryptoService')throw Error('dependency');return platform;},module);
  const web=module.exports;
  const open=async(row,cipher,key,master,aad)=>{
   activeMaster=master;

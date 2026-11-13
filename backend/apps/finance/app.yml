@@ -7,7 +7,6 @@ description_translation_key: finance.description
 icon_image: finance.svg
 category: personal
 last_updated: "2026-07-20"
-settings_and_memories: []
 embed_types:
   - id: check_accounts
     category: app-skill-use
@@ -43,6 +42,10 @@ skills:
         no_api_key: true
     pricing:
       fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Read API on the user's own account
     preprocessor_hint: >
       Read connected Revolut Business account data, canonical OpenMates CSV or TSV
       bank statements, or uploaded sheets-sheet CSV/TSV embeds to summarize balances,

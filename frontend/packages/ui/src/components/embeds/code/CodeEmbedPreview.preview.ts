@@ -33,10 +33,16 @@ const defaultProps = {
 	onFullscreen: () => {}
 };
 
+const sampleSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><rect width="200" height="100" fill="#fde68a"/><g><circle cx="60" cy="50" r="30" fill="#3b82f6"/><circle cx="140" cy="50" r="30" fill="#ef4444"/></g></svg>';
+
 export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  /** Finished SVG code embed rendered as an image. */
+  svg: { ...defaultProps, id: 'preview-svg', filename: 'circles.svg', language: 'svg', lineCount: 1, status: 'finished' as const, codeContent: sampleSvg },
+  /** SVG still streaming: partial source (open group, cut circle tag) renders progressively. */
+  svgStreaming: { ...defaultProps, id: 'preview-svg-streaming', filename: 'circles.svg', language: 'svg', lineCount: 1, status: 'processing' as const, codeContent: sampleSvg.slice(0, sampleSvg.indexOf('<circle cx="140"') + 14) },
   /** Live sandboxed HTML visual with escape probes (focused security test). */
   interactiveHtml: { ...defaultProps, id: 'preview-interactive-html', filename: 'orbit.html', language: 'html', lineCount: 55, status: 'finished' as const, codeContent: interactiveHtmlFixture(true) },
   shortContent: { ...defaultProps, id: 'legacy-short-code-preview', filename: 'hello.py', language: 'python', lineCount: 1, codeContent: 'print("Hello")', onFullscreen: () => console.info('[Preview] specialized expanded') },

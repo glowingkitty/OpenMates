@@ -70,7 +70,7 @@ final class OfflineAccountIsolationTests: XCTestCase {
             let bridge = OfflineSyncBridge(chatStore: ChatStore(), offlineStore: store)
             bridge.stopSession()
             bridge.onChatDeleted("synthetic-owner-chat")
-            bridge.queueDraftDelete(chatId: "synthetic-owner-chat")
+            bridge.hideChatOffline(chatId: "synthetic-owner-chat")
             XCTAssertEqual(store.loadChats().count, 1)
             XCTAssertEqual(store.loadPendingActions().count, 1)
         }
@@ -85,7 +85,7 @@ final class OfflineAccountIsolationTests: XCTestCase {
             let bridge = OfflineSyncBridge(chatStore: ChatStore(), offlineStore: store)
             try store.activate(userId: "account-b", apiBaseURL: development)
             bridge.onChatsReceived([chat])
-            bridge.queueDraftDelete(chatId: chat.id)
+            bridge.hideChatOffline(chatId: chat.id)
             XCTAssertTrue(store.loadChats().isEmpty)
             XCTAssertTrue(store.loadPendingActions().isEmpty)
         }

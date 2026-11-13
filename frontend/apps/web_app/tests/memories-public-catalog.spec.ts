@@ -15,7 +15,7 @@ function apiUrl() {
   throw new Error('An isolated API URL is required.');
 }
 
-// contract-test: direct surface=rest_api assertions=app-memories.catalog.declared-types-only,app-memories.definition.context-documents
+// contract-test: direct surface=rest_api assertions=app-memories.catalog.no-typed-types,app-memories.definition.context-documents
 test('public metadata exposes reviewed app Memories separately from encrypted private types', async ({ request }) => {
   const response = await request.get(`${apiUrl()}/v1/apps/metadata?include_unavailable=true`);
   expect(response.ok()).toBe(true);
@@ -32,10 +32,10 @@ test('public metadata exposes reviewed app Memories separately from encrypted pr
       expect(memory.project_id ?? null).toBeNull();
     }
   }
-  expect(apps.openmates.settings_and_memories.some((type: {id: string}) => type.id === 'memories')).toBe(true);
+  expect(apps.openmates.settings_and_memories).toBeUndefined();
 });
 
-// contract-test: direct surface=cli assertions=app-memories.catalog.declared-types-only,app-memories.surface.semantic-parity
+// contract-test: direct surface=cli assertions=app-memories.catalog.no-typed-types,app-memories.surface.semantic-parity
 test('CLI app info retains the published Memory identities and exact guidance bodies', async ({ request }) => {
   const response = await request.get(`${apiUrl()}/v1/apps/code/metadata?include_unavailable=true`);
   expect(response.ok()).toBe(true);
@@ -49,7 +49,7 @@ test('CLI app info retains the published Memory identities and exact guidance bo
   for (const memory of app.memories) expect(memory.body).toBe(metadata.memories.find((candidate: {id: string}) => candidate.id === memory.id).body);
 });
 
-// contract-test: direct surface=sdks.npm assertions=app-memories.catalog.declared-types-only,app-memories.surface.semantic-parity
+// contract-test: direct surface=sdks.npm assertions=app-memories.catalog.no-typed-types,app-memories.surface.semantic-parity
 test('npm SDK discovers the same read-only app Memories without account credentials', async ({request}) => {
   const response = await request.get(`${apiUrl()}/v1/apps/design/metadata?include_unavailable=true`);
   expect(response.ok()).toBe(true);
@@ -63,7 +63,7 @@ test('npm SDK discovers the same read-only app Memories without account credenti
   expect(JSON.parse(stdout).memories).toEqual(expected);
 });
 
-// contract-test: direct surface=sdks.pip assertions=app-memories.catalog.declared-types-only,app-memories.surface.semantic-parity
+// contract-test: direct surface=sdks.pip assertions=app-memories.catalog.no-typed-types,app-memories.surface.semantic-parity
 test('pip SDK discovers the same read-only app Memories without account credentials', async ({request}) => {
   test.setTimeout(180_000);
   const response = await request.get(`${apiUrl()}/v1/apps/design/metadata?include_unavailable=true`);

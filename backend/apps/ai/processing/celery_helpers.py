@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 # dedicated app_audio queue/container.
 SHARED_APP_QUEUES = {
     "audio": "app_music",
+    "design": "app_images",  # design.embroidery reuses the media worker's S3/Vault services.
     "models3d": "app_images",
     "web": "app_code",  # Browse reuses the E2B execution worker.
 }

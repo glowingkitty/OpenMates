@@ -19,7 +19,7 @@
   const current = $derived(hydrated ?? content);
   const status = $derived(hydrated?.status ?? statusProp ?? current.status ?? 'processing');
   const ids = $derived(current.view?.embeds?.length ? current.view.embeds : current.embed_ids ?? []);
-  const singleId = $derived(ids.length === 1 && current.view?.mode !== 'map' ? ids[0] : undefined);
+  const singleId = $derived(ids.length === 1 && !current.pending_count && current.view?.mode !== 'map' ? ids[0] : undefined);
   let preview = $state<{ component: Component<Record<string, unknown>>; props: Record<string, unknown> }>();
   let unavailable = $state(false);
   $effect(() => {
@@ -43,6 +43,7 @@
     })().catch(() => { if (current) unavailable = true; });
     return () => { current = false; };
   });
+  // A carrier request opens the first member; there is no group-level layer.
   function openGroup() {
     if (onFullscreen) onFullscreen();
     else dispatchEmbedFullscreen({ embedId: id, embedType: 'authored_results', decodedContent: current,
@@ -67,18 +68,13 @@
     {#if preview}{@const Preview = preview.component}<Preview {...preview.props} {isMobile} />
     {:else}<p role="status">{$text('embeds.processing')}</p>{/if}
   {:else}
-    <div class="collection-heading"><span>{current.title ?? ''}</span>
-      <button type="button" aria-label={$text('common.details')} onclick={openGroup} data-testid="authored-results-expand"><span aria-hidden="true"></span></button>
-    </div>
     <EmbedsMapView {id} title={current.title ?? ''} embedRefs={ids.map(value => `embed:${value}`)}
-      includeAllResults cardsOnly={current.view?.mode !== 'map'} />
+      includeAllResults viewMode={current.view?.mode ?? 'auto'} pendingCount={current.pending_count ?? 0} />
   {/if}
 </section>
 
 <style>
-  section { width: 100%; min-width: 0; }
-  .collection-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-2); color: var(--color-font-primary); font-weight: 600; }
-  button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: var(--radius-8); color: var(--color-font-primary); background: var(--color-grey-0); cursor: pointer; }
-  button span { width: 20px; height: 20px; background: currentColor; mask: url('@openmates/ui/static/icons/fullscreen.svg') center / contain no-repeat; }
+  /* The results view floats its tab switch and filter button over its top edge and reserves that room with margin-top; flow-root keeps the room inside this host so nothing overlaps the message above. */
+  section { display: flow-root; width: 100%; min-width: 0; }
   p { color: var(--color-font-secondary); }
 </style>

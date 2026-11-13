@@ -301,7 +301,7 @@ test('recovers AI response after connection drop during streaming', async ({ pag
 	// publishing the final one, giving the browser a real in-progress turn to drop.
 	const chatId = await sendMessageAndGetChatId(
 		page,
-		withMockMarker('Plan a Kyoto and Osaka weekend quick tip.', 'chat_flow_quick_tip'),
+		withMockMarker('Plan my open source conference visit.', 'chat_recommendations'),
 		logCheckpoint
 	);
 
@@ -309,8 +309,8 @@ test('recovers AI response after connection drop during streaming', async ({ pag
 	await waitForAssistantOrAiProtocolError(page, aiProtocolEvents, chatId);
 	await waitForAssistantMessage(page, { which: 'first', logCheckpoint });
 	const assistantMessage = page.getByTestId('message-assistant');
-	await expect(assistantMessage.first()).toContainText('Kyoto and Osaka quick tip test');
-	await expect(assistantMessage.first()).not.toContainText('A weekend trip plan should balance meals, transit, and rest.');
+	await expect(assistantMessage.first()).toContainText('Open source conference recommendations test');
+	await expect(assistantMessage.first()).not.toContainText('A conference plan should balance talks, hallway time, and rest.');
 	logCheckpoint('Assistant first chunk visible and final chunk still pending.');
 
 	// Disconnect while the deterministic response is still processing.
@@ -327,7 +327,7 @@ test('recovers AI response after connection drop during streaming', async ({ pag
 
 	// Wait for reconnect and sync - the AI response should eventually arrive
 	logCheckpoint('Waiting for AI response to arrive after reconnect...');
-	await expect(assistantMessage.last()).toContainText('A weekend trip plan should balance meals, transit, and rest.', { timeout: 60000 });
+	await expect(assistantMessage.last()).toContainText('A conference plan should balance talks, hallway time, and rest.', { timeout: 60000 });
 	await expect(page.getByTestId('typing-indicator')).toHaveCount(0, { timeout: 10000 });
 	await expect(page.getByTestId('stop-processing-button')).toHaveCount(0, { timeout: 10000 });
 	await takeStepScreenshot(page, 'response-recovered');

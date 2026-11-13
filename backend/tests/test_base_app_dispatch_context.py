@@ -141,3 +141,38 @@ async def test_dispatch_list_skill_passes_injected_context_once() -> None:
         "external_request": False,
         "user_id": "user-1",
     }
+
+
+def _batch_definition() -> SimpleNamespace:
+    return SimpleNamespace(
+        id="batch",
+        name_translation_key="batch.name",
+        description_translation_key="batch.description",
+        full_model_reference=None,
+        pricing=None,
+        default_config={},
+    )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("body_extra", "expected"),
+    [
+        ({"_rerank_candidates": 24}, {"rerank_candidates": 24}),  # in-process caller (PDF prefetch)
+        ({"_rerank_candidates": 24, "_external_request": True}, {}),  # outside callers never choose it
+        ({"_rerank_candidates": "24"}, {}),
+        ({"_rerank_candidates": True}, {}),
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=pdf-processing.read.prefetch-relevant-pages
+async def test_in_process_callers_can_widen_the_search_rerank_but_outside_callers_cannot(body_extra, expected) -> None:
+    result = await _fake_base_app()._dispatch_skill_with_class(
+        _batch_definition(),
+        BatchRequestSkill,
+        {"requests": [{"query": "speed"}], "_user_id": "user-1", **body_extra},
+    )
+
+    assert result == {"success": True}
+    kwargs = BatchRequestSkill.captured_kwargs or {}
+    assert kwargs.get("rerank_candidates") == expected.get("rerank_candidates")
+    assert ("rerank_candidates" in kwargs) == bool(expected)

@@ -139,6 +139,12 @@ scenarios:
     when: An old worker report, duplicate event or late save arrives.
     then: Stop remains effective, recovery reconciles ownership, newer changes survive and stale proof cannot report completion.
     acceptance: [AC-1, AC-5, AC-6, AC-7, AC-8]
+  - id: S-7
+    title: Recipe web app creates its own Project (direct build path)
+    given: A user in a chat without a Project asks for a simple recipe web app; no Specification or Plan is requested.
+    when: Preprocessing decides a Project is needed, the Project is created with focus active, and the assistant writes the application.
+    then: The application's files are the Project's files under web-app/, the chat shows the application embed and the Project folder shows the same card above the files, a browser test with video passes in E2B, a Project commit is recorded, and a later chat diff and a hand edit in the Project view change the same file.
+    acceptance: [AC-9, AC-10, AC-11, AC-12]
 
 acceptance_criteria:
   - {id: AC-1, required: true, text: Specifications survive reload with encrypted private content, immutable revision identity, exact approval, history and visible optimistic conflicts.}
@@ -149,6 +155,10 @@ acceptance_criteria:
   - {id: AC-6, required: true, text: Authorized Tasks and subchats write tests, implement and repair within scope, preserve dependencies and stop/recovery, and cannot claim completion from a finished chat response alone.}
   - {id: AC-7, required: true, text: Chat and Project views show current Plan progress, task/subchat state, assumptions, Checks and explicit blockers with functioning detail links and reload.}
   - {id: AC-8, required: true, text: The displayed preview, test receipts and final encrypted saved content identify the same revision; conflicts preserve newer edits and sandboxes receive no Project/chat keys.}
+  - {id: AC-9, required: true, text: "A multi-file application request in a chat without a Project creates a Project (created card with undo, Apply and show, focus active at once); a single-script request creates none. Proven through the Rust CLI and web."}
+  - {id: AC-10, required: true, text: "Each application file is one embed that is both the application's child and the Project file at web-app/<path>; chat diffs and Project-view edits extend one revision history."}
+  - {id: AC-11, required: true, text: "The Project folder shows the application card above its visible files; code and text files can be edited by hand there; the Project timeline lists file changes and named commits, and a commit restores as a whole."}
+  - {id: AC-12, required: true, text: "The assistant commits automatically only after the required tests pass for the exact current revisions; stale or failed results create no commit."}
 
 delivery_packages:
   - id: P1
@@ -215,6 +225,54 @@ delivery_packages:
     acceptance: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
     verification_ids: [V-1, V-2, V-3, V-4, V-5, V-6]
     deployability: Release only exact-source verified slices through sessions.py; no production or public publishing implied.
+  - id: P9
+    task: to-be-created
+    outcome: Preprocessing returns a create-Project outcome for multi-file application requests and the backend carries it to the client.
+    ownership: backend/apps/ai/processing/preprocessor.py, jev_preprocessing.py, project_focus_orchestration.py, backend/apps/projects/skills/create_skill.py and their tests. No client code.
+    depends_on: []
+    acceptance: [AC-9]
+    verification_ids: [V-7]
+    deployability: Additive routing outcome; clients that do not advertise the capability keep today's behaviour.
+  - id: P10
+    task: to-be-created
+    outcome: The Rust core executes an assistant-requested Project creation (encrypt, wrap keys, Apply and show, default focus active at once, undo) and the Rust CLI shows the created card.
+    ownership: packages/openmates-rust/src/work/projects*, the pending-client-action handling in the core's chat/send path, frontend/packages/openmates-tui-native/src/cli/projects. No TypeScript logic.
+    depends_on: [P9 contract only; can start against the agreed payload]
+    acceptance: [AC-9]
+    verification_ids: [V-7]
+    deployability: Rust CLI first; web picks the capability up through the shared Worker in P12.
+  - id: P11
+    task: to-be-created
+    outcome: Application child embeds are created as Project files. The client wraps each child key with the Project key and links it at web-app/<path>; the chat diff path and project_update_file both commit through the hosted revision transaction for that one embed. Small item in the same package (user decision 2026-11-10) - in the Rust CLI, --text on projects hosted create and projects hosted update accepts values that start with a dash (a unified diff); only those two commands change. User decisions 2026-11-10 - (a) every embed inside a Project is readable by all Project members, so the application embed and test-result embeds created in a Project chat also get a Project-key wrapper and their own Project link (kind application / test result); server-owned fields such as the thumbnail keep a narrow server write allowance. (b) Hosted files can be renamed (path change on the link; embed and history kept) and deleted (link removed from the folder; recoverable through commits and restore) by the assistant and by the user. (c) The assistant changes a Project file only through the Project file tool; a raw chat diff block that targets a linked file is shown as not applied and never writes.
+    ownership: backend/apps/ai/tasks/stream_consumer.py (application creation and diff application), embed_service.create_application_artifact_embed, embed_version_transaction_service; Rust core hosted-file executor. Coordinate with the application-embeds plan (S-4, live sandbox sync).
+    depends_on: [P10]
+    acceptance: [AC-10]
+    verification_ids: [V-7]
+    deployability: Applies only to applications created while a Project focus is active; existing chat-only applications are unchanged.
+  - id: P12
+    task: to-be-created
+    outcome: Web Project view. Created-Project card with undo in chat, application card at the top of its folder, clickable file list in the application fullscreen, and a hand editor for code and text files that saves revisions of the same embed.
+    ownership: frontend/packages/ui/src/components/projects/*, components/embeds/code/ApplicationEmbed*, CodeEmbedFullscreen.svelte (UI only; logic through the shared Worker). Depends on doc-editor-project-documents for chat-less hosted item writes; do not edit that plan's files (chat c443).
+    depends_on: [P10, P11]
+    acceptance: [AC-9, AC-10, AC-11]
+    verification_ids: [V-7]
+    deployability: UI over shipped core operations; verified with component preview and one E2E spec.
+  - id: P13
+    task: to-be-created
+    outcome: Project commits and timeline. A commit record that names a snapshot of file revisions, list/show/restore operations in REST, Rust core and Rust CLI, and a Timeline tab in the web Project view (no such tab exists today).
+    ownership: new backend commit service and routes beside project_methods.py, Directus schema for commit records, packages/openmates-rust/src/work/projects (new module), CLI projects commit/log/restore, new ProjectTimeline component.
+    depends_on: []
+    acceptance: [AC-11, AC-12]
+    verification_ids: [V-7]
+    deployability: Additive; commits reference existing revisions and store no file content. New Directus collection needs the schema path's usual review.
+  - id: P14
+    task: to-be-created
+    outcome: Assistant auto-commit after green tests and stale-result handling for hosted Projects.
+    ownership: backend/apps/ai/processing (commit tool beside project_file_tools.py), linkage to test results from the agentic-tests-and-git-sync plan.
+    depends_on: [P13, P5, agentic-tests-and-git-sync T1]
+    acceptance: [AC-12]
+    verification_ids: [V-7]
+    deployability: Off until test results carry revision identity.
 
 milestones:
   - id: M-1
@@ -260,6 +318,10 @@ verification:
       required: true
       proof: Real automatically routed conversations for S-1 through S-6, including bounded log investigation and a small UI fix without full planning.
       coverage: New focused agentic-project lifecycle browser/CLI acceptance with isolated dev test state; deterministic mechanics remain in CI.
+    - id: V-7
+      required: true
+      proof: S-7 driven through the Rust CLI on the real stack in isolated CI (create by request, files under web-app/, diff and hand edit on one embed, browser test with video, commit, restore), plus the same journey in the web app with screenshots of the created card, the folder with the application card, the test result embed and the timeline.
+      coverage: New Rust CLI acceptance spec and web E2E spec defined in docs/plans/agentic-tests-and-git-sync (A1); live inference only on dev in a disposable Project.
 
 follow_on_architecture:
   sequencing: Deliver the usable cloud lifecycle first; retain these mindmap items as explicit later packages rather than silently counting them as implemented.
@@ -282,3 +344,20 @@ handoff:
   client_prerequisite: The shared Rust Project modules currently belong to the active native migration and are absent from this session base; obtain its exact supported source integration before client changes. Full native UI parity is not required first.
   blocker_policy: Preserve the patch and pause only dependent work for a material unresolved decision or exact-contract review; do not repeat product clarification already answered here.
   completion_policy: The delivery Task remains open until required acceptance passes; this Plan and Task creation alone do not mean the product lifecycle is implemented.
+
+agentic_coding_flows_2026_11_10:
+  source: User decisions in the Claude chat of 2026-11-10 (session 5349). They add a direct build path beside the Specification-first lifecycle; neither replaces the other.
+  decisions:
+    - One embed per file. The application's child code embeds are the Project files; there is no second copy and no sync step.
+    - web-app/ is a normal folder with visible files; the application card sits at the top of it as the run and preview entry.
+    - Preprocessing decides Project creation. Web app and native app requests create a Project without confirmation (created card with undo, Apply and show, focus starts immediately). A simple script does not.
+    - Hosted commits are native named snapshots over the existing revision history, shown in a Project timeline tab that must be built.
+    - Hosted tests run in E2B; the assistant commits automatically after green tests.
+    - Rust first. Client logic lands in packages/openmates-rust and is proven through the Rust CLI before web (.claude/rules/client-core.md).
+    - Hosted flow first; the remote flow follows in docs/plans/native-agentic-coding-readiness.
+  specification_changes: Draft assertions projects.creation.assistant-inferred, projects.files.application-single-source, projects.history.native-commits and code-run.tests.project-snapshot were added on 2026-11-10; approval is asked once after deployment.
+  package_p5_extension: P5 (TASK-7689) additionally needs multi-command runs, a start-server-then-test mode and video artifacts; the contract is owned by agentic-tests-and-git-sync T1.
+  known_limits:
+    - Live preview exists only for Svelte/Vite web apps. A native app request gets the Project and files but no preview yet.
+    - New hosted files are tagged language text today; P11 must set the language from the path.
+  related_plans: [docs/plans/agentic-tests-and-git-sync, docs/plans/native-agentic-coding-readiness, docs/plans/application-embeds, docs/plans/doc-editor-project-documents]

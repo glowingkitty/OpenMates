@@ -1,0 +1,102 @@
+schema_version: 1
+specification: feature.app-skill.images-generate@1
+
+create:
+  - id: logo-on-auto
+    given: Alice leaves her model on Auto and asks for a logo for the coffee shop "Bean & Leaf" as SVG.
+    when: The chat model calls images.generate with output_filetype svg and a short prompt.
+    then: The first author model writes the logo, the card shows it building up with the stage "drawing", and the finished SVG file replaces the draft. No requirements were given, so no review call is made. The chat answer comes from the ordinary routed model.
+  - id: painterly-illustration-with-recraft
+    given: Bob asks for a richly detailed painterly vector illustration of a forest.
+    when: The chat model sets vector_engine recraft.
+    then: Recraft draws it at its flat price and no author or review call is made.
+
+script:
+  - id: computed-mandala
+    given: Dana asks for a mandala with 12-fold symmetry and a smooth colour transition from the centre outwards.
+    when: The chat model sets vector_engine script.
+    then: The author writes a generator module, the card shows the stage "scripting", the module runs in the sandbox without internet, and the computed SVG is delivered with its generator stored alongside.
+  - id: failing-script-is-corrected
+    script_runs: [name_error, valid]
+    expect: {attempts: 2, sandbox_runs_billed: 2, delivered_run: 2}
+  - id: change-script-made-graphic
+    given: Dana asks to use 16-fold symmetry instead.
+    when: The chat model passes the mandala's embed_ref in reference_images with vector_engine script.
+    then: The author receives the stored generator, changes the symmetry constant, and the new SVG is computed from the updated generator.
+
+modify:
+  - id: change-generated-svg
+    given: Alice has the generated logo and asks to make the leaf orange.
+    when: The chat model calls images.generate with output_filetype svg and the logo's embed_ref in reference_images.
+    then: The author receives the logo's SVG source and returns the same logo with only the leaf colour changed.
+  - id: redraw-photo-as-vector
+    given: Carol uploads sketch.jpg and asks for a clean vector version.
+    when: The chat model passes sketch.jpg in reference_images with output_filetype svg.
+    then: The author receives the picture as an image and draws it as vector shapes.
+  - id: message-keeps-assistant-version
+    given: Alice's logo is version 1 at message 1, and the assistant makes the leaf orange as version 2 at message 3.
+    when: Alice reloads the chat on another device.
+    then: Message 1 still shows version 1 and message 3 shows version 2; user-made versions after them follow the rule of the embed user edits Specification.
+
+correction:
+  - id: embroidery-requirements-corrected
+    given: Alice asks for two variations of a fire-inspired tail to embroider as is; the chat model passes the requirements "exactly two variations side by side" and "only solid closed fills, no gradients".
+    requirement_reviews: [[met, clearly_unmet], [met, met]]
+    expect: {attempts: 2, delivered_draft: 2, review_status: accepted, follow_up_names: [only solid closed fills, no gradients]}
+  - id: no-requirements-no-review
+    requirements: []
+    expect: {attempts: 1, review_calls: 0, review_status: skipped}
+  - id: unsure-review-does-not-redraw
+    requirement_reviews: [[unsure]]
+    expect: {attempts: 1, review_status: accepted}
+  - id: limit-reached-delivers-last-valid
+    requirement_reviews: [[clearly_unmet], [clearly_unmet], [clearly_unmet]]
+    expect: {attempts: 3, delivered_draft: 3, review_status: rejected, unmet_requirements_reported: true, further_corrections: 0}
+  - id: unsafe-draft-never-delivered
+    drafts: [contains_script_element, valid]
+    expect: {attempts: 2, delivered_draft: 2}
+  - id: review-unavailable
+    requirement_reviews: [unavailable]
+    expect: {attempts: 1, delivered_draft: 1, review_status: unavailable}
+  - id: recraft-result-fails-a-requirement
+    engine: recraft
+    requirement_reviews: [[clearly_unmet], [met]]
+    expect: {follow_up_engine: llm, follow_up_input: recraft_svg_source, charged: recraft_flat_price_plus_review_and_follow_up_tokens}
+
+billing:
+  - id: one-draft-one-review
+    provider_calls:
+      - {step: drawing, input_tokens: 600, output_tokens: 3000}
+      - {step: review, input_tokens: 900, output_tokens: 0}
+    expect: {charged: sum_of_call_credits, minimum_charge_applies: true}
+  - id: call-without-usage
+    provider_calls:
+      - {step: drawing, input_tokens: 0, output_tokens: 0}
+    expect: {request_fails: true, charged: 0}
+  - id: script-run
+    provider_calls:
+      - {step: scripting, input_tokens: 560, output_tokens: 3300}
+      - {step: review, input_tokens: 900, output_tokens: 0}
+      - {step: script_run, duration_seconds: 3.5}
+    expect: {charged: token_credits_rounded_down_once_plus_5_for_one_started_minute}
+
+named_person:
+  - id: own-daughter-on-a-birthday-card
+    given: The user asks for a birthday card with a portrait of their daughter Lena Hoffmann holding balloons.
+    when: The assistant calls images.generate with that prompt.
+    then: The safeguard model answers that the name is a private person, and the card is drawn.
+  - id: famous-singer-on-stage
+    given: The user asks for a portrait of a world-famous singer, by name, on stage.
+    when: The assistant calls images.generate with that prompt.
+    then: The safeguard model answers that the name is a public figure. Nothing is drawn or charged, and the assistant says it cannot create pictures of real public figures and offers an original character instead.
+
+named_person_limits:
+  - id: safeguard-model-unavailable
+    given: The same birthday card request while the safeguard model does not answer.
+    when: The assistant calls images.generate.
+    then: The request is refused as it was before this rule existed; no picture is drawn.
+  - id: deepfake-is-never-sent-to-the-model
+    given: The user asks for a deepfake photo that imitates a named person.
+    when: The assistant calls images.generate.
+    then: The fixed rules refuse it at once; the safeguard model is not asked.
+

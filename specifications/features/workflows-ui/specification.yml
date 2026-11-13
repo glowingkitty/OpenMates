@@ -1239,6 +1239,17 @@ assertions:
   depends_on:
   - models.WorkflowChatOwnedAuthoring
   - examples.chat_owned
+- id: workflows-ui.chat-pane.regular-editor
+  type: behavior
+  must: 'Accepting a Workflow Recommendation in a chat, or opening a Workflow from a chat row, shows the regular
+    Workflow editor in that chat: beside the chat from 1024px width, covering the inert chat below that. The
+    authored result is an unsaved draft in the regular editor until Save; after Save the same pane shows the saved
+    Workflow, where it can be enabled and tested. Closing the pane returns to the same chat at the scroll position
+    it had before the pane opened. No separate Workflow panel design exists.
+
+    '
+  depends_on:
+  - models.WorkflowChatOwnedAuthoring
 applies_to:
   rest_api:
     required: false

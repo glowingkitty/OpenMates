@@ -48,6 +48,7 @@ describe('fullscreen registry routing', () => {
     ['music', 'generate', 'music-generated-music'],
     ['videos', 'generate', 'videos-generated-video'],
     ['models3d', 'generate', 'models3d-generated-model'],
+    ['design', 'embroidery', 'design-embroidery'],
   ])('routes %s.%s parent and historical asset separately', (appId, skillId, childKey) => {
     expect(resolveRegistryKey('app_skill_use', {
       app_id: appId, skill_id: skillId, embed_ids: ['child-1'],

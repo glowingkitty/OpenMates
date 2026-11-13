@@ -229,9 +229,6 @@ vi.mock("../../services/clientLogForwarder", () => ({
   },
 }));
 
-vi.mock("../appSettingsMemoriesStore", () => ({
-  appSettingsMemoriesStore: { loadEntries: vi.fn(async () => undefined) },
-}));
 
 vi.mock("../theme", () => ({
   applyServerDarkMode: vi.fn(),

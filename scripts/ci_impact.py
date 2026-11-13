@@ -45,11 +45,17 @@ PYTHON_PATH_PATTERNS = (
     "shared/config/product_version.json",
 )
 WEB_PATH_PATTERNS = (
+    # The deployed web app embeds the Rust client core (vercel-build.mjs).
+    "Cargo.lock",
+    "Cargo.toml",
     "backend/apps/**/app.yml",
     "docs/**",
     "frontend/apps/web_app/**",
     "frontend/packages/ui/**",
     "package.json",
+    "packages/openmates-browser-bindings/**",
+    "packages/openmates-rust/**",
+    "packages/third_party/**",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
     "scripts/ci_impact.py",

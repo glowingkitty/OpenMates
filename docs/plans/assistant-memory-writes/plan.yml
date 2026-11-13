@@ -1,0 +1,469 @@
+schema_version: 2
+id: assistant-memory-writes
+title: Assistant saves and updates Memories directly, with undo
+status: draft
+goal: 'The main processor can fully create or update a personal Memory through a tool call, with no review step, and the user
+  can easily undo that change. Workflows keep their existing direct create-or-modify skill. Post-processor memory and workflow
+  suggestions stay as additional suggestions, but never suggest what the main response already created or updated in the same
+  turn.
+
+  '
+scope:
+  in:
+  - Internal main-processor tool save_memory (create or update one personal Memory document).
+  - Client-applied write job. The server validates and forwards cleartext only to the requesting client; the client encrypts
+    and stores. No durable backend plaintext.
+  - Memory document create, update and delete in the Rust client core, used by web and CLI/TUI.
+  - Chat history notice "Memory created/updated" marked as written by the assistant, with Undo (delete the new Memory or restore
+    the previous document).
+  - Post-processor receives which memory and workflow writes the main turn made and omits matching recommendations.
+  - Job-search focus modes use the tool after the user agrees; real chat proof that a saved career profile is reused without
+    re-asking.
+  out:
+  - Apple UI for the notice and Undo (Apple has no recommendations card yet; it keeps reading Memory documents).
+  - Team and Project Memories written by the assistant.
+  - Changes to workflow authoring, which already writes directly and has guarded undo.
+  - Version history for Memories beyond the single previous document kept for Undo.
+scenarios:
+- id: S-1
+  title: Assistant saves a Memory after the user agrees
+  given:
+  - A signed-in user in a saved chat on a client that supports memory write jobs.
+  when:
+  - The user asks to remember something, or agrees to the assistant's offer to save a profile.
+  then:
+  - The Memory exists encrypted in the account, the chat shows a notice with Open and Undo, and no review step was required.
+- id: S-2
+  title: Undo
+  given:
+  - A notice for an assistant-written Memory.
+  when:
+  - The user chooses Undo.
+  then:
+  - A created Memory is deleted and an updated Memory is restored to its previous document.
+- id: S-3
+  title: No duplicate suggestions
+  given:
+  - A turn in which the assistant saved a Memory or created or modified a Workflow.
+  when:
+  - Post-processing runs.
+  then:
+  - No recommendation of the same kind repeats that entry.
+- id: S-4
+  title: Saved profile is reused
+  given:
+  - A career profile Memory saved by the assistant.
+  when:
+  - The user starts a new chat in a job-search focus mode.
+  then:
+  - The assistant uses the profile and does not ask again for facts it contains.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: save_memory create and update produce a canonical validated document; secrets, oversize and non-canonical documents
+    are rejected; the tool is absent without the client capability.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-TOOL
+- id: AC-2
+  scenario: S-1
+  text: The Rust core applies a memory write job by encrypting and storing the document and appending the assistant-sourced
+    history notice; a real CLI chat on the isolated stack ends with the Memory present.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: cli
+  verification_ids:
+  - T-CLI
+- id: AC-3
+  scenario: S-2
+  text: Undo in web deletes a created Memory and restores an updated one; the result survives reload.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-UNDO
+- id: AC-4
+  scenario: S-3
+  text: With a memory or workflow write in the turn, the post-processor output contains no recommendation for that entry.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-POST
+- id: AC-5
+  scenario: S-4
+  text: Real dev chats show a saved career profile being used in Create or update CV and Write application without re-asking.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: manual
+  verification_ids:
+  - T-REAL
+- id: AC-6
+  scenario: S-4
+  text: A Memory saved from a chat whose contact details were placeholders stores the real details; when a later chat loads
+    it, the payload sent to the server contains only placeholders, and the answer shows the real details in CLI and web, live
+    and after reload.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: cli
+  verification_ids:
+  - T-PRIV
+tests:
+- id: T-TOOL
+  type: pytest
+  file: backend/tests/test_memory_write_tool.py
+  command: python3 scripts/ci_coordinator.py submit --session 3bb9 --mode pytest --spec backend/tests/test_memory_write_tool.py
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - validation
+  - capability gate
+  - update requires loaded memory
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 6dc172ea80198f244d82f6f6d21ee0635cd8af53 --mode
+        pytest --spec backend/tests/test_memory_write_tool.py --no-prepared-builds
+      run_id: 71c98dd3555a9a84911f24def9a752fad48a098dc036107011c9b0927d3483b5
+      subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      timestamp: '2026-11-13T05:00:00Z'
+      execution_environment: isolated_github_ci
+      harness_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      profile: pytest
+- id: T-POST
+  type: pytest
+  file: backend/tests/test_postprocessing_recommendations.py
+  command: python3 scripts/ci_coordinator.py submit --session 3bb9 --mode pytest --spec backend/tests/test_postprocessing_recommendations.py
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - written entries excluded
+  covers:
+  - AC-4
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 6dc172ea80198f244d82f6f6d21ee0635cd8af53 --mode
+        pytest --spec backend/tests/test_postprocessing_recommendations.py --no-prepared-builds
+      run_id: dc5f28f9323abfbd5f49d61fe2508a5f9919329bba8717ca4f9289a8edf954d5
+      subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      timestamp: '2026-11-13T05:00:00Z'
+      execution_environment: isolated_github_ci
+      harness_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      profile: pytest
+- id: T-CLI
+  type: playwright
+  file: frontend/apps/web_app/tests/cli-memory-write.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session 3bb9 --mode e2e --spec frontend/apps/web_app/tests/cli-memory-write.spec.ts
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - memory present after chat
+  - history notice
+  covers:
+  - AC-2
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 6dc172ea80198f244d82f6f6d21ee0635cd8af53 --mode
+        e2e --spec cli-memory-write.spec.ts
+      run_id: eed641052d4afafbeb307066792cc07b7a437dbcf65da2c2f8c21fbd4263ec53
+      subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      timestamp: '2026-11-13T05:00:00Z'
+      execution_environment: isolated_github_ci
+      harness_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      profile: e2e
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/43362104216/artifacts/14009790505
+- id: T-UNDO
+  type: playwright
+  file: frontend/apps/web_app/tests/memory-write-undo.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session 3bb9 --mode e2e --spec frontend/apps/web_app/tests/memory-write-undo.spec.ts
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - undo create
+  - undo update
+  - reload
+  covers:
+  - AC-3
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 6dc172ea80198f244d82f6f6d21ee0635cd8af53 --mode
+        e2e --spec memory-write-undo.spec.ts
+      run_id: 50f56e5ee702a115505feb2d47244f0bccd798a6fc6c9e911d752641802aed69
+      subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      timestamp: '2026-11-13T05:00:00Z'
+      execution_environment: isolated_github_ci
+      harness_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      profile: e2e
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/43364061594/artifacts/14009263549
+- id: T-REAL
+  type: manual
+  file: scripts/jobs_focus_real_test.py
+  command: python3 scripts/jobs_focus_real_test.py --session 3bb9 --state-dir /tmp/jobs-focus-state-UNIQUE --output-dir /tmp/jobs-focus-UNIQUE
+    --allow-paid-dev-inference --case profile-reuse
+  execution_environment: dev
+  target: dev
+  assertions:
+  - profile saved
+  - no re-asking in second chat
+  covers:
+  - AC-5
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/jobs_focus_real_test.py --session 3bb9 --state-dir /tmp/jf-770-state --output-dir /tmp/jf-770-out
+        --record-dir /tmp/jf-770-video --native-cli /tmp/3bb9-native-target/debug/openmates --native-session-import /tmp/3bb9-native-target/debug/native-cli-session-import
+        --case profile-reuse --allow-paid-dev-inference --timeout-seconds 420
+      run_id: jf-770-profile-reuse
+      subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      timestamp: '2026-11-13T02:31:30Z'
+      execution_environment: dev
+      reason: Real inference is dev-only by policy (never in CI). Native CLI built from the deployed commit, personal dev
+        test account, Gemini 3.8 Flash pinned and persisted. Save applied with Undo, Ask-first load approved in a new chat,
+        answer used the saved profile, chats show worked, Undo removed the Memory. The Memory response row holds EMAIL and
+        PHONE placeholder mappings; dev app-ai-worker logs for the run show placeholders and never the real email or phone.
+      artifacts:
+      - https://nbg1.your-objectstorage.com/dev-openmates-opencode-response-media/review-responses/runs/openmates-cli-e2e-real-inference/7726c4a76f38d250675a3d80717c8c08fc8f7da9952c88246a54399f87fdcf86/video.mp4
+      - https://nbg1.your-objectstorage.com/dev-openmates-opencode-response-media/review-responses/runs/openmates-cli-e2e-real-inference/d0467f846f4529c71c617197b0efb98ceabd79f29416c3cd80b53909d394a1ff/video.mp4
+- id: T-PRIV
+  type: unit
+  file: packages/openmates-rust/src/client/memory_privacy_tests.rs
+  command: python3 scripts/ci_coordinator.py submit --session 3bb9 --mode rust-check
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  assertions:
+  - released memory payload has no original values
+  - write job restores placeholders
+  - history restores memory-origin placeholders
+  covers:
+  - AC-6
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 6dc172ea80198f244d82f6f6d21ee0635cd8af53 --mode
+        rust-check --spec all
+      run_id: 2710f68cf6ae8e3f546f1170cb9e1912476cb2fdc31111d1fc9f2c727402a179
+      subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      timestamp: '2026-11-13T05:00:00Z'
+      execution_environment: isolated_github_ci
+      harness_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      profile: rust-check
+      reason: All memory_privacy, memory_consent, memory_write_jobs and chat_details tests passed (2781 of 2782 lib tests).
+        The job is red only on source_host::commands_tests::timeout_kills_the_whole_process_group (remote Project commands,
+        owned by another session), unrelated to this plan.
+tasks:
+- id: TASK-1
+  title: Backend save_memory tool, write job and post-processor exclusion
+  status: pending
+  phase: awaiting_approval
+  covers:
+    scenarios:
+    - S-1
+    - S-3
+    acceptance_criteria:
+    - AC-1
+    - AC-4
+  expected_files: &id001
+  - backend/apps/ai/processing/memory_write_tool.py
+  - backend/apps/ai/processing/postprocessing_recommendations.py
+  verification_ids:
+  - T-TOOL
+  - T-POST
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id001
+    shared_files: []
+- id: TASK-2
+  title: Rust core memory document write, job application and history notice; CLI/TUI output
+  status: pending
+  phase: awaiting_approval
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-2
+  expected_files: &id002
+  - packages/openmates-rust/src/client/memory_write_jobs.rs
+  verification_ids:
+  - T-CLI
+  dependencies:
+  - TASK-1
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id002
+    shared_files: []
+- id: TASK-3
+  title: Web notice with Undo on the Rust core write path
+  status: pending
+  phase: awaiting_approval
+  covers:
+    scenarios:
+    - S-2
+    acceptance_criteria:
+    - AC-3
+  expected_files: &id003
+  - frontend/packages/ui/src/components/ContextEntryEventNotice.svelte
+  verification_ids:
+  - T-UNDO
+  dependencies:
+  - TASK-2
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id003
+    shared_files: []
+- id: TASK-4
+  title: Job-search focus modes use the tool; real chat proof of profile reuse
+  status: pending
+  phase: awaiting_approval
+  covers:
+    scenarios:
+    - S-4
+    acceptance_criteria:
+    - AC-5
+  expected_files: &id004
+  - scripts/jobs_focus_real_test.py
+  verification_ids:
+  - T-REAL
+  dependencies:
+  - TASK-3
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id004
+    shared_files: []
+- id: TASK-5
+  title: 'Core: anonymize released Memory bodies, persist their mappings in the memory response, restore placeholders in memory
+    write jobs; native and web shells'
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-4
+    acceptance_criteria:
+    - AC-6
+  expected_files:
+  - packages/openmates-rust/src/client/memory_privacy.rs
+  - packages/openmates-rust/src/client/consent.rs
+  - packages/openmates-rust/src/client/memory_write_jobs.rs
+  verification_ids:
+  - T-PRIV
+  - T-REAL
+  dependencies:
+  - TASK-4
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - packages/openmates-rust/src/client/memory_privacy.rs
+    shared_files:
+    - packages/openmates-rust/src/client/consent.rs
+    - packages/openmates-rust/src/client/memory_write_jobs.rs
+implementation_state:
+  subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+approvals:
+  specification:
+    status: pending
+    reason: Amends approved feature.app-memories; the draft change is presented for approval after deployment.
+  plan:
+    status: approved
+    approved_at: '2026-11-10'
+decisions:
+- id: D-1
+  status: active
+  decision: The server never writes Memories; save_memory publishes a client-applied job gated by a client capability, as
+    task updates and project files do.
+  reason: Memories are client-encrypted; the Specification forbids durable backend plaintext.
+  decided_at: '2026-11-10'
+- id: D-2
+  status: active
+  decision: Updates require the target Memory to be loaded in the current turn.
+  reason: The model must edit the real document, and unloaded personal Memory bodies are never visible to it.
+  decided_at: '2026-11-10'
+- id: D-3
+  status: active
+  decision: Memory document create, update and delete move into the Rust client core and web calls the core.
+  reason: 'Client-core rule: sync and crypto logic lives only in Rust; the CLI needs the same write.'
+  decided_at: '2026-11-10'
+- id: D-4
+  status: active
+  decision: Main processor writes without a review step and with Undo; post-processor suggestions remain additional and exclude
+    entries written in the turn.
+  reason: Requested by the user on 2026-11-10.
+  decided_at: '2026-11-10'
+- id: D-5
+  status: active
+  decision: Stored Memories hold real details, never privacy placeholders. A memory write job restores the turn's placeholders
+    before the client encrypts and stores the document. Every Memory body the client releases to the server (approval, auto
+    include, mention) is anonymized with the chat's placeholders first; mappings created for it are stored inside the chat-key-encrypted
+    memory response message, and history readers merge them with the user-message mappings.
+  reason: 'Owner decision 2026-11-13 (relayed from a voice call): placeholders in stored memories are pointless; real details
+    must never reach the server. A real run showed a saved profile with placeholders breaking the next chat (admitted_turn_unreadable).'
+  decided_at: '2026-11-13'
+attempts:
+- id: A-1
+  task_id: TASK-1
+  outcome: planned
+  approach: Map the existing suggestion and save path, then add the tool following the task-update job pattern.
+  recorded_at: '2026-11-10'
+handoff:
+  current_task_id: TASK-1
+  next_action: Resolve the default load mode of assistant-saved Memories with the user, then implement TASK-1.
+  command: python3 scripts/plan_validate.py docs/plans/assistant-memory-writes/plan.yml
+  expected_outcome: Validated plan.
+  last_verified_commit: fb934cdabe3cd83a20b6ad5c44f851cd830f0d2f
+  blocker: null

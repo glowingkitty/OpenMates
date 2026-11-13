@@ -18,10 +18,21 @@ pub mod coordinator;
 pub mod history;
 #[path = "embed_write_keys.rs"]
 pub mod keys;
+/// Message-scoped image versions and version-K content (`pinned_embeds`).
+#[path = "embed_pinned_version.rs"]
+pub mod pinned;
 #[path = "embed_write_payload.rs"]
 pub mod payload;
+#[path = "embed_write_read.rs"]
+pub mod read;
 #[path = "embed_write_ref_index.rs"]
 pub mod ref_index;
+/// Child revision persistence (version N+1 of a generated image child).
+#[path = "embed_child_revision.rs"]
+pub mod revision;
+/// Recovery receipts of a child revision's sealed `(embed, N+1)` / `(diff, N+1)` outputs.
+#[path = "embed_child_revision_recovery.rs"]
+pub mod revision_recovery;
 #[path = "embed_write_session.rs"]
 pub mod session;
 #[path = "embed_write_status.rs"]
@@ -33,8 +44,11 @@ pub use history::{
 };
 pub use keys::{NonceSource, OsNonces};
 pub use payload::{PreparedEmbedWrite, ProcessingEmbedUpdate, StreamedEmbedData};
+pub use pinned::{MessageImageVersion, MessageParents, PinnedEmbed};
 pub use ref_index::{EmbedRefIndex, EmbedRefIndexEntry, ResolvedEmbedRef};
-pub use session::{AdoptedKey, EmbedWriteSession, KeyAdoption, PlannedEmbedWrite};
+pub use revision::{ChildRevision, ChildRevisionStep, ChildRevisionWrites, RevisionRowRole};
+pub use revision_recovery::{ReceiptSource, RevisionRecoveryReceipt};
+pub use session::{AdoptedKey, EmbedWriteSession, KeyAdoption, KeyLookup, PlannedEmbedWrite};
 pub use status::EmbedStatus;
 
 /// TS `normalizeToUnixSeconds`: non-number/non-finite/<=0 -> fallback,
@@ -55,3 +69,12 @@ pub fn normalize_to_unix_seconds(value: Option<&serde_json::Value>, fallback: i6
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "embed_write_tests.rs"]
 mod tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "embed_write_resolve_tests.rs"]
+mod resolve_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "embed_child_revision_tests.rs"]
+mod child_revision_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "embed_child_revision_recovery_tests.rs"]
+mod child_revision_recovery_tests;

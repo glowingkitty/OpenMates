@@ -1,0 +1,35 @@
+schema_version: 2
+profile: concise
+id: videos-generate-composed-video
+title: Videos generate chooses a generative clip or a composed, code-rendered video
+status: draft
+goal: "videos.generate takes a natural-language instruction plus pictures from the chat (uploads, generated images, search results), decides per request between a generative video model and a composed video whose Remotion code is written by a dedicated author model and rendered on E2B, shows a timeline below every video, lets the user extend a generated clip at its start or end and do basic edits (texts, trimming, removing a part), and stores every change as the next version of the same video. It replaces the videos.create skill and the remotion code fence."
+specifications:
+  - feature.app-skill.videos-generate@1
+  - feature.embed-user-edits@1
+scope:
+  - "Lane A, backend request and routing: new videos.generate contract (instructions, images as exact embed_refs, mode, aspect_ratio, duration_seconds, source_video, change); `prompt` and the REST text-only generative call keep working. Routing by the request mode, else by the Jev decision model."
+  - "Lane A, inputs: picture loading shared with images.modify moves to backend/shared; search-result pictures are fetched once through the existing public-image fetch rules in their full size."
+  - "Lane A, composed video: author prompt with Remotion best practices, fixed author model order, static source checks, E2B render with the pictures as static files, composition-declared fps/duration/size, structured build and render errors fed back for at most two corrections, progress stages, token plus sandbox-minute billing."
+  - "Lane A, result: one generated_video child with made_by, timeline manifest, kept composition source and version; generative results carry a one-clip timeline."
+  - "Lane A, removal: videos.create skill, the remotion fence conversion in the answer stream and its instructions are deleted; stored videos.create embeds stay playable."
+  - "Lane B, changes: source_video makes a request a change of that video and publishes the next version of the same embed, following the image revision pattern (docs/plans/image-edit-as-embed-version). edit changes the kept composition; extend_start/extend_end generate one more clip conditioned on the first/last frame and join all clips in a composition."
+  - "Lane C, web: VideoGenerateEmbedFullscreen shows the shared VideoTimeline below the player from the stored timeline; extend buttons with a description field; edit mode with part selection, text fields, trim and remove, Apply and Discard. Extend and Apply send an ordinary follow-up turn about this video through the existing result follow-up path; no new transport in TypeScript."
+  - "Lane C, web: component previews and focused component specs for the timeline, extend and edit mode; i18n strings."
+  - "Out of scope here, follow-up Tasks: Apple timeline and edit mode, CLI rendering of the timeline, production release."
+  - "Lane D, sound in composed videos: the author declares narration (with pronunciation hints), sound effects and one music track in an `audio` export; the backend validates it before any provider call, generates all clips concurrently with the existing speech, sound-effect and music providers, uploads them to the sandbox and the render root mixes them in. Clips are reused by content hash across correction rounds and later versions. Progress stage `audio` names the kinds; the timeline shows Voice, Sound and Music rows; sound is charged per second or per track."
+  - "Lane E, planned (not built yet): live build progress. Processing updates of the result card carry the generic progress frame of app-skills.progress.live-status (increasing sequence, never stored) plus video fields: the composition's part names as soon as the author's streamed output declares them, the current step per part (writing, checking, sound, rendering), render frames done/total from Remotion renderMedia onProgress read from the sandbox output (throttled to about one update per second), generative clip polling state, and one low-resolution still per finished part rendered with renderStill. The card shows a progress bar and a step list with part stills; the request card keeps its step label. Clients render only what arrives; nothing is stored until the finished video. Checks: pytest for frame building and throttling, component spec for bar, step list and stills, one real dev recording."
+  - "Author model default: Gemini 3.8 Flash leads the shared author model order (composed videos, images.modify, vector drawing with low reasoning), GPT-6.1 Sol and Claude Haiku are fallbacks; chosen with backend/scripts/benchmark_app_skill_author_models.py."
+checks:
+  - pytest for the request contract, routing, input loading, author loop with corrections, renderer plan, billing and the change path.
+  - Web component specs for timeline, extend and edit mode on /dev/preview.
+  - "Real dev chat through the CLI: web search, then a composed recap video from the results; the output video is downloaded and inspected."
+  - "Web E2E recording: search, composed video, open fullscreen, timeline seek, edit a text and apply, version 2; generative clip with extend at the end."
+decisions:
+  - "The routing model is Jev (typesafe decision client), the same model that reviews images.modify; the assistant can still force a mode."
+  - "No silent fallback when routing is unreachable: the request fails explicitly and is not charged."
+  - "Extend and edit are sent as follow-up turns of the chat, so the assistant, billing, recovery and versioning stay on one path and no shell gets new transport logic."
+  - "A generative video that is extended or trimmed becomes a composition of its clips, so one timeline model serves both kinds."
+  - "Extend at the start needs a clip that ends on a given frame; it is offered only with a model whose official API supports a last-frame condition, otherwise the button is not shown."
+evidence:
+  - "Discovery 2026-11-12: e2b_remotion_renderer.py hardcodes 150 frames at 640x360 and uploads no assets; gemini_video.py sends a text prompt only; image revisions are behind IMAGE_EDIT_AS_EMBED_VERSION; ResultEmbedFullscreen already sends follow-up turns with an embed reference."

@@ -23,6 +23,41 @@ impl Wipe for Prepared {
         self.key.zeroize();
     }
 }
+/// Pause between output reads while another device settles the same output.
+const OUTPUT_SETTLE_RETRY: std::time::Duration = std::time::Duration::from_secs(1);
+/// Reads of a settling output before the replay fails (about half a minute).
+const OUTPUT_SETTLE_ATTEMPTS: u32 = 30;
+
+/// True while an output another device is preparing or acknowledging may still
+/// become readable or acknowledged; ABSENT and unknown states never wait.
+pub(super) fn output_settling(state: &Value, attempts: u32) -> bool {
+    attempts < OUTPUT_SETTLE_ATTEMPTS && matches!(state.as_str(), Some("PREPARING" | "PENDING"))
+}
+
+/// Pause between replays of a turn another device completed.
+pub(super) const TERMINAL_REPLAY_RETRY: std::time::Duration = std::time::Duration::from_secs(2);
+/// Replays of a turn another device completed, the first one included.
+pub(super) const TERMINAL_REPLAY_ATTEMPTS: u32 = 10;
+
+/// True when a replay of a turn another device completed may run again. That
+/// device replays the same outputs at the same time, so a read or store can
+/// lose the race (`Protocol` for a refused frame, `Conflict` for a version
+/// fence). The next replay re-reads each output's status and skips what the
+/// other device acknowledged; the server fences still decide every write.
+pub(super) fn terminal_replay_retry(error: &Error, attempts: u32) -> bool {
+    attempts + 1 < TERMINAL_REPLAY_ATTEMPTS && matches!(error, Error::Protocol | Error::Conflict)
+}
+
+/// True when another device already acknowledged this output and the replay
+/// may skip it. The server verifies the ciphertext digest of message, metadata
+/// and checkpoint outputs inside the acknowledging transaction and reports
+/// `canonical_verified` only for embed/diff outputs, whose canonical row the
+/// client re-verifies itself (`verify_acknowledged_output`).
+pub(super) fn acknowledged_elsewhere(output_kind: &str, status: &Value) -> bool {
+    status["state"] == "ACKNOWLEDGED"
+        && (!matches!(output_kind, "embed" | "diff") || status["canonical_verified"] == true)
+}
+
 impl Client {
     pub(super) async fn replay_outputs(
         &mut self,
@@ -31,7 +66,7 @@ impl Client {
         root_hint: Option<(&str, &[u8; 32])>,
     ) -> Result<usize> {
         if outputs.len() > 10_000 {
-            return Err(Error::Protocol);
+            return Err(super::send::refusal_trace::protocol_at!());
         }
         self.require_canonical_read_profile()?;
         let scope = ReplayScope::begin(self)?;
@@ -40,7 +75,7 @@ impl Client {
             .get("id")
             .or_else(|| self.user.get("user_id"))
             .and_then(Value::as_str)
-            .ok_or(Error::Protocol)?
+            .ok_or_else(|| super::send::refusal_trace::protocol_at!())?
             .to_owned();
         scope.check(self)?;
         let wrapping = self.wrapping_capability().await?;
@@ -78,10 +113,10 @@ impl Client {
                         .await?;
                     let row = data["chats"]
                         .as_array()
-                        .ok_or(Error::Protocol)?
+                        .ok_or_else(|| super::send::refusal_trace::protocol_at!())?
                         .iter()
                         .find(|r| text(r, "id") == root)
-                        .ok_or(Error::Forbidden)?
+                        .ok_or_else(|| { super::send::refusal_trace::note("recovery_84"); Error::Forbidden })?
                         .clone();
                     remember_selected_chat_wrapper(self, &scope, &row)?;
                     check_replay_scope(self, &scope, output)?;
@@ -93,7 +128,11 @@ impl Client {
                 root_keys.insert(root.into(), key);
             }
             let key = root_keys.get(root).ok_or(Error::Crypto)?.clone();
-            let ready = match scoped_output_request(
+            // Another foreground device of the owner may be preparing or
+            // acknowledging the same output (it won the job lease). Wait for it
+            // within a short bound instead of failing the whole turn.
+            let mut attempts = 0u32;
+            let ready = loop { match scoped_output_request(
                 self,
                 &scope,
                 ws,
@@ -104,7 +143,7 @@ impl Client {
             )
             .await
             {
-                Ok(v) => v,
+                Ok(v) => break Some(v),
                 Err(Error::Protocol) => {
                     let status = scoped_output_request(
                         self,
@@ -117,21 +156,28 @@ impl Client {
                     )
                     .await?;
                     same_identity(output, &status)?;
-                    if status["state"] == "ACKNOWLEDGED" && status["canonical_verified"] == true {
+                    if acknowledged_elsewhere(text(output, "output_kind"), &status) {
                         self.verify_acknowledged_output(output, &status, &key, &scope)
                             .await?;
-                        continue;
-                    } else {
-                        return Err(Error::Protocol);
+                        break None;
                     }
+                    if output_settling(&status["state"], attempts) {
+                        attempts += 1;
+                        crate::platform::time::sleep(OUTPUT_SETTLE_RETRY).await;
+                        scope.check(self)?;
+                        continue;
+                    }
+                    super::send::refusal_trace::note("replay_output_unsettled");
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
                 Err(e) => return Err(e),
-            };
+            } };
+            let Some(ready) = ready else { continue };
             same_identity(output, &ready)?;
             let recovery = crypto::recovery_keypair(
                 &key,
                 root,
-                output["chat_key_version"].as_u64().ok_or(Error::Protocol)? as u32,
+                output["chat_key_version"].as_u64().ok_or_else(|| super::send::refusal_trace::protocol_at!())? as u32,
             )?;
             let aad = output_aad(&owner, output)?;
             let envelope: Value = serde_json::from_str(required(&ready, "sealed_payload")?)?;
@@ -155,7 +201,7 @@ impl Client {
                 }
             }
             if !data.get("content").is_some_and(Value::is_object) {
-                return Err(Error::Protocol);
+                return Err(super::send::refusal_trace::protocol_at!());
             }
             let content = std::mem::take(&mut data["content"]);
             prepared.push(Prepared {
@@ -228,9 +274,9 @@ impl Client {
                         .and_then(Value::as_str)
                         .is_some_and(|v| v != role)
                 {
-                    return Err(Error::Protocol);
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
-                let mut encrypted = json!({"client_message_id":subject,"chat_id":target,"role":role,"encrypted_content":crypto::encrypt_combined(c.get("content").and_then(Value::as_str).ok_or(Error::Protocol)?,key)?,"created_at":c["created_at"].as_u64().unwrap_or(now),"updated_at":now});
+                let mut encrypted = json!({"client_message_id":subject,"chat_id":target,"role":role,"encrypted_content":crypto::encrypt_combined(c.get("content").and_then(Value::as_str).ok_or_else(|| super::send::refusal_trace::protocol_at!())?,key)?,"created_at":c["created_at"].as_u64().unwrap_or(now),"updated_at":now});
                 for (src, dst) in [
                     ("category", "encrypted_category"),
                     ("model_name", "encrypted_model_name"),
@@ -280,11 +326,11 @@ impl Client {
                 let summary = c
                     .get("summary")
                     .and_then(Value::as_str)
-                    .ok_or(Error::Protocol)?;
+                    .ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                 let mut payload = json!({"expected_metadata_v":r["metadata_v"],"encrypted_summary":crypto::encrypt_combined(summary,key)?});
                 if let Some(version) = c.get("source_metadata_v") {
                     if version.as_u64().is_none() || summary.chars().count() > 1000 {
-                        return Err(Error::Protocol);
+                        return Err(super::send::refusal_trace::protocol_at!());
                     }
                     payload["source_metadata_v"] = version.clone();
                     for (field, max) in [("title", 200), ("category", 100), ("icon", 100)] {
@@ -292,7 +338,7 @@ impl Client {
                             let text = value
                                 .as_str()
                                 .filter(|v| !v.is_empty() && v.chars().count() <= max)
-                                .ok_or(Error::Protocol)?;
+                                .ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                             payload[format!("encrypted_{field}")] =
                                 json!(crypto::encrypt_combined(text, key)?);
                         }
@@ -312,20 +358,20 @@ impl Client {
             }
             "checkpoint" => {
                 if text(c, "summary_message_id") != subject {
-                    return Err(Error::Protocol);
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
                 let ids = c["covered_message_ids"]
                     .as_array()
                     .filter(|v| !v.is_empty() && v.len() <= 20_000)
-                    .ok_or(Error::Protocol)?;
+                    .ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                 let mut previous = "";
                 for id in ids {
                     let id = id
                         .as_str()
                         .filter(|s| !s.is_empty() && s.len() <= 255)
-                        .ok_or(Error::Protocol)?;
+                        .ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                     if id <= previous {
-                        return Err(Error::Protocol);
+                        return Err(super::send::refusal_trace::protocol_at!());
                     }
                     previous = id;
                 }
@@ -335,12 +381,12 @@ impl Client {
                     .sum::<usize>()
                     > 1_048_576
                 {
-                    return Err(Error::Protocol);
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
                 let encrypted = crypto::encrypt_combined(
                     c.get("summary_content")
                         .and_then(Value::as_str)
-                        .ok_or(Error::Protocol)?,
+                        .ok_or_else(|| super::send::refusal_trace::protocol_at!())?,
                     key,
                 )?;
                 scoped_send(self, scope, o, ws,"store_chat_compression_checkpoint",json!({"chat_id":target,"checkpoint_id":subject,"encrypted_summary":encrypted,"compressed_up_to_timestamp":c["compressed_up_to_timestamp"],"compressed_up_to_message_id":required(c,"compressed_up_to_message_id")?,"covered_message_ids":ids,"compressed_message_count":c["compressed_message_count"],"summary_token_estimate":c["summary_token_estimate"],"key_version":o["chat_key_version"],"created_at":now})).await?;
@@ -359,13 +405,13 @@ impl Client {
                     || saved["compressed_up_to_message_id"] != c["compressed_up_to_message_id"]
                     || saved["covered_message_ids"] != c["covered_message_ids"]
                 {
-                    return Err(Error::Protocol);
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
                 let ack=scoped_output_request(self, scope, ws,"recovery_output_ack_checkpoint","recovery_output_checkpoint_acknowledged",o,json!({"encrypted_summary":required(saved,"encrypted_summary")?,"compressed_up_to_message_id":c["compressed_up_to_message_id"],"covered_message_ids":ids})).await?;
                 acknowledged(&ack)?;
             }
             "embed" | "diff" => self.persist_sealed_embed(ws, p, owner, scope).await?,
-            _ => return Err(Error::Protocol),
+            _ => return Err(super::send::refusal_trace::protocol_at!()),
         }
         check_replay_scope(self, scope, o)?;
         Ok(())
@@ -382,13 +428,13 @@ impl Client {
         let c = &p.content;
         let target = required(o, "target_chat_id")?;
         let id = required(o, "subject_id")?;
-        let version = o["output_version"].as_u64().ok_or(Error::Protocol)?;
+        let version = o["output_version"].as_u64().ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
         if text(c, "embed_id") != id
             || c.get("version_number")
                 .and_then(Value::as_u64)
                 .is_some_and(|v| v != version)
         {
-            return Err(Error::Protocol);
+            return Err(super::send::refusal_trace::protocol_at!());
         }
         let path = self.scoped(&format!(
             "/v1/embeds/chats/{}/embeds/{}",
@@ -403,7 +449,7 @@ impl Client {
             .map(str::to_owned);
         if let Some(before) = &existing {
             if text(&before["embed"], "hashed_chat_id") != sha256(target) {
-                return Err(Error::Forbidden);
+                { super::send::refusal_trace::note("recovery_406"); return Err(Error::Forbidden); }
             }
             let canonical = text(&before["embed"], "parent_embed_id");
             if parent.as_deref().is_some_and(|p| p != canonical) {
@@ -432,7 +478,7 @@ impl Client {
             if text(&page["embed"], "hashed_chat_id") != sha256(target)
                 || !text(&page["embed"], "parent_embed_id").is_empty()
             {
-                return Err(Error::Forbidden);
+                { super::send::refusal_trace::note("recovery_435"); return Err(Error::Forbidden); }
             }
             Some(page)
         } else {
@@ -462,34 +508,39 @@ impl Client {
                         || c.get("patch").and_then(Value::as_str).is_some()))
                 || (version > 1 && c.get("patch").and_then(Value::as_str).is_none())
             {
-                return Err(Error::Protocol);
+                return Err(super::send::refusal_trace::protocol_at!());
             }
-            digest = self.persist_canonical_embed_diff(
-                ws,
-                super::persistence::HistoryWrite {
-                    embed: id, chat: target, version, key: &key,
-                    snapshot: c.get("snapshot").and_then(Value::as_str),
-                    patch: c.get("patch").and_then(Value::as_str),
-                    owner_hash: &owner_hash,
-                    created_at: c["created_at"].as_u64().unwrap_or(now_ms()/1000),
-                    recovery_record: Some(required(o, "record_id")?),
-                    allow_missing_revision: true,
-                },
-                &|client| check_replay_scope(client, scope, o),
-            ).await?;
+            digest = self
+                .persist_canonical_embed_diff(
+                    ws,
+                    super::persistence::HistoryWrite {
+                        embed: id,
+                        chat: target,
+                        version,
+                        key: &key,
+                        snapshot: c.get("snapshot").and_then(Value::as_str),
+                        patch: c.get("patch").and_then(Value::as_str),
+                        owner_hash: &owner_hash,
+                        created_at: c["created_at"].as_u64().unwrap_or(now_ms() / 1000),
+                        recovery_record: Some(required(o, "record_id")?),
+                        allow_missing_revision: true,
+                    },
+                    &|client| check_replay_scope(client, scope, o),
+                )
+                .await?;
             source = "version_row";
         } else {
             let content = c
                 .get("content")
                 .and_then(Value::as_str)
-                .ok_or(Error::Protocol)?;
+                .ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
             let kind = required(c, "type")?;
             let message = required(c, "message_id")?;
             let current_version = existing
                 .as_ref()
                 .map(|p| p["embed"]["version_number"].as_u64().unwrap_or(1));
             if let Some(current) = current_version {
-                let page = existing.as_ref().ok_or(Error::Protocol)?;
+                let page = existing.as_ref().ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                 let head = &page["embed"];
                 if text(head, "hashed_user_id") != owner_hash
                     || head.get("hashed_team_id").and_then(Value::as_str) != team_hash.as_deref()
@@ -574,22 +625,22 @@ impl Client {
                     if text(&history, "embed_id") != id
                         || history["version_number"].as_u64() != Some(version)
                     {
-                        return Err(Error::Protocol);
+                        return Err(super::send::refusal_trace::protocol_at!());
                     }
                     let rows = history["rows"]
                         .as_array()
                         .filter(|rows| !rows.is_empty() && rows.len() <= 33)
-                        .ok_or(Error::Protocol)?;
+                        .ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                     let mut previous = rows[0]["version_number"]
                         .as_u64()
-                        .ok_or(Error::Protocol)?
+                        .ok_or_else(|| super::send::refusal_trace::protocol_at!())?
                         .checked_sub(1)
-                        .ok_or(Error::Protocol)?;
+                        .ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                     let mut reconstructed: Option<zeroize::Zeroizing<String>> = None;
                     for row in rows {
-                        let v = row["version_number"].as_u64().ok_or(Error::Protocol)?;
+                        let v = row["version_number"].as_u64().ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                         if v != previous + 1 {
-                            return Err(Error::Protocol);
+                            return Err(super::send::refusal_trace::protocol_at!());
                         }
                         reconstructed = if let Some(snapshot) = row["encrypted_snapshot"].as_str() {
                             Some(zeroize::Zeroizing::new(crypto::decrypt_combined(
@@ -599,7 +650,7 @@ impl Client {
                             let content = reconstructed
                                 .as_ref()
                                 .map(|s| s.as_str())
-                                .ok_or(Error::Protocol)?;
+                                .ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                             Some(zeroize::Zeroizing::new(super::patch::apply(
                                 content,
                                 &zeroize::Zeroizing::new(crypto::decrypt_combined(
@@ -615,7 +666,7 @@ impl Client {
                         return Err(Error::Crypto);
                     }
                     let sealed_source = zeroize::Zeroizing::new(historical_source(&decoded, kind)?);
-                    let last = rows.last().ok_or(Error::Protocol)?;
+                    let last = rows.last().ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                     if previous != version
                         || reconstructed.as_ref().map(|s| s.as_str())
                             != Some(sealed_source.as_str())
@@ -627,11 +678,11 @@ impl Client {
                     );
                     source = "version_row";
                 } else {
-                    return Err(Error::Protocol);
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
             } else {
                 if version > 1 && parent.is_none() {
-                    return Err(Error::Forbidden);
+                    { super::send::refusal_trace::note("recovery_639"); return Err(Error::Forbidden); }
                 }
                 digest = self
                     .store_sealed_head(ws, o, c, &key, None, owner, scope)
@@ -684,7 +735,7 @@ impl Client {
                 || receipt["created_count"].as_u64() != Some(wrappers.len() as u64)
                 || receipt["requested_count"].as_u64() != Some(wrappers.len() as u64)
             {
-                return Err(Error::Protocol);
+                return Err(super::send::refusal_trace::protocol_at!());
             }
         }
         let keys = self
@@ -703,13 +754,13 @@ impl Client {
         )
         .await?;
         if !types.contains("master") || !types.contains("chat") {
-            return Err(Error::Protocol);
+            return Err(super::send::refusal_trace::protocol_at!());
         }
         check_replay_scope(self, scope, o)?;
         self.embed_keys.extend(
             keys["embed_keys"]
                 .as_array()
-                .ok_or(Error::Protocol)?
+                .ok_or_else(|| super::send::refusal_trace::protocol_at!())?
                 .iter()
                 .cloned(),
         );
@@ -717,7 +768,7 @@ impl Client {
             self.replay_request(scope, o, Method::GET, &path, None)
                 .await?,
         );
-        let head = &existing.as_ref().ok_or(Error::Protocol)?["embed"];
+        let head = &existing.as_ref().ok_or_else(|| super::send::refusal_trace::protocol_at!())?["embed"];
         if text(head, "hashed_chat_id") != sha256(target)
             || head
                 .get("parent_embed_id")
@@ -823,24 +874,7 @@ impl Client {
             }
         }
         if text(c, "parent_embed_id").is_empty() && canonical_type.is_none() {
-            let decoded = Plain::new(super::toon::decode(required(c, "content")?)?);
-            let app = c.get("app_id").or_else(|| decoded.get("app_id"));
-            let skill = c.get("skill_id").or_else(|| decoded.get("skill_id"));
-            if app.is_some() || skill.is_some() {
-                let app = app.and_then(Value::as_str).ok_or(Error::Protocol)?;
-                let skill = skill.and_then(Value::as_str).ok_or(Error::Protocol)?;
-                if !regex::Regex::new(r"^[a-z][a-z0-9_]{0,63}$")
-                    .expect("static")
-                    .is_match(app)
-                    || !regex::Regex::new(r"^[a-z][a-z0-9_-]{0,63}$")
-                        .expect("static")
-                        .is_match(skill)
-                {
-                    return Err(Error::Protocol);
-                }
-                payload["app_id"] = json!(app);
-                payload["skill_id"] = json!(skill);
-            }
+            store_catalog_identity(&mut payload, c)?;
         }
         if let Some(task) = c.get("task_id").and_then(Value::as_str) {
             payload["hashed_task_id"] = json!(sha256(task))
@@ -865,7 +899,7 @@ impl Client {
         .await?;
         let digest = sha256(&encrypted);
         if receipt["canonical_source"] != "head" || text(&receipt, "canonical_digest") != digest {
-            return Err(Error::Protocol);
+            return Err(super::send::refusal_trace::protocol_at!());
         }
         Ok(digest)
     }
@@ -903,7 +937,7 @@ impl Client {
             .await?;
         let head = &data["embed"];
         if text(head, "hashed_chat_id") != sha256(target) {
-            return Err(Error::Forbidden);
+            { super::send::refusal_trace::note("recovery_911"); return Err(Error::Forbidden); }
         }
         let parent = text(head, "parent_embed_id");
         let embed_key = crypto::derive_embed_key(key, if parent.is_empty() { id } else { parent })?;
@@ -918,7 +952,7 @@ impl Client {
                 &embed_key,
             )?);
         } else if status["canonical_source"] == "version_row" {
-            let version = o["output_version"].as_u64().ok_or(Error::Protocol)?;
+            let version = o["output_version"].as_u64().ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
             let path = self.scoped(&format!(
                 "/v1/embeds/{}/versions/{version}?capability=bounded-v1&chat_id={}",
                 segment(id),
@@ -939,7 +973,7 @@ impl Client {
                 }
             }
         } else {
-            return Err(Error::Protocol);
+            return Err(super::send::refusal_trace::protocol_at!());
         }
         check_replay_scope(self, scope, o)?;
         Ok(())
@@ -997,16 +1031,16 @@ impl ReplayScope {
                 match value.as_u64() {
                     Some(1) => {}
                     Some(_) => return Err(Error::Conflict),
-                    None => return Err(Error::Protocol),
+                    None => return Err(super::send::refusal_trace::protocol_at!()),
                 }
             }
         }
         if let Some(value) = row.get("expires_at").filter(|v| !v.is_null()) {
             let at = value
                 .as_u64()
-                .ok_or(Error::Protocol)?
+                .ok_or_else(|| super::send::refusal_trace::protocol_at!())?
                 .checked_mul(1000)
-                .ok_or(Error::Protocol)?;
+                .ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
             if at <= now_ms() {
                 return Err(Error::Conflict);
             }
@@ -1056,7 +1090,7 @@ async fn verify_wrappers_with_capability(
     owner_hash: &str,
 ) -> Result<std::collections::BTreeSet<String>> {
     let mut kinds = std::collections::BTreeSet::new();
-    for row in rows.as_array().ok_or(Error::Protocol)? {
+    for row in rows.as_array().ok_or_else(|| super::send::refusal_trace::protocol_at!())? {
         scope.check_chat(client, chat)?;
         let kind = text(row, "key_type");
         if !["master", "chat"].contains(&kind) {
@@ -1163,7 +1197,7 @@ fn verify_wrappers(
     owner_hash: &str,
 ) -> Result<std::collections::BTreeSet<String>> {
     let mut kinds = std::collections::BTreeSet::new();
-    for row in rows.as_array().ok_or(Error::Protocol)? {
+    for row in rows.as_array().ok_or_else(|| super::send::refusal_trace::protocol_at!())? {
         let kind = text(row, "key_type");
         if !["master", "chat"].contains(&kind) {
             continue;
@@ -1199,8 +1233,8 @@ async fn output_request_with_gate(
         json!({"protocol_version":1,"record_id":required(o,"record_id")?,"request_id":request});
     payload
         .as_object_mut()
-        .ok_or(Error::Protocol)?
-        .extend(extra.as_object().ok_or(Error::Protocol)?.clone());
+        .ok_or_else(|| super::send::refusal_trace::protocol_at!())?
+        .extend(extra.as_object().ok_or_else(|| super::send::refusal_trace::protocol_at!())?.clone());
     gate()?;
     send(ws, kind, payload).await?;
     gate()?;
@@ -1226,8 +1260,8 @@ async fn store_output_with_gate(
     let mut payload = json!({"request_id":request,"recovery_record_id":required(o,"record_id")?});
     payload
         .as_object_mut()
-        .ok_or(Error::Protocol)?
-        .extend(extra.as_object().ok_or(Error::Protocol)?.clone());
+        .ok_or_else(|| super::send::refusal_trace::protocol_at!())?
+        .extend(extra.as_object().ok_or_else(|| super::send::refusal_trace::protocol_at!())?.clone());
     let embed = if matches!(kind, "store_embed" | "store_embed_diff") {
         Some(required(&extra, "embed_id")?)
     } else {
@@ -1244,6 +1278,47 @@ async fn store_output_with_gate(
     gate()?;
     Ok(result.into_inner())
 }
+/// Catalog identity (`app_id`/`skill_id`) of a new sealed root embed head, as
+/// web `catalogContextFromSealedEmbed`: the sealed payload's own producer ids
+/// win, the decoded TOON content fills a missing one. An embed no skill
+/// produced (a focus-mode activation) names only its app inside the content;
+/// it has no catalog identity and is stored without one. A producer that names
+/// an app without a skill, or a malformed id, is refused.
+///
+/// # Errors
+/// `Protocol` for a refused identity or undecodable content.
+fn store_catalog_identity(payload: &mut Value, c: &Value) -> Result<()> {
+    let producer = |key: &str| c.get(key).filter(|v| !v.is_null());
+    let (producer_app, producer_skill) = (producer("app_id"), producer("skill_id"));
+    let decoded = Plain::new(super::toon::decode(required(c, "content")?)?);
+    let app = producer_app.or_else(|| decoded.get("app_id"));
+    let skill = producer_skill.or_else(|| decoded.get("skill_id"));
+    if (app.is_none() && skill.is_none()) || (skill.is_none() && producer_app.is_none()) {
+        // The raw producer fields copied before carry no identity here either.
+        if let Some(fields) = payload.as_object_mut() {
+            fields.remove("app_id");
+            fields.remove("skill_id");
+        }
+        return Ok(());
+    }
+    let app = app.and_then(Value::as_str).ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
+    let skill = skill.and_then(Value::as_str).ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
+    if !regex::Regex::new(r"^[a-z][a-z0-9_]{0,63}$")
+        .expect("static")
+        .is_match(app)
+        || !regex::Regex::new(r"^[a-z][a-z0-9_-]{0,63}$")
+            .expect("static")
+            .is_match(skill)
+    {
+        return Err(super::send::refusal_trace::protocol_at!());
+    }
+    payload["app_id"] = json!(app);
+    payload["skill_id"] = json!(skill);
+    Ok(())
+}
+#[cfg(test)]
+#[path = "recovery/catalog_identity_tests.rs"]
+mod catalog_identity_tests;
 #[cfg(test)]
 #[path = "../../tests/recovery_store_receipts/mod.rs"]
 mod store_receipt_tests;
@@ -1251,7 +1326,8 @@ fn acknowledged(value: &Value) -> Result<()> {
     if value["state"] == "ACKNOWLEDGED" {
         Ok(())
     } else {
-        Err(Error::Protocol)
+        super::send::refusal_trace::note("replay_output_not_acknowledged");
+        Err(super::send::refusal_trace::protocol_at!())
     }
 }
 fn same_identity(expected: &Value, actual: &Value) -> Result<()> {
@@ -1284,12 +1360,12 @@ pub(super) fn validate_output(value: &Value) -> Result<()> {
             .to_string()
             != id
         {
-            return Err(Error::Protocol);
+            return Err(super::send::refusal_trace::protocol_at!());
         }
     }
     let subject = required(value, "subject_id")?;
     if subject.len() > 255 || subject.chars().any(|c| c.is_control()) {
-        return Err(Error::Protocol);
+        return Err(super::send::refusal_trace::protocol_at!());
     }
     if !["message", "embed", "diff", "summary", "checkpoint"].contains(&text(value, "output_kind"))
         || value["output_version"]
@@ -1299,7 +1375,7 @@ pub(super) fn validate_output(value: &Value) -> Result<()> {
             .as_u64()
             .is_none_or(|v| v == 0 || v > u32::MAX as u64)
     {
-        return Err(Error::Protocol);
+        return Err(super::send::refusal_trace::protocol_at!());
     }
     Ok(())
 }
@@ -1343,7 +1419,7 @@ fn historical_source(data: &Value, kind: &str) -> Result<String> {
                     .get(field)
                     .is_some_and(|v| !v.is_null() && !v.is_string())
                 {
-                    return Err(Error::Protocol);
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
             }
             let mut parts = Plain::new(Vec::<String>::new());
@@ -1378,7 +1454,7 @@ fn historical_source(data: &Value, kind: &str) -> Result<String> {
             } else if kind == "notebook" && data["content"].is_string() {
                 Ok(text(data, "content").into())
             } else {
-                Err(Error::Protocol)
+                Err(super::send::refusal_trace::protocol_at!())
             }
         }
         _ => {
@@ -1387,12 +1463,13 @@ fn historical_source(data: &Value, kind: &str) -> Result<String> {
                 "sheet" => "table",
                 "mermaid" => "diagram_code",
                 "diagram_html" => "html_source",
-                _ => return Err(Error::Protocol),
+                "deck" => "slides_markup",
+                _ => return Err(super::send::refusal_trace::protocol_at!()),
             };
             data[field]
                 .as_str()
                 .map(str::to_owned)
-                .ok_or(Error::Protocol)
+                .ok_or_else(|| super::send::refusal_trace::protocol_at!())
         }
     }
 }
@@ -1404,7 +1481,7 @@ pub(super) fn capture(
     if kind == "recovery_outputs_discovery_complete" {
         return match text(payload, "status") {
             "completed" | "disabled" => Ok(Some(true)),
-            _ => Err(Error::Protocol),
+            _ => Err(super::send::refusal_trace::protocol_at!()),
         };
     }
     if kind != "recovery_outputs_available" {
@@ -1413,7 +1490,7 @@ pub(super) fn capture(
     let rows = payload["outputs"]
         .as_array()
         .filter(|rows| rows.len() <= 100)
-        .ok_or(Error::Protocol)?;
+        .ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
     for row in rows {
         validate_output(row)?;
         let id = required(row, "record_id")?;
@@ -1423,7 +1500,7 @@ pub(super) fn capture(
             }
         } else {
             if outputs.len() >= 10_000 {
-                return Err(Error::Protocol);
+                return Err(super::send::refusal_trace::protocol_at!());
             }
             outputs.insert(id.into(), row.clone());
         }
@@ -1507,3 +1584,6 @@ mod tests {
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "recovery/opaque_tests.rs"]
 mod opaque_tests;
+#[cfg(test)]
+#[path = "recovery/settle_tests.rs"]
+mod settle_tests;

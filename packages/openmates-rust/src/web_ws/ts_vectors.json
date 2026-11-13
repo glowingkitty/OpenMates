@@ -1,0 +1,3131 @@
+{
+ "close": [
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "2FA required",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": "2fa"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "2FA required",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": "2fa"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "2FA required",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": "2fa"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "2FA required",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": "2fa"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "Passkey required for this device",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": "passkey"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "Passkey required for this device",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": "passkey"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "Passkey required for this device",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": "passkey"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "Passkey required for this device",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": "passkey"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "Device mismatch",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": null
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "Device mismatch",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": null
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "Device mismatch",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": null
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "Device mismatch",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": null
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": null
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": null
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": null
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1008,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": null
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": null
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": null
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1008,
+    "consecutive": 2,
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": null
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1008,
+    "consecutive": 2,
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "policyViolation",
+    "reAuth": null
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 1,
+    "consecutive": 1,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 4,
+    "consecutive": 1,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 10,
+    "consecutive": 1,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 1,
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 1,
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 1,
+    "consecutive": 3,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 4,
+    "consecutive": 3,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 10,
+    "consecutive": 3,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 3,
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 3,
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": false,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": false,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": false,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": false,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": false,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 1,
+    "consecutive": 0,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "",
+    "reconnectAttempts": 3,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 4,
+    "consecutive": 0,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "",
+    "reconnectAttempts": 9,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 10,
+    "consecutive": 0,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "",
+    "reconnectAttempts": 10,
+    "wasClean": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 1,
+    "consecutive": 0,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 3,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 4,
+    "consecutive": 0,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 9,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 10,
+    "consecutive": 0,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 10,
+    "wasClean": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 1,
+    "consecutive": 0,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "",
+    "reconnectAttempts": 3,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 4,
+    "consecutive": 0,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "",
+    "reconnectAttempts": 9,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 10,
+    "consecutive": 0,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "",
+    "reconnectAttempts": 10,
+    "wasClean": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "Forbidden",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "Forbidden",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "Forbidden",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "Forbidden",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "Forbidden",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "Forbidden",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "Forbidden",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "Forbidden",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "Forbidden",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "Forbidden",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "Forbidden",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "Forbidden",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "Forbidden",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "Forbidden",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "Forbidden",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "HTTP 403",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "token expired",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "token expired",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "token expired",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "token expired",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "token expired",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "token expired",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "token expired",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "token expired",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "token expired",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "token expired",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "token expired",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "token expired",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "token expired",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "token expired",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "token expired",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 1,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 3,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "UNAUTHORIZED",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": true,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "network down",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 1,
+    "consecutive": 1,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "network down",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 4,
+    "consecutive": 1,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "network down",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 10,
+    "consecutive": 1,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "network down",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 1,
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 0,
+    "reason": "network down",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 1,
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "network down",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 1,
+    "consecutive": 3,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "network down",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 4,
+    "consecutive": 3,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "network down",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 10,
+    "consecutive": 3,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "network down",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 3,
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 2,
+    "reason": "network down",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 3,
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "network down",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": false,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "network down",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": false,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "network down",
+    "reconnectAttempts": 9,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": false,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "network down",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": false,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1006,
+    "consecutive": 3,
+    "reason": "network down",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "authRelated": false,
+    "consecutive": 4,
+    "kind": "sessionCheck"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1000,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 1,
+    "consecutive": 0,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1000,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 3,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 4,
+    "consecutive": 0,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1000,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 10,
+    "wasClean": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1000,
+    "consecutive": 2,
+    "reason": "",
+    "reconnectAttempts": 0,
+    "wasClean": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1001,
+    "consecutive": 2,
+    "reason": "going away",
+    "reconnectAttempts": 0,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 1,
+    "consecutive": 0,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1001,
+    "consecutive": 2,
+    "reason": "going away",
+    "reconnectAttempts": 3,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 4,
+    "consecutive": 0,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1001,
+    "consecutive": 2,
+    "reason": "going away",
+    "reconnectAttempts": 10,
+    "wasClean": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1001,
+    "consecutive": 2,
+    "reason": "going away",
+    "reconnectAttempts": 0,
+    "wasClean": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1011,
+    "consecutive": 2,
+    "reason": "server error",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 1,
+    "consecutive": 0,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1011,
+    "consecutive": 2,
+    "reason": "server error",
+    "reconnectAttempts": 3,
+    "wasClean": false
+   },
+   "out": {
+    "attempt": 4,
+    "consecutive": 0,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1011,
+    "consecutive": 2,
+    "reason": "server error",
+    "reconnectAttempts": 10,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1011,
+    "consecutive": 2,
+    "reason": "server error",
+    "reconnectAttempts": 0,
+    "wasClean": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1012,
+    "consecutive": 2,
+    "reason": "service restart",
+    "reconnectAttempts": 0,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 1,
+    "consecutive": 0,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1012,
+    "consecutive": 2,
+    "reason": "service restart",
+    "reconnectAttempts": 3,
+    "wasClean": true
+   },
+   "out": {
+    "attempt": 4,
+    "consecutive": 0,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "code": 1012,
+    "consecutive": 2,
+    "reason": "service restart",
+    "reconnectAttempts": 10,
+    "wasClean": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "code": 1012,
+    "consecutive": 2,
+    "reason": "service restart",
+    "reconnectAttempts": 0,
+    "wasClean": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "loggedOut"
+   }
+  }
+ ],
+ "lifecycle": [
+  {
+   "in": {
+    "authenticated": true,
+    "connected": true,
+    "connecting": true,
+    "source": "online"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": true,
+    "connecting": false,
+    "source": "online"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": false,
+    "connecting": true,
+    "source": "online"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": false,
+    "connecting": false,
+    "source": "online"
+   },
+   "out": {
+    "kind": "connect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": true,
+    "connecting": true,
+    "source": "online"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": true,
+    "connecting": false,
+    "source": "online"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": false,
+    "connecting": true,
+    "source": "online"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": false,
+    "connecting": false,
+    "source": "online"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": true,
+    "connecting": true,
+    "source": "connectionChange"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": true,
+    "connecting": false,
+    "source": "connectionChange"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": false,
+    "connecting": true,
+    "source": "connectionChange"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": false,
+    "connecting": false,
+    "source": "connectionChange"
+   },
+   "out": {
+    "kind": "connect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": true,
+    "connecting": true,
+    "source": "connectionChange"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": true,
+    "connecting": false,
+    "source": "connectionChange"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": false,
+    "connecting": true,
+    "source": "connectionChange"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": false,
+    "connecting": false,
+    "source": "connectionChange"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": true,
+    "connecting": true,
+    "source": "resume"
+   },
+   "out": {
+    "kind": "ping"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": true,
+    "connecting": false,
+    "source": "resume"
+   },
+   "out": {
+    "kind": "ping"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": false,
+    "connecting": true,
+    "source": "resume"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": false,
+    "connecting": false,
+    "source": "resume"
+   },
+   "out": {
+    "kind": "connect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": true,
+    "connecting": true,
+    "source": "resume"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": true,
+    "connecting": false,
+    "source": "resume"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": false,
+    "connecting": true,
+    "source": "resume"
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": false,
+    "connecting": false,
+    "source": "resume"
+   },
+   "out": {
+    "kind": "none"
+   }
+  }
+ ],
+ "malformedClose": [
+  "[]",
+  "null",
+  "\"x\"",
+  "{}",
+  "{\"code\":\"1008\",\"wasClean\":false,\"consecutive\":0,\"authenticated\":true,\"reconnectAttempts\":0}",
+  "{\"code\":1008,\"reason\":5,\"wasClean\":false,\"consecutive\":0,\"authenticated\":true,\"reconnectAttempts\":0}",
+  "{\"code\":-1,\"wasClean\":false,\"consecutive\":0,\"authenticated\":true,\"reconnectAttempts\":0}",
+  "{\"code\":1006,\"wasClean\":false,\"consecutive\":0,\"authenticated\":true}",
+  "{\"code\":1006,\"wasClean\":\"no\",\"consecutive\":0,\"authenticated\":true,\"reconnectAttempts\":0}",
+  "{not json"
+ ],
+ "malformedLifecycle": [
+  "{\"source\":\"focus\",\"authenticated\":true,\"connected\":false,\"connecting\":false}",
+  "{\"authenticated\":true,\"connected\":false,\"connecting\":false}",
+  "{\"source\":\"online\",\"authenticated\":1,\"connected\":false,\"connecting\":false}"
+ ],
+ "periodic": [
+  {
+   "in": {
+    "authenticated": true,
+    "connected": true,
+    "connecting": true
+   },
+   "out": {
+    "kind": "wait"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": true,
+    "connecting": false
+   },
+   "out": {
+    "kind": "wait"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": false,
+    "connecting": true
+   },
+   "out": {
+    "kind": "wait"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "connected": false,
+    "connecting": false
+   },
+   "out": {
+    "kind": "connect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": true,
+    "connecting": true
+   },
+   "out": {
+    "kind": "stop"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": true,
+    "connecting": false
+   },
+   "out": {
+    "kind": "stop"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": false,
+    "connecting": true
+   },
+   "out": {
+    "kind": "stop"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "connected": false,
+    "connecting": false
+   },
+   "out": {
+    "kind": "stop"
+   }
+  }
+ ],
+ "pong": [
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": true,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 0
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": true,
+    "reconnectAttempts": 9,
+    "sinceActivityMs": 0
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": true,
+    "reconnectAttempts": 10,
+    "sinceActivityMs": 0
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "hasSocket": true,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 0
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": false,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 0
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": false,
+    "reconnectAttempts": 9,
+    "sinceActivityMs": 0
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": false,
+    "reconnectAttempts": 10,
+    "sinceActivityMs": 0
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "hasSocket": false,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 0
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": true,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 9999
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": true,
+    "reconnectAttempts": 9,
+    "sinceActivityMs": 9999
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": true,
+    "reconnectAttempts": 10,
+    "sinceActivityMs": 9999
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "hasSocket": true,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 9999
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": false,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 9999
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": false,
+    "reconnectAttempts": 9,
+    "sinceActivityMs": 9999
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": false,
+    "reconnectAttempts": 10,
+    "sinceActivityMs": 9999
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "hasSocket": false,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 9999
+   },
+   "out": {
+    "kind": "skip"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": true,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 10000
+   },
+   "out": {
+    "kind": "closeSocket"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": true,
+    "reconnectAttempts": 9,
+    "sinceActivityMs": 10000
+   },
+   "out": {
+    "kind": "closeSocket"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": true,
+    "reconnectAttempts": 10,
+    "sinceActivityMs": 10000
+   },
+   "out": {
+    "kind": "closeSocket"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "hasSocket": true,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 10000
+   },
+   "out": {
+    "kind": "closeSocket"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": false,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 10000
+   },
+   "out": {
+    "attempt": 1,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": false,
+    "reconnectAttempts": 9,
+    "sinceActivityMs": 10000
+   },
+   "out": {
+    "attempt": 10,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": false,
+    "reconnectAttempts": 10,
+    "sinceActivityMs": 10000
+   },
+   "out": {
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "hasSocket": false,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 10000
+   },
+   "out": {
+    "kind": "none"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": true,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 45000
+   },
+   "out": {
+    "kind": "closeSocket"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": true,
+    "reconnectAttempts": 9,
+    "sinceActivityMs": 45000
+   },
+   "out": {
+    "kind": "closeSocket"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": true,
+    "reconnectAttempts": 10,
+    "sinceActivityMs": 45000
+   },
+   "out": {
+    "kind": "closeSocket"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "hasSocket": true,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 45000
+   },
+   "out": {
+    "kind": "closeSocket"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": false,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 45000
+   },
+   "out": {
+    "attempt": 1,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": false,
+    "reconnectAttempts": 9,
+    "sinceActivityMs": 45000
+   },
+   "out": {
+    "attempt": 10,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "hasSocket": false,
+    "reconnectAttempts": 10,
+    "sinceActivityMs": 45000
+   },
+   "out": {
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "hasSocket": false,
+    "reconnectAttempts": 0,
+    "sinceActivityMs": 45000
+   },
+   "out": {
+    "kind": "none"
+   }
+  }
+ ],
+ "reconnect": [
+  {
+   "in": {
+    "authenticated": true,
+    "reconnectAttempts": 0
+   },
+   "out": {
+    "attempt": 1,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "reconnectAttempts": 1
+   },
+   "out": {
+    "attempt": 2,
+    "delayMs": 2000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "reconnectAttempts": 2
+   },
+   "out": {
+    "attempt": 3,
+    "delayMs": 4000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "reconnectAttempts": 3
+   },
+   "out": {
+    "attempt": 4,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "reconnectAttempts": 4
+   },
+   "out": {
+    "attempt": 5,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "reconnectAttempts": 5
+   },
+   "out": {
+    "attempt": 6,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "reconnectAttempts": 6
+   },
+   "out": {
+    "attempt": 7,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "reconnectAttempts": 7
+   },
+   "out": {
+    "attempt": 8,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "reconnectAttempts": 8
+   },
+   "out": {
+    "attempt": 9,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "reconnectAttempts": 9
+   },
+   "out": {
+    "attempt": 10,
+    "delayMs": 5000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "reconnectAttempts": 10
+   },
+   "out": {
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "reconnectAttempts": 11
+   },
+   "out": {
+    "kind": "exhausted"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "reconnectAttempts": 0
+   },
+   "out": {
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "reconnectAttempts": 1
+   },
+   "out": {
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "reconnectAttempts": 2
+   },
+   "out": {
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "reconnectAttempts": 3
+   },
+   "out": {
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "reconnectAttempts": 4
+   },
+   "out": {
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "reconnectAttempts": 5
+   },
+   "out": {
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "reconnectAttempts": 6
+   },
+   "out": {
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "reconnectAttempts": 7
+   },
+   "out": {
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "reconnectAttempts": 8
+   },
+   "out": {
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "reconnectAttempts": 9
+   },
+   "out": {
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "reconnectAttempts": 10
+   },
+   "out": {
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "reconnectAttempts": 11
+   },
+   "out": {
+    "kind": "loggedOut"
+   }
+  }
+ ],
+ "session": [
+  {
+   "in": {
+    "authenticated": true,
+    "sessionValid": true
+   },
+   "out": {
+    "attempt": 1,
+    "consecutive": 0,
+    "delayMs": 1000,
+    "kind": "reconnect"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "sessionValid": true
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "loggedOut"
+   }
+  },
+  {
+   "in": {
+    "authenticated": true,
+    "sessionValid": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "authError"
+   }
+  },
+  {
+   "in": {
+    "authenticated": false,
+    "sessionValid": false
+   },
+   "out": {
+    "consecutive": 0,
+    "kind": "authError"
+   }
+  }
+ ]
+}

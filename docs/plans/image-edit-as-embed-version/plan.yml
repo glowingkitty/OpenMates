@@ -1,0 +1,34 @@
+schema_version: 2
+profile: concise
+id: image-edit-as-embed-version
+title: A change to a generated image becomes a new version of the same embed
+status: draft
+goal: "When the assistant changes an existing generated image or vector graphic through images-generate, the chat keeps one image embed that gains a new version with visible history, instead of a second image embed."
+specifications:
+  - feature.app-skill.images-generate@1
+scope:
+  - "Lane A, backend: images-generate recognises a reference to a generated image of the same chat and dispatches a revision producer for that embed (primary embed = the existing image, message = the new message, next version, expected current version), following the existing document revision dispatch. The task publishes the next version under the image's original parent and key, with full-replacement history rows (version 1 snapshot when missing)."
+  - "Lane A, version transaction: the Directus embed-version-transaction extension accepts an advancing head for a generated child embed when its key wrapper is verified against its parent."
+  - "Lane A, storage and billing: the server-side file index of the embed holds the files of every version (union, never replacement) so old versions stay viewable and are deleted with the embed; each version is billed under its own idempotency key so a change is neither free nor charged twice."
+  - "Lane B, Rust client core: a revision of a child embed reuses the child's stored key and is never re-keyed from another parent; sealed history reconciliation covers child embeds. The matching TypeScript branch is deleted."
+  - "Lane A, pinned reference: the skill result of the changing message records which image it shows as embed id plus version (a revision pointer, not a second child registration); a result without a version means version 1, the version its message created."
+  - "Lane B, pinned version read: the Rust client core resolves an image embed at a given version (the head when it is the newest, else that version's stored snapshot and its files) and exposes it to the shells; no shell re-derives versions."
+  - "Lane C, web: each message's card shows the version valid at that message (first message version 1, a later message its own version) with a version badge; the image fullscreen has the version timeline showing each version's picture; the request panel (prompt, model, input image) is shown while the new version is drawn."
+  - "Lane D and E: CLI rendering, then Apple parity."
+  - Out of scope - references to uploaded images or images of another chat (a new embed as today), restoring a version by regenerating it, production release.
+checks:
+  - pytest for revision dispatch, producer identity, file index union and per-version billing keys.
+  - Real-stack REST and WebSocket test in isolated CI - generate, change, one image embed id, version 2, versions endpoint lists 1 and 2, two charge records, file index holds both versions, deleting the chat removes all files.
+  - Rust core unit tests for child revision keys and sealed child history; rust-check and sdk-conformance.
+  - "Web E2E: after two changes the chat has one image embed id; the three messages show three different pictures (versions 1, 2, 3), also after reload; the fullscreen timeline shows all three."
+  - Real dev chat (fire tail embroidery pattern plus two changes) on the deployed commit.
+decisions:
+  - A revision is produced by the skill task under its own verified producer (the document revision pattern), not handed back to the answer stream, so recovery guarantees for the image output are kept.
+  - The changed image stays under its original parent embed and key; a child is never listed under a second parent because that would re-key it.
+  - A full content snapshot per version is stored as the history row; a text diff of image metadata carries no meaning.
+  - "User decision 2026-11-10: every message shows the version valid at that message, so the chat shows how the image developed; references never all jump to the newest version."
+  - The pinned version is stored with the message's skill result (embed id plus version), because a child embed can only be registered under one parent.
+open_decisions:
+  - "Does the assistant get a way to ask for a separate variant (new embed) instead of a new version?"
+evidence:
+  - "Design study 2026-11-10: producer identity check embed_service.py 6788-6798; child head rule embed-version-transaction operations.js 839-905; file index replacement store_embed_handler.py 387-390; billing event id generate_task.py (event_id = embed id); Rust child key rule client/embed_write_session.rs and client/embed_write_payload.rs."

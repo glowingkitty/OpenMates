@@ -1,4 +1,23 @@
 import { hasPendingPersonalChatTurn } from './personalChatTurnBarrier';
+import {
+  clearDraftOnlyShellForMessages,
+  draftApplyRust,
+  draftApplyTs,
+  INBOUND_FRAMES_IN_RUST,
+  updateFrameInvalidRust,
+  updateFrameInvalidTs,
+} from "./chatInboundDecisions";
+import {
+  draftDeletedPlanRust,
+  draftDeletedPlanTs,
+  messagesVersionRust,
+  messagesVersionTs,
+  metadataVersionPlanRust,
+  metadataVersionPlanTs,
+  VERSION_PLANS_IN_RUST,
+  type MetadataVersionKey,
+} from "./chatSyncVersionPlans";
+import { messagePreview, RUST_UPDATES_POLICY, rustUpdatesPolicy } from './chatSyncUpdatesPolicy';
 // frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
@@ -31,10 +50,10 @@ import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
 import { claimChatMessageNotification, isFinalizedChatMessage } from "./chatMessageNotificationReceipt";
-import { isDraftUpdateBlockedByLocalDeletion } from "./chatSyncMerge";
 import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../utils/chatDraftState";
 import { get } from "svelte/store";
 import { draftEditorUIState } from "./drafts/draftState";
+import { isDraftChatClaimedForSend } from "./drafts/draftSendClaims";
 import { activeTeamContext, isActiveTeamContext } from "../stores/teamStore";
 import { promoteDeferredTeamDraft } from "./drafts/draftContext";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
@@ -52,7 +71,6 @@ import {
   persistAssistantSpeechPreferenceIntent,
 } from "./assistantSpeechPreference";
 
-const ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH = 120;
 // Keep this aligned with db/messageOperations.ts DEFAULT_MESSAGE_WINDOW_LIMIT.
 const METADATA_MESSAGE_WINDOW_HYDRATION_LIMIT = 30;
 
@@ -396,42 +414,6 @@ function mergePendingMessageFlushSummary(
  */
 const _chatKeyPersistedToIDB: Set<string> = new Set();
 
-function buildAssistantMessagePreview(content: string | undefined): string {
-  const plainText = (content || "")
-    .replace(/#{1,6}\s+/g, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
-    .replace(/`{1,3}[^`]*`{1,3}/g, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
-    .replace(/>\s+/g, "")
-    .replace(/[-*+]\s+/g, "")
-    .replace(/\n+/g, " ")
-    .trim();
-
-  if (!plainText) return "New AI response ready";
-  return plainText.length > ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH
-    ? `${plainText.substring(0, ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH)}...`
-    : plainText;
-}
-
-function clearDraftOnlyShellForMessages(chat: Chat, messagesV: number): Chat {
-  if (
-    messagesV <= 0 ||
-    (chat.messages_v || 0) !== 0 ||
-    !(chat.encrypted_draft_md || chat.encrypted_draft_preview)
-  ) {
-    return chat;
-  }
-
-  return {
-    ...chat,
-    encrypted_draft_md: null,
-    encrypted_draft_preview: null,
-    draft_v: 0,
-  };
-}
-
 async function requestMissingMetadataMessageContent(
   serviceInstance: ChatSynchronizationService,
   chatId: string,
@@ -506,11 +488,13 @@ async function notifyBackgroundAssistantBroadcast(
   // navigation to this chat. Recheck before either unread or private preview UI.
   if (expectedIdentity !== getWorkspaceCacheIdentity() || ownerID !== (get(userProfile).user_id || "") ||
       isChatVisiblyActive(chatId) || !claimChatMessageNotification(ownerID, chatId, message.message_id)) return;
-  unreadMessagesStore.incrementUnread(chatId);
+  unreadMessagesStore.incrementUnread(chatId, message.message_id);
   notificationStore.chatMessage(
     chatId,
     chatTitle,
-    buildAssistantMessagePreview(message.content),
+    RUST_UPDATES_POLICY
+      ? await (await rustUpdatesPolicy()).messagePreview(message.content)
+      : messagePreview(message.content),
     undefined,
     message.category || chat.category || undefined,
   );
@@ -588,7 +572,10 @@ export async function handleChatTitleUpdatedImpl(
   );
 
   // Validate payload has required properties
-  if (!payload || !payload.chat_id) {
+  const invalidTitleFrame = INBOUND_FRAMES_IN_RUST
+    ? await updateFrameInvalidRust("title", payload)
+    : updateFrameInvalidTs("title", payload);
+  if (invalidTitleFrame === "chat_id") {
     console.error(
       "[ChatSyncService:ChatUpdates] Invalid payload in handleChatTitleUpdatedImpl: missing chat_id",
       payload,
@@ -596,7 +583,7 @@ export async function handleChatTitleUpdatedImpl(
     return;
   }
 
-  if (!payload.data || payload.data.encrypted_title === undefined) {
+  if (invalidTitleFrame === "data") {
     console.error(
       `[ChatSyncService:ChatUpdates] Invalid payload in handleChatTitleUpdatedImpl: missing data.encrypted_title for chat_id ${payload.chat_id}`,
       payload,
@@ -604,7 +591,7 @@ export async function handleChatTitleUpdatedImpl(
     return;
   }
 
-  if (!payload.versions || payload.versions.title_v === undefined) {
+  if (invalidTitleFrame === "versions") {
     console.error(
       `[ChatSyncService:ChatUpdates] Invalid payload in handleChatTitleUpdatedImpl: missing versions.title_v for chat_id ${payload.chat_id}`,
       payload,
@@ -675,7 +662,10 @@ export async function handleChatDraftUpdatedImpl(
   );
 
   // Validate payload has required properties
-  if (!payload || !payload.chat_id) {
+  const invalidDraftFrame = INBOUND_FRAMES_IN_RUST
+    ? await updateFrameInvalidRust("draft", payload)
+    : updateFrameInvalidTs("draft", payload);
+  if (invalidDraftFrame === "chat_id") {
     console.error(
       "[ChatSyncService:ChatUpdates] Invalid payload in handleChatDraftUpdatedImpl: missing chat_id",
       payload,
@@ -683,7 +673,7 @@ export async function handleChatDraftUpdatedImpl(
     return;
   }
 
-  if (!payload.data || payload.data.encrypted_draft_md === undefined) {
+  if (invalidDraftFrame === "data") {
     console.error(
       `[ChatSyncService:ChatUpdates] Invalid payload in handleChatDraftUpdatedImpl: missing data.encrypted_draft_md for chat_id ${payload.chat_id}`,
       payload,
@@ -691,7 +681,7 @@ export async function handleChatDraftUpdatedImpl(
     return;
   }
 
-  if (!payload.versions || payload.versions.draft_v === undefined) {
+  if (invalidDraftFrame === "versions") {
     console.error(
       `[ChatSyncService:ChatUpdates] Invalid payload in handleChatDraftUpdatedImpl: missing versions.draft_v for chat_id ${payload.chat_id}`,
       payload,
@@ -716,10 +706,10 @@ export async function handleChatDraftUpdatedImpl(
       console.debug(
         `[ChatSyncService:ChatUpdates] Existing chat ${payload.chat_id} found for draft update. Local draft_v: ${chat.draft_v}, Incoming draft_v: ${payload.versions.draft_v}.`,
       );
-      if (
-        (chat.draft_v ?? 0) > payload.versions.draft_v ||
-        isDraftUpdateBlockedByLocalDeletion(chat, payload.versions.draft_v)
-      ) {
+      const draftApply = INBOUND_FRAMES_IN_RUST
+        ? await draftApplyRust(chat, payload.versions.draft_v, payload.data.encrypted_draft_md === null)
+        : draftApplyTs(chat, payload.versions.draft_v, payload.data.encrypted_draft_md === null);
+      if (draftApply.stale) {
         console.info(
           `[ChatSyncService:ChatUpdates] Ignoring stale chat_draft_updated for chat ${payload.chat_id}. Local draft_v=${chat.draft_v ?? 0}, cleared_draft_v=${chat.cleared_draft_v ?? 0}, incoming draft_v=${payload.versions.draft_v}.`,
         );
@@ -731,11 +721,7 @@ export async function handleChatDraftUpdatedImpl(
         console.debug(
           `[ChatSyncService:ChatUpdates] Received draft deletion for chat ${payload.chat_id}`,
         );
-        chat.cleared_draft_v = Math.max(
-          chat.cleared_draft_v ?? 0,
-          chat.draft_v ?? 0,
-          payload.versions.draft_v,
-        );
+        chat.cleared_draft_v = draftApply.clearedDraftV ?? chat.cleared_draft_v;
       }
 
       chat.encrypted_draft_md = payload.data.encrypted_draft_md;
@@ -867,14 +853,16 @@ export async function handleDraftDeletedImpl(
     if (chat && (chat.team_id ?? null) !== active.teamId) return;
 
     if (chat) {
-      const localDraftVersion = Math.max(chat.draft_v ?? 0, chat.cleared_draft_v ?? 0);
-      if (payload.draft_v === undefined && localDraftVersion > 0) {
+      const draftDeletedPlan = VERSION_PLANS_IN_RUST
+        ? await draftDeletedPlanRust(chat, payload.draft_v)
+        : draftDeletedPlanTs(chat, payload.draft_v);
+      if (draftDeletedPlan.ignore === "versionless") {
         console.warn(
           `[ChatSyncService:ChatUpdates] Ignoring versionless draft_deleted for chat ${payload.chat_id} with local draft_v=${chat.draft_v ?? 0}.`,
         );
         return;
       }
-      if (payload.draft_v !== undefined && localDraftVersion > payload.draft_v) {
+      if (draftDeletedPlan.ignore === "stale") {
         console.info(
           `[ChatSyncService:ChatUpdates] Ignoring stale draft_deleted for chat ${payload.chat_id}. Local draft_v=${chat.draft_v ?? 0}, incoming draft_v=${payload.draft_v}.`,
         );
@@ -886,7 +874,8 @@ export async function handleDraftDeletedImpl(
       }
       // Clearing an unsent draft also removes its route and navigation shell.
       // Established chats retain their history and only lose the draft fields.
-      if (shouldDeleteDraftOnlyChatOnReceipt(chat)) {
+      // A send in progress stores its first message in this chat next.
+      if (shouldDeleteDraftOnlyChatOnReceipt(chat) && !isDraftChatClaimedForSend(payload.chat_id)) {
         await chatDB.deleteChat(payload.chat_id);
         chatListCache.removeChat(payload.chat_id);
         chatMetadataCache.invalidateChat(payload.chat_id, 'metadata-sync-draft');
@@ -901,10 +890,7 @@ export async function handleDraftDeletedImpl(
         `[ChatSyncService:ChatUpdates] Clearing draft for chat ${payload.chat_id}`,
       );
       // Clear the draft since it was deleted on another device
-      chat.cleared_draft_v = Math.max(
-        chat.cleared_draft_v ?? 0,
-        payload.draft_v ?? chat.draft_v ?? 0,
-      );
+      chat.cleared_draft_v = draftDeletedPlan.clearedDraftV as number;
       chat.encrypted_draft_md = null;
       chat.encrypted_draft_preview = null;
       chat.draft_v = 0;
@@ -1645,7 +1631,7 @@ export async function handleChatMessageReceivedImpl(
         // saves the messages, messages_v stays at 0 and the health check flags
         // the chat as having issues.
         if (payload.versions?.messages_v !== undefined) {
-          const chatWithDraftTombstone = clearDraftOnlyShellForMessages(
+          const chatWithDraftTombstone = await clearDraftOnlyShellForMessages(
             chat,
             payload.versions.messages_v,
           );
@@ -1693,7 +1679,7 @@ export async function handleChatMessageReceivedImpl(
 
       // CRITICAL: Only update specific fields, preserve all encrypted metadata
       // Create a minimal update object that only touches what we need to change
-      const chatWithDraftTombstone = clearDraftOnlyShellForMessages(
+      const chatWithDraftTombstone = await clearDraftOnlyShellForMessages(
         chat,
         payload.versions.messages_v,
       );
@@ -1848,7 +1834,9 @@ export async function handleChatMessageConfirmedImpl(
         payload.new_messages_v !== undefined &&
         payload.new_messages_v !== null
       ) {
-        chat.messages_v = Math.max(chat.messages_v || 0, payload.new_messages_v);
+        chat.messages_v = (VERSION_PLANS_IN_RUST
+          ? await messagesVersionRust(chat.messages_v, [payload.new_messages_v])
+          : messagesVersionTs(chat.messages_v, [payload.new_messages_v])).messagesV;
       }
       if (
         payload.new_last_edited_overall_timestamp !== undefined &&
@@ -2021,7 +2009,7 @@ export async function handleChatDeletedImpl(
  */
 export async function handleChatReadStatusUpdatedImpl(
   _serviceInstance: ChatSynchronizationService,
-  payload: { chat_id: string; unread_count: number },
+  payload: { chat_id: string; unread_count: number; message_id?: string },
 ): Promise<void> {
   if (!payload || !payload.chat_id) {
     console.error(
@@ -2031,14 +2019,14 @@ export async function handleChatReadStatusUpdatedImpl(
     return;
   }
 
-  const { chat_id, unread_count } = payload;
+  const { chat_id, unread_count, message_id } = payload;
   console.debug(
     `[ChatSyncService:ChatUpdates] Received chat_read_status_updated for chat ${chat_id}: unread_count=${unread_count}`,
   );
 
   // 1. Update the in-memory unread store so badges update immediately
   const { unreadMessagesStore } = await import("../stores/unreadMessagesStore");
-  unreadMessagesStore.setUnread(chat_id, unread_count);
+  unreadMessagesStore.setUnread(chat_id, unread_count, message_id);
 
   // 2. Persist to IndexedDB so the count survives page reloads
   try {
@@ -2542,10 +2530,12 @@ export async function handleEncryptedChatMetadataImpl(
     }
     let needsHeal = false;
 
-    const incomingMetadataV = payload.versions?.metadata_v;
-    const localMetadataV = chat.metadata_v || chat.title_v || 0;
-    const acceptsMetadataRevision =
-      incomingMetadataV === undefined || incomingMetadataV >= localMetadataV;
+    // Version-wins plan (chatSyncVersionPlans.ts): computed before the field loop,
+    // which never touches the version counters it reads.
+    const metadataVersionPlan = VERSION_PLANS_IN_RUST
+      ? await metadataVersionPlanRust(chat, payload.versions)
+      : metadataVersionPlanTs(chat, payload.versions);
+    const acceptsMetadataRevision = metadataVersionPlan.acceptsRevision;
 
     for (const field of [
       "encrypted_title",
@@ -2615,34 +2605,9 @@ export async function handleEncryptedChatMetadataImpl(
 
     // Update version info if provided
     if (payload.versions) {
-      if (
-        payload.versions.messages_v !== undefined &&
-        payload.versions.messages_v > (chat.messages_v || 0)
-      ) {
-        chat.messages_v = payload.versions.messages_v;
-        changed = true;
-      }
-      if (
-        payload.versions.metadata_v !== undefined &&
-        acceptsMetadataRevision
-      ) {
-        chat.metadata_v = payload.versions.metadata_v;
-        if (payload.versions.title_v !== undefined) {
-          chat.title_v = payload.versions.title_v;
-        }
-        changed = true;
-      } else if (
-        payload.versions.title_v !== undefined &&
-        payload.versions.title_v > (chat.title_v || 0)
-      ) {
-        chat.title_v = payload.versions.title_v;
-        changed = true;
-      }
-      if (
-        payload.versions.draft_v !== undefined &&
-        payload.versions.draft_v > (chat.draft_v || 0)
-      ) {
-        chat.draft_v = payload.versions.draft_v;
+      const versions = payload.versions as Record<MetadataVersionKey, number>;
+      for (const key of metadataVersionPlan.apply) {
+        chat[key] = versions[key];
         changed = true;
       }
     }

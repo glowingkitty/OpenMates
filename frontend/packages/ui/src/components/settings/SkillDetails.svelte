@@ -20,6 +20,7 @@
 -->
 
 <script lang="ts">
+    import { formatTokensPerCredit } from '../../utils/tokenRateFormat';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { findProviderByName } from '../../data/providersMetadata';
@@ -108,7 +109,7 @@
                 tokenParts.push(
                     $text('settings.app_store.skills.pricing.tokens_per_credit')
                         .replace('{credits}', '1')
-                        .replace('{tokens}', String(pricing.tokens.input.per_credit_unit))
+                        .replace('{tokens}', formatTokensPerCredit(pricing.tokens.input.per_credit_unit))
                         .replace('{direction}', $text('settings.app_store.skills.pricing.input'))
                 );
             }
@@ -125,7 +126,7 @@
                     if (category === 'cache_write' && cachePricing.write_billing === 'included_in_input') {
                         tokenParts.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: ${$text('settings.ai_ask.ai_ask_model_details.included_in_input')}`);
                     } else if (pricing.tokens[category]?.per_credit_unit) {
-                        tokenParts.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: 1 ${$text('common.credits')} / ${pricing.tokens[category].per_credit_unit} ${$text('settings.ai_ask.ai_ask_settings.tokens')}`);
+                        tokenParts.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: 1 ${$text('common.credits')} / ${formatTokensPerCredit(pricing.tokens[category].per_credit_unit)} ${$text('settings.ai_ask.ai_ask_settings.tokens')}`);
                     }
                 }
             }
@@ -133,7 +134,7 @@
                 tokenParts.push(
                     $text('settings.app_store.skills.pricing.tokens_per_credit')
                         .replace('{credits}', '1')
-                        .replace('{tokens}', String(pricing.tokens.output.per_credit_unit))
+                        .replace('{tokens}', formatTokensPerCredit(pricing.tokens.output.per_credit_unit))
                         .replace('{direction}', $text('settings.app_store.skills.pricing.output'))
                 );
             }
@@ -172,7 +173,10 @@
         }
 
         if (pricing.per_second !== undefined) {
-            parts.push(`${pricing.per_second} ${$text('common.credits')} / second`);
+            parts.push(
+                $text('settings.app_store.skills.pricing.credits_per_second')
+                    .replace('{credits}', String(pricing.per_second))
+            );
         }
         
         return parts.length > 0 ? parts.join(', ') : `1 ${$text('common.credits')} / request`;
@@ -215,6 +219,17 @@
             }
         }
         return examples;
+    });
+
+    /**
+     * Optional skill-specific pricing note, read from `<name_translation_key>.pricing_note`.
+     * Only shown when that translation exists (same convention as the how-to-use examples).
+     */
+    let pricingNote = $derived.by(() => {
+        if (!skill?.name_translation_key) return '';
+        const key = `${skill.name_translation_key}.pricing_note`;
+        const translated = $text(key);
+        return translated && translated !== key && !translated.startsWith('[T:') ? translated : '';
     });
 
     /**
@@ -416,6 +431,11 @@
                             {$text('settings.app_store.skills.pricing.token_usage_note')}
                         </SettingsInfoBox>
                     {/if}
+                    {#if pricingNote}
+                        <SettingsInfoBox type="info">
+                            <span data-testid="skill-pricing-note">{pricingNote}</span>
+                        </SettingsInfoBox>
+                    {/if}
                 </div>
             </div>
 
@@ -529,6 +549,11 @@
                     {#if skill?.pricing?.tokens}
                         <SettingsInfoBox type="info">
                             {$text('settings.app_store.skills.pricing.token_usage_note')}
+                        </SettingsInfoBox>
+                    {/if}
+                    {#if pricingNote}
+                        <SettingsInfoBox type="info">
+                            <span data-testid="skill-pricing-note">{pricingNote}</span>
                         </SettingsInfoBox>
                     {/if}
                 </div>

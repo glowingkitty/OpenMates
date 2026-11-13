@@ -1,0 +1,56 @@
+schema_version: 1
+specification: feature.app-skill.company-ownership@1
+company_ownership:
+- id: ownership-request
+  given: Alice asks who owns Example Robotics GmbH in Berlin.
+  when: The assistant looks up the company with country DE and include owners.
+  then: The request is accepted and only the German register is called, once for the company match and once for its
+    shareholders.
+  assertion_ids:
+  - ownership.request
+  - ownership.budget
+- id: ownership-bad-country
+  given: A lookup names the country "Germany" instead of DE.
+  when: The request is validated.
+  then: It is rejected with a message about the country and no register is called.
+  assertion_ids:
+  - ownership.request
+- id: ownership-coverage-gap
+  given: Alice asks for the owners of Example GmbH in Germany and Example Inc in the United States in one message.
+  when: The assistant sends both lookups.
+  then: The German lookup shows its shareholders and the US lookup says no official register is connected for US;
+    no other country's register is used for it.
+  assertion_ids:
+  - ownership.routing
+- id: ownership-privacy
+  given: The UK register returns a person with significant control together with birth month, nationality and
+    address.
+  when: Alice opens the result.
+  then: She sees the name, the 50-75% ownership band and the notification date; birth data, nationality and address
+    are absent from the screen and from what the assistant received.
+  assertion_ids:
+  - ownership.privacy
+- id: ownership-cache
+  given: Alice looked up the owners of Example Robotics GmbH yesterday.
+  when: She asks for the same owners again.
+  then: The answer comes from the cache and the German register is not called.
+  assertion_ids:
+  - ownership.budget
+- id: ownership-ambiguous
+  given: Two German companies are called "Example" GmbH and Example AG.
+  when: Alice asks who owns "Example".
+  then: She sees both candidates with register number and city and is asked which one she means.
+  assertion_ids:
+  - ownership.results
+- id: ownership-france-directors
+  given: Alice asks who owns Example Robotique SAS in France.
+  when: The French directory answers.
+  then: She sees the directors and a warning that shareholders are not published in France.
+  assertion_ids:
+  - ownership.results
+- id: ownership-unconfigured
+  given: The server has no OpenRegister key but the French directory needs none.
+  when: Alice looks up one German and one French company.
+  then: The German lookup says the register is not configured and the French lookup shows its directors.
+  assertion_ids:
+  - ownership.unconfigured

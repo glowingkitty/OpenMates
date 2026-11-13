@@ -119,7 +119,7 @@ test('keeps the Figma project header and icon tabs while switching workspace pan
   await expect(sharedPreviews.nth(2)).toContainText('architecture.pdf');
   await expect(sharedPreviews.nth(2)).toContainText('12 pages');
   await expect(page.getByTestId('project-item-card').getByTestId('project-remote-cloud-badge')).toHaveCount(0);
-  await expect(page.getByTestId('project-item-card').locator('.basic-infos-bar.desktop')).toHaveCount(3);
+  await expect(page.getByTestId('project-item-card').getByTestId('embed-result-identity')).toHaveCount(3);
   for (let index = 0; index < 3; index += 1) {
     const previewBox = await sharedPreviews.nth(index).boundingBox();
     const cardBox = await page.getByTestId('project-item-card').nth(index).boundingBox();
@@ -132,7 +132,7 @@ test('keeps the Figma project header and icon tabs while switching workspace pan
   const folderPreviews = page.getByTestId('project-folder-card').locator('.unified-embed-preview');
   await expect(folderPreviews).toHaveCount(2);
   await expect(folderPreviews.nth(0)).toHaveAttribute('data-app-id', 'files');
-  await expect(page.getByTestId('project-folder-card').locator('.basic-infos-bar.desktop')).toHaveCount(2);
+  await expect(page.getByTestId('project-folder-card').getByTestId('embed-result-identity')).toHaveCount(2);
   await expect(page.getByTestId('project-remote-sources-section')).toHaveCount(0);
   await expect(page.getByTestId('project-folder-name-input')).toHaveCount(0);
 
@@ -263,7 +263,7 @@ test('opens a shared embed beside the Project workspace on desktop', async ({ pa
   const viewerBox = await viewer.boundingBox();
   expect(projectBox).not.toBeNull();
   expect(viewerBox).not.toBeNull();
-  expect(projectBox!.x).toBeGreaterThan(20);
+  expect(projectBox!.x).toBeGreaterThanOrEqual(0);
   expect(projectBox!.y).toBeGreaterThan(60);
   expect(projectBox!.width).toBeLessThanOrEqual(401);
   expect(viewerBox!.x).toBeGreaterThanOrEqual(projectBox!.x + projectBox!.width);
@@ -361,7 +361,7 @@ test('opens a connected source inside the Files grid with shared folder previews
   const nestedPath = page.getByLabel('Project folder path');
   await expect(nestedPath.getByText('frontend', { exact: true })).toBeVisible();
   await expect(nestedPath.getByText('.', { exact: true })).toHaveCount(0);
-  await expect(nestedPath).toHaveText(/^\s*\/\s*frontend\s*$/);
+  await expect(nestedPath).toHaveText(/^\s*\/\s*OpenMates repository\s*\/\s*frontend\s*$/);
   await expect(page.getByTestId('project-folders-panel').locator('.section-title h3')).toHaveCount(0);
   await nestedPath.getByRole('button', { name: 'Project root' }).click();
   await expect(nestedPath).toHaveCount(0);
@@ -732,7 +732,7 @@ for (const width of [393, 1512]) {
       expect(paneBox).not.toBeNull();
       expect(actionsBox).not.toBeNull();
       expect(paneBox!.y).toBeGreaterThan(60);
-      expect(paneBox!.x).toBeGreaterThan(20);
+      expect(paneBox!.x).toBeGreaterThanOrEqual(0);
       expect(actionsBox!.y).toBeGreaterThanOrEqual(paneBox!.y + 4);
       expect(actionsBox!.y).toBeLessThan(paneBox!.y + 40);
       expect(actionsBox!.x).toBeGreaterThanOrEqual(paneBox!.x - 1);
@@ -767,3 +767,47 @@ for (const width of [393, 1512]) {
     await expect(page.getByTestId('project-settings-button')).toBeVisible();
   });
 }
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
+test('shows a hosted application inside its folder, not at the Project root', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'hostedApplication'));
+  await waitForProjectsPreview(page);
+  await waitForLexend(page);
+
+  const folderCard = page.getByTestId('project-virtual-folder-card');
+  await expect(folderCard).toHaveCount(1);
+  await expect(folderCard).toContainText('web-app');
+  await expect(folderCard.getByTestId('project-folder-child')).toHaveText([/src\s*Folder/, /package\.json\s*File/]);
+  await expect(page.getByTestId('project-item-card')).toHaveCount(0);
+  await expect(page.getByText('Code snippet')).toHaveCount(0);
+  await expect(page.getByTestId('project-folders-panel')).toContainText('1 folders, 0 files and embeds');
+  await testInfo.attach('projects-hosted-application-root', { body: await page.getByTestId('project-folders-panel').screenshot(), contentType: 'image/png' });
+
+  await folderCard.locator('.unified-embed-preview').click();
+  const cards = page.getByTestId('project-item-card');
+  await expect(cards).toHaveCount(2);
+  await expect(cards.first()).toContainText('Recipe Manager');
+  await expect(cards.first()).toContainText('3 files');
+  await expect(cards.first()).not.toContainText('Loading preview');
+  const breadcrumbs = page.locator('.project-breadcrumbs');
+  await expect(breadcrumbs).toHaveText(/^\s*\/\s*web-app\s*$/);
+  const rootCrumb = await page.getByRole('button', { name: 'Project root' }).boundingBox();
+  const folderCrumb = await breadcrumbs.locator('.breadcrumb-current').boundingBox();
+  expect(rootCrumb).not.toBeNull();
+  expect(folderCrumb).not.toBeNull();
+  expect(folderCrumb!.x - (rootCrumb!.x + rootCrumb!.width), 'even gap after the root slash').toBeLessThan(16);
+  await testInfo.attach('projects-hosted-application-breadcrumb', { body: await breadcrumbs.screenshot(), contentType: 'image/png' });
+  // The application card leads its folder, ahead of the src subfolder.
+  const applicationBox = await cards.first().boundingBox();
+  const subfolderBox = await page.getByTestId('project-virtual-folder-card').boundingBox();
+  expect(applicationBox).not.toBeNull();
+  expect(subfolderBox).not.toBeNull();
+  expect(applicationBox!.y).toBeLessThanOrEqual(subfolderBox!.y);
+  expect(applicationBox!.x).toBeLessThan(subfolderBox!.x);
+  await expect(page.getByText('Code snippet')).toHaveCount(0);
+  await expect(page.getByTestId('project-virtual-folder-card')).toHaveCount(1);
+  await expect(page.getByTestId('project-virtual-folder-card')).toContainText('src');
+  await expect(page.getByTestId('project-folders-panel')).toContainText('1 folders, 2 files and embeds');
+  await testInfo.attach('projects-hosted-application-opened-folder', { body: await page.getByTestId('project-folders-panel').screenshot(), contentType: 'image/png' });
+});

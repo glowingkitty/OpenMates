@@ -7,6 +7,9 @@ pub(super) trait Child: Serialize {
     const ID: &'static str;
     const REQUIRED: &'static str;
     const PRIVATE: &'static [&'static str];
+    /// The server lists this child family for Team-scoped Plans
+    /// (`_read_plan_children`); learnings stay personal-owner only.
+    const TEAM_READ: bool = true;
     fn validate(&self) -> Result<()> {
         Ok(())
     }
@@ -370,6 +373,7 @@ pub struct PlanLearningInput {
 }
 impl Child for PlanLearningInput {
     const ROUTE: &'static str = "learnings";
+    const TEAM_READ: bool = false;
     const ONE: &'static str = "learning";
     const MANY: &'static str = "learnings";
     const ID: &'static str = "learning_id";
@@ -584,16 +588,25 @@ pub(super) fn safe_draft(text: &str) -> Result<()> {
 }
 impl Plans<'_> {
     async fn child_list<C: Child>(&mut self, id: &str) -> Result<Vec<Value>> {
-        let plan = self.resolve(id).await?;
+        let plan = if C::TEAM_READ {
+            self.resolve_read(id).await?
+        } else {
+            self.resolve(id).await?
+        };
+        let team = self.team()?;
         let data = self
             .tasks
             .backend
             .request(
                 Method::GET,
-                &format!(
-                    "/v1/user-plans/{}/{}",
-                    string(&plan.raw, "plan_id")?,
-                    C::ROUTE
+                &path(
+                    &format!(
+                        "/v1/user-plans/{}/{}",
+                        string(&plan.raw, "plan_id")?,
+                        C::ROUTE
+                    ),
+                    team.as_deref(),
+                    &[],
                 ),
                 None,
                 None,

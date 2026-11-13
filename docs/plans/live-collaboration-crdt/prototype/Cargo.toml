@@ -1,0 +1,22 @@
+# Phase 0 spike prototype for plan live-collaboration-crdt.
+# Standalone on purpose: it is NOT a member of the openmates-sdk workspace and
+# adds no dependency to the production crate. Run (dev host):
+#   CARGO_TARGET_DIR=/tmp/om-crdt-spike-target python3 scripts/heavy_slot.py run -- \
+#     cargo test --manifest-path docs/plans/live-collaboration-crdt/prototype/Cargo.toml
+[package]
+name = "crdt-spike"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+yrs = "=0.28.1"
+# Same AEAD family the core already uses (openmates-sdk depends on aes-gcm 0.10).
+aes-gcm = "0.10"
+similar = "3.2"
+serde_json = "1"
+
+[lib]
+path = "src/lib.rs"

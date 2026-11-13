@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { text } from '../../../i18n/translations';
   import { BrowseHttpError, type BrowseClient, type BrowseCommand, type BrowseInput, type BrowseSession } from '../../../services/webBrowseService';
-  import { browseStatusKey } from './browseContent';
+  import { browsePhaseKey, browseStatusKey, browseStepKey, browseStepShowsLabel } from './browseContent';
   interface Props {
     sessionId: string;
     client: BrowseClient;
@@ -23,6 +23,14 @@
   let live = true;
   let manual = $derived(session?.status === 'user' && !busy && !consentOrigin && !ending);
   let terminal = $derived(session?.status === 'closed' || session?.status === 'expired');
+  // An ending error that only repeats the status line is not shown twice.
+  let statusKey = $derived(browseStatusKey(session?.status || (ending ? (error === 'embeds.browse.expired' ? 'expired' : 'unavailable') : 'processing')));
+  let steps = $derived(session?.steps ?? []);
+  let phaseKey = $derived(terminal || ending ? '' : browsePhaseKey(session?.phase));
+  let starting = $derived(session?.phase === 'starting' && !terminal && !ending);
+  let stepList = $state<HTMLOListElement | null>(null);
+  // Newest step stays in view; the list scrolls inside the viewer, never the page.
+  $effect(() => { void steps.length; if (stepList) stepList.scrollTop = stepList.scrollHeight; });
   function clearFrame() {
     if (frame) URL.revokeObjectURL(frame);
     frame = '';
@@ -111,10 +119,11 @@
 
 <section class="viewer" data-testid="browse-session-viewer" aria-label={$text('embeds.browse.title')}>
   <div class="status" role="status">
-    <strong>{$text(browseStatusKey(session?.status || (ending ? (error === 'embeds.browse.expired' ? 'expired' : 'unavailable') : 'processing')))}</strong>
+    <strong>{$text(statusKey)}</strong>
+    {#if phaseKey}<span class="phase" data-testid="browse-phase">{$text(phaseKey)}</span>{/if}
     {#if session}<span>{$text('embeds.browse.credits', { values: { used: String(session.accrued_credits), limit: String(session.max_credits) } })}</span>{/if}
   </div>
-  {#if error}<p role="alert">{$text(error)}</p>{/if}
+  {#if error && error !== statusKey}<p role="alert">{$text(error)}</p>{/if}
   {#if session && !terminal && !ending}
     <div class="controls">
       {#if session.status !== 'user'}
@@ -137,12 +146,23 @@
       </div>
     </div>
   {/if}
+  {#if steps.length}
+    <div class="steps">
+      <strong>{$text('embeds.browse.steps_title')}</strong>
+      <ol bind:this={stepList} data-testid="browse-steps">
+        {#each steps as step (step.n)}
+          <li data-kind={step.kind}>{$text(browseStepKey(step.kind))}{#if step.label && browseStepShowsLabel(step.kind)}{' '}<span class="label">‘{step.label}’</span>{/if}</li>
+        {/each}
+      </ol>
+    </div>
+  {/if}
   <div class="screen" class:manual>
     {#if frame || savedFrame}
       <button class="viewport" type="button" disabled={!manual} onclick={click}
         aria-label={$text(frame ? 'embeds.browse.live_frame' : 'embeds.browse.saved_frame')}>
         <img src={frame || savedFrame} alt={$text(frame ? 'embeds.browse.live_frame' : 'embeds.browse.saved_frame')} draggable="false" data-testid="browse-frame" />
       </button>
+    {:else if starting}<p data-testid="browse-starting">{$text('embeds.browse.starting_browser')}</p>
     {:else}<p>{$text(terminal || ending ? 'embeds.browse.no_frame' : 'embeds.browse.waiting_frame')}</p>{/if}
   </div>
   {#if session?.status === 'user' && !ending}
@@ -182,6 +202,12 @@
   .screen button.viewport:focus-visible { outline-offset: -3px; }
   .manual img { cursor: crosshair; }
   .screen p { padding: var(--spacing-8); }
+  .phase { font-size: .875rem; color: var(--color-font-secondary); }
+  .steps { display: flex; flex-direction: column; gap: var(--spacing-3); font-size: .875rem; }
+  .steps ol { list-style: none; margin: 0; padding: var(--spacing-4) var(--spacing-6); max-height: 6.5rem; overflow-y: auto; border-radius: var(--radius-4); background: var(--color-grey-10); display: flex; flex-direction: column; gap: var(--spacing-2); }
+  .steps li { overflow-wrap: anywhere; color: var(--color-font-secondary); }
+  .steps li:last-child { color: var(--color-font-primary); }
+  .steps .label { color: var(--color-font-primary); }
   .notice { display: flex; flex-direction: column; gap: var(--spacing-6); border: 1px solid var(--color-warning); background: var(--color-warning-bg); padding: var(--spacing-8); border-radius: var(--radius-4); }
   form { display: flex; flex-direction: column; gap: var(--spacing-3); }
   label { font-size: .875rem; }

@@ -95,9 +95,13 @@
   function getProviderLabel(slug: string): string {
     switch (slug?.toLowerCase()) {
       case 'google_events':       return 'Google';
+      case 'web':                 return 'Web';
       default:                    return slug || '';
     }
   }
+
+  /** Provider slugs with a bundled icon; CSS below maps each one to its mask image. */
+  const PROVIDER_ICON_SLUGS = new Set(['google_events', 'web']);
 
   function normalizeProviderSlug(slug: string): string {
     return slug.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -257,6 +261,12 @@
         slug: normalizeProviderSlug(providerSlug),
         label: getProviderLabel(providerSlug)
       }))
+      .map((provider) => ({
+        ...provider,
+        // Providers without a bundled icon (e.g. operator-installed ones) show their initial.
+        hasIcon: PROVIDER_ICON_SLUGS.has(provider.slug),
+        initial: provider.label.trim().charAt(0).toUpperCase()
+      }))
       .filter((provider) => {
         if (!provider.slug || provider.slug === 'none' || provider.slug === 'auto' || seen.has(provider.slug)) {
           return false;
@@ -321,8 +331,12 @@
         {#if providerBadges.length > 0}
           <span class="provider-badges">
           {#each providerBadges as provider}
-            <span class={`provider-badge provider-badge-${provider.slug}`} title={provider.label}>
-              <span class="provider-badge-icon" aria-hidden="true"></span>
+            <span class={`provider-badge provider-badge-${provider.slug}`} title={provider.label} data-testid="events-search-provider-badge">
+              {#if provider.hasIcon}
+                <span class="provider-badge-icon" aria-hidden="true"></span>
+              {:else}
+                <span class="provider-badge-initial" aria-hidden="true">{provider.initial}</span>
+              {/if}
             </span>
           {/each}
           </span>
@@ -435,6 +449,22 @@
     mask-repeat: no-repeat;
     -webkit-mask-size: contain;
     mask-size: contain;
+  }
+
+  .provider-badge-google_events .provider-badge-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/google.svg');
+    mask-image: url('@openmates/ui/static/icons/google.svg');
+  }
+
+  .provider-badge-web .provider-badge-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/web.svg');
+    mask-image: url('@openmates/ui/static/icons/web.svg');
+  }
+
+  .provider-badge-initial {
+    font-size: var(--font-size-micro);
+    font-weight: 700;
+    line-height: 1;
   }
 
 

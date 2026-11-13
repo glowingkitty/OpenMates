@@ -54,10 +54,6 @@ try:
         sanitize_task_proposals,
         sanitize_task_update_proposals,
     )
-    from backend.apps.ai.processing.quick_tips import (
-        sanitize_quick_tip_slug,
-        select_hardcoded_quick_tip_slug,
-    )
     from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult, _transform_message_history_for_llm
     from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL
 except ImportError as _exc:
@@ -291,40 +287,6 @@ class TestTaskProposalSanitization:
         assert result[0].status == "done"
 
 
-class TestQuickTips:
-    def test_long_chat_selects_shorter_chats_tip(self):
-        history = [
-            {"role": "user" if index % 2 == 0 else "assistant", "content": f"message {index}"}
-            for index in range(11)
-        ]
-        assert select_hardcoded_quick_tip_slug(history) == "shorter-chats-equal-better-responses"
-
-    def test_travel_context_selects_travel_tip(self):
-        history = [
-            {
-                "role": "user",
-                "content": "Give one concise sentence about planning food, transit, and local events for a weekend trip.",
-            }
-        ]
-        assert select_hardcoded_quick_tip_slug(history, ["travel"]) == "travel-can-add-local-context"
-        assert select_hardcoded_quick_tip_slug(history, ["web"]) is None
-
-    def test_unknown_llm_slug_is_dropped(self):
-        class Logger:
-            def warning(self, *args, **kwargs):
-                pass
-
-        assert sanitize_quick_tip_slug("made-up-tip", ["web"], "test", Logger()) == ""
-
-    def test_app_specific_slug_requires_available_app(self):
-        class Logger:
-            def warning(self, *args, **kwargs):
-                pass
-
-        assert sanitize_quick_tip_slug("travel-can-add-local-context", ["web"], "test", Logger()) == ""
-        assert sanitize_quick_tip_slug("travel-can-add-local-context", ["travel"], "test", Logger()) == "travel-can-add-local-context"
-
-
 # contract-test: supporting surface=rest_api assertions=teams.chat-billing.team-credit-boundary
 @pytest.mark.anyio
 async def test_postprocessing_batches_metadata_translation_when_output_language_matches_ui(monkeypatch):
@@ -346,7 +308,8 @@ async def test_postprocessing_batches_metadata_translation_when_output_language_
                 "chat_tags": ["Bewerbung", "Karriere", "bewerbung", ""],
                 "updated_chat_title": "Bewerbungsunterlagen erstellen",
                 "daily_inspiration_topic_suggestions": ["job applications", "cover letters", "career planning"],
-                "quick_tip_slug": "",
+                "memory_recommendations": [{"action": "create", "title": "Interested in job applications", "summary": "The user writes job applications."}],
+                "workflow_recommendations": [{"action": "create", "title": "Weekly job alert", "summary": "Find new openings weekly."}],
             }
         )
 
@@ -460,7 +423,8 @@ async def test_handle_postprocessing_removes_disabled_fields_from_tool_schema(mo
                     "follow_up_general_suggestions": {"type": "array"},
                     "new_chat_app_skill_suggestions": {"type": "array"},
                     "new_chat_general_suggestions": {"type": "array"},
-                    "quick_tip_slug": {"type": "string"},
+                    "memory_recommendations": {"type": "array"},
+                    "workflow_recommendations": {"type": "array"},
                     "chat_summary": {"type": "string"},
                 },
                 "required": [
@@ -468,7 +432,8 @@ async def test_handle_postprocessing_removes_disabled_fields_from_tool_schema(mo
                     "follow_up_general_suggestions",
                     "new_chat_app_skill_suggestions",
                     "new_chat_general_suggestions",
-                    "quick_tip_slug",
+                    "memory_recommendations",
+                    "workflow_recommendations",
                     "chat_summary",
                 ],
             },
@@ -487,19 +452,21 @@ async def test_handle_postprocessing_removes_disabled_fields_from_tool_schema(mo
         cache_service=None,
         available_app_ids=["ai"],
         follow_up_suggestions_enabled=False,
-        quick_tips_enabled=False,
+        recommendations_enabled=False,
     )
 
     properties = captured_tool["function"]["parameters"]["properties"]
     required = captured_tool["function"]["parameters"]["required"]
     assert "follow_up_app_skill_suggestions" not in properties
     assert "follow_up_general_suggestions" not in properties
-    assert "quick_tip_slug" not in properties
+    assert "memory_recommendations" not in properties
+    assert "workflow_recommendations" not in properties
     assert "follow_up_app_skill_suggestions" not in required
     assert "follow_up_general_suggestions" not in required
-    assert "quick_tip_slug" not in required
+    assert "memory_recommendations" not in required
+    assert "workflow_recommendations" not in required
     assert result.follow_up_request_suggestions == []
-    assert result.quick_tip_slugs == []
+    assert result.recommendations == []
 
 
 @pytest.mark.anyio
@@ -522,7 +489,8 @@ async def test_new_chat_title_is_deferred_and_bounded_fields_use_jev(monkeypatch
             "share_cta_text": "Explore the result",
             "updated_chat_title": "A Useful First Answer",
             "daily_inspiration_topic_suggestions": ["learning systems", "clear explanations", "topic exploration"],
-            "quick_tip_slug": "",
+            "memory_recommendations": [{"action": "create", "title": "Interested in job applications", "summary": "The user writes job applications."}],
+            "workflow_recommendations": [{"action": "create", "title": "Weekly job alert", "summary": "Find new openings weekly."}],
         })
 
     async def fake_translate(**kwargs):

@@ -14,15 +14,24 @@ then go directly to [TestFlight release](#testflight-release). The development
 and parity loops below apply when implementation or further verification is
 needed; they do not require restarting completed work before publishing it.
 
+Non-UI logic (transport, sync, crypto, cache, drafts, send, streaming, recovery,
+search, policies) lives in the shared Rust core, not in Swift: see `apple/AGENTS.md`
+"Core logic lives in Rust" and `.claude/rules/client-core.md`. Apple core-migration
+lanes follow `docs/plans/client-core-one-core-three-shells/plan.yml`, and their
+XCTest runs first on GitHub `macos-26` (`--mode apple-unit|apple-core`), XCUITest
+with `--mode apple-ui --spec OpenMatesUITests/<Class>[/<test>]`.
+
 For new shared features, app skills, focus modes, embeds, memory types, and
-provider-backed behavior, Apple parity is the last phase. Before changing Apple
+provider-backed behavior, Apple UI/feature parity is the last phase. This phase
+rule does not apply to client-core lanes: Apple client logic comes from the Rust
+core and is not sequenced behind web. Before changing Apple UI/feature
 implementation, confirm the spec or session contract has completed evidence for
 CLI implementation/testing against the dev server, npm SDK and pip SDK
 parity/testing locally against the dev server when applicable, GitHub Actions
 CI/daily-test reproduction only after local CLI and SDK success, web
 implementation/testing, and user confirmation that deployed dev web behavior
 works and looks correct. If any earlier phase is missing, stop Apple
-implementation and record the missing gate unless the spec contains an explicit
+UI/feature implementation and record the missing gate unless the spec contains an explicit
 waiver or accepted external blocker. Mocked OpenMates API calls, mocked SDK
 clients, stubbed servers, direct function calls, and fixture replay do not count
 as completed CLI evidence.
@@ -204,7 +213,7 @@ nonempty draft state and deletion fences, eligibility and ordering before visual
 comparison. Cover cold cache, older paginated drafts and another device opening a
 chat. A synthetic carousel alone cannot establish account-level synchronization.
 
-For feature parity audits, identify the product surface first, then read all relevant web and Apple sources. Good vertical slices include:
+For feature parity audits, identify the product surface first, then read all relevant web and Apple sources. Logic gaps found in sync, persistence, streaming, auth/recovery or search are fixed in the Rust core, not by porting web TypeScript to Swift. Good vertical slices include:
 
 - sync and offline lifecycle
 - message processing and persistence
@@ -248,7 +257,9 @@ Linux audits may update docs, scripts, and safe static identifiers. Do not make 
 
 After each code change:
 1. Build and run: use `build_run_sim` (or manual xcodebuild fallback)
-2. Screenshot the simulator: use `screenshot`
+2. Screenshot the simulator: use `screenshot`, view it, and send it to the user
+   with `SendUserFile` straight away (what it shows, visible defects). Repeat
+   after every visible revision; never send personal-account screens.
 3. Compare against the web app (use `firecrawl_scrape` with `screenshot` format on the equivalent page)
 4. If mismatch: re-read the CSS, fix the Swift code, repeat
 5. When verification is complete, shut down any simulator booted by this session unless the operator asks to keep it running
@@ -268,9 +279,17 @@ keep personal-account clips private. A missing successful-run recording is a
 remaining visual-proof gap. Do not record unrelated tests or rerun a passing
 test solely to repair an export/upload.
 
-### Step 8: Remote Mac CLI verification loop
+### Step 8: Verification order (CI first, Mac for exceptions)
 
-When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available:
+First submit `python3 scripts/ci_coordinator.py submit --mode apple-core` (core
+lanes), `--mode apple-unit` (XCTest) or `--mode apple-ui --spec
+OpenMatesUITests/<Class>[/<test>]` (XCUITest) and wait for it. Use the Mac only as
+the follow-up for TestFlight, physical device/APNs and real-account tests.
+
+#### Remote Mac CLI verification loop
+
+When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available and the
+CI modes above cannot cover the check:
 
 1. Run `python3 scripts/apple_remote.py status`.
 2. Run `python3 scripts/apple_remote.py doctor` to verify Xcode, simulator, checkout, scheme, and Watch-test readiness with sanitized output.
@@ -299,7 +318,7 @@ When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available:
 - **No native product UI.** See forbidden controls table in apple-ui.md.
 - **Parity is surface-level, not file-level.** Do not force one Swift file per Svelte/TS file. Maintain traceable many-to-many mappings instead.
 - **Use stable identifiers.** Apple `.accessibilityIdentifier(...)` values should match web `data-testid` names when the product concept is the same, unless a native-only control needs a native-specific name.
-- **Document native-only differences.** Example: native offline storage of the last 100 chats is allowed if it preserves web sync semantics and is explicitly documented in the parity spec.
+- **Document native-only differences.** Example: a native-only gesture or system sheet that keeps the same user-visible state. Offline storage and sync windows are owned by the Rust core cache, not by Swift.
 
 ### TestFlight release
 

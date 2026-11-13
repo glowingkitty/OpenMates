@@ -10,10 +10,7 @@
      - apps/{app_id}/skill/{skill_id}/model/{model_id} -> AppSkillModelDetails (all other skills)
      - apps/{app_id}/skill/{skill_id}/provider/{provider_id} -> ProviderDetails
      - apps/{app_id}/focus/{focus_mode_id} -> FocusModeDetails
-     - apps/{app_id}/settings_memories/{category_id} -> AppSettingsMemoriesCategory
-     - apps/{app_id}/settings_memories/{category_id}/create -> AppSettingsMemoriesCreateEntry
-     - apps/{app_id}/settings_memories/{category_id}/entry/{entry_id} -> AppSettingsMemoriesEntryDetail (view mode)
-     - apps/{app_id}/settings_memories/{category_id}/entry/{entry_id}/edit -> AppSettingsMemoriesEntryDetail (edit mode)
+     - apps/{app_id}/settings_memories/published_{id} -> PublishedMemoryRoute
      
      It receives activeSettingsView as a prop from CurrentSettingsPage.
 -->
@@ -25,9 +22,7 @@
     import SkillDetails from './SkillDetails.svelte';
     import ContentEmbedDetails from './ContentEmbedDetails.svelte';
     import FocusModeDetails from './FocusModeDetails.svelte';
-    import AppSettingsMemoriesCategory from './AppSettingsMemoriesCategory.svelte';
-    import AppSettingsMemoriesCreateEntry from './AppSettingsMemoriesCreateEntry.svelte';
-    import AppSettingsMemoriesEntryDetail from './AppSettingsMemoriesEntryDetail.svelte';
+    import PublishedMemoryRoute from './PublishedMemoryRoute.svelte';
     import AiAskModelDetails from './AiAskModelDetails.svelte';
     import AppSkillModelDetails from './AppSkillModelDetails.svelte';
     import ProviderDetails from './ProviderDetails.svelte';
@@ -59,8 +54,6 @@
         | { type: 'provider_details'; appId: string; skillId: string; providerId: string }
         | { type: 'focus_details'; appId: string; focusModeId: string }
         | { type: 'settings_memories_category'; appId: string; categoryId: string }
-        | { type: 'settings_memories_create'; appId: string; categoryId: string }
-        | { type: 'settings_memories_entry_detail'; appId: string; categoryId: string; entryId: string; startInEditMode: boolean }
         | { type: 'reminder_create'; appId: string }
         | { type: 'reminder_entry'; appId: string; reminderId: string; startInEditMode: boolean };
     
@@ -110,15 +103,6 @@
         } else if (parts.length === 3 && parts[1] === 'settings_memories') {
             // apps/{app_id}/settings_memories/{category_id}
             return { type: 'settings_memories_category', appId: parts[0], categoryId: parts[2] };
-        } else if (parts.length === 4 && parts[1] === 'settings_memories' && parts[3] === 'create') {
-            // apps/{app_id}/settings_memories/{category_id}/create
-            return { type: 'settings_memories_create', appId: parts[0], categoryId: parts[2] };
-        } else if (parts.length === 5 && parts[1] === 'settings_memories' && parts[3] === 'entry') {
-            // apps/{app_id}/settings_memories/{category_id}/entry/{entry_id}
-            return { type: 'settings_memories_entry_detail', appId: parts[0], categoryId: parts[2], entryId: parts[4], startInEditMode: false };
-        } else if (parts.length === 6 && parts[1] === 'settings_memories' && parts[3] === 'entry' && parts[5] === 'edit') {
-            // apps/{app_id}/settings_memories/{category_id}/entry/{entry_id}/edit
-            return { type: 'settings_memories_entry_detail', appId: parts[0], categoryId: parts[2], entryId: parts[4], startInEditMode: true };
         }
         
         return { type: 'invalid', appId: '' };
@@ -133,25 +117,6 @@
     function handleOpenSettings(event: CustomEvent) {
         dispatch('openSettings', event.detail);
     }
-    
-    // Extract create route info for type safety
-    // TypeScript has issues narrowing discriminated unions in Svelte templates, so we use a helper
-    let createRouteInfo = $derived.by((): { appId: string; categoryId: string } | null => {
-        if (routeInfo.type === 'settings_memories_create') {
-            console.log('[AppDetailsWrapper] Create route detected:', routeInfo);
-            return { appId: routeInfo.appId, categoryId: routeInfo.categoryId };
-        }
-        return null;
-    });
-    
-    // Extract entry detail route info for type safety
-    let entryDetailRouteInfo = $derived.by((): { appId: string; categoryId: string; entryId: string; startInEditMode: boolean } | null => {
-        if (routeInfo.type === 'settings_memories_entry_detail') {
-            console.log('[AppDetailsWrapper] Entry detail route detected:', routeInfo);
-            return { appId: routeInfo.appId, categoryId: routeInfo.categoryId, entryId: routeInfo.entryId, startInEditMode: routeInfo.startInEditMode };
-        }
-        return null;
-    });
     
     // Extract AI Ask model details route info for type safety
     let aiAskModelRouteInfo = $derived.by((): { modelId: string } | null => {
@@ -248,21 +213,7 @@
         on:closeSettings={() => dispatch('closeSettings')}
     />
 {:else if routeInfo.type === 'settings_memories_category'}
-    <AppSettingsMemoriesCategory
-        appId={routeInfo.appId}
-        categoryId={routeInfo.categoryId}
-        on:openSettings={handleOpenSettings}
-        on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
-        on:closeSettings={() => dispatch('closeSettings')}
-    />
-{:else if createRouteInfo}
-    {@const route = createRouteInfo}
-    <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
-    <AppSettingsMemoriesCreateEntry appId={route.appId} categoryId={route.categoryId} on:openSettings={handleOpenSettings} />
-{:else if entryDetailRouteInfo}
-    {@const route = entryDetailRouteInfo}
-    <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
-    <AppSettingsMemoriesEntryDetail appId={route.appId} categoryId={route.categoryId} entryId={route.entryId} startInEditMode={route.startInEditMode} on:openSettings={handleOpenSettings} />
+    <PublishedMemoryRoute appId={routeInfo.appId} categoryId={routeInfo.categoryId} />
 {:else}
     <div class="error">Invalid app route.</div>
 {/if}

@@ -1,0 +1,24 @@
+schema_version: 2
+profile: concise
+id: slides-import-export-presenting
+title: Slides - PowerPoint import, PDF and PowerPoint export, presenter view and follow-live
+status: implementing
+goal: "Let users bring in PowerPoint decks, take decks out as PDF and PowerPoint with an honest loss notice, present with a presenter view, and let people follow a live presentation through a share link."
+specifications:
+  - feature.slides@1
+scope:
+  - "PowerPoint import in the browser for .pptx, .pptm, .ppsx and .potx: slides, text boxes, images, shapes, tables as text, notes, layouts mapped to a generated template; a report of what was dropped; original file kept as a downloadable child item; macros discarded; .ppt and .pps refused with a notice. Replaces the current coming-soon notice."
+  - "Export in the browser: PDF with one page per slide and optional notes; PowerPoint with editable text, images, uploaded videos, mapped preset transitions, blocks as pictures of their current state and platform videos as thumbnail plus link; a per-deck loss notice computed before each download."
+  - "Presenter view: audience window in a second tab or window showing only slides, presenter view with current and next slide, notes, timer and slide list, keyboard control, both in step through a same-origin channel; notes never sent to the audience window."
+  - "Follow-live: live indicator and follow mode for share-link viewers; presenter state (slide, build step, notepad and to-do content) encrypted with the share key and relayed over a temporary WebSocket channel with no storage; viewers read-only with browse and rejoin; bounded viewer count and message rate."
+  - Out of scope - video export, audience input from their own devices, Google Drive connection, Apple.
+checks:
+  - Unit tests for import of fixture decks and for the loss-notice calculation.
+  - Export tests that reopen generated PowerPoint and PDF files and check text, images and page count.
+  - Web E2E in isolated CI - upload a PowerPoint and edit a slide; both exports with their notices; two-window presenting with notes hidden from the audience; a second browser following through a share link and ending with the presentation.
+  - WebSocket test that relayed live state is ciphertext, is not stored and is refused from non-presenters.
+decisions:
+  - Import converts to editable web slides and keeps the original file; no faithful round trip is promised.
+  - Exports are produced on the device; no server rendering of decrypted decks.
+  - Video export is excluded for now (user decision 2026-11-10).
+  - Follow-live relays only presenter state, encrypted with the share key, and stores nothing.

@@ -10,7 +10,10 @@ pub mod bookmarks;
 pub mod fork;
 pub mod hidden;
 pub mod highlights;
-mod js;
+pub(crate) mod js;
 pub mod management;
 pub mod projects;
 pub mod receipts;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod bookmark_highlight_vector_tests;

@@ -16,10 +16,19 @@ mod apps;
 mod travel_booking;
 pub mod learning_mode;
 pub mod new_chat_suggestions;
+pub mod recommendations;
 pub use apps::DirectAppSkillAdmission;
 mod auth;
 mod session_response;
-pub use auth::PasswordLoginOptions;
+mod session_verification;
+pub use session_verification::{DeviceVerificationMethod, SessionVerification};
+pub use auth::{PasswordLoginOptions, PasswordLoginReport, PasswordMigrationOutcome};
+/// Native passkey sign-in and device verification (`auth_passkey.rs`).
+#[cfg(not(target_arch = "wasm32"))]
+pub use auth::{
+    PASSKEY_OTHER_REQUEST, PASSKEY_PRF_UNAVAILABLE, PASSKEY_WRONG_ACCOUNT, PasskeyChallenge,
+    PasskeyContinuation,
+};
 mod auth_handoff;
 pub use auth_handoff::FreshSessionHandoff;
 mod browser;
@@ -45,20 +54,38 @@ pub use browser::{OriginalHintRefreshAdmission,OriginalHintRefreshBatch,Original
 mod consent;
 mod selected_first_page;
 mod context;
+mod project_memories;
+mod project_memory_request;
+mod send_project_binding;
 mod direct;
 mod docs;
 mod browser_draft;
 pub use browser_draft::{BrowserDraftAdmission, BrowserDraftControl, BrowserDraftPublication, BrowserDraftWrite};
 mod draft_clear;
 pub mod draft_preview;
+mod chat_read;
 mod draft_read;
 pub use draft_read::DraftReadAdmission;
+#[cfg(not(target_arch = "wasm32"))]
+mod draft_cached;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use draft_cached::DraftFingerprint;
 mod embed;
 pub mod chat_files;
 pub mod assistant_speech;
 pub mod embed_version;
 pub mod embed_write;
+/// User-made embed versions (`POST /v1/embeds/{id}/user-revisions`).
+pub mod embed_user_revision;
+/// The `embed_updated` chat system event: codec, writer, reconcile, grouping.
+pub mod embed_updated_event;
+/// Image Enhance: start, wait and save the result as the next embed version.
+pub mod image_enhance;
+/// Version history with provenance and the edit head of a native shell's edit.
+pub mod embed_version_history;
 pub mod saved_embed;
+#[doc(hidden)]
+pub mod shared_items;
 mod saved_embed_selector;
 mod focus;
 mod incognito;
@@ -73,10 +100,12 @@ pub use owned_apps_inventory::{PreparedOwnedAppsInventory,OwnedAppsInventoryHead
 pub use owned_saved_send::{PreparedOwnedSavedSend,OwnedClientPhase,OwnedSavedSendResume,OwnedSavedSendStep,OwnedSavedSendTerminal,OwnedSavedSendDriver,OwnedSavedSendControl,OwnedSavedSendDisposition,OwnedSavedSendReturnedRefusal,OwnedSavedSendRefusalReason};
 
 mod monitor;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub(crate) use monitor::test_peer as monitor_test_peer;
 pub use monitor::{PreparedInitialSync,InitialSyncControl,InitialSyncRead,InitialSyncMetadataBatch};
 #[doc(hidden)]
 pub use monitor::{PreparedOwnedChatMonitor,OwnedChatMonitorStartStep,OwnedChatMonitorStartApply,OwnedChatMonitorReady,OwnedChatMonitorStartControl,OwnedChatMonitorStartTerminal};
-pub use monitor::cached_view::{CacheSettlementCandidate, CacheSettlementPublication, ChatFirstPageCandidate, ChatFirstPagePublication, ChatFirstPageSink, CanonicalChatCandidate, CanonicalChatPublication, CachedChatPublication, CachedChatViews, CachedChatWindow, ChatViewRead};
+pub use monitor::cached_view::{CacheSettlementCandidate, CacheSettlementPublication, ChatFirstPageCandidate, ChatFirstPagePublication, ChatFirstPageSink, CanonicalChatCandidate, CanonicalChatPublication, CachedChatPublication, CachedChatViews, CachedChatWindow, ChatOwnerLease, ChatViewRead};
 pub use monitor::{
     ChatInvalidation, ChatModels, ChatMonitor, ChatMonitorAccessDenial, ChatPublication,
     ChatRefresh, ChatRefreshDurableReceipt, ChatSelectionUpdate,
@@ -125,8 +154,14 @@ mod sync_feed;
 mod mention_context;
 mod search;
 mod send;
+/// Opt-in send diagnostic hook for JSON decode failures (see `refusal_trace`).
+pub(crate) use send::refusal_trace::note_caller as note_protocol_caller;
+// Composer attachments and caller PII mappings of a turn (native shells).
+mod send_attachments;
 mod send_observations;
 mod send_options;
+// Caller-reserved chat and message ids of a turn (Apple and web shells).
+mod send_reserved_ids;
 mod sync;
 mod sync_windows;
 mod sync_capability;
@@ -139,15 +174,47 @@ pub mod saved_chat_read;
 pub mod full_chat_read;
 pub mod chat_details;
 pub mod chat_rewrite;
+// Delete message, edit truncation and stop reply (plan apple-client-core-migration A5).
+pub mod message_actions;
+// Revise or steer a queued follow-up (`revise_queued_message`).
+pub mod queued_revision;
+pub use queued_revision::{QueuedRevisionMode, QueuedRevisionReceipt};
 pub use chat_list_freshness::CacheClockEvidence;
 pub use sync::FreshChatInventory;
+mod project_create_request;
+use project_create_request::PROJECT_CREATE_CAPABILITY;
+pub use project_create_request::MachineProjectDecision;
+pub mod memory_document_fields;
+mod memory_frontmatter;
+pub mod memory_documents;
+mod memory_catalog;
+pub mod memory_privacy;
+pub mod memory_write_jobs;
+pub mod server_region;
+pub mod memory_write_job_bridge;
+mod project_file_jobs;
+use memory_write_jobs::MEMORY_WRITE_JOBS_CAPABILITY;
+use project_file_jobs::{PROJECT_FILE_JOBS_AVAILABLE, PROJECT_FILE_JOBS_CAPABILITY};
+#[cfg(all(feature = "workflow-yaml", unix))]
+mod hosted_file_io;
+#[cfg(all(feature = "workflow-yaml", unix))]
+mod project_embed_adoption;
+pub(crate) mod project_item_error;
 mod task_job_payload;
 mod task_jobs;
 mod team;
+// View-model row and message metadata projection (plan apple-client-core-migration a4).
+mod view_projection;
 mod toon;
 pub(crate) mod transport;
 #[cfg(not(target_arch = "wasm32"))] pub mod upload;
 #[cfg(not(target_arch = "wasm32"))] pub mod profile_upload;
+// Temporary shell passthrough for un-migrated Apple code (plan step A6 removes it).
+#[cfg(not(target_arch = "wasm32"))] mod shell_http;
+#[cfg(not(target_arch = "wasm32"))] pub use shell_http::{PreparedShellHttp, SentShellHttp, ShellHttpRequest, ShellHttpResponse, SHELL_HTTP_MAX_REQUEST_BODY, SHELL_HTTP_MAX_RESPONSE_BODY};
+// Authenticated multipart upload for the same shells (plan step A6 removes it).
+#[cfg(not(target_arch = "wasm32"))] mod shell_upload;
+#[cfg(not(target_arch = "wasm32"))] pub use shell_upload::{PreparedShellUpload, SentShellUpload, ShellUploadRequest, SHELL_UPLOAD_MAX_FILE};
 #[cfg(not(target_arch = "wasm32"))] pub use transport::binary_stream::{BinaryResponse, SseMessage, SseOpen, SseParser, SseStream, parse_sse_message};
 mod transport_owned_start;
 mod workflow_delivery;
@@ -159,24 +226,42 @@ pub use docs::{
 pub use pair::PairChallenge;
 pub use send_options::{
     SendConsentPolicy, SendMemoryRequest, SendOptions, SendOutcome, SendQueueMode, SendStatus,
+    VoiceCallTurn, VoiceHeardBoundary,
 };
+/// Ids a shell reserves for its next turn (`SendOptions::reserved_ids`).
+pub use send_reserved_ids::ReservedTurnIds;
+/// The split saved turn (admission on the actor, stream beside it).
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use send::split::{AdmittedTurn, ClientLease, LeasedClient};
+/// Attachments and caller PII mappings of a turn (`SendOptions::embeds`, `pii_mappings`).
+pub use send_attachments::{SendEmbed, SendPiiMapping};
 
 /// Fixed SDK identity used by authorization and device-access policy.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ClientIdentity {
+    /// Rust SDK (`openmates::sdk`) and Rust-hosted bindings.
     #[default]
     Rust,
+    /// npm SDK.
     Npm,
+    /// Python SDK.
     Pip,
+    /// Native CLI/TUI; the only identity that may report human interactivity.
     Cli,
+    /// Native Apple apps (iOS, iPadOS, macOS, watchOS) through the UniFFI
+    /// binding. Its value `apple` is what the Swift app already sends as the
+    /// lifecycle `client_type` and what the backend maps to the `apple` surface.
+    Apple,
 }
 impl ClientIdentity {
+    /// Value sent as `X-OpenMates-SDK` and as the socket lifecycle `client_type`.
     pub(crate) fn header(self) -> &'static str {
         match self {
             Self::Rust => "rust",
             Self::Npm => "npm",
             Self::Pip => "pip",
             Self::Cli => "cli",
+            Self::Apple => "apple",
         }
     }
 }
@@ -487,6 +572,27 @@ impl ScopedSendGate {
     }
 }
 
+/// Method and status of the most recent non-success HTTP response.
+///
+/// Lets CLI presentation reproduce the npm CLI's `... failed with HTTP <status>`
+/// wording while the SDK keeps returning its typed [`Error`] values unchanged.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HttpFailure {
+    /// Upper-case HTTP method of the failed request.
+    pub method: String,
+    /// Numeric HTTP status of the failed response.
+    pub status: u16,
+}
+impl Client {
+    /// Forgets recorded HTTP failure evidence; call before each CLI command.
+    pub fn clear_http_failure(&mut self) {
+        self.last_http_failure = None;
+    }
+    /// HTTP failure recorded since the last [`Client::clear_http_failure`].
+    pub fn http_failure(&self) -> Option<&HttpFailure> {
+        self.last_http_failure.as_ref()
+    }
+}
 pub struct Client {
     options: ClientOptions,
     browser_authority: Option<browser::BrowserAuthority>,
@@ -498,6 +604,15 @@ pub struct Client {
     fresh_auth: auth_handoff::FreshAuthState,
     // Revoked before every new shared transport operation. Never serialized.
     inventory_network: std::sync::Arc<std::sync::atomic::AtomicU64>,
+    // Presentation evidence only: the last non-success HTTP exchange. Never changes SDK errors.
+    last_http_failure: Option<HttpFailure>,
+    // Closed-set code of the last refused Project item-link response (P11).
+    project_item_error: Option<&'static str>,
+    // Closed-set refusal of the last user-revision response (embed-user-edits).
+    embed_user_revision_refusal: Option<embed_user_revision::refusal::UserRevisionRefusal>,
+    // Closed-set refusal of the last Image Enhance response (embed-user-edits).
+    image_enhance_refusal: Option<image_enhance::refusal::ImageEnhanceRefusal>,
+    in_flight_method: Option<String>,
     credential_updates: Option<mpsc::UnboundedSender<CredentialEvent>>,
     // Installed only by one exclusive live read; no credentials/URLs/body.
     monitor_read_audit: Option<monitor::MonitorReadAudit>,
@@ -520,6 +635,8 @@ pub struct Client {
     chats: BTreeMap<String, Value>,
     original_physical_draft_bounds:BTreeMap<String,browser::original_draft_bounds::OriginalPhysicalDraftBounds>,
     chat_arrival_order: Option<Vec<String>>,
+    /// Account chat count the server reported with the last recent-chats phase.
+    chat_total_count: Option<u64>,
     chat_list_freshness: chat_list_freshness::ChatListFreshness,
     cache_clock: Option<std::sync::Arc<dyn Fn() -> Option<CacheClockEvidence> + Send + Sync>>,
     wrappers: Vec<Value>,
@@ -554,8 +671,13 @@ pub struct Client {
     completion_recovery_mode: Option<CancellationToken>,
     completion_recovery_jobs: BTreeMap<String, CompletionRecoveryJob>,
     metadata_recovery_jobs: BTreeMap<String, CompletionRecoveryJob>,
+    /// Opt-in WebSocket capabilities for the next saved-turn socket only
+    /// (for example `project_create_requests`); cleared after connecting.
+    extra_socket_capabilities: Vec<&'static str>,
     /// Last successful native session validation (see auth.rs reuse rules).
     recent_validation: Option<auth::RecentValidation>,
+    /// Verification the last native session check asked for (session_verification.rs).
+    session_verification: Option<SessionVerification>,
     /// Chats this client deleted (chat_tombstones.rs); display state only.
     deleted_chats: BTreeMap<String, u64>,
     /// Partially restored native cache content (cache_policy.rs).
@@ -627,6 +749,7 @@ impl Client {
             chat_details_overlap: None,
             credential_ack: 0,
             recent_validation: None,
+            session_verification: None,
             deleted_chats: BTreeMap::new(),
             cached_content: Default::default(),
             chat_details_cache: BTreeMap::new(),
@@ -634,6 +757,11 @@ impl Client {
             display_name_hint: None,
             fresh_auth: Default::default(),
             inventory_network: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            last_http_failure: None,
+            project_item_error: None,
+            embed_user_revision_refusal: None,
+            image_enhance_refusal: None,
+            in_flight_method: None,
             credential_updates: None,
             monitor_read_audit: None,
             base,
@@ -655,6 +783,7 @@ impl Client {
             chats: BTreeMap::new(),
             original_physical_draft_bounds:BTreeMap::new(),
             chat_arrival_order: None,
+            chat_total_count: None,
             chat_list_freshness: Default::default(),
             cache_clock: None,
             wrappers: vec![],
@@ -685,6 +814,7 @@ impl Client {
             completion_recovery_mode: None,
             completion_recovery_jobs: BTreeMap::new(),
             metadata_recovery_jobs: BTreeMap::new(),
+            extra_socket_capabilities: Vec::new(),
         })
     }
     pub fn reset(&mut self, api: &str, session: Option<Session>) -> Result<()> {
@@ -846,6 +976,31 @@ impl Client {
         self.credential_ack = revision;
         Ok(())
     }
+    /// Adopt credentials another process already rotated and stored for this
+    /// same account, instead of refreshing with this client's older ones. The
+    /// owner, session, API and master key must match; only the rotating
+    /// cookies and transport token change. The adopted state is already
+    /// durable, so it counts as acknowledged and is never written back.
+    pub fn adopt_stored_credentials(&mut self, stored: &Session) -> Result<()> {
+        if self.browser_cookies() {
+            return Err(Error::Forbidden);
+        }
+        let native = self.session.as_mut().ok_or(Error::Authentication)?;
+        if native.hashed_email != stored.hashed_email
+            || native.session_id != stored.session_id
+            || native.api_url != stored.api_url
+            || native.master_key != stored.master_key
+        {
+            return Err(Error::Conflict);
+        }
+        native.cookies = stored.cookies.clone();
+        native.ws_token = stored.ws_token.clone();
+        native.paired_session_expires_at = stored.paired_session_expires_at;
+        self.cookies = stored.cookies.clone();
+        self.credential_revision = self.credential_revision.wrapping_add(1);
+        self.credential_ack = self.credential_revision;
+        Ok(())
+    }
     pub fn set_credential_updates(&mut self, updates: mpsc::UnboundedSender<CredentialEvent>) {
         self.credential_updates = Some(updates);
         self.publish_credentials();
@@ -899,6 +1054,7 @@ impl Client {
         }
         self.fresh_auth.advance_operation();
         self.chat_list_freshness.invalidate();
+        self.chat_total_count = None;
         if let Some(browser)=self.browser_credentials.as_mut() {
             browser.active_team_id=team.map(str::to_owned);
         } else {
@@ -1154,6 +1310,7 @@ impl Client {
         for cookie in self.cookies.values_mut(){zeroize::Zeroize::zeroize(cookie);}
         self.cookies.clear();
         self.pair = None;
+        self.session_verification = None;
         self.clear_account_cache();
         self.credentials_changed();
     }
@@ -1218,9 +1375,12 @@ pub(crate) fn now_ms() -> u64 {
 fn text<'a>(value: &'a Value, key: &str) -> &'a str {
     value.get(key).and_then(Value::as_str).unwrap_or("")
 }
+// The caller's location is noted for the opt-in send diagnostic only.
+#[track_caller]
 fn required<'a>(value: &'a Value, key: &str) -> Result<&'a str> {
     let s = text(value, key);
     if s.is_empty() {
+        send::refusal_trace::note_caller(std::panic::Location::caller());
         Err(Error::Protocol)
     } else {
         Ok(s)
@@ -1410,6 +1570,7 @@ mod lifecycle_tests {
             ClientIdentity::Npm,
             ClientIdentity::Pip,
             ClientIdentity::Cli,
+            ClientIdentity::Apple,
         ] {
             for interactive in [false, true] {
                 let client = Client::with_options(

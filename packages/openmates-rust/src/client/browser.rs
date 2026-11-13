@@ -215,6 +215,8 @@ impl Client {
     }
     /// Single browser viewing page: existing canonical SDK auth/crypto/selectors,
     /// with an owned JSON handoff. This confers no complete history or durable ACK.
+    /// An empty page with an oversized cursor is resolved with one exact-row read
+    /// (`resolve_oversized_saved_row`); the joined row must still fit this frame.
     pub async fn browser_saved_chat_read_json(&mut self,principal:&str,id:&str,
         options:saved_chat_read::SavedChatReadOptions)->Result<zeroize::Zeroizing<String>> {
         self.browser_canonical_json_current(principal)?;
@@ -224,7 +226,12 @@ impl Client {
         }
         let admission=sync_capability::AsyncCryptoScope::begin(self)?;admission.check_chat(self,id)?;
         // A successful public view is guarded before ANY post-await refusal.
-        let output=self.saved_chat_read(id,options).await.map(plaintext::Plain::new);
+        let output=match self.saved_chat_read(id,options).await.map(plaintext::Plain::new){
+            // A page whose only selected row exceeded the page budget carries its
+            // cursor instead; the core reads that one row exactly (no history replay).
+            Ok(mut read)=>self.resolve_oversized_saved_row(id,&mut read).await.map(|()|read),
+            Err(error)=>Err(error),
+        };
         admission.check_chat(self,id)?;self.browser_canonical_json_current(principal)?;
         let output=output?;
         if output.window.chat.id!=id||output.chat_metadata.id!=id||output.window.history_complete
@@ -282,12 +289,34 @@ impl Client {
         self.browser_local_read_scope(expected_principal, id)?;
         Ok(encoded)
     }
-    fn browser_local_read_scope(&self, expected_principal: &str, id: &str)
-        -> Result<sync_capability::AsyncCryptoScope> {
-        if !uuid::Uuid::parse_str(expected_principal).is_ok_and(|v| v.to_string() == expected_principal)
-            || !self.is_local_browser_profile()
-            || !self.browser_authority.as_ref().is_some_and(|a| a.principal == expected_principal)
-            || self.user["id"].as_str() != Some(expected_principal) {
+    fn browser_local_read_scope(
+        &self,
+        expected_principal: &str,
+        id: &str,
+    ) -> Result<sync_capability::AsyncCryptoScope> {
+        self.browser_cached_view_scope(
+            expected_principal,
+            id,
+            local_cached_read::CachedViewMode::LocalProfile,
+        )
+    }
+    /// Same retained-row guard for either explicit cached view mode. The mode is
+    /// fixed per operation and rechecked at every await, so a mode change refuses.
+    pub(super) fn browser_cached_view_scope(
+        &self,
+        expected_principal: &str,
+        id: &str,
+        view: local_cached_read::CachedViewMode,
+    ) -> Result<sync_capability::AsyncCryptoScope> {
+        if !uuid::Uuid::parse_str(expected_principal)
+            .is_ok_and(|v| v.to_string() == expected_principal)
+            || !self.cached_view_admitted(view)
+            || !self
+                .browser_authority
+                .as_ref()
+                .is_some_and(|a| a.principal == expected_principal)
+            || self.user["id"].as_str() != Some(expected_principal)
+        {
             return Err(Error::Forbidden);
         }
         let scope = sync_capability::AsyncCryptoScope::begin(self)?;
@@ -440,12 +469,54 @@ impl Client {
         }
         Self::restore_browser_credentials_inner(api_url,app_origin,session_id,profile).await
     }
-    #[cfg(any(target_arch = "wasm32",test))]
-    async fn restore_browser_credentials_inner(api_url:&str,app_origin:&str,session_id:&str,profile:BrowserProfileKey)->Result<Self> {
-        let mut client=Self::prepare_browser_restore_client(api_url,app_origin,session_id,&profile)?;
-        let mut failure_status=None;
-        let response=client.auth_session_request_observed(json!({"session_id":session_id}),&mut failure_status).await;
-        Self::finish_browser_restore_client(client,session_id,profile,response,failure_status)
+    /// Local-only admission of the existing TS profile key, with no server call:
+    /// exactly the state a network-unavailable `browser_session` restore builds
+    /// (cached-profile reads only; no WebSocket token, capability, ACK or
+    /// HTTP beyond `/v1/auth/session`/logout). Callers must still run the normal
+    /// server-checked `browser_session` before any mutation, stream or socket.
+    #[cfg(target_arch = "wasm32")]
+    pub fn browser_session_local(
+        api_url: &str,
+        app_origin: &str,
+        session_id: &str,
+        profile: BrowserProfileKey,
+    ) -> Result<Self> {
+        use wasm_bindgen::JsCast;
+        let worker = js_sys::global()
+            .dyn_into::<web_sys::DedicatedWorkerGlobalScope>()
+            .map_err(|_| Error::Forbidden)?;
+        if transport::validate_app_origin(&worker.location().origin())?
+            != transport::validate_app_origin(app_origin)?
+        {
+            return Err(Error::Forbidden);
+        }
+        Self::restore_browser_local_inner(api_url, app_origin, session_id, profile)
+    }
+    #[cfg(any(target_arch = "wasm32", test))]
+    fn restore_browser_local_inner(
+        api_url: &str,
+        app_origin: &str,
+        session_id: &str,
+        profile: BrowserProfileKey,
+    ) -> Result<Self> {
+        let client =
+            Self::prepare_browser_restore_client(api_url, app_origin, session_id, &profile)?;
+        Self::admit_browser_restore_client(client, session_id, profile, None)
+    }
+    #[cfg(any(target_arch = "wasm32", test))]
+    async fn restore_browser_credentials_inner(
+        api_url: &str,
+        app_origin: &str,
+        session_id: &str,
+        profile: BrowserProfileKey,
+    ) -> Result<Self> {
+        let mut client =
+            Self::prepare_browser_restore_client(api_url, app_origin, session_id, &profile)?;
+        let mut failure_status = None;
+        let response = client
+            .auth_session_request_observed(json!({"session_id":session_id}), &mut failure_status)
+            .await;
+        Self::finish_browser_restore_client(client, session_id, profile, response, failure_status)
     }
     #[cfg(any(target_arch="wasm32",test))]
     fn prepare_browser_restore_client(api_url:&str,app_origin:&str,session_id:&str,profile:&BrowserProfileKey)->Result<Self> {
@@ -473,28 +544,50 @@ impl Client {
     #[cfg(any(target_arch="wasm32",test))]
     fn finish_browser_restore_client(mut client:Self,session_id:&str,mut profile:BrowserProfileKey,response:Result<Value>,failure_status:Option<u16>)->Result<Self> {
         profile.current()?;
-        let (token,server_user,local_read_only)=match response {
-            Ok(response)=>{
-                if !session_response::succeeded(&response)||text(&response["user"],"id")!=profile.principal {
-                    profile.master.invalidate();client.forget_session();return Err(Error::Authentication);
+        let server = match response {
+            Ok(response) => {
+                if !session_response::succeeded(&response)
+                    || text(&response["user"], "id") != profile.principal
+                {
+                    profile.master.invalidate();
+                    client.forget_session();
+                    return Err(Error::Authentication);
                 }
                 let token=match session_response::websocket_token(&response) {
                     Ok(token)=>token.to_owned(),
                     Err(error)=>{profile.master.invalidate();client.forget_session();return Err(error);},
                 };
                 client.observe_browser_owner_guards(&response);
-                (Some(token),response["user"].clone(),false)
-            },
-            Err(error) if browser_restore_network_unavailable(error,failure_status)=>{
-                // Explicit local profile+key only. No server response, WebSocket
-                // token, capability advertisement, complete cache or ACK minted.
-                (None,json!({"id":profile.principal.as_str()}),true)
-            },
-            Err(error)=>{profile.master.invalidate();client.forget_session();return Err(error);},
+                Some((token, response["user"].clone()))
+            }
+            // Explicit local profile+key only. No server response, WebSocket
+            // token, capability advertisement, complete cache or ACK minted.
+            Err(error) if browser_restore_network_unavailable(error, failure_status) => None,
+            Err(error) => {
+                profile.master.invalidate();
+                client.forget_session();
+                return Err(error);
+            }
         };
+        Self::admit_browser_restore_client(client, session_id, profile, server)
+    }
+    /// `server` is the validated (WebSocket token, server user) pair; `None`
+    /// admits the explicit local-read-only profile with no transport grant.
+    #[cfg(any(target_arch = "wasm32", test))]
+    fn admit_browser_restore_client(
+        mut client: Self,
+        session_id: &str,
+        mut profile: BrowserProfileKey,
+        server: Option<(String, Value)>,
+    ) -> Result<Self> {
         profile.current()?;
-        client.user=server_user;
-        client.browser_local_read_only=local_read_only;
+        let local_read_only = server.is_none();
+        let (token, server_user) = match server {
+            Some((token, user)) => (Some(token), user),
+            None => (None, json!({"id":profile.principal.as_str()})),
+        };
+        client.user = server_user;
+        client.browser_local_read_only = local_read_only;
         client.browser_credentials = Some(credentials::BrowserCredentials {
             api_url: client.base.to_string().trim_end_matches('/').into(),
             session_id: session_id.into(),

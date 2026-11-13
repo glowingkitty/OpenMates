@@ -94,7 +94,16 @@ final class SettingsSensitiveActionsParityUITests: XCTestCase {
         XCTAssertTrue(app.frame.intersects(scroll.frame))
         let current = app.secureTextFields["settings-password-current-input"]
         XCTAssertTrue(current.waitForExistence(timeout: 5))
-        for _ in 0..<4 where !current.isHittable { scroll.swipeUp() }
+        // A swipe flings the short landscape form past the field and leaves it
+        // half under the fixed subpage header, where a tap reaches the header.
+        // Drag in small held steps until the whole field is inside the form.
+        for _ in 0..<8 where !scroll.frame.contains(current.frame) {
+            let fieldIsBelow = current.frame.maxY > scroll.frame.maxY
+            let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: fieldIsBelow ? 0.7 : 0.3))
+            let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: fieldIsBelow ? 0.4 : 0.6))
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.2)
+        }
+        XCTAssertTrue(scroll.frame.contains(current.frame), "The current-password field must be fully inside the form")
         XCTAssertTrue(current.isHittable)
         let emptyValue = current.value as? String
         current.tap()

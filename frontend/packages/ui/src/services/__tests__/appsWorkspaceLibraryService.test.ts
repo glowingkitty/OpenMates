@@ -7,6 +7,8 @@ vi.mock('../../stores/teamStore', async () => ({ activeTeamContext: (await impor
 vi.mock('../../config/api', () => ({ getApiEndpoint: (path: string) => path }));
 vi.mock('../../i18n/translations', async () => ({ text: (await import('svelte/store')).writable((key: string) => key) }));
 vi.mock('../../stores/notificationStore', () => ({ notificationStore: { addNotificationWithOptions: vi.fn(), removeNotification: vi.fn(), error: vi.fn() } }));
+// The shared Worker applies the freshness window; unit tests pass recommendations through unchanged.
+vi.mock('../rustCore/apps/rustAppsRetention', () => ({ freshRustRecommendations: async <T,>(items: T[]) => items }));
 import { userProfile } from '../../stores/userProfile';
 import { activeTeamContext } from '../../stores/teamStore';
 import { notificationStore } from '../../stores/notificationStore';

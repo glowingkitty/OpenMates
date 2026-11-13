@@ -10,13 +10,21 @@ use crate::crypto::master::MasterCapability;
 pub(in crate::client) mod prepared_turn;
 #[path="send_prepared_transport.rs"]
 pub(in crate::client) mod prepared_transport;
+#[path="refusal_trace.rs"]
+pub(in crate::client) mod refusal_trace;
 #[path="send_turn_runtime.rs"]
 pub(in crate::client) mod turn_runtime;
+#[path="turn_deadline.rs"]
+pub(in crate::client) mod turn_deadline;
+#[cfg(not(target_arch="wasm32"))]
+#[path="send_split.rs"]
+pub(in crate::client) mod split;
 impl Wipe for crate::privacy::PreparedPrivacy {
     fn wipe(&mut self){let Self{text,mappings}=self;text.wipe();mappings.wipe();}
 }
 
 impl<A:Wipe,B:Wipe> Wipe for (A,B){fn wipe(&mut self){self.0.wipe();self.1.wipe();}}
+impl<A:Wipe,B:Wipe,C:Wipe> Wipe for (A,B,C){fn wipe(&mut self){self.0.wipe();self.1.wipe();self.2.wipe();}}
 impl<T:Wipe> Wipe for std::collections::VecDeque<T>{fn wipe(&mut self){for value in self{value.wipe();}}}
 impl Wipe for StreamUpdate{fn wipe(&mut self){zeroize::Zeroize::zeroize(self);}}
 impl Wipe for SendMemoryRequest{
@@ -24,12 +32,12 @@ impl Wipe for SendMemoryRequest{
 }
 impl Wipe for SendOutcome{
     fn wipe(&mut self){
-        let Self{chat,status:_,chat_id,message_id,user_message_id,queue_mode:_,queue_revision,assistant,category,model_name,mate_name,follow_up_suggestions,suggested_followup_message,task_proposals,task_update_proposals,task_events,pending_task_update_jobs,sub_chat_events,app_settings_memory_requests,token_usage,prompt_budget}=self;
-        chat.wipe();chat_id.wipe();message_id.wipe();user_message_id.wipe();*queue_revision=None;assistant.wipe();category.wipe();model_name.wipe();mate_name.wipe();follow_up_suggestions.wipe();suggested_followup_message.wipe();task_proposals.wipe();task_update_proposals.wipe();task_events.wipe();pending_task_update_jobs.wipe();sub_chat_events.wipe();app_settings_memory_requests.wipe();token_usage.wipe();prompt_budget.wipe();
+        let Self{chat,status:_,chat_id,message_id,user_message_id,queue_mode:_,queue_revision,assistant,category,model_name,mate_name,follow_up_suggestions,suggested_followup_message,task_proposals,task_update_proposals,task_events,pending_task_update_jobs,sub_chat_events,app_settings_memory_requests,recommendations,token_usage,prompt_budget,project_creations,memory_writes,project_embed_adoptions}=self;
+        chat.wipe();chat_id.wipe();message_id.wipe();user_message_id.wipe();*queue_revision=None;assistant.wipe();category.wipe();model_name.wipe();mate_name.wipe();follow_up_suggestions.wipe();suggested_followup_message.wipe();task_proposals.wipe();task_update_proposals.wipe();task_events.wipe();pending_task_update_jobs.wipe();sub_chat_events.wipe();app_settings_memory_requests.wipe();recommendations.wipe();token_usage.wipe();prompt_budget.wipe();project_creations.wipe();memory_writes.wipe();project_embed_adoptions.wipe();
     }
 }
 impl Wipe for SendObservations{
-    fn wipe(&mut self){let Self{category,model,mate,suggestions,suggested,proposals,updates,events,jobs,subchats,memories,usage,budget}=self;category.wipe();model.wipe();mate.wipe();suggestions.wipe();suggested.wipe();proposals.wipe();updates.wipe();events.wipe();jobs.wipe();subchats.wipe();memories.wipe();usage.wipe();budget.wipe();}
+    fn wipe(&mut self){let Self{category,model,mate,suggestions,suggested,proposals,updates,events,jobs,subchats,memories,recommendations,usage,budget,project_create}=self;category.wipe();model.wipe();mate.wipe();suggestions.wipe();suggested.wipe();proposals.wipe();updates.wipe();events.wipe();jobs.wipe();subchats.wipe();memories.wipe();recommendations.wipe();usage.wipe();budget.wipe();project_create.wipe();}
 }
 // Private, opt-in test attribution. No turn/account/payload value is printable.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -46,6 +54,14 @@ enum SendPhase {
     Persist,
     ReplayArtifacts,
     TaskFinalize,
+    /// Handling of a focus activation/phase frame (`persist_focus_event`).
+    FocusPersist,
+    /// Answering a `project_focus_catalog_requested` frame.
+    ProjectCatalog,
+    /// The Project create / file-job / embed-adoption phase.
+    ProjectPhase,
+    /// Releasing the finished outcome to the caller.
+    Release,
 }
 impl SendPhase {
     fn label(self) -> &'static str {
@@ -62,6 +78,10 @@ impl SendPhase {
             Self::Persist => "persist",
             Self::ReplayArtifacts => "replay_artifacts",
             Self::TaskFinalize => "task_finalize",
+            Self::FocusPersist => "focus_persist",
+            Self::ProjectCatalog => "project_catalog",
+            Self::ProjectPhase => "project_phase",
+            Self::Release => "release",
         }
     }
 }
@@ -88,6 +108,22 @@ pub(in crate::client) struct SendTrace {
     phase: SendPhase,
     discovery: DiscoveryStatus,
     final_seen: bool,
+    /// Type of the last server frame the turn handled; a closed lowercase
+    /// identifier only (never payload content), see [`frame_label`].
+    frame: Option<String>,
+}
+/// Longest server frame type the diagnostic repeats verbatim.
+const MAX_FRAME_LABEL: usize = 64;
+/// A printable label for a server frame type: the type itself when it is a
+/// plain `[a-z0-9_]` identifier (frame types are protocol constants, never
+/// user data), otherwise `unclassified`.
+fn frame_label(kind: &str) -> Option<String> {
+    (!kind.is_empty()
+        && kind.len() <= MAX_FRAME_LABEL
+        && kind
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_'))
+    .then(|| kind.to_owned())
 }
 impl SendTrace {
     pub(in crate::client) fn new() -> Self {
@@ -95,12 +131,34 @@ impl SendTrace {
             phase: SendPhase::Preparation,
             discovery: DiscoveryStatus::None,
             final_seen: false,
+            frame: None,
         }
+    }
+    /// Remember the type of the frame being handled for the opt-in diagnostic.
+    fn observe_frame(&mut self, kind: &str) {
+        self.frame = Some(frame_label(kind).unwrap_or_else(|| "unclassified".into()));
+    }
+    fn frame_text(&self) -> &str {
+        self.frame.as_deref().unwrap_or("none")
     }
     pub(in crate::client) fn report_protocol_error(&self) {
         let enabled = std::env::var_os("OPENMATES_TEST_SEND_PHASE_DIAGNOSTIC").as_deref()
             == Some(std::ffi::OsStr::new("1"));
         write_protocol_phase(Error::Protocol,self,enabled,&mut std::io::stderr().lock());
+    }
+    /// Opt-in test diagnostic for a refused (`Forbidden`) turn: phase and
+    /// frame label only, never ids or content.
+    pub(in crate::client) fn report_refusal(&self) {
+        if std::env::var_os("OPENMATES_TEST_SEND_PHASE_DIAGNOSTIC").as_deref()
+            == Some(std::ffi::OsStr::new("1"))
+        {
+            eprintln!(
+                "OpenMates-Test-Send-Refusal: {} frame={} site={}",
+                self.phase.label(),
+                self.frame_text(),
+                refusal_trace::take()
+            );
+        }
     }
     fn observe_discovery(&mut self, kind: &str, payload: &Value) {
         if kind == "recovery_outputs_discovery_complete" {
@@ -127,15 +185,23 @@ fn write_protocol_phase(
     enabled: bool,
     writer: &mut impl std::io::Write,
 ) {
-    if error == Error::Protocol && enabled {
+    // Offline is included: a turn that ends `turn_recovery_required` names
+    // the phase where the socket or deadline gave up, still without ids.
+    if matches!(error, Error::Protocol | Error::Offline) && enabled {
         // Diagnostic output cannot replace the original send error.
         let _ = writeln!(
             writer,
-            "OpenMates-Test-Send-Phase: {} discovery={} final_seen={}",
+            "OpenMates-Test-Send-Phase: {} discovery={} final_seen={} frame={}",
             trace.phase.label(),
             trace.discovery.label(),
-            trace.final_seen
+            trace.final_seen,
+            trace.frame_text()
         );
+        // A labelled Protocol exit (static label, never ids) names its site.
+        let site = refusal_trace::take();
+        if site != "none" {
+            let _ = writeln!(writer, "OpenMates-Test-Send-Site: {site}");
+        }
     }
 }
 #[cfg(test)]
@@ -168,11 +234,14 @@ mod send_phase_tests {
             for enabled in [false, true] {
                 let mut bytes = vec![];
                 write_protocol_phase(error, &trace, enabled, &mut bytes);
-                assert_eq!(bytes.is_empty(), error != Error::Protocol || !enabled);
+                assert_eq!(
+                    bytes.is_empty(),
+                    !matches!(error, Error::Protocol | Error::Offline) || !enabled
+                );
                 if !bytes.is_empty() {
                     assert_eq!(
                         bytes,
-                        b"OpenMates-Test-Send-Phase: preparation discovery=none final_seen=false\n"
+                        b"OpenMates-Test-Send-Phase: preparation discovery=none final_seen=false frame=none\n"
                     );
                 }
             }
@@ -255,6 +324,10 @@ mod send_phase_tests {
             (SendPhase::Persist, "persist"),
             (SendPhase::ReplayArtifacts, "replay_artifacts"),
             (SendPhase::TaskFinalize, "task_finalize"),
+            (SendPhase::FocusPersist, "focus_persist"),
+            (SendPhase::ProjectCatalog, "project_catalog"),
+            (SendPhase::ProjectPhase, "project_phase"),
+            (SendPhase::Release, "release"),
         ] {
             for (discovery, status) in [
                 (DiscoveryStatus::None, "none"),
@@ -268,10 +341,11 @@ mod send_phase_tests {
                         phase,
                         discovery,
                         final_seen,
+                        frame: None,
                     };
                     let mut bytes = vec![];
                     write_protocol_phase(Error::Protocol, &trace, true, &mut bytes);
-                    assert_eq!(bytes, format!("OpenMates-Test-Send-Phase: {label} discovery={status} final_seen={final_seen}\n").as_bytes());
+                    assert_eq!(bytes, format!("OpenMates-Test-Send-Phase: {label} discovery={status} final_seen={final_seen} frame=none\n").as_bytes());
                 }
             }
         }
@@ -279,6 +353,24 @@ mod send_phase_tests {
     // contract-test: supporting surface=sdks.rust assertions=sdk.encryption.local-only,auth.session.isolation
 
     // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation
+    #[test]
+    fn diagnostic_names_only_identifier_frame_types_never_payload_text() {
+        let mut trace = SendTrace::new();
+        trace.phase = SendPhase::ProjectPhase;
+        trace.observe_frame("project_file_operation_available");
+        let mut bytes = vec![];
+        write_protocol_phase(Error::Protocol, &trace, true, &mut bytes);
+        assert_eq!(
+            bytes,
+            b"OpenMates-Test-Send-Phase: project_phase discovery=none final_seen=false frame=project_file_operation_available\n"
+        );
+        for hostile in ["", "Private Text", "frame\nOpenMates", "a-b", &"x".repeat(65)] {
+            trace.observe_frame(hostile);
+            assert_eq!(trace.frame_text(), "unclassified");
+        }
+        trace.observe_frame(&"x".repeat(64));
+        assert_eq!(trace.frame_text().len(), 64);
+    }
     #[tokio::test]
     async fn independent_send_traces_keep_their_values_across_interleaved_awaits() {
         async fn observed(phase: SendPhase, final_seen: bool) -> Vec<u8> {
@@ -296,11 +388,11 @@ mod send_phase_tests {
         );
         assert_eq!(
             first,
-            b"OpenMates-Test-Send-Phase: claim discovery=none final_seen=true\n"
+            b"OpenMates-Test-Send-Phase: claim discovery=none final_seen=true frame=none\n"
         );
         assert_eq!(
             second,
-            b"OpenMates-Test-Send-Phase: decode discovery=none final_seen=false\n"
+            b"OpenMates-Test-Send-Phase: decode discovery=none final_seen=false frame=none\n"
         );
     }
 }
@@ -361,11 +453,16 @@ impl Client {
             )
             .await.map(Plain::new);
         let _ = ws.close(None).await;
-        let result=match result{Ok(outcome)=>self.release_send_outcome(&release_scope,&id,&cancel,outcome),Err(error)=>Err(error)};
-        // Read the opt-in flag only for the original Protocol failure, after
+        // Keep the failing phase of the turn itself: only a turn that came
+        // back whole enters the release phase.
+        let result=match result{Ok(outcome)=>{trace.phase = SendPhase::Release;self.release_send_outcome(&release_scope,&id,&cancel,outcome)},Err(error)=>Err(error)};
+        // Read the opt-in flag only for an original Protocol or Offline failure, after
         // the existing socket close; normal output and errors are unchanged.
-        if matches!(&result, Err(Error::Protocol)) {
+        if matches!(&result, Err(Error::Protocol | Error::Offline)) {
             trace.report_protocol_error();
+        }
+        if matches!(&result, Err(Error::Forbidden)) {
+            trace.report_refusal();
         }
         result
     }
@@ -376,9 +473,9 @@ impl Client {
                 "A volatile chat cannot become a saved chat.",
             ));
         }
-        if options.project_id.is_some() {
+        if options.project_id.is_some() && options.incognito {
             return Err(Error::Invalid(
-                "Explicit Project chat binding is unavailable in native send; no message was submitted.",
+                "A Project can only be bound to a saved chat; no message was submitted.",
             ));
         }
         if let Some(slug) = &options.slug {
@@ -392,7 +489,10 @@ impl Client {
         if cancel.is_cancelled() {
             return Err(Error::Cancelled);
         }
-        if text_input.trim().is_empty() || text_input.len() > 1_000_000 {
+        // An attachment-only turn is valid: its text is the reference blocks.
+        if (text_input.trim().is_empty() && options.embeds.is_empty())
+            || text_input.len() > 1_000_000
+        {
             return Err(Error::Invalid("Enter a message of at most 1 MB."));
         }
         Ok(())
@@ -769,6 +869,8 @@ mod tests {
             },
             SendOptions {
                 task_update_jobs: false,
+                // A Project binds only to a saved chat.
+                incognito: true,
                 project_id: Some("11111111-1111-4111-8111-111111111111".into()),
                 ..Default::default()
             },
@@ -867,6 +969,76 @@ fn should_wait_for_ai(message: &str, team: Option<&str>) -> bool {
     })
 }
 
+/// Embeds a turn creates are bound to the user message that started it and carry no task id
+/// (authored results, calendar events); the assistant message id never owns them. They are
+/// already limited to this chat by `capture_artifact`, so once the turn's task is known they are
+/// tagged with it, which is the ownership proof `persist_stream_artifacts` requires.
+///
+/// One turn can run several server tasks in sequence (a focus-mode activation is
+/// answered by its auto-confirmed continuation task). An embed an earlier task of this
+/// same turn produced was admitted against that task's id when it streamed, so it is
+/// rebound to the final task too. A row naming any other task stays unbound and is
+/// refused at persistence.
+fn bind_turn_embeds(
+    embeds: &BTreeMap<String, Value>,
+    user_message: &str,
+    task: &str,
+    earlier_tasks: &[String],
+) -> Plain<BTreeMap<String, Value>> {
+    let mut bound = embeds.clone();
+    if !task.is_empty() {
+        for row in bound.values_mut() {
+            let row_task = text(row, "task_id");
+            let unbound = row_task.is_empty() && text(row, "message_id") == user_message;
+            let earlier = earlier_tasks
+                .iter()
+                .any(|earlier| frame_task_matches(row_task, earlier));
+            if unbound || earlier {
+                row["task_id"] = Value::String(task.into());
+            }
+        }
+    }
+    Plain::new(bound)
+}
+
+/// Upper bound on the server tasks one turn may hand over to (initial task plus its
+/// continuations); more is a protocol error rather than unbounded growth.
+/// An agentic coding turn resumes after every Project file job and async test
+/// run (read, write, snapshot, run, fix, rerun, commit), so 16 was too tight:
+/// a real recipe-app test turn used 18 tasks.
+const MAX_TURN_TASKS: usize = 64;
+
+/// Switch the turn to the task id a frame of this same turn names, remembering the
+/// previous one so `bind_turn_embeds` still owns the embeds it streamed.
+///
+/// # Errors
+/// `Protocol` when a turn hands over to more than [`MAX_TURN_TASKS`] tasks.
+fn adopt_turn_task(
+    task_id: &mut String,
+    next: &str,
+    earlier_tasks: &mut Vec<String>,
+) -> Result<()> {
+    if next.is_empty() || next == task_id.as_str() {
+        return Ok(());
+    }
+    if !task_id.is_empty() && !earlier_tasks.iter().any(|t| t == task_id.as_str()) {
+        if earlier_tasks.len() >= MAX_TURN_TASKS {
+            return Err(Error::Protocol);
+        }
+        earlier_tasks.push(std::mem::take(task_id));
+    }
+    *task_id = next.into();
+    Ok(())
+}
+
+/// Whether an embed frame's `task_id` names this turn's task. The first frame
+/// of an embed carries the plain task id; the server's later update frames for
+/// the same embed (content finished, thumbnail) carry its SHA-256 instead, so
+/// both forms are the same ownership proof.
+pub(in crate::client) fn frame_task_matches(frame_task: &str, task: &str) -> bool {
+    !task.is_empty() && (frame_task == task || frame_task == sha256(task))
+}
+
 fn capture_artifact(
     kind: &str,
     p: &Value,
@@ -879,7 +1051,9 @@ fn capture_artifact(
     if kind == "send_embed_data"
         && row["already_encrypted"] != true
         && text(row, "chat_id") == chat
-        && (text(row, "task_id").is_empty() || task.is_empty() || text(row, "task_id") == task)
+        && (text(row, "task_id").is_empty()
+            || task.is_empty()
+            || frame_task_matches(text(row, "task_id"), task))
         && row.get("content").and_then(Value::as_str).is_some()
         && row.get("type").and_then(Value::as_str).is_some()
     {
@@ -933,6 +1107,88 @@ mod consent_fence_tests {
         let valid = json!({"chat_id":"chat","message_id":"human","request_id":"current"});
         assert!(admit_memory_request(&valid, "chat", "human", &mut seen));
         assert!(!admit_memory_request(&valid, "chat", "human", &mut seen));
+    }
+
+    // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation
+    #[test]
+    fn turn_embeds_bound_to_the_user_message_receive_the_turn_task() {
+        let embeds = BTreeMap::from([
+            ("own".to_string(), json!({"message_id":"human","task_id":""})),
+            ("foreign".to_string(), json!({"message_id":"other","task_id":""})),
+            ("tasked".to_string(), json!({"message_id":"human","task_id":"old"})),
+        ]);
+        let bound = bind_turn_embeds(&embeds, "human", "task", &[]);
+        assert_eq!(bound["own"]["task_id"], "task");
+        assert_eq!(bound["foreign"]["task_id"], "");
+        assert_eq!(bound["tasked"]["task_id"], "old");
+        let unknown = bind_turn_embeds(&embeds, "human", "", &[]);
+        assert_eq!(unknown["own"]["task_id"], "");
+    }
+
+    // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation
+    #[test]
+    fn embeds_of_a_task_the_turn_handed_over_from_are_rebound_to_the_final_task() {
+        // A focused turn: the activation task streams its embed, then the
+        // auto-confirmed continuation task answers.
+        let mut task = String::new();
+        let mut earlier = Vec::new();
+        adopt_turn_task(&mut task, "activation", &mut earlier).unwrap();
+        adopt_turn_task(&mut task, "", &mut earlier).unwrap();
+        adopt_turn_task(&mut task, "continuation", &mut earlier).unwrap();
+        adopt_turn_task(&mut task, "continuation", &mut earlier).unwrap();
+        assert_eq!(task, "continuation");
+        assert_eq!(earlier, ["activation".to_string()]);
+        let embeds = BTreeMap::from([
+            ("focus".to_string(), json!({"message_id":"human","task_id":"activation"})),
+            ("update".to_string(), json!({"message_id":"assistant","task_id":sha256("activation")})),
+            ("foreign".to_string(), json!({"message_id":"human","task_id":"other"})),
+        ]);
+        let bound = bind_turn_embeds(&embeds, "human", &task, &earlier);
+        assert_eq!(bound["focus"]["task_id"], "continuation");
+        assert_eq!(bound["update"]["task_id"], "continuation");
+        assert_eq!(bound["foreign"]["task_id"], "other");
+    }
+
+    // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation
+    #[test]
+    fn a_turn_handing_over_to_unbounded_tasks_is_a_protocol_error() {
+        let (mut task, mut earlier) = (String::new(), Vec::new());
+        for n in 0..=MAX_TURN_TASKS {
+            adopt_turn_task(&mut task, &format!("t{n}"), &mut earlier).unwrap();
+        }
+        assert_eq!(
+            adopt_turn_task(&mut task, "overflow", &mut earlier),
+            Err(Error::Protocol)
+        );
+    }
+
+    // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity
+    #[test]
+    fn an_agentic_coding_turn_with_eighteen_continuations_is_accepted() {
+        let (mut task, mut earlier) = (String::new(), Vec::new());
+        for n in 0..18 {
+            adopt_turn_task(&mut task, &format!("t{n}"), &mut earlier).unwrap();
+        }
+        assert_eq!(task, "t17");
+    }
+
+    // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation
+    #[test]
+    fn embed_update_frames_with_the_hashed_task_id_belong_to_the_turn() {
+        assert!(frame_task_matches("task", "task"));
+        assert!(frame_task_matches(&sha256("task"), "task"));
+        assert!(!frame_task_matches(&sha256("other"), "task"));
+        assert!(!frame_task_matches("other", "task"));
+        assert!(!frame_task_matches("", "task"));
+        assert!(!frame_task_matches("", ""));
+        // An update frame that arrives after the task is known is captured.
+        let mut embeds = BTreeMap::new();
+        let frame = json!({"chat_id":"chat","embed_id":"e","task_id":sha256("task"),"content":"c","type":"code"});
+        capture_artifact("send_embed_data", &frame, "chat", "task", &mut embeds, &mut vec![]).unwrap();
+        assert!(embeds.contains_key("e"));
+        let foreign = json!({"chat_id":"chat","embed_id":"f","task_id":sha256("other"),"content":"c","type":"code"});
+        capture_artifact("send_embed_data", &foreign, "chat", "task", &mut embeds, &mut vec![]).unwrap();
+        assert!(!embeds.contains_key("f"));
     }
 }
 

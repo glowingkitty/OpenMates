@@ -279,7 +279,7 @@ async fn ephemeral_unsupported_options_and_cookie_downgrades_fail_before_transpo
         vec!["--slug", "saved"],
         vec!["--auto-approve"],
         vec!["--auto-approve-memories"],
-        vec!["--project", "project"],
+        vec!["--project", "11111111-1111-4111-8111-111111111111"],
     ] {
         let mut args = vec!["openmates", "chats", "send", "hello"];
         args.extend(flags);

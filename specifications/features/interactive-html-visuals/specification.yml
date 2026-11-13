@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.interactive-html-visuals
-version: 1
+version: 2
 status: draft
 title: Interactive HTML Visuals in Code Embeds
 summary: >
@@ -19,6 +19,7 @@ related_contracts:
 scope:
   includes:
     - Live rendering of finished HTML code embeds (language html or a .html/.htm filename) in chat cards and fullscreen, with a switch between visual and source code.
+    - Image rendering of SVG code embeds and progressive rendering of SVG and HTML embeds while they stream.
     - Isolation of the rendered document from the app, user data and the network.
     - Assistant guidance for when and how to produce self-contained HTML visuals.
   excludes:
@@ -35,9 +36,23 @@ assertions:
       The card stays a click target that opens fullscreen. Fullscreen opens on
       the live, interactive visual, and one header button switches to the source
       code and back; copy and download keep working. Markdown and other code
-      embeds keep their existing previews. While an HTML embed is still
-      streaming, its source is shown and the page is not executed.
+      embeds keep their existing previews.
     depends_on: [examples.render]
+  - id: interactive-html.render.vector-image-and-progressive-streaming
+    type: behavior
+    must: >
+      An SVG code embed (language svg, a .svg filename, or xml that is a
+      standalone svg document) shows the picture in its chat card and in
+      fullscreen, with the same one-button switch to the source code. The
+      picture is displayed as an image, so scripts and external resources in it
+      never run or load. While an SVG or HTML embed is still streaming, the
+      card shows the partial result building up, refreshed a few times per
+      second: unfinished SVG is completed to a renderable document and the last
+      good frame stays when a partial cannot be shown; streaming HTML is shown
+      without any scripts in a sandbox that cannot execute code. When the embed
+      is finished, the unmodified source is rendered and HTML becomes the live
+      interactive visual.
+    depends_on: [examples.progressive]
   - id: interactive-html.security.isolated-and-offline
     type: invariant
     must: >
@@ -81,4 +96,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [render, security, assistant]
+  required_groups: [render, progressive, security, assistant]

@@ -1,3 +1,8 @@
+<!--
+  frontend/packages/ui/src/components/embeds/jobs/JobsSearchEmbedFullscreen.svelte
+
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Renderers/JobsEmbedRenderers.swift
+-->
 <script lang="ts">
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';

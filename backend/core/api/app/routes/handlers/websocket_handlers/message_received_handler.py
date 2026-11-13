@@ -107,7 +107,8 @@ def _client_selection_context_required(payload: Dict[str, Any], active_focus_id:
         active_focus_id or payload.get("accepted_plan_context")
         or related_requires_context or payload.get("project_focus_documents")
         or payload.get("project_context_documents") or payload.get("custom_memory_documents")
-        or payload.get("custom_rule_documents") or payload.get("client_context_pending")
+        or payload.get("custom_rule_documents") or payload.get("memory_catalog")
+        or payload.get("client_context_pending")
     )
 
 
@@ -170,9 +171,10 @@ AI_USER_PREFERENCE_FIELDS = [
     "default_ai_model_complex",
     "default_app_skill_models",
     "follow_up_suggestions_enabled",
-    "quick_tips_enabled",
+    "recommendations_enabled",
     "learning_mode_enabled",
     "learning_mode_age_group",
+    "learning_mode_collaborative_build",
     "learning_mode_failed_attempts",
     "learning_mode_deactivation_blocked_until",
 ]
@@ -250,7 +252,7 @@ def _sanitize_benchmark_metadata(value: Any) -> dict[str, str] | None:
 def _sanitize_client_capabilities(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
-    allowed = {"task_update_jobs", "project_file_jobs", "remote_command_jobs"}
+    allowed = {"task_update_jobs", "project_file_jobs", "project_create_requests", "remote_command_jobs", "memory_write_jobs"}
     return sorted({item for item in value if isinstance(item, str) and item in allowed})
 
 
@@ -2672,12 +2674,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 f"Including follow_up_suggestions_enabled={user_preferences_dict['follow_up_suggestions_enabled']} "
                 f"in AI request for user {user_id}"
             )
-            quick_tips_enabled = user_data_for_prefs.get("quick_tips_enabled")
-            user_preferences_dict["quick_tips_enabled"] = (
-                True if quick_tips_enabled is None else bool(quick_tips_enabled)
+            recommendations_enabled = user_data_for_prefs.get("recommendations_enabled")
+            user_preferences_dict["recommendations_enabled"] = (
+                True if recommendations_enabled is None else bool(recommendations_enabled)
             )
             logger.debug(
-                f"Including quick_tips_enabled={user_preferences_dict['quick_tips_enabled']} "
+                f"Including recommendations_enabled={user_preferences_dict['recommendations_enabled']} "
                 f"in AI request for user {user_id}"
             )
             learning_mode_context = build_learning_mode_context(user_data_for_prefs)
@@ -2793,6 +2795,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             client_context_turn_id=client_context_turn_id if client_context_binding_ref else None,
             accepted_plan_context=bounded_accepted_plan_snapshot(payload.get("accepted_plan_context")) if not is_incognito else None,
             custom_rule_documents=(payload.get("custom_memory_documents", payload.get("custom_rule_documents")) or [])[:24] if isinstance(payload.get("custom_memory_documents", payload.get("custom_rule_documents")), list) and not is_incognito else [],
+            memory_catalog=payload.get("memory_catalog") if isinstance(payload.get("memory_catalog"), list) and not is_incognito else [],
             project_focus_catalog=(payload.get("project_focus_catalog") or [])[:20] if isinstance(payload.get("project_focus_catalog"), list) and not is_incognito else [],
             project_focus_documents=(payload.get("project_focus_documents") or [])[:8] if isinstance(payload.get("project_focus_documents"), list) and not is_incognito else [],
             project_context_documents=(payload.get("project_context_documents") or [])[:20] if isinstance(payload.get("project_context_documents"), list) and not is_incognito else [],

@@ -36,6 +36,16 @@ function iso(value: unknown): string | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
+/**
+ * The bounded `fields.timezone` when the browser's Intl accepts it. Shared with
+ * the flag-on Rust reminder schedule, which cannot validate zones itself.
+ */
+export function reminderTimeZone(fields: Fields): string | undefined {
+  const timezone = bounded(fields.timezone, 64);
+  if (!timezone) return undefined;
+  try { new Intl.DateTimeFormat('en', { timeZone: timezone }); return timezone; } catch { return undefined; /* omit invalid zones */ }
+}
+
 export function buildReminderNotificationContext(
   kind: ReminderNotificationContext['kind'] | 'health_appointment',
   title: string,
@@ -60,10 +70,8 @@ export function buildReminderNotificationContext(
   const ends = iso(first(fields, ['date_end', 'arrival', 'check_out', 'check_out_date']));
   if (starts) context.starts_at = starts;
   if (ends) context.ends_at = ends;
-  const timezone = bounded(fields.timezone, 64);
-  if (timezone) {
-    try { new Intl.DateTimeFormat('en', { timeZone: timezone }); context.timezone = timezone; } catch { /* omit invalid zones */ }
-  }
+  const timezone = reminderTimeZone(fields);
+  if (timezone) context.timezone = timezone;
   const factFields = [
     ['Provider', ['provider', 'booking_provider']], ['From', ['origin']], ['To', ['destination']],
     ['Transport', ['transport_method']], ['Price', ['price', 'price_label']],

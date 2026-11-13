@@ -1,0 +1,19 @@
+# Dev-only test tooling: admit a test-account login session into an isolated
+# native CLI state directory. Standalone (own [workspace]) so the product
+# workspace is unaffected; build with the product lockfile copied next to it.
+[package]
+name = "native-cli-session-import"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+openmates = { path = "../../frontend/packages/openmates-tui-native" }
+zeroize = "1"
+tokio = { version = "=1.54.1", features = ["rt-multi-thread", "macros"] }
+
+[patch.crates-io]
+opaque-ke = { path = "../../packages/third_party/opaque-ke" }
+voprf = { path = "../../packages/third_party/voprf" }

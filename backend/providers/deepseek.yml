@@ -53,7 +53,7 @@ models:
         country: "FR"
         reasoning_control:
           parameter: reasoning_effort
-          levels: {LOW: "low", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          levels: {LOW: "none", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "high"}
           source_url: https://docs.mistral.ai/studio/conversations/reasoning
       - id: "together"
         name: "Together AI"
@@ -89,9 +89,9 @@ models:
       require_parameters: true
     pricing:
       tokens:
-        input: {per_credit_unit: 1100}
-        cache_read: {per_credit_unit: 47500}
-        output: {per_credit_unit: 275}
+        input: {per_credit_unit: 2225}
+        cache_read: {per_credit_unit: 95240}
+        output: {per_credit_unit: 560}
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -159,9 +159,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 250 # Together $1.32/M; 333.33 / 1.32 = 252.5, rounded down
+          per_credit_unit: 510
         output:
-          per_credit_unit: 84 # Together $3.96/M; 333.33 / 3.96 = 84.2, rounded down
+          per_credit_unit: 170
     # Together standard pricing reviewed 2026-10-14:
     # https://www.together.ai/models/deepseek-v4-pro-0813
     costs:
@@ -215,9 +215,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 2350 # Based on $0.14/M input (AtlasCloud via OpenRouter): 333.33 / 0.14 = 2381, rounded down
+          per_credit_unit: 4765
         output:
-          per_credit_unit: 1190 # Based on $0.28/M output (AtlasCloud via OpenRouter): 333.33 / 0.28 = 1190
+          per_credit_unit: 2385
     costs:
       input_per_million_token:
         price: 0.14
@@ -238,16 +238,7 @@ models:
       tool_use: true
       streaming: true
 
-# Pricing Formula:
-# 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
-# 2. Tokens per credit = credit_value_usd / cost_per_token
-#
-# Where:
-# - credit_value_usd = 0.001 (110 USD / 110,000 credits)
-# - markup = 3 (3x your cost)
-#
-# Simplified: tokens_per_credit = 333.33 / your_cost_per_million
-#
-# Examples:
-# - Input ($0.14/M): 333.33 / 0.14 = 2381 tokens/credit -> round to 2350
-# - Output ($0.28/M): 333.33 / 0.28 = 1190 tokens/credit
+# Customer pricing: every `pricing` value is derived from `costs` (supplier USD)
+# as cost x (1 + pricing.margin_percent in backend/config/backend_config.yml),
+# rounded up to 5-credit steps (1 credit = $0.001). Regenerate with
+# `python3 scripts/derive_customer_prices.py --write`; tests fail on drift.

@@ -24,6 +24,7 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from workflow_real_test_helpers import resolve_cli_path, run_cli_json
+from project_names import natural_project_name
 
 try:
     from scripts import sessions
@@ -301,7 +302,7 @@ def main() -> int:
                 receipt["login_transport_failure"] = True
             raise ProofError("disposable_login_failed")
         print("Disposable account paired; creating isolated Project.", flush=True)
-        project = cli(cli_path, ["projects", "create", f"Scheduled train proof {uuid4().hex[:8]}",
+        project = cli(cli_path, ["projects", "create", natural_project_name("Train commute reminders"),
                                  "--write-policy", "always_ask", "--personal"], "project_create")
         project_id = ident((project.get("project") or {}).get("project_id")
                            if isinstance(project, dict) else None, "project_id")

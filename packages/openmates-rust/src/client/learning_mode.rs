@@ -1,5 +1,5 @@
 //! Account Learning Mode (TS CLI `getLearningModeStatus`,
-//! `activateLearningMode`, `deactivateLearningMode`).
+//! `activateLearningMode`, `setLearningModeCollaborative`, `deactivateLearningMode`).
 //!
 //! The server owns the passcode check and lockout; the client only forwards
 //! the passcode in the request body and never stores or logs it.
@@ -32,6 +32,28 @@ pub fn learning_mode_age_group(value: Option<&str>) -> std::result::Result<&str,
         .ok_or("Provide --age-group as one of: under_10, 10_12, 13_15, 16_18, adult.")
 }
 
+/// Request body of `/v1/learning-mode/activate`; the optional field is omitted, not null.
+fn learning_mode_activate_body(
+    age_group: &str,
+    passcode: &str,
+    collaborative_build: Option<bool>,
+) -> Value {
+    let mut body = json!({"age_group": age_group, "passcode": passcode});
+    if let Some(value) = collaborative_build {
+        body["collaborative_build"] = json!(value);
+    }
+    body
+}
+
+/// Request body of `/v1/learning-mode/collaborative`; the passcode is omitted when absent.
+fn learning_mode_collaborative_body(enabled: bool, passcode: Option<&str>) -> Value {
+    let mut body = json!({"enabled": enabled});
+    if let Some(value) = passcode {
+        body["passcode"] = json!(value);
+    }
+    body
+}
+
 impl Client {
     async fn learning_mode_request(
         &mut self,
@@ -62,13 +84,28 @@ impl Client {
     }
 
     /// POST `/v1/learning-mode/activate` with the age group and passcode.
+    /// `collaborative_build: None` omits the field so the backend default applies.
     pub async fn activate_learning_mode(
         &mut self,
         age_group: &str,
         passcode: &str,
+        collaborative_build: Option<bool>,
     ) -> std::result::Result<Value, LearningModeError> {
-        let body = json!({"age_group": age_group, "passcode": passcode});
+        let body = learning_mode_activate_body(age_group, passcode, collaborative_build);
         self.learning_mode_request(Method::POST, "/v1/learning-mode/activate", Some(body))
+            .await
+    }
+
+    /// POST `/v1/learning-mode/collaborative`. Enabling requires the passcode
+    /// (server answers 403 otherwise); disabling does not, so `passcode: None`
+    /// omits the field.
+    pub async fn set_learning_mode_collaborative(
+        &mut self,
+        enabled: bool,
+        passcode: Option<&str>,
+    ) -> std::result::Result<Value, LearningModeError> {
+        let body = learning_mode_collaborative_body(enabled, passcode);
+        self.learning_mode_request(Method::POST, "/v1/learning-mode/collaborative", Some(body))
             .await
     }
 
@@ -96,5 +133,26 @@ mod tests {
         let message = "Provide --age-group as one of: under_10, 10_12, 13_15, 16_18, adult.";
         assert_eq!(learning_mode_age_group(Some("child")), Err(message));
         assert_eq!(learning_mode_age_group(None), Err(message));
+    }
+
+    // contract-test: supporting surface=cli assertions=cli.runtime.native-rust
+    #[test]
+    fn request_bodies_omit_unset_optional_fields() {
+        assert_eq!(
+            learning_mode_activate_body("13_15", "1234", None),
+            json!({"age_group":"13_15","passcode":"1234"})
+        );
+        assert_eq!(
+            learning_mode_activate_body("13_15", "1234", Some(false)),
+            json!({"age_group":"13_15","passcode":"1234","collaborative_build":false})
+        );
+        assert_eq!(
+            learning_mode_collaborative_body(true, Some("1234")),
+            json!({"enabled":true,"passcode":"1234"})
+        );
+        assert_eq!(
+            learning_mode_collaborative_body(false, None),
+            json!({"enabled":false})
+        );
     }
 }

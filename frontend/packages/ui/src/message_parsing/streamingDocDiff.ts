@@ -33,6 +33,22 @@ export interface IncrementalUpdateResult {
   applied: boolean;
   fallback: boolean;
   stepsApplied: number;
+  /** Why a rejected update could not be applied; structure only, never message text. */
+  reason?: IncrementalUpdateRejection;
+}
+
+/** Structural description of a rejected update for diagnostics. */
+export interface IncrementalUpdateRejection {
+  cause: "editor_unavailable" | "new_document_unparsable" | "no_change_regions" | "replace_step_failed";
+  detail?: string;
+  oldBlocks?: string[];
+  newBlocks?: string[];
+}
+
+function blockTypes(doc: ProseMirrorNode): string[] {
+  const types: string[] = [];
+  doc.forEach((child) => types.push(child.type.name));
+  return types.slice(0, 40);
 }
 
 /**
@@ -70,7 +86,7 @@ export function applyIncrementalUpdate(
   newContent: Record<string, unknown>,
 ): IncrementalUpdateResult {
   if (!editor || editor.isDestroyed) {
-    return { applied: false, fallback: false, stepsApplied: 0 };
+    return { applied: false, fallback: false, stepsApplied: 0, reason: { cause: "editor_unavailable" } };
   }
 
   const { state, view } = editor;
@@ -85,7 +101,21 @@ export function applyIncrementalUpdate(
       "[streamingDocDiff] Failed to parse new content, skipping incremental update:",
       err,
     );
-    return { applied: false, fallback: false, stepsApplied: 0 };
+    return {
+      applied: false, fallback: false, stepsApplied: 0,
+      reason: {
+        cause: "new_document_unparsable",
+        detail: err instanceof Error ? err.name : typeof err,
+        oldBlocks: blockTypes(oldDoc),
+      },
+    };
+  }
+
+  // A document without blocks cannot replace content under `block+`. The empty
+  // message is the schema's filled empty document, as setContent would produce.
+  if (newDoc.childCount === 0) {
+    const filled = state.schema.topNodeType.createAndFill();
+    if (filled) newDoc = filled;
   }
 
   // Quick equality check — if docs are identical, nothing to do
@@ -102,15 +132,22 @@ export function applyIncrementalUpdate(
     console.warn(
       "[streamingDocDiff] Docs differ but no change regions found, falling back",
     );
-    return { applied: false, fallback: false, stepsApplied: 0 };
+    return {
+      applied: false, fallback: false, stepsApplied: 0,
+      reason: { cause: "no_change_regions", oldBlocks: blockTypes(oldDoc), newBlocks: blockTypes(newDoc) },
+    };
   }
 
   function applyRegions(
     regionsToApply: ChangeRegion[],
     fallback: boolean,
   ): IncrementalUpdateResult {
+    const rejected = (cause: IncrementalUpdateRejection["cause"], detail?: string): IncrementalUpdateResult => ({
+      applied: false, fallback, stepsApplied: 0,
+      reason: { cause, detail, oldBlocks: blockTypes(oldDoc), newBlocks: blockTypes(newDoc) },
+    });
     if (regionsToApply.length === 0) {
-      return { applied: false, fallback, stepsApplied: 0 };
+      return rejected("no_change_regions");
     }
     const tr = state.tr;
     let stepsApplied = 0;
@@ -122,12 +159,13 @@ export function applyIncrementalUpdate(
           region.toOld,
           newDoc.slice(region.fromNew, region.toNew),
         );
-        if (tr.maybeStep(step).failed) {
-          return { applied: false, fallback, stepsApplied: 0 };
+        const stepResult = tr.maybeStep(step);
+        if (stepResult.failed) {
+          return rejected("replace_step_failed", stepResult.failed);
         }
         stepsApplied++;
-      } catch {
-        return { applied: false, fallback, stepsApplied: 0 };
+      } catch (err) {
+        return rejected("replace_step_failed", err instanceof Error ? err.name : typeof err);
       }
     }
 

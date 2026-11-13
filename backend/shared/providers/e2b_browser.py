@@ -182,7 +182,7 @@ class E2BBrowser:
                     await asyncio.sleep(0.25)
                     continue
                 if prebooted and (
-                    result.get("runtime_protocol") != "preboot-v1"
+                    result.get("runtime_protocol") != "preboot-v2"
                     or result.get("pristine") is not True
                 ):
                     raise BrowserUnavailable(

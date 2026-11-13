@@ -11,6 +11,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { createProjectPlanForTest } = require('./helpers/create-project-plan');
+const { naturalProjectName } = require('./helpers/project-names');
 
 test.describe('Plans V1 acceptance checks flow', () => {
 	// contract-test: direct surface=gui.web assertions=plans.execution.gates-evidence
@@ -19,7 +20,7 @@ test.describe('Plans V1 acceptance checks flow', () => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
 
-		const projectName = `E2E checks project ${Date.now()}`;
+		const projectName = naturalProjectName('Website relaunch');
 		const criterionText = 'The implementation has a green focused backend test';
 		const checkTitle = 'Run focused backend pytest';
 		const evidenceText = 'pytest returned 1 passed';

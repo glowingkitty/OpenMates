@@ -59,6 +59,7 @@ import Model3DResultEmbedPreview from "../../../embeds/models3d/Model3DResultEmb
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
 import AudioGenerateEmbedPreview from "../../../embeds/audio/AudioGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
+import { videoGenerateCardProps } from "../../../embeds/videos/videoGenerateCard";
 import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
@@ -88,6 +89,8 @@ import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRad
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
 import BusinessTrademarkSearchEmbedPreview from "../../../embeds/business/BusinessTrademarkSearchEmbedPreview.svelte";
+import BusinessInvestorSearchEmbedPreview from "../../../embeds/business/BusinessInvestorSearchEmbedPreview.svelte";
+import BusinessCompanyOwnershipEmbedPreview from "../../../embeds/business/BusinessCompanyOwnershipEmbedPreview.svelte";
 import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
 import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
 import { normalizeFinanceOverview } from "../../../embeds/finance/financeCheckAccountsContent";
@@ -735,6 +738,14 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           decodedContent,
           content,
         );
+      }
+
+      if (appId === "business" && skillId === "company_ownership") {
+        return this.renderCompanyOwnershipComponent(attrs, embedData, decodedContent, content);
+      }
+
+      if (appId === "business" && skillId === "search_investors") {
+        return this.renderInvestorSearchComponent(attrs, embedData, decodedContent, content);
       }
 
       if (appId === "business" && skillId === "search_trademarks") {
@@ -3107,7 +3118,51 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
   }
 
-  /** Render the business.company_financials parent preview component. */
+  /** Render the business.company_ownership parent preview component. */
+  private renderCompanyOwnershipComponent(attrs: EmbedNodeAttributes, embedData: any, decodedContent: any, content: HTMLElement): void {
+    const existing = mountedComponents.get(content);
+    if (existing) unmount(existing);
+    disposeEmbedTree(content, false);
+    content.replaceChildren();
+    const payload = decodedContent ?? {};
+    const component = mount(BusinessCompanyOwnershipEmbedPreview, {
+      target: content,
+      props: {
+        id: attrs.contentRef?.replace("embed:", "") || "",
+        data: payload,
+        query: payload.query || (attrs as any).query || "",
+        status: (payload.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error" | "cancelled",
+        onFullscreen: (updated?: Record<string, unknown>) => this.openFullscreen(attrs, embedData, {
+          ...(updated ?? payload), app_id: "business", skill_id: "company_ownership",
+        }),
+      },
+    });
+    mountedComponents.set(content, component);
+  }
+
+  /** Render the business.search_investors parent preview component. */
+  private renderInvestorSearchComponent(attrs: EmbedNodeAttributes, embedData: any, decodedContent: any, content: HTMLElement): void {
+    const existing = mountedComponents.get(content);
+    if (existing) unmount(existing);
+    disposeEmbedTree(content, false);
+    content.replaceChildren();
+    const payload = decodedContent ?? {};
+    const component = mount(BusinessInvestorSearchEmbedPreview, {
+      target: content,
+      props: {
+        id: attrs.contentRef?.replace("embed:", "") || "",
+        data: payload,
+        query: payload.query || (attrs as any).query || "",
+        status: (payload.status || embedData?.status || attrs.status || "processing") as "processing" | "finished" | "error" | "cancelled",
+        onFullscreen: (updated?: Record<string, unknown>) => this.openFullscreen(attrs, embedData, {
+          ...(updated ?? payload), app_id: "business", skill_id: "search_investors",
+        }),
+      },
+    });
+    mountedComponents.set(content, component);
+  }
+
+  /** Render the business.search_trademarks parent preview component. */
   private renderTrademarkSearchComponent(attrs: EmbedNodeAttributes, embedData: any, decodedContent: any, content: HTMLElement): void {
     const existing = mountedComponents.get(content);
     if (existing) unmount(existing);
@@ -4387,7 +4442,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   }
 
   /**
-   * Render generated video embeds with the dedicated video player preview.
+   * Render generated video embeds with the thumbnail card (play opens the fullscreen player).
    */
   private renderVideoGenerateComponent(
     attrs: EmbedNodeAttributes,
@@ -4410,7 +4465,6 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const files = decodedContent?.files || undefined;
     const aesKey = decodedContent?.aes_key || "";
     const aesNonce = decodedContent?.aes_nonce || "";
-    const previewVideoUrl = decodedContent?.previewVideoUrl || decodedContent?.preview_video_url || "";
     const previewImageUrl = decodedContent?.previewImageUrl || decodedContent?.preview_image_url || "";
     const error = decodedContent?.error || "";
 
@@ -4448,10 +4502,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           files,
           aesKey,
           aesNonce,
-          previewVideoUrl,
           previewImageUrl,
           status: status as "processing" | "finished" | "error",
           error,
+          ...videoGenerateCardProps(decodedContent),
           taskId,
           isMobile: false,
           onFullscreen: handleFullscreen,

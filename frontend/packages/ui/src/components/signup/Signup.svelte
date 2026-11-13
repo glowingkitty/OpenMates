@@ -16,7 +16,7 @@
     import { clearKeyFromStorage, clearAllEmailData, getEmailEncryptionKeyForApi } from '../../services/cryptoService';
 
     // Import signup state stores
-    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter, getPathFromStep, STEP_ALPHA_DISCLAIMER } from '../../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter, getPathFromStep, primeSignupStepLocation, STEP_ALPHA_DISCLAIMER } from '../../stores/signupState';
     import { isRecoveryKeyCreationActive } from '../../stores/recoveryKeyUIState';
 
     // Step name constants
@@ -614,6 +614,7 @@
         // Skip alpha_disclaimer, basics, and confirm_email - we only track steps beyond these initial steps
         // This ensures the signup flow can be restored on page reload only if user has progressed beyond initial steps
         if (newStep !== STEP_ALPHA_DISCLAIMER && newStep !== STEP_BASICS && newStep !== STEP_CONFIRM_EMAIL) {
+            if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupStepLocation(newStep);
             const signupPath = getPathFromStep(newStep);
             console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${newStep}`);
             
@@ -741,6 +742,7 @@
         // Skip alpha_disclaimer, basics, and confirm_email - we only track steps beyond these initial steps
         // This ensures the signup flow can be restored on page reload only if user has progressed beyond initial steps
         if (step !== STEP_ALPHA_DISCLAIMER && step !== STEP_BASICS && step !== STEP_CONFIRM_EMAIL) {
+            if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupStepLocation(step);
             const signupPath = getPathFromStep(step);
             console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${step}`);
             

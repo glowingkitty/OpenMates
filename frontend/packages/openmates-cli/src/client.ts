@@ -39,7 +39,6 @@ import {
   bytesToBase64,
   bytesToBase64Url,
   base64ToBytes,
-  hashItemKey,
   deriveTeamInviteKey,
   createRecoveryKeyMaterial,
   createApiKeyCryptoMaterial,
@@ -788,6 +787,8 @@ export type LearningModeAgeGroup = "under_10" | "10_12" | "13_15" | "16_18" | "a
 export interface LearningModeStatus {
   enabled: boolean;
   age_group: LearningModeAgeGroup | null;
+  /** Collaborative build is on for this account; false/absent for under_10 or older backends. */
+  collaborative_build?: boolean;
   failed_attempts: number;
   deactivation_blocked_until: number | null;
 }
@@ -1707,6 +1708,11 @@ function normalizeTopicPreferencesPayload(value: unknown): TopicPreferencesPaylo
   };
 }
 
+/** Shown wherever a removed typed-memory write is attempted. */
+export const TYPED_MEMORIES_REMOVED_MESSAGE =
+  "Typed app memories were replaced by Memories (personal documents). "
+  + "Manage them in the web app under Settings > Memories.";
+
 export interface AppSettingsMemorySystemMessage {
   message_id: string;
   role: "system";
@@ -2029,406 +2035,6 @@ export async function buildSubChatEncryptedMetadataPayloads(params: {
 
   return payloads;
 }
-
-// ---------------------------------------------------------------------------
-// Memory type registry — mirrors all production-stage entries from app.yml files.
-// Used for schema validation when creating/updating memories.
-// ---------------------------------------------------------------------------
-
-/** A single field definition within a memory type schema. */
-export interface MemoryFieldDef {
-  type: string;
-  description?: string;
-  enum?: string[];
-  auto_generated?: boolean;
-}
-
-/** Schema definition for one memory type. */
-export interface MemoryTypeDef {
-  appId: string;
-  itemType: string;
-  entryType: "single" | "list";
-  required: string[];
-  properties: Record<string, MemoryFieldDef>;
-}
-
-/**
- * Registry of all production-stage memory types across all apps.
- * Keys are `${appId}/${itemType}`.
- *
- * Keep in sync with backend/apps/{app}/app.yml memory sections.
- * Auto-generated fields (added_date etc.) are excluded from user-visible fields.
- */
-export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
-  "openmates/memories": {appId: "openmates", itemType: "memories", entryType: "list", required: ["title", "document"],
-    properties: {title: {type: "string"}, document: {type: "string"}}},
-  "books/favorite_books": {
-    appId: "books",
-    itemType: "favorite_books",
-    entryType: "list",
-    required: ["title"],
-    properties: {
-      title: { type: "string" },
-      author: { type: "string" },
-      genre: { type: "string" },
-      rating: { type: "number" },
-      notes: { type: "string" },
-    },
-  },
-  "books/currently_reading": {
-    appId: "books",
-    itemType: "currently_reading",
-    entryType: "list",
-    required: ["title"],
-    properties: {
-      title: { type: "string" },
-      author: { type: "string" },
-      started_date: { type: "string" },
-      notes: { type: "string" },
-    },
-  },
-  "books/to_read_list": {
-    appId: "books",
-    itemType: "to_read_list",
-    entryType: "list",
-    required: ["title"],
-    properties: {
-      title: { type: "string" },
-      author: { type: "string" },
-      genre: { type: "string" },
-      notes: { type: "string" },
-    },
-  },
-  "code/preferred_tech": {
-    appId: "code",
-    itemType: "preferred_tech",
-    entryType: "list",
-    required: ["name"],
-    properties: {
-      name: { type: "string" },
-      proficiency: {
-        type: "string",
-        enum: ["beginner", "intermediate", "advanced", "expert"],
-      },
-    },
-  },
-  "code/projects": {
-    appId: "code",
-    itemType: "projects",
-    entryType: "list",
-    required: ["name"],
-    properties: {
-      name: { type: "string" },
-      status: {
-        type: "string",
-        enum: ["active", "planned", "completed"],
-      },
-      description: { type: "string" },
-      git_repo_url: { type: "string" },
-    },
-  },
-  "code/want_to_learn": {
-    appId: "code",
-    itemType: "want_to_learn",
-    entryType: "list",
-    required: ["name"],
-    properties: { name: { type: "string" } },
-  },
-  "code/coding_setup": {
-    appId: "code",
-    itemType: "coding_setup",
-    entryType: "list",
-    required: ["workspace", "ai_level", "input_style"],
-    properties: {
-      workspace: {
-        type: "string",
-        enum: ["ide", "terminal", "web_ui", "mixed"],
-      },
-      ai_level: { type: "string", enum: ["off", "low", "medium", "high"] },
-      input_style: {
-        type: "string",
-        enum: ["guided_choices", "free_text", "mixed"],
-      },
-      notes: { type: "string" },
-    },
-  },
-  "docs/writing_style": {
-    appId: "docs",
-    itemType: "writing_style",
-    entryType: "list",
-    required: ["name"],
-    properties: { name: { type: "string" }, description: { type: "string" } },
-  },
-  "ideabucket/processing_settings": {
-    appId: "ideabucket",
-    itemType: "processing_settings",
-    entryType: "single",
-    required: ["processing_prompt", "processing_times"],
-    properties: {
-      processing_prompt: { type: "string" },
-      processing_times: { type: "string" },
-    },
-  },
-  "events/saved_events": {
-    appId: "events",
-    itemType: "saved_events",
-    entryType: "list",
-    required: ["title"],
-    properties: {
-      embed_id: { type: "string" },
-      title: { type: "string" },
-      provider: { type: "string" },
-      url: { type: "string" },
-      date_start: { type: "string" },
-      date_end: { type: "string" },
-      location: { type: "string" },
-      notes: { type: "string" },
-    },
-  },
-  "health/appointments": {
-    appId: "health",
-    itemType: "appointments",
-    entryType: "list",
-    required: ["appointment_type", "date"],
-    properties: {
-      embed_id: { type: "string" },
-      title: { type: "string" },
-      appointment_type: { type: "string" },
-      where: { type: "string" },
-      date: { type: "string" },
-      notes: { type: "string" },
-    },
-  },
-  "health/medical_history": {
-    appId: "health",
-    itemType: "medical_history",
-    entryType: "list",
-    required: ["condition_type", "name", "date"],
-    properties: {
-      condition_type: {
-        type: "string",
-        enum: [
-          "surgery",
-          "chronic_condition",
-          "allergy",
-          "medication",
-          "vaccination",
-          "injury",
-          "other",
-        ],
-      },
-      name: { type: "string" },
-      date: { type: "string" },
-      details: { type: "string" },
-    },
-  },
-  "home/saved_listings": {
-    appId: "home",
-    itemType: "saved_listings",
-    entryType: "list",
-    required: ["title"],
-    properties: {
-      embed_id: { type: "string" },
-      title: { type: "string" },
-      url: { type: "string" },
-      provider: { type: "string" },
-      price_label: { type: "string" },
-      address: { type: "string" },
-      available_from: { type: "string" },
-      notes: { type: "string" },
-    },
-  },
-  "images/preferred_styles": {
-    appId: "images",
-    itemType: "preferred_styles",
-    entryType: "list",
-    required: ["name"],
-    properties: { name: { type: "string" }, description: { type: "string" } },
-  },
-  "mail/writing_styles": {
-    appId: "mail",
-    itemType: "writing_styles",
-    entryType: "list",
-    required: ["title", "description"],
-    properties: {
-      title: { type: "string" },
-      description: { type: "string" },
-      when_to_use: { type: "string" },
-      footer: { type: "string" },
-    },
-  },
-  "reminder/saved_item_reminder_defaults": {
-    appId: "reminder",
-    itemType: "saved_item_reminder_defaults",
-    entryType: "list",
-    required: ["item_kind", "offsets_minutes"],
-    properties: {
-      item_kind: { type: "string", enum: ["event", "travel_connection", "travel_stay", "home_listing", "health_appointment"] },
-      offsets_minutes: { type: "string" },
-      notes: { type: "string" },
-    },
-  },
-  "study/learning_goals": {
-    appId: "study",
-    itemType: "learning_goals",
-    entryType: "list",
-    required: ["topic"],
-    properties: {
-      topic: { type: "string" },
-      difficulty_level: {
-        type: "string",
-        enum: ["beginner", "intermediate", "advanced"],
-      },
-      deadline: { type: "string" },
-      notes: { type: "string" },
-    },
-  },
-  "travel/trips": {
-    appId: "travel",
-    itemType: "trips",
-    entryType: "list",
-    required: ["destination"],
-    properties: {
-      destination: { type: "string" },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-      notes: { type: "string" },
-    },
-  },
-  "travel/saved_connections": {
-    appId: "travel",
-    itemType: "saved_connections",
-    entryType: "list",
-    required: ["title"],
-    properties: {
-      embed_id: { type: "string" },
-      title: { type: "string" },
-      transport_method: { type: "string" },
-      origin: { type: "string" },
-      destination: { type: "string" },
-      departure: { type: "string" },
-      arrival: { type: "string" },
-      booking_url: { type: "string" },
-      provider: { type: "string" },
-      notes: { type: "string" },
-    },
-  },
-  "travel/saved_stays": {
-    appId: "travel",
-    itemType: "saved_stays",
-    entryType: "list",
-    required: ["name"],
-    properties: {
-      embed_id: { type: "string" },
-      name: { type: "string" },
-      property_type: { type: "string" },
-      url: { type: "string" },
-      price: { type: "string" },
-      rating: { type: "number" },
-      location: { type: "string" },
-      notes: { type: "string" },
-    },
-  },
-  "travel/preferred_airlines": {
-    appId: "travel",
-    itemType: "preferred_airlines",
-    entryType: "list",
-    required: ["name"],
-    properties: { name: { type: "string" } },
-  },
-  "travel/preferred_transport_methods": {
-    appId: "travel",
-    itemType: "preferred_transport_methods",
-    entryType: "list",
-    required: ["method"],
-    properties: {
-      method: { type: "string", enum: ["bike", "public_transport", "train", "plane", "car", "walking"] },
-    },
-  },
-  "travel/preferred_activities": {
-    appId: "travel",
-    itemType: "preferred_activities",
-    entryType: "list",
-    required: ["name"],
-    properties: { name: { type: "string" } },
-  },
-  "tv/watched_movies": {
-    appId: "tv",
-    itemType: "watched_movies",
-    entryType: "list",
-    required: ["title"],
-    properties: {
-      title: { type: "string" },
-      year: { type: "integer" },
-      director: { type: "string" },
-      rating: { type: "number" },
-      tmdb_id: { type: "integer" },
-      notes: { type: "string" },
-      genre: { type: "array" },
-    },
-  },
-  "tv/watched_tv_shows": {
-    appId: "tv",
-    itemType: "watched_tv_shows",
-    entryType: "list",
-    required: ["title"],
-    properties: {
-      title: { type: "string" },
-      year: { type: "integer" },
-      tmdb_id: { type: "integer" },
-      status: {
-        type: "string",
-        enum: ["watching", "completed", "on_hold", "dropped"],
-      },
-      seasons_watched: { type: "integer" },
-      latest_episode: { type: "string" },
-      rating: { type: "number" },
-      notes: { type: "string" },
-      genre: { type: "array" },
-    },
-  },
-  "tv/to_watch_list": {
-    appId: "tv",
-    itemType: "to_watch_list",
-    entryType: "list",
-    required: ["title", "type"],
-    properties: {
-      title: { type: "string" },
-      year: { type: "integer" },
-      type: { type: "string", enum: ["movie", "tv_show"] },
-      tmdb_id: { type: "integer" },
-      director: { type: "string" },
-      priority: { type: "string", enum: ["high", "medium", "low"] },
-      genre: { type: "array" },
-      reason: { type: "string" },
-    },
-  },
-  "videos/to_watch_list": {
-    appId: "videos",
-    itemType: "to_watch_list",
-    entryType: "list",
-    required: ["name", "url"],
-    properties: {
-      name: { type: "string" },
-      url: { type: "string" },
-      channel: { type: "string" },
-    },
-  },
-  "web/bookmarks": {
-    appId: "web",
-    itemType: "bookmarks",
-    entryType: "list",
-    required: ["url"],
-    properties: { url: { type: "string" } },
-  },
-  "web/read_later": {
-    appId: "web",
-    itemType: "read_later",
-    entryType: "list",
-    required: ["url"],
-    properties: { url: { type: "string" }, notes: { type: "string" } },
-  },
-};
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -5515,15 +5121,38 @@ export class OpenMatesClient {
   async activateLearningMode(params: {
     ageGroup: LearningModeAgeGroup;
     passcode: string;
+    /** Omitted => backend default (on, except forced off for under_10). */
+    collaborativeBuild?: boolean;
   }): Promise<LearningModeStatus> {
     this.requireSession();
+    const body: Record<string, unknown> = { age_group: params.ageGroup, passcode: params.passcode };
+    if (params.collaborativeBuild !== undefined) body.collaborative_build = params.collaborativeBuild;
     const response = await this.http.post<LearningModeStatus>(
       "/v1/learning-mode/activate",
-      { age_group: params.ageGroup, passcode: params.passcode },
+      body,
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
       throw new Error(`Learning Mode activation failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  /** Enabling collaborative build requires the passcode; disabling does not. */
+  async setLearningModeCollaborative(params: {
+    enabled: boolean;
+    passcode?: string;
+  }): Promise<LearningModeStatus> {
+    this.requireSession();
+    const body: Record<string, unknown> = { enabled: params.enabled };
+    if (params.passcode !== undefined) body.passcode = params.passcode;
+    const response = await this.http.post<LearningModeStatus>(
+      "/v1/learning-mode/collaborative",
+      body,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Learning Mode collaborative build update failed with HTTP ${response.status}`);
     }
     return response.data;
   }
@@ -6505,32 +6134,8 @@ export class OpenMatesClient {
     return this.normalizeIdeaBucketSettings(entry.data, entry.id, entry.item_version);
   }
 
-  async saveIdeaBucketSettings(input: IdeaBucketSettingsInput): Promise<IdeaBucketSettings> {
-    const current = await this.getIdeaBucketSettings();
-    const settings = this.normalizeIdeaBucketSettings({
-      processing_prompt: input.processingPrompt ?? current.processingPrompt,
-      processing_times: input.processingTimes ?? current.processingTimes,
-    }, current.entryId, current.itemVersion);
-    const itemValue = this.ideaBucketSettingsToMemoryValue(settings);
-    if (settings.entryId && settings.itemVersion) {
-      await this.updateMemory({
-        entryId: settings.entryId,
-        appId: IDEABUCKET_APP_ID,
-        itemType: IDEABUCKET_SETTINGS_ITEM_TYPE,
-        itemValue,
-        currentVersion: settings.itemVersion,
-      });
-    } else {
-      const created = await this.createMemory({
-        appId: IDEABUCKET_APP_ID,
-        itemType: IDEABUCKET_SETTINGS_ITEM_TYPE,
-        itemValue,
-      });
-      settings.entryId = created.id;
-      settings.itemVersion = 1;
-    }
-    settings.source = "account";
-    return settings;
+  async saveIdeaBucketSettings(_input: IdeaBucketSettingsInput): Promise<IdeaBucketSettings> {
+    throw new Error(TYPED_MEMORIES_REMOVED_MESSAGE);
   }
 
   private normalizeIdeaBucketSettings(
@@ -6547,13 +6152,6 @@ export class OpenMatesClient {
       entryId,
       itemVersion,
       source: entryId ? "account" : "default",
-    };
-  }
-
-  private ideaBucketSettingsToMemoryValue(settings: IdeaBucketSettings): Record<string, unknown> {
-    return {
-      processing_prompt: settings.processingPrompt,
-      processing_times: settings.processingTimes.join(","),
     };
   }
 
@@ -9075,7 +8673,7 @@ export class OpenMatesClient {
               } else {
                 const historicalFieldByType: Record<string, string> = {
                   code: "code", pcb_schematic: "code", sheet: "table", mermaid: "diagram_code",
-                  diagram_html: "html_source",
+                  diagram_html: "html_source", deck: "slides_markup",
                 };
                 const field = historicalFieldByType[content.type];
                 if (!field || typeof sealedEmbed[field] !== "string") {
@@ -12230,6 +11828,9 @@ export class OpenMatesClient {
           ...(params.teamId ? { team_id: params.teamId } : {}),
         } : embed.type === "diagram_html" ? {
           app_id: "diagrams", skill_id: "html", chat_id: params.chatId,
+          ...(params.teamId ? { team_id: params.teamId } : {}),
+        } : embed.type === "deck" ? {
+          app_id: "slides", skill_id: "deck", chat_id: params.chatId,
           ...(params.teamId ? { team_id: params.teamId } : {}),
         } : {}),
         text_length_chars: embed.text_length_chars,
@@ -16455,35 +16056,9 @@ export class OpenMatesClient {
   }
 
   /**
-   * Create a new memory entry with schema validation.
-   *
-   * Encrypts the full item_value (including _original_item_key and settings_group)
-   * before sending over WebSocket, matching the browser's exact payload format.
-   *
-   * @param appId     - App identifier (e.g. "code")
-   * @param itemType  - Memory type ID (e.g. "preferred_tech")
-   * @param itemValue - Field values (must satisfy the schema's required fields)
-   */
-  async createMemory(params: {
-    appId: string;
-    itemType: string;
-    itemValue: Record<string, unknown>;
-    teamId?: string | null;
-    personal?: boolean;
-  }): Promise<{ success: boolean; id: string }> {
-    return this.upsertMemory({ ...params, entryId: undefined, itemVersion: 1 });
-  }
-
-  /**
-   * Update an existing memory entry.
-   * Uses the same `store_app_settings_memories_entry` WS event with an
-   * incremented version so the server's conflict-resolution logic accepts it.
-   *
-   * @param entryId   - UUID of the entry to update (from listMemories())
-   * @param appId     - App identifier
-   * @param itemType  - Memory type ID
-   * @param itemValue - Updated field values (partial — merged with required fields check)
-   * @param currentVersion - The entry's current item_version from listMemories()
+   * Update a personal Memory document (`account-memory-*` ids only).
+   * Typed app-specific memories were removed; entries of that legacy shape
+   * can only be listed or deleted (see deleteMemory).
    */
   async updateMemory(params: {
     entryId: string;
@@ -16494,22 +16069,14 @@ export class OpenMatesClient {
     teamId?: string | null;
     personal?: boolean;
   }): Promise<{ success: boolean; id: string }> {
-    if (params.entryId.startsWith('account-memory-')) {
-      if (params.appId !== 'openmates' || params.itemType !== 'memories' || this.resolveTeamContext(params)) {
-        throw new Error('Account Memories belong to the personal OpenMates category.');
-      }
-      await this.mutateAccountMemory(params.entryId, params.itemValue);
-      return { success: true, id: params.entryId };
+    if (!params.entryId.startsWith('account-memory-')) {
+      throw new Error(TYPED_MEMORIES_REMOVED_MESSAGE);
     }
-    return this.upsertMemory({
-      appId: params.appId,
-      itemType: params.itemType,
-      itemValue: params.itemValue,
-      entryId: params.entryId,
-      itemVersion: params.currentVersion + 1,
-      teamId: params.teamId,
-      personal: params.personal,
-    });
+    if (params.appId !== 'openmates' || params.itemType !== 'memories' || this.resolveTeamContext(params)) {
+      throw new Error('Account Memories belong to the personal OpenMates category.');
+    }
+    await this.mutateAccountMemory(params.entryId, params.itemValue);
+    return { success: true, id: params.entryId };
   }
 
   /**
@@ -16578,113 +16145,6 @@ export class OpenMatesClient {
       throw new Error('Account settings changed. Reload before editing the Memory.');
     }
     await this.settingsPost('/v1/settings/encrypted-account', { encrypted_settings: ciphertext });
-  }
-
-  /**
-   * Validate memory item_value against the registered schema and
-   * encrypt + send over WebSocket.
-   */
-  private async upsertMemory(params: {
-    appId: string;
-    itemType: string;
-    itemValue: Record<string, unknown>;
-    entryId?: string;
-    itemVersion: number;
-    teamId?: string | null;
-    personal?: boolean;
-  }): Promise<{ success: boolean; id: string }> {
-    this.invalidatePreparedPrivacy();
-    if (!this.resolveTeamContext(params)) this.personalMemoryReadInFlight = null;
-    const masterKey = this.getMasterKeyBytes();
-    const registryKey = `${params.appId}/${params.itemType}`;
-    const schema = MEMORY_TYPE_REGISTRY[registryKey];
-
-    if (!schema) {
-      const known = Object.keys(MEMORY_TYPE_REGISTRY)
-        .map((k) => `  ${k}`)
-        .join("\n");
-      throw new Error(
-        `Unknown memory type '${registryKey}'.\n\nAvailable types:\n${known}`,
-      );
-    }
-
-    // Validate required fields
-    const missing = schema.required.filter(
-      (f) =>
-        params.itemValue[f] === undefined ||
-        params.itemValue[f] === null ||
-        params.itemValue[f] === "",
-    );
-    if (missing.length > 0) {
-      throw new Error(
-        `Missing required fields for '${registryKey}': ${missing.join(", ")}\n` +
-          `Required: ${schema.required.join(", ")}`,
-      );
-    }
-
-    // Validate enum fields
-    for (const [field, def] of Object.entries(schema.properties)) {
-      const val = params.itemValue[field];
-      if (val !== undefined && def.enum && !def.enum.includes(String(val))) {
-        throw new Error(
-          `Invalid value '${String(val)}' for field '${field}'. ` +
-            `Allowed values: ${def.enum.join(", ")}`,
-        );
-      }
-    }
-
-    const entryId = params.entryId ?? randomUUID();
-    const now = Math.floor(Date.now() / 1000);
-    const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
-
-    // Build the hashed item_key (privacy: server never sees the plaintext key)
-    const hashedKey = hashItemKey(params.appId, params.itemType);
-
-    // Build the plaintext payload — mirrors browser's appSettingsMemoriesStore exactly:
-    // { ...item_value, settings_group, _original_item_key, added_date }
-    const plaintextPayload: Record<string, unknown> = {
-      ...params.itemValue,
-      settings_group: params.appId,
-      _original_item_key: params.itemType,
-      added_date: now,
-    };
-
-    const encryptedItemJson = await encryptWithAesGcmCombined(
-      JSON.stringify(plaintextPayload),
-      masterKey,
-    );
-
-    const { ws } = await this.openWsClient();
-    try {
-      ws.send("store_app_settings_memories_entry", {
-        ...(teamId ? { team_id: teamId } : {}),
-        entry: {
-          id: entryId,
-          app_id: params.appId,
-          item_key: hashedKey,
-          item_type: params.itemType,
-          encrypted_item_json: encryptedItemJson,
-          encrypted_app_key: "",
-          created_at: now,
-          updated_at: now,
-          item_version: params.itemVersion,
-          ...(teamId ? { team_id: teamId } : {}),
-        },
-      });
-
-      await ws.waitForMessage(
-        "app_settings_memories_entry_stored",
-        (payload) => {
-          const p = payload as Record<string, unknown>;
-          return p.entry_id === entryId;
-        },
-        15_000,
-      );
-    } finally {
-      ws.close();
-    }
-
-    return { success: true, id: entryId };
   }
 
   // ── Embed encryption helpers ─────────────────────────────────────────

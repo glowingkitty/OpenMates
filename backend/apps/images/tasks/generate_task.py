@@ -13,16 +13,15 @@ import logging
 import asyncio
 import uuid
 import json
+import math
 import hashlib
-import base64
 import os
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, List, Sequence, Tuple, Optional
 from io import BytesIO
 
 import httpx
 from PIL import Image
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.shared.python_utils.media_encryption import encrypt_media_variants, load_media_write_version
 from backend.shared.python_utils.image_mime import validate_raster_image
@@ -44,11 +43,35 @@ from backend.shared.providers.recraft.recraft import (
     RECRAFT_MODEL_DEFAULT,
     RECRAFT_MODEL_MAX,
     RECRAFT_RASTER_MODEL_DEFAULT,
+    RECRAFT_RASTER_MODEL_FLASH,
     RECRAFT_RASTER_MODEL_MAX,
 )
 from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.apps.images.vector_author import (
+    MAX_CORRECTION_ROUNDS,
+    MAX_SOURCE_SVG_CHARS,
+    VECTOR_AUTHOR_MODELS,
+    VECTOR_REVIEW_MODEL,
+    VectorAuthorError,
+    VectorAuthorResult,
+    VectorUsage,
+    author_svg,
+    normalize_requirements,
+    render_review_jpeg,
+    review_with_jev,
+)
+from backend.apps.images.vector_script import script_run_credits
+from backend.apps.images.tasks import image_revision
+from backend.core.api.app.services.embed_revision_authority import RevisionRefused
+from backend.apps.images.tasks.reference_images import (
+    REFERENCE_UNAVAILABLE_MESSAGE,
+    ReferenceImageUnavailable,
+    load_reference_images,
+    remember_vector_script,
+)
 from backend.shared.python_utils.billing_utils import (
     MINIMUM_CREDITS_CHARGED,
+    calculate_credits_from_tokens,
     calculate_total_credits,
     ensure_credit_headroom,
 )
@@ -94,15 +117,109 @@ async def _fetch_model_pricing_config(model_ref: Optional[str], log_prefix: str)
     return None
 
 
+VECTOR_ENGINE_LLM = "llm"
+VECTOR_ENGINE_RECRAFT = "recraft"
+# Typical drawing: short request in, one SVG plus reasoning out. Only used for the
+# balance check before work starts; the charge itself uses the reported tokens.
+VECTOR_AUTHOR_ESTIMATE_INPUT_TOKENS = 1_500
+VECTOR_AUTHOR_ESTIMATE_OUTPUT_TOKENS = 8_000
+
+
+VECTOR_ENGINE_SCRIPT = "script"
+_VECTOR_ENGINES = (VECTOR_ENGINE_LLM, VECTOR_ENGINE_SCRIPT, VECTOR_ENGINE_RECRAFT)
+
+
+def _resolve_vector_engine(value: Any) -> str:
+    """Who draws an SVG: the LLM author directly (default), a generator script, or Recraft."""
+    engine = str(value or "").lower()
+    return engine if engine in _VECTOR_ENGINES else VECTOR_ENGINE_LLM
+
+
+async def _estimate_vector_author_credits(log_prefix: str) -> int:
+    pricing_config = await _fetch_model_pricing_config(VECTOR_AUTHOR_MODELS[0], log_prefix)
+    if not pricing_config:
+        raise RuntimeError(f"No pricing for vector author model {VECTOR_AUTHOR_MODELS[0]}")
+    return max(MINIMUM_CREDITS_CHARGED, calculate_total_credits(
+        pricing_config=pricing_config,
+        input_tokens=VECTOR_AUTHOR_ESTIMATE_INPUT_TOKENS,
+        output_tokens=VECTOR_AUTHOR_ESTIMATE_OUTPUT_TOKENS,
+    ))
+
+
+async def _vector_author_credits(
+    usage: List[VectorUsage], log_prefix: str, sandbox_seconds: Sequence[float] = (),
+    flat_credits: int = 0,
+) -> Tuple[int, Dict[str, Any]]:
+    """Price everything one drawing used: model calls by tokens, sandbox runs by time.
+
+    The exact (fractional) credits of all model calls are summed and rounded down
+    once, so several small calls are not each rounded up. Each sandbox run adds
+    the Code Run price per started minute, and ``flat_credits`` adds a flat
+    provider fee (Recraft) that preceded a review. A call without usage or
+    without a price is an error, never free: the drawing is not delivered
+    unbilled and the user is not charged a guessed amount.
+    """
+    raw_credits = 0.0
+    pricing_by_model: Dict[str, Any] = {}
+    steps: List[Dict[str, Any]] = []
+    for entry in usage:
+        if entry.input_tokens + entry.output_tokens <= 0:
+            raise RuntimeError(f"Vector author call '{entry.step}' on {entry.model_id} reported no token usage")
+        if entry.model_id not in pricing_by_model:
+            pricing_by_model[entry.model_id] = await _fetch_model_pricing_config(entry.model_id, log_prefix)
+        pricing_config = pricing_by_model[entry.model_id]
+        pricing_rules = (pricing_config or {}).get("pricing", pricing_config)
+        if not pricing_rules or "tokens" not in pricing_rules:
+            raise RuntimeError(f"No token pricing for vector author model {entry.model_id}")
+        step_credits = calculate_credits_from_tokens(entry.input_tokens, entry.output_tokens, pricing_rules)
+        raw_credits += step_credits
+        steps.append({"step": entry.step, "model_used": entry.model_id, "input_tokens": entry.input_tokens,
+                      "output_tokens": entry.output_tokens, "credits": round(step_credits, 4)})
+    sandbox_credits = 0
+    for seconds in sandbox_seconds:
+        run_credits = script_run_credits(seconds)
+        sandbox_credits += run_credits
+        steps.append({"step": "script_run", "model_used": "e2b/sandbox", "duration_seconds": round(seconds, 2),
+                      "credits": run_credits})
+    if flat_credits:
+        steps.append({"step": "provider_flat_fee", "credits": flat_credits})
+    details = {
+        "input_tokens": sum(entry.input_tokens for entry in usage),
+        "output_tokens": sum(entry.output_tokens for entry in usage),
+        "provider_calls": steps,
+    }
+    token_credits = math.floor(raw_credits)
+    if raw_credits > 0 and token_credits == 0:
+        token_credits = MINIMUM_CREDITS_CHARGED
+    return max(MINIMUM_CREDITS_CHARGED, token_credits + sandbox_credits + flat_credits), details
+
+
+DRAFT_FLASH_MODEL_REF = f"recraft/{RECRAFT_RASTER_MODEL_FLASH}"
+DRAFT_EDIT_MODEL_REF = "bfl/flux-2-klein"
+
+
+def _draft_model_ref_for_references(model_ref: Optional[str], has_reference_images: bool) -> Optional[str]:
+    """The text-only Flash draft model cannot take reference images; those drafts use FLUX klein edit."""
+    if model_ref == DRAFT_FLASH_MODEL_REF and has_reference_images:
+        return DRAFT_EDIT_MODEL_REF
+    return model_ref
+
+
 def _resolve_image_billing_model_ref(
     model_ref: Optional[str],
     output_filetype: str,
     quality: str,
     has_reference_images: bool,
+    vector_engine: str = VECTOR_ENGINE_RECRAFT,
 ) -> Optional[str]:
+    if output_filetype == "svg" and vector_engine in (VECTOR_ENGINE_LLM, VECTOR_ENGINE_SCRIPT):
+        return VECTOR_AUTHOR_MODELS[0]
     if output_filetype == "svg":
         recraft_model_id = RECRAFT_MODEL_MAX if quality == "max" else RECRAFT_MODEL_DEFAULT
         return f"recraft/{recraft_model_id}"
+    model_ref = _draft_model_ref_for_references(model_ref, has_reference_images)
+    if model_ref == DRAFT_FLASH_MODEL_REF:
+        return DRAFT_FLASH_MODEL_REF
     if model_ref and "recraft" in model_ref:
         recraft_model_id = RECRAFT_RASTER_MODEL_MAX if quality == "max" else RECRAFT_RASTER_MODEL_DEFAULT
         return f"recraft/{recraft_model_id}"
@@ -138,13 +255,23 @@ async def _charge_image_generation_credits(
     log_prefix: str,
     team_id: Optional[str] = None,
     event_id: Optional[str] = None,
-) -> None:
+    metered_credits: Optional[int] = None,
+    metered_usage: Optional[Dict[str, Any]] = None,
+    strict: bool = False,
+) -> int:
     """
     Charge a flat per-image credit fee for a successful image generation.
+
+    Returns the credits actually charged (0 when nothing was charged). A failed
+    Team charge always raises; ``strict`` (image revisions) makes a failed
+    Personal charge raise too, so a change is never published uncharged.
+
+    ``metered_credits`` replaces the flat fee for token-metered engines (the LLM
+    vector author); ``metered_usage`` is recorded with the charge.
     
     Fetches the provider pricing config via internal API and charges 1 unit
     (= 1 image). Pricing is defined in provider YAML files:
-    - generate_draft (bfl/flux-2-klein): 15 credits per image
+    - generate_draft (recraft/recraftv4_1_flash): 9 credits per image
     - generate (google/gemini-3-pro-image-preview): 200 credits per image
     
     Billing is non-blocking: failures are logged but don't break image delivery.
@@ -154,10 +281,12 @@ async def _charge_image_generation_credits(
         if INTERNAL_API_SHARED_TOKEN:
             headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
 
-        pricing_config = await _fetch_model_pricing_config(model_ref, log_prefix)
+        pricing_config = None if metered_credits is not None else await _fetch_model_pricing_config(model_ref, log_prefix)
 
         # Calculate credits: flat fee per image (1 unit = 1 image)
-        if pricing_config:
+        if metered_credits is not None:
+            credits_charged = metered_credits
+        elif pricing_config:
             credits_charged = calculate_total_credits(
                 pricing_config=pricing_config,
                 units_processed=1
@@ -168,7 +297,7 @@ async def _charge_image_generation_credits(
 
         if credits_charged <= 0:
             logger.debug(f"{log_prefix} Calculated credits is 0, skipping billing.")
-            return
+            return 0
 
         # Resolve provider info (name + region) for usage tracking
         resolved_provider_name = None
@@ -201,6 +330,7 @@ async def _charge_image_generation_credits(
                 "model_used": model_ref,  # Full model reference (e.g., "bfl/flux-2-klein")
                 "server_provider": resolved_provider_name,  # Provider display name (e.g., "BFL", "Google")
                 "server_region": resolved_region,  # Server region (e.g., "US")
+                **(metered_usage or {}),
             }
         }
 
@@ -214,18 +344,20 @@ async def _charge_image_generation_credits(
             response = await client.post(url, json=charge_payload, headers=headers)
             response.raise_for_status()
             logger.info(f"{log_prefix} Successfully charged {credits_charged} credits for '{app_id}.{skill_id}'")
+            return credits_charged
 
     except httpx.HTTPStatusError as e:
         logger.error(
             f"{log_prefix} HTTP error charging credits for '{app_id}.{skill_id}': "
             f"{e.response.status_code} - {e.response.text}", exc_info=True
         )
-        if team_id:
+        if team_id or strict:
             raise
     except Exception as e:
         logger.error(f"{log_prefix} Error charging credits for '{app_id}.{skill_id}': {e}", exc_info=True)
-        if team_id:
+        if team_id or strict:
             raise
+    return 0
 
 
 def _get_image_dimensions(image_bytes: bytes) -> Tuple[int, int]:
@@ -508,210 +640,6 @@ async def _emit_safety_rejection_embed(
         )
 
 
-async def _decrypt_reference_images(
-    embed_ids: List[str],
-    user_vault_key_id: str,
-    log_prefix: str,
-) -> Tuple[List[bytes], List[str]]:
-    """
-    Fetch and decrypt reference images from the Redis embed cache for use as
-    generation inputs in image-to-image requests.
-
-    Replicates the same decryption pipeline used by view_skill.py:
-      1. Look up embed JSON from Redis at key ``embed:{embed_id}``
-      2. Decrypt ``encrypted_content`` via Vault Transit (derived key with context)
-      3. Decode TOON to get content dict (contains aes_key, aes_nonce, s3_base_url, files)
-      4. Download encrypted "preview" variant from S3
-      5. AES-256-GCM decrypt → raw image bytes
-
-    Uses the "preview" variant (webp, smaller) for efficiency when used as reference
-    inputs; full resolution is rarely needed for style/reference guidance.
-
-    Args:
-        embed_ids: List of embed UUIDs to fetch and decrypt (already resolved from
-                   embed_refs via file_path_index in the skill layer).
-        user_vault_key_id: The user's Vault Transit key ID for decryption.
-        log_prefix: Log prefix for contextual logging.
-
-    Returns:
-        Tuple of (image_bytes_list, mime_types_list). Failed embeds are silently
-        skipped with a warning so a single missing embed doesn't abort generation.
-    """
-    from urllib.parse import quote as url_quote
-    from toon_format import decode as toon_decode
-    import redis.asyncio as aioredis
-
-    image_bytes_list: List[bytes] = []
-    mime_types_list: List[str] = []
-
-    vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
-    vault_token_path = "/vault-data/api.token"
-    try:
-        with open(vault_token_path, "r") as f:
-            vault_token = f.read().strip()
-    except Exception as e:
-        logger.error(f"{log_prefix} Failed to read Vault token: {e}", exc_info=True)
-        return [], []
-
-    redis_password = os.environ.get("DRAGONFLY_PASSWORD", "")
-    redis_url = f"redis://default:{url_quote(redis_password, safe='')}@cache:6379/0"
-    redis_client = aioredis.from_url(redis_url, decode_responses=True)
-
-    try:
-        for embed_id in embed_ids:
-            embed_log = f"{log_prefix} [ref_embed:{embed_id[:8]}...]"
-            try:
-                # Step 1: Fetch embed JSON from Redis
-                embed_json = await redis_client.get(f"embed:{embed_id}")
-                if not embed_json:
-                    logger.warning(
-                        f"{embed_log} Reference embed not found in cache — "
-                        "it may have expired (24h TTL). Skipping."
-                    )
-                    continue
-
-                embed_data = json.loads(embed_json)
-                encrypted_content = embed_data.get("encrypted_content")
-                if not encrypted_content:
-                    logger.warning(f"{embed_log} Reference embed has no encrypted_content. Skipping.")
-                    continue
-
-                # Step 2: Decrypt embed content via Vault Transit
-                context = base64.b64encode(user_vault_key_id.encode()).decode("utf-8")
-                decrypt_url = f"{vault_url}/v1/transit/decrypt/{user_vault_key_id}"
-                payload = {"ciphertext": encrypted_content, "context": context}
-
-                async with httpx.AsyncClient(timeout=15) as client:
-                    resp = await client.post(
-                        decrypt_url,
-                        json=payload,
-                        headers={"X-Vault-Token": vault_token},
-                    )
-
-                if resp.status_code != 200:
-                    logger.warning(
-                        f"{embed_log} Vault decrypt failed for embed content: "
-                        f"HTTP {resp.status_code}. Skipping."
-                    )
-                    continue
-
-                plaintext_b64 = resp.json()["data"]["plaintext"]
-                plaintext_toon = base64.b64decode(plaintext_b64).decode("utf-8")
-
-                # Step 3: Decode TOON → content dict
-                content = toon_decode(plaintext_toon)
-                if not isinstance(content, dict):
-                    logger.warning(f"{embed_log} TOON decoded to unexpected type. Skipping.")
-                    continue
-
-                vault_wrapped_aes_key = content.get("vault_wrapped_aes_key")
-                s3_base_url = content.get("s3_base_url")
-                aes_nonce_b64 = content.get("aes_nonce")
-                files = content.get("files", {})
-
-                if not vault_wrapped_aes_key or not s3_base_url or not aes_nonce_b64:
-                    logger.warning(
-                        f"{embed_log} Reference embed missing required fields "
-                        f"(vault_wrapped_aes_key/s3_base_url/aes_nonce). Skipping."
-                    )
-                    continue
-
-                # Step 3b: Unwrap AES key via Vault Transit (double-decode like view_skill.py)
-                unwrap_payload = {
-                    "ciphertext": vault_wrapped_aes_key,
-                    "context": context,
-                }
-                async with httpx.AsyncClient(timeout=15) as client:
-                    unwrap_resp = await client.post(
-                        decrypt_url,
-                        json=unwrap_payload,
-                        headers={"X-Vault-Token": vault_token},
-                    )
-
-                if unwrap_resp.status_code != 200:
-                    logger.warning(
-                        f"{embed_log} Vault AES key unwrap failed: "
-                        f"HTTP {unwrap_resp.status_code}. Skipping."
-                    )
-                    continue
-
-                # Double-decode: Vault plaintext = base64(aes_key_b64), so:
-                #   base64.decode(vault_plaintext) → aes_key_b64 as bytes
-                #   .decode('utf-8') → aes_key_b64 string
-                #   base64.decode(aes_key_b64) → raw 32-byte AES key
-                aes_key_b64 = base64.b64decode(
-                    unwrap_resp.json()["data"]["plaintext"]
-                ).decode("utf-8")
-                aes_key_bytes = base64.b64decode(aes_key_b64)
-
-                # Step 4: Select "preview" variant (efficient for reference input)
-                # Fall back through full → original if preview isn't available.
-                s3_key = None
-                detected_format = "webp"
-                for variant_name in ("preview", "full", "original"):
-                    variant = files.get(variant_name)
-                    if variant and variant.get("s3_key"):
-                        s3_key = variant["s3_key"]
-                        detected_format = variant.get("format", "webp")
-                        logger.info(
-                            f"{embed_log} Using '{variant_name}' variant for reference: {s3_key}"
-                        )
-                        break
-
-                if not s3_key:
-                    logger.warning(
-                        f"{embed_log} No file variant found for reference embed. Skipping."
-                    )
-                    continue
-
-                # Step 4b: Download encrypted image from S3 via internal API.
-                # The chatfiles bucket is private — direct HTTP GET returns 403.
-                # Must use the internal S3 download endpoint with the shared service token.
-                internal_api_base = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
-                shared_token = os.getenv("INTERNAL_API_SHARED_TOKEN", "")
-                download_url = f"{internal_api_base}/internal/s3/download"
-                async with httpx.AsyncClient(timeout=60) as client:
-                    s3_resp = await client.get(
-                        download_url,
-                        params={"bucket_key": "chatfiles", "s3_key": s3_key},
-                        headers={"X-Internal-Service-Token": shared_token},
-                    )
-
-                if s3_resp.status_code != 200:
-                    logger.warning(
-                        f"{embed_log} S3 download failed: HTTP {s3_resp.status_code}. Skipping."
-                    )
-                    continue
-
-                # Step 5: AES-256-GCM decrypt
-                nonce_bytes = base64.b64decode(aes_nonce_b64)
-                aesgcm = AESGCM(aes_key_bytes)
-                plaintext_bytes = aesgcm.decrypt(nonce_bytes, s3_resp.content, None)
-
-                mime_type = f"image/{detected_format}" if detected_format != "jpg" else "image/jpeg"
-                image_bytes_list.append(plaintext_bytes)
-                mime_types_list.append(mime_type)
-                logger.info(
-                    f"{embed_log} Decrypted reference image: {len(plaintext_bytes)} bytes "
-                    f"(MIME: {mime_type})"
-                )
-
-            except Exception as e:
-                logger.error(
-                    f"{embed_log} Failed to decrypt reference image: {e}. Skipping.",
-                    exc_info=True,
-                )
-                continue
-
-    finally:
-        await redis_client.aclose()
-
-    logger.info(
-        f"{log_prefix} Decrypted {len(image_bytes_list)}/{len(embed_ids)} reference images"
-    )
-    return image_bytes_list, mime_types_list
-
-
 @app.task(
     bind=True,
     name="apps.images.tasks.skill_generate",
@@ -725,10 +653,10 @@ def generate_image_task(self, app_id: str, skill_id: str, arguments: Dict[str, A
     Celery task for high-end image generation.
     """
     from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
-    return asyncio.run(run_generated_media_batch(
+    return asyncio.run(image_revision.run_with_batch_claims(run_generated_media_batch(
         self, app_id=app_id, skill_id=skill_id, arguments=arguments,
         generate_one=_async_generate_image,
-    )) if arguments.get("requests") else asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
+    ))) if arguments.get("requests") else asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
 
 
 @app.task(
@@ -744,10 +672,138 @@ def generate_image_draft_task(self, app_id: str, skill_id: str, arguments: Dict[
     Celery task for draft image generation.
     """
     from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
-    return asyncio.run(run_generated_media_batch(
+    return asyncio.run(image_revision.run_with_batch_claims(run_generated_media_batch(
         self, app_id=app_id, skill_id=skill_id, arguments=arguments,
         generate_one=_async_generate_image,
-    )) if arguments.get("requests") else asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
+    ))) if arguments.get("requests") else asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
+
+
+def _vector_result_fields(authored: VectorAuthorResult, vector_engine: str) -> Dict[str, Any]:
+    """Provenance of a vector drawing stored with the embed (and read back for later changes)."""
+    fields: Dict[str, Any] = {
+        "vector_engine": vector_engine,
+        "vector_review": authored.review_status,
+        "vector_attempts": authored.attempts,
+    }
+    if authored.unmet_requirements:
+        fields["vector_unmet_requirements"] = list(authored.unmet_requirements)
+    if authored.script:
+        fields["vector_script"] = authored.script
+    return fields
+
+
+async def _flat_image_credits(model_ref: str, log_prefix: str) -> int:
+    """Flat per-image price of a provider model; missing pricing is an error, not a guess."""
+    pricing_config = await _fetch_model_pricing_config(model_ref, log_prefix)
+    if not pricing_config:
+        raise RuntimeError(f"No pricing for image model {model_ref}")
+    return calculate_total_credits(pricing_config=pricing_config, units_processed=1)
+
+
+async def _review_and_follow_up_recraft_svg(
+    task: BaseServiceTask, svg: str, *, prompt: str, aspect_ratio: str, quality: str,
+    requirements: List[str], task_id: str, on_draft: Any,
+) -> VectorAuthorResult:
+    """Check a Recraft drawing against the requirements; let the LLM author fix clear misses."""
+    review = await review_with_jev(
+        svg=svg, prompt=prompt, requirements=requirements, is_modification=False,
+        secrets_manager=task._secrets_manager, task_id=task_id,
+    )
+    usage = [VectorUsage("review", VECTOR_REVIEW_MODEL, review.input_tokens, 0)] if review.input_tokens else []
+    reviewed = VectorAuthorResult(
+        svg=svg, model_id="recraft", attempts=1, review_status=review.status, usage=usage,
+        engine=VECTOR_ENGINE_RECRAFT, unmet_requirements=review.unmet,
+    )
+    if review.accepted:
+        return reviewed
+    follow_up_prompt = f"{prompt}\n\nThe current version has this problem: {review.feedback}. Fix it and keep the rest."
+    # A traced drawing that is too large to edit as source is redrawn from its rendering.
+    editable = len(svg) <= MAX_SOURCE_SVG_CHARS
+    try:
+        fixed = await author_svg(
+            task_id=task_id, prompt=follow_up_prompt, aspect_ratio=aspect_ratio, quality=quality,
+            requirements=requirements, source_svgs=[svg] if editable else [],
+            reference_images=[] if editable else [(render_review_jpeg(svg), "image/jpeg")],
+            secrets_manager=task._secrets_manager, on_draft=on_draft, max_attempts=MAX_CORRECTION_ROUNDS,
+        )
+    except VectorAuthorError as exc:
+        # The follow-up produced nothing usable: the Recraft drawing is delivered with what it misses.
+        logger.warning("[Task ID: %s] Recraft follow-up failed, delivering the original: %s", task_id, exc)
+        return reviewed
+    fixed.usage[:0] = usage
+    fixed.attempts += 1
+    return fixed
+
+
+def _planned_display_model(model_ref: Optional[str], output_filetype: str, use_vector_author: bool,
+                           quality: str) -> Optional[str]:
+    """Short id of the model that starts this request, as the client's model metadata knows it."""
+    if use_vector_author:
+        return VECTOR_AUTHOR_MODELS[0].split("/")[-1]
+    if output_filetype == "svg":
+        return RECRAFT_MODEL_MAX if quality == "max" else RECRAFT_MODEL_DEFAULT
+    return model_ref.split("/")[-1] if model_ref else None
+
+
+class _VectorDraftPublisher:
+    """Sends the SVG written so far to the client so the picture builds up while it is drawn.
+
+    Drafts go out as ``processing`` updates of the result embed and are never
+    stored: only the finished drawing is encrypted, uploaded and persisted.
+    """
+
+    def __init__(self, task: BaseServiceTask, *, arguments: Dict[str, Any], embed_id: str, prompt: Any,
+                 aspect_ratio: str, user_id: str, chat_id: Optional[str], message_id: Optional[str],
+                 log_prefix: str, output_filetype: str = "svg", model: Optional[str] = None,
+                 input_embed_ids: Optional[List[str]] = None,
+                 revised_from: Optional[Dict[str, Any]] = None) -> None:
+        from backend.core.api.app.services.embed_service import EmbedService
+        self._embed_service = EmbedService(
+            cache_service=task._cache_service,
+            directus_service=task._directus_service,
+            encryption_service=task._encryption_service,
+        )
+        self._embed_id = embed_id
+        self._parent_embed_id = arguments.get("producer_embed_id") or embed_id
+        self._base_content = {
+            "app_id": "images", "skill_id": "generate", "type": "generated_image", "status": "processing",
+            "prompt": prompt, "aspect_ratio": aspect_ratio, "output_filetype": output_filetype,
+            # What the skill was asked to do, shown on the card until a picture exists.
+            "model": model, "input_embed_ids": list(input_embed_ids or []),
+            # A change of an existing image: the version it starts from (wire-contract.md).
+            **({"revised_from": revised_from} if revised_from else {}),
+        }
+        self._user_id = user_id
+        self._user_id_hash = _hash_value(user_id)
+        self._chat_id = chat_id
+        self._message_id = message_id
+        self._log_prefix = log_prefix
+
+    async def announce(self) -> None:
+        """Tell the client the request (prompt, model, input images) before any picture exists."""
+        await self.publish("", "starting", 1)
+
+    async def publish(self, svg_draft: str, stage: str, attempt: int) -> None:
+        if not self._chat_id or not self._message_id:
+            return
+        from toon_format import encode as toon_encode
+        content = {**self._base_content, "svg_draft": svg_draft, "draft_stage": stage, "draft_attempt": attempt}
+        await self._embed_service.send_embed_data_to_client(
+            embed_id=self._embed_id,
+            embed_type="generated_image",
+            content_toon=toon_encode(content),
+            chat_id=self._chat_id,
+            message_id=self._message_id,
+            user_id=self._user_id,
+            user_id_hash=self._user_id_hash,
+            status="processing",
+            encryption_mode="client",
+            parent_embed_id=self._parent_embed_id if self._parent_embed_id != self._embed_id else None,
+            log_prefix=self._log_prefix,
+            check_cache_status=False,
+            app_id="images",
+            skill_id="generated_image",
+        )
 
 
 async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: str, arguments: Dict[str, Any]):
@@ -773,8 +829,16 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         quality = str(arguments.get("quality", "default")).lower()
         # style: Recraft artistic style (e.g. "realistic_image", "digital_illustration")
         style = arguments.get("style")
+        # vector_engine: who draws an SVG — the LLM vector author (default) or Recraft.
+        vector_engine = _resolve_vector_engine(arguments.get("vector_engine"))
+        use_vector_author = output_filetype == "svg" and vector_engine != VECTOR_ENGINE_RECRAFT
+        # Natural-language requirements a vector result is checked against (no review without them).
+        vector_requirements = normalize_requirements(arguments.get("requirements")) if output_filetype == "svg" else []
+        reference_svg_sources: List[str] = []
+        reference_script_sources: List[str] = []
         # Reference images for image-to-image generation (resolved embed IDs from skill layer)
         reference_image_embed_ids: List[str] = arguments.get("reference_image_embed_ids") or []
+        model_ref = _draft_model_ref_for_references(model_ref, bool(reference_image_embed_ids))
         user_vault_key_id: Optional[str] = arguments.get("user_vault_key_id")
 
         if not prompt or not user_id:
@@ -783,6 +847,27 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # 3. Get embed_id from arguments (passed by the skill) or generate new one
         embed_id = arguments.get("embed_id") or str(uuid.uuid4())
         logger.info(f"{log_prefix} Using embed_id: {embed_id}")
+        # A change of a generated image of this chat becomes its next version (images-generate.revision.*).
+        revision = await image_revision.find_revision_target(
+            task._directus_service, reference_embed_ids=reference_image_embed_ids, chat_id=chat_id,
+            user_id=user_id, external_request=external_request,
+        )
+        output_embed_id = revision.embed_id if revision else embed_id
+        if revision:
+            logger.info(f"{log_prefix} Revising image {revision.embed_id} to version {revision.next_version}")
+
+        # The card shows the request while nothing is drawn yet. The model named
+        # here is the one that starts the work; the finished embed stores the
+        # model that actually produced the result.
+        progress_publisher = None if external_request else _VectorDraftPublisher(
+            task, arguments=arguments, embed_id=embed_id, prompt=prompt, aspect_ratio=aspect_ratio,
+            user_id=user_id, chat_id=chat_id, message_id=message_id, log_prefix=log_prefix,
+            output_filetype=output_filetype, input_embed_ids=reference_image_embed_ids,
+            model=_planned_display_model(model_ref, output_filetype, use_vector_author, quality),
+            revised_from=image_revision.revision_content_fields(revision)["revised_from"] if revision else None,
+        )
+        if progress_publisher:
+            await progress_publisher.announce()
         from backend.core.api.app.services.embed_service import EmbedService
         await EmbedService.assert_registered_output_can_generate(
             task._directus_service, embed_id=arguments.get("producer_embed_id") or embed_id, chat_id=chat_id,
@@ -794,6 +879,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             prompt=str(prompt),
             request_count=1,
             style=style,
+            named_person_reviewed=arguments.get("named_person_reviewed") is True,
         )
         if not media_decision.allowed:
             tool_response = media_decision.to_rejection_payload()
@@ -821,29 +907,16 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # Reference image embed IDs were resolved by the skill layer (embed_ref → embed_id).
         # We fetch and decrypt them here in the task so that image bytes are never stored
         # in the Celery message queue (avoids size limits on large images).
-        reference_image_bytes_list: List[bytes] = []
-        reference_image_mime_types: List[str] = []
-        if reference_image_embed_ids:
-            if not user_vault_key_id:
-                logger.warning(
-                    f"{log_prefix} reference_image_embed_ids provided but user_vault_key_id "
-                    "is missing — cannot decrypt reference images. Proceeding without them."
-                )
-            else:
-                logger.info(
-                    f"{log_prefix} Decrypting {len(reference_image_embed_ids)} reference image(s)..."
-                )
-                reference_image_bytes_list, reference_image_mime_types = (
-                    await _decrypt_reference_images(
-                        embed_ids=reference_image_embed_ids,
-                        user_vault_key_id=user_vault_key_id,
-                        log_prefix=log_prefix,
-                    )
-                )
-                logger.info(
-                    f"{log_prefix} Ready to use {len(reference_image_bytes_list)} reference image(s) "
-                    "for image-to-image generation"
-                )
+        # Every named reference must load; drawing without it would answer (and bill) a different request.
+        references = await load_reference_images(
+            task, embed_ids=list(reference_image_embed_ids or []), user_id=user_id,
+            user_vault_key_id=user_vault_key_id, s3_service=s3_service,
+            want_vector_sources=use_vector_author, log_prefix=log_prefix,
+        )
+        reference_image_bytes_list: List[bytes] = [image for image, _ in references.images]
+        reference_image_mime_types: List[str] = [mime for _, mime in references.images]
+        reference_svg_sources.extend(references.svg_sources)
+        reference_script_sources.extend(references.script_sources)
 
         # 3c. Image Safety Pipeline — input validation
         # See docs/architecture/image-safety-pipeline.md §2, §3
@@ -922,8 +995,13 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             output_filetype,
             quality,
             bool(reference_image_bytes_list),
+            vector_engine,
         )
-        estimated_credits = await _estimate_image_generation_credits(precheck_model_ref, log_prefix)
+        estimated_credits = (
+            await _estimate_vector_author_credits(log_prefix)
+            if use_vector_author
+            else await _estimate_image_generation_credits(precheck_model_ref, log_prefix)
+        )
         if arguments.get("team_id"):
             from backend.shared.python_utils.team_skill_billing import ensure_team_skill_credit_headroom
             await ensure_team_skill_credit_headroom(
@@ -965,7 +1043,40 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             else (model_ref or "Unknown")
         )
 
-        if output_filetype == "svg":
+        metered_credits: Optional[int] = None
+        metered_usage: Optional[Dict[str, Any]] = None
+        authored: Optional[VectorAuthorResult] = None
+        draft_publisher = progress_publisher if output_filetype == "svg" else None
+        on_draft = draft_publisher.publish if draft_publisher else None
+        if use_vector_author:
+            # --- SVG branch: vector author (writes the SVG or a generator script, checks, corrects) ---
+            # A script-made reference is changed through its generator and a vector
+            # reference through its SVG source; only pixel references are attached
+            # as images for the author to redraw.
+            source_script = reference_script_sources[0] if reference_script_sources else None
+            if source_script:
+                # A computed drawing is always changed through its generator: editing its
+                # (large) generated SVG by hand would cost far more and lose the structure.
+                vector_engine = VECTOR_ENGINE_SCRIPT
+            source_svgs = [] if source_script else reference_svg_sources
+            pixel_references = [] if (source_script or source_svgs) else list(
+                zip(reference_image_bytes_list, reference_image_mime_types)
+            )
+            authored = await author_svg(
+                task_id=str(task_id), prompt=str(prompt), aspect_ratio=aspect_ratio, quality=quality,
+                engine=vector_engine, requirements=vector_requirements,
+                source_svgs=source_svgs, reference_images=pixel_references, source_script=source_script,
+                secrets_manager=task._secrets_manager, on_draft=on_draft,
+            )
+            svg_bytes = authored.svg.encode("utf-8")
+            model_ref = authored.model_id
+            actual_model = authored.model_id
+            display_model_id = authored.model_id.split("/")[-1]
+            metered_credits, metered_usage = await _vector_author_credits(
+                authored.usage, log_prefix, authored.sandbox_seconds,
+            )
+
+        elif output_filetype == "svg":
             # --- SVG branch: Recraft V4.1 Vector ---
             # Both "default" and "max" use the same generate skill;
             # quality selects between the two Recraft model tiers.
@@ -981,6 +1092,30 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             display_model_id = recraft_model_id
             # Override model_ref for billing so pricing is looked up from recraft.yml
             model_ref = f"recraft/{recraft_model_id}"
+            if vector_requirements:
+                # The Recraft drawing is checked against the requirements like any other;
+                # clearly unmet ones trigger a follow-up by the LLM vector author.
+                authored = await _review_and_follow_up_recraft_svg(
+                    task, svg_bytes.decode("utf-8"), prompt=str(prompt), aspect_ratio=aspect_ratio,
+                    quality=quality, requirements=vector_requirements, task_id=str(task_id), on_draft=on_draft,
+                )
+                svg_bytes = authored.svg.encode("utf-8")
+                metered_credits, metered_usage = await _vector_author_credits(
+                    authored.usage, log_prefix, authored.sandbox_seconds,
+                    flat_credits=await _flat_image_credits(model_ref, log_prefix),
+                )
+
+        elif model_ref == DRAFT_FLASH_MODEL_REF:
+            # --- Raster branch: Recraft V4.1 Flash text-only draft (no style, no references) ---
+            image_bytes = await generate_raster_recraft(
+                prompt=prompt,
+                secrets_manager=task._secrets_manager,
+                model_id=RECRAFT_RASTER_MODEL_FLASH,
+                size=aspect_ratio,
+                style_id=None,
+            )
+            actual_model = f"Recraft {RECRAFT_RASTER_MODEL_FLASH}"
+            display_model_id = RECRAFT_RASTER_MODEL_FLASH
 
         elif model_ref and "recraft" in model_ref:
             # --- Raster branch: Recraft V4.1 PNG/JPG ---
@@ -1176,24 +1311,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         else:
             logger.info(f"{log_prefix} SVG output — dimensions are resolution-independent")
 
-        # 5b. Charge credits for the image generation (flat per-image fee).
-        # Done after successful generation so we only charge for images that
-        # were actually produced by the provider.
-        # For SVG: model_ref was updated in step 4 to "recraft/{model_id}" so billing
-        # will look up the correct Recraft pricing from recraft.yml.
         hashed_user_id = _hash_value(user_id)
-        await _charge_image_generation_credits(
-            user_id=user_id,
-            user_id_hash=hashed_user_id,
-            app_id=app_id,
-            skill_id=skill_id,
-            model_ref=model_ref,  # Updated to recraft/... for SVG requests
-            chat_id=chat_id,
-            message_id=message_id,
-            log_prefix=log_prefix,
-            team_id=arguments.get("team_id"),
-            event_id=str(embed_id),
-        )
 
         # 6. Process image into storage formats.
         # Prepare provenance metadata for XMP/C2PA labeling (raster only).
@@ -1346,12 +1464,11 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         original_content_type = files_metadata["original"]["mime_type"]
         output_filetype = files_metadata["original"]["format"]
         from backend.shared.python_utils.generated_media_graph import generated_image_filename
-        filename = generated_image_filename(prompt, embed_id, output_filetype)
+        filename = generated_image_filename(prompt, output_embed_id, output_filetype)
         provider = actual_model.split(" ", 1)[0]
-        upload_record_stored = await index_generated_asset(
-            task,
+        index_kwargs = dict(
             user_id=user_id,
-            embed_id=embed_id,
+            embed_id=output_embed_id,
             media_type="image",
             files_metadata=files_metadata,
             s3_base_url=s3_base_url,
@@ -1368,8 +1485,11 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 "visual_watermark": False,
                 "provider_watermarking": "provider-dependent",
             },
+            existing_record_id=revision.upload_record_id if revision else None,
+            retained_size_bytes=revision.retained_size_bytes if revision else 0,
         )
-        if not upload_record_stored:
+        # A revision re-points the image's one index row only after its version is sealed.
+        if not revision and not await index_generated_asset(task, **index_kwargs):
             for meta in files_metadata.values():
                 if isinstance(meta, dict) and meta.get("s3_key"):
                     try:
@@ -1398,6 +1518,9 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             # Input reference image embed IDs (non-empty only for image-to-image generation).
             # Used by the frontend to display thumbnails of the source images above the prompt.
             "input_embed_ids": reference_image_embed_ids or [],
+            **(image_revision.revision_content_fields(revision) if revision else {}),
+            # LLM vector author only: how many drafts were written and how the last one was judged.
+            **(_vector_result_fields(authored, vector_engine) if authored else {}),
             "provenance": {
                 "ai_generated": True,
                 "labeling": "xmp+c2pa" if output_filetype != "svg" else "account_metadata+preview_xmp_c2pa",
@@ -1406,6 +1529,11 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             },
         }
         
+        # A script-made drawing is changed through its generator, which the chat stores
+        # client-encrypted only: keep it server-readable for the processing window.
+        if authored and authored.script:
+            await remember_vector_script(task, embed_id=output_embed_id, script=authored.script, vault_key_id=vault_key_id)
+
         # 9b. Cache S3 file keys for server-side cleanup (S3 deletion on chat/embed deletion)
         # Since embed content is client-encrypted (zero-knowledge), the server can't extract
         # S3 keys from encrypted_content. We cache them here so that store_embed_handler
@@ -1415,15 +1543,34 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             for meta in files_metadata.values()
         ]
         
+        if revision:
+            s3_file_keys = await image_revision.cache_file_keys(task, target=revision, new_keys=s3_file_keys)
         try:
             client = await task._cache_service.client
-            if client:
+            if client and not revision:
                 s3_keys_cache_key = f"embed:{embed_id}:s3_file_keys"
                 await client.set(s3_keys_cache_key, json.dumps(s3_file_keys), ex=3600)  # 1 hour TTL
                 logger.info(f"{log_prefix} Cached {len(s3_file_keys)} S3 file keys for embed {embed_id}")
         except Exception as e:
             logger.warning(f"{log_prefix} Failed to cache S3 file keys for embed {embed_id}: {e}")
         
+        # 5b. Charge credits (flat per-image fee) once everything fallible before
+        # publication succeeded. For SVG, model_ref is "recraft/{model_id}" (step 4).
+        if revision:
+            # A change that lost a race, or an image without its stored marker, stays uncharged.
+            await image_revision.assert_current_version(
+                task._directus_service, revision, user_id=user_id, chat_id=str(chat_id),
+            )
+        charge_event_id = image_revision.billing_event_id(
+            output_embed_id, revision.next_version if revision else 1, revision.change_id if revision else None,
+        )
+        credits_charged = await _charge_image_generation_credits(
+            user_id=user_id, user_id_hash=hashed_user_id, app_id=app_id, skill_id=skill_id,
+            model_ref=model_ref, chat_id=chat_id, message_id=message_id, log_prefix=log_prefix,
+            team_id=arguments.get("team_id"), event_id=charge_event_id,
+            metered_credits=metered_credits, metered_usage=metered_usage, strict=bool(revision),
+        )
+
         # 10. Encode embed content as TOON for WebSocket delivery
         # TOON is the standard format used by the embed system for efficient encoding
         from toon_format import encode as toon_encode
@@ -1447,16 +1594,35 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         )
         
         from backend.shared.python_utils.generated_media_graph import send_generated_media_child
-        child_embed_id = embed_id
-        await send_generated_media_child(
-            embed_service,
-            parent_embed_id=arguments.get("producer_embed_id") or embed_id,
-            child_embed_id=child_embed_id,
-            child_index=int(arguments.get("media_child_index") or 0),
-            content=embed_content,
-            chat_id=chat_id, message_id=message_id, user_id=user_id,
-            user_id_hash=hashed_user_id, created_at=now_ts, log_prefix=log_prefix,
-        )
+        child_embed_id = output_embed_id
+        if revision:
+            try:
+                await image_revision.publish_revision(
+                    embed_service, target=revision, content=embed_content, s3_file_keys=s3_file_keys,
+                    chat_id=str(chat_id), message_id=str(message_id), user_id=user_id,
+                    user_id_hash=hashed_user_id, created_at=now_ts, log_prefix=log_prefix,
+                )
+            except RevisionRefused:
+                # Refused before anything was sealed: give a Personal charge back.
+                await image_revision.refund_refused_revision(
+                    user_id=user_id, user_id_hash=hashed_user_id, credits=credits_charged,
+                    app_id=app_id, skill_id=skill_id, event_id=charge_event_id,
+                    team_id=arguments.get("team_id"), log_prefix=log_prefix,
+                )
+                raise
+            await image_revision.finish_published_revision(
+                task, target=revision, index=lambda: index_generated_asset(task, **index_kwargs), log_prefix=log_prefix,
+            )
+        else:
+            await send_generated_media_child(
+                embed_service,
+                parent_embed_id=arguments.get("producer_embed_id") or embed_id,
+                child_embed_id=child_embed_id,
+                child_index=int(arguments.get("media_child_index") or 0),
+                content=embed_content,
+                chat_id=chat_id, message_id=message_id, user_id=user_id,
+                user_id_hash=hashed_user_id, created_at=now_ts, log_prefix=log_prefix,
+            )
         
         # 12. NOTE: embed_update event is NO LONGER published here.
         # The send_embed_data_to_client() call above (step 11) already delivers all content
@@ -1485,7 +1651,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             for format_name, meta in files_metadata.items()
         }
         result_data = {
-            "embed_id": embed_id,
+            "embed_id": output_embed_id,
             "child_embed_id": child_embed_id,
             "child_embed_ids": [child_embed_id],
             "embed_ref": f"generated-images-{child_embed_id.replace('-', '')[:12]}",
@@ -1507,10 +1673,14 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             "aspect_ratio": aspect_ratio,
             "output_filetype": output_filetype,
             "generated_at": generated_at,
+            # Tells the chat model how a vector drawing was made and which requirements it still misses.
+            **({key: value for key, value in _vector_result_fields(authored, vector_engine).items()
+                if key != "vector_script"} if authored else {}),
             **({"team_id": arguments["team_id"]} if arguments.get("team_id") else {}),
+            **(image_revision.revision_result_fields(revision) if revision else {}),
         }
         
-        logger.info(f"{log_prefix} Image generation task completed successfully. Embed ID: {embed_id}")
+        logger.info(f"{log_prefix} Image generation task completed successfully. Embed ID: {output_embed_id}")
         return result_data
 
     except RequiredRecoveryOutputError:
@@ -1537,7 +1707,13 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 
                 # Build a concise, user-facing error message
                 error_str = str(e)
-                if "500 INTERNAL" in error_str or "ServerError" in error_str:
+                if isinstance(e, ReferenceImageUnavailable):
+                    user_error_message = REFERENCE_UNAVAILABLE_MESSAGE
+                elif isinstance(e, image_revision.RevisionNotSupported):
+                    user_error_message = "This image cannot get a new version yet. Nothing was charged; please try again shortly."
+                elif isinstance(e, image_revision.RevisionPreconditionFailed):
+                    user_error_message = "The image changed while this change was drawn. Nothing was charged; please try again."
+                elif "500 INTERNAL" in error_str or "ServerError" in error_str:
                     user_error_message = "The image generation provider is temporarily unavailable. Please try again."
                 elif "overloaded" in error_str.lower() or "429" in error_str or "rate" in error_str.lower():
                     user_error_message = "The image generation service is currently overloaded. Please try again in a moment."

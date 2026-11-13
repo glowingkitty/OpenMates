@@ -42,8 +42,7 @@ fn every_command_setting_path_parses_and_is_supported() {
             format!("projects settings command-presets {action}")
         );
         assert_eq!(i.positionals, ["engineering", "tests"]);
-        // Enable stays unsupported until host command protection is ported.
-        assert_eq!(supported(&i), action != "enable");
+        assert!(supported(&i), "{action}");
     }
     let list = invocation(&[
         "openmates",

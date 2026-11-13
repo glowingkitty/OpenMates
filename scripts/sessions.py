@@ -188,9 +188,18 @@ DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-comp
 DOCKER_SETUP_SERVICES = {"cms-setup", "vault-setup"}
 DOCKER_NON_RESTARTABLE_SERVICES = DOCKER_SETUP_SERVICES
 WORKTREE_CLEANUP_IDLE_HOURS = 4 * 24
+# A clean worktree whose HEAD is already in dev (or a reproducible integration
+# checkout) holds nothing unique, so it is reclaimed sooner than other classes.
+# Each one costs about 0.4 GB; a four-day window let ~180 of them fill the disk.
+WORKTREE_INTEGRATED_IDLE_HOURS = 2 * 24
 # Managed worktrees (including ones created for other agents) are kept a full
 # week before hard expiry.
 WORKTREE_HARD_MAX_AGE_HOURS = 7 * 24
+# Minimum inactivity (session, worktree and chat transcript) before the nightly
+# expiry may reclaim a worktree; unique changes are archived first.
+WORKTREE_INACTIVE_EXPIRY_HOURS = 24
+# Expiry recovery archives are deleted automatically after this long.
+WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS = 7 * 24
 WORKTREE_MAX_COUNT = int(os.environ.get("OPENMATES_WORKTREE_MAX_COUNT", "200"))
 WORKTREE_MIN_FREE_BYTES = int(float(os.environ.get("OPENMATES_WORKTREE_MIN_FREE_GIB", "30")) * 1024**3)
 WORKTREE_MAX_DISK_PERCENT = int(os.environ.get("OPENMATES_WORKTREE_MAX_DISK_PERCENT", "85"))
@@ -240,11 +249,16 @@ REPO_ALIASES = {
     "openmates-cloud": OPENMATESCLOUD_REPO_ID,
     "cloud": OPENMATESCLOUD_REPO_ID,
 }
-SPECIFICATION_GENERATED_ARTIFACTS = {
-    "specifications/generated/assertion-index.yml",
-    "specifications/generated/coverage.yml",
-    "specifications/generated/registry.yml",
-}
+try:
+    from scripts.lane_ci_source import (
+        RUST_MIGRATION_GENERATED_ARTIFACTS,
+        SPECIFICATION_GENERATED_ARTIFACTS,
+    )
+except ModuleNotFoundError:
+    from lane_ci_source import (
+        RUST_MIGRATION_GENERATED_ARTIFACTS,
+        SPECIFICATION_GENERATED_ARTIFACTS,
+    )
 WORKTREE_BOOTSTRAP_TIMEOUT_SECONDS = 300
 WORKTREE_SHARED_RUNTIME_PATHS = (Path(".env"), Path("logs/nightly-reports"))
 WORKTREE_BINDING_MODES = {"pending", "native", "pilot_fallback", "legacy_grandfathered", "worktree_routed", "repo_routed"}
@@ -365,117 +379,12 @@ MODE_ALIASES = {
     "plan": "question",
 }
 
-# Keywords in task descriptions that auto-infer tags
-TAG_KEYWORDS: dict[str, list[str]] = {
-    "frontend": [
-        "svelte", "component", "css", "style", "button", "page", "layout",
-        "ui", "ux", "nav", "sidebar", "modal", "toast", "settings page",
-        "frontend", "front-end", "front end", "sveltekit", "vite",
-    ],
-    "backend": [
-        "python", "fastapi", "api endpoint", "api route", "pydantic",
-        "docker", "worker", "celery", "backend", "back-end", "back end",
-        "skill", "directus", "database", "db", "sql", "migration",
-    ],
-    "debug": [
-        "fix", "bug", "broken", "error", "crash", "fail", "issue",
-        "debug", "investigate", "troubleshoot", "not working", "500",
-        "404", "timeout", "undefined", "null", "missing",
-    ],
-    "test": [
-        "test", "spec", "e2e", "playwright", "pytest", "vitest",
-        "coverage", "assertion",
-    ],
-    "i18n": [
-        "translat", "i18n", "locale", "language", "localization",
-    ],
-    "figma": [
-        "figma", "design", "mockup", "wireframe",
-    ],
-    "embed": [
-        "embed", "preview card", "fullscreen preview",
-    ],
-    "api": [
-        "api integration", "third-party", "external api", "provider",
-        "api key", "webhook",
-    ],
-    "feature": [
-        "implement", "new feature", "add feature", "build feature",
-    ],
-    "logging": [
-        "logging", "log level", "log format",
-    ],
-    "security": [
-        "security", "encryption", "auth", "passkey", "csrf", "xss",
-        "injection", "vulnerability",
-    ],
-    "cli": [
-        "cli", "openmates-cli", "openmates cli", "terminal", "command line",
-        "command-line", "npm package", "crypto.ts", "client.ts", "ws.ts",
-        "storage.ts", "embedRenderers", "pair auth", "pair-auth", "whoami",
-        "memory_type_registry", "MEMORY_TYPE_REGISTRY",
-    ],
-}
-
-# Architecture doc descriptions (for the compact index)
-ARCH_DOC_DESCRIPTIONS: dict[str, str] = {
-    "account-backup": "User account export/backup functionality",
-    "account-recovery": "Recovery flow for users who lose login access",
-    "admin-console-log-forwarding": "Client log forwarding to admin console",
-    "ai-model-selection": "AI model routing and selection logic",
-    "app-skills": "Skill architecture: request/response, execution model",
-    "daily-inspiration": "Daily inspiration generation and delivery pipeline",
-    "developer-settings": "Developer API access and device management",
-    "device-sessions": "Device authorization and session management",
-    "docs-web-app": "Documentation system at /docs",
-    "email-privacy": "Client-side email encryption for privacy",
-    "embeds": "Embed type system, storage, and rendering pipeline",
-    "file-upload-pipeline": "File upload processing (images, PDFs)",
-    "followup-suggestions": "Follow-up suggestion generation",
-    "hallucination-mitigation": "Measures to reduce LLM hallucinations",
-    "health-checks": "Service health check endpoints and monitoring",
-    "logging": "Logging standards and configuration",
-    "mates": "Digital team mate system architecture",
-    "message-input-field": "Message input field component architecture",
-    "message-parsing": "Message content parsing and rendering",
-    "message-previews-grouping": "Message preview cards and grouping",
-    "message-processing": "Message pipeline: preprocessing to postprocessing",
-    "passkeys": "WebAuthn/passkey authentication flow",
-    "payment-processing": "Payment processing via Stripe",
-    "pii-protection": "PII detection and protection measures",
-    "preprocessing-model-comparison": "Preprocessing model benchmarks",
-    "prompt-injection": "Prompt injection prevention measures",
-    "rest-api": "REST API documentation and standards",
-    "security": "Zero-knowledge architecture and security model",
-    "sensitive-data-redaction": "Sensitive data redaction pipeline",
-    "servers": "Server infrastructure and deployment",
-    "signup-and-auth": "Signup and authentication flows",
-    "status-page": "Public status page architecture",
-    "sync": "Cross-device synchronization protocol",
-    "thinking-models": "Thinking/reasoning model integration",
-    "translations": "Translation system and i18n pipeline",
-    "vector-personalization": "Vector-based personalization system",
-    "web-app": "Web application architecture overview",
-    "zero-knowledge-storage": "Client-side encryption for all storage",
-}
-
-# Maps tags to keywords for filtering architecture docs at session start.
-TAG_TO_ARCH_KEYWORDS: dict[str, list[str]] = {
-    "frontend": ["web-app", "svelte", "component", "message-input", "message-parsing",
-                 "message-previews", "embed", "sync", "passkey", "signup", "payment",
-                 "translations", "status-page", "docs-web"],
-    "backend": ["api", "skill", "processing", "worker", "celery", "health", "server",
-                "logging", "model", "file-upload", "daily", "vector", "mates",
-                "hallucination", "pii", "prompt-injection", "sensitive-data"],
-    "debug": ["logging", "health", "admin-console", "device-session", "sync"],
-    "test": ["health"],
-    "embed": ["embed", "message-preview"],
-    "i18n": ["translation"],
-    "security": ["security", "zero-knowledge", "encryption", "passkey", "pii",
-                 "prompt-injection", "email-privacy", "sensitive-data"],
-    "api": ["rest-api", "api", "developer"],
-    "cli": ["sync", "zero-knowledge", "security", "passkey", "signup", "web-app"],
-}
+# Tag keyword tables (TAG_KEYWORDS, ARCH_DOC_DESCRIPTIONS, TAG_TO_ARCH_KEYWORDS)
+# live in sessions_tags.py to keep this file smaller.
+try:
+    from scripts.sessions_tags import ARCH_DOC_DESCRIPTIONS, TAG_KEYWORDS
+except ModuleNotFoundError:
+    from sessions_tags import ARCH_DOC_DESCRIPTIONS, TAG_KEYWORDS
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -671,92 +580,12 @@ def _format_write_claim_conflict(filepath: str, session_id: str, session_info: d
     )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+try:
+    from scripts.sessions_state_merge import merge_concurrent_state as merge_concurrent_session_state
+    from scripts.sessions_state_merge import remember_loaded as remember_loaded_sessions
+except ModuleNotFoundError:
+    from sessions_state_merge import merge_concurrent_state as merge_concurrent_session_state
+    from sessions_state_merge import remember_loaded as remember_loaded_sessions
 
 
 def _load_sessions() -> dict:
@@ -770,7 +599,7 @@ def _load_sessions() -> dict:
         with open(SESSIONS_FILE) as f:
             data = json.load(f)
         _normalize_session_state_paths(data)
-        return data
+        return remember_loaded_sessions(data)
     except (json.JSONDecodeError, OSError):
         # Corrupted file — reinitialize
         data = _default_sessions()
@@ -793,10 +622,8 @@ def _save_sessions(data: dict) -> None:
                 if SESSIONS_FILE.exists():
                     try:
                         with open(SESSIONS_FILE) as current_file:
-                            current = json.load(current_file)
-                        for key in ("locks", "infrastructure", "edit_leases", "deploy_queue"):
-                            if key in current:
-                                data[key] = current[key]
+                            # Keep concurrent writes a stale snapshot cannot know (lifecycle, new sessions).
+                            merge_concurrent_session_state(data, json.load(current_file))
                     except (json.JSONDecodeError, OSError):
                         pass
                 tmp = SESSIONS_FILE.with_suffix(".tmp")
@@ -2438,11 +2265,22 @@ def _resolve_deploy_selection(
 
     default_files = set(_session_deploy_files(session, exclude))
     if requested_only:
-        unavailable = sorted(requested_only - default_files)
+        unavailable = requested_only - default_files
+        if unavailable:
+            # Files git reports dirty in the session checkout are real work even
+            # when modified_files never recorded them (edited via a sub-agent).
+            dirty = {
+                _canonical_stored_repo_path(path)
+                for path in _get_dirty_files(
+                    checkout_root=_session_checkout_root(session), missing_ok=True
+                )
+            }
+            unavailable -= dirty
         if unavailable:
             raise RuntimeError(
-                "--only contains files that are not tracked dirty work for this session: "
-                + ", ".join(unavailable)
+                "--only contains files that are not dirty in this session's worktree: "
+                + ", ".join(sorted(unavailable))
+                + ". Check the path is repo-relative and edited inside the session worktree."
             )
         return sorted(requested_only), "only"
 
@@ -2693,8 +2531,17 @@ def _resolve_session_id(data: dict, *, session_id: str = "", **retired) -> str:
         from scripts.session_binding import resolve_session
     except ModuleNotFoundError:
         from session_binding import resolve_session
-    return resolve_session(data, session_id=session_id, thread_id=_agent_task_identity(),
-                           host=socket.gethostname(), cwd=PROJECT_ROOT, repo_id=DEFAULT_REPO_ID)
+    try:
+        return resolve_session(data, session_id=session_id, thread_id=_agent_task_identity(),
+                               host=socket.gethostname(), cwd=PROJECT_ROOT, repo_id=DEFAULT_REPO_ID)
+    except RuntimeError as exc:
+        policy = _expiry_policy()
+        manifest = policy.find_recovery_record(
+            data, session_id=session_id, agent_task_id="" if session_id else _agent_task_identity()
+        )
+        if manifest is None:
+            raise
+        raise RuntimeError(f"{exc}. {policy.recovery_hint(manifest, WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS)}") from exc
 
 
 def _normalize_edit_lease_path(path_value: str | Path, session: dict | None = None) -> str | None:
@@ -3267,6 +3114,49 @@ def _split_specification_generated_artifacts(files: list[str]) -> tuple[list[str
     return source, generated
 
 
+def _split_rust_migration_generated_artifacts(files: list[str]) -> tuple[list[str], list[str]]:
+    """Separate generated Rust migration YAML outputs from source patches."""
+    generated = [relative_path for relative_path in files if relative_path in RUST_MIGRATION_GENERATED_ARTIFACTS]
+    source = [relative_path for relative_path in files if relative_path not in RUST_MIGRATION_GENERATED_ARTIFACTS]
+    return source, generated
+
+
+def _should_regenerate_rust_migration_artifacts(files: list[str]) -> bool:
+    """Return True when deploy inputs can change the generated Rust migration YAML."""
+    return _touches_rust_migration_inputs(files) or any(
+        relative_path in RUST_MIGRATION_GENERATED_ARTIFACTS for relative_path in files
+    )
+
+
+def _regenerate_rust_migration_artifacts(checkout_root: Path, files: list[str]) -> list[str]:
+    """Rebuild and stage the generated Rust migration YAML in one checkout.
+
+    Runs the checkout's own generator so outputs match exactly the sources that
+    will be committed. Returns the generated paths that differ from HEAD.
+    """
+    if not _should_regenerate_rust_migration_artifacts(files):
+        return []
+    script = checkout_root / "scripts" / "rust_migration_yaml.py"
+    if not script.exists():
+        raise RuntimeError("Rust migration YAML generation unavailable: scripts/rust_migration_yaml.py is missing")
+    rc, stdout, stderr = _run_cmd([sys.executable, str(script)], cwd=str(checkout_root), timeout=120)
+    if rc != 0:
+        raise RuntimeError(f"Rust migration YAML generation failed: {stderr or stdout}")
+    generated = sorted(RUST_MIGRATION_GENERATED_ARTIFACTS)
+    existing = [relative_path for relative_path in generated if (checkout_root / relative_path).exists()]
+    if existing:
+        rc, _stdout, stderr = _run_cmd(["git", "add", "--", *existing], cwd=str(checkout_root))
+        if rc != 0:
+            raise RuntimeError(f"Could not stage regenerated Rust migration YAML: {stderr}")
+    rc, stdout, stderr = _run_cmd(
+        ["git", "diff", "--cached", "--name-only", "HEAD", "--", *generated],
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not inspect regenerated Rust migration YAML: {stderr}")
+    return sorted(line.strip() for line in stdout.splitlines() if line.strip())
+
+
 def _numstat_deletions(
     checkout_root: Path,
     base_ref: str,
@@ -3419,6 +3309,10 @@ def _apply_worktree_diff_to_checkout(
     if not source_path.is_dir() or not source_base:
         raise RuntimeError("Session source worktree metadata is incomplete")
     patch_files, specification_generated_files = _split_specification_generated_artifacts(files)
+    patch_files, rust_migration_generated_files = _split_rust_migration_generated_artifacts(patch_files)
+    if checkpoint_commit and checkpoint_commit == source_base:
+        # An empty-diff checkpoint is the base itself: it carries no patch.
+        checkpoint_commit = ""
     if checkpoint_commit:
         rc, checkpoint_parent, stderr = _run_cmd(
             ["git", "rev-parse", f"{checkpoint_commit}^"],
@@ -3426,12 +3320,22 @@ def _apply_worktree_diff_to_checkout(
         )
         checkpoint_parent = checkpoint_parent.strip()
         if rc != 0 or checkpoint_parent != source_base:
-            raise IntegrationConflict(
-                stderr or "Checkpoint parent no longer matches the recorded source base",
-                patch_id=patch_id,
-                source_base=source_base,
-                final_base=prepared_base,
-            )
+            if not _checkpoint_has_unique_work(checkpoint_commit, source_metadata):
+                # Nothing to preserve: reproduce the patch from the live worktree.
+                checkpoint_commit = ""
+            else:
+                raise IntegrationConflict(
+                    stderr
+                    or (
+                        f"Checkpoint {checkpoint_commit[:9]} holds unique work on base "
+                        f"{checkpoint_parent[:9]}, not the recorded source base {source_base[:9]}; "
+                        "inspect the session checkpoint ref before redeploying"
+                    ),
+                    patch_id=patch_id,
+                    source_base=source_base,
+                    final_base=prepared_base,
+                )
+    if checkpoint_commit:
         diff_result = subprocess.run(
             ["git", "diff", "--binary", source_base, checkpoint_commit, "--", *patch_files],
             cwd=str(CONTROL_PLANE_ROOT),
@@ -3461,6 +3365,7 @@ def _apply_worktree_diff_to_checkout(
                     final_base=prepared_base,
                 )
         _regenerate_specification_artifacts(checkout_root, specification_generated_files)
+        _regenerate_rust_migration_artifacts(checkout_root, files)
         _enforce_no_integration_deletion_amplification(
             source_metadata,
             patch_files,
@@ -3551,6 +3456,7 @@ def _apply_worktree_diff_to_checkout(
             raise RuntimeError(f"Could not stage untracked deploy path {relative_path}: {stderr}")
 
     _regenerate_specification_artifacts(checkout_root, specification_generated_files)
+    _regenerate_rust_migration_artifacts(checkout_root, files)
     _enforce_no_integration_deletion_amplification(
         source_metadata,
         patch_files,
@@ -3677,6 +3583,36 @@ def _worktree_checkpoint_ref(session_id: str) -> str:
     return f"refs/openmates/checkpoints/{safe_session_id}"
 
 
+def _checkpoint_has_unique_work(commit: str, metadata: dict | None = None) -> bool:
+    """Return whether a checkpoint commit preserves anything not already on dev.
+
+    A checkpoint without unique work is the session's own recorded base, any
+    commit reachable from origin/dev, or a commit whose tree equals its
+    parent's (an empty checkpoint). Such a commit can be discarded and
+    recreated; anything else must be preserved for manual inspection.
+    """
+    if not commit:
+        return False
+    metadata = metadata or {}
+    recorded = {str(metadata.get("base_commit") or ""), str(metadata.get("merged_commit") or "")}
+    if commit in recorded - {""}:
+        return False
+    rc, _stdout, _stderr = _run_cmd(
+        ["git", "merge-base", "--is-ancestor", commit, "refs/remotes/origin/dev"],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc == 0:
+        return False
+    rc, trees, _stderr = _run_cmd(
+        ["git", "rev-parse", f"{commit}^{{tree}}", f"{commit}^^{{tree}}"],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    tree_lines = trees.split() if rc == 0 else []
+    if len(tree_lines) == 2 and tree_lines[0] == tree_lines[1]:
+        return False
+    return True
+
+
 def _checkpoint_ref_expected_commit(session_id: str, checkpoint_ref: str, new_commit: str) -> str:
     """Return the compare-and-swap value without overwriting unrelated recovery state."""
     rc, previous_commit, _stderr = _run_cmd(
@@ -3706,6 +3642,11 @@ def _checkpoint_ref_expected_commit(session_id: str, checkpoint_ref: str, new_co
     )
     if rc == 0 and subject.strip() == f"checkpoint: preserve session {session_id}":
         return previous_commit
+    worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+    if not _checkpoint_has_unique_work(previous_commit, worktree):
+        # Stale ref pointing at the recorded base or at integrated history
+        # (for example an earlier empty-diff checkpoint): safe to replace.
+        return previous_commit
     raise RuntimeError(f"Refusing to overwrite checkpoint ref with unverified provenance: {checkpoint_ref}")
 
 
@@ -3722,6 +3663,46 @@ def _delete_worktree_checkpoint_ref(session_id: str, *, expected_commit: str = "
         cwd=str(CONTROL_PLANE_ROOT),
     )
     return verify_rc != 0
+
+
+def _discard_stale_worktree_checkpoint_ref(session_id: str, metadata: dict) -> bool:
+    """Delete the session checkpoint ref only when it holds no unique work."""
+    checkpoint_ref = _worktree_checkpoint_ref(session_id)
+    rc, previous_commit, _stderr = _run_cmd(
+        ["git", "rev-parse", "--verify", checkpoint_ref],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        return False
+    previous_commit = previous_commit.strip()
+    if _checkpoint_has_unique_work(previous_commit, metadata):
+        return False
+    return _delete_worktree_checkpoint_ref(session_id, expected_commit=previous_commit)
+
+
+def _usable_supplied_checkpoint(checkpoint_commit: str, metadata: dict) -> str:
+    """Return a supplied checkpoint, or "" when it must be recreated.
+
+    A checkpoint equal to the source base is an empty checkpoint. A checkpoint
+    whose parent is no longer the recorded source base (the lane was rebased or
+    refreshed) is recreated when it has no unique work; one holding unique work
+    is returned unchanged so integration hard-fails instead of dropping it.
+    """
+    if not checkpoint_commit:
+        return ""
+    source_base = str(metadata.get("merged_commit") or metadata.get("base_commit") or "")
+    if checkpoint_commit == source_base:
+        return ""
+    rc, parent, _stderr = _run_cmd(["git", "rev-parse", f"{checkpoint_commit}^"], cwd=str(CONTROL_PLANE_ROOT))
+    if rc == 0 and parent.strip() == source_base:
+        return checkpoint_commit
+    if not _checkpoint_has_unique_work(checkpoint_commit, metadata):
+        print(
+            f"Discarding stale checkpoint {checkpoint_commit[:9]} (no unique work; parent "
+            f"is not source base {source_base[:9]}); recreating."
+        )
+        return ""
+    return checkpoint_commit
 
 
 @contextmanager
@@ -3800,7 +3781,11 @@ def _create_worktree_checkpoint_commit(
             )
             if diff_rc != 0:
                 raise RuntimeError(f"Could not create worktree checkpoint commit: {stderr or _stdout or diff_stderr}")
-            commit_hash = source_base
+            # Empty diff: there is nothing to preserve, so no ref is written.
+            # Drop a stale ref that carries no unique work so it cannot block
+            # a later deploy; keep compare-and-swap for anything else.
+            _discard_stale_worktree_checkpoint_ref(session_id, metadata)
+            return ""
         else:
             rc, commit_hash, stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(checkout_root))
             commit_hash = commit_hash.strip()
@@ -4316,20 +4301,48 @@ def _queue_coordinated_worktree_cleanup() -> bool:
     disk_owner = configured(CONTROL_PLANE_ROOT)
     if disk_owner is None or owner_check(disk_owner):
         return False
+    if os.environ.get("OPENMATES_DISK_OWNER_FD"):
+        # Invoked by the coordinator itself: re-queueing would only schedule
+        # this same job again, so fail visibly instead of looping.
+        raise RuntimeError("Coordinator-invoked worktree reconcile lost disk ownership; not re-queueing")
     disk_owner.enqueue_maintenance(CONTROL_PLANE_ROOT, "worktrees")
     return True
+
+
+# Classes a lifecycle-managed session may still be reclaimed under: the work is
+# provably on dev (or reproducible) and the worktree has no changed files.
+LIFECYCLE_RECLAIMABLE_CLASSES = frozenset({"integrated", "disposable_integration"})
+
+
+def _reconcile_idle_threshold(idle_hours: int | None, only_classes: set[str] | None) -> int:
+    """Resolve the idle threshold; reclaimable-only runs default to the shorter window."""
+    if idle_hours is not None:
+        return idle_hours
+    if only_classes and set(only_classes) <= LIFECYCLE_RECLAIMABLE_CLASSES:
+        return WORKTREE_INTEGRATED_IDLE_HOURS
+    return WORKTREE_CLEANUP_IDLE_HOURS
 
 
 def reconcile_session_worktrees(
     *,
     target_ref: str = "origin/dev",
-    idle_hours: int = WORKTREE_CLEANUP_IDLE_HOURS,
+    idle_hours: int | None = None,
     apply_safe: bool = False,
     approved_obsolete: set[str] | None = None,
     only_session_ids: set[str] | None = None,
+    only_classes: set[str] | None = None,
+    coordinated: bool = True,
 ) -> dict:
-    """Report or safely apply reconciliation for all known agent worktrees."""
-    if apply_safe and _queue_coordinated_worktree_cleanup():
+    """Report or safely apply reconciliation for all known agent worktrees.
+
+    ``only_classes`` narrows which safe classifications may be deleted.
+    ``coordinated=False`` runs in-process instead of queueing on the disk
+    coordinator; callers use it only with integrated/disposable classes.
+    ``idle_hours=None`` uses ``WORKTREE_INTEGRATED_IDLE_HOURS`` when only the
+    reclaimable classes are requested and ``WORKTREE_CLEANUP_IDLE_HOURS`` otherwise.
+    """
+    idle_hours = _reconcile_idle_threshold(idle_hours, only_classes)
+    if apply_safe and coordinated and _queue_coordinated_worktree_cleanup():
         return {"target_ref": target_ref, "target_commit": "", "apply_safe": True,
                 "items": [], "deleted": [], "unresolved": [], "queued": True}
     approved = set(approved_obsolete or set())
@@ -4371,6 +4384,8 @@ def reconcile_session_worktrees(
         "missing_worktree",
         "orphaned_git_metadata",
     }
+    if only_classes is not None:
+        safe_classes &= set(only_classes)
     deletable = [
         item for item in items
         if item.get("classification") in safe_classes and float(item.get("idle_hours", float("inf"))) >= idle_hours
@@ -4385,7 +4400,11 @@ def reconcile_session_worktrees(
             queue = data.setdefault("deploy_queue", [])
             manifests = data.setdefault("worktree_deletion_manifests", [])
             for item in deletable:
-                if (sessions.get(str(item.get("session_id")), {}).get("lifecycle") or {}).get("version") == WORKSPACE_LIFECYCLE_VERSION:
+                lifecycle_managed = (
+                    (sessions.get(str(item.get("session_id")), {}).get("lifecycle") or {}).get("version")
+                    == WORKSPACE_LIFECYCLE_VERSION
+                )
+                if lifecycle_managed and item.get("classification") not in LIFECYCLE_RECLAIMABLE_CLASSES:
                     continue
                 fresh = _refresh_reconciliation_candidate(item, data, target_commit, idle_hours, approved)
                 session_id = str(fresh["session_id"])
@@ -4394,6 +4413,17 @@ def reconcile_session_worktrees(
                     fresh.get("classification") not in safe_classes
                     or float(fresh.get("idle_hours", float("inf"))) < idle_hours
                 ):
+                    continue
+                if lifecycle_managed and (
+                    fresh.get("classification") not in LIFECYCLE_RECLAIMABLE_CLASSES
+                    or fresh.get("inspection_error")
+                    or (
+                        fresh.get("changed_files")
+                        and not _worktree_target_files_match(fresh, target_commit)
+                    )
+                ):
+                    # Lifecycle sessions are reclaimed only when integrated,
+                    # clean (no file differs from dev) and idle.
                     continue
                 try:
                     recovery_path = ""
@@ -4676,11 +4706,41 @@ def _managed_worktree_records() -> list[dict]:
     return records
 
 
+def _expiry_policy():
+    try:
+        from scripts import worktree_expiry_policy as policy
+    except ModuleNotFoundError:
+        import worktree_expiry_policy as policy
+    return policy
+
+
+def _expiry_record_is_live(record: dict, data: dict, *, now_timestamp: float, idle_hours: int) -> bool:
+    """Existing liveness protections plus recent activity in the owning chat."""
+    if _hard_expiry_record_is_live(record, data, now_timestamp=now_timestamp, idle_hours=idle_hours):
+        return True
+    session_id = str(record.get("session_id") or "")
+    current = data.get("sessions", {}).get(session_id)
+    session = current if isinstance(current, dict) else (
+        record.get("session") if isinstance(record.get("session"), dict) else {}
+    )
+    return _expiry_policy().chat_is_active(
+        str(session.get("agent_task_id") or ""), now_timestamp=now_timestamp, idle_hours=idle_hours
+    )
+
+
 def _managed_worktree_age_hours(record: dict, now_timestamp: float) -> float:
     timestamp = record.get("path_timestamp")
     if not isinstance(timestamp, (int, float)):
         return 0
     return max(0.0, (now_timestamp - float(timestamp)) / 3600)
+
+
+# Successful probe results per (pid, process start time), reused for at most
+# _EXPIRY_PROBE_CACHE_SECONDS. One expiry pass checks every worktree against
+# the same non-dumpable processes (e.g. `systemd --user`); probing each once
+# per minute keeps a pass bounded without trusting stale references.
+_EXPIRY_PROBE_CACHE: dict[tuple[int, str], tuple[float, list[str]]] = {}
+_EXPIRY_PROBE_CACHE_SECONDS = 60
 
 
 def _expiry_privileged_process_references(pid: int) -> list[str] | None:
@@ -4695,6 +4755,9 @@ def _expiry_privileged_process_references(pid: int) -> list[str] | None:
             return None
         stat_path = Path("/proc") / str(pid) / "stat"
         start = stat_path.read_text().rsplit(")", 1)[1].split()[19]
+        cached = _EXPIRY_PROBE_CACHE.get((int(pid), start))
+        if cached is not None and time.monotonic() - cached[0] < _EXPIRY_PROBE_CACHE_SECONDS:
+            return cached[1]
         rc, image, _stderr = _run_cmd(["docker", "inspect", "--format", "{{.Image}}", "api"], timeout=15)
         image = image.strip()
         if rc or not re.fullmatch(r"sha256:[0-9a-f]{64}", image):
@@ -4719,7 +4782,12 @@ def _expiry_privileged_process_references(pid: int) -> list[str] | None:
             return None
         rc, stdout, _stderr = _run_cmd([
             "docker", "run", "--pull=never", "--rm", "--network", "none", "--read-only",
-            "--cap-drop", "ALL", "--cap-add", "SYS_PTRACE", "--security-opt", "no-new-privileges",
+            # SYS_PTRACE passes the ptrace access check on /proc/<pid>/fd;
+            # DAC_READ_SEARCH lets root list that dr-x------ directory owned
+            # by the host user. Without it every probe failed and expiry
+            # retained all worktrees as possibly referenced.
+            "--cap-drop", "ALL", "--cap-add", "SYS_PTRACE", "--cap-add", "DAC_READ_SEARCH",
+            "--security-opt", "no-new-privileges",
             "--security-opt", "apparmor=unconfined",
             "--user", "0:0", "--pids-limit", "64", "--memory", "64m", "--cpus", "0.5",
             "--mount", "type=bind,source=/proc,target=/host-proc,readonly",
@@ -4739,6 +4807,7 @@ def _expiry_privileged_process_references(pid: int) -> list[str] | None:
             return None
         if len(refs) > 4097 or not all(isinstance(ref, str) for ref in refs):
             return None
+        _EXPIRY_PROBE_CACHE[(int(pid), start)] = (time.monotonic(), refs)
         return refs
     except (OSError, ValueError, TypeError, KeyError, IndexError, subprocess.SubprocessError):
         return None
@@ -4998,19 +5067,22 @@ def _archive_expired_worktree(record: dict) -> str:
         raise RuntimeError("Recovery snapshot would cross the disk reserve; worktree retained")
     session = record.get("session") if isinstance(record.get("session"), dict) else {}
     target_ref = f"{_session_repo_remote(session)}/{_session_repo_branch(session)}"
+    head_bundle = b""
     if not _git_is_ancestor(head, target_ref):
-        raise RuntimeError(f"Expired worktree HEAD is not reachable from {target_ref}; bundle required")
+        # Commits not on the target branch are preserved as a git bundle inside the archive.
+        head_bundle = _expiry_policy().head_bundle(path, target_ref, WORKTREE_EXPIRY_MAX_ARCHIVE_BYTES - archive_peak)
     archive_id = hashlib.sha256(str(path).encode()).hexdigest()[:20]
     manifest = {
         "format": 1,
         "session_id": str(record.get("session_id") or ""),
         "worktree": str(path),
         "head": head,
-        "head_reachable_from": target_ref,
+        "head_reachable_from": "" if head_bundle else target_ref,
         "staged_patch_sha256": hashlib.sha256(staged_patch).hexdigest(),
         "working_patch_sha256": hashlib.sha256(working_patch).hexdigest(),
         "untracked": entries,
-        "restore": "Check out the exact head commit in a new workspace. Apply staged.patch with git apply --index, then working.patch with git apply. Inspect links before extracting untracked/.",
+        "head_bundle_sha256": hashlib.sha256(head_bundle).hexdigest() if head_bundle else "",
+        "restore": "Check out the exact head commit (fetch head.bundle first when present) in a new workspace. Apply staged.patch with git apply --index, then working.patch with git apply. Inspect links before extracting untracked/.",
     }
     WORKTREE_EXPIRY_ARCHIVE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     WORKTREE_EXPIRY_ARCHIVE_DIR.chmod(0o700)
@@ -5024,6 +5096,7 @@ def _archive_expired_worktree(record: dict) -> str:
                     ("manifest.json", json.dumps(manifest, sort_keys=True, indent=2).encode()),
                     ("staged.patch", staged_patch),
                     ("working.patch", working_patch),
+                    *((("head.bundle", head_bundle),) if head_bundle else ()),
                 ):
                     info = tarfile.TarInfo(name)
                     info.size = len(payload)
@@ -5052,6 +5125,8 @@ def _archive_expired_worktree(record: dict) -> str:
                 "staged.patch": manifest["staged_patch_sha256"],
                 "working.patch": manifest["working_patch_sha256"],
             }
+            if head_bundle:
+                expected["head.bundle"] = manifest["head_bundle_sha256"]
             expected.update({f"untracked/{entry['path']}": entry["sha256"] for entry in entries
                              if entry["kind"] != "omitted"})
             actual = {}
@@ -5172,15 +5247,19 @@ def expire_managed_worktrees(
     *,
     max_age_hours: int = WORKTREE_HARD_MAX_AGE_HOURS,
     now_timestamp: float | None = None,
+    dry_run: bool = False,
 ) -> dict:
-    """Delete aged, idle worktrees only when their changes are recoverable."""
-    if _queue_coordinated_worktree_cleanup():
+    """Delete inactive worktrees only when their changes are recoverable.
+
+    With ``dry_run`` nothing is archived, removed, pruned or queued.
+    """
+    if not dry_run and _queue_coordinated_worktree_cleanup():
         return {"max_age_hours": max_age_hours, "inspected": 0, "deleted": [],
                 "retained": [], "failures": [], "queued": True}
 
-    if max_age_hours < WORKTREE_HARD_MAX_AGE_HOURS:
+    if max_age_hours < WORKTREE_INACTIVE_EXPIRY_HOURS:
         raise ValueError(
-            f"max_age_hours below the configured hard lifetime ({WORKTREE_HARD_MAX_AGE_HOURS}) is not allowed"
+            f"max_age_hours below the minimum inactivity window ({WORKTREE_INACTIVE_EXPIRY_HOURS}) is not allowed"
         )
     current_timestamp = time.time() if now_timestamp is None else now_timestamp
     records = _managed_worktree_records()
@@ -5188,7 +5267,7 @@ def expire_managed_worktrees(
     live_session_ids = {
         str(record.get("session_id") or "")
         for record in records
-        if _hard_expiry_record_is_live(
+        if _expiry_record_is_live(
             record,
             current_data,
             now_timestamp=current_timestamp,
@@ -5218,6 +5297,27 @@ def expire_managed_worktrees(
         if _managed_worktree_age_hours(record, current_timestamp) < max_age_hours
         or str(record.get("session_id") or "") in live_session_ids
     )
+    policy = _expiry_policy()
+    if dry_run:
+        return {
+            "max_age_hours": max_age_hours,
+            "dry_run": True,
+            "inspected": len(records),
+            "would_delete": sorted(str(item["session_id"]) for item in expired),
+            "archive_required": sorted(str(item["session_id"]) for item in expired if item["requires_archive"]),
+            "deleted": [],
+            "retained": retained,
+            "protected_live": sorted(
+                str(record.get("session_id") or "") for record in records
+                if str(record.get("session_id") or "") in live_session_ids
+                and _managed_worktree_age_hours(record, current_timestamp) >= max_age_hours
+            ),
+            "protected_unresolved": protected_unresolved,
+            "would_prune_archives": policy.prune_expiry_archives(
+                WORKTREE_EXPIRY_ARCHIVE_DIR, WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS, current_timestamp, dry_run=True
+            ),
+            "failures": [],
+        }
     deleted_records: list[dict] = []
     failures: list[dict] = []
     for record in expired:
@@ -5237,7 +5337,7 @@ def expire_managed_worktrees(
             })
             continue
         try:
-            if _hard_expiry_record_is_live(
+            if _expiry_record_is_live(
                 record, _load_sessions(), now_timestamp=time.time(), idle_hours=max_age_hours
             ):
                 continue
@@ -5256,7 +5356,7 @@ def expire_managed_worktrees(
                 disposable_now, reason_now = _hard_expiry_record_is_safely_disposable(record)
                 if not disposable_now:
                     raise RuntimeError(f"Expired worktree changed before removal: {reason_now}")
-            if _hard_expiry_record_is_live(
+            if _expiry_record_is_live(
                 record, _load_sessions(), now_timestamp=time.time(), idle_hours=max_age_hours
             ):
                 raise RuntimeError("Expired worktree became active before removal")
@@ -5271,8 +5371,15 @@ def expire_managed_worktrees(
         _delete_worktree_checkpoint_ref(session_id)
     deleted_paths = [Path(str(record["path"])).resolve(strict=False) for record in deleted_records]
 
+    pruned_archives = policy.prune_expiry_archives(
+        WORKTREE_EXPIRY_ARCHIVE_DIR, WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS, current_timestamp
+    )
+
     def store(data: dict) -> None:
         _prune_deletion_manifests(data)
+        policy.mark_manifests_archive_pruned(
+            data.setdefault("worktree_deletion_manifests", []), pruned_archives, _now_iso()
+        )
         sessions = data.setdefault("sessions", {})
         manifests = data.setdefault("worktree_deletion_manifests", [])
         removed_session_ids: set[str] = set()
@@ -5302,6 +5409,7 @@ def expire_managed_worktrees(
             manifests.append(
                 {
                     "session_id": str(record["session_id"]),
+                    "agent_task_id": str(session.get("agent_task_id") or ""),
                     "worktree_name": Path(str(record["path"])).name,
                     "classification": "expired",
                     "reason": f"hard_max_age_{max_age_hours}h",
@@ -5315,11 +5423,13 @@ def expire_managed_worktrees(
                 }
             )
 
-    if deleted_records:
+    if deleted_records or pruned_archives:
         _mutate_sessions(store)
+    if deleted_records:
         _run_cmd(["git", "worktree", "prune"], cwd=str(CONTROL_PLANE_ROOT))
     return {
         "max_age_hours": max_age_hours,
+        "pruned_archives": pruned_archives,
         "inspected": len(records),
         "deleted": deleted_ids,
         "retained": retained,
@@ -5343,6 +5453,31 @@ def _enforce_worktree_creation_capacity() -> None:
         from disk_coordinator import configured
     if configured(CONTROL_PLANE_ROOT) is None:
         expire_managed_worktrees(max_age_hours=WORKTREE_HARD_MAX_AGE_HOURS)
+    breaches = _worktree_capacity_breaches()
+    if breaches:
+        # Reclaim provably integrated, clean, idle worktrees once before
+        # refusing, so a full cap never needs a human to clear it.
+        try:
+            reclaimed = reconcile_session_worktrees(
+                apply_safe=True,
+                only_classes=set(LIFECYCLE_RECLAIMABLE_CLASSES),
+                coordinated=False,
+            )["deleted"]
+        except RuntimeError as exc:
+            print(f"Worktree capacity reconcile failed: {exc}", file=sys.stderr)
+            reclaimed = []
+        if reclaimed:
+            print(f"Reclaimed {len(reclaimed)} integrated idle worktree(s) to restore capacity.", file=sys.stderr)
+            breaches = _worktree_capacity_breaches()
+    if breaches:
+        raise RuntimeError(
+            "; ".join(breaches)
+            + f". Run: python3 scripts/sessions.py worktree expire --max-age-hours {WORKTREE_HARD_MAX_AGE_HOURS}"
+        )
+
+
+def _worktree_capacity_breaches() -> list[str]:
+    """Return human-readable reasons why a new worktree may not be created."""
     worktree_count = sum(1 for path in AGENT_WORKTREES_DIR.iterdir() if path.is_dir()) if AGENT_WORKTREES_DIR.is_dir() else 0
     usage = shutil.disk_usage(CONTROL_PLANE_ROOT)
     # free excludes reserved blocks, while used does not include them. Using
@@ -5357,11 +5492,7 @@ def _enforce_worktree_creation_capacity() -> None:
         )
     if used_percent >= WORKTREE_MAX_DISK_PERCENT:
         breaches.append(f"filesystem use limit reached ({used_percent:.1f}% >= {WORKTREE_MAX_DISK_PERCENT}%)")
-    if breaches:
-        raise RuntimeError(
-            "; ".join(breaches)
-            + f". Run: python3 scripts/sessions.py worktree expire --max-age-hours {WORKTREE_HARD_MAX_AGE_HOURS}"
-        )
+    return breaches
 
 
 def cmd_disk(args: argparse.Namespace) -> None:
@@ -7273,9 +7404,52 @@ def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
     return recorded_base if recorded_base != current_head else ""
 
 
+def fast_forward_worktree_to_origin_dev(worktree_path: Path, *, merge_overlap: bool = False) -> dict:
+    """Fast-forward a lane worktree to origin/dev, keeping its dirty edits.
+
+    See scripts/worktree_fast_forward.py; generated outputs are reset and
+    rebuilt; overlaps return ``blocked`` unless ``merge_overlap`` 3-way merges them.
+    """
+    try:
+        from scripts import worktree_fast_forward
+    except ModuleNotFoundError:
+        import worktree_fast_forward
+    return worktree_fast_forward.fast_forward_to_origin_dev(
+        Path(worktree_path),
+        specification=set(SPECIFICATION_GENERATED_ARTIFACTS),
+        rust_migration=set(RUST_MIGRATION_GENERATED_ARTIFACTS),
+        merge_overlap=merge_overlap,
+    )
+
+
 @_workspace_transition("refresh-base")
-def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
-    """Refresh one session's recorded base after a safe worktree fast-forward."""
+def refresh_session_worktree_base(session_id: str, *, rebase: bool = False) -> dict[str, str]:
+    """Refresh one session's recorded base after a safe worktree fast-forward.
+
+    With ``rebase`` the worktree is 3-way rebased onto origin/dev (see
+    scripts/worktree_rebase.py); a true conflict or divergence raises.
+    """
+    fast_forward: dict = {}
+    if rebase:
+        session = _load_sessions().get("sessions", {}).get(session_id, {})
+        worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+        if not worktree.get("path"):
+            raise RuntimeError(f"Session {session_id} has no managed worktree")
+        fast_forward = fast_forward_worktree_to_origin_dev(Path(str(worktree["path"])), merge_overlap=True)
+        if fast_forward["status"] == "conflicted":
+            try:
+                from scripts.worktree_rebase import format_conflicts
+            except ModuleNotFoundError:
+                from worktree_rebase import format_conflicts
+            raise RuntimeError(format_conflicts(fast_forward))
+        if fast_forward["status"] == "diverged":
+            raise RuntimeError(
+                "Reason: worktree HEAD is not an ancestor of origin/dev. "
+                "Next: preserve the worktree and inspect its commits; nothing was changed."
+            )
+        for warning in fast_forward["warnings"]:
+            print(f"Warning: {warning}", file=sys.stderr)
+
     def update(data: dict) -> dict[str, str]:
         resolved_session_id = _resolve_session_id(data, session_id=session_id)
         session = data["sessions"][resolved_session_id]
@@ -7288,20 +7462,21 @@ def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
         if previous_base or session.get("binding_mode") == "worktree_routed":
             session["last_active"] = _now_iso()
             worktree["last_active"] = session["last_active"]
-        return {
+        result = {
             "session_id": resolved_session_id,
             "previous_base": previous_base,
             "base_commit": str(worktree.get("base_commit") or ""),
             "binding_mode": str(session.get("binding_mode") or ""),
             "worktree_path": str(worktree.get("path") or ""),
         }
+        if rebase:
+            result["fast_forward"] = str(fast_forward.get("status") or "")
+            result["reset_generated"] = ",".join(fast_forward.get("reset") or [])
+            result["merged"] = ",".join(fast_forward.get("merged") or [])
+            result["backup"] = str(fast_forward.get("backup") or "")
+        return result
 
     return _mutate_sessions(update)
-
-
-
-
-
 
 def session_for_agent_task(
     data: dict, task_id: str, *, host: str = "", repo_id: str = ""
@@ -7414,6 +7589,39 @@ def _refuse_new_session_when_host_overloaded() -> None:
         raise SystemExit(host_load_guard.EXIT_OVERLOADED)
 
 
+STALE_BINDING_MAX_BEHIND = 50
+
+
+def _worktree_commits_behind_dev(path: Path) -> int:
+    """Commits the worktree HEAD is behind origin/dev (0 when unknown)."""
+    result = subprocess.run(
+        ["git", "rev-list", "--count", "HEAD..origin/dev"],
+        cwd=str(path), capture_output=True, text=True, timeout=60,
+    )
+    try:
+        return int(result.stdout.strip()) if result.returncode == 0 else 0
+    except ValueError:
+        return 0
+
+
+def _binding_problem(record: dict, behind_fn=_worktree_commits_behind_dev) -> str:
+    """Return why an existing agent binding is unusable, or "" when reusable.
+
+    Sub-agents share the parent's conversation id, so a silently reused stale
+    binding hands them a workspace nobody can deploy from.
+    """
+    metadata = record.get("worktree")
+    if not isinstance(metadata, dict) or not metadata.get("path"):
+        return ""  # not worktree-backed: nothing to validate
+    path = Path(str(metadata["path"]))
+    if not path.is_dir():
+        return f"its worktree {path} no longer exists"
+    behind = behind_fn(path)
+    if behind > STALE_BINDING_MAX_BEHIND:
+        return f"its worktree {path} is {behind} commits behind origin/dev (limit {STALE_BINDING_MAX_BEHIND})"
+    return ""
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     """Bind a task to its workspace and emit a compact receipt."""
     repo = _repo_metadata(_resolve_repo_id(getattr(args, "repo", None)))
@@ -7430,6 +7638,36 @@ def cmd_start(args: argparse.Namespace) -> None:
             existing = (sid, data["sessions"][sid])
         except RuntimeError:
             pass
+    force_new = bool(getattr(args, "new", False))
+    ended = (data.get("ended_agent_tasks") or {}).get(task_id) if task_id else None
+    if existing and force_new:
+        stale_sid = existing[0]
+
+        def detach(state):
+            state["sessions"][stale_sid]["agent_task_id"] = None
+        _mutate_sessions(detach)
+        existing = None
+    elif existing and not getattr(args, "skip_binding_guard", False):
+        # Read-only/maintenance callers (debug-vercel, verification handoff)
+        # set skip_binding_guard: only write-workspace starts must be fresh.
+        problem = _binding_problem(existing[1])
+        if problem:
+            print(
+                f"ERROR: this conversation is bound to session {existing[0]} but {problem}. "
+                "Refusing to reuse it. Sub-agents: cd into your pre-created session worktree "
+                "and pass --session <id>. Parent: run `sessions.py start --new ...` for a "
+                "fresh workspace (the old binding is detached, not deleted).",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+    if not existing and ended and not force_new:
+        print(
+            f"ERROR: session {ended.get('session')} of this conversation was ended at "
+            f"{ended.get('ended_at')}; refusing to silently create a replacement. "
+            "Pass --new to start a fresh workspace deliberately.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
     if existing:
         sid, record = existing
         def refresh(state):
@@ -7452,6 +7690,8 @@ def cmd_start(args: argparse.Namespace) -> None:
                   "agent_host": socket.gethostname() if task_id else None,
                   "binding_mode": "legacy_grandfathered", "auto_integration_policy": "disabled"}
         sid, _, _, _, created = register_session_record(record)
+        if ended:
+            _mutate_sessions(lambda st: (st.get("ended_agent_tasks") or {}).pop(task_id, None))
     if mode != "question" and repo["repo_kind"] == "control_plane":
         ensure_session_worktree(sid)
     data = _load_sessions()
@@ -7484,6 +7724,7 @@ def cmd_end(args: argparse.Namespace) -> None:
         return
 
     modified = session.get("modified_files", [])
+    ended_task = session.get("agent_task_id")
 
     # Check for uncommitted modified files — BLOCK unless --force
     if modified:
@@ -7568,6 +7809,11 @@ def cmd_end(args: argparse.Namespace) -> None:
             _prune_checkpoint_lock_files(current)
         _mutate_sessions(remove_plain)
 
+    if ended_task:
+        def mark_ended(state):
+            state.setdefault("ended_agent_tasks", {})[ended_task] = {
+                "session": sid, "ended_at": _now_iso()}
+        _mutate_sessions(mark_ended)
     print(f"Session {sid} ended and removed from sessions.json.")
 
 
@@ -8141,7 +8387,8 @@ def cmd_ci_source(args: argparse.Namespace) -> None:
     root = _session_checkout_root(session)
     if root == CONTROL_PLANE_ROOT or not is_valid_managed_worktree_path(root):
         raise RuntimeError("CI source publication requires the session's managed worktree")
-    result = publish(root, args.session, session.get("modified_files", []),
+    tracked = _auto_track_lane_untracked_files(args.session, root, list(session.get("modified_files", [])))
+    result = publish(root, args.session, tracked,
                      base=args.base or "", resolved_patch=Path(args.resolved_patch) if args.resolved_patch else None,
                      patch_sha256=args.patch_sha256 or "")
     # Presigned candidate URLs are credentials. The dispatcher reads them from
@@ -8428,6 +8675,46 @@ def cmd_track_stdin(args: argparse.Namespace) -> None:
     if isinstance(worktree, dict):
         worktree["last_active"] = now
     _save_sessions(data)
+
+
+def cmd_lane_open(args: argparse.Namespace) -> None:
+    """Let sub-agents of this conversation edit inside one pre-created session.
+
+    Sub-agents share the parent's conversation id, so the edit gate cannot tell
+    them apart from the parent. `lane_edit` marks one session worktree as an
+    approved parallel lane: the gate admits edits to that worktree only.
+    """
+    sid = args.session
+    sessions = _load_sessions().get("sessions", {})
+    if sid not in sessions:
+        print(f"Error: Session {sid} not found.", file=sys.stderr)
+        sys.exit(1)
+    if not (sessions[sid].get("worktree") or {}).get("path"):
+        print(f"Error: Session {sid} has no worktree to open as a lane.", file=sys.stderr)
+        sys.exit(1)
+
+    def set_flag(state):
+        state["sessions"][sid]["lane_edit"] = not args.close
+
+    _mutate_sessions(set_flag)
+    print(f"Session {sid} lane edit {'closed' if args.close else 'opened'}.")
+
+
+def cmd_cleanup_orphans(args: argparse.Namespace) -> None:
+    """End half-created sessions that have no worktree, changes or write claim."""
+    try:
+        from scripts.sessions_orphans import find_orphans, remove_orphans
+    except ModuleNotFoundError:
+        from sessions_orphans import find_orphans, remove_orphans
+    min_age = args.min_age_seconds
+    if args.dry_run:
+        found = find_orphans(_load_sessions(), session_id=args.session, min_age_seconds=min_age)
+        print(f"Orphan sessions (dry run): {', '.join(found) or 'none'}")
+        return
+    removed = _mutate_sessions(
+        lambda state: remove_orphans(state, session_id=args.session, min_age_seconds=min_age)
+    )
+    print(f"Removed orphan sessions: {', '.join(removed) or 'none'}")
 
 
 def cmd_untrack(args: argparse.Namespace) -> None:
@@ -10559,16 +10846,54 @@ def _get_lint_flags(files: list[str]) -> list[str]:
     return flags
 
 
+def _touches_rust_migration_inputs(files: list[str]) -> bool:
+    """Return True when any path is an input of scripts/rust_migration_yaml.py."""
+    try:
+        from scripts.rust_migration_inputs import is_rust_migration_input
+    except ModuleNotFoundError:
+        from rust_migration_inputs import is_rust_migration_input
+    return any(is_rust_migration_input(f) for f in files)
+
+
+def _rust_migration_yaml_check(files: list[str], *, checkout_root: Path | None = None) -> tuple[int, str, str]:
+    """Validate docs/migration/rust YAML (incl. performance-history) when Rust-migration inputs change."""
+    if not _touches_rust_migration_inputs(files):
+        return 0, "", ""
+    root = checkout_root or CONTROL_PLANE_ROOT
+    rc, out, err = _run_cmd(
+        ["python3", "scripts/rust_migration_yaml.py", "--check"], cwd=str(root), timeout=120
+    )
+    if rc == 0:
+        return 0, "Rust migration YAML: ok (rust_migration_yaml.py --check)\n", err
+    hint = (
+        "\nRust migration YAML check failed. Fix: edit the curated source (docs/migration/rust/*-lanes.yml, "
+        "curated/spec-links, or the perf-history entry via scripts/record_perf_measurement.py), then run "
+        "`python3 scripts/rust_migration_yaml.py` to regenerate and re-verify with "
+        "`python3 scripts/rust_migration_yaml.py --check`. Never hand-edit generated files.\n"
+    )
+    return rc, out, err + hint
+
+
 def _run_lint(files: list[str], *, checkout_root: Path | None = None) -> tuple[int, str, str]:
     """Run linter on specific files. Returns (returncode, stdout, stderr)."""
+    mig_rc, mig_out, mig_err = _rust_migration_yaml_check(files, checkout_root=checkout_root)
+    if mig_rc != 0:
+        return mig_rc, mig_out, mig_err
     lint_flags = _get_lint_flags(files)
     if not lint_flags:
-        return 0, "", ""
+        return 0, mig_out, mig_err
+    rc, out, err = _run_lint_flags(files, lint_flags, checkout_root=checkout_root)
+    return rc, mig_out + out, mig_err + err
+
+
+def _run_lint_flags(files: list[str], lint_flags: list[str], *, checkout_root: Path | None = None) -> tuple[int, str, str]:
     path_args: list[str] = []
     for f in files:
         path_args += ["--path", f]
     cmd = ["./scripts/lint_changed.sh"] + lint_flags + path_args
-    return _run_cmd(cmd, cwd=str(checkout_root or CONTROL_PLANE_ROOT), timeout=LINT_TIMEOUT)
+    # Large diffs (hundreds of files) legitimately need more than the base budget.
+    timeout = int(os.environ.get("OPENMATES_LINT_TIMEOUT", LINT_TIMEOUT + 4 * len(files)))
+    return _run_cmd(cmd, cwd=str(checkout_root or CONTROL_PLANE_ROOT), timeout=timeout)
 
 
 
@@ -11049,6 +11374,86 @@ def _enforce_embed_registry_validation(files: list[str], *, checkout_root: Path 
     print("Embed registry: PASSED")
 
 
+def _should_check_generated_sdk_app_skills(files: list[str]) -> bool:
+    """Return True when changed files can make generated SDK app skills stale."""
+    return any(
+        (f.startswith("backend/apps/") and f.endswith("/app.yml"))
+        or f in {"scripts/generate_sdk_app_skills.py", "scripts/generate_rust_sdk_apps.py"}
+        for f in files
+    )
+
+
+def _enforce_generated_sdk_app_skills(files: list[str], *, checkout_root: Path | None = None) -> None:
+    """Refuse deploys whose app.yml edits leave npm/Python/Rust SDK outputs stale.
+
+    The strict sdk-conformance gate (check_generated) fails on this drift; this
+    cheap pre-deploy check catches it at the commit that introduces it.
+    """
+    if not _should_check_generated_sdk_app_skills(files):
+        return
+    root = checkout_root or CONTROL_PLANE_ROOT
+    env = dict(os.environ)
+    # The Rust generator formats with rustfmt; rustup installs it in ~/.cargo/bin.
+    env["PATH"] = env.get("PATH", "") + os.pathsep + str(Path.home() / ".cargo" / "bin")
+    print("Checking generated SDK app skills against app.yml metadata...")
+    for script in ("scripts/generate_sdk_app_skills.py", "scripts/generate_rust_sdk_apps.py"):
+        result = subprocess.run(
+            [sys.executable, script, "--check"],
+            cwd=str(root),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        if result.returncode != 0:
+            print("GENERATED SDK APP SKILLS STALE — aborting deploy:", file=sys.stderr)
+            print((result.stdout + result.stderr).strip(), file=sys.stderr)
+            print(
+                "Regenerate with: python3 scripts/generate_sdk_app_skills.py && "
+                "python3 scripts/generate_rust_sdk_apps.py",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+    print("Generated SDK app skills: PASSED")
+
+
+def _should_check_rust_sdk_inventory(files: list[str]) -> bool:
+    """Return True when changed files can alter the Rust public API inventory."""
+    return any(
+        (f.startswith("packages/openmates-rust/src/") and f.endswith(".rs"))
+        or f in {"config/sdk-capabilities.json", "scripts/sdk_rust_inventory.py"}
+        for f in files
+    )
+
+
+def _enforce_rust_sdk_inventory(files: list[str], *, checkout_root: Path | None = None) -> None:
+    """Refuse deploys whose public Rust items are not classified in sdk-capabilities.json.
+
+    Mirrors the strict sdk-conformance inventory-drift check without cargo/node.
+    """
+    if not _should_check_rust_sdk_inventory(files):
+        return
+    root = checkout_root or CONTROL_PLANE_ROOT
+    print("Checking Rust public API inventory against config/sdk-capabilities.json...")
+    result = subprocess.run(
+        [sys.executable, "scripts/sdk_rust_inventory.py", "--check-matrix"],
+        cwd=str(root),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        print("RUST SDK INVENTORY DRIFT — aborting deploy:", file=sys.stderr)
+        print((result.stdout + result.stderr).strip(), file=sys.stderr)
+        print(
+            "Classify new names under a capability's languages.rust.api in "
+            "config/sdk-capabilities.json (sorted), or remove stale ones.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print("Rust SDK inventory: PASSED")
+
+
 def _run_sdk_cleartext_audit(
     command: list[str],
     *,
@@ -11201,7 +11606,7 @@ def _regenerate_specification_artifacts_for_deploy(files: list[str], *, checkout
     rc, stdout, stderr = _run_cmd(
         [sys.executable, str(script), "generate", "--repo-root", str(checkout_root)],
         cwd=str(checkout_root),
-        timeout=120,
+        timeout=900,  # full-repo assertion index; see worktree_fast_forward.GENERATOR_TIMEOUT_SECONDS
     )
     if rc != 0:
         detail = stderr or stdout or "Specification artifact generation failed"
@@ -11235,6 +11640,8 @@ def _run_deploy_gates(
         _run_specification_gate(files, session_id=session_id, checkout_root=checkout_root)
 
     _enforce_embed_registry_validation(files, checkout_root=checkout_root)
+    _enforce_generated_sdk_app_skills(files, checkout_root=checkout_root)
+    _enforce_rust_sdk_inventory(files, checkout_root=checkout_root)
 
     lint_flags = _get_lint_flags(files)
     if lint_flags and not no_verify:
@@ -11719,10 +12126,28 @@ def _validate_specification_commit_message(files: list[str], message: str) -> No
         )
 
 
+def _validate_shell_logic_guard(session: dict, files: list[str], message: str) -> None:
+    """Refuse guarded shell logic edits without a Rust change or `shell-only:` line."""
+    try:
+        from scripts import shell_logic_guard
+    except ModuleNotFoundError:
+        import shell_logic_guard
+    root = _session_checkout_root(session)
+    changes = [("M" if (root / path).exists() else "D", path) for path in files]
+    errors, warnings = shell_logic_guard.check(changes, message)
+    for warning in warnings:
+        print(warning)
+    if errors and shell_logic_guard.is_blocking():
+        raise RuntimeError("Shell logic guard: " + " ".join(errors))
+    for error in errors:
+        print(f"Shell logic guard (warn-only until {shell_logic_guard.BLOCKING_FROM.isoformat()}): {error}")
+
+
 def _preflight_deploy_commit_message(args: argparse.Namespace, session: dict, files: list[str]) -> str:
     """Reject deterministic commit-message errors before expensive deploy gates."""
     message = _integration_commit_message(args, session)
     _validate_specification_commit_message(files, message)
+    _validate_shell_logic_guard(session, files, message)
     return message
 
 
@@ -11934,7 +12359,10 @@ def _deploy_native_worktree(
             patch_id,
             prepared_base,
         )
-        checkpoint_commit = review["candidate"] if review else str(getattr(args, "expected_checkpoint_commit", "") or "")
+        checkpoint_commit = review["candidate"] if review else _usable_supplied_checkpoint(
+            str(getattr(args, "expected_checkpoint_commit", "") or ""),
+            worktree_metadata,
+        )
         if not checkpoint_commit:
             checkpoint_commit = _create_worktree_checkpoint_commit(
                 sid,
@@ -11952,7 +12380,10 @@ def _deploy_native_worktree(
                 to_commit,
                 checkout_root=checkout_root,
             )
-            commit_files = sorted(set(to_commit).union(generated_specification_files))
+            generated_rust_migration_files = _regenerate_rust_migration_artifacts(checkout_root, to_commit)
+            commit_files = sorted(
+                set(to_commit).union(generated_specification_files, generated_rust_migration_files)
+            )
             _run_deploy_gates(
                 commit_files,
                 checkout_root=checkout_root,
@@ -12294,6 +12725,118 @@ def _deploy_external_repo_locked(
     print(f"Branch: {branch}")
 
 
+def _auto_track_only_files(
+    sid: str, session: dict, selector: str, to_commit: list[str], modified: list[str], file_tracking: dict[str, str]
+) -> list[str]:
+    """Record files named in ``--only`` as tracked by the deploying session.
+
+    Returns the updated tracked list. Files other sessions also track keep a
+    non-blocking advisory; unrelated dirty files are still checked by the caller.
+    """
+    try:
+        from scripts.lane_ci_source import plan_only_tracking
+    except ModuleNotFoundError:
+        from lane_ci_source import plan_only_tracking
+    newly, advisories = plan_only_tracking(selector, to_commit, modified, file_tracking)
+    for line in advisories:
+        print(f"Advisory — --only file also tracked by another session:\n{line}", file=sys.stderr)
+    return _record_session_tracked_files(sid, modified, newly, "--only file(s)")
+
+
+def _record_session_tracked_files(sid: str, modified: list[str], newly: list[str], label: str) -> list[str]:
+    """Persist ``newly`` into the session's tracked files; return the merged list."""
+    if not newly:
+        return modified
+
+    def record(data: dict) -> None:
+        stored = data.get("sessions", {}).get(sid)
+        if stored is not None:
+            known = stored.setdefault("modified_files", [])
+            known.extend(path for path in newly if path not in known)
+
+    _mutate_sessions(record)
+    print(f"Tracked {len(newly)} {label} for session {sid}: " + ", ".join(newly), file=sys.stderr)
+    return [*modified, *newly]
+
+
+def _auto_track_lane_untracked_files(sid: str, root: Path, modified: list[str]) -> list[str]:
+    """Track new Git-untracked files the lane created in its own managed worktree."""
+    try:
+        from scripts.lane_deploy_scope import new_untracked_files
+    except ModuleNotFoundError:
+        from lane_deploy_scope import new_untracked_files
+    newly = new_untracked_files(root, modified)
+    return _record_session_tracked_files(sid, modified, newly, "new lane worktree file(s)")
+
+
+def _require_tracked_deploy_files(dirty_but_untracked, file_tracking, allow_untracked: bool) -> None:
+    """Stop a deploy that would silently leave dirty files out of the commit.
+
+    A wired hook shipped without its script is the failure this prevents.
+    ``--allow-untracked`` leaves them out on purpose.
+    """
+    if not dirty_but_untracked:
+        return
+    print("Dirty files NOT tracked by this session (they would not be committed):", file=sys.stderr)
+    for f in sorted(dirty_but_untracked):
+        tracked_session = file_tracking.get(f)
+        tag = f"  [also tracked by: {tracked_session}; advisory]" if tracked_session else ""
+        print(f"  ? {f}{tag}", file=sys.stderr)
+    if not allow_untracked:
+        print(
+            "DEPLOY BLOCKED — track them with: sessions.py track --session <ID> --file <path>, "
+            "or rerun with --allow-untracked to leave them out on purpose.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print("--allow-untracked: leaving them out of this deploy.", file=sys.stderr)
+
+
+def _auto_fast_forward_worktree_for_deploy(sid: str, args: argparse.Namespace, worktree_metadata: dict) -> dict | None:
+    """Fast-forward a stale lane before its checkpoint; return the refreshed session.
+
+    Skipped when the caller pinned an exact patch, checkpoint or manifest, since
+    moving the base would invalidate that pin. On overlap the worktree is left
+    unchanged and deploy continues on its recorded base, where the existing
+    3-way replay and deletion-amplification gates decide.
+    """
+    if any(
+        getattr(args, name, None)
+        for name in ("expected_patch_id", "expected_checkpoint_commit", "expected_manifest_id")
+    ):
+        return None
+    worktree_path = Path(str(worktree_metadata.get("path") or ""))
+    if not worktree_path.is_dir():
+        return None
+    try:
+        outcome = fast_forward_worktree_to_origin_dev(worktree_path)
+    except RuntimeError as exc:
+        print(f"Auto fast-forward skipped: {exc}", file=sys.stderr)
+        return None
+    if outcome["status"] == "blocked":
+        print(
+            "Auto fast-forward skipped: origin/dev also changed "
+            + ", ".join(outcome["overlap"])
+            + ". Deploying on the recorded base; if integration blocks, reconcile those files "
+            "against origin/dev and run `sessions.py worktree refresh-base --rebase`.",
+            file=sys.stderr,
+        )
+        return None
+    if outcome["status"] != "fast_forwarded":
+        return None
+    for warning in outcome["warnings"]:
+        print(f"Warning: {warning}", file=sys.stderr)
+    print(f"Auto fast-forwarded lane worktree {outcome['previous_head'][:9]} -> {outcome['head'][:9]}.")
+    try:
+        refresh_session_worktree_base(sid)
+    except RuntimeError as exc:
+        # The worktree already moved; deploying against the old recorded base
+        # would misread upstream changes as lane edits, so stop here.
+        print(f"WORKTREE DEPLOY FAILED — fast-forward succeeded but base refresh failed: {exc}", file=sys.stderr)
+        sys.exit(1)
+    return _load_sessions().get("sessions", {}).get(sid)
+
+
 def cmd_deploy(args: argparse.Namespace) -> None:
     """Execute deployment: lint, git add, commit, push."""
     data = _load_sessions()
@@ -12335,6 +12878,12 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         return
 
     use_staged = bool(getattr(args, "use_staged", False))
+    if worktree_metadata and not use_staged:
+        refreshed = _auto_fast_forward_worktree_for_deploy(sid, args, worktree_metadata)
+        if refreshed is not None:
+            session = refreshed
+            modified = session.get("modified_files", [])
+            worktree_metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
     dirty_files = _get_dirty_files(checkout_root=checkout_root)
     try:
         to_commit, selector = _resolve_deploy_selection(
@@ -12366,7 +12915,6 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         )
         sys.exit(1)
     print(f"Deploy manifest: {manifest['manifest_id']} ({selector}, {len(to_commit)} source file(s))")
-    dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
     worktree_patch_id = _worktree_patch_id(worktree_metadata, to_commit) if worktree_metadata and to_commit else ""
     expected_patch_id = str(getattr(args, "expected_patch_id", "") or "")
     if expected_patch_id and worktree_patch_id != expected_patch_id:
@@ -12392,6 +12940,19 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             continue
         for of in other_info.get("modified_files", []):
             file_tracking[of] = other_sid
+
+    modified = _auto_track_only_files(sid, session, selector, to_commit, modified, file_tracking)
+    if selector == "only" and worktree_metadata and is_valid_managed_worktree_path(checkout_root):
+        modified = _auto_track_lane_untracked_files(sid, checkout_root, modified)
+    try:
+        from scripts.lane_deploy_scope import omitted_only_files, omitted_only_message
+    except ModuleNotFoundError:
+        from lane_deploy_scope import omitted_only_files, omitted_only_message
+    omitted = omitted_only_files(selector, to_commit, dirty_files, modified, exclude)
+    if omitted:
+        print(omitted_only_message(sid, omitted), file=sys.stderr)
+        sys.exit(1)
+    dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
 
     if not is_control_plane_repo:
         try:
@@ -12517,14 +13078,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print("No files to commit.")
         sys.exit(2)
 
-    # Warn about dirty files that will be left out
-    if dirty_but_untracked:
-        print("Warning — dirty files NOT tracked by this session (will not be committed):")
-        for f in sorted(dirty_but_untracked):
-            tracked_session = file_tracking.get(f)
-            tag = f"  [also tracked by: {tracked_session}; advisory]" if tracked_session else ""
-            print(f"  ? {f}{tag}")
-        print()
+    _require_tracked_deploy_files(dirty_but_untracked, file_tracking, getattr(args, "allow_untracked", False))
 
     if worktree_metadata and to_commit:
         validate_worktree_binding_mode(session)
@@ -12535,6 +13089,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     _run_specification_gate(to_commit, session_id=sid, checkout_root=PROJECT_ROOT)
 
     _enforce_embed_registry_validation(to_commit)
+    _enforce_generated_sdk_app_skills(to_commit)
+    _enforce_rust_sdk_inventory(to_commit)
 
     # 1. Run linter (with CSS/HTML support and longer timeout)
     no_verify = getattr(args, "no_verify", False)
@@ -12869,15 +13425,38 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         return
     if args.worktree_action == "refresh-base":
         try:
-            result = refresh_session_worktree_base(args.session)
+            if getattr(args, "rebase", False):
+                result = refresh_session_worktree_base(args.session, rebase=True)
+            else:
+                result = refresh_session_worktree_base(args.session)
         except (RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(2)
         print(json.dumps(result, sort_keys=True))
         return
+    if args.worktree_action == "restore-archive":
+        policy = _expiry_policy()
+        archive = args.archive or ""
+        if not archive:
+            manifest = policy.find_recovery_record(_load_sessions(), session_id=getattr(args, "session", "") or "")
+            archive = str((manifest or {}).get("recovery_archive") or "")
+        if not archive:
+            print("Error: no recovery archive recorded for this session (pass --session or --archive)", file=sys.stderr)
+            sys.exit(1)
+        date = policy.archive_deletion_date(Path(archive), WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS)
+        if date is None:
+            print(f"Error: archive {archive} no longer exists (deleted after "
+                  f"{WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS // 24} days)", file=sys.stderr)
+            sys.exit(1)
+        print(f"Recovery archive: {archive}\nDeleted automatically on: {date}\nRestore steps:")
+        for number, step in enumerate(policy.restore_steps(archive), 1):
+            print(f"  {number}. {step}")
+        return
     if args.worktree_action == "expire":
         try:
-            report = expire_managed_worktrees(max_age_hours=args.max_age_hours)
+            report = expire_managed_worktrees(
+                max_age_hours=args.max_age_hours, dry_run=getattr(args, "dry_run", False)
+            )
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
@@ -12887,8 +13466,15 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             print("== WORKTREE HARD EXPIRY ==")
             print(f"Maximum age: {report['max_age_hours']} hours")
             print(f"Inspected: {report['inspected']}")
+            if report.get("dry_run"):
+                print("DRY RUN: nothing was archived, deleted or pruned")
+                print(f"Would delete: {len(report['would_delete'])}")
+                print(f"Archive required: {len(report['archive_required'])}")
+                print(f"Would prune archives: {len(report['would_prune_archives'])}")
             print(f"Deleted: {len(report['deleted'])}")
             print(f"Retained: {len(report['retained'])}")
+            for name in report.get("pruned_archives", []):
+                print(f"  pruned archive: {name}")
             if report.get("queued"):
                 print("Cleanup queued for the elected disk coordinator.")
             for failure in report["failures"]:
@@ -12909,9 +13495,11 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             print(f"  - {session_id}")
         return
     if args.worktree_action == "reconcile":
-        if args.idle_hours < WORKTREE_CLEANUP_IDLE_HOURS and not args.only:
+        requested_classes = set(args.only_class) if getattr(args, "only_class", None) else None
+        idle_floor = _reconcile_idle_threshold(None, requested_classes)
+        if args.idle_hours is not None and args.idle_hours < idle_floor and not args.only:
             print(
-                f"Error: --idle-hours below {WORKTREE_CLEANUP_IDLE_HOURS} requires at least one --only SESSION_ID",
+                f"Error: --idle-hours below {idle_floor} requires at least one --only SESSION_ID",
                 file=sys.stderr,
             )
             sys.exit(2)
@@ -12935,6 +13523,7 @@ def cmd_worktree(args: argparse.Namespace) -> None:
                 apply_safe=args.apply_safe,
                 approved_obsolete=approved_obsolete,
                 only_session_ids=only_session_ids,
+                only_classes=set(args.only_class) if getattr(args, "only_class", None) else None,
             )
             if persist_scheduler_health:
                 _write_worktree_reconciliation_report(report)
@@ -14395,7 +14984,7 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
         run_id=None,
         since_last_deploy=False,
         task_id=None,
-
+        skip_binding_guard=True,
     )
     cmd_start(start_args)
 
@@ -14449,7 +15038,7 @@ def _maybe_start_verification_session(args: argparse.Namespace, source_session_i
         run_id=None,
         since_last_deploy=False,
         task_id=None,
-
+        skip_binding_guard=True,
     ))
     print(f"Next test commands should use --expected-commit {commit_sha or '<commit>'}.")
 
@@ -14503,6 +15092,7 @@ def main() -> None:
         "Controls which context sections are shown.",
     )
     p_start.add_argument("--require-proof-video", action="store_true", help="Record a user-requested proof deliverable")
+    p_start.add_argument("--new", action="store_true", help="Deliberately start a fresh workspace, detaching a stale or ended binding")
     p_start.add_argument("--json", action="store_true", help="Emit a compact machine receipt")
     p_start.add_argument("--full", action="store_true", help="Include diagnostic and documentation context")
     p_start.add_argument("--task", "-t", help="Task description")
@@ -14739,6 +15329,22 @@ def main() -> None:
     )
     p_track_stdin.add_argument("--session", "-s", help="Session ID")
 
+    p_lane_open = sub.add_parser(
+        "lane-open",
+        help="Admit sub-agents' edits inside this session's worktree (parallel lane)",
+    )
+    p_lane_open.add_argument("--session", "-s", required=True, help="Pre-created session ID")
+    p_lane_open.add_argument("--close", action="store_true", help="Revoke the lane flag")
+
+    p_orphans = sub.add_parser(
+        "cleanup-orphans",
+        help="Remove sessions with no worktree, modified files or write claim",
+    )
+    p_orphans.add_argument("--session", "-s", help="Only consider this session")
+    p_orphans.add_argument("--min-age-seconds", type=float, default=300,
+                           help="Skip sessions active more recently than this (default 300)")
+    p_orphans.add_argument("--dry-run", action="store_true", help="List without removing")
+
     # untrack — remove files from a session's modified_files list
     p_untrack = sub.add_parser(
         "untrack",
@@ -14901,6 +15507,14 @@ def main() -> None:
         help="Refresh recorded base after a managed worktree was safely fast-forwarded to origin/dev",
     )
     p_worktree_refresh_base.add_argument("--session", "-s", help="Session ID")
+    p_worktree_refresh_base.add_argument(
+        "--rebase",
+        action="store_true",
+        help=(
+            "Fetch and fast-forward the worktree to origin/dev first, resetting and rebuilding "
+            "generated Specification/Rust-migration files; refuses when dirty edits overlap"
+        ),
+    )
     p_worktree_expire = p_worktree_sub.add_parser(
         "expire", help="Unconditionally delete managed worktrees at the hard maximum age"
     )
@@ -14908,9 +15522,18 @@ def main() -> None:
         "--max-age-hours",
         type=int,
         default=WORKTREE_HARD_MAX_AGE_HOURS,
-        help=f"Hard maximum worktree age (minimum/default: {WORKTREE_HARD_MAX_AGE_HOURS})",
+        help=(
+            f"Inactivity window in hours for session, worktree and chat "
+            f"(minimum: {WORKTREE_INACTIVE_EXPIRY_HOURS}, default: {WORKTREE_HARD_MAX_AGE_HOURS})"
+        ),
     )
+    p_worktree_expire.add_argument("--dry-run", action="store_true", help="Report only; archive, delete and prune nothing")
     p_worktree_expire.add_argument("--format", choices=["text", "json"], default="text")
+    p_worktree_restore = p_worktree_sub.add_parser(
+        "restore-archive", help="Show the recovery archive of an expired worktree and how to restore it"
+    )
+    p_worktree_restore.add_argument("--session", "-s", help="Expired session ID")
+    p_worktree_restore.add_argument("--archive", help="Explicit archive path (default: from the deletion manifest)")
     p_worktree_cleanup = p_worktree_sub.add_parser("cleanup", help="Delete safely classified stale worktrees")
     p_worktree_cleanup.add_argument(
         "--idle-hours",
@@ -14920,7 +15543,16 @@ def main() -> None:
     )
     p_worktree_reconcile = p_worktree_sub.add_parser("reconcile", help="Report or safely reconcile all worktrees")
     p_worktree_reconcile.add_argument("--target", default="origin/dev", help="Exact integration ref (default: origin/dev)")
-    p_worktree_reconcile.add_argument("--idle-hours", type=int, default=WORKTREE_CLEANUP_IDLE_HOURS)
+    p_worktree_reconcile.add_argument(
+        "--idle-hours", type=int, default=None,
+        help=f"Default {WORKTREE_CLEANUP_IDLE_HOURS}; {WORKTREE_INTEGRATED_IDLE_HOURS} when only reclaimable classes are requested",
+    )
+    p_worktree_reconcile.add_argument(
+        "--only-class",
+        action="append",
+        choices=sorted(LIFECYCLE_RECLAIMABLE_CLASSES),
+        help="With --apply-safe, delete only these classifications (repeatable)",
+    )
     p_worktree_reconcile.add_argument("--apply-safe", action="store_true", help="Delete only eligible safe classifications")
     p_worktree_reconcile.add_argument(
         "--approve-obsolete",
@@ -15084,7 +15716,8 @@ def main() -> None:
         "--exclude",
         "-e",
         nargs="*",
-        help="File paths to exclude from commit",
+        action="extend",
+        help="File paths to exclude from commit (repeatable)",
     )
     p_prep.add_argument(
         "--use-staged",
@@ -15095,7 +15728,8 @@ def main() -> None:
     p_prep.add_argument(
         "--only",
         nargs="+",
-        help="Use exactly these tracked dirty session files for the deployment plan.",
+        action="extend",
+        help="Use exactly these tracked dirty session files for the deployment plan (repeatable).",
     )
 
     p_verify_prepared = sub.add_parser(
@@ -15109,7 +15743,9 @@ def main() -> None:
         choices=[*sorted(PREPARED_VERIFICATION_PROFILES), "installed-cli-identity"],
         help="Fixed validation command or read-only installed CLI inspection",
     )
-    p_verify_prepared.add_argument("--only", nargs="+", help="Verify exactly these tracked dirty files")
+    p_verify_prepared.add_argument(
+        "--only", nargs="+", action="extend", help="Verify exactly these tracked dirty files (repeatable)"
+    )
     p_verify_prepared.add_argument(
         "--use-staged", action="store_true", help="Verify exactly the staged session file set"
     )
@@ -15146,12 +15782,16 @@ def main() -> None:
         "--exclude",
         "-e",
         nargs="*",
-        help="File paths to exclude",
+        action="extend",
+        help="File paths to leave out on purpose (repeatable)",
     )
     p_deploy.add_argument(
         "--only",
         nargs="+",
-        help="Deploy exactly these tracked dirty session files. Mutually exclusive with --use-staged.",
+        action="extend",
+        help="Deploy exactly these session files; repeat the flag or list several paths. "
+        "Refuses when dirty session files are left out (use --exclude for intended omissions). "
+        "Mutually exclusive with --use-staged.",
     )
     p_deploy.add_argument(
         "--end",
@@ -15185,6 +15825,12 @@ def main() -> None:
         dest="skip_visual_smoke_reason",
         metavar="REASON",
         help="Skip the deployed visual-smoke end gate with an explicit reason. Only applies with --end.",
+    )
+    p_deploy.add_argument(
+        "--allow-untracked",
+        action="store_true",
+        dest="allow_untracked",
+        help="Deploy even though dirty files are not tracked by the session (they stay out of the commit).",
     )
     p_deploy.add_argument(
         "--require-parity",
@@ -15315,6 +15961,7 @@ def main() -> None:
 
     p_wait_deploy = sub.add_parser("wait-deploy", help="Wait for Vercel status on an exact commit")
     p_wait_deploy.add_argument("--commit", required=True)
+    p_wait_deploy.add_argument("--session", "-s", help="Accepted for symmetry with deploy; the commit alone selects the deployment")
     p_wait_deploy.add_argument("--timeout", type=float, default=600)
     p_wait_deploy.add_argument("--poll", type=float, default=15)
     p_wait_deploy.add_argument("--json", action="store_true")
@@ -15421,6 +16068,8 @@ def main() -> None:
         "track": cmd_track,
         "track-stdin": cmd_track_stdin,
         "untrack": cmd_untrack,
+        "lane-open": cmd_lane_open,
+        "cleanup-orphans": cmd_cleanup_orphans,
         "check-write": cmd_check_write,
         "edit-lease": cmd_edit_lease,
         "decision": cmd_decision,

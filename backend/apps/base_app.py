@@ -21,7 +21,6 @@ from backend.shared.python_schemas.app_metadata_schemas import (
     AppYAML,
     AppSkillDefinition,
     AppFocusDefinition,
-    AppMemoryFieldDefinition,
     skill_has_provider_support,
 )
 from backend.core.api.app.services.translations import TranslationService
@@ -429,6 +428,11 @@ class BaseApp:
             secrets_manager = request_body.get("_secrets_manager")
             cache_service = request_body.get("_cache_service")
             encryption_service = request_body.get("_encryption_service")
+            # In-process callers (the PDF prefetch) may ask pdf.search to rate more keyword hits.
+            # Requests from outside never choose it; the skill also clamps the number.
+            rerank_candidates = request_body.get("_rerank_candidates")
+            if external_request or not isinstance(rerank_candidates, int) or isinstance(rerank_candidates, bool):
+                rerank_candidates = None
 
             # Initialize skill instance. Server-side AI processing may inject a
             # validated model override for user-configurable app skill defaults.
@@ -494,6 +498,7 @@ class BaseApp:
                 "secrets_manager": secrets_manager,
                 "cache_service": cache_service,
                 "encryption_service": encryption_service,
+                "rerank_candidates": rerank_candidates,
             }
             # Remove None values
             skill_kwargs = {k: v for k, v in skill_kwargs.items() if v is not None}
@@ -1082,14 +1087,6 @@ class BaseApp:
     def focus_modes(self) -> List[AppFocusDefinition]:
         return self.focuses
 
-    @property
-    def memory_fields(self) -> List[AppMemoryFieldDefinition]:
-        return self.app_config.memory_fields if self.app_config else []
-    
-    @property
-    def memory(self) -> List[AppMemoryFieldDefinition]:
-        return self.memory_fields
-
     def get_skill_by_id(self, skill_id: str) -> Optional[AppSkillDefinition]:
         for skill in self.skills:
             if skill.id == skill_id:
@@ -1100,12 +1097,6 @@ class BaseApp:
         for focus in self.focuses:
             if focus.id == focus_id:
                 return focus
-        return None
-    
-    def get_memory_field_by_id(self, memory_field_id: str) -> Optional[AppMemoryFieldDefinition]:
-        for mem_field in self.memory_fields:
-            if mem_field.id == memory_field_id:
-                return mem_field
         return None
     
     def _resolve_translation_key(self, translation_key: str, lang: str = "en") -> str:

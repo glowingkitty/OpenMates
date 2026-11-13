@@ -209,3 +209,12 @@ async def test_stored_file_reference_probe_requires_every_variant() -> None:
         ("original.bin", "dev", "fsn1"),
         ("preview.bin", "dev", "fsn1"),
     ]
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.request.vector-source
+def test_svg_uploads_are_recognised_by_type_or_content() -> None:
+    assert upload_route.is_svg_upload("image/svg+xml", b"anything")
+    assert upload_route.is_svg_upload("application/octet-stream", b"  <svg xmlns='http://www.w3.org/2000/svg'/>")
+    assert upload_route.is_svg_upload("text/xml", b"<?xml version='1.0'?>\n<svg/>")
+    assert not upload_route.is_svg_upload("image/png", b"\x89PNG\r\n")
+    assert not upload_route.is_svg_upload("text/html", b"<html><body><svg/></body></html>")

@@ -24,8 +24,11 @@ try:
     from scripts import ci_sdk_conformance as sdk
     from scripts import ci_wasm_worker as worker
     from scripts.ci_sdk_lockfiles import (
-        ROOTS,
+        BROWSER,
+        CLI,
+        LIB_ROOTS,
         LOCKS,
+        ROOTS,  # noqa: F401 - read by tests through this module
         SCOPES,
         owned,
         snapshot,
@@ -34,7 +37,9 @@ try:
 except ModuleNotFoundError:
     import ci_sdk_conformance as sdk
     import ci_wasm_worker as worker
-    from ci_sdk_lockfiles import ROOTS, LOCKS, SCOPES, owned, snapshot, validate_manifests
+    from ci_sdk_lockfiles import (  # noqa: F401 - ROOTS is read by tests through this module
+        BROWSER, CLI, LIB_ROOTS, LOCKS, ROOTS, SCOPES, owned, snapshot, validate_manifests,
+    )
 
 try:
     from scripts import ci_metadata_rust_browser as metadata
@@ -694,9 +699,9 @@ def source_inputs_from_git(
     sdk.require(
         all(
             root + "/Cargo.toml" in rows and root + "/src/lib.rs" in rows
-            for root in (ROOTS[0], ROOTS[1], ROOTS[3])
+            for root in LIB_ROOTS
         )
-        and ROOTS[2] + "/src/main.rs" in rows
+        and CLI + "/src/main.rs" in rows
         and all(name in rows for name in LOCKS),
         "source",
     )
@@ -2225,7 +2230,7 @@ def run(root, results, *, environ=None, browser_e2e=False, node=None, verify_nod
         for name in ("home", "tmp"):
             (private / name).mkdir(mode=0o700)
         validate_manifests(work)
-        browser = tomllib.loads(sdk.regular(work / ROOTS[-1] / "Cargo.toml").decode())
+        browser = tomllib.loads(sdk.regular(work / BROWSER / "Cargo.toml").decode())
         sdk.require(
             browser.get("package", {}).get("name") == "openmates-browser-bindings"
             and browser.get("lib", {}).get("name", "openmates_browser_bindings")

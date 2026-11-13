@@ -38,7 +38,7 @@
     import {
         generateShortUrlParts,
         encryptShareUrl,
-        buildShortUrl,
+        buildShortUrlDecided,
     } from '../../../services/shortUrlEncryption';
     // PII detection service is dynamically imported where needed (restorePIIInText in community share)
 
@@ -737,7 +737,7 @@
             }
 
             const responseData = await response.json().catch(() => ({}));
-            const url = buildShortUrl(token, shortKey);
+            const url = await buildShortUrlDecided(token, shortKey);
             shortLinkUrl = url;
             isShortLinkGenerated = true;
             shortLinkExpiresAt = responseData.expires_at || 0;
@@ -1529,7 +1529,7 @@
 
             const data = await response.json();
             if (data.success) {
-                shortLinkUrl = buildShortUrl(token, shortKey);
+                shortLinkUrl = await buildShortUrlDecided(token, shortKey);
                 isShortLinkGenerated = true;
                 shortLinkExpiresAt = data.expires_at;
                 startShortLinkCountdown();

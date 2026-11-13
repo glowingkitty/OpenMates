@@ -1,0 +1,166 @@
+schema_version: 1
+specification: feature.slides@1
+
+format:
+  - id: same-arrangement-on-every-screen
+    given: A 16:9 deck has a slide with a title at the top left, a chart image on the right and a notepad at the bottom.
+    when: Alice views it on a laptop, a phone held upright and a projector.
+    then: On all three the whole slide is scaled to fit and the title, chart and notepad keep the same relative places; nothing wraps or moves to another position.
+  - id: four-by-three-deck
+    given: Bob asks for a deck for an old 4:3 projector.
+    when: The assistant creates it.
+    then: Every slide of the deck uses the 4:3 canvas, and presenting fills a 4:3 screen without bars.
+
+render:
+  - id: card-and-fullscreen
+    given: The assistant finished a ten-slide deck called "Q3 results".
+    when: Alice looks at the chat and clicks the card.
+    then: The card shows the first slide with the title and "10 slides"; fullscreen shows the first slide large, a strip of all ten slides and the version timeline.
+  - id: slides-arrive-while-streaming
+    given: The assistant is still writing a six-slide deck.
+    when: Alice watches the card.
+    then: Slides one, two and three are shown as finished slides as soon as each is complete, and the remaining ones follow, without source text ever being displayed.
+
+security:
+  - id: hostile-deck-stays-inert
+    given: A shared deck has a text element with an onclick handler, an image pointing to an external tracking address, and a script element placed between two slides.
+    when: Carol opens the share link.
+    then: The text is shown as plain text, the external image is not requested, the script does not run, and Carol's app and account are unaffected.
+  - id: block-cannot-reach-the-app
+    given: A slide has an interactive block whose code reads cookies and storage, calls an external server and tries to change the text of the slide title.
+    when: The slide is shown.
+    then: The block sees only its own empty storage, the request is blocked, the title is unchanged, and the rest of the slide works normally.
+
+media:
+  - id: drop-a-file-and-pick-from-embeds
+    given: Alice edits a deck in a chat that also contains a generated logo SVG and a chart image.
+    when: She drops a photo from her computer onto a slide, then uses "Add image" and picks the logo SVG from the chat's embeds.
+    then: Both appear on the slide as movable images; the SVG is shown as a picture, and a script inside it does not run.
+  - id: assistant-generates-then-places
+    given: Bob asks for a title slide with a newly drawn mountain illustration.
+    when: The assistant answers.
+    then: It generates the illustration and places it on the title slide in the same answer, and when Bob shares only the deck the illustration is still shown to the recipient.
+
+video_platforms:
+  - id: youtube-plays-only-after-click
+    given: A slide contains a YouTube video element.
+    when: Alice opens the slide and later presses play.
+    then: Opening the slide shows a placeholder with a play button and sends nothing to YouTube; after she presses play, the YouTube player appears in that area and plays.
+  - id: other-site-is-a-link
+    given: The assistant is asked to put a video from an unknown video site on a slide.
+    when: The slide is shown.
+    then: The slide shows a link card with the address instead of a player, and nothing is loaded from that site.
+
+interactive:
+  - id: audience-ideas-are-kept
+    given: Alice presents a slide with a notepad titled "Ideas from the audience" and a to-do list.
+    when: She types three ideas, ticks one to-do item and ends the presentation.
+    then: The audience saw the ideas and the tick as she entered them, and when she reopens the deck the next day they are still there as a new version.
+  - id: clear-before-the-next-talk
+    given: The same deck still contains last week's ideas in two notepads.
+    when: Alice chooses "Clear all audience notes" before presenting to another group, and later looks at the version timeline.
+    then: Both notepads and the to-do ticks are empty with one click, and the version with last week's ideas can still be opened and restored.
+
+animations:
+  - id: bullets-appear-on-click
+    given: A slide has three text elements set to appear on click and a fade transition.
+    when: Bob presents and presses the right arrow four times.
+    then: The three elements appear one per press and the fourth press fades to the next slide.
+  - id: reduced-motion
+    given: Carol's device is set to reduce motion.
+    when: She views the same slide.
+    then: All three elements are visible at once and the next slide appears without a fade.
+
+templates:
+  - id: library-and-project-template
+    given: Alice saved a template "Studio Blue" in her library and saves a copy into the folder "Pitch" of her Project.
+    when: She opens the template library and then the Project folder.
+    then: The library lists "Studio Blue" beside the built-in templates, and the folder lists it like a deck with a template mark.
+  - id: template-change-does-not-touch-old-decks
+    given: Three decks were made with "Studio Blue", and Alice changes its heading font.
+    when: She opens one of the three decks.
+    then: The deck still has the old heading font and offers to apply the updated template; after she applies it, only that deck changes.
+
+template_focus:
+  - id: first-request-builds-a-template
+    given: Bob has no template and asks "Create slides about our new bike rental service".
+    when: The assistant processes the request.
+    then: The template-creation focus mode is offered with the usual countdown; once active, the assistant shows three different designs as selectable previews, Bob picks one and asks for a warmer accent colour, the template is saved, and the bike rental deck is then created with it.
+  - id: user-declines
+    given: Carol has no template, asks for a quick three-slide deck and cancels the focus mode offer.
+    when: The assistant continues.
+    then: It creates the three slides in a built-in template without asking design questions.
+
+assistant:
+  - id: targeted-change
+    given: A twelve-slide deck exists, and Alice moved the logo on slide 2 to the bottom right by hand.
+    when: She asks "Shorten the text on slide 5 and add a closing slide".
+    then: Slide 5 has shorter text, a thirteenth slide is added, the logo on slide 2 stays at the bottom right, and the timeline shows one new version.
+  - id: uses-template-layouts
+    given: Bob's Project has a pinned default template with the layouts title, section, two-column and quote.
+    when: He asks for a deck about a customer interview.
+    then: The deck uses that template, including a quote layout for the customer's statement.
+
+editor:
+  - id: text-and-drag
+    given: Alice opens a deck the assistant made and switches to edit mode.
+    when: She rewrites a heading, sets it to a larger size and another colour, drags the chart to the left half and makes it bigger, then presses undo once.
+    then: The heading shows her text, size and colour, the chart is back at its size before the last step, and saving creates a new version.
+  - id: slide-management
+    given: A deck has five slides.
+    when: Bob duplicates slide 2, drags the copy to the end, deletes slide 4 and changes slide 1 to the section layout.
+    then: The strip shows five slides in the new order, and slide 1 is arranged by the section layout with its text kept.
+  - id: saved-edit-survives-reload
+    given: The assistant made a deck "Plan" that is at version 1.
+    when: Alice renames the deck to "Launch plan" in edit mode, presses Done and reloads the page.
+    then: The deck shows "Launch plan", and its timeline lists version 1 and a new version 2.
+  - id: stale-edit-is-refused
+    given: Bob opened the deck on his laptop at version 2, and meanwhile saved version 3 from his phone.
+    when: He finishes an edit on the laptop and presses Done.
+    then: The laptop shows that saving failed and offers a retry; version 3 from the phone is kept unchanged, and no version is created from the laptop edit.
+
+present:
+  - id: two-windows
+    given: Alice's laptop is connected to a projector and she presses Present.
+    when: She moves the new window to the projector and presses the right arrow in the presenter view.
+    then: The projector shows only the slides and advances with her; her laptop shows the current slide, the next slide, her notes, a timer and the slide list.
+  - id: notes-stay-private
+    given: Slide 3 has the speaker note "Mention the discount only if asked".
+    when: Slide 3 is shown.
+    then: The note is visible in the presenter view and nowhere in the audience window.
+
+follow_live:
+  - id: remote-audience-follows
+    given: Alice shared her deck with a link and is presenting it; Bob opens the link on his phone.
+    when: Alice moves to slide 4 and types an idea into a notepad.
+    then: Bob sees a live indicator, his view moves to slide 4 and shows the idea as it is typed; he can look back at slide 2 and tap to rejoin, and he cannot type or edit.
+  - id: nothing-kept-after-the-talk
+    given: The presentation from the previous example has ended.
+    when: Bob keeps the link open.
+    then: The live indicator disappears and the deck stays viewable as a normal shared deck; the server holds no record of which slides were shown.
+
+import:
+  - id: powerpoint-becomes-editable
+    given: Alice uploads "Sales kickoff.pptx" with 20 slides, a chart, a morph transition and an embedded font.
+    when: The upload finishes.
+    then: A 20-slide editable deck appears; a note lists that the morph transition was replaced by a fade and the embedded font by a similar one, and the original .pptx can be downloaded from the deck.
+  - id: legacy-format
+    given: Bob uploads "Old talk.ppt".
+    when: The file is checked.
+    then: It is not attached and a notice asks him to save it as .pptx and upload again.
+
+export:
+  - id: powerpoint-with-notice
+    given: A deck has an interactive counter block, a YouTube video and a notepad with text.
+    when: Alice chooses "Download as PowerPoint".
+    then: Before the download she reads that the counter becomes a static picture and the YouTube video a thumbnail with a link; the downloaded file opens in PowerPoint with editable headings and the notepad text as normal text.
+  - id: pdf
+    given: The same deck has twelve slides with speaker notes.
+    when: Bob chooses "Download as PDF" with notes included.
+    then: He is told that animations, videos and interactive blocks become still images, and gets a twelve-page PDF with each slide and its notes.
+
+surfaces:
+  - id: deck-in-the-terminal
+    given: Alice asks for a three-slide deck in the terminal app.
+    when: The assistant finishes.
+    then: The terminal shows the deck title and, for each slide, its number, its text and its notes, with lines such as "[image]" and "[interactive block]" for the other elements.

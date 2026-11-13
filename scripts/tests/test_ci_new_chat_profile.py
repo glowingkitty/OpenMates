@@ -532,8 +532,8 @@ class NewChatProfileTests(unittest.TestCase):
         )
 
     def test_existing_closure_and_new_only_route_dependency_are_separate(self):
-        self.assertEqual(len(m.ACTIVECHAT_INPUTS), 35)
-        self.assertEqual(len(m.NEW_CHAT_INPUTS), 36)
+        self.assertEqual(len(m.ACTIVECHAT_INPUTS), 33)
+        self.assertEqual(len(m.NEW_CHAT_INPUTS), 34)
         self.assertEqual(
             m.NEW_CHAT_INPUTS - m.ACTIVECHAT_INPUTS,
             {

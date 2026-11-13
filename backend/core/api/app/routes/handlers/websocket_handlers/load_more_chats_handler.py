@@ -195,7 +195,7 @@ def _build_chat_wrapper_from_cache(chat_id: str, cached_list_item, cached_versio
         "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
         "encrypted_suggested_followup_message": cached_list_item.encrypted_suggested_followup_message,
         "encrypted_top_recommended_apps_for_chat": cached_list_item.encrypted_top_recommended_apps_for_chat,
-        "encrypted_quick_tip_slugs": cached_list_item.encrypted_quick_tip_slugs,
+        "encrypted_recommendations": cached_list_item.encrypted_recommendations,
         "encrypted_shared_short_url": cached_list_item.encrypted_shared_short_url,
         "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
         "encrypted_focus_phase_state": cached_list_item.encrypted_focus_phase_state,

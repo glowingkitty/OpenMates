@@ -11,6 +11,7 @@ import selectors
 import time
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -80,12 +81,15 @@ async def python_case(case):
 
 
 def invoke(argv, case):
+    # Child stderr is kept in a private temp file; only its tail joins the
+    # assertion so the driver can project the failing frames.
+    errors = tempfile.TemporaryFile()
     child = subprocess.Popen(
         argv,
         cwd=ROOT,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
+        stderr=errors,
         start_new_session=True,
     )
     selector = selectors.DefaultSelector()
@@ -117,9 +121,14 @@ def invoke(argv, case):
                     else:
                         output.extend(chunk)
                         assert len(output) <= 1024 * 1024, "Adapter output bound"
-        assert child.wait(timeout=max(0.001, deadline - time.monotonic())) == 0
+        code = child.wait(timeout=max(0.001, deadline - time.monotonic()))
+        errors.seek(0)
+        assert code == 0, f"child-exit={code}: " + errors.read()[-1800:].decode(
+            "utf-8", "replace"
+        )
         return json.loads(output)
     finally:
+        errors.close()
         selector.close()
         if child.poll() is None:
             os.killpg(child.pid, signal.SIGKILL)
@@ -178,6 +187,22 @@ def main():
                 invoke(argv, {"endpoint": peer.endpoint, "suite": s, "vector": v})
             )
             results.append({"id": v["id"], "status": "passed"})
+        except Exception:
+            # Exact failed vector id for the driver's closed attribution; the
+            # original exception still ends the run.
+            results.append({"id": v["id"], "status": "failed"})
+            print(
+                json.dumps(
+                    {
+                        "capability": CAPABILITY,
+                        "language": a.language,
+                        "status": "failed",
+                        "fixtureSha256": hashlib.sha256(raw).hexdigest(),
+                        "results": results,
+                    }
+                )
+            )
+            raise
         finally:
             peer.close()
     print(

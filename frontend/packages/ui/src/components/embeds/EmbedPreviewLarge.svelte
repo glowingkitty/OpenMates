@@ -64,6 +64,7 @@
     embedRefIndexVersion,
   } from '../../services/embedStore';
   import { shouldHydrateCarouselSlide } from './embedPreviewHydration';
+  import { bodyMayShowEmbed } from '../../message_parsing/bodyEmbedPolicy';
 
 
   const SWIPE_MIN_DISTANCE_PX = 48;
@@ -82,6 +83,8 @@
     carouselTotal: number;
     /** embedRef of the first card in the run — shared carousel store key */
     runRef?: string;
+    /** Hidden app skill invocation reference (bodyEmbedPolicy.ts): renders nothing. */
+    bodyHidden?: boolean;
   }
 
   let {
@@ -95,6 +98,7 @@
     carouselIndex,
     carouselTotal,
     runRef = '',
+    bodyHidden = false,
   }: Props = $props();
 
   export function updatePresentation(next: Props): void {
@@ -108,6 +112,7 @@
     carouselIndex = next.carouselIndex;
     carouselTotal = next.carouselTotal;
     runRef = next.runRef ?? '';
+    bodyHidden = next.bodyHidden ?? false;
   }
 
   // ── Carousel state ──────────────────────────────────────────────────────
@@ -240,12 +245,17 @@
       : (embedId || embedStore.resolveByRef(embedRef) || deepResolvedEmbedId || null);
   });
 
-  let isResolvedAppSkillRef = $derived.by(() => {
+  // App skill invocations never render in the answer body
+  // (app-skills.answer.only-result-embeds-in-body). The document pass replaces
+  // them by their results; a ref whose type resolves only after this card
+  // mounted renders nothing until that pass removes it.
+  let hiddenFromBody = $derived.by(() => {
+    if (bodyHidden) return true;
     void $embedRefIndexVersion;
     const refType = isExampleChat(sourceChatId ?? '')
       ? resolveExampleChatEmbedRef(embedRef, sourceChatId)?.type
       : embedStore.resolveTypeByRef(embedRef);
-    return refType === 'app-skill-use' || refType === 'app_skill_use';
+    return !bodyMayShowEmbed(embedRef, refType);
   });
 
   $effect(() => {
@@ -292,7 +302,11 @@
   function trackNavigationSurface(stage: HTMLElement) {
     let card: HTMLElement | null = null;
     const measure = () => {
-      const next = stage.querySelector<HTMLElement>('[data-testid="embed-preview"]');
+      // A preview that failed to resolve renders only its error bar; that bar is
+      // then the card surface, so the shell does not keep the large placeholder
+      // height. The loading state is not a surface and keeps the reserved height.
+      const next = stage.querySelector<HTMLElement>('[data-testid="embed-preview"]')
+        ?? stage.querySelector<HTMLElement>('.embed-reference-preview-error');
       if (next !== card) {
         if (card) resize.unobserve(card);
         card = next;
@@ -346,8 +360,8 @@
 
 </script>
 
-{#if isFirstCard && isResolvedAppSkillRef}
-  <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} {receiver} {subject} {content} {footer} variant="small" />
+{#if hiddenFromBody}
+  <!-- Invocation reference: shown only in the "Used the app" container. -->
 {:else if isFirstCard}
   <!-- First card: always-visible carousel shell -->
   <div

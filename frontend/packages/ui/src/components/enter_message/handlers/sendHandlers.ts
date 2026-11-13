@@ -11,6 +11,8 @@ import { Extension } from "@tiptap/core";
 import { chatDB } from "../../../services/db";
 import { chatKeyManager } from "../../../services/encryption/ChatKeyManager";
 import { forgetPreparedChatForSend } from "../../../services/preparedChatForSend";
+import { beginFreshProjectRoutingForSend, forgetFreshProjectRoutingForSend } from "../../../services/earlyProjectRoutingForSend";
+import { createSendClaimSet, createSendStepTrail, discardEmptyClaimedChatsAfterFailedSend } from "../../../services/drafts/draftSendClaims";
 import { incognitoMode } from "../../../stores/incognitoModeStore";
 import { chatSyncService, recordSendPreparationPhase } from "../../../services/chatSyncService"; // Import chatSyncService
 import { failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "../../../services/personalChatTurnBarrier";
@@ -703,11 +705,17 @@ export async function prepareQueuedMessageRevision(
   return { content: redacted.markdown, piiMappings: mergePIIMappingsForStorage(recordingMappings, redacted.mappings) };
 }
 
+// Ordered step names of the send that holds the guard; reset per send and
+// reported on release so an early exit can be located from debug state alone.
+const sendDebugTrail = createSendStepTrail();
+
 function recordSendDebugStep(
   step: string,
   details: Record<string, unknown> = {},
 ): void {
   const timestamp = new Date().toISOString();
+  if (step === "send_guard_acquired") sendDebugTrail.reset();
+  if (sendInProgress && step !== "send_invoked" && step !== "send_guard_rejected") sendDebugTrail.record(step);
   if (sendInProgress && step !== "send_invoked" && step !== "send_guard_rejected" &&
       step !== "send_set_active_chat_complete") {
     activeSendDebugPhase = { step, timestamp };
@@ -799,8 +807,28 @@ export async function handleSend(
   const sendContext = getActiveTeamContextSnapshot();
   const senderProfile = get(userProfile);
   const authenticatedAtClick = get(authStore).isAuthenticated;
-  const contextIsCurrent = () => isActiveTeamContext(sendContext.teamId, sendContext.epoch) &&
-    get(userProfile).user_id === senderProfile.user_id && get(authStore).isAuthenticated === authenticatedAtClick;
+  const contextChangeReason = (): string | null => {
+    if (!isActiveTeamContext(sendContext.teamId, sendContext.epoch)) return "workspace";
+    if (get(userProfile).user_id !== senderProfile.user_id) return "account";
+    if (get(authStore).isAuthenticated !== authenticatedAtClick) return "auth";
+    return null;
+  };
+  let contextChangeRecorded = false;
+  const contextIsCurrent = () => {
+    const reason = contextChangeReason();
+    if (reason && !contextChangeRecorded && sendInProgress) {
+      contextChangeRecorded = true;
+      recordSendDebugStep("send_context_changed", {
+        reason,
+        teamIdAtClick: sendContext.teamId,
+        epochAtClick: sendContext.epoch,
+        epochNow: getActiveTeamContextSnapshot().epoch,
+        hadUserIdAtClick: Boolean(senderProfile.user_id),
+        hasUserIdNow: Boolean(get(userProfile).user_id),
+      });
+    }
+    return reason === null;
+  };
   const teamSenderName = sendContext.teamId ? senderProfile.username.trim() || "Team member" : "user";
   const editorTextLength = editor && !editor.isDestroyed ? editor.getText().length : 0;
   console.info("[handleSend] Send invoked", {
@@ -863,6 +891,7 @@ export async function handleSend(
     return;
   }
   sendInProgress = true;
+  const sendChatClaims = createSendClaimSet();
   try {
   recordSendDebugStep("send_guard_acquired", { currentChatId });
   recordSendPreparationPhase('send_accepted');
@@ -913,6 +942,10 @@ export async function handleSend(
   const chatIdAtClick = sourceDemoIdAtClick
     ? crypto.randomUUID()
     : currentChatId ?? draftChatIdAtClick ?? crypto.randomUUID();
+  // The composer's draft-only chat now belongs to this send: a racing
+  // empty-draft cleanup must not delete it before the message is stored.
+  sendChatClaims.claim(chatIdAtClick);
+  sendChatClaims.claim(draftChatIdAtClick);
   const embedsReadyAtClick = submittedEmbeds.every((node) =>
     Boolean(node.attrs?.contentRef) &&
     !["uploading", "transcribing", "correcting"].includes(String(node.attrs?.status)));
@@ -921,13 +954,41 @@ export async function handleSend(
   // A submission with ready embed references can leave the composer before any URL metadata,
   // draft-save, IndexedDB, or transport await. Its raw content stays in local
   // UI memory until the final PII-processed payload replaces the same row.
-  if (!options.preserveDraft && embedsReadyAtClick && get(authStore).isAuthenticated
-    && !get(forcedLogoutInProgress) && !get(editMessageStore)) {
+  const earlyRowSkip = options.preserveDraft ? 'preserved_draft'
+    : !embedsReadyAtClick ? 'embed_not_ready'
+    : !get(authStore).isAuthenticated ? 'anonymous'
+    : get(forcedLogoutInProgress) ? 'logging_out'
+    : get(editMessageStore) ? 'editing' : null;
+  if (earlyRowSkip) recordSendPreparationPhase(`project_read_gate_${earlyRowSkip}`);
+  if (!earlyRowSkip) {
     try {
       const rawMarkdown = tipTapToCanonicalMarkdown(submittedEditorContent).replace(/^\n+/, "");
       optimisticMessage = createMessagePayload(rawMarkdown, chatIdAtClick, [], teamSenderName);
+      // ActiveChat supplies first-turn context for an unsent shell or a persisted
+      // draft-only chat. Both have no messages; the immutable draft ID must match.
       const firstTurnAtClick = !currentChatId || (options.firstTurnContextAtClick === true
         && currentChatId === draftChatIdAtClick);
+      // A fresh first turn may read the user's Projects for routing while local
+      // chat setup runs; the sender consumes only this exact chat/message read.
+      const projectReadSkip = !firstTurnAtClick ? 'not_first_turn'
+        : sourceDemoIdAtClick ? 'public_source'
+        : sendContext.teamId ? 'team'
+        : optimisticMessage.status !== 'sending' ? 'not_sending'
+        : incognitoMode.get() ? 'incognito'
+        : projectFocusIntent ? 'explicit_project'
+        : broadcastToSiblings ? 'broadcast'
+        : rawMarkdown.includes('```') ? 'code_block'
+        : rawMarkdown.includes('embed_id') ? 'embed_reference'
+        : rawMarkdown.includes('@memory') ? 'memory_reference'
+        : rawMarkdown.includes('| ') ? 'table'
+        : submittedEmbeds.length !== 0 ? 'attachments' : null;
+      recordSendPreparationPhase(`project_read_gate_${projectReadSkip ?? 'eligible'}`);
+      if (!projectReadSkip) {
+        beginFreshProjectRoutingForSend({
+          chatId: chatIdAtClick, messageId: optimisticMessage.message_id,
+          draftChatId: draftChatIdAtClick, recordPhase: recordSendPreparationPhase,
+        });
+      }
       const provisionalChat = !currentChatId || sourceDemoIdAtClick
         ? ({ chat_id: chatIdAtClick, team_id: sendContext.teamId,
             source_demo_id: sourceDemoIdAtClick, messages_v: 1, title_v: 0, draft_v: 0,
@@ -962,6 +1023,7 @@ export async function handleSend(
   let selectedChatModel = 'auto';
   if (options.resolveModelSelection) {
     selectedChatModel = await options.resolveModelSelection();
+    recordSendDebugStep("model_selection_resolved");
     if (!contextIsCurrent()) return false;
   }
 
@@ -973,6 +1035,7 @@ export async function handleSend(
       ? await computeSHA256(senderProfile.user_id)
       : undefined;
     await chatDB.ensureReadyForSend();
+    recordSendDebugStep("local_db_ready_for_send");
   } catch (error) {
     console.error("[handleSend] Local send preparation failed:", error);
     return false;
@@ -1780,6 +1843,7 @@ export async function handleSend(
     // Check whether this ID already has a local chat record. ActiveChat stores a
     // temporary new-chat ID in draft state before the chat/key exists; that must
     // not be treated as an existing draft chat.
+    sendChatClaims.claim(chatIdToUse);
     recordSendDebugStep("send_chat_classification_started", {
       currentChatId,
       chatIdToUse,
@@ -2164,6 +2228,8 @@ export async function handleSend(
           console.error(
             `[handleSend] CRITICAL: Newly created chat ${chatIdToUse} not found in DB immediately after addChat and saveMessage.`,
           );
+          // The turn is rolled back below; never fail silently.
+          notificationStore.error(get(text)("enter_message.send_failed"));
           vibrateMessageField();
           return;
         }
@@ -2282,6 +2348,8 @@ export async function handleSend(
           console.error(
             `[handleSend] Existing chat ${chatIdToUse} not found when trying to add a message.`,
           );
+          // The turn is rolled back below; never fail silently.
+          notificationStore.error(get(text)("enter_message.send_failed"));
           vibrateMessageField();
           return; // Early exit if chat doesn't exist
         }
@@ -2303,6 +2371,8 @@ export async function handleSend(
       console.error(
         `[handleSend] Failed to update local chat ${chatIdToUse} with new message. Aborting send.`,
       );
+      // The turn is rolled back below; never fail silently.
+      notificationStore.error(get(text)("enter_message.send_failed"));
       vibrateMessageField();
       return;
     }
@@ -2512,7 +2582,7 @@ export async function handleSend(
     // Every composer must retain its draft on rejection; cleanup requires acceptance.
     recordSendDebugStep("send_admission_read_started");
     const submittedMessage = await chatDB.getMessage(messagePayload.message_id);
-    recordSendDebugStep("send_admission_read_complete");
+    recordSendDebugStep("send_admission_read_complete", { status: submittedMessage?.status ?? null });
     if (submittedMessage?.status === 'failed') {
       wsSpan.end();
       return false;
@@ -2617,6 +2687,8 @@ export async function handleSend(
       console.warn("Failed to handle message send; retrying after reconnect:", error);
     } else {
       console.error("Failed to handle message send:", error);
+      // The turn was rolled back and the draft restored; never fail silently.
+      notificationStore.error(get(text)("enter_message.send_failed"));
     }
     vibrateMessageField();
   } finally {
@@ -2628,6 +2700,7 @@ export async function handleSend(
   }
   } catch (error) {
     if (error instanceof PrivacyScanFailedError || error instanceof PrivacySendContextChangedError) {
+      console.warn("[handleSend] Send stopped before dispatch:", error.name);
       return false;
     }
     throw error;
@@ -2678,15 +2751,36 @@ export async function handleSend(
           messageId: dispatchedMessage.message_id,
         });
       }
+      // Cleanup skipped while this send held its claim is retried now that it failed.
+      await discardEmptyClaimedChatsAfterFailedSend(sendChatClaims.claimedChatIds(),
+        (id) => get(draftEditorUIState).currentChatId === id && !editor.isDestroyed && !editor.isEmpty,
+        { getChat: (id) => chatDB.getChat(id), getMessagesForChat: (id) => chatDB.getMessagesForChat(id),
+          deleteDraftOnlyChat: (id) => chatDB.deleteDraftOnlyChat(id),
+          onDeleted: async (id, embedIds) => {
+            chatSyncService.dispatchEvent(new CustomEvent("chatDeleted", { detail: { chat_id: id } }));
+            await chatSyncService.sendDeleteChat(id, embedIds);
+          } });
     }
+    // The sender reserves the read on dispatch; any read still pending here is
+    // unowned (failure, cancellation or a non-sending exit) and must be dropped.
+    if (optimisticMessage) forgetFreshProjectRoutingForSend(optimisticMessage.message_id);
     rootSpan.end();
   }
   } finally {
     // Synchronous snapshot/tracing preparation above can throw before the
     // pipeline's rollback block exists. Every acquired guard must be released.
     sendInProgress = false;
+    sendChatClaims.releaseAll();
     activeSendDebugPhase = null;
-    recordSendDebugStep("send_guard_released");
+    // Name the last step the pipeline reached so a send that ends without a
+    // dispatch or a visible failure can be located from the debug state alone.
+    const lastStepBeforeRelease = (window as Window & {
+      __openmatesLastSendDebug?: { step?: unknown };
+    }).__openmatesLastSendDebug?.step;
+    recordSendDebugStep("send_guard_released", {
+      lastStepBeforeRelease,
+      stepsBeforeRelease: sendDebugTrail.snapshot(),
+    });
   }
 }
 

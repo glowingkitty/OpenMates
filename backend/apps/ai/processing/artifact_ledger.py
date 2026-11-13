@@ -300,7 +300,7 @@ async def enrich_historical_image_aliases(
             # Discover only its explicit children; each child must independently
             # pass the owner, expiry, decryption and image-content checks above.
             if (not fresh_upload and content.get("app_id") == "images"
-                    and content.get("skill_id") in {"generate", "generate_draft", "vectorize"}
+                    and content.get("skill_id") in {"generate", "generate_draft", "vectorize", "modify"}
                     and content.get("status") == "finished"
                     and isinstance(content.get("embed_ids"), list)):
                 for child_id in content["embed_ids"][:MAX_IMAGE_ALIAS_EMBEDS]:
@@ -315,7 +315,7 @@ async def enrich_historical_image_aliases(
                 continue
             if not fresh_upload and (
                 content.get("app_id") != "images"
-                or content.get("skill_id") not in {"upload", "generate", "generate_draft", "vectorize"}
+                or content.get("skill_id") not in {"upload", "generate", "generate_draft", "vectorize", "modify"}
                 or content.get("type") not in {"image", "generated_image"}
             ):
                 continue

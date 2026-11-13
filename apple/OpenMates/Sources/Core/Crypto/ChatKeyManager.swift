@@ -3,6 +3,11 @@
 // that is stored on the server wrapped (encrypted) with the user's master key.
 // At load time, we unwrap each chat's key and cache it here for fast decryption
 // of messages, titles, and embeds within that chat.
+// Unwrapping and the chat-list / message-window decryption run in the shared
+// Rust core as one batched call each (generated `batchUnwrapChatKeys`,
+// `batchDecryptChatMetadata`, `batchDecryptMessages`; plan
+// apple-client-core-migration A3); this type keeps the in-memory key cache and
+// its revocation fences until the cache moves into the core (A4).
 // Specification: specifications/features/pii-protection/specification.yml
 // Assertions: pii.embed.owner-local-reveal-sync, pii.surface.semantic-parity
 // Specification: specifications/features/teams/specification.yml
@@ -20,7 +25,9 @@ final class ChatKeyManager: ObservableObject {
     private var generation = UUID()
     private var materialGeneration = UUID()
     private var revocations: [String: UUID] = [:]
-    private let unwrapKey: @MainActor (String, SymmetricKey) async throws -> SymmetricKey
+    private let unwrapKeys: @MainActor ([WrappedChatKeyRecord], Data) async throws -> [UnwrappedChatKeyRecord]
+    private let decryptMetadataBatch: @MainActor ([EncryptedChatMetadataRecord]) async throws -> [ChatMetadataRecord]
+    private let decryptMessageBatch: @MainActor (Data, [EncryptedMessageRecord]) async throws -> [MessageFieldsRecord]
     private let decryptContent: @MainActor (String, SymmetricKey) async throws -> String
     private var chatKeys: [String: SymmetricKey] = [:]
     private var encryptedKeys: [String: String] = [:]
@@ -32,15 +39,26 @@ final class ChatKeyManager: ObservableObject {
     /// Whether chat keys have been loaded from the initial sync
     @Published var isReady = false
 
+    /// The batch closures default to the Rust core; tests inject suspending
+    /// fakes to prove the revocation fences. Each runs off the main actor in the
+    /// core's decryption pool; only the result is applied here.
     init(
-        unwrapKey: @escaping @MainActor (String, SymmetricKey) async throws -> SymmetricKey = {
-            try await CryptoManager.shared.unwrapChatKey(encryptedChatKeyBase64: $0, masterKey: $1)
+        unwrapKeys: @escaping @MainActor ([WrappedChatKeyRecord], Data) async throws -> [UnwrappedChatKeyRecord] = {
+            try await batchUnwrapChatKeys(masterKey: $1, wrapped: $0)
+        },
+        decryptMetadataBatch: @escaping @MainActor ([EncryptedChatMetadataRecord]) async throws -> [ChatMetadataRecord] = {
+            try await batchDecryptChatMetadata(chats: $0)
+        },
+        decryptMessageBatch: @escaping @MainActor (Data, [EncryptedMessageRecord]) async throws -> [MessageFieldsRecord] = {
+            try await batchDecryptMessages(chatKey: $0, messages: $1)
         },
         decryptContent: @escaping @MainActor (String, SymmetricKey) async throws -> String = {
             try await CryptoManager.shared.decryptContent(base64String: $0, key: $1)
         }
     ) {
-        self.unwrapKey = unwrapKey
+        self.unwrapKeys = unwrapKeys
+        self.decryptMetadataBatch = decryptMetadataBatch
+        self.decryptMessageBatch = decryptMessageBatch
         self.decryptContent = decryptContent
     }
 
@@ -144,39 +162,39 @@ final class ChatKeyManager: ObservableObject {
 
     // MARK: - Bulk loading
 
-    /// Unwrap and cache chat keys for a batch of chats.
-    /// Called at startup after the master key is loaded from Keychain.
+    /// Unwrap and cache chat keys for a batch of chats with one core call.
+    /// Called at startup after the master key is loaded from Keychain. Fences
+    /// are captured before the call; an entry revoked while the core works is
+    /// unwrapped but never installed.
     func loadChatKeys(from chats: [(chatId: String, encryptedChatKey: String)], masterKey: SymmetricKey,
                       isCurrent operationIsCurrent: @escaping @MainActor () -> Bool = { true }) async {
         let capturedGeneration = generation
-        // Capture every chat before the first await: revoking a later entry
-        // while an earlier unwrap is suspended must also fence that entry.
-        let fences = Dictionary(chats.map { ($0.chatId, fence(for: $0.chatId)) },
-                                uniquingKeysWith: { first, _ in first })
-        let batchSize = 20
-
-        for (index, entry) in chats.enumerated() {
-            guard capturedGeneration == generation, !Task.isCancelled, operationIsCurrent() else { return }
-            let (chatId, encryptedChatKey) = entry
-            guard let capturedFence = fences[chatId], isCurrent(capturedFence, for: chatId) else { continue }
-            do {
-                let chatKey = try await unwrapKey(encryptedChatKey, masterKey)
-                guard capturedGeneration == generation, !Task.isCancelled, operationIsCurrent() else { return }
-                guard isCurrent(capturedFence, for: chatId) else { continue }
-                chatKeys[chatId] = chatKey
-                rememberEncryptedKey(encryptedChatKey, for: chatId)
-                notifyEmbedKeyMaterialAvailable()
-                if NativeSyncPerfLog.verboseCrypto {
-                    print("[ChatKeyManager] loaded key chat=\(chatId.prefix(8))")
-                }
-            } catch {
-                print("[ChatKeyManager] Failed to unwrap key for chat \(chatId.prefix(8)): \(error)")
-            }
-            if (index + 1).isMultiple(of: batchSize) {
-                await Task.yield()
-            }
+        guard !Task.isCancelled, operationIsCurrent() else { return }
+        var fences: [String: KeyRevocationFence] = [:]
+        var records: [WrappedChatKeyRecord] = []
+        records.reserveCapacity(chats.count)
+        for (chatId, encryptedChatKey) in chats where fences[chatId] == nil {
+            fences[chatId] = fence(for: chatId)
+            records.append(WrappedChatKeyRecord(chatId: chatId, encryptedChatKey: encryptedChatKey))
         }
-
+        if !records.isEmpty {
+            let results: [UnwrappedChatKeyRecord]
+            do {
+                results = try await unwrapKeys(records, masterKey.withUnsafeBytes { Data($0) })
+            } catch {
+                print("[ChatKeyManager] Bulk key unwrap failed requested=\(records.count): \(error)")
+                results = []
+            }
+            guard capturedGeneration == generation, !Task.isCancelled, operationIsCurrent() else { return }
+            var installedAny = false
+            for (record, result) in zip(records, results) {
+                guard let capturedFence = fences[record.chatId], isCurrent(capturedFence, for: record.chatId) else { continue }
+                if install(result, wrapper: record.encryptedChatKey, notify: false) { installedAny = true }
+            }
+            // One notification for the whole batch: listeners re-scan all keys,
+            // and a per-key Task + post made the bulk load cost ~100 µs/key.
+            if installedAny { notifyEmbedKeyMaterialAvailable() }
+        }
         guard capturedGeneration == generation, !Task.isCancelled, operationIsCurrent() else { return }
         isReady = true
         NativeSyncPerfLog.info("phase=chatKeyBulkLoad requested=\(chats.count) cached=\(chatKeys.count)")
@@ -188,18 +206,32 @@ final class ChatKeyManager: ObservableObject {
                      isCurrent operationIsCurrent: @escaping @MainActor () -> Bool = { true }) async -> Bool {
         let capturedFence = fence(for: chatId)
         guard isCurrent(capturedFence, for: chatId), operationIsCurrent() else { return false }
+        let record = WrappedChatKeyRecord(chatId: chatId, encryptedChatKey: encryptedChatKey)
+        let result: UnwrappedChatKeyRecord?
         do {
-            let chatKey = try await unwrapKey(encryptedChatKey, masterKey)
-            guard isCurrent(capturedFence, for: chatId), operationIsCurrent() else { return false }
-            chatKeys[chatId] = chatKey
-            rememberEncryptedKey(encryptedChatKey, for: chatId)
-            notifyEmbedKeyMaterialAvailable()
-            if NativeSyncPerfLog.verboseCrypto {
-                print("[ChatKeyManager] loaded single key chat=\(chatId.prefix(8)) cached=\(chatKeys.count)")
-            }
-            return true
+            result = try await unwrapKeys([record], masterKey.withUnsafeBytes { Data($0) }).first
         } catch {
             print("[ChatKeyManager] Failed to unwrap key for chat \(chatId.prefix(8)): \(error)")
+            return false
+        }
+        guard isCurrent(capturedFence, for: chatId), operationIsCurrent(), let result else { return false }
+        return install(result, wrapper: encryptedChatKey)
+    }
+
+    /// Cache one core unwrap result; logs failures without key material.
+    @discardableResult
+    private func install(_ result: UnwrappedChatKeyRecord, wrapper: String, notify: Bool = true) -> Bool {
+        switch result.outcome {
+        case .unwrapped(let rawKey):
+            chatKeys[result.chatId] = SymmetricKey(data: rawKey)
+            rememberEncryptedKey(wrapper, for: result.chatId)
+            if notify { notifyEmbedKeyMaterialAvailable() }
+            if NativeSyncPerfLog.verboseCrypto {
+                print("[ChatKeyManager] loaded key chat=\(result.chatId.prefix(8)) cached=\(chatKeys.count)")
+            }
+            return true
+        case .failed(let reason):
+            print("[ChatKeyManager] Failed to unwrap key for chat \(result.chatId.prefix(8)): \(reason)")
             return false
         }
     }
@@ -223,6 +255,148 @@ final class ChatKeyManager: ObservableObject {
             }
         }
         return false
+    }
+
+    // MARK: - Batched decryption (Rust core)
+
+    /// Decrypt the chat-list metadata (title, category, icon, summary, active
+    /// focus) of many chats with one core call. Only missing plaintext fields
+    /// are sent; `replaceEmptyTitle` also replaces an empty title (chat list).
+    /// Chats without a cached key, failed fields and chats revoked while the
+    /// core worked come back unchanged. Order and count match the input.
+    func decryptMetadata(_ chats: [Chat], replaceEmptyTitle: Bool) async -> [Chat] {
+        var records: [EncryptedChatMetadataRecord] = []
+        var recordIndex: [Int: Int] = [:]
+        var fences: [Int: KeyRevocationFence] = [:]
+        for (index, chat) in chats.enumerated() {
+            guard let key = chatKeys[chat.id] else {
+                if NativeSyncPerfLog.verboseCrypto {
+                    print("[ChatKeyManager] metadata decrypt skipped missing key chat=\(chat.id.prefix(8))")
+                }
+                continue
+            }
+            let needsTitle = replaceEmptyTitle ? chat.title?.isEmpty != false : chat.title == nil
+            let record = EncryptedChatMetadataRecord(
+                chatId: chat.id, chatKey: key.withUnsafeBytes { Data($0) },
+                encryptedTitle: needsTitle ? chat.encryptedTitle : nil,
+                encryptedCategory: chat.category == nil ? chat.encryptedCategory : nil,
+                encryptedIcon: chat.icon == nil ? chat.encryptedIcon : nil,
+                encryptedChatSummary: chat.chatSummary == nil ? chat.encryptedChatSummary : nil,
+                encryptedActiveFocusId: chat.activeFocusId == nil ? chat.encryptedActiveFocusId : nil)
+            guard record.encryptedTitle != nil || record.encryptedCategory != nil || record.encryptedIcon != nil
+                || record.encryptedChatSummary != nil || record.encryptedActiveFocusId != nil else { continue }
+            recordIndex[index] = records.count
+            fences[index] = fence(for: chat.id)
+            records.append(record)
+        }
+        guard !records.isEmpty else { return chats }
+        let results: [ChatMetadataRecord]
+        do {
+            results = try await decryptMetadataBatch(records)
+        } catch {
+            print("[ChatKeyManager] metadata batch decrypt failed chats=\(records.count): \(error)")
+            return chats
+        }
+        guard results.count == records.count else {
+            print("[ChatKeyManager] metadata batch returned \(results.count) of \(records.count) chats")
+            return chats
+        }
+        return chats.enumerated().map { index, chat in
+            guard let position = recordIndex[index], let capturedFence = fences[index],
+                  isCurrent(capturedFence, for: chat.id) else { return chat }
+            let fields = results[position]
+            var decrypted = chat
+            if let value = Self.plaintext(fields.title, field: "encrypted_title", id: chat.id) { decrypted.title = value }
+            if let value = Self.plaintext(fields.category, field: "encrypted_category", id: chat.id) { decrypted.category = value }
+            if let value = Self.plaintext(fields.icon, field: "encrypted_icon", id: chat.id) { decrypted.icon = value }
+            if let value = Self.plaintext(fields.chatSummary, field: "encrypted_chat_summary", id: chat.id) {
+                decrypted.chatSummary = value
+            }
+            if let value = Self.plaintext(fields.activeFocusId, field: "encrypted_active_focus_id", id: chat.id) {
+                decrypted.activeFocusId = value
+            }
+            return decrypted
+        }
+    }
+
+    /// Single-chat form of `decryptMetadata(_:replaceEmptyTitle:)`.
+    func decryptMetadata(of chat: Chat, replaceEmptyTitle: Bool) async -> Chat {
+        let decrypted = await decryptMetadata([chat], replaceEmptyTitle: replaceEmptyTitle)
+        return decrypted.first ?? chat
+    }
+
+    /// Decrypt the encrypted content and identity fields of a message window of
+    /// one chat with one core call. Only missing plaintext fields are sent.
+    /// Without a cached key, after a failed batch or a revocation during the
+    /// call, the messages come back unchanged. Order and count match the input.
+    func decryptMessages(_ messages: [Message], chatId: String) async -> [Message] {
+        guard let key = chatKeys[chatId] else {
+            let encryptedCount = messages.filter { $0.encryptedContent != nil }.count
+            if encryptedCount > 0 {
+                print("[ChatViewModel][decrypt] messages skipped chat=\(chatId.prefix(8)) encrypted=\(encryptedCount) reason=missingChatKey")
+            }
+            return messages
+        }
+        let records = messages.map { message in
+            EncryptedMessageRecord(
+                messageId: message.id,
+                encryptedContent: message.content?.isEmpty != false ? message.encryptedContent : nil,
+                encryptedPiiMappings: message.piiMappings == nil ? message.encryptedPIIMappings : nil,
+                encryptedThinkingContent: message.thinkingContent == nil ? message.encryptedThinkingContent : nil,
+                encryptedSenderName: message.senderName == nil ? message.encryptedSenderName : nil,
+                encryptedCategory: message.category == nil ? message.encryptedCategory : nil,
+                encryptedModelName: message.modelName == nil ? message.encryptedModelName : nil)
+        }
+        guard records.contains(where: {
+            $0.encryptedContent != nil || $0.encryptedPiiMappings != nil || $0.encryptedThinkingContent != nil
+                || $0.encryptedSenderName != nil || $0.encryptedCategory != nil || $0.encryptedModelName != nil
+        }) else { return messages }
+        let capturedFence = fence(for: chatId)
+        let results: [MessageFieldsRecord]
+        do {
+            results = try await decryptMessageBatch(key.withUnsafeBytes { Data($0) }, records)
+        } catch {
+            print("[ChatKeyManager] message batch decrypt failed chat=\(chatId.prefix(8)) messages=\(records.count): \(error)")
+            return messages
+        }
+        guard isCurrent(capturedFence, for: chatId) else { return messages }
+        guard results.count == messages.count else {
+            print("[ChatKeyManager] message batch returned \(results.count) of \(messages.count) messages")
+            return messages
+        }
+        let decoder = JSONDecoder()
+        return zip(messages, results).map { message, fields in
+            var decrypted = message
+            let content = Self.plaintext(fields.content, field: "content", id: chatId)
+            if let json = Self.plaintext(fields.piiMappings, field: "pii_mappings", id: chatId),
+               let data = json.data(using: .utf8),
+               let mappings = try? decoder.decode([PIIMapping].self, from: data) {
+                decrypted.piiMappings = mappings
+            }
+            if let value = Self.plaintext(fields.thinkingContent, field: "thinking_content", id: chatId) {
+                decrypted.thinkingContent = value
+            }
+            decrypted.applyDecryptedDisplayFields(
+                content: content,
+                modelName: Self.plaintext(fields.modelName, field: "model_name", id: chatId),
+                senderName: Self.plaintext(fields.senderName, field: "sender_name", id: chatId),
+                category: Self.plaintext(fields.category, field: "category", id: chatId))
+            return decrypted
+        }
+    }
+
+    /// Plaintext of one core field result; a failure is logged with its typed
+    /// reason and the id prefix only (never content or key material).
+    private static func plaintext(_ outcome: FieldDecryptOutcome?, field: String, id: String) -> String? {
+        switch outcome {
+        case .decrypted(let value):
+            return value
+        case .failed(let reason):
+            print("[ChatKeyManager] \(field) decrypt failed for \(id.prefix(8)): \(reason)")
+            return nil
+        case nil:
+            return nil
+        }
     }
 
     // MARK: - Content decryption helpers
@@ -301,7 +475,15 @@ final class ChatKeyManager: ObservableObject {
     }
 
     private static func fingerprint(_ encryptedChatKey: String) -> String {
-        SHA256.hash(data: Data(encryptedChatKey.utf8)).map { String(format: "%02x", $0) }.joined()
+        // Table-driven hex: `String(format:)` per byte cost ~1 µs each, 32 per key.
+        let digits = Array("0123456789abcdef".utf8)
+        var hex: [UInt8] = []
+        hex.reserveCapacity(64)
+        for byte in SHA256.hash(data: Data(encryptedChatKey.utf8)) {
+            hex.append(digits[Int(byte >> 4)])
+            hex.append(digits[Int(byte & 0x0f)])
+        }
+        return String(decoding: hex, as: UTF8.self)
     }
 
     private static func keysEqual(_ lhs: SymmetricKey, _ rhs: SymmetricKey) -> Bool {

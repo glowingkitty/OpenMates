@@ -110,8 +110,12 @@ async def _async_generate_docx(task: BaseServiceTask, arguments: Dict[str, Any])
             created_s3_keys.append(docx_s3_key)
 
             screenshot_s3_keys: Dict[str, str] = {}
+            pdf_s3_key = ""
             page_count = 0
             if _convert_docx_to_pdf(docx_path, tmp_path, log_prefix) and pdf_path.exists():
+                pdf_s3_key = f"chatfiles/{user_id}/{timestamp}_{unique_id}_doc_{embed_id[:8]}.pdf.bin"
+                await _upload_encrypted(task, output_aesgcm, pdf_s3_key, pdf_path.read_bytes())
+                created_s3_keys.append(pdf_s3_key)
                 screenshots = _render_pdf_screenshots(pdf_path)
                 page_count = len(screenshots)
                 for page_num, png_bytes in sorted(screenshots.items()):
@@ -136,6 +140,7 @@ async def _async_generate_docx(task: BaseServiceTask, arguments: Dict[str, Any])
             "page_count": page_count,
             "docx_model": docx_model,
             "docx_s3_key": docx_s3_key,
+            **({"pdf_s3_key": pdf_s3_key} if pdf_s3_key else {}),
             "screenshot_s3_keys": screenshot_s3_keys,
             "aes_key": output_aes_key_b64,
             "aes_nonce": "",

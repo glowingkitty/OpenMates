@@ -16,6 +16,7 @@ scope:
   - Local message status precedence for visible user gates and provisional assistant states.
   - Chat-key readiness and missing local chat-shell hydration before encrypted writes.
   - Non-destructive conversation forks through a selected message boundary.
+  - Hiding chats behind a user vault password and the unlocked hidden chats section.
   - Ordered bounded streaming delivery, transient presentation, and terminal flush semantics.
   - Non-destructive follow-up suggestion reconciliation after post-processing.
   - Assistant render-document convergence, authored embed/wiki link behavior, and responsive chat-history layout.
@@ -241,6 +242,10 @@ assertions:
   type: behavior
   must: Eligible personal web and TUI submissions immediately hand off the user snapshot, clear the composer and send the encrypted durable admission with transient inference intent without waiting for its acknowledgement or unrelated context discovery. Saved turn, message, task and billing identities remain idempotent. Required private context may arrive in correlated phases, missing context fails safely, and pending encrypted recovery is retained until admission and required context are acknowledged. Team human-only messages do not start AI.
   depends_on: [examples.immediate_admission]
+- id: chats.offline-outbox.ordered-replay
+  type: invariant
+  must: Changes queued while offline replay in durable insertion order per chat, Team and component (draft or title), never by version counters that reset on deletion. A group whose chronology is ambiguous (several legacy rows, legacy mixed with ordered rows, or invalid or duplicate insertion orders) stays queued instead of being guessed. A deferred draft deletion replays only while the chat has no local draft and the editor has no unsaved changes, so an older delete never overwrites a newer draft. A batch receipt retires only the rows it covers, and a late acknowledgement cannot delete a row that was replaced under the same ID. Replay is idempotent, and web decisions are identical whether made by the TypeScript or the shared Rust implementation.
+  depends_on: [examples.offline_outbox_replay]
 - id: chats.followups.main-generated-composer
   type: privacy
   must: Main inference may emit one optional contextual next-user message as trailing metadata separate from the authored answer and existing postprocessor chips. Split delimiters cannot expose metadata in visible or stored answer text. Only a successful eligible current turn delivers the suggestion; durable storage and device sync retain client ciphertext, never its plaintext, and stale sources cannot replace a newer turn's suggestion.
@@ -314,6 +319,14 @@ assertions:
   depends_on:
   - models.ChatFork
   - examples.conversation_fork
+- id: chats.hidden.unlocked-section
+  type: behavior
+  must: Hiding a chat requires the user's vault password when the vault is locked and re-wraps the chat key so the
+    chat leaves the regular chat list; once the vault is unlocked the hidden chat is listed in a dedicated hidden
+    chats section, and hiding further chats while unlocked needs no password prompt. A too-short password cannot be
+    submitted, and unhiding returns the chat to the regular list.
+  depends_on:
+  - examples.hidden_chats
 - id: chats.streaming.ordered-final
   type: behavior
   must: Streaming preserves provider chunk order and exact final content; ordinary content updates may be coalesced
@@ -352,6 +365,15 @@ assertions:
   depends_on:
   - models.AssistantRenderDocument
   - models.ChatStreamDelivery
+  - examples.assistant_rendering
+- id: chats.rendering.skill-failure-banner
+  type: behavior
+  must: A failed app skill is shown on its own embed card. The message-level error banner with the report link never
+    appears while the assistant turn is still streaming, processing or running skills, nor on a finished assistant
+    message that has answer text; it appears only on a finished assistant turn whose skills failed and left no
+    answer text.
+  depends_on:
+  - models.AssistantRenderDocument
   - examples.assistant_rendering
 - id: chats.rendering.inline-entity-interaction
   type: behavior
@@ -496,6 +518,7 @@ examples:
   - independent_metadata
   - encryption_boundary
   - identity_idempotency
+  - offline_outbox_replay
   - recovery_takeover
   - lease_fencing
   - pending_completion

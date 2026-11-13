@@ -595,6 +595,36 @@ async def test_project_focus_consent_replaces_catalog_only_when_accepted(monkeyp
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=projects.agentic.test-result-in-reply
+async def test_commit_continuation_keeps_the_earlier_test_result_reference(monkeypatch, async_skill_continuation):
+    # The test-run continuation starts a commit; the commit continuation rewrites
+    # the same reply and must still show the test result of the earlier run.
+    cache = _FakeCache()
+    fake_celery_app = _FakeCeleryApp()
+    monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
+    request = _request()
+    request.completed_result_embed_ids = ["test-run-1"]
+    await async_skill_continuation.cache_async_skill_continuation_context(
+        cache_service=cache,
+        async_task_id="commit-1",
+        request_data=request,
+        skill_config_dict=_skill_config_dict(),
+        app_id="code",
+        skill_id="project_commit",
+        tool_name="project_commit",
+        tool_arguments={},
+    )
+    await async_skill_continuation.dispatch_async_skill_continuation(
+        cache_service=cache,
+        async_task_id="commit-1",
+        completed_results=[{"commit_id": "c1"}, {"test_result_embed_id": "test-run-2"},
+                           {"test_result_embed_id": "test-run-1"}],
+    )
+    payload = fake_celery_app.sent[0]["kwargs"]["request_data_dict"]
+    assert payload["completed_result_embed_ids"] == ["test-run-1", "test-run-2"]
+
+
+@pytest.mark.asyncio
 # contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent
 async def test_selected_project_catalog_resumes_same_project_without_repeating_stage_one(monkeypatch, async_skill_continuation):
     cache = _FakeCache()

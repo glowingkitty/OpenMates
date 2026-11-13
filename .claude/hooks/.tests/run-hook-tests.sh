@@ -14,10 +14,10 @@ FAILS=()
 
 # run_case NAME HOOK INPUT_JSON EXPECT_EXIT EXPECT_STDERR_PATTERN
 run_case() {
-  local name="$1" hook="$2" input="$3" exp_exit="$4" exp_pattern="$5"
+  local name="$1" hook="$2" input="$3" exp_exit="$4" exp_pattern="$5" extra_env="${6:-}"
   local stderr rc
-  stderr=$(echo "$input" | bash ".claude/hooks/$hook" 2>&1 >/dev/null)
-  rc=$?
+  rc=0
+  stderr=$(echo "$input" | env $extra_env bash ".claude/hooks/$hook" 2>&1 >/dev/null) || rc=$?
   if [ "$rc" -ne "$exp_exit" ]; then
     echo -e "${RED}FAIL${NC} $name — expected exit $exp_exit, got $rc"
     FAILS+=("$name (exit $rc vs $exp_exit)"); FAIL=$((FAIL+1)); return
@@ -177,6 +177,50 @@ run_case "auto-rebuild: non-yml silent" \
 run_case "auto-rebuild: random yml silent" \
   "auto-rebuild-translations.sh" \
   '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/foo.yml"}}' \
+  0 ""
+
+echo ""
+echo "=== session-edit-gate ==="
+run_case "session-gate: tracked file in canonical checkout blocked" \
+  "session-edit-gate.sh" \
+  '{"session_id":"none","cwd":"/home/superdev/projects/OpenMates","tool_input":{"file_path":"/home/superdev/projects/OpenMates/CLAUDE.md"}}' \
+  2 "canonical checkout"
+run_case "session-gate: unbound conversation in session worktree blocked" \
+  "session-edit-gate.sh" \
+  '{"session_id":"none","cwd":"/home/superdev/projects/OpenMates","tool_input":{"file_path":"/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-b4d8/CLAUDE.md"}}' \
+  2 "owns no sessions.py session"
+# Own-cwd worktree: a conversation whose id matches another session may still
+# edit from inside the owning session's worktree (parallel sub-agents).
+GATE_TMP=$(mktemp -d)
+mkdir -p "$GATE_TMP/.openmates-agent-worktrees/agent-aaaa" "$GATE_TMP/.openmates-agent-worktrees/agent-bbbb" "$GATE_TMP/.claude"
+cat > "$GATE_TMP/.claude/sessions.json" <<JSON
+{"sessions":{"aaaa":{"agent_task_id":"conv-1","worktree":{"path":"$GATE_TMP/.openmates-agent-worktrees/agent-aaaa"}},"bbbb":{"agent_task_id":"other","worktree":{"path":"$GATE_TMP/.openmates-agent-worktrees/agent-bbbb"}}}}
+JSON
+run_case "session-gate: edit from cwd inside the owning worktree allowed (sub-agent)" \
+  "session-edit-gate.sh" \
+  "{\"session_id\":\"conv-1\",\"cwd\":\"$GATE_TMP/.openmates-agent-worktrees/agent-bbbb\",\"tool_input\":{\"file_path\":\"$GATE_TMP/.openmates-agent-worktrees/agent-bbbb/x.txt\"}}" \
+  0 "" "OPENMATES_PROJECT_ROOT=$GATE_TMP"
+run_case "session-gate: edit in another worktree from a different cwd still blocked" \
+  "session-edit-gate.sh" \
+  "{\"session_id\":\"conv-1\",\"cwd\":\"$GATE_TMP/.openmates-agent-worktrees/agent-aaaa\",\"tool_input\":{\"file_path\":\"$GATE_TMP/.openmates-agent-worktrees/agent-bbbb/x.txt\"}}" \
+  2 "belongs to session" "OPENMATES_PROJECT_ROOT=$GATE_TMP"
+# Lane flag: a pre-created session opened with `sessions.py lane-open` admits
+# sub-agents of the conversation even from a cwd outside its worktree.
+cat > "$GATE_TMP/.claude/sessions.json" <<JSON
+{"sessions":{"aaaa":{"agent_task_id":"conv-1","worktree":{"path":"$GATE_TMP/.openmates-agent-worktrees/agent-aaaa"}},"bbbb":{"agent_task_id":"other","lane_edit":true,"worktree":{"path":"$GATE_TMP/.openmates-agent-worktrees/agent-bbbb"}}}}
+JSON
+run_case "session-gate: lane_edit session admits sub-agent edits from any cwd" \
+  "session-edit-gate.sh" \
+  "{\"session_id\":\"conv-1\",\"cwd\":\"$GATE_TMP\",\"tool_input\":{\"file_path\":\"$GATE_TMP/.openmates-agent-worktrees/agent-bbbb/x.txt\"}}" \
+  0 "" "OPENMATES_PROJECT_ROOT=$GATE_TMP"
+rm -rf "$GATE_TMP"
+run_case "session-gate: gitignored private file allowed" \
+  "session-edit-gate.sh" \
+  '{"session_id":"none","cwd":"/home/superdev/projects/OpenMates","tool_input":{"file_path":"/home/superdev/projects/OpenMates/FOCUS.md"}}' \
+  0 ""
+run_case "session-gate: file outside the repository allowed" \
+  "session-edit-gate.sh" \
+  '{"session_id":"none","cwd":"/tmp","tool_input":{"file_path":"/tmp/foo.txt"}}' \
   0 ""
 
 echo ""

@@ -45,7 +45,7 @@ enum DevFocusPhaseFixture {
         // key material isolated under that identity and never read real files.
         let existingMaster = try await CryptoManager.shared.loadMasterKey(for: accountID)
         let master = existingMaster ?? SymmetricKey(data: Data(repeating: 0x52, count: 32))
-        if existingMaster == nil { try await CryptoManager.shared.saveMasterKey(master, for: accountID) }
+        if existingMaster == nil { await CoreLegacyAccess.installFixtureMasterKey(master, for: accountID) }
         let body: [String: Any]
         if path.hasSuffix("/sources") {
             body = ["sources": []]

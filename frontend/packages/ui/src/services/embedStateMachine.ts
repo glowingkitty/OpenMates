@@ -135,6 +135,35 @@ export function validateEmbedTransition(
   return false;
 }
 
+/** Stored and incoming facts of one inbound embed event, as the AI-stream handlers see them. */
+export interface EmbedEventAdmissionInput {
+  currentStatus: string;
+  incomingStatus: unknown;
+  currentVersion?: number;
+  incomingVersion?: number;
+  /** `send_embed_data` only: a newer version or a finished refresh bypasses the transition check. */
+  versionExempt: boolean;
+}
+
+/**
+ * Whether an inbound `embed_update` / `send_embed_data` event may be applied to a
+ * stored embed: the transition check of the AI-stream handlers, with the
+ * newer-version and finalized-refresh exemptions of `send_embed_data`.
+ * Pure decision (the Rust `embed_read::admission` port is replayed against this).
+ */
+export function isEmbedEventAdmitted(input: EmbedEventAdmissionInput): boolean {
+  const incoming = normalizeEmbedStatus(input.incomingStatus);
+  if (input.versionExempt) {
+    const isNewerVersion =
+      typeof input.incomingVersion === "number" &&
+      input.incomingVersion > (input.currentVersion ?? 0);
+    const isFinalizedRefresh =
+      input.currentStatus === incoming && incoming === EmbedStatus.FINISHED;
+    if (isNewerVersion || isFinalizedRefresh) return true;
+  }
+  return validateEmbedTransition(input.currentStatus, incoming);
+}
+
 /**
  * Check if an embed status is terminal (no further transitions expected,
  * except FINISHED → ERROR for decryption failures).

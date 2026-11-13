@@ -12,6 +12,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { createProjectPlanForTest } = require('./helpers/create-project-plan');
+const { naturalProjectName } = require('./helpers/project-names');
 
 function deriveApiUrl(baseUrl: string): string {
 	const url = new URL(baseUrl || 'https://app.dev.openmates.org');
@@ -51,7 +52,7 @@ test.describe('Unified workspace detail pages', () => {
 	test('Project cards open a canonical shared-header detail page', async ({ page }) => {
 		await skipIfFeaturesDisabled(test, page, ['platform:projects']);
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
-		const title = `Unified detail project ${Date.now()}-${test.info().workerIndex}`;
+		const title = naturalProjectName('Podcast launch');
 		let projectId = '';
 
 		try {
@@ -105,7 +106,7 @@ test.describe('Unified workspace detail pages', () => {
 	test('Plan cards open a canonical shared-header detail page', async ({ page }) => {
 		await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
-		const title = `Unified detail plan project ${Date.now()}-${test.info().workerIndex}`;
+		const title = naturalProjectName('Marathon training');
 		let planId = '';
 		let projectId = '';
 

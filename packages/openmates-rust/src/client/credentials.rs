@@ -190,6 +190,14 @@ impl Client {
     pub(super) fn is_local_browser_profile(&self)->bool {
         self.browser_local_read_only&&self.browser_credentials.is_some()&&self.browser_authority.is_some()
     }
+    /// Online browser session reading its own retained IndexedDB rows. This is
+    /// a read-only cached view mode; it grants no local-profile or server authority.
+    pub(super) fn is_online_browser_cache_profile(&self) -> bool {
+        !self.browser_local_read_only
+            && self.browser_transport
+            && self.browser_credentials.is_some()
+            && self.browser_authority.is_some()
+    }
 
     pub(super) fn require_credentials(&self) -> Result<CredentialScope<'_>> {
         #[cfg(all(target_arch="wasm32",feature="browser-metadata-prototype"))]

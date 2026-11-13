@@ -805,20 +805,29 @@ def test_export_options_are_reused_and_validated(tmp_path: Path) -> None:
         release.validate_export_options(path, "OTHER")
 
 
-@pytest.mark.parametrize("bridge,required", [
-    ("PairOpaqueBridge", (
-        "Cargo.toml", "Cargo.lock", "src/lib.rs", "include/PairOpaqueBridge.h",
-        "build-apple.sh", "localize-runtime.sh", "local-runtime-symbols.txt",
-    )),
-])
-def test_rust_bridge_source_changes_invalidate_archives_but_build_caches_do_not(
-    tmp_path: Path, monkeypatch, bridge: str, required: tuple[str, ...],
+def test_rust_core_source_changes_invalidate_archives_but_build_caches_do_not(
+    tmp_path: Path, monkeypatch,
 ) -> None:
+    required = (
+        "Cargo.toml", "Cargo.lock",
+        "packages/openmates-apple-bindings/Cargo.toml",
+        "packages/openmates-apple-bindings/uniffi.toml",
+        "packages/openmates-apple-bindings/uniffi-bindgen.rs",
+        "packages/openmates-apple-bindings/src/lib.rs",
+        "packages/openmates-rust/Cargo.toml",
+        "packages/openmates-apple-bindings/build-xcframework.sh",
+        "packages/openmates-apple-bindings/local-runtime-symbols.txt",
+        "packages/openmates-rust/src/lib.rs",
+        "apple/OpenMatesCore/Sources/OpenMatesCore/OpenMatesCore.swift",
+    )
     release = load_module()
-    bridge_inputs = tuple(path for path in release.SOURCE_INPUTS if path.startswith(f"apple/{bridge}/"))
-    monkeypatch.setattr(release, "SOURCE_INPUTS", bridge_inputs)
+    core_inputs = tuple(
+        path for path in release.SOURCE_INPUTS
+        if path in {"Cargo.toml", "Cargo.lock"} or path.startswith(("packages/openmates-", "apple/OpenMatesCore"))
+    )
+    monkeypatch.setattr(release, "SOURCE_INPUTS", core_inputs)
     monkeypatch.setattr(release, "project_external_inputs", lambda repo_root: [])
-    bridge_root = tmp_path / "apple" / bridge
+    bridge_root = tmp_path
     for relative in required:
         path = bridge_root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -830,7 +839,7 @@ def test_rust_bridge_source_changes_invalidate_archives_but_build_caches_do_not(
         after = release.source_content_identity(tmp_path)
         assert after["content_sha256"] != before["content_sha256"], relative
         before = after
-    cached = bridge_root / "target/release/bridge.a"
+    cached = bridge_root / "packages/openmates-apple-bindings/target/release/bridge.a"
     cached.parent.mkdir(parents=True)
     cached.write_bytes(b"reproducible build cache")
     assert release.source_content_identity(tmp_path) == before

@@ -218,6 +218,7 @@ impl Client {
                 let mapping = zeroize::Zeroizing::new(decrypt_optional(&raw, "encrypted_pii_mappings", &key)?);
                 if !mapping.is_empty() { mappings.extend(serde_json::from_str::<Vec<Value>>(&mapping)?); }
             }
+            mappings.extend(crate::client::memory_privacy::response_mappings(&message)?);
             messages.push(message.into_inner());
         }
         for message in messages.iter_mut() {
@@ -232,6 +233,8 @@ impl Client {
         scope.check_chat(self, id)?;
         self.require_canonical_read_profile()?;
         self.verify_private_operation()?;
+        let mut row = row;
+        self.carry_cached_unread_count(id, &mut row);
         self.insert_chat_row(id.to_owned(), row);
         self.active_chat = Some(id.to_owned());
         Ok(Some(chat.into_inner()))

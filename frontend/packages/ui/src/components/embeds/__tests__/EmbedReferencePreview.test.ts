@@ -197,6 +197,32 @@ describe("EmbedReferencePreview", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+  it("keeps retrying in the background and renders once a stalled Worker recovers", async () => {
+    const embedId = "stalled-worker-embed-id";
+    embedResolverMocks.resolveEmbed.mockImplementation(async () => {
+      if (embedResolverMocks.resolveEmbed.mock.calls.length <= 5) throw new Error("unit_timeout");
+      return { embed_id: embedId, type: "application", status: "finished", content: "c", app_id: "code", skill_id: "application" };
+    });
+    embedResolverMocks.decodeToonContent.mockResolvedValue({ type: "application", app_id: "code", skill_id: "application", name: "App", file_refs: [] });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const component = mount(EmbedReferencePreview, { target, props: { embedRef: embedId, embedId } });
+    try {
+      await flush();
+      await vi.advanceTimersByTimeAsync(7_000);
+      await flush();
+      expect(target.textContent).toContain("Preview unavailable");
+      await vi.advanceTimersByTimeAsync(20_000);
+      await flush();
+      expect(rendererMocks.render).toHaveBeenCalled();
+    } finally {
+      await unmount(component);
+      target.remove();
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("does not render stale data after a terminal embed update", async () => {
     const embedId = "failed-application-embed-id";
     const pendingEmbed = deferred<Record<string, unknown> | null>();

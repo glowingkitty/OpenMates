@@ -3,6 +3,8 @@ export interface ActivitySummaryState {
   apps: string[];
   memories: string[];
   focuses: string[];
+  /** Names of Projects the assistant created in this response (shown before the focus). */
+  createdProjects?: string[];
   thinking: boolean;
   usingApps: boolean;
   thinkingStreaming: boolean;
@@ -20,7 +22,10 @@ export function activitySummaryCandidates(state: ActivitySummaryState, translate
     ? t('list_last', { items: names.slice(0, -1).join(', '), last: names[names.length - 1] }) : names[0] ?? '';
   const join = (parts: string[]) => parts.reduce((a, b) => a ? t('join', { first: a, last: b }) : b, '');
   const appCount = () => t(state.usingApps ? 'using_count' : state.thinking && !state.memories.length ? 'thought_used_count' : 'used_count', { count: state.apps.length });
-  const focus = (compact: boolean) => t(compact ? state.activatingFocus ? 'focus_activating_count' : 'focus_activated_count'
+  const created = state.createdProjects ?? [];
+  const focus = (compact: boolean) => created.length && !state.activatingFocus
+    ? t(compact ? 'project_created' : 'project_created_focus', { project: created.join("', '"), focus: state.focuses.join("', '") })
+    : t(compact ? state.activatingFocus ? 'focus_activating_count' : 'focus_activated_count'
     : state.activatingFocus ? 'focus_activating' : 'focus_activated', { focus: state.focuses.join("', '"), count: state.focuses.length });
   const subChats = () => t(state.workingSubChats ? 'sub_chats_working' : 'sub_chats');
   const memory = (compact: boolean) => t(!compact && state.memories.length === 1 ? 'memory_loaded' : 'memories_loaded', { memory: state.memories[0] ?? '', count: state.memories.length });

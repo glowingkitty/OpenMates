@@ -177,9 +177,9 @@ async def test_guest_admission_has_local_and_ip_rate_and_concurrency_and_one_cre
     for invalid_seconds in [121, float("nan"), float("inf")]:
         with pytest.raises(guest_module.GuestTranscriptionDenied):
             await meter.reserve_audio(invalid_seconds)
-    await meter.reserve_audio(6)
+    await meter.reserve_audio(4)
     assert len([e for e in meter.service.events if e[0] == "reserve"]) == 1
-    await meter.reserve_audio(6.01)
+    await meter.reserve_audio(4.01)
     assert meter.service.events[-1][1]["quoted_credits"] == 1
     # Rotating the local ID retains the shared IP concurrency boundary.
     second = Socket()
@@ -413,7 +413,7 @@ async def test_guest_protocol_reserves_before_forwarding_and_settles_ephemeral_w
                 for row in service.events
                 if row[0] == "reserve"
             )
-            == 2
+            == 3
         )
     elif termination == "audio_denied":
         assert "input_audio.append" not in events
@@ -721,7 +721,7 @@ async def test_guest_ambiguous_spend_survives_normal_reservation_expiry(failure)
     assert correction_row["finalized_credits"] == (
         0 if failure == "before_dispatch" else correction_row["reserved_credits"]
     )
-    assert used == 2 + correction_row["finalized_credits"]
+    assert used == 3 + correction_row["finalized_credits"]
     clock[0] += timedelta(hours=3)
     await service._release_expired_reservations_locked()
     assert directus.budget["daily_used_credits"] == used

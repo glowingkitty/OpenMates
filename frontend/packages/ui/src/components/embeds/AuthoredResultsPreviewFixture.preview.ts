@@ -820,13 +820,14 @@ const children: SavedChild[] = [
   }
 ];
 const carrierId = '777d0000-0000-4000-8000-000000001000';
-function fixture(selected: typeof children, mode: 'auto' | 'cards' | 'map' = 'cards') {
+function fixture(selected: typeof children, mode: 'auto' | 'cards' | 'map' = 'cards', pendingCount = 0) {
   const content: AuthoredResultsContent = { type: 'authored_results', app_id: 'ai', skill_id: 'authored_results',
     schema_version: 1, title: 'Supplied typed records', status: 'finished',
     embed_ids: selected.map(child => child.embed_id),
     items: selected.map(child => ({ embed_id: child.embed_id, kind: child.content.authoring.kind,
       title: child.content.title, embed_ref: child.content.embed_ref })),
-    view: { mode, embeds: selected.map(child => child.embed_id) } };
+    view: { mode, embeds: selected.map(child => child.embed_id) },
+    ...(pendingCount > 0 ? { pending_count: pendingCount } : {}) };
   return { id: carrierId, content, children: selected };
 }
 const event = children.find(child => child.content.authoring.kind === 'events.event')!;
@@ -836,6 +837,21 @@ const timed = { ...event, content: { ...event.content, date_start: '2027-01-30T0
   date_end: undefined, title: 'Supplied event with unknown end' } };
 const dateOnly = { ...event, content: { ...event.content, date_start: '2027-01-30',
   date_end: undefined, title: 'Supplied date-only event' } };
+// Two dated conference cards. Each is a distinct stored embed with its own reference.
+function conference(suffix: string, title: string, date: string, venue: Record<string, unknown>): SavedChild {
+  return { embed_id: `777d0000-0000-4000-8000-0000000000${suffix}`,
+    content: { ...event.content, title, date_start: date, date_end: undefined, venue,
+      image_url: undefined, embed_ref: `conference-${suffix}-fixture` } };
+}
+const mappedVenue = { name: 'ULB', city: 'Brussels', lat: 50.813, lon: 4.382 };
+const calendarAndMap = [
+  conference('e1', 'Open source conference: opening day', '2027-01-30', mappedVenue),
+  conference('e2', 'Open source conference: workshops', '2027-01-31', { ...mappedVenue, name: 'Solbosch campus', lat: 50.81, lon: 4.38 }),
+];
+const calendarOnly = [
+  conference('e3', 'Online talk series: first session', '2027-01-30', { name: 'Online', city: 'Online' }),
+  conference('e4', 'Online talk series: second session', '2027-01-31', { name: 'Online', city: 'Online' }),
+];
 const partial = fixture([event], 'auto');
 partial.content.validation = { status: 'partial', warnings: [{ code: 'invalid_item', path: 'items[1]' }] };
 const streaming = { ...fixture([], 'auto'), children: [event],
@@ -873,6 +889,9 @@ export const variants = {
   partial, partialFullscreen: { ...partial, initialFullscreen: true }, streaming,
   tvNavigation: { ...tv, navigation: true },
   groupSource: { ...fixture([event], 'auto'), renderViaGroup: true, sourceChatId: '777d0000-0000-4000-8000-000000002000' },
+  calendarAndMap: fixture(calendarAndMap, 'auto'),
+  calendarOnly: fixture(calendarOnly, 'auto'),
+  pending: fixture(calendarAndMap, 'auto', 2),
   matrix25: fixture(children), singleevent: fixture([event], 'auto'),
   mixed: fixture(mixed), mixedmap: fixture(mapped, 'map'),
   dateOnly: fixture([dateOnly], 'auto'), timedNoEnd: fixture([timed], 'auto'),

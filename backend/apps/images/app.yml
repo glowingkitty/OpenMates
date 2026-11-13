@@ -201,6 +201,37 @@ embed_types:
       - {name: files, type: object, required: true}
       - {name: s3_base_url, type: string, required: true}
       - {name: aes_key, type: string, required: true}
+  - id: modify
+    category: app-skill-use
+    skill_id: modify
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: generated_image
+    child_frontend_type: images-generated-image
+    child_preview_component: images/ImageGenerateEmbedPreview.svelte
+    child_fullscreen_component: images/ImageGenerateEmbedFullscreen.svelte
+    preview_component: GeneratedMediaGroupEmbedPreview.svelte
+    fullscreen_component: GeneratedMediaGroupEmbedFullscreen.svelte
+    icon: image
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.generate
+    content_fields:
+      - {name: status, type: string, required: true}
+      - {name: embed_ref, type: string}
+      - {name: result_count, type: number, required: true}
+      - {name: embed_ids, type: array, required: true}
+      - {name: output_embed_refs, type: array}
+      - {name: failed_results, type: array}
+    child_content_fields:
+      - {name: prompt, type: string, required: true}
+      - {name: model, type: string, required: true}
+      - {name: files, type: object, required: true}
+      - {name: s3_base_url, type: string, required: true}
+      - {name: aes_key, type: string, required: true}
+      - {name: review_status, type: string}
+      - {name: unmet_requirements, type: array}
+      - {name: attempts, type: number}
   - id: generated_image
     category: direct
     frontend_type: images-generated-image
@@ -241,46 +272,34 @@ embed_types:
         description: "Source domain name"
       - name: favicon_url
         type: string
-settings_and_memories:
-  # Preferred styles: Image styles and aesthetics the user prefers
-  - id: preferred_styles
-    name_translation_key: images.preferred_styles
-    description_translation_key: images.preferred_styles.description
-    icon_image: image.svg
-    type: list
-    example_translation_keys:
-      - "images.preferred_styles.example_1"
-      - "images.preferred_styles.example_2"
-      - "images.preferred_styles.example_3"
-    example_entries:
-      - name: "images.preferred_styles.example_1.name"
-        description: "images.preferred_styles.example_1.description"
-      - name: "images.preferred_styles.example_2.name"
-        description: "images.preferred_styles.example_2.description"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Style name (e.g., Watercolor, Minimalist, Cyberpunk, Art Deco)
-          is_title: true
-        description:
-          type: string
-          description: Optional description of the style or when to use it
-          multiline: true
-      required:
-        - name
 instructions:
   - instruction: |
       After image generation or vectorization completes, describe the actual
-      successful results and include the returned parent and every successful
-      child embed_ref inline, preserving their grouping. Report failed outputs
+      successful results and include every successful child embed_ref inline,
+      in request order. Never reference the parent. Report failed outputs
       honestly. Do not expose raw task IDs, embed IDs, or status codes.
   - instruction: |
       CRITICAL — Image editing / modification workflow:
-      When the user asks to edit, modify, transform, or remix an uploaded image, you MUST call images-generate (or images-generate_draft) with the embed_ref in the reference_images parameter. The server will automatically load and decrypt the original image and pass it to the image generation model. Do NOT call images-view first — that is only for when you need to visually inspect or describe an image, not for editing it.
-      Correct example: User uploads "photo.jpg" and says "add a dragon" → call images-generate with requests: [{"prompt": "...", "reference_images": ["photo.jpg"]}]
-      Wrong: calling images-view first and then images-generate without reference_images.
+      Choose by what the change needs. Pass pictures by their exact embed_ref; the server loads the originals. Do NOT call images-view first — that is only for inspecting or describing an image, not for editing it.
+      1. Exact, deterministic edits of the given pictures → images-modify: place, overlay or combine pictures (a logo or motif on a photo, an embroidery result's stitch preview on a garment photo), collages and layouts, crop, resize, rotate, flip, colour, brightness and contrast changes, blur or sharpen, masks, borders, simple text. Everything not asked to change stays exactly as it was.
+      2. Changes that need new picture content → images-generate (or images-generate_draft) with the pictures in reference_images: a different angle, pose, view or lighting, removing or adding people or objects that must be invented, realistic fabric folds or a photorealistic look, a new style.
+      You may chain them: first images-modify to compose exactly, then images-generate with that result as reference for a realistic look.
+      Examples: "put the logo bottom right, small" on photo.jpg → images-modify with images ["photo.jpg", "logo.png"]. "Show the jacket from the side with the logo on the sleeve" → images-generate with reference_images ["jacket.jpg", "logo.png"]. "Add a dragon" → images-generate with reference_images ["photo.jpg"].
+      To change an images-modify result again ("a bit higher", "smaller"), call images-modify with that result's embed_ref and only the requested change; it is recomputed from the original pictures. Put the user's hard, checkable constraints into requirements; if the result lists unmet_requirements, tell the user plainly which ones.
+  - instruction: |
+      Vector graphics (SVG): create and change them only through images-generate with output_filetype "svg".
+      Do not write SVG code in the answer unless the user explicitly asks to see or get the raw source.
+      To change a graphic made earlier in the chat, call images-generate with output_filetype "svg",
+      the embed_ref of that graphic in reference_images, and a prompt that states only the requested change.
+      Every requested change needs its own new images-generate call in this turn, also for small changes
+      such as colours. Never say an image or graphic was changed, and never show an earlier embed_ref as
+      the changed result, unless images-generate returned a new result in this turn.
+      One request per wanted variation; keep each prompt short and concrete (subject, style, colours, text,
+      intended use such as print, embroidery or cutting).
+      Choose vector_engine "script" when shapes should be computed (mathematical, symmetric, repeated, smooth
+      transitions), "recraft" for dense painterly illustrations, otherwise leave the default. Put the user's
+      hard, checkable constraints into requirements so the result is verified and corrected automatically;
+      if the result lists unmet requirements, tell the user plainly which ones.
 skills:
   - id: search
     anonymous_access: authenticated
@@ -359,12 +378,15 @@ skills:
       expose_get: true
       expose_post: true
     preprocessor_hint: >
-      Generate high-quality images from text prompts and/or reference images (image-to-image editing).
+      Generate images or SVG vector graphics (logos, icons, patterns, drawings), new or modified.
+      Works from text prompts and/or reference images (image-to-image editing).
       Also use for: mockups, design concepts, visual mockup creation, logo mockups,
       product mockups, illustration requests, visual design, concept art, posters,
       banners, thumbnails, or any request that implies creating a visual output.
-      Use output_filetype="svg" for logos, icons, illustrations, and any other
-      vector graphics that need to be scalable or editable.
+      Also the way to create or modify ANY vector graphic (SVG): logos, icons, illustrations,
+      infographics, labelled or technical drawings, patterns, embroidery or cutting motifs — call this
+      skill with output_filetype="svg" instead of writing SVG code in the answer. To change an existing
+      graphic (SVG or pixel image), pass it via reference_images and describe the change.
       When the user provides uploaded images as references (embed_refs), pass them via reference_images.
       Do not use this for scam, spam, fake-document, fake-endorsement, public-figure
       impersonation, or watermark/detection-evasion requests.
@@ -387,7 +409,7 @@ skills:
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single image.
             Example for single image: {"requests": [{"prompt": "a cute cat"}]}
             Each object must contain 'prompt' (detailed description), and can include optional
-            'aspect_ratio', 'output_filetype', and 'quality'.
+            'aspect_ratio', 'output_filetype', 'vector_engine', 'requirements', 'quality' and 'reference_images'.
           items:
             type: object
             properties:
@@ -408,9 +430,9 @@ skills:
                   basic: true
                 type: string
                 description: |
-                  Output file format. Use "svg" to generate a scalable vector graphic (SVG) via
-                  Recraft V4.1 — ideal for logos, icons, illustrations, and any graphic that needs
-                  to be scalable, editable in design tools, or used at any size without quality loss.
+                  Output file format. Use "svg" for every vector graphic: logos, icons, illustrations,
+                  infographics, labelled or technical drawings, patterns, and for changing an existing
+                  SVG or redrawing a pixel image as vector. See vector_engine for who draws it.
                   Use "png" or "jpg" for photos, realistic scenes, and detailed raster images.
                   When a Recraft model is selected, Recraft V4 is used for raster output as well.
                 enum: ["png", "jpg", "svg"]
@@ -420,8 +442,10 @@ skills:
                   basic: true
                 type: string
                 description: |
-                  Generation quality. Controls which model tier is used when Recraft is the provider.
-                  For SVG output (output_filetype="svg"):
+                  Generation quality.
+                  For SVG output with vector_engine "llm" or "script": "max" lets the vector author reason longer
+                  (for complex, multi-part drawings; costs more tokens).
+                  For SVG output with vector_engine "recraft":
                     "default" uses Recraft V4.1 Vector (100 credits — good for web/UI use).
                     "max" uses Recraft V4.1 Pro Vector (300 credits — best for print, large-format,
                     or highly detailed vector illustrations).
@@ -431,6 +455,42 @@ skills:
                   For other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.
                 enum: ["default", "max"]
                 default: "default"
+              vector_engine:
+                x-ui:
+                  basic: false
+                type: string
+                description: |
+                  Only for output_filetype="svg": how the vector graphic is made.
+                  "llm" (default): a vector author model writes clean, editable SVG code directly.
+                  Best for logos, icons, flat illustrations, diagrams, text and organic hand-drawn
+                  shapes. Billed by the tokens used (typically 10-80 credits).
+                  "script": the author model writes a small deterministic program that computes the
+                  SVG and runs in a sandbox. Recommended whenever geometry should be calculated
+                  rather than drawn by hand: mathematical or parametric shapes, spirals, fractals,
+                  mandalas, exact symmetry, repeated or tiled patterns, many similar elements,
+                  smooth curve or colour transitions, charts from numbers. Billed by the tokens used
+                  plus 5 credits per started minute of sandbox time.
+                  "recraft": Recraft V4.1 Vector, for richly detailed, painterly or decorative
+                  illustrations where a traced look is fine (100 credits, or 300 with quality "max").
+                  Cannot use reference_images.
+                  "llm" and "script" can modify an existing graphic passed in reference_images.
+                enum: ["llm", "script", "recraft"]
+                default: "llm"
+              requirements:
+                x-ui:
+                  basic: false
+                type: array
+                description: |
+                  Only for output_filetype="svg". Optional list of short natural-language requirements
+                  the finished graphic must meet, each one checkable by looking at the picture
+                  (e.g. "exactly two variations side by side", "only solid closed fills, no
+                  gradients", "the name is written in uppercase", "nothing is cut off").
+                  When given, the rendered result is checked against each requirement and a clearly
+                  unmet one triggers an automatic correction (at most 2 rounds); each check and
+                  correction is billed by its tokens. Omit it for simple requests: then no check
+                  runs. Include the user's hard constraints here, not style wishes.
+                items:
+                  type: string
               reference_images:
                 x-ui:
                   basic: false
@@ -442,7 +502,10 @@ skills:
                   The server resolves all cryptographic and storage details automatically.
                   Supports up to 14 reference images. When provided, enables image-to-image
                   editing/style-transfer mode (Google Gemini: same endpoint; FLUX: switches
-                  to the 4B edit model). Ignored for SVG/Recraft output.
+                  to the 4B edit model). With output_filetype="svg" and vector_engine "llm" or "script": an SVG
+                  reference is modified from its source code (a script-made one always through its
+                  generator script), a pixel reference is redrawn as vector.
+                  Ignored by vector_engine "recraft".
                 items:
                   type: string
                   description: Original filename (embed_ref) of an uploaded image
@@ -505,6 +568,88 @@ skills:
             the user's conversation. The image must be PNG, JPG, or WEBP format.
       required:
         - source_image
+  - id: modify
+    anonymous_access: authenticated
+    name_translation_key: images.modify
+    description_translation_key: images.modify.description
+    api_config:
+      expose_get: false # Needs the chat's embed context to read the input pictures
+      expose_post: false # Not a standalone REST skill (Specification feature.app-skill.images-modify)
+    preprocessor_hint: >
+      Change or combine pictures from the chat exactly: place or overlay one picture on another (a logo,
+      motif or an embroidery result's stitch preview on a photo), collages and layouts, crop, resize,
+      rotate, flip, colour, brightness, contrast, blur, sharpen, masks, borders and simple text. Works on
+      the original files of one to six uploaded or generated images, vector graphics or embroidery results
+      and keeps everything else unchanged. Also changes an earlier images-modify result again. Changes that
+      need new content (another angle, pose or lighting, removing a person, a realistic look) use
+      images-generate with reference_images instead.
+    class_path: |
+      backend.apps.images.skills.modify_skill.ModifySkill
+    full_model_reference: google/gemini-3.8-flash
+    providers:
+      - name: google
+        display_name: Google
+      - name: e2b
+        display_name: E2B
+    # Model tokens of every author and review call at the model's price plus the per_minute price per started sandbox minute.
+    pricing:
+      per_minute: 4
+    supplier_costs:
+      per_minute:
+        price: 0.00222
+        currency: USD
+        source_url: https://e2b.dev/pricing
+        note: E2B 2 vCPU, 2 GiB; model tokens billed separately
+    tool_schema:
+      type: object
+      properties:
+        instructions:
+          x-ui:
+            basic: true
+          type: string
+          maxLength: 2000
+          description: |
+            What to do with the pictures, concretely: positions, sizes, angles, colours, text, layout
+            (e.g. "put picture 2 on the middle of the back in picture 1, about a third of the jacket's width,
+            upright"). Refer to the pictures by their order in images. Only exact operations on the given
+            pictures; nothing new is invented.
+        images:
+          x-ui:
+            basic: true
+          type: array
+          minItems: 1
+          maxItems: 6
+          description: |
+            One to six exact embed_ref values of pictures shown in this conversation, in a meaningful
+            order (usually the base picture first): uploaded or generated images, vector graphics, or
+            design-embroidery results (used as their stitch preview without background). Passing an earlier
+            images-modify result changes its editing steps instead of editing the picture again.
+          items:
+            type: string
+            description: Exact embed_ref of a picture in this conversation
+        requirements:
+          x-ui:
+            basic: false
+          type: array
+          maxItems: 8
+          description: |
+            Optional short, checkable requirements the result must meet, each judged by looking at the
+            picture (e.g. "the flame lies completely on the black back panel", "no photo is distorted").
+            When given, the result is checked and clearly unmet ones are corrected automatically (at most
+            2 rounds); omit for simple edits, then no check runs.
+          items:
+            type: string
+            maxLength: 300
+        output_filetype:
+          x-ui:
+            basic: false
+          type: string
+          description: Result file type; "png" keeps transparency, "jpg" for photos.
+          enum: ["png", "jpg"]
+          default: "png"
+      required:
+        - instructions
+        - images
   - id: generate_draft
     anonymous_access: authenticated
     name_translation_key: images.generate_draft
@@ -522,8 +667,9 @@ skills:
     class_path: |
       backend.apps.images.skills.generate_skill.GenerateSkill
     providers:
+      - Recraft
       - BFL
-    full_model_reference: bfl/flux-2-klein
+    full_model_reference: recraft/recraftv4_1_flash
     tool_schema:
       type: object
       properties:
@@ -554,7 +700,7 @@ skills:
                   filenames, e.g. "my_photo.jpg") from the toon blocks in the conversation.
                   The server resolves all cryptographic and storage details automatically.
                   Supports up to 4 reference images. When provided, automatically switches to
-                  the FLUX.2 [klein] 4B edit model (image-to-image, 27 credits).
+                  the FLUX.2 [klein] 4B edit model (image-to-image) instead of the text-only Recraft V4.1 Flash model.
                 items:
                   type: string
                   description: Original filename (embed_ref) of an uploaded image
@@ -605,6 +751,16 @@ marketing_discovery:
         - manual vectorization is tedious
       demo_angles:
         - show raster-to-vector result
+    modify:
+      enabled: true
+      keywords:
+        - put a logo on a photo with AI
+        - make a photo collage in chat
+        - place an embroidery design on a garment photo
+      pain_points:
+        - exact image edits need an image editor
+      demo_angles:
+        - show an embroidery stitch preview placed on an outfit photo
     generate_draft:
       enabled: true
       keywords:

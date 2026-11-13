@@ -1,0 +1,25 @@
+id: skill-web-source-and-live-progress
+title: Web pages as a search source and live progress for app skills
+status: implementing
+goal: >-
+  Product search and general event discovery also answer from public web pages
+  (web search, robots-aware reader, small-model extraction with facts checked
+  against the page), and a running app skill shows live source and result
+  counts on its processing embed instead of a static text.
+# Requested by the user in the Claude chat linked to OpenMates Tasks
+# d4d7d6dd-070e-411b-9dcf-7ffe221f7350 (web source, model benchmark) and
+# 65e101a3-68cb-4f3b-8afc-d59403ad66d1 (live progress); the Tasks own progress.
+specifications:
+  - feature.instance-app-packages@1  # assertion instance-app-packages.web-source
+  - architecture.app-skill-execution@1  # assertion app-skills.progress.live-status
+acceptance:
+  - Extraction model chosen by backend/scripts/benchmark_web_result_extraction.py (accuracy, speed, cost).
+  - Web results carry their source page; prices, fees, links and pictures only when the page states them.
+  - A failing web search, page or model answer never fails the request or the other sources.
+  - Processing embeds receive progress frames (sources total/done, result count) that are never persisted.
+  - Web client shows the live status line; component spec and backend tests green in isolated CI.
+  - Result videos on dev for an event discovery request and a product search request.
+not_in_scope:
+  - Web source without installed providers on the server; explicit selection of the web source by callers.
+  - Charging the web source on skills served only by installed providers.
+  - Live progress text in the CLI and the Apple apps (web first; follow-up Tasks).

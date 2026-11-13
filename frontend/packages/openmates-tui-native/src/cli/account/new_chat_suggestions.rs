@@ -4,7 +4,9 @@ use super::settings_more::text_output;
 use super::{CliError, CliOutput, Invocation, handlers};
 use crate::client::Client;
 use openmates_sdk::client::new_chat_suggestions::{NewChatSuggestion, js_parse_int};
+use openmates_sdk::sdk::OpenMates;
 use serde_json::Value;
+use tokio_util::sync::CancellationToken;
 
 pub(super) fn supported(invocation: &Invocation) -> bool {
     invocation.command_path() == "newchatsuggestions"
@@ -38,13 +40,40 @@ fn text(suggestions: &[NewChatSuggestion]) -> String {
 pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
     handlers::flags(i, &["limit"])?;
     let suggestions = client.new_chat_suggestions(limit(i)).await?;
+    render(i, &suggestions)
+}
+fn render(i: &Invocation, suggestions: &[NewChatSuggestion]) -> Result<CliOutput, CliError> {
     if i.boolean("json") {
         CliOutput::json(
-            &serde_json::to_value(&suggestions).map_err(|_| openmates_sdk::Error::Protocol)?,
+            &serde_json::to_value(suggestions).map_err(|_| openmates_sdk::Error::Protocol)?,
         )
     } else {
-        Ok(text_output(text(&suggestions)))
+        Ok(text_output(text(suggestions)))
     }
+}
+/// The server accepts 1..=50; anything that is not a u32 is refused here and
+/// the range itself is enforced by the server (typed SDK error).
+fn key_limit(i: &Invocation) -> Result<Option<u32>, CliError> {
+    limit(i)
+        .map(|n| {
+            u32::try_from(n)
+                .map_err(|_| CliError::Invalid("--limit must be between 1 and 50.".into()))
+        })
+        .transpose()
+}
+/// Explicit API-key variant over `/v1/sdk/new-chat-suggestions`; rows are
+/// decrypted locally with the key-wrapped account key. No Phase 1 sync socket,
+/// session or profile is used.
+pub(super) async fn execute_key(
+    i: &Invocation,
+    client: &mut OpenMates,
+    cancel: CancellationToken,
+) -> Result<CliOutput, CliError> {
+    handlers::flags(i, &["limit"])?;
+    let limit = key_limit(i)?;
+    client.set_operation_cancel(cancel);
+    let suggestions = client.new_chat_suggestions_decrypted(limit).await?;
+    render(i, &suggestions)
 }
 
 #[cfg(test)]
@@ -84,5 +113,28 @@ mod tests {
         assert_eq!(limit(&with(&[])), Some(10));
         assert_eq!(limit(&with(&[("limit", serde_json::json!("3x"))])), Some(3));
         assert_eq!(limit(&with(&[("limit", serde_json::json!("abc"))])), None);
+    }
+
+    // contract-test: supporting surface=cli assertions=cli.runtime.native-rust
+    #[test]
+    fn key_limit_keeps_the_default_and_refuses_negative_values() {
+        let with = |flags: &[(&str, Value)]| Invocation {
+            path: vec!["newchatsuggestions".into()],
+            positionals: vec![],
+            flags: flags
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), v.clone()))
+                .collect(),
+        };
+        assert_eq!(key_limit(&with(&[])).ok().unwrap(), Some(10));
+        assert_eq!(
+            key_limit(&with(&[("limit", serde_json::json!("5"))])).ok().unwrap(),
+            Some(5)
+        );
+        assert_eq!(
+            key_limit(&with(&[("limit", serde_json::json!("abc"))])).ok().unwrap(),
+            None
+        );
+        assert!(key_limit(&with(&[("limit", serde_json::json!("-1"))])).is_err());
     }
 }

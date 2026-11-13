@@ -12,6 +12,7 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { fillMessageEditor, focusMessageEditor, loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
+const { focusComposer } = require('./helpers/composer-focus');
 
 const INTRO_CHAT_TITLES = new Set(['Who develops OpenMates?']);
 
@@ -290,7 +291,8 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		expect(caretOffset, 'Caret must remain after the text typed in the middle of the draft').toBe(
 			initialCaretOffset + typedWhileActivationPaused.length + typedDuringHeaderRender.length
 		);
-		await expect(page.getByTestId('daily-inspiration-area')).toHaveCount(0);
+		// The measured welcome surface stays mounted while the draft is being typed, but is hidden under the composer.
+		await expect(page.getByTestId('daily-inspiration-area')).toBeHidden();
 		const draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 		expect(draftChatId).toBeTruthy();
 
@@ -359,7 +361,8 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		} finally {
 			if (draftChatId && page.url().includes(draftChatId)) {
 				await expect(messageEditor).toContainText(draftText, { timeout: 15000 });
-				await focusMessageEditor(messageEditor);
+				// An inactive draft shows a summary and hides its editable document until the field is activated.
+				await focusComposer(page);
 				await page.keyboard.press('Control+A');
 				await page.keyboard.press('Backspace');
 				await expect.poll(async () => (

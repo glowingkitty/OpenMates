@@ -22,6 +22,7 @@
 		panelState, // Import the new central panel state store
 		settingsDeepLink,
 		activeChatStore, // Import for deep linking
+		activeChatUrlRevision,
 		dispatchEmbedFullscreen,
 		setCanonicalFullscreenRoute, // Import for embed deep linking
 		embedFullscreenRouteStore,
@@ -103,6 +104,7 @@
 	import { waitLocale, _ as translationStore } from 'svelte-i18n';
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
+	import { declareRustChatHistorySource } from '@openmates/ui/src/services/rustCore/activeChatRustHistory';
 	import { afterNavigate, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import WorkflowsRoute from './workflows/+page.svelte';
@@ -1569,6 +1571,9 @@
 	$effect(() => {
 		const activeChatComponent = activeChat;
 		const storeChatId = $activeChatStore;
+		// With the Rust core the address bar follows a selection asynchronously; look again once it
+		// has settled, because a kept hash (Workflow handoff) is only readable then.
+		void $activeChatUrlRevision;
 		const hashChatId = activeChatStore.getChatIdFromHash();
 		const activeChatId = storeChatId || hashChatId;
 		if (
@@ -3840,6 +3845,21 @@
 		return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame); };
 	});
 
+
+	// Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === '1'). In default
+	// builds the condition folds to false and this block and its imports are removed.
+	// Rust feeds the normal ActiveChat history (rustChatHistoryBootstrap.ts).
+	if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && browser) {
+		// Start at component setup (before children mount), not in onMount: the
+		// deep-link chat open runs before this page's onMount and must wait for the
+		// Rust history source instead of racing its dynamic import.
+		let dispose = () => {};
+		let disposed = false;
+		const installing = import('$lib/rustCore/rustChatHistoryBootstrap')
+			.then(({ installRustChatHistory }) => { if (!disposed) dispose = installRustChatHistory(); });
+		declareRustChatHistorySource(installing);
+		onDestroy(() => { disposed = true; dispose(); });
+	}
 </script>
 
 <!-- SEO meta tags - client-side with translations -->
@@ -4141,6 +4161,11 @@
 		   to reveal the sidebar beneath it */
 		/* LTR: sidebar is on the left, slide main content right */
 		.main-content:not(.menu-closed) {
+			/* Repeat the zero offset at this specificity: the build lowers the
+			   desktop logical inset to :lang() selectors that outrank the plain
+			   mobile rule above, which left a sliver of the main content (profile
+			   picture, header icons) on top of the open sidebar. */
+			inset-inline-start: 0;
 			transform: translateX(100%);
 		}
 

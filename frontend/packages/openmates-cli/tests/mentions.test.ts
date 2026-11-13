@@ -51,31 +51,25 @@ const testContext: MentionContext = {
         { id: "research", name: "Research" },
         { id: "deep_web_research", name: "Deep Research" },
       ],
-      settings_and_memories: [],
     },
     {
       id: "code",
       name: "Code",
       skills: [{ id: "get_docs", name: "Get Docs" }],
       focus_modes: [],
-      settings_and_memories: [
-        { id: "projects", name: "Projects", type: "list" },
-        { id: "preferred_tech", name: "Preferred Tech", type: "list" },
-      ],
     },
     {
       id: "ai",
       name: "AI",
       skills: [{ id: "ask", name: "Ask" }],
       focus_modes: [{ id: "deep_think", name: "Deep Think" }],
-      settings_and_memories: [],
     },
   ],
   memoryEntries: [
     {
       id: "entry-abc123",
-      app_id: "code",
-      item_type: "projects",
+      app_id: "openmates",
+      item_type: "memories",
       title: "MyApp",
     },
   ],
@@ -247,8 +241,8 @@ describe("parseMentions", () => {
       assert.deepEqual(
         CHAT_MODELS.filter((model) => model.id.startsWith("claude-")).map((model) => model.id).sort(),
         [
-          "claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5",
-          "claude-fable-5", "claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5-20251001",
+          "claude-fable-5-2", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5",
+          "claude-fable-5-1", "claude-fable-5", "claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5-20251001",
           "claude-sonnet-4-6", "claude-opus-4-6", "claude-opus-4-7", "claude-opus-4-8",
           "claude-opus-4-5-20251101",
         ].sort(),
@@ -326,6 +320,7 @@ describe("parseMentions", () => {
         ["@GPT-6-Luna", "gpt-6-luna"],
         ["@GPT-5.6-Terra", "gpt-5.6-terra"],
         ["@GPT-OSS-120b", "gpt-oss-120b"],
+        ["@Claude-Fable-5.2", "claude-fable-5-2"],
         ["@Claude-Fable-5.1", "claude-fable-5-1"],
         ["@Claude-Opus-5.5", "claude-opus-5-5"],
         ["@Claude-Sonnet-5.5", "claude-sonnet-5-5"],
@@ -441,16 +436,16 @@ describe("parseMentions", () => {
   });
 
   describe("memory categories", () => {
-    it("resolves memory category", () => {
+    it("resolves the Memories category", () => {
       const result = parseMentions(
-        "@Code-Projects review architecture",
+        "@OpenMates-Memories review architecture",
         testContext,
       );
       assert.equal(result.resolved.length, 1);
       assert.equal(result.resolved[0].type, "settings_memory");
       assert.equal(
         result.resolved[0].wireSyntax,
-        "@memory:code:projects:list",
+        "@memory:openmates:memories:list",
       );
     });
   });

@@ -26,6 +26,8 @@
       subtitle: firstText(content.provider, content.source_provider, attrs.provider),
     };
   });
+  // The failure text names what failed: the embed's own title, else a generic word.
+  const loadError = $derived($text('common.detail_load_error', { values: { item: presentation.title || $text('common.details') } }));
   let showPlaceholder = $state(false);
   onMount(() => {
     const timer = setTimeout(() => { showPlaceholder = true; }, 150);
@@ -38,11 +40,11 @@
     <EmbedHeader {...presentation} staticPresentation />
   {/if}
   <EmbedTopBar {onClose} showShare={false} />
-  <span class="status" role="status">{$text(failed ? 'common.detail_load_error' : 'common.loading')}</span>
+  <span class="status" role="status">{failed ? loadError : $text('common.loading')}</span>
   {#if failed}
-    <p class="error">{$text('common.detail_load_error')}</p>
+    <p class="error" class:below-top-bar={!presentation.appId} data-testid="embed-fullscreen-load-error">{loadError}</p>
   {:else if showPlaceholder}
-    <div class="placeholder" aria-hidden="true"><div></div><div></div><div></div></div>
+    <div class="placeholder" class:below-top-bar={!presentation.appId} aria-hidden="true"><div></div><div></div><div></div></div>
   {/if}
 </div>
 
@@ -53,4 +55,6 @@
   .placeholder div { height: 1rem; border-radius: .5rem; background: var(--color-grey-30); }
   .placeholder div:last-child { width: 60%; }
   .error { padding: 2rem; color: var(--color-font-secondary); }
+  /* Without a header the floating top bar buttons sit over the first rows; start below them. */
+  .below-top-bar { padding-top: 4.5rem; }
 </style>

@@ -42,7 +42,7 @@ vi.mock('../embedStore', () => ({
 }));
 
 const senderMocks = vi.hoisted(() => ({
-  sendStoreEmbedImpl: vi.fn(),
+  sendStoreEmbedOperationImpl: vi.fn(),
   sendStoreEmbedDiffImpl: vi.fn()
 }));
 
@@ -51,15 +51,17 @@ vi.mock('../chatSyncService', () => ({
 }));
 
 vi.mock('../chatSyncServiceSenders', () => ({
-  sendStoreEmbedImpl: senderMocks.sendStoreEmbedImpl,
+  sendStoreEmbedOperationImpl: senderMocks.sendStoreEmbedOperationImpl,
   sendStoreEmbedDiffImpl: senderMocks.sendStoreEmbedDiffImpl
 }));
 
 import { chatDB } from '../db';
 
 import {
+  commitEmbedContentRevision,
   fetchEmbedVersionContent,
   fetchEmbedVersions,
+  isHeadPersisted,
   restoreEmbedVersion
 } from '../embedDiffStore';
 
@@ -67,6 +69,7 @@ describe('embedDiffStore REST version helpers', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
+    senderMocks.sendStoreEmbedOperationImpl.mockResolvedValue({ status: 'persisted', operation_id: 'op-1' });
   });
 
   // contract-test: direct surface=gui.web assertions=storage.cold.shared-team-authorized,storage.versions.metadata-and-payload
@@ -275,7 +278,7 @@ describe('embedDiffStore REST version helpers', () => {
       content: 'first'
     });
 
-    expect(senderMocks.sendStoreEmbedImpl).toHaveBeenCalledTimes(1);
+    expect(senderMocks.sendStoreEmbedOperationImpl).toHaveBeenCalledTimes(1);
     expect(senderMocks.sendStoreEmbedDiffImpl).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -286,5 +289,71 @@ describe('embedDiffStore REST version helpers', () => {
         hashed_user_id: 'hash-user'
       })
     );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=storage.versions.bounded-reconstruction
+  it('seeds the version-one snapshot on the first edit of an embed stored without history', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({
+      embed_id: 'embed-1', current_version: 1, versions: [], next_cursor: null, readonly: false
+    }));
+    const order: number[] = [];
+    senderMocks.sendStoreEmbedDiffImpl.mockImplementation(async (_service: unknown, row: { version_number: number }) => {
+      order.push(row.version_number);
+    });
+
+    await expect(commitEmbedContentRevision('embed-1', 'second', {
+      currentVersion: 1,
+      currentContent: 'first',
+      chatId: 'chat-1',
+      buildRestoredContent: (content, newVersion) => ({ type: 'code', code: content, version_number: newVersion })
+    })).resolves.toMatchObject({ version_number: 2 });
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/v1/embeds/embed-1/versions?');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('order=asc');
+    expect(senderMocks.sendStoreEmbedDiffImpl).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      embed_id: 'embed-1', version_number: 1, encrypted_snapshot: 'enc:first', encrypted_patch: null, hashed_user_id: 'hash-user'
+    }));
+    expect(order).toEqual([1, 2]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=storage.versions.bounded-reconstruction
+  it('reuses an existing version-one snapshot instead of writing another', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({
+      embed_id: 'embed-1', current_version: 1, readonly: false, next_cursor: null,
+      versions: [{ version_number: 1, created_at: 1760000000, has_snapshot: true, has_patch: false }]
+    }));
+
+    await commitEmbedContentRevision('embed-1', 'second', {
+      currentVersion: 1,
+      currentContent: 'first',
+      chatId: 'chat-1',
+      buildRestoredContent: (content, newVersion) => ({ type: 'code', code: content, version_number: newVersion })
+    });
+
+    expect(senderMocks.sendStoreEmbedDiffImpl).toHaveBeenCalledTimes(1);
+    expect(senderMocks.sendStoreEmbedDiffImpl).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ version_number: 2 }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=storage.versions.bounded-reconstruction
+  it.each([
+    [{ status: 'waiting', operation_id: 'op-1' }],
+    [{ status: 'conflict', operation_id: 'op-1', failure_code: 'embed_version_conflict' }]
+  ])('reports a head the server did not take and sends no history row ahead of it (%o)', async (head) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({
+      embed_id: 'embed-1', current_version: 1, readonly: false, next_cursor: null,
+      versions: [{ version_number: 1, created_at: 1760000000, has_snapshot: true, has_patch: false }]
+    }));
+    senderMocks.sendStoreEmbedOperationImpl.mockResolvedValue(head);
+
+    const result = await commitEmbedContentRevision('embed-1', 'second', {
+      currentVersion: 1,
+      currentContent: 'first',
+      chatId: 'chat-1',
+      buildRestoredContent: (content, newVersion) => ({ type: 'code', code: content, version_number: newVersion })
+    });
+
+    expect(result).toMatchObject({ version_number: 2, head });
+    expect(isHeadPersisted(result.head)).toBe(false);
+    expect(senderMocks.sendStoreEmbedDiffImpl).not.toHaveBeenCalled();
   });
 });

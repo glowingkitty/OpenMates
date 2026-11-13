@@ -6,6 +6,7 @@ import {
   type HostedProjectFileHead,
 } from "../hostedProjectFileExecutor";
 import type { ProjectFileJob } from "../projectFileJobExecutor";
+import { projectFileRule, type ProjectFileDecider } from "../projectState/projectFilePolicy";
 
 const projectId = "72dcdd3a-c264-4291-812b-02e820ca88c9";
 const chatId = "0b59bafd-14d8-46b7-94ab-fcf0df0fbb10";
@@ -248,5 +249,58 @@ describe("hosted Project path policy", () => {
     await expect(executeHostedProjectFileJob(malformed, job("read_text", { path: "README.md" })))
       .rejects.toMatchObject({ code: "protected_path" });
     expect(malformed.reads).toEqual(["permissions"]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+  it("answers the same path, list and search outcomes through an off-page decidePolicy", async () => {
+    const files = [
+      { path: ".gitignore", embedId: "ignore" },
+      { path: "README.md", embedId: "readme" },
+      { path: "debug.log", embedId: "debug" },
+      { path: "src/b.ts", embedId: "b" },
+      { path: "src/a.ts", embedId: "a" },
+      { path: "vault/key.txt", embedId: "vault" },
+      { path: ".env", embedId: "env" },
+    ];
+    const contents = { ignore: "*.log\n", readme: "needle\n", debug: "needle\n", b: "needle b\n", a: "needle a\n", vault: "needle\n" };
+    const ops: string[] = [];
+    // The Worker hop is a JSON round trip; route through the same TS rules asynchronously.
+    const decidePolicy: ProjectFileDecider = async (op, input) => {
+      ops.push(op);
+      await Promise.resolve();
+      return JSON.parse(JSON.stringify(projectFileRule(op, JSON.parse(JSON.stringify(input)))));
+    };
+    const plain = createAdapter(files, contents, { privatePaths: ["vault/**"] });
+    const routed = createAdapter(files, contents, { privatePaths: ["vault/**"], decidePolicy });
+    const jobs: Array<ProjectFileJob> = [
+      job("list", { path: "." }),
+      job("list", { path: "src" }),
+      job("search", { query: "needle", target: "content" }),
+      job("search", { query: "needle", target: "files", include_content: false, glob: "src/*.ts" }),
+      job("search", { query: ".ts", target: "files", include_content: true }),
+      job("read_text", { path: "src/a.ts" }),
+    ];
+    for (const current of jobs) {
+      expect(await executeHostedProjectFileJob(routed, current)).toEqual(await executeHostedProjectFileJob(plain, current));
+    }
+    expect(routed.reads).toEqual(plain.reads);
+    expect(new Set(ops)).toEqual(new Set(["projectHostedPaths", "projectHostedList", "projectHostedSearchPlan"]));
+
+    const refusals: Array<[ProjectFileJob, Record<string, unknown>]> = [
+      [job("list", { path: "../x" }), { code: "invalid_path" }],
+      [job("list", { path: ".ssh" }), { code: "protected_path" }],
+      [job("search", { query: "a", mode: "regex" }), { code: "regex_search_unavailable" }],
+      [job("search", { query: "a", glob: "!x" }), { code: "invalid_search_glob", name: "ProjectSearchProtocolError" }],
+      [job("search", { query: "a", path: ".env" }), { code: "protected_path" }],
+      [job("read_text", { path: "/abs" }), { code: "invalid_path" }],
+      [job("read_text", { path: "vault/key.txt" }), { code: "protected_path" }],
+    ];
+    for (const [current, expected] of refusals) {
+      const original = await executeHostedProjectFileJob(plain, current).then(() => null, (error: Error) => error);
+      const viaWorker = await executeHostedProjectFileJob(routed, current).then(() => null, (error: Error) => error);
+      expect(original).toMatchObject({ ...expected, message: expected.code });
+      expect(viaWorker).toMatchObject({ ...expected, message: expected.code });
+      expect(viaWorker?.constructor).toBe(original?.constructor);
+    }
   });
 });

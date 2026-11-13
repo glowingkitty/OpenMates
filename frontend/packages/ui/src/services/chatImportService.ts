@@ -7,85 +7,25 @@
 //
 // Spec: docs/specs/account-import-v1/spec.yml
 
-import JSZip from "jszip";
-import { parse } from "yaml";
 import { getApiEndpoint, apiEndpoints } from "../config/api";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
 import type { Chat, Message } from "../types/chat";
+import type {
+  AccountImportParserFormat, AccountImportSource, ImportCostEstimate, ImportFileType, ImportProgressCallback,
+  ParsedAccountImport, ParsedImportChat, ParsedImportMessage,
+} from "./chatImportTypes";
+import {
+  rustBuildMessageBatches, rustEstimateImportCost, rustParseImportFile,
+} from "./rustCore/transfer/rustChatImport";
+
+export type * from "./chatImportTypes";
 
 const DEFAULT_TITLE = "Imported chat";
-const CHARS_PER_TOKEN = 4;
 const IMPORT_MESSAGE_BATCH_SIZE = 250;
 const COMPRESSION_SUMMARY_CATEGORY = "compression_summary";
 
-export type AccountImportSource = "openmates" | "chatgpt" | "claude" | "gemini" | "opencode" | "other";
-export type AccountImportParserFormat = "claude" | "chatgpt" | "openmates" | "opencode" | "generic";
-export type ImportFileType = "claude-json" | "claude-zip" | "chatgpt-json" | "chatgpt-zip" | "opencode-json" | "openmates-zip" | "generic-json";
-
-export interface ImportedAssistantIdentity {
-  category: AccountImportSource;
-  sender_name: string;
-  model_name: string;
-}
-
-const SOURCE_IDENTITIES: Record<AccountImportSource, ImportedAssistantIdentity> = {
-  openmates: { category: "openmates", sender_name: "OpenMates", model_name: "OpenMates" },
-  chatgpt: { category: "chatgpt", sender_name: "ChatGPT", model_name: "ChatGPT" },
-  claude: { category: "claude", sender_name: "Claude", model_name: "Claude" },
-  gemini: { category: "gemini", sender_name: "Gemini", model_name: "Gemini" },
-  opencode: { category: "opencode", sender_name: "OpenCode", model_name: "OpenCode" },
-  other: { category: "other", sender_name: "AI assistant", model_name: "Other" },
-};
-
-export interface ParsedImportMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-  created_at?: string | null;
-  source_message_id?: string | null;
-  provider_metadata: Record<string, unknown>;
-  imported_assistant_identity?: ImportedAssistantIdentity | null;
-}
-
-export interface ParsedImportUpload {
-  source_upload_id: string;
-  file_name: string;
-  mime_type?: string | null;
-  bytes?: number | null;
-  content_ref: string;
-}
-
-export interface ParsedImportChat {
-  provider: AccountImportSource;
-  parser_format?: AccountImportParserFormat;
-  selected_source?: AccountImportSource;
-  source_chat_id: string;
-  source_fingerprint: string;
-  title?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-  messages: ParsedImportMessage[];
-  embeds: Array<Record<string, unknown>>;
-  uploads: ParsedImportUpload[];
-  provider_labels: string[];
-  source_metadata: Record<string, unknown>;
-}
-
-export interface ParsedAccountImport {
-  source: AccountImportSource;
-  parserFormat?: AccountImportParserFormat;
-  fileType: ImportFileType;
-  chats: ParsedImportChat[];
-  skippedDomains: string[];
-}
-
-export interface ImportCostEstimate {
-  totalInputTokens: number;
-  estimatedCredits: number;
-  chatCount: number;
-  messageCount: number;
-}
 
 export interface ImportPreviewResponse {
   import_id: string;
@@ -133,7 +73,7 @@ interface SanitizedImportBatch {
 interface ImportResumeState {
   signature: string;
   confirmed: boolean;
-  batches: ReturnType<typeof buildMessageBatches>;
+  batches: Awaited<ReturnType<typeof rustBuildMessageBatches>>;
   sanitizedChats: ParsedImportChat[];
   sanitizedBatches: SanitizedImportBatch[];
   summaries: Map<string, string>;
@@ -183,22 +123,6 @@ export interface RecentImportedChatData {
   messages: Message[];
 }
 
-export type ImportProgressPhase =
-  | "parsing"
-  | "previewing"
-  | "confirming"
-  | "scanning"
-  | "compressing"
-  | "encrypting"
-  | "persisting"
-  | "completing"
-  | "done";
-
-export type ImportProgressCallback = (
-  phase: ImportProgressPhase,
-  detail: string,
-) => void;
-
 const recentImportedChats = new Map<string, RecentImportedChatData>();
 const importResumeStates = new Map<string, ImportResumeState>();
 
@@ -219,24 +143,8 @@ export function getAllRecentImportedChatData(): RecentImportedChatData[] {
 export function estimateImportCost(
   chats: ParsedImportChat[],
 ): ImportCostEstimate {
-  let totalInputTokens = 0;
-  let messageCount = 0;
-  for (const chat of chats) {
-    for (const message of chat.messages) {
-      if (!message.content.trim()) continue;
-      totalInputTokens += Math.max(
-        1,
-        Math.ceil(message.content.length / CHARS_PER_TOKEN),
-      );
-      messageCount++;
-    }
-  }
-  return {
-    totalInputTokens,
-    estimatedCredits: chats.length,
-    chatCount: chats.length,
-    messageCount,
-  };
+  // Synchronous by contract (reactive selection UI): the chats were parsed by the Rust unit.
+  return rustEstimateImportCost(chats);
 }
 
 export async function parseImportFile(
@@ -246,50 +154,7 @@ export async function parseImportFile(
 ): Promise<ParsedAccountImport> {
   const selectedSource = typeof selectedSourceOrProgress === "string" ? selectedSourceOrProgress : undefined;
   const onProgress = typeof selectedSourceOrProgress === "function" ? selectedSourceOrProgress : progressCallback;
-  onProgress?.("parsing", "Reading import file...");
-  const lowerName = file.name.toLowerCase();
-
-  if (lowerName.endsWith(".json")) {
-    const raw = await file.text();
-    const payload = JSON.parse(raw);
-    if (selectedSource === "gemini" || selectedSource === "other") {
-      return parseGenericTranscript(payload, selectedSource, file.name);
-    }
-    const parsed = await parseProviderConversations(payload, "json", file.name);
-    return applySelectedSource(parsed, selectedSource ?? parsed.source);
-  }
-
-  if (!lowerName.endsWith(".zip")) {
-    throw new Error(
-      "Unsupported import file. Choose a Claude/ChatGPT/OpenCode export .zip/.json file or an OpenMates Export V1 .zip archive.",
-    );
-  }
-
-  const payload = await file.arrayBuffer();
-  let zip: JSZip;
-  try {
-    zip = await JSZip.loadAsync(payload);
-  } catch (error) {
-    throw new Error(
-      `Cannot read ZIP file: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  const conversationsFile = findZipFileByBasename(zip, "conversations.json");
-  if (conversationsFile) {
-    const raw = await conversationsFile.async("string");
-    const parsed = await parseProviderConversations(JSON.parse(raw), "zip", file.name);
-    return applySelectedSource(parsed, selectedSource ?? parsed.source);
-  }
-
-  if (zip.file("manifest.yml")) {
-    const parsed = await parseOpenMatesArchive(zip, file.name);
-    return applySelectedSource(parsed, selectedSource ?? parsed.source);
-  }
-
-  throw new Error(
-    "Unsupported ZIP archive. Expected Claude/ChatGPT conversations.json or OpenMates Export V1 manifest.yml.",
-  );
+  return rustParseImportFile(file, selectedSource, onProgress);
 }
 
 export async function previewImport(
@@ -351,7 +216,7 @@ export async function importChats(
     state = {
       signature,
       confirmed: false,
-      batches: buildMessageBatches(selectedChats, maxMessagesPerBatch),
+      batches: await rustBuildMessageBatches(selectedChats, maxMessagesPerBatch),
       sanitizedChats: selectedChats.map((chat) => ({ ...chat, messages: [] as ParsedImportMessage[] })),
       sanitizedBatches: [],
       summaries: new Map<string, string>(),
@@ -607,559 +472,12 @@ async function postImportJson<T = Record<string, unknown>>(
   return readJsonResponse<T>(response, label);
 }
 
-function normalizeRole(value: unknown): "user" | "assistant" | "system" {
-  const role = String(value ?? "user");
-  return role === "assistant" || role === "system" ? role : "user";
-}
-
-function claudeMessageContent(message: Record<string, unknown>): {
-  content: string;
-  blockTypes: string[];
-} {
-  const blocks = Array.isArray(message.content) ? message.content : [];
-  const blockTypes: string[] = [];
-  const textParts: string[] = [];
-  for (const rawBlock of blocks) {
-    if (!rawBlock || typeof rawBlock !== "object") continue;
-    const block = rawBlock as Record<string, unknown>;
-    const type = String(block.type ?? "unknown");
-    blockTypes.push(type);
-    if (type === "text" && typeof block.text === "string") textParts.push(block.text);
-    if (type === "tool_result" && typeof block.content === "string") {
-      textParts.push(block.content);
-    }
-  }
-  return {
-    content: textParts.length > 0 ? textParts.join("\n") : String(message.text ?? ""),
-    blockTypes,
-  };
-}
-
-function claudeUploads(message: Record<string, unknown>): ParsedImportUpload[] {
-  const items = [
-    ...(Array.isArray(message.attachments) ? message.attachments : []),
-    ...(Array.isArray(message.files) ? message.files : []),
-  ];
-  return items
-    .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
-    .map((item, index) => {
-      const fileName = String(item.file_name ?? item.name ?? `attachment-${index + 1}`);
-      return {
-        source_upload_id: String(item.uuid ?? item.id ?? fileName),
-        file_name: fileName,
-        mime_type: typeof item.mime_type === "string"
-          ? item.mime_type
-          : typeof item.file_type === "string"
-            ? item.file_type
-            : null,
-        bytes: typeof item.file_size === "number"
-          ? item.file_size
-          : typeof item.bytes === "number"
-            ? item.bytes
-            : null,
-        content_ref: fileName,
-      };
-    });
-}
-
-function providerConversationSource(raw: unknown): "claude" | "chatgpt" | "opencode" | null {
-  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-    const record = raw as Record<string, unknown>;
-    if (record.info && typeof record.info === "object" && Array.isArray(record.messages)) return "opencode";
-  }
-  const conversations = Array.isArray(raw)
-    ? raw
-    : raw && typeof raw === "object" && Array.isArray((raw as Record<string, unknown>).conversations)
-      ? ((raw as Record<string, unknown>).conversations as unknown[])
-      : [];
-  const first = conversations.find((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"));
-  if (!first) return null;
-  if ("mapping" in first || "conversation_id" in first || "current_node" in first) return "chatgpt";
-  if ("chat_messages" in first || "uuid" in first) return "claude";
-  return null;
-}
-
-async function parseProviderConversations(
-  raw: unknown,
-  container: "json" | "zip",
-  sourceName: string,
-): Promise<ParsedAccountImport> {
-  const source = providerConversationSource(raw);
-  if (source === "chatgpt") return parseChatGPTConversations(raw, container === "zip" ? "chatgpt-zip" : "chatgpt-json", sourceName);
-  if (source === "opencode") return parseOpenCodeTranscript(raw, sourceName);
-  return parseClaudeConversations(raw, container === "zip" ? "claude-zip" : "claude-json", sourceName);
-}
-
 function parserFormatForFileType(fileType: ImportFileType): AccountImportParserFormat {
   if (fileType.startsWith("chatgpt")) return "chatgpt";
   if (fileType.startsWith("opencode")) return "opencode";
   if (fileType.startsWith("openmates")) return "openmates";
   if (fileType.startsWith("generic")) return "generic";
   return "claude";
-}
-
-function applySelectedSource(
-  parsed: Omit<ParsedAccountImport, "parserFormat"> & { parserFormat?: AccountImportParserFormat },
-  selectedSource: AccountImportSource,
-): ParsedAccountImport {
-  const parserFormat = parsed.parserFormat ?? parserFormatForFileType(parsed.fileType);
-  const sourceIdentity = SOURCE_IDENTITIES[selectedSource];
-  return {
-    ...parsed,
-    source: selectedSource,
-    parserFormat,
-    chats: parsed.chats.map((chat) => ({
-      ...chat,
-      provider: selectedSource,
-      parser_format: parserFormat,
-      selected_source: selectedSource,
-      messages: chat.messages.map((message) => {
-        const modelName = typeof message.provider_metadata.model === "string" && message.provider_metadata.model.trim()
-          ? message.provider_metadata.model
-          : sourceIdentity.model_name;
-        return {
-          ...message,
-          imported_assistant_identity: message.role === "assistant"
-            ? { ...sourceIdentity, model_name: modelName }
-            : null,
-        };
-      }),
-    })),
-  };
-}
-
-async function parseGenericTranscript(
-  raw: unknown,
-  selectedSource: Extract<AccountImportSource, "gemini" | "other">,
-  sourceName: string,
-): Promise<ParsedAccountImport> {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new Error("Generic role/content JSON must be an object with a messages array.");
-  }
-  const transcript = raw as Record<string, unknown>;
-  if (!Array.isArray(transcript.messages)) {
-    throw new Error("Gemini and Other require generic role/content JSON; raw Gemini Takeout exports are not supported yet.");
-  }
-  const messages = transcript.messages.map((item, index) => {
-    if (!item || typeof item !== "object" || Array.isArray(item)) {
-      throw new Error(`Generic message ${index + 1} must contain role and content.`);
-    }
-    const message = item as Record<string, unknown>;
-    if ((message.role !== "user" && message.role !== "assistant" && message.role !== "system") || typeof message.content !== "string") {
-      throw new Error(`Generic message ${index + 1} must contain a valid role and content string.`);
-    }
-    return {
-      role: message.role,
-      content: message.content,
-      created_at: typeof message.created_at === "string" ? message.created_at : null,
-      source_message_id: typeof message.id === "string" ? message.id : null,
-      provider_metadata: {
-        ...(typeof message.model === "string" ? { model: message.model } : {}),
-        ...(message.metadata && typeof message.metadata === "object" && !Array.isArray(message.metadata)
-          ? message.metadata as Record<string, unknown>
-          : {}),
-      },
-    } satisfies ParsedImportMessage;
-  });
-  if (messages.length === 0) throw new Error("Generic role/content JSON contains no messages.");
-  const sourceChatId = typeof transcript.id === "string" && transcript.id.trim()
-    ? transcript.id
-    : `generic-${sourceName}`;
-  const chat: ParsedImportChat = {
-    provider: selectedSource,
-    source_chat_id: sourceChatId,
-    source_fingerprint: await stableFingerprint("other", sourceChatId, messages),
-    title: typeof transcript.title === "string" ? transcript.title : null,
-    created_at: typeof transcript.created_at === "string" ? transcript.created_at : null,
-    updated_at: typeof transcript.updated_at === "string" ? transcript.updated_at : null,
-    messages,
-    embeds: [],
-    uploads: [],
-    provider_labels: ["generic"],
-    source_metadata: { source_name: sourceName, message_count: messages.length },
-  };
-  return applySelectedSource({ source: selectedSource, parserFormat: "generic", fileType: "generic-json", chats: [chat], skippedDomains: [] }, selectedSource);
-}
-
-function openCodeTimestamp(value: unknown): string | null {
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? new Date(value).toISOString()
-    : null;
-}
-
-async function parseOpenCodeTranscript(
-  raw: unknown,
-  sourceName: string,
-): Promise<ParsedAccountImport> {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new Error("OpenCode transcript export must be an object.");
-  }
-  const transcript = raw as Record<string, unknown>;
-  const info = transcript.info && typeof transcript.info === "object"
-    ? transcript.info as Record<string, unknown>
-    : null;
-  const rawMessages = Array.isArray(transcript.messages) ? transcript.messages : null;
-  const sourceChatId = String(info?.id ?? "");
-  if (!info || !sourceChatId || !rawMessages) {
-    throw new Error("OpenCode transcript export is missing info.id or messages.");
-  }
-
-  const messages: ParsedImportMessage[] = [];
-  for (const item of rawMessages) {
-    if (!item || typeof item !== "object") continue;
-    const message = item as Record<string, unknown>;
-    const messageInfo = message.info && typeof message.info === "object"
-      ? message.info as Record<string, unknown>
-      : {};
-    const role = String(messageInfo.role ?? "");
-    if (role !== "user" && role !== "assistant") continue;
-    const parts = Array.isArray(message.parts)
-      ? message.parts.filter((part): part is Record<string, unknown> => Boolean(part && typeof part === "object"))
-      : [];
-    const textParts = parts.filter((part) => part.type === "text" && part.ignored !== true && typeof part.text === "string");
-    const content = textParts.map((part) => String(part.text)).filter((text) => text.trim()).join("\n");
-    if (content.trim()) {
-      const time = messageInfo.time && typeof messageInfo.time === "object"
-        ? messageInfo.time as Record<string, unknown>
-        : {};
-      messages.push({
-        role,
-        content,
-        created_at: openCodeTimestamp(time.created),
-        source_message_id: typeof messageInfo.id === "string" ? messageInfo.id : null,
-        provider_metadata: {
-          part_types: parts.map((part) => String(part.type ?? "unknown")),
-          text_part_count: textParts.length,
-        },
-      });
-    }
-  }
-
-  const time = info.time && typeof info.time === "object" ? info.time as Record<string, unknown> : {};
-  const chat: ParsedImportChat = {
-    provider: "opencode",
-    source_chat_id: sourceChatId,
-    source_fingerprint: await stableFingerprint("opencode", sourceChatId, messages),
-    title: typeof info.title === "string" ? info.title : null,
-    created_at: openCodeTimestamp(time.created),
-    updated_at: openCodeTimestamp(time.updated),
-    messages,
-    embeds: [],
-    uploads: [],
-    provider_labels: ["opencode"],
-    source_metadata: { source_name: sourceName, message_count: messages.length },
-  };
-  return { source: "opencode", parserFormat: "opencode", fileType: "opencode-json", chats: [chat], skippedDomains: [] };
-}
-
-async function parseClaudeConversations(
-  raw: unknown,
-  fileType: Extract<ImportFileType, "claude-json" | "claude-zip">,
-  sourceName: string,
-): Promise<ParsedAccountImport> {
-  const conversations = Array.isArray(raw)
-    ? raw
-    : raw && typeof raw === "object" && Array.isArray((raw as Record<string, unknown>).conversations)
-      ? ((raw as Record<string, unknown>).conversations as unknown[])
-      : null;
-  if (!conversations) throw new Error("Claude export conversations must be an array.");
-
-  const chats: ParsedImportChat[] = [];
-  for (const item of conversations) {
-    if (!item || typeof item !== "object") continue;
-    const conversation = item as Record<string, unknown>;
-    const sourceChatId = String(conversation.uuid ?? "");
-    if (!sourceChatId) throw new Error("Claude conversation is missing uuid.");
-
-    const rawMessages = Array.isArray(conversation.chat_messages)
-      ? conversation.chat_messages
-      : [];
-    const messages = rawMessages
-      .filter((message): message is Record<string, unknown> => Boolean(message && typeof message === "object"))
-      .map((message) => {
-        const { content, blockTypes } = claudeMessageContent(message);
-        const sender = String(message.sender ?? "");
-        return {
-          role: sender === "human" ? "user" : sender === "assistant" ? "assistant" : "system",
-          content,
-          created_at: typeof message.created_at === "string" ? message.created_at : null,
-          source_message_id: typeof message.uuid === "string" ? message.uuid : null,
-          provider_metadata: { content_block_types: blockTypes },
-        } satisfies ParsedImportMessage;
-      });
-
-    chats.push({
-      provider: "claude",
-      source_chat_id: sourceChatId,
-      source_fingerprint: await stableFingerprint("claude", sourceChatId, messages),
-      title: typeof conversation.name === "string" ? conversation.name : null,
-      created_at: typeof conversation.created_at === "string" ? conversation.created_at : null,
-      updated_at: typeof conversation.updated_at === "string" ? conversation.updated_at : null,
-      messages,
-      embeds: [],
-      uploads: rawMessages
-        .filter((message): message is Record<string, unknown> => Boolean(message && typeof message === "object"))
-        .flatMap(claudeUploads),
-      provider_labels: ["claude"],
-      source_metadata: { source_name: sourceName, message_count: messages.length },
-    });
-  }
-
-  return { source: "claude", parserFormat: "claude", fileType, chats: newestFirst(chats), skippedDomains: [] };
-}
-
-function chatGPTTimestamp(value: unknown): string | null {
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? new Date(value * 1000).toISOString()
-    : null;
-}
-
-function chatGPTContentText(content: Record<string, unknown>): {
-  content: string;
-  metadata: Record<string, unknown>;
-} {
-  const parts = Array.isArray(content.parts) ? content.parts : [];
-  const textParts: string[] = [];
-  let assetCount = 0;
-  for (const part of parts) {
-    if (typeof part === "string" && part.trim()) textParts.push(part);
-    else if (part && typeof part === "object" && "asset_pointer" in part) assetCount++;
-  }
-  if (parts.length === 0 && typeof content.content === "string") textParts.push(content.content);
-  return {
-    content: textParts.join("\n"),
-    metadata: { content_type: String(content.content_type ?? "unknown"), asset_count: assetCount },
-  };
-}
-
-function chatGPTActiveNodes(conversation: Record<string, unknown>): Record<string, unknown>[] {
-  const mapping = conversation.mapping;
-  if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) {
-    throw new Error("ChatGPT export conversation is missing mapping.");
-  }
-  const nodesById = mapping as Record<string, Record<string, unknown>>;
-  const currentNode = String(conversation.current_node ?? "");
-  if (currentNode && nodesById[currentNode]) {
-    const ordered: Record<string, unknown>[] = [];
-    const seen = new Set<string>();
-    let nodeId = currentNode;
-    while (nodeId && nodesById[nodeId] && !seen.has(nodeId)) {
-      seen.add(nodeId);
-      const node = nodesById[nodeId];
-      ordered.push(node);
-      nodeId = String(node.parent ?? "");
-    }
-    return ordered.reverse();
-  }
-  return Object.values(nodesById).sort((left, right) => {
-    const leftMessage = left.message && typeof left.message === "object" ? left.message as Record<string, unknown> : {};
-    const rightMessage = right.message && typeof right.message === "object" ? right.message as Record<string, unknown> : {};
-    return Number(leftMessage.create_time ?? 0) - Number(rightMessage.create_time ?? 0);
-  });
-}
-
-async function parseChatGPTConversations(
-  raw: unknown,
-  fileType: Extract<ImportFileType, "chatgpt-json" | "chatgpt-zip">,
-  sourceName: string,
-): Promise<ParsedAccountImport> {
-  const conversations = Array.isArray(raw)
-    ? raw
-    : raw && typeof raw === "object" && Array.isArray((raw as Record<string, unknown>).conversations)
-      ? ((raw as Record<string, unknown>).conversations as unknown[])
-      : null;
-  if (!conversations) throw new Error("ChatGPT export conversations must be an array.");
-
-  const chats: ParsedImportChat[] = [];
-  for (const item of conversations) {
-    if (!item || typeof item !== "object") continue;
-    const conversation = item as Record<string, unknown>;
-    const sourceChatId = String(conversation.conversation_id ?? conversation.id ?? "");
-    if (!sourceChatId) throw new Error("ChatGPT conversation is missing id.");
-    const messages: ParsedImportMessage[] = [];
-    for (const node of chatGPTActiveNodes(conversation)) {
-      const rawMessage = node.message && typeof node.message === "object" ? node.message as Record<string, unknown> : null;
-      if (!rawMessage) continue;
-      const author = rawMessage.author && typeof rawMessage.author === "object" ? rawMessage.author as Record<string, unknown> : {};
-      const role = String(author.role ?? "");
-      if (role !== "user" && role !== "assistant" && role !== "system") continue;
-      const rawContent = rawMessage.content && typeof rawMessage.content === "object" ? rawMessage.content as Record<string, unknown> : null;
-      if (!rawContent) continue;
-      const { content, metadata } = chatGPTContentText(rawContent);
-      if (!content.trim()) continue;
-      messages.push({
-        role,
-        content,
-        created_at: chatGPTTimestamp(rawMessage.create_time),
-        source_message_id: typeof rawMessage.id === "string" ? rawMessage.id : null,
-        provider_metadata: metadata,
-      });
-    }
-    chats.push({
-      provider: "chatgpt",
-      source_chat_id: sourceChatId,
-      source_fingerprint: await stableFingerprint("chatgpt", sourceChatId, messages),
-      title: typeof conversation.title === "string" ? conversation.title : null,
-      created_at: chatGPTTimestamp(conversation.create_time),
-      updated_at: chatGPTTimestamp(conversation.update_time),
-      messages,
-      embeds: [],
-      uploads: [],
-      provider_labels: ["chatgpt"],
-      source_metadata: { source_name: sourceName, message_count: messages.length },
-    });
-  }
-
-  return { source: "chatgpt", parserFormat: "chatgpt", fileType, chats: newestFirst(chats), skippedDomains: [] };
-}
-
-async function parseOpenMatesArchive(
-  zip: JSZip,
-  sourceName: string,
-): Promise<ParsedAccountImport> {
-  const manifestText = await zip.file("manifest.yml")!.async("string");
-  const manifest = parse(manifestText) as Record<string, unknown> | null;
-  if (!manifest || manifest.format !== "openmates-account-export" || String(manifest.version) !== "1") {
-    throw new Error("Unsupported OpenMates Export V1 archive format or version.");
-  }
-
-  const domainRecord = manifest.domains && typeof manifest.domains === "object"
-    ? (manifest.domains as Record<string, unknown>)
-    : {};
-  const skippedDomains = Object.keys(domainRecord)
-    .filter((domain) => !["chats", "embeds", "uploads", "referenced_uploads"].includes(domain))
-    .sort();
-
-  const embedsById = await readYamlRecordsById(zip, "embeds/");
-  const uploadsById = await readYamlRecordsById(zip, "uploads/");
-  const chatFiles = Object.keys(zip.files)
-    .filter((name) => name.startsWith("chats/") && /\.ya?ml$/i.test(name))
-    .sort();
-  if (chatFiles.length === 0) {
-    throw new Error("OpenMates Export V1 archive contains no chat YAML files.");
-  }
-
-  const chats: ParsedImportChat[] = [];
-  for (const name of chatFiles) {
-    const text = await zip.file(name)!.async("string");
-    const chatData = parse(text) as Record<string, unknown> | null;
-    if (!chatData || typeof chatData !== "object") continue;
-    const sourceChatId = String(chatData.id ?? name.replace(/\.ya?ml$/i, ""));
-    if (!sourceChatId) throw new Error("OpenMates chat YAML is missing id.");
-    const messages = (Array.isArray(chatData.messages) ? chatData.messages : [])
-      .filter((message): message is Record<string, unknown> => Boolean(message && typeof message === "object"))
-      .map((message) => ({
-        role: normalizeRole(message.role),
-        content: typeof message.content === "string" ? message.content : "",
-        created_at: typeof message.created_at === "string" ? message.created_at : null,
-        source_message_id: typeof message.id === "string" ? message.id : null,
-        provider_metadata: { embed_refs: Array.isArray(message.embed_refs) ? message.embed_refs : [] },
-      }));
-    const embedRefs = (Array.isArray(chatData.embed_refs) ? chatData.embed_refs : []).map(String);
-    const uploadRefs = (Array.isArray(chatData.upload_refs) ? chatData.upload_refs : []).map(String);
-
-    chats.push({
-      provider: "openmates",
-      source_chat_id: sourceChatId,
-      source_fingerprint: await stableFingerprint("openmates", sourceChatId, messages),
-      title: typeof chatData.title === "string" ? chatData.title : null,
-      created_at: typeof chatData.created_at === "string" ? chatData.created_at : null,
-      updated_at: typeof chatData.updated_at === "string" ? chatData.updated_at : null,
-      messages,
-      embeds: embedRefs.map((embedId) => ({
-        source_embed_id: embedId,
-        type: String(embedsById.get(embedId)?.type ?? "unknown"),
-        content: embedsById.get(embedId)?.content ?? {},
-        referenced_upload_ids: embedsById.get(embedId)?.referenced_upload_ids ?? [],
-      })),
-      uploads: uploadRefs.map((uploadId) => ({
-        source_upload_id: uploadId,
-        file_name: String(uploadsById.get(uploadId)?.file_name ?? uploadId),
-        mime_type: typeof uploadsById.get(uploadId)?.mime_type === "string"
-          ? String(uploadsById.get(uploadId)?.mime_type)
-          : null,
-        bytes: typeof uploadsById.get(uploadId)?.bytes === "number"
-          ? Number(uploadsById.get(uploadId)?.bytes)
-          : null,
-        content_ref: String(uploadsById.get(uploadId)?.path ?? ""),
-      })),
-      provider_labels: ["openmates"],
-      source_metadata: { source_name: sourceName, archive_path: name },
-    });
-  }
-
-  return { source: "openmates", parserFormat: "openmates", fileType: "openmates-zip", chats: newestFirst(chats), skippedDomains };
-}
-
-async function readYamlRecordsById(
-  zip: JSZip,
-  prefix: string,
-): Promise<Map<string, Record<string, unknown>>> {
-  const records = new Map<string, Record<string, unknown>>();
-  for (const name of Object.keys(zip.files).filter((path) => path.startsWith(prefix) && /\.ya?ml$/i.test(path))) {
-    const parsed = parse(await zip.file(name)!.async("string")) as Record<string, unknown> | null;
-    if (!parsed || typeof parsed !== "object") continue;
-    const id = String(parsed.id ?? "");
-    if (id) records.set(id, parsed);
-  }
-  return records;
-}
-
-function findZipFileByBasename(zip: JSZip, basename: string): JSZip.JSZipObject | null {
-  const match = Object.values(zip.files).find((entry) => {
-    if (entry.dir) return false;
-    if (entry.name.startsWith("__MACOSX/") || entry.name.includes("/._") || entry.name.startsWith("._")) return false;
-    return entry.name.split("/").pop() === basename;
-  });
-  return match ?? null;
-}
-
-async function stableFingerprint(
-  provider: AccountImportSource,
-  sourceChatId: string,
-  messages: ParsedImportMessage[],
-): Promise<string> {
-  const input = JSON.stringify({
-    provider,
-    source_chat_id: sourceChatId,
-    messages: messages.map((message) => ({
-      role: message.role,
-      source_message_id: message.source_message_id ?? null,
-      content: message.content,
-    })),
-  });
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function newestFirst(chats: ParsedImportChat[]): ParsedImportChat[] {
-  return [...chats].sort((left, right) => {
-    const leftMs = Date.parse(left.updated_at ?? left.created_at ?? "");
-    const rightMs = Date.parse(right.updated_at ?? right.created_at ?? "");
-    return (Number.isFinite(rightMs) ? rightMs : 0) - (Number.isFinite(leftMs) ? leftMs : 0);
-  });
-}
-
-function buildMessageBatches(chats: ParsedImportChat[], maxMessages: number): Array<{
-  chatIndex: number;
-  chunkIndex: number;
-  sourceFingerprint: string;
-  batchId: string;
-  chat: ParsedImportChat;
-}> {
-  if (!Number.isInteger(maxMessages) || maxMessages <= 0) throw new Error("Import message batch size must be positive.");
-  return chats.flatMap((chat, chatIndex) => {
-    const chunkCount = Math.max(1, Math.ceil(chat.messages.length / maxMessages));
-    return Array.from({ length: chunkCount }, (_, chunkIndex) => ({
-      chatIndex,
-      chunkIndex,
-      sourceFingerprint: chat.source_fingerprint,
-      batchId: `scan-${chat.source_fingerprint.slice(0, 16)}-${chunkIndex}`,
-      chat: { ...chat, messages: chat.messages.slice(chunkIndex * maxMessages, (chunkIndex + 1) * maxMessages) },
-    }));
-  });
 }
 
 function appendCompressionSummary(chat: ParsedImportChat, summary: string | undefined): ParsedImportChat {

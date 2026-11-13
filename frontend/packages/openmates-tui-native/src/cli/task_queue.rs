@@ -8,6 +8,31 @@ use openmates_sdk::work::{
 use rand::RngCore;
 use serde_json::{Value, json};
 use tokio_util::sync::CancellationToken;
+/// Activity entry id derived deterministically from the 64-hex delivery id.
+///
+/// npm entry ids are UUIDs; reusing the first 128 bits (with v4 version and
+/// variant bits set) keeps the id stable across journal replays while matching
+/// the npm shape.
+pub(super) fn activity_entry_id(delivery_id: &str) -> String {
+    let mut bytes = [0u8; 16];
+    for (index, byte) in bytes.iter_mut().enumerate() {
+        *byte = delivery_id
+            .get(index * 2..index * 2 + 2)
+            .and_then(|pair| u8::from_str_radix(pair, 16).ok())
+            .unwrap_or(0);
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    format!(
+        "{}-{}-{}-{}-{}",
+        &hex[0..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..32]
+    )
+}
 pub(super) fn supported(invocation: &Invocation) -> bool {
     matches!(
         invocation.command_path().as_str(),
@@ -19,7 +44,7 @@ pub(super) fn supported(invocation: &Invocation) -> bool {
             | "tasks release"
             | "tasks activity add"
             | "tasks activity flush"
-    )
+    ) || super::task_queue_actions::handles(&invocation.command_path())
 }
 pub(crate) fn retryable(error: &CliError) -> bool {
     matches!(
@@ -74,7 +99,7 @@ fn pending(delivery: &TaskDelivery, source: Error) -> CliError {
         persistent: false,
     }
 }
-async fn dispatch(
+pub(super) async fn dispatch(
     service: &mut Tasks<'_>,
     journal: &Journal,
     id: &str,
@@ -241,6 +266,15 @@ pub(super) async fn deliver(
         )
         .await;
     }
+    if invocation.command_path() == "tasks release" {
+        // npm returns the Task unchanged (no write, no version bump) when nothing is linked.
+        let task = service
+            .show(input::positional(invocation, 0, "Task ID")?)
+            .await?;
+        if task["primary_chat_id"].is_null() && task["external_chat"].is_null() {
+            return Ok(task);
+        }
+    }
     let delivery_id = match input::text(invocation, "delivery-id")? {
         Some(id) => id.to_owned(),
         None => {
@@ -265,12 +299,16 @@ pub(super) async fn deliver(
             .insert_for_caller(delivery, intent.clone(), caller)
             .await?;
     }
-    // stderr carries a recoverable operation identity even if an outer runtime
-    // deadline interrupts the waiting process after durable dispatch admission.
+    // A captured (non-terminal) stderr carries a recoverable operation identity
+    // even if an outer runtime deadline interrupts the waiting process after
+    // durable dispatch admission. A terminal is a person or a terminal recording
+    // that merges stderr into the stdout JSON, so it stays identical to npm.
     {
-        use std::io::Write;
+        use std::io::{IsTerminal, Write};
         let mut stderr = std::io::stderr();
-        let _ = writeln!(stderr, "Task delivery: {delivery_id}").and_then(|()| stderr.flush());
+        if !stderr.is_terminal() {
+            let _ = writeln!(stderr, "Task delivery: {delivery_id}").and_then(|()| stderr.flush());
+        }
     }
     dispatch(service, journal, &delivery_id, &intent, cancel).await
 }
@@ -357,7 +395,7 @@ async fn prepare(
                     id()?,
                     TaskActivityInput {
                         message,
-                        entry_id: Some(delivery_id.into()),
+                        entry_id: Some(activity_entry_id(delivery_id)),
                         ..Default::default()
                     },
                     delivery_id,
@@ -386,12 +424,7 @@ async fn prepare(
             super::codex::guard_release(service, id()?).await?;
             service.prepare_release(id()?, delivery_id).await
         }
-        _ => {
-            return Err(CliError::Unsupported {
-                command: invocation.command_path(),
-                reason: "This operation has no typed encrypted delivery preparation.".into(),
-            });
-        }
+        _ => return super::task_queue_actions::prepare(invocation, service, delivery_id).await,
     };
     result.map_err(CliError::from)
 }

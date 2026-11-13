@@ -12,6 +12,7 @@ import { encryptWithEmbedKey } from './cryptoService';
 import { registerWorkspaceCacheClear, getWorkspaceCacheEpoch } from './workspaceCacheLifecycle';
 import { broadcastProjectFilesChanged } from './projectBrowserEvents';
 import type { WorkflowSummary } from '../stores/workflowWorkspaceStore';
+import { PROJECT_RUST_CORE, decideProject, projectRule } from './projectState/decide';
 
 export interface ProjectAuthoringRecommendation {
   recommendation_id: string; chat_id: string; project_id: string;
@@ -72,18 +73,12 @@ async function history(chatId: string, assistantId?: string) {
   const anchor = assistantId ? await chatDB.getMessage(assistantId) : null;
   const page = await chatDB.getMessageWindowForChat(chatId, { direction: anchor ? 'before' : 'latest', limit: 60,
     ...(anchor ? { beforeTimestamp: anchor.created_at + 1 } : {}) });
-  const rows: Array<{ role: 'user' | 'assistant'; content: string }> = [];
-  let remaining = 12_000;
-  for (const message of [...page.messages].reverse()) {
-    if (anchor && message.created_at > anchor.created_at) continue;
-    if ((message.role !== 'user' && message.role !== 'assistant') || !message.content?.trim()
-      || ['streaming', 'processing', 'failed'].includes(message.status)) continue;
-    const content = message.content.slice(-remaining);
-    if (content) rows.unshift({ role: message.role, content });
-    remaining -= content.length;
-    if (remaining <= 0) break;
-  }
-  if (!rows.length) throw new Error('project_authoring_history_unavailable');
+  const historyInput = {
+    messages: page.messages.map(({ role, content, status, created_at }) => ({ role, content, status, created_at })),
+    anchorCreatedAt: anchor ? anchor.created_at : null,
+  };
+  const { rows } = PROJECT_RUST_CORE
+    ? await decideProject('projectAuthoringHistory', historyInput) : projectRule('projectAuthoringHistory', historyInput);
   return rows;
 }
 function record(job: ProjectAuthoringJob) {
@@ -99,17 +94,17 @@ export async function assessProjectAuthoring(event: ProjectAuthoringAvailable): 
   // Team-owned graphs cannot be mutated by the reused authoring engine.
   await workspace(event.chat_id, event.project_id, current.owner);
   const response = await fetch(getApiEndpoint('/v1/workflows'), { credentials: 'include' });
-  const linked = new Set(current.contents.items.filter(item => item.item_type === 'workflow').map(item => item.target_id));
+  const linkedIds = current.contents.items.filter(item => item.item_type === 'workflow').map(item => item.target_id);
   const workflows: WorkflowSummary[] = response.ok ? (await response.json()).workflows ?? [] : [];
-  if (!response.ok && linked.size) return null; // Never infer non-overlap from an unavailable catalog.
-  const catalog = [
-    ...focuses.map(({ kind, id, title, summary, revision }) => ({ kind, id, title, summary, revision })),
-    ...workflows.filter(item => linked.has(item.id) && Number.isInteger(item.version)).map(item => ({
-      kind: 'workflow' as const, id: item.id, title: item.title.slice(0, 200),
-      summary: (item.description ?? item.trigger_summary ?? '').slice(0, 2_000), revision: String(item.version),
-    })),
-  ];
-  if (catalog.length > 40) return null;
+  // Null when the catalog is unavailable while workflows are linked (non-overlap is never inferred) or too large.
+  const catalogInput = {
+    focuses: focuses.map(({ kind, id, title, summary, revision }) => ({ kind, id, title, summary, revision })),
+    workflows: workflows.map(({ id, title, version, description, trigger_summary }) => ({ id, title, version, description, trigger_summary })),
+    linkedIds, workflowsOk: response.ok,
+  };
+  const { catalog } = PROJECT_RUST_CORE
+    ? await decideProject('projectAuthoringCatalog', catalogInput) : projectRule('projectAuthoringCatalog', catalogInput);
+  if (catalog === null) return null;
   const transcript = await history(event.chat_id, event.assistant_message_id);
   const result = await api<{ recommendations: ProjectAuthoringRecommendation[] }>(event.chat_id, event.project_id, '/recommend', {
     chat_id: event.chat_id, message_id: event.user_message_id, team_id: current.focus.team_id, catalog, history: transcript,

@@ -103,8 +103,7 @@
             icon_colorgradient: app.icon_colorgradient,
             providers: skill.providers || [],
             skills: [],
-            focus_modes: [],
-            settings_and_memories: []
+            focus_modes: []
           }
         });
       }
@@ -285,7 +284,7 @@
   }
   
   .more-badge:hover {
-    background-color: var(--color-grey-35);
+    background-color: var(--color-grey-30);
     transform: translateY(-2px);
   }
   

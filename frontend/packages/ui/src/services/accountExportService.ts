@@ -82,7 +82,7 @@ export interface ExportProgress {
 
 export type ExportProgressCallback = (progress: ExportProgress) => void;
 
-type AccountExportJob = Record<string, unknown> & {
+export type AccountExportJob = Record<string, unknown> & {
   export_id?: string;
   status?: string;
   selected_domains?: string[];
@@ -92,7 +92,7 @@ type AccountExportJob = Record<string, unknown> & {
   domain_results?: Record<string, unknown>;
 };
 
-type AccountExportChunk = Record<string, unknown> & {
+export type AccountExportChunk = Record<string, unknown> & {
   chunk_id?: string;
   domain?: string;
   sequence?: number;
@@ -100,7 +100,7 @@ type AccountExportChunk = Record<string, unknown> & {
   payload?: unknown;
 };
 
-type AccountExportBundle = {
+export type AccountExportBundle = {
   export: AccountExportJob;
   manifest: Record<string, unknown>;
   chunks: AccountExportChunk[];
@@ -155,14 +155,6 @@ const ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES = new Set([
   "webhook_secret",
   "workflow_secret_key",
 ]);
-
-const ACCOUNT_EXPORT_REDACTION_CATEGORIES = [
-  "api_credentials",
-  "authentication_tokens",
-  "key_material",
-  "password_and_recovery_hashes",
-  "webhook_secrets",
-];
 
 const ACCOUNT_EXPORT_FORBIDDEN_VALUE_PATTERNS: RegExp[] = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
@@ -359,7 +351,7 @@ export async function exportAllUserData(
     onProgress({ phase: "creating_zip", progress: 80, message: "Creating archive..." });
     const zipBlob = await createAccountExportV1Zip({
       export: { ...ready, status: "complete" },
-      manifest: sanitizeAccountExportManifest(manifest),
+      manifest,
       chunks,
     });
     ensureBrowserArchiveSize(zipBlob);
@@ -407,7 +399,7 @@ export async function acceptPartialAccountExport(
   onProgress({ phase: "creating_zip", progress: 80, message: "Creating partial archive..." });
   const zipBlob = await createAccountExportV1Zip({
     export: { export_id: exportId, status: "partial_accepted" },
-    manifest: sanitizeAccountExportManifest(manifest),
+    manifest,
     chunks,
   });
   ensureBrowserArchiveSize(zipBlob);
@@ -640,173 +632,13 @@ function assertAccountExportPayloadSafe(value: unknown, path = "$export"): void 
   }
 }
 
-function sanitizeAccountExportManifest(manifest: Record<string, unknown>): Record<string, unknown> {
-  const copy = JSON.parse(JSON.stringify(manifest)) as Record<string, unknown>;
-  const report = copy.report;
-  if (report && typeof report === "object" && !Array.isArray(report)) {
-    const reportObject = report as Record<string, unknown>;
-    if (Array.isArray(reportObject.redactions)) reportObject.redactions = ACCOUNT_EXPORT_REDACTION_CATEGORIES;
-  }
-  assertAccountExportPayloadSafe(copy, "$manifest");
-  return copy;
-}
-
 async function createAccountExportV1Zip(bundle: AccountExportBundle): Promise<Blob> {
   const zip = new JSZip();
-  writeSafeZipText(zip, "README.md", buildAccountExportV1Readme(bundle));
-  writeSafeZipText(zip, "manifest.yml", serializeArchiveYaml(bundle.manifest));
-  writeSafeZipText(zip, "manifest.json", `${JSON.stringify(bundle.manifest, null, 2)}\n`);
-  writeSafeZipText(zip, "export-report.yml", serializeArchiveYaml(buildAccountExportV1Report(bundle)));
-  const domainPayloads = collectAccountExportDomainPayloads(bundle.chunks);
-  for (const [domain, payloads] of Object.entries(domainPayloads)) {
-    const domainFile = payloads.length === 1 ? payloads[0] : { chunks: payloads };
-    writeSafeZipText(zip, `domains/${safeArchiveSegment(domain)}.json`, `${JSON.stringify(domainFile, null, 2)}\n`);
-  }
-  writeAccountExportV1ChatFiles(zip, domainPayloads.chats ?? []);
+  const exportedAt = new Date().toISOString();
+  const { rustAccountExportEntries } = await import("./rustCore/transfer/rustChatZip");
+  const entries = await rustAccountExportEntries(bundle, exportedAt);
+  for (const entry of entries) zip.file(entry.path, entry.content);
   return await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
-}
-
-function writeSafeZipText(zip: JSZip, relativePath: string, content: string): void {
-  assertAccountExportTextSafe(content, relativePath);
-  zip.file(relativePath, content);
-}
-
-function assertAccountExportTextSafe(content: string, relativePath: string): void {
-  for (const pattern of ACCOUNT_EXPORT_FORBIDDEN_VALUE_PATTERNS) {
-    if (pattern.test(content)) throw new Error(`Account export file ${relativePath} contains forbidden secret-like content`);
-  }
-  ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES.forEach((field) => {
-    const escapedField = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    if (new RegExp(`(^|[^A-Za-z0-9_])['"]?${escapedField}['"]?\\s*:`, "i").test(content)) {
-      throw new Error(`Account export file ${relativePath} contains forbidden secret field '${field}'`);
-    }
-  });
-}
-
-function buildAccountExportV1Readme(bundle: AccountExportBundle): string {
-  const selectedDomains = Array.isArray(bundle.manifest.selected_domains) ? bundle.manifest.selected_domains.map(String) : [];
-  return [
-    "# OpenMates Account Export",
-    "",
-    `Export ID: ${String(bundle.export.export_id ?? "unknown")}`,
-    `Status: ${String(bundle.export.status ?? "unknown")}`,
-    `Schema: ${String(bundle.manifest.schema_version ?? "account-export-v1")}`,
-    `Exported at: ${new Date().toISOString()}`,
-    "",
-    "## Contents",
-    "",
-    "- `manifest.yml` records selected domains, filters, and domain status.",
-    "- `export-report.yml` summarizes completion, failures, and redacted categories.",
-    "- `domains/` contains one JSON file per exported domain.",
-    "- `chats/` contains one Markdown and one YAML file per chat when chat rows include readable content.",
-    "",
-    "## Selected Domains",
-    "",
-    ...(selectedDomains.length > 0 ? selectedDomains.map((domain) => `- ${domain}`) : ["- none"]),
-    "",
-    "Reusable credentials, token hashes, private keys, and raw secrets are intentionally excluded.",
-    "",
-  ].join("\n");
-}
-
-function buildAccountExportV1Report(bundle: AccountExportBundle): Record<string, unknown> {
-  const report = bundle.manifest.report && typeof bundle.manifest.report === "object" && !Array.isArray(bundle.manifest.report)
-    ? bundle.manifest.report as Record<string, unknown>
-    : {};
-  return {
-    export_id: bundle.export.export_id ?? null,
-    status: bundle.export.status ?? report.status ?? "unknown",
-    selected_domains: Array.isArray(bundle.manifest.selected_domains) ? bundle.manifest.selected_domains : [],
-    failures: Array.isArray(report.failures) ? report.failures : [],
-    redacted_secret_categories: ACCOUNT_EXPORT_REDACTION_CATEGORIES,
-    partial_requires_acceptance: Boolean(report.partial_requires_acceptance),
-  };
-}
-
-function collectAccountExportDomainPayloads(chunks: AccountExportChunk[]): Record<string, Array<Record<string, unknown>>> {
-  const grouped: Record<string, Array<Record<string, unknown>>> = {};
-  for (const chunk of chunks) {
-    const domain = safeArchiveSegment(String(chunk.domain ?? "unknown"));
-    const payload = chunk.payload && typeof chunk.payload === "object" && !Array.isArray(chunk.payload)
-      ? chunk.payload as Record<string, unknown>
-      : { value: chunk.payload ?? null };
-    grouped[domain] = grouped[domain] ?? [];
-    grouped[domain].push({
-      chunk_id: chunk.chunk_id ?? null,
-      sequence: chunk.sequence ?? null,
-      status: chunk.status ?? null,
-      ...payload,
-    });
-  }
-  return grouped;
-}
-
-function writeAccountExportV1ChatFiles(zip: JSZip, chatPayloads: Array<Record<string, unknown>>): void {
-  const chats: Array<Record<string, unknown>> = [];
-  for (const payload of chatPayloads) {
-    if (Array.isArray(payload.items)) {
-      chats.push(...payload.items.filter((item): item is Record<string, unknown> => item !== null && typeof item === "object" && !Array.isArray(item)));
-    }
-  }
-  chats.forEach((chat, index) => {
-    const chatId = safeArchiveSegment(String(chat.id ?? chat.chat_id ?? `chat-${index + 1}`));
-    writeSafeZipText(zip, `chats/${chatId}.yml`, serializeArchiveYaml({ chat, messages: Array.isArray(chat.messages) ? chat.messages : [] }));
-    writeSafeZipText(zip, `chats/${chatId}.md`, buildAccountExportV1ChatMarkdown(chat));
-  });
-}
-
-function buildAccountExportV1ChatMarkdown(chat: Record<string, unknown>): string {
-  const title = String(chat.title ?? chat.name ?? chat.id ?? chat.chat_id ?? "Untitled Chat");
-  const lines = [`# ${title}`, ""];
-  if (typeof chat.summary === "string" && chat.summary.trim()) lines.push("## Summary", "", chat.summary.trim(), "");
-  const messages = Array.isArray(chat.messages) ? chat.messages : [];
-  if (messages.length > 0) {
-    lines.push("## Messages", "");
-    for (const message of messages) {
-      if (!message || typeof message !== "object" || Array.isArray(message)) continue;
-      const record = message as Record<string, unknown>;
-      lines.push(`### ${String(record.role ?? record.sender ?? "message")}`, "", String(record.content ?? record.text ?? ""), "");
-    }
-  } else {
-    lines.push("No readable message records were included in this export chunk.", "");
-  }
-  return `${lines.join("\n")}\n`;
-}
-
-function serializeArchiveYaml(data: Record<string, unknown>, indent = 0): string {
-  const pad = "  ".repeat(indent);
-  let out = "";
-  for (const [key, val] of Object.entries(data)) {
-    if (val === null || val === undefined) {
-      out += `${pad}${key}: null\n`;
-    } else if (typeof val === "boolean" || typeof val === "number") {
-      out += `${pad}${key}: ${val}\n`;
-    } else if (typeof val === "string") {
-      out += val.includes("\n") ? `${pad}${key}: |\n${val.split("\n").map((line) => `${pad}  ${line}`).join("\n")}\n` : `${pad}${key}: ${quoteArchiveYamlString(val)}\n`;
-    } else if (Array.isArray(val)) {
-      out += `${pad}${key}:\n`;
-      for (const item of val) {
-        if (item && typeof item === "object" && !Array.isArray(item)) {
-          out += `${pad}- \n${serializeArchiveYaml(item as Record<string, unknown>, indent + 2)}`;
-        } else {
-          out += `${pad}- ${typeof item === "string" ? quoteArchiveYamlString(item) : String(item)}\n`;
-        }
-      }
-    } else if (typeof val === "object") {
-      out += `${pad}${key}:\n${serializeArchiveYaml(val as Record<string, unknown>, indent + 1)}`;
-    }
-  }
-  return out;
-}
-
-function quoteArchiveYamlString(value: string): string {
-  const needsQuote = value.includes(":") || value.includes("#") || value.startsWith("{") || value.startsWith("[") || value === "" || ["true", "false", "null"].includes(value);
-  return needsQuote ? `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"` : value;
-}
-
-function safeArchiveSegment(value: string): string {
-  const cleaned = value.trim().replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
-  return cleaned || "unknown";
 }
 
 // ============================================================================
@@ -959,7 +791,7 @@ async function _decryptUserProfile(
 
 /**
  * Decrypt app settings/memories entries.
- * Uses the same decryptWithMasterKey approach as appSettingsMemoriesStore.
+ * Uses decryptWithMasterKey for client-side decryption.
  * The original item_key is stored inside the encrypted JSON as _original_item_key.
  */
 async function _decryptAppSettings(

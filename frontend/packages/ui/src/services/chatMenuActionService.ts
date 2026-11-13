@@ -51,8 +51,8 @@ async function setPinned(chat: Chat, pinned: boolean): Promise<ChatMenuActionRes
 
 async function setUnreadCount(chat: Chat, unreadCount: 0 | 1): Promise<ChatMenuActionResult> {
   const { unreadMessagesStore } = await import('../stores/unreadMessagesStore');
-  unreadMessagesStore.clearUnread(chat.chat_id);
-  if (unreadCount) unreadMessagesStore.incrementUnread(chat.chat_id);
+  if (unreadCount) unreadMessagesStore.markManuallyUnread(chat.chat_id);
+  else unreadMessagesStore.clearUnread(chat.chat_id);
   const updatedChat = { ...chat, unread_count: unreadCount };
   await chatDB.updateChat(updatedChat);
   chatListCache.markDirty();
@@ -101,6 +101,23 @@ async function hideChat(chat: Chat): Promise<ChatMenuActionResult> {
     window.dispatchEvent(new CustomEvent('showOverscrollUnlockForHide', { detail: { chatId: chat.chat_id } }));
     return {};
   }
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
+    const { rustHideChat } = await import('./rustCore/chatState/rustHideFlow');
+    const outcome = await rustHideChat(chat);
+    if (outcome === 'needs_unlock') {
+      window.dispatchEvent(new CustomEvent('showOverscrollUnlockForHide', { detail: { chatId: chat.chat_id } }));
+      return {};
+    }
+    if (outcome === 'already_hidden') {
+      notificationStore.success('Chat is already hidden');
+      return {};
+    }
+    if (outcome === 'missing_key') {
+      notificationStore.error('Failed to hide chat. Chat key not found.');
+      return {};
+    }
+    return finishHide(chat);
+  }
   let chatKey = await chatKeyManager.getKey(chat.chat_id);
   if (!chatKey && chat.encrypted_chat_key) {
     const result = await hiddenChatService.tryDecryptChatKey(chat.encrypted_chat_key);
@@ -125,6 +142,11 @@ async function hideChat(chat: Chat): Promise<ChatMenuActionResult> {
   await chatDB.updateChat({ ...chat, encrypted_chat_key: encryptedChatKey });
   chatListCache.markDirty();
   await chatSyncService.sendUpdateEncryptedChatKey(chat.chat_id, encryptedChatKey);
+  return finishHide(chat);
+}
+
+/** Suggestion hiding, list refresh event and notice after a chat was hidden. */
+async function finishHide(chat: Chat): Promise<ChatMenuActionResult> {
   try {
     await chatDB.hideNewChatSuggestionsForChat(chat.chat_id);
   } catch (suggestionError) {

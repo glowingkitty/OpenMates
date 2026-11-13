@@ -24,17 +24,6 @@ icon_image: |
   nutrition.svg
 category: personal
 last_updated: '2026-04-05'
-settings_and_memories:
-  - id: saved_recipes
-    name_translation_key: nutrition.saved_recipes
-    description_translation_key: nutrition.saved_recipes.description
-    icon_image: bookmark.svg
-    type: list
-  - id: meal_plan
-    name_translation_key: nutrition.meal_plan
-    description_translation_key: nutrition.meal_plan.description
-    icon_image: calendar.svg
-    type: list
 embed_types:
   - id: search_recipes
     authoring:
@@ -83,7 +72,13 @@ skills:
     class_path: backend.apps.nutrition.skills.search_recipes.SearchRecipesSkill
     pricing:
       per_unit:
-        credits: 5
+        credits: 2
+    supplier_costs:
+      per_unit:
+        price: 0.0009
+        currency: USD
+        source_url: https://developer.edamam.com/edamam-recipe-api
+        note: Assumes the Basic plan ($9 / 10,000 calls); plan unconfirmed
     providers:
       - name: Edamam
         requires_api_key: true

@@ -12,7 +12,8 @@ caps CPU/memory per run. Product E2E suites still use isolated GitHub CI.
 
 Allowed directly: `cargo fmt|metadata|tree|...` (see CARGO_LIGHT), `rustfmt`,
 version and help flags, pytest (light script/unit tests; still refused while the
-host is overloaded). Legacy override for real-AI-inference runs on dev:
+host is overloaded). `svelte-check` is heavy (several GB per run); eslint and
+single-file checks stay direct. Legacy override for real-AI-inference runs on dev:
 prefix the command with `OPENMATES_ALLOW_LOCAL_HEAVY=real-inference`; every use
 is appended to logs/host-load-guard/events.jsonl and is still refused while
 the host is overloaded.
@@ -103,7 +104,7 @@ def _package_manager_reason(command: str, args: list[str]) -> str | None:
     if action and HEAVY_SCRIPT_NAME.match(action):
         return f"{command} {action} runs a build/test script locally"
     # Bare binaries via `pnpm vitest` / `yarn playwright`.
-    return heavy_reason(action, rest) if action in {"vitest", "playwright", "vite", "svelte-kit", "wasm-pack"} else None
+    return heavy_reason(action, rest) if action in {"vitest", "playwright", "vite", "svelte-kit", "svelte-check", "wasm-pack"} else None
 
 
 def _script_path_reason(path: str) -> str | None:
@@ -128,6 +129,9 @@ def heavy_reason(command: str, args: list[str]) -> str | None:
         return "vitest runs locally"
     if command == "playwright":
         return "playwright runs browsers locally"
+    if command == "svelte-check":
+        # Three parallel lanes running it directly held ~8 GB and froze the host (2026-11-11).
+        return "svelte-check type-checks the whole UI package locally (several GB)"
     if command == "vite" and _first_non_option(args, set())[0] == "build":
         return "vite build runs locally"
     if command == "svelte-kit" and _first_non_option(args, set())[0] == "build":

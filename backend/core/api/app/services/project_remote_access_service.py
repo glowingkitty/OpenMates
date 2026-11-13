@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import re
 import secrets
 import time
 from contextlib import asynccontextmanager
@@ -32,9 +33,24 @@ MAX_REQUESTS_PER_MINUTE = 60
 MAX_FILE_CHUNKS_PER_MINUTE = 256
 STATE_LOCK_TTL_SECONDS = 10
 STATE_LOCK_WAIT_SECONDS = 5
-WRITE_OPERATIONS = {"create_file", "update_file"}
+RUN_COMMAND_OPERATION = "run_command"
+# Write-class: needs chat/operation/digest context and the exact-approval path.
+# The digest is the client-computed Project-key HMAC; the server never sees argv.
+GIT_STATUS_OPERATION = "git_status"
+GIT_WRITE_OPERATIONS = {"git_commit", "git_land"}
+# Creates a new Project folder on a host device; addressed to a placeholder
+# source that only carries the ``create_source`` capability.
+CREATE_SOURCE_OPERATION = "create_source"
+CREATE_SOURCE_CAPABILITY = "create_source"
+SOURCE_CAPABILITIES = {"read", "search", "import", "write_request", "run_command", CREATE_SOURCE_CAPABILITY}
+WRITE_OPERATIONS = {
+    "create_file", "update_file", RUN_COMMAND_OPERATION, CREATE_SOURCE_OPERATION, *GIT_WRITE_OPERATIONS,
+}
+SINGLE_USE_OPERATIONS = {RUN_COMMAND_OPERATION, CREATE_SOURCE_OPERATION, *GIT_WRITE_OPERATIONS}
 USER_FILE_OPERATIONS = {"copy_entries", "move_entries"}
-ALLOWED_OPERATIONS = {"list", "search", "read_text", "read_image_chunk", "read_file_chunk", *WRITE_OPERATIONS, *USER_FILE_OPERATIONS}
+ALLOWED_OPERATIONS = {"list", "search", "read_text", "read_image_chunk", "read_file_chunk", GIT_STATUS_OPERATION, *WRITE_OPERATIONS, *USER_FILE_OPERATIONS}
+WORKSPACE_CHAT_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
+MAX_CHAT_ANCESTRY_DEPTH = 16
 RELEASE_LOCK_SCRIPT = """
 if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])
@@ -50,6 +66,40 @@ class ProjectRemoteAccessError(RuntimeError):
         super().__init__(code)
         self.code = code
         self.status_code = status_code
+
+
+async def resolve_root_chat_id(
+    directus_service: Any, user_id: str, chat_id: str, team_id: str | None = None
+) -> str:
+    """Return the root ancestor of a chat, verifying ownership at every hop.
+
+    Sub-chats point at their parent through ``parent_id``. The client-supplied
+    id is only a starting point: each chat is read from Directus and must belong
+    to the requester (or the team), so the host never receives a foreign id.
+    """
+
+    expected_owner = _hash(user_id)
+    expected_team = _hash(team_id) if team_id else None
+    current = chat_id
+    visited: set[str] = set()
+    for _ in range(MAX_CHAT_ANCESTRY_DEPTH):
+        if current in visited:
+            raise ProjectRemoteAccessError("chat_ancestry_invalid", status_code=409)
+        visited.add(current)
+        chat = await directus_service.chat.get_chat_metadata(current, admin_required=True)
+        if not chat:
+            raise ProjectRemoteAccessError("chat_not_found", status_code=404)
+        if team_id:
+            owned = chat.get("hashed_team_id") == expected_team
+        else:
+            owned = chat.get("hashed_team_id") is None and chat.get("hashed_user_id") == expected_owner
+        if not owned:
+            raise ProjectRemoteAccessError("chat_not_found", status_code=404)
+        parent = chat.get("parent_id")
+        if not parent:
+            return current
+        current = str(parent)
+    raise ProjectRemoteAccessError("chat_ancestry_invalid", status_code=409)
 
 
 class ProjectRemoteAccessService:
@@ -369,8 +419,11 @@ class ProjectRemoteAccessService:
         operation_id: str | None = None,
         proposal_digest: str | None = None,
         user_initiated: bool = False,
+        workspace_chat_id: str | None = None,
     ) -> dict[str, Any]:
         _validate_envelope(encrypted_envelope)
+        if workspace_chat_id is not None and not WORKSPACE_CHAT_ID_PATTERN.fullmatch(workspace_chat_id):
+            raise ProjectRemoteAccessError("invalid_workspace_chat_id")
         if operation not in ALLOWED_OPERATIONS:
             raise ProjectRemoteAccessError("unsupported_operation")
         if operation in WRITE_OPERATIONS and not (chat_id and operation_id and proposal_digest):
@@ -388,7 +441,9 @@ class ProjectRemoteAccessService:
                     await mark_team_host_offline(host_user_id)
                 raise ProjectRemoteAccessError("source_offline", status_code=404)
             required_capability = (
-                "write_request" if operation in WRITE_OPERATIONS | USER_FILE_OPERATIONS
+                RUN_COMMAND_OPERATION if operation == RUN_COMMAND_OPERATION
+                else CREATE_SOURCE_CAPABILITY if operation == CREATE_SOURCE_OPERATION
+                else "write_request" if operation in WRITE_OPERATIONS | USER_FILE_OPERATIONS
                 else "search" if operation == "search" else "read"
             )
             if required_capability not in set(binding.get("capabilities") or []):
@@ -444,6 +499,8 @@ class ProjectRemoteAccessService:
                 request.update(chat_id=chat_id, operation_id=operation_id, proposal_digest=proposal_digest)
             if operation in USER_FILE_OPERATIONS:
                 request["user_initiated"] = True
+            if workspace_chat_id is not None:
+                request["workspace_chat_id"] = workspace_chat_id
             await self.cache.set(request_key, request, ttl=REQUEST_CACHE_TTL_SECONDS)
             if status == "delivered":
                 in_flight.append(request_id)
@@ -510,7 +567,11 @@ class ProjectRemoteAccessService:
         if (binding.get("source_session_id") != source_session_id
                 or binding.get("stable_device_fingerprint_hash") != stable_device_fingerprint_hash
                 or binding.get("key_epoch") != request.get("key_epoch")
-                or "write_request" not in set(binding.get("capabilities") or [])):
+                or (
+                    RUN_COMMAND_OPERATION if request["operation"] == RUN_COMMAND_OPERATION
+                    else CREATE_SOURCE_CAPABILITY if request["operation"] == CREATE_SOURCE_OPERATION
+                    else "write_request"
+                ) not in set(binding.get("capabilities") or [])):
             raise ProjectRemoteAccessError("source_session_changed", status_code=409)
         return request
 
@@ -786,6 +847,8 @@ class ProjectRemoteAccessService:
             )
         if request["operation"] in USER_FILE_OPERATIONS:
             payload["user_initiated"] = True
+        if request.get("workspace_chat_id") is not None:
+            payload["workspace_chat_id"] = request["workspace_chat_id"]
         if request["context_type"] == "team":
             payload["routing_identity"] = self._routing_identity(request)
         published = await self.cache.publish_event(
@@ -968,7 +1031,7 @@ def _normalize_binding(value: dict[str, Any]) -> dict[str, Any]:
         or key_epoch < 1
     ):
         raise ProjectRemoteAccessError("invalid_source_binding")
-    if not set(capabilities).issubset({"read", "search", "import", "write_request", "run_command"}):
+    if not set(capabilities).issubset(SOURCE_CAPABILITIES):
         raise ProjectRemoteAccessError("invalid_source_capabilities")
     return {
         "project_id": project_id,

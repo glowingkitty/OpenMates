@@ -11,7 +11,7 @@ const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
-const { CLI_DIST, runCli } = require('./helpers/cli-test-helpers');
+const { CLI_DIST, CLI_LOGIN_SUCCESS, CLI_PIN_PROMPT, cliSpawnArgs, cliStateDir, runCli } = require('./helpers/cli-test-helpers');
 const { installRecorderDeps } = require('./cli-tui-proof-helpers');
 const {
   createWorkflowCliHome, loginWorkflowCliViaPair, parseCliJson, removeWorkflowCliHome,
@@ -44,7 +44,7 @@ async function cliJson(home: string, args: string[], label: string): Promise<any
 
 /** Pair the already authenticated second browser account into its own empty CLI home. */
 async function pairCurrentBrowser(page: Page, home: string): Promise<void> {
-  const child = spawn('node', [CLI_DIST, 'login'], {
+  const child = spawn(...cliSpawnArgs(['login']), {
     env: workflowCliEnv(apiUrl, home), stdio: ['pipe', 'pipe', 'pipe'],
   });
   let stdout = '', stderr = '';
@@ -64,11 +64,11 @@ async function pairCurrentBrowser(page: Page, home: string): Promise<void> {
     await page.getByTestId('pair-allow-button').click();
     const pin = (await page.getByTestId('pair-pin-display').innerText()).replace(/\s/g, '');
     expect(/^[A-Z0-9]{6}$/.test(pin), 'Second account pairing PIN must have the expected format').toBe(true);
-    await expect.poll(() => (stdout + stderr).includes('Enter 6-char pairing PIN:'), { timeout: 20_000 }).toBe(true);
+    await expect.poll(() => (stdout + stderr).includes(CLI_PIN_PROMPT), { timeout: 20_000 }).toBe(true);
     child.stdin.write(`${pin}\n`);
     const code = await exited;
     expect(code, 'Second account CLI pairing failed').toBe(0);
-    expect((stdout + stderr).includes('Login successful'), 'Second account CLI pairing must complete').toBe(true);
+    expect((stdout + stderr).includes(CLI_LOGIN_SUCCESS), 'Second account CLI pairing must complete').toBe(true);
   } finally {
     if (child.exitCode === null) child.kill('SIGTERM');
     await exited.catch(() => undefined);
@@ -77,7 +77,7 @@ async function pairCurrentBrowser(page: Page, home: string): Promise<void> {
 
 function clearTeamCache(home: string, teamId: string): void {
   const digest = createHash('sha256').update(teamId).digest('hex').slice(0, 32);
-  rmSync(join(home, '.openmates', `sync_cache.team.${digest}.json`), { force: true });
+  rmSync(join(cliStateDir(home), `sync_cache.team.${digest}.json`), { force: true });
 }
 
 /** Invoke the shipped SDK client so the recipient performs real Team-key/embed decryption. */

@@ -36,8 +36,8 @@ Shared Rust owns all reusable headless application operations, crypto,
 authentication, storage policy, sync, reconnect and recovery. The complete CLI/TUI
 is one Rust application. The web app retains Svelte/TypeScript UI, DOM and thin
 browser APIs such as media and WebRTC; Apple retains native SwiftUI and platform
-hooks. Thin persistence adapters keep IndexedDB and SwiftData initially and
-preserve existing data. This is the migration target, not a claim that the web or
+hooks. The Rust core owns the encrypted cache; IndexedDB and SwiftData are retired
+safely (existing data migrated or re-synced) once the core store is proven. This is the migration target, not a claim that the web or
 Apple migration has already shipped.
 
 First prove essential authentication, encrypted chat, streaming/cancellation,
@@ -45,8 +45,10 @@ persistence and synchronization/reconnect/recovery through the entirely Rust
 CLI/TUI. Begin browser/WASM integration immediately after that essential proof;
 full CLI command and app parity remains required in parallel and does not delay
 browser admission. Compare before/after compressed JavaScript and WASM sizes,
-cold load, usable-chat latency, CPU and RAM. Verify web before Apple through the
-coordinated Mac workflow. Remove superseded
+cold load, usable-chat latency, CPU and RAM. Web and Apple proceed in parallel per
+capability; Apple is verified first on GitHub macOS CI (`apple-core`/`apple-unit`),
+and the Mac is used only for TestFlight, physical device/APNs, real-account tests
+and XCUITest. Remove superseded
 client code only after reliable verification and explicit agent plus user
 acceptance. Backend Rust migration begins only after every client and accepted
 cleanup are complete; backend implementation is outside this migration.
@@ -56,7 +58,8 @@ The primary CLI distribution is its crates.io application crate through
 development prereleases. npm and Python remain direct library SDKs under shared
 conformance gates. GitHub prebuilt executables are outside scope. Required
 acceptance includes actual Linux dev use, an explicit coordinated Mac-chat handoff
-or admitted typed `apple_remote` Mac operation, and existing isolated product/self-host CI. Windows testing is explicitly
+or admitted typed `apple_remote` Mac operation or the CI modes
+`apple-core`/`apple-unit`, and existing isolated product/self-host CI. Windows testing is explicitly
 waived, without a Windows build/support claim or another CPU-architecture matrix.
 
 The existing [CLI package architecture](cli-package.md), SDK/CLI surface
@@ -68,3 +71,4 @@ do not create a competing client-core contract.
 - [Web App](../frontend/web-app.md) -- SvelteKit app architecture and public docs processing.
 - [CLI](cli.md) -- command-line platform architecture and capabilities.
 - [Apple App](../frontend/native-apps.md) -- native app architecture and web-parity model.
+- [Rust migration status](rust-migration-status.md) -- generated readable report; the structured source is [docs/migration/rust/overview.yml](../../migration/rust/overview.yml) (areas, sub-files and the append-only performance-history.yml).

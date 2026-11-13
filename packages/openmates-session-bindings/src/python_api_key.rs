@@ -20,17 +20,17 @@ struct PythonApiKeyRequest{request:Arc<ApiKeyRequest>}
 impl PythonApiKeyRequest {
     fn account_info_prepare<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
         let request=self.request.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py,async move{Ok(PythonApiKeyOutput{output:Mutex::new(Some(request.account_info_prepare().await.map_err(error)?))})})
+        crate::python_future::future_into_py(py,async move{Ok(PythonApiKeyOutput{output:Mutex::new(Some(request.account_info_prepare().await.map_err(error)?))})})
     }
     fn run_skill_prepare<'py>(&self,py:Python<'py>,app:String,skill:String,input_json:String)->PyResult<Bound<'py,PyAny>>{
         let encoded=Zeroizing::new(input_json);
         let request=self.request.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py,async move{Ok(PythonApiKeyOutput{output:Mutex::new(Some(request.run_skill_prepare_guarded(app,skill,encoded).await.map_err(error)?))})})
+        crate::python_future::future_into_py(py,async move{Ok(PythonApiKeyOutput{output:Mutex::new(Some(request.run_skill_prepare_guarded(app,skill,encoded).await.map_err(error)?))})})
     }
     fn list_project_sources_raw_prepare<'py>(&self, py: Python<'py>, project: String, filters_json: String) -> PyResult<Bound<'py, PyAny>> {
         let encoded = Zeroizing::new(filters_json);
         let request = self.request.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             Ok(PythonApiKeyOutput { output: Mutex::new(Some(request.list_project_sources_raw_prepare_guarded(project, encoded).await.map_err(error)?)) })
         })
     }

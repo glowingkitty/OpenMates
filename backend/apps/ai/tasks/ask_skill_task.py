@@ -67,7 +67,7 @@ from backend.apps.ai.utils.instruction_loader import load_validated_base_instruc
 from backend.apps.ai.utils.user_task_turn_finalization import finalize_user_task_turn
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
-from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
+from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult, _resolve_explicit_mate
 from backend.apps.ai.processing.summary_billing import (
     SummaryBillingAmbiguousError,
     SummaryBillingDuplicateError,
@@ -84,6 +84,9 @@ from backend.apps.ai.processing.artifact_ledger import (
     load_and_merge_artifact_ledger,
     recover_inline_upload_artifacts,
 )
+from backend.apps.ai.processing.postprocessing_workflow_context import fetch_user_workflow_metadata
+from backend.apps.ai.processing.postprocessing_recommendations import exclude_written_recommendations, recommendations_skip_reason
+from backend.apps.ai.processing.rule_context import request_personal_catalog
 from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
     PostProcessingResult,
@@ -91,6 +94,7 @@ from backend.apps.ai.processing.postprocessor import (
 )
 from backend.shared.python_utils.learning_mode import (
     filter_learning_mode_suggestions,
+    is_collaborative_build_enabled,
     is_learning_mode_enabled,
     learning_mode_context_from_preferences,
 )
@@ -101,7 +105,11 @@ from backend.shared.python_utils.tracing.ai_observability import (
     record_ai_completion_timing,
     record_ai_queue_span,
 )
-from .stream_consumer import _consume_main_processing_stream, _persist_sealed_typed_output
+from backend.apps.ai.assistant_speech.voice_status import chat_has_no_mate_yet
+from .stream_consumer import (
+    _consume_main_processing_stream, _persist_sealed_typed_output, publish_chat_start_voice_confirmation,
+    publish_instant_voice_acknowledgement,
+)
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
 from backend.core.api.app.utils.override_parser import parse_overrides, parse_overrides_from_messages, UserOverrides
@@ -2547,7 +2555,7 @@ def _can_overlap_first_turn_reads(request_data, stage_one_snapshot, user_overrid
     if not isinstance(admission, dict) or admission.get("scope_complete") is True:
         return False
     if any(getattr(request_data, key, None) for key in (
-        "accepted_plan_context", "custom_rule_documents", "project_focus_documents",
+        "accepted_plan_context", "custom_rule_documents", "memory_catalog", "project_focus_documents",
         "project_context_documents", "mentioned_settings_memories_cleartext",
     )):
         return False
@@ -2786,6 +2794,26 @@ async def _async_process_ai_skill_ask_task(
         from backend.shared.python_utils.focus_continuation_history import bind_focus_execution
         await bind_focus_execution(cache_service_instance, request_data, task_id)
 
+        # The assistant never answers about a PDF before it finished processing
+        # (feature.pdf-processing: readiness.complete-before-answer).
+        if request_data.embed_file_path_index:
+            from backend.shared.python_utils.pdf_turn_gate import wait_for_pdfs_final
+
+            _last_user = next(
+                (m.content for m in reversed(request_data.message_history) if m.role == "user"), ""
+            )
+            await wait_for_pdfs_final(
+                cache_service=cache_service_instance,
+                encryption_service=encryption_service_instance,
+                user_id=request_data.user_id,
+                embed_ids=list(request_data.embed_file_path_index.values()),
+                current_turn_embed_ids=[
+                    embed_id for ref, embed_id in request_data.embed_file_path_index.items()
+                    if isinstance(_last_user, str) and ref in _last_user
+                ],
+                log_prefix=f"[Task ID: {task_id}] [pdf.gate]",
+            )
+
         stage_one_snapshot = await _time_setup_stage("stage_one_load", task_id, load_stage_one(
             cache=cache_service_instance, encryption=encryption_service_instance,
             request=request_data, directus=directus_service_instance, task_id=task_id, fingerprint=routing_fingerprint,
@@ -3020,6 +3048,18 @@ async def _async_process_ai_skill_ask_task(
             except Exception:
                 pass
                 
+        from backend.shared.python_utils.focus_continuation_history import (
+            FocusContinuationAuthorityError,
+        )
+        if isinstance(e, FocusContinuationAuthorityError) and cache_service_instance:
+            # The refusal stands (the continuation does not run), but the client
+            # must learn the turn ended instead of waiting for a stream.
+            await _publish_typing_ended(
+                cache_service_instance, task_id, request_data.chat_id,
+                request_data.user_id, request_data.user_id_hash, request_data.message_id,
+                terminal_failure_code=e.terminal_failure_code,
+            )
+
         if isinstance(e, RequiredRecoveryOutputError):
             raise
         raise RuntimeError(f"Service initialization failed: {e}")
@@ -3643,6 +3683,32 @@ async def _async_process_ai_skill_ask_task(
                         await summary_task
 
                 await require_active_voice_dispatch(cache_service_instance, request_data)
+                # The call turn is accepted: confirm before slow routing starts.
+                # Only a Mate chosen by the user or the request may speak now. A
+                # chat that is still being created has no Mate yet, so a neutral
+                # system voice confirms it; any other auto-routed turn waits for
+                # routing and is confirmed in the routed Mate's own voice.
+                explicit_call_mate, _source = _resolve_explicit_mate(
+                    list(all_mates_configs or []),
+                    user_overrides.mate_id if user_overrides else None,
+                    request_data.mate_id,
+                )
+                if (request_data.is_app_settings_memories_continuation
+                        or request_data.is_focus_mode_continuation):
+                    # The paused first task of this turn already confirmed it.
+                    pass
+                elif explicit_call_mate is not None:
+                    await publish_instant_voice_acknowledgement(
+                        task_id=task_id, request_data=request_data, mate=explicit_call_mate,
+                        cache_service=cache_service_instance, log_prefix=f"[Task ID: {task_id}] ",
+                    )
+                elif chat_has_no_mate_yet(
+                    chat_has_title=request_data.chat_has_title, message_history=request_data.message_history,
+                ):
+                    await publish_chat_start_voice_confirmation(
+                        task_id=task_id, request_data=request_data,
+                        cache_service=cache_service_instance, log_prefix=f"[Task ID: {task_id}] ",
+                    )
                 with ai_phase_span("preprocess"):
                     _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "started")
                     try:
@@ -4992,7 +5058,7 @@ async def _async_process_ai_skill_ask_task(
             chat_output_language = preprocessing_result.output_language if preprocessing_result else "en"
             user_system_language = request_data.user_preferences.get("language", "en") if request_data.user_preferences else "en"
             follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
-            quick_tips_enabled = (request_data.user_preferences or {}).get("quick_tips_enabled", True) is not False
+            recommendations_enabled = (request_data.user_preferences or {}).get("recommendations_enabled", True) is not False
             effective_learning_mode_context = (
                 getattr(request_data, "learning_mode", None)
                 or learning_mode_context_from_preferences(request_data.user_preferences)
@@ -5015,7 +5081,25 @@ async def _async_process_ai_skill_ask_task(
                 # result too; deterministic fixture checks must not call a provider.
                 if isinstance(_fixture_postprocessing_result, PostProcessingResult):
                     postprocessing_result = _fixture_postprocessing_result.model_copy(deep=True)
+                    # Fixtures obey the same Recommendations gate as live post-processing
+                    # (setting off, sub-chat, incognito, small talk).
+                    if recommendations_skip_reason(
+                        recommendations_enabled=recommendations_enabled,
+                        is_sub_chat=bool(getattr(request_data, "is_sub_chat", False)),
+                        is_incognito=bool(getattr(request_data, "is_incognito", False)),
+                        user_message=last_user_message, assistant_response=postprocessing_response,
+                    ):
+                        postprocessing_result.recommendations = []
+                    else:
+                        postprocessing_result.recommendations = exclude_written_recommendations(
+                            postprocessing_result.recommendations, request_data.turn_written_entries)
                 else:
+                    # Optional in-memory workflow metadata so Recommendations can update instead of duplicate.
+                    existing_workflows_for_postproc = (
+                        await fetch_user_workflow_metadata(request_data, cache_service_instance)
+                        if recommendations_enabled and not getattr(request_data, "is_sub_chat", False)
+                        else []
+                    )
                     postprocessing_result = await handle_postprocessing(
                         task_id=task_id,
                         user_message=last_user_message,
@@ -5035,7 +5119,7 @@ async def _async_process_ai_skill_ask_task(
                         user_system_language=user_system_language,
                         current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
                         follow_up_suggestions_enabled=follow_up_suggestions_enabled,
-                        quick_tips_enabled=quick_tips_enabled,
+                        recommendations_enabled=recommendations_enabled,
                         learning_mode_context=effective_learning_mode_context,
                         learning_focus_context=(
                             {"focus_id": request_data.active_focus_id,
@@ -5046,15 +5130,21 @@ async def _async_process_ai_skill_ask_task(
                         ),
                         decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
                         voice_mode=request_data.voice_mode,
+                        memory_catalog=request_personal_catalog(request_data),
+                        existing_workflows=existing_workflows_for_postproc,
+                        written_entries=list(request_data.turn_written_entries),
                     )
                 _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "completed")
 
             if postprocessing_result and is_learning_mode_enabled(effective_learning_mode_context):
+                collaborative_suggestions = is_collaborative_build_enabled(effective_learning_mode_context)
                 postprocessing_result.follow_up_request_suggestions = filter_learning_mode_suggestions(
-                    postprocessing_result.follow_up_request_suggestions
+                    postprocessing_result.follow_up_request_suggestions,
+                    collaborative_build=collaborative_suggestions,
                 )
                 postprocessing_result.new_chat_request_suggestions = filter_learning_mode_suggestions(
-                    postprocessing_result.new_chat_request_suggestions
+                    postprocessing_result.new_chat_request_suggestions,
+                    collaborative_build=collaborative_suggestions,
                 )
 
 
@@ -5111,7 +5201,7 @@ async def _async_process_ai_skill_ask_task(
                 "chat_tags": postprocessing_result.chat_tags or chat_tags,
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
-                "quick_tip_slugs": postprocessing_result.quick_tip_slugs,
+                "recommendations": postprocessing_result.recommendations,
                 "task_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_proposals],
                 "task_update_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_update_proposals],
                 "source_title_v": source_title_v,

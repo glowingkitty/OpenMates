@@ -1,5 +1,6 @@
 import { getApiEndpoint } from '../config/api';
 import { hashEmail } from './cryptoService';
+import { authFlowActive, pairExpiredPushed } from './rustCore/auth/flowPush';
 import { decryptWithMasterKeyDirect, encryptWithMasterKeyDirect } from './encryption/MetadataEncryptor';
 
 export const PAIR_POLL_MS = 1500;
@@ -78,7 +79,13 @@ export async function pairRequest<T>(path: string, options: RequestInit = {}, re
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(typeof body.detail === 'string' ? body.detail : typeof body.message === 'string' ? body.message : `Pairing request failed (${response.status})`);
+      let message = typeof body.detail === 'string' ? body.detail : typeof body.message === 'string' ? body.message : `Pairing request failed (${response.status})`;
+      if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
+        // Flag builds: the shared Rust core classifies the failure; no TS fallback.
+        const { rustAuthEnabled, rustAuthFlow } = await import('./rustCore/authOperation');
+        if (rustAuthEnabled()) message = await rustAuthFlow<string>('pair_error_message', { status: response.status, body });
+      }
+      const error = new Error(message);
       Object.assign(error, { status: response.status });
       throw error;
     }
@@ -93,5 +100,7 @@ export function isPairTerminal(status: PairStatus): boolean {
 }
 
 export function pairExpired(expiresAt: number): boolean {
+  // Flag builds: last answer pushed by the shared Rust core (neutral: not expired).
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && authFlowActive()) return pairExpiredPushed(expiresAt);
   return !Number.isFinite(expiresAt) || Date.now() >= expiresAt * 1000;
 }

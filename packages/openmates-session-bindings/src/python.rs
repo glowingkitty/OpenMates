@@ -26,7 +26,7 @@ impl PythonInitialSyncOperation {
     fn run<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.prepared.try_lock().map_err(|_| error(openmates_sdk::Error::Conflict.into()))?
             .take().ok_or_else(|| error(openmates_sdk::Error::Conflict.into()))?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             Ok(PythonInitialSyncMetadata { value: prepared.run().await.map_err(error)? })
         })
     }
@@ -38,7 +38,7 @@ struct PythonInitialSyncMetadata { value: crate::InitialSyncMetadata }
 impl PythonInitialSyncMetadata {
     fn received_metadata_count<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let value = self.value.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move { value.received_metadata_count().await.map_err(error) })
+        crate::python_future::future_into_py(py, async move { value.received_metadata_count().await.map_err(error) })
     }
     fn cancel(&self) { self.value.cancel(); }
 }
@@ -65,25 +65,25 @@ impl PythonSessionClient {
     }
     fn first_page_open<'py>(&self,py:Python<'py>,id:String,include_secrets:bool,include_private_output:bool)->PyResult<Bound<'py,PyAny>>{
         let prepared = self.bridge.capture_first_page_open(id,include_secrets,include_private_output);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
     fn first_page_next<'py>(&self,py:Python<'py>,id:String)->PyResult<Bound<'py,PyAny>>{
-        let bridge=self.bridge.clone();pyo3_async_runtimes::tokio::future_into_py(py,async move{bridge.first_page_next(id).await.map_err(error)})
+        let bridge=self.bridge.clone();crate::python_future::future_into_py(py,async move{bridge.first_page_next(id).await.map_err(error)})
     }
     fn first_page_receipt(&self,id:String,stage_id:String,receipt:String)->PyResult<()>{self.bridge.first_page_receipt(id,stage_id,receipt).map_err(error)}
     fn first_page_capacity(&self,id:String,stage_id:String,accepted:bool)->PyResult<()>{self.bridge.first_page_capacity(id,stage_id,accepted).map_err(error)}
     fn first_page_close(&self,id:String)->PyResult<()>{self.bridge.first_page_close(id).map_err(error)}
     fn cache_chat_stage<'py>(&self, py: Python<'py>, id: String, include_secrets: bool) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_cache_chat_stage(id,include_secrets);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
     fn cache_chat_commit<'py>(&self, py: Python<'py>, stage_id: String, receipt: String) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move { bridge.cache_chat_commit(stage_id, receipt).await.map_err(error) })
+        crate::python_future::future_into_py(py, async move { bridge.cache_chat_commit(stage_id, receipt).await.map_err(error) })
     }
     fn cache_chat_discard(&self, stage_id: String) -> PyResult<()> {
         self.bridge.cache_chat_discard(stage_id).map_err(error)
@@ -91,27 +91,27 @@ impl PythonSessionClient {
     #[pyo3(signature=(id,include_secrets,selected=None))]
     fn chat_monitor_stage_prefer_cache<'py>(&self, py: Python<'py>, id: String, include_secrets: bool, selected: Option<String>) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move { bridge.chat_monitor_stage_prefer_cache(id, selected, include_secrets).await.map_err(error) })
+        crate::python_future::future_into_py(py, async move { bridge.chat_monitor_stage_prefer_cache(id, selected, include_secrets).await.map_err(error) })
     }
     fn embeds_share_url<'py>(&self,py:Python<'py>,id:String,expires_json:String,password:String)->PyResult<Bound<'py,PyAny>>{
         let prepared = self.bridge.capture_embeds_share_url(id,expires_json,password);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move { prepared.await.map_err(error) })
+        crate::python_future::future_into_py(py, async move { prepared.await.map_err(error) })
     }
     fn embeds_version_content<'py>(&self,py:Python<'py>,id:String,version_json:String)->PyResult<Bound<'py,PyAny>>{
         let prepared = self.bridge.capture_embeds_version_content(id,version_json);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
     fn drafts_list_cached<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_drafts_list_cached();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
     fn drafts_list<'py>(&self, py: Python<'py>, options: String) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_drafts_list(options);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
@@ -122,13 +122,13 @@ impl PythonSessionClient {
         options: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_drafts_get(id,options);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
     fn drafts_sync<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_drafts_sync();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
@@ -139,7 +139,7 @@ impl PythonSessionClient {
         id: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge.chat_monitor_validate(id).await.map_err(error)
         })
     }
@@ -151,13 +151,13 @@ impl PythonSessionClient {
     }
     fn chat_monitor_open<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_chat_monitor_open();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
     fn chat_monitor_next<'py>(&self, py: Python<'py>, id: String) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge.chat_monitor_next(id).await.map_err(error)
         })
     }
@@ -170,7 +170,7 @@ impl PythonSessionClient {
         selected: Option<String>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge
                 .chat_monitor_stage(id, selected, include_secrets)
                 .await
@@ -185,7 +185,7 @@ impl PythonSessionClient {
         receipt: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge
                 .chat_monitor_commit(id, stage_id, receipt)
                 .await
@@ -206,13 +206,13 @@ impl PythonSessionClient {
         enabled: bool,
     ) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_completion_recovery_enable(enabled);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
     fn completion_recovery_jobs<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_completion_recovery_discover(None);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
@@ -220,7 +220,7 @@ impl PythonSessionClient {
         &self, py: Python<'py>, chat_id: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_completion_recovery_discover(Some(chat_id));
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
@@ -230,7 +230,7 @@ impl PythonSessionClient {
         id: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge.completion_recovery_stage(id).await.map_err(error)
         })
     }
@@ -240,7 +240,7 @@ impl PythonSessionClient {
         checkpoint: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge
                 .completion_recovery_resume(checkpoint)
                 .await
@@ -254,7 +254,7 @@ impl PythonSessionClient {
         receipt: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge
                 .completion_recovery_commit(id, receipt)
                 .await
@@ -269,7 +269,7 @@ impl PythonSessionClient {
         filters_json: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_project_task_watch_open(project,input_json,filters_json);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
@@ -279,7 +279,7 @@ impl PythonSessionClient {
         id: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge.project_task_watch_next(id).await.map_err(error)
         })
     }
@@ -290,7 +290,7 @@ impl PythonSessionClient {
         receipt_json: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge
                 .project_task_watch_commit(id, receipt_json)
                 .await
@@ -317,7 +317,7 @@ impl PythonSessionClient {
         stay_logged_in: bool,
     ) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.prepare_login_password(email, password, tfa, openmates_sdk::PasswordLoginOptions { stay_logged_in }).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move { prepared.run_string().await.map_err(error) })
+        crate::python_future::future_into_py(py, async move { prepared.run_string().await.map_err(error) })
     }
     fn import_session<'py>(
         &self,
@@ -325,7 +325,7 @@ impl PythonSessionClient {
         session_json: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.prepare_import_session(session_json).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move { prepared.run_unit().await.map_err(error) })
+        crate::python_future::future_into_py(py, async move { prepared.run_unit().await.map_err(error) })
     }
     fn export_session<'py>(
         &self,
@@ -333,13 +333,13 @@ impl PythonSessionClient {
         include_secrets: bool,
     ) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge.export_session(include_secrets).await.map_err(error)
         })
     }
     fn validate_session<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge.validate_session().await.map_err(error)
         })
     }
@@ -350,48 +350,48 @@ impl PythonSessionClient {
     }
     fn apps_inventory_prepare<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
         let prepared=self.bridge.capture_apps_inventory_prepare();
-        pyo3_async_runtimes::tokio::future_into_py(py,async move{prepared.await.map(|output|PythonAppsInventoryOutput{output:std::sync::Mutex::new(Some(output))}).map_err(error)})
+        crate::python_future::future_into_py(py,async move{prepared.await.map(|output|PythonAppsInventoryOutput{output:std::sync::Mutex::new(Some(output))}).map_err(error)})
     }
     fn list<'py>(&self, py: Python<'py>, workspace: String) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge.list(workspace).await.map_err(error)
         })
     }
     fn chat_details_prepare<'py>(&self, py: Python<'py>, id: String, options_json: String) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_chat_details_prepare(id,options_json);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map(|output| PythonChatDetailsOutput { output: std::sync::Mutex::new(Some(output)) }).map_err(error)
         })
     }
     fn open_chat_prepare<'py>(&self, py: Python<'py>, id: String) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_full_chat_read_prepare(id);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map(|output| PythonFullChatOutput { output: std::sync::Mutex::new(Some(output)) }).map_err(error)
         })
     }
     fn chat_message_window<'py>(&self, py: Python<'py>, id: String, options: String) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_chat_message_window(id,options);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
     fn saved_chat_read<'py>(&self, py: Python<'py>, id: String, options: String) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_saved_chat_read(id,options);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
     fn saved_chat_exact_message<'py>(&self, py: Python<'py>, id: String, options: String) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_saved_chat_exact_message(id,options);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
     #[pyo3(signature=(id=None))]
     fn set_team<'py>(&self, py: Python<'py>, id: Option<String>) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.prepare_set_team(id).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move { prepared.run_unit().await.map_err(error) })
+        crate::python_future::future_into_py(py, async move { prepared.run_unit().await.map_err(error) })
     }
     #[pyo3(signature=(text,chat_id=None))]
     fn start_send<'py>(
@@ -401,20 +401,20 @@ impl PythonSessionClient {
         chat_id: Option<String>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.capture_start_saved_stream(text,chat_id);
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.await.map_err(error)
         })
     }
     fn run_skill_prepare<'py>(&self,py:Python<'py>,app:String,skill:String,input:String)->PyResult<Bound<'py,PyAny>> {
         let prepared=self.bridge.run_skill_prepare(app,skill,input);
-        pyo3_async_runtimes::tokio::future_into_py(py,async move{
+        crate::python_future::future_into_py(py,async move{
             prepared.await
                 .map(|output|PythonDirectSkillOutput{output:std::sync::Mutex::new(Some(output))}).map_err(error)
         })
     }
     fn next_event_prepare<'py>(&self, py: Python<'py>, id: String) -> PyResult<Bound<'py, PyAny>> {
         let bridge=self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py,async move {
+        crate::python_future::future_into_py(py,async move {
             bridge.next_event_prepare(id).await
                 .map(|output|PythonSavedStreamOutput{output:std::sync::Mutex::new(Some(output))})
                 .map_err(error)
@@ -422,7 +422,7 @@ impl PythonSessionClient {
     }
     fn next_event<'py>(&self, py: Python<'py>, id: String) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge.next_anonymous_event(id).await.map_err(error)
         })
     }
@@ -434,7 +434,7 @@ impl PythonSessionClient {
         // Parse before spawning so no malformed input can start a request.
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::TasksList(filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -447,7 +447,7 @@ impl PythonSessionClient {
         // Parse before spawning so no malformed input can start a request.
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::TaskShow(id, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -461,7 +461,7 @@ impl PythonSessionClient {
         let input = crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::TaskCreate(input, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -476,7 +476,7 @@ impl PythonSessionClient {
         let input = crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::TaskUpdate(id, input, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -490,7 +490,7 @@ impl PythonSessionClient {
         // Parse before spawning so no malformed input can start a request.
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::TaskDelete(id, confirmed, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -502,7 +502,7 @@ impl PythonSessionClient {
         // Parse before spawning so no malformed input can start a request.
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::ProjectsList(filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -515,7 +515,7 @@ impl PythonSessionClient {
         // Parse before spawning so no malformed input can start a request.
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::ProjectShow(id, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -523,17 +523,17 @@ impl PythonSessionClient {
         let input=crate::session::decode_input(input_json).map_err(error)?;
         let filters=crate::session::decode_input(filters_json).map_err(error)?;
         let prepared=self.bridge.prepare_work(crate::session::WorkRequest::ProjectSyncWorkflowFiles(input,filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py,async move{prepared.run().await.map_err(error)})
+        crate::python_future::future_into_py(py,async move{prepared.run().await.map_err(error)})
     }
     fn projects_list_sources_raw<'py>(&self, py: Python<'py>, project: String, filters_json: String) -> PyResult<Bound<'py, PyAny>> {
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::ProjectSourcesRaw(project, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move { prepared.run().await.map_err(error) })
+        crate::python_future::future_into_py(py, async move { prepared.run().await.map_err(error) })
     }
     fn projects_list_sources_decoded_names<'py>(&self, py: Python<'py>, project: String, filters_json: String) -> PyResult<Bound<'py, PyAny>> {
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::ProjectSourceDecodedNames(project, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move { prepared.run().await.map_err(error) })
+        crate::python_future::future_into_py(py, async move { prepared.run().await.map_err(error) })
     }
     fn projects_create_source<'py>(
         &self,
@@ -545,7 +545,7 @@ impl PythonSessionClient {
         let input = crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::ProjectSourceCreate(project, Box::new(input), filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -560,7 +560,7 @@ impl PythonSessionClient {
         let input = crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::ProjectSourceCapabilities(project, source, input, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -574,7 +574,7 @@ impl PythonSessionClient {
         let input = crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::ProjectCreate(input, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -586,7 +586,7 @@ impl PythonSessionClient {
     ) -> PyResult<Bound<'py, PyAny>> {
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::ProjectItems(id, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -601,7 +601,7 @@ impl PythonSessionClient {
             crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::ProjectUnlinkItem(id, input.item_type, input.target_id, input.confirmed, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -616,7 +616,7 @@ impl PythonSessionClient {
         let input = crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::ProjectUpdate(id, input, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -630,7 +630,7 @@ impl PythonSessionClient {
         // Parse before spawning so no malformed input can start a request.
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::ProjectDelete(id, confirmed, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -641,7 +641,7 @@ impl PythonSessionClient {
     ) -> PyResult<Bound<'py, PyAny>> {
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::PlansList(filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -653,7 +653,7 @@ impl PythonSessionClient {
     ) -> PyResult<Bound<'py, PyAny>> {
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::PlanShow(id, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -666,7 +666,7 @@ impl PythonSessionClient {
         let input = crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::PlanCreate(Box::new(input), filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -680,7 +680,7 @@ impl PythonSessionClient {
         let input = crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::PlanUpdate(id, Box::new(input), filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -693,7 +693,7 @@ impl PythonSessionClient {
     ) -> PyResult<Bound<'py, PyAny>> {
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::PlanDelete(id, confirmed, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -704,7 +704,7 @@ impl PythonSessionClient {
     ) -> PyResult<Bound<'py, PyAny>> {
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::WorkflowsList(filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -716,7 +716,7 @@ impl PythonSessionClient {
     ) -> PyResult<Bound<'py, PyAny>> {
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::WorkflowShow(id, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -729,7 +729,7 @@ impl PythonSessionClient {
         let input = crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::WorkflowCreate(Box::new(input), filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -743,7 +743,7 @@ impl PythonSessionClient {
         let input = crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::WorkflowUpdate(id, input, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -756,7 +756,7 @@ impl PythonSessionClient {
     ) -> PyResult<Bound<'py, PyAny>> {
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::WorkflowDelete(id, confirmed, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -770,7 +770,7 @@ impl PythonSessionClient {
         let input = crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::WorkflowRun(id, input, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -783,7 +783,7 @@ impl PythonSessionClient {
     ) -> PyResult<Bound<'py, PyAny>> {
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::WorkflowRunDetail(id, run, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -798,7 +798,7 @@ impl PythonSessionClient {
         let input = crate::session::decode_input(input_json).map_err(error)?;
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::WorkflowWait(id, run, input, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -811,7 +811,7 @@ impl PythonSessionClient {
     ) -> PyResult<Bound<'py, PyAny>> {
         let filters = crate::session::decode_input(filters_json).map_err(error)?;
         let prepared = self.bridge.prepare_work(crate::session::WorkRequest::WorkflowCancelRun(id, run, filters)).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             prepared.run().await.map_err(error)
         })
     }
@@ -827,7 +827,7 @@ impl PythonSessionClient {
     ) -> PyResult<Bound<'py, PyAny>> {
         let bridge = self.bridge.clone();
         let options = crate::session::anonymous::options(options_json).map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             bridge
                 .start_anonymous(anonymous_id, text, options)
                 .await
@@ -842,15 +842,17 @@ impl PythonSessionClient {
     }
     fn logout<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.prepare_logout().map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move { prepared.run_unit().await.map_err(error) })
+        crate::python_future::future_into_py(py, async move { prepared.run_unit().await.map_err(error) })
     }
     fn close<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.bridge.prepare_close().map_err(error)?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move { prepared.run().await.map_err(error) })
+        crate::python_future::future_into_py(py, async move { prepared.run().await.map_err(error) })
     }
 }
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    // First, so no awaitable can complete on a tokio thread during finalization.
+    crate::python_future::register(module)?;
     module.add_class::<PythonSessionClient>()?;
     module.add_class::<PythonInitialSyncOperation>()?;
     module.add_class::<PythonInitialSyncMetadata>()?;
@@ -954,7 +956,7 @@ struct PythonAppsInventoryOperation {prepared:std::sync::Mutex<Option<crate::ses
 impl PythonAppsInventoryOperation {
     fn run<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
         let prepared=self.prepared.try_lock().map_err(|_|error(openmates_sdk::Error::Conflict.into()))?.take().ok_or_else(||error(openmates_sdk::Error::Cancelled.into()))?;
-        pyo3_async_runtimes::tokio::future_into_py(py,async move{prepared.run().await.map(|output|PythonAppsInventoryOutput{output:std::sync::Mutex::new(Some(output))}).map_err(error)})
+        crate::python_future::future_into_py(py,async move{prepared.run().await.map(|output|PythonAppsInventoryOutput{output:std::sync::Mutex::new(Some(output))}).map_err(error)})
     }
     fn cancel(&self){self.cancel.cancel();}
 }
@@ -986,7 +988,7 @@ impl PythonSettingsRemindersOperation {
     fn run<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let prepared = self.prepared.try_lock().map_err(|_| error(openmates_sdk::Error::Conflict.into()))?
             .take().ok_or_else(|| error(openmates_sdk::Error::Cancelled.into()))?;
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+        crate::python_future::future_into_py(py, async move {
             Ok(PythonSettingsRemindersOutput { output: std::sync::Mutex::new(Some(prepared.run().await
                 .map_err(|error| pyo3::exceptions::PyRuntimeError::new_err(error.json()))?)) })
         })

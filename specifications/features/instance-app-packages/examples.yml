@@ -1,0 +1,149 @@
+schema_version: 1
+specification: feature.instance-app-packages@1
+manifest:
+- id: valid-provider-package
+  assertion_ids: [instance-app-packages.manifest-validation]
+  given: "An operator has my-events-1.0.0.zip containing manifest.yml (id my.events, one provider for events.search
+    implementing events.search@1, entrypoint bin/{target}/provider) and bin/aarch64/provider."
+  when: The operator runs the install command on an aarch64 server.
+  then: Validation passes without running the binary, and the review shows the package name, version and the provider
+    it adds to Events search.
+- id: rejected-escaping-path
+  assertion_ids: [instance-app-packages.manifest-validation]
+  given: A ZIP contains the entry ../../etc/cron.d/job next to a valid manifest.yml.
+  when: The operator runs the install command.
+  then: Installation stops with an invalid package path error and nothing is written to the server.
+install:
+- id: non-interactive-install
+  assertion_ids: [instance-app-packages.server-install]
+  input:
+    language: sh
+    code: openmates server apps install ./my-events-1.0.0.zip --accept-server-execution
+  expect: The warning is printed, version 1.0.0 of my.events becomes active, the API and workers restart, and
+    `openmates server apps list` shows my.events 1.0.0 as active.
+- id: rollback-after-update
+  assertion_ids: [instance-app-packages.server-install]
+  given: my.events 1.0.0 and 1.1.0 are installed and 1.1.0 is active.
+  when: The operator runs `openmates server apps rollback my.events`.
+  then: Version 1.0.0 becomes active again, both versions stay listed, and the next event search uses 1.0.0.
+availability:
+- id: paused-skill-becomes-available
+  assertion_ids: [instance-app-packages.instance-availability]
+  given: Events search is paused on the server because no general event provider exists, and app packages are
+    enabled.
+  when: The operator installs my.events and Bob, an ordinary user of that server, asks for concerts in Berlin this
+    weekend.
+  then: Events search appears in Bob's Apps settings, the assistant selects it, and Bob receives event cards from the
+    installed provider.
+- id: generic-contract-unpauses-skill
+  assertion_ids: [instance-app-packages.instance-availability, instance-app-packages.provider-contract]
+  given: Appointment search is paused because it has no provider. The operator installs my.package, whose provider
+    my_provider targets health.search_appointments with contract skill.requests@1 and a skill_hint.
+  when: Bob asks for a dentist appointment in Example City.
+  then: Appointment search is offered with the provider's hint, the provider receives Bob's validated request item,
+    and Bob sees its results labelled Example provider.
+- id: generic-contract-unpauses-flat-skill
+  assertion_ids: [instance-app-packages.instance-availability, instance-app-packages.provider-contract]
+  given: Trademark search is paused because it has no provider and its tool input is flat (names, regions, match),
+    not a list of requests. The operator installs my.package, whose provider my_provider targets
+    business.search_trademarks with contract skill.requests@1.
+  when: Bob asks whether "Example name" is registered in the US.
+  then: The provider receives Bob's whole validated search input as one item, and Bob sees its matches in the
+    normal trademark result card, labelled Example provider and never charged.
+- id: removal-restores-pause
+  assertion_ids: [instance-app-packages.instance-availability]
+  given: my.events is the only installed provider for Events search.
+  when: The operator runs `openmates server apps remove my.events`.
+  then: Events search is paused again for every user and the assistant no longer offers it.
+contract:
+- id: merged-results
+  assertion_ids: [instance-app-packages.provider-contract]
+  given: Alice asks for events at 39C3 and the installed provider also returns an event for the same talk.
+  when: Events search runs both providers for that request.
+  then: Alice sees one deduplicated list in the normal event cards, each card labelled with the provider that found it.
+- id: region-provider-skipped
+  assertion_ids: [instance-app-packages.provider-contract]
+  given: An operator installed my_provider declaring regions DE and AT next to a worldwide provider for a paused skill.
+  when: Alice searches with regions US.
+  then: Only the worldwide provider runs and Alice sees that my_provider was not searched because it does not cover US;
+    a search for US alone with only my_provider installed starts no provider and says no installed provider covers US.
+- id: provider-failure-isolated
+  assertion_ids: [instance-app-packages.provider-contract]
+  given: The installed provider exits with an error for one of two requests.
+  when: Events search assembles the response.
+  then: That request shows a safe provider error, the other request still shows its events, and no internal details
+    are exposed.
+- id: jobs-installed-provider-answers-coverage-gap
+  assertion_ids: [instance-app-packages.provider-contract, instance-app-packages.no-installed-provider-charges]
+  given: my_provider targets Jobs search with contract jobs.search@1, and the built-in source covers only Sweden.
+  when: Alice searches jobs in Germany and, in a second request, in Sweden.
+  then: The Germany request is answered by my_provider alone, without the built-in coverage-gap error and without
+    credits; the Sweden request shows built-in and my_provider listings interleaved, deduplicated by URL, each
+    labelled with its source, and is charged as before.
+- id: jobs-listing-filters-and-own-country
+  assertion_ids: [instance-app-packages.provider-contract]
+  given: my_provider targets Jobs search with contract jobs.search@1 and returns a listing in the US that states
+    visa sponsorship, an entry experience level and English, a global listing without a country that states the
+    same facts, and a US listing that states none of them.
+  when: Alice searches jobs in the US and the UK with visa sponsorship, entry level and English.
+  then: my_provider receives the countries US and GB and the filters; the result shows the US listing with country
+    US and the global listing without a country, and leaves out the listing that does not state the filtered facts.
+- id: generic-results-interleaved
+  assertion_ids: [instance-app-packages.provider-contract]
+  given: Two installed providers serve the same paused skill through skill.requests@1; the first returns three
+    results and the second one.
+  when: The skill assembles one request group.
+  then: The group lists the first result of each provider, then the remaining results of the first provider, each
+    attributed by the server, and a result with a javascript URL loses that field.
+- id: generic-contract-rejected-target
+  assertion_ids: [instance-app-packages.provider-contract, instance-app-packages.manifest-validation]
+  given: A package declares skill.requests@1 for Events search, which has built-in providers and its own contract.
+  when: The server loads installed packages.
+  then: The package is rejected with an error log and Events search is unchanged.
+runner:
+- id: no-internal-access
+  assertion_ids: [instance-app-packages.isolated-runner]
+  given: A provider binary tries to read the server .env file and connect to Vault while handling a search.
+  when: The runner executes it.
+  then: The file does not exist in the runner container and Vault is not reachable, while the provider's request to its
+    upstream website still works.
+- id: tampered-file-refused
+  assertion_ids: [instance-app-packages.isolated-runner]
+  given: Someone replaces the active provider binary on disk after installation.
+  when: The next event search reaches that provider.
+  then: The runner refuses to execute it, the request returns a provider unavailable error, and the other providers
+    still answer.
+secrets:
+- id: optional-secret-passed-when-set
+  assertion_ids: [instance-app-packages.operator-secrets]
+  given: my_provider declares optional_secrets [proxy_url] and no required secrets.
+  when: A user searches before and after the operator sets SECRET__MY_PROVIDER__PROXY_URL.
+  then: The provider is available both times; only the second call receives proxy_url.
+- id: declared-key-used
+  assertion_ids: [instance-app-packages.operator-secrets]
+  input:
+    language: sh
+    code: openmates server env set SECRET__MY_EVENTS__API_KEY sk-example && openmates server apps inspect my.events
+  expect: inspect lists the api_key secret as configured without printing its value, and the next search passes the
+    key only to the my.events provider call.
+- id: missing-key-unavailable
+  assertion_ids: [instance-app-packages.operator-secrets]
+  given: my.events declares a required api_key secret that has not been set.
+  when: The operator inspects the package and a user searches for events.
+  then: inspect reports the missing secret, and the provider is skipped as unavailable instead of being called.
+billing:
+- id: installed-only-free
+  assertion_ids: [instance-app-packages.no-installed-provider-charges]
+  given: Events search costs 30 credits per successful request on this server.
+  when: Bob's request is answered only by the installed my.events provider.
+  then: Bob is not charged for that request.
+- id: generic-contract-never-charged
+  assertion_ids: [instance-app-packages.no-installed-provider-charges]
+  given: Appointment search costs 20 credits per request and is served only by my_provider through skill.requests@1.
+  when: Bob sends two requests; one returns results and for the other the provider fails.
+  then: Bob is charged nothing for either request.
+- id: mixed-request-charged
+  assertion_ids: [instance-app-packages.no-installed-provider-charges]
+  given: Alice's single conference request returns events from both the built-in conference provider and my.events.
+  when: Billing settles the skill call.
+  then: Alice is charged the usual 30 credits for that request.

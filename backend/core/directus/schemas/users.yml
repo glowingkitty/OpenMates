@@ -361,6 +361,12 @@ directus_users:
       nullable: true
       note: "Learner age group for Learning Mode prompt adaptation. Allowed values: under_10, 10_12, 13_15, 16_18, adult."
 
+    learning_mode_collaborative_build:
+      type: boolean
+      default: false
+      nullable: false
+      note: "Allow collaborative building while Learning Mode is active. Accounts that predate the toggle stay false (strict teach-first); turning it on after setup needs the Learning Mode passcode."
+
     learning_mode_passcode_hash:
       type: string
       length: 256
@@ -464,11 +470,11 @@ directus_users:
       nullable: false
       note: "Whether follow-up suggestion chips and proactive next-step prompts are enabled for AI chat. Settable via POST /v1/settings/ai-model-defaults."
 
-    quick_tips_enabled:
+    recommendations_enabled:
       type: boolean
       default: true
       nullable: false
-      note: "Whether post-response product quick tip cards are enabled for AI chat. Settable via POST /v1/settings/ai-model-defaults."
+      note: "Whether post-response Recommendations (memory and workflow suggestions) are enabled for AI chat. Settable via POST /v1/settings/ai-model-defaults."
 
     # Furry Mode is disabled until any furry art is made by human artists.
 

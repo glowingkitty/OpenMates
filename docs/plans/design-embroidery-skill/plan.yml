@@ -1,0 +1,36 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: design-embroidery-skill
+title: Design app embroidery skill with Ink/Stitch in an E2B sandbox
+goal: "Add an app skill to the design app that lets an assistant turn a vector image it has generated into a file for an embroidery machine, using Ink/Stitch headless in E2B, including the embed preview and fullscreen view with the rendered stitch preview and all core details, and tune the processing so stitches come out well for SVGs of different complexity."
+authorization: The user asked on 2026-11-10 to create the Plan and Specification and implement the skill completely with Ink/Stitch via headless E2B, after reviewing the spike results.
+task: 93c43164-87d9-4d2a-8b67-b456fd8224b6
+specification_refs:
+  - id: feature.app-skill.design-embroidery
+    version: 1
+scope:
+  - E2B template with Ink/Stitch 3.3.0, its GUI libraries, Inkscape for the realistic stitch render, and the Python geometry libraries the preparation script needs; build script under backend/scripts.
+  - In-sandbox pipeline script (uploaded per run, not baked into the template); check, fixed-rule preparation, Ink/Stitch export of five formats, stitch data, preview render, result summary.
+  - Dedicated sandbox provider under backend/shared/providers that owns sandbox lifetime, limits and file transfer; the worker never parses the untrusted SVG geometry itself.
+  - Model rework of the SVG through the existing vector author, with an embroidery instruction, only for findings the fixed rules cannot solve or when instructions are given.
+  - design.embroidery skill, Celery task on the shared media worker, encrypted storage with generated-asset records, per-format download filenames, metered billing.
+  - Web result embed (card and opened view) with stitch preview, prepared-graphic switch, thread list, numbers, notes, per-format downloads and a settings change that asks for a new conversion.
+  - CLI and SDK metadata regenerated; generic CLI rendering lists the result content.
+  - Apple result view follows after the deployed web view is confirmed.
+decisions:
+  - Design app, skill id embroidery; closest precedents are models3d.generate (task, storage, downloads) and images.generate vector authoring (model rework, token billing).
+  - Ink/Stitch is the only stitch engine; it runs as its released standalone bundle inside the sandbox. Measured in the spike; sandbox start about 1 s, first export 8 to 18 s, stitch computation about 2.5 s.
+  - Preparation geometry (overlap removal, colour grouping, background detection, line handling) is deterministic code in the sandbox; the spike showed unprepared SVGs sew overlaps twice, change thread per shape and stitch backgrounds.
+  - All five formats are always produced, so format is a download choice, not a request parameter.
+  - Settings changes in the opened result send an ordinary follow-up chat turn; no new direct execution route.
+  - Uploaded SVG files are out of scope as a source because uploads keep only a rasterized copy.
+  - Price follows Code Run; 5 credits per started sandbox minute plus model tokens for a rework.
+required_checks:
+  - Sandbox pipeline run against the real E2B template on at least six SVGs of rising complexity (single shape, overlapping fills, many colours, lines of different widths, a generated logo, a detailed illustration); record stitch count, thread changes, timings and a viewed preview for each, before and after tuning.
+  - Backend unit tests for request validation, source resolution, rework trigger, limits, billing sums and failure states, in isolated CI.
+  - Real CLI chat against dev that triggers design.embroidery and receives a finished result with five files.
+  - Component preview spec for the result card and the opened view covering finished, converting and failed states on phone and desktop widths.
+  - Web E2E spec that converts a graphic in a chat, opens the result and downloads a machine file with the right extension. It needs real inference and the real sandbox, so by the testing rules it runs against dev after deploy with the personal dev test account, never in CI.
+  - Generated registries, SDK metadata and translations regenerated and their checks green.
+  - Validate this Plan; deploy only scoped, verified changes through the managed session helper.

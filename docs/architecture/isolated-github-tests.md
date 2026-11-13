@@ -48,6 +48,45 @@ worker's actual queue configuration and records its queue names in
 `ci-environment.json`; missing or inconsistent queues fail startup instead of
 leaving detached generation jobs waiting indefinitely.
 
+## Apple lanes (macOS runners)
+
+`apple-core`, `apple-unit` and `apple-ui` run in the separate `apple` job of
+`isolated-tests.yml` on GitHub-hosted `macos-26` arm64 with Xcode 26.6
+(`DEVELOPER_DIR`, the version the release Mac builds with). They use no secrets,
+accounts or runtime seeds, and are not lightweight (macOS runners are scarce, about 5 concurrent).
+`scripts/ci_apple.py` runs the steps and writes the usual `ci-results.json`;
+`ci_results.py` admits only `macos-26` GitHub-hosted runners for these modes.
+
+- `apple-core --spec all`: rustup 1.98.1 with the iOS, simulator, macOS and stable watchOS
+  targets; runs the `openmates-sdk` (`packages/openmates-rust`) and
+  `openmates-apple-bindings` tests natively on macOS, checks the committed UniFFI bindings in
+  `apple/OpenMatesCore` are fresh (`build-xcframework.sh --check-bindings`), builds the
+  OpenMatesCoreFFI xcframework (iOS, simulator, macOS) and then, as its own step, the Watch slices
+  (`--watch`, arm64_32 through the pinned nightly build-std), and prints the sizes. Cargo state is
+  cached on `Cargo.lock`. apple-unit and apple-ui get the core through the Xcode "Build
+  OpenMatesCore" phase (cached under `.tmp/apple-core-{cargo,rustup}`).
+- `apple-unit --spec all` (or `OpenMatesTests/<Class>[/<test>]`): fetches the
+  pinned Whistle link inputs (`WhistleBridge/prepare-build.py --fetch`, cached on
+  `whistle-assets.lock.json`), then `xcodebuild test` of scheme `OpenMates_iOS`
+  on `iPhone 17` limited to `-only-testing OpenMatesTests`, unsigned. The
+  committed `OpenMates.xcodeproj` is used as is (no xcodegen). The `.xcresult`
+  bundle is uploaded with the result artifact. XCUITests are never run here.
+  Each test has a 300 s allowance (`-test-timeouts-enabled`), so a hung test fails
+  instead of stalling the lane; the same applies to `apple-ui`.
+- `apple-ui --spec OpenMatesUITests/<Class>[/<test>]` (one or more, never `all`):
+  the same generated inputs, then `xcodebuild test` of exactly those XCUITests on
+  `iPhone 17`, serially. The app is the Debug build, so tests that reach a server
+  talk to the dev backend (for example the signed-out anonymous chat test). No
+  secrets are passed, so real-account tests skip themselves; those stay on the
+  Mac. Screenshots, recordings, the result summary and the `.xcresult` are
+  uploaded as the separate `apple-ui-evidence` artifact.
+
+```sh
+python3 scripts/ci_coordinator.py submit --session SESSION --mode apple-core --spec all
+python3 scripts/ci_coordinator.py submit --session SESSION --mode apple-ui \
+  --spec OpenMatesUITests/LandingOnboardingParityUITests
+```
+
 ## Commands
 
 Focused worktree request, once the migration readiness checkpoint is published:

@@ -6,9 +6,18 @@
 
 import { getApiEndpoint } from "../config/api";
 import { decryptChatKeyWithMasterKey, encryptChatKeyWithMasterKey } from "./cryptoService";
-import { buildShortUrl, encryptShareUrl, generateShortUrlParts } from "./shortUrlEncryption";
+import { buildShortUrlDecided, encryptShareUrl, generateShortUrlParts } from "./shortUrlEncryption";
 import { workflowTemplateProjectionStore, type WorkflowTemplateProjectionLocalRecord } from "../stores/workflowTemplateProjectionStore";
 import type { WorkflowDetail, WorkflowGraph, WorkflowNode } from "../stores/workflowWorkspaceStore";
+import { buildWorkBody, workClient, workDecide, type WorkRequest } from "./work/workRust";
+import type { WorkClient } from "./rustCore/crypto/workOps";
+
+// Flag-on builds run this service's pure logic (portable payload, template
+// validation, projection/import checks, paths, bodies) in the shared Rust core
+// Worker (`work` op, web_work/workflow_template.rs + workflow_bodies.rs); the
+// constant folds to false otherwise, so flag-off keeps the original paths. The
+// page keeps fetch, the template key, AES-GCM, the checksum and the local store.
+const RUST_WORK = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 
 const PROJECTION_SCHEMA_VERSION = 1;
 const TEMPLATE_KEY_LENGTH = 32;
@@ -258,6 +267,8 @@ async function decryptProjection(ciphertext: string, encodedKey: string): Promis
   if (combined.length <= AES_GCM_IV_LENGTH) throw new Error("Workflow template ciphertext is incomplete.");
   const key = await crypto.subtle.importKey("raw", new Uint8Array(keyBytes), { name: "AES-GCM" }, false, ["decrypt"]);
   const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: combined.slice(0, AES_GCM_IV_LENGTH) }, key, combined.slice(AES_GCM_IV_LENGTH));
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return validatedWork(work, JSON.parse(new TextDecoder().decode(decrypted)) as unknown);
   return validateWorkflowTemplatePayload(JSON.parse(new TextDecoder().decode(decrypted)) as unknown);
 }
 
@@ -277,6 +288,24 @@ async function workflowRequest<T>(path: string, init: RequestInit = {}): Promise
   return await response.json() as T;
 }
 
+/** Flag on: the Worker's structural check; the page keeps (and returns) its own value. */
+async function validatedWork(work: WorkClient, value: unknown): Promise<WorkflowTemplatePayload> {
+  await workDecide(work, "workflowTemplateValidate", { value });
+  return value as WorkflowTemplatePayload;
+}
+
+/** Flag on: a template request path decided in the Worker (`workflowTemplatePath` routes). */
+function templateWorkPath(work: WorkClient, route: string, ids: Record<string, unknown>): Promise<string> {
+  return workDecide<string>(work, "workflowTemplatePath", { route, ...ids });
+}
+
+/** Flag on: one Worker request decision, its body built from the page's slots, then sent. */
+async function sendTemplateWork<T>(work: WorkClient, op: string, input: Record<string, unknown>, slots: Record<string, () => unknown> = {}): Promise<T> {
+  const request = await workDecide<WorkRequest>(work, op, input);
+  const body = await buildWorkBody(request.steps, {}, {}, slots);
+  return workflowRequest<T>(request.path, { method: request.method, body: JSON.stringify(body) });
+}
+
 async function localTemplateKey(record: WorkflowTemplateProjectionLocalRecord): Promise<string> {
   const key = await decryptChatKeyWithMasterKey(record.ownerWrappedKey);
   if (!key || key.length !== TEMPLATE_KEY_LENGTH) throw new Error("Template key is unavailable on this device. Create a new share from the owner device.");
@@ -285,9 +314,13 @@ async function localTemplateKey(record: WorkflowTemplateProjectionLocalRecord): 
 
 export async function upsertWorkflowTemplateProjection(workflow: WorkflowDetail): Promise<WorkflowTemplateProjectionLocalRecord> {
   const local = workflowTemplateProjectionStore.get(workflow.id);
+  const work = RUST_WORK ? workClient() : null;
   let owner: OwnerProjectionResponse | null = null;
   try {
-    owner = await workflowRequest<OwnerProjectionResponse>(`/v1/workflows/${encodeURIComponent(workflow.id)}/template-projection`);
+    const projectionPath = work
+      ? await templateWorkPath(work, "projection", { workflow_id: workflow.id })
+      : `/v1/workflows/${encodeURIComponent(workflow.id)}/template-projection`;
+    owner = await workflowRequest<OwnerProjectionResponse>(projectionPath);
   } catch (error) {
     if (!(error instanceof WorkflowTemplateRequestError) || error.status !== 404) throw error;
   }
@@ -307,9 +340,16 @@ export async function upsertWorkflowTemplateProjection(workflow: WorkflowDetail)
   const keyBytes = existing ? decodeBase64Url(await localTemplateKey(existing)) : generateTemplateKey();
   const ownerWrappedKey = existing?.ownerWrappedKey ?? await encryptChatKeyWithMasterKey(keyBytes);
   if (!ownerWrappedKey) throw new Error("Your encryption key is unavailable. Re-authenticate before sharing this workflow.");
-  const ciphertext = await encryptProjection(buildWorkflowTemplatePayload(workflow), keyBytes);
+  const payload = work
+    ? (await workDecide<{ payload: WorkflowTemplatePayload }>(work, "workflowTemplatePayload", { workflow })).payload
+    : buildWorkflowTemplatePayload(workflow);
+  const ciphertext = await encryptProjection(payload, keyBytes);
   const ciphertextChecksum = await checksum(ciphertext);
-  const result = await workflowRequest<{ template_id: string; source_version: number; updated_at: number }>(
+  const result = work
+    ? await sendTemplateWork<{ template_id: string; source_version: number; updated_at: number }>(work, "workflowTemplateUpsertBody",
+      { workflow_id: workflow.id, template_id: templateId, version: workflow.version ?? null },
+      { ciphertext: () => ciphertext, ciphertext_checksum: () => ciphertextChecksum, owner_wrapped_key: () => ownerWrappedKey })
+    : await workflowRequest<{ template_id: string; source_version: number; updated_at: number }>(
     `/v1/workflows/${encodeURIComponent(workflow.id)}/template-projection`,
     {
       method: "PUT",
@@ -344,7 +384,9 @@ export async function createWorkflowTemplateShare(workflow: WorkflowDetail): Pro
   const longUrl = await buildWorkflowTemplateLongUrl(record);
   const { token, shortKey } = generateShortUrlParts();
   const encryptedUrl = await encryptShareUrl(longUrl, token, shortKey);
-  await workflowRequest("/v1/share/short-url", {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) await sendTemplateWork(work, "workflowTemplateShortUrlBody", { token, template_id: record.templateId }, { encrypted_url: () => encryptedUrl });
+  else await workflowRequest("/v1/share/short-url", {
     method: "POST",
     body: JSON.stringify({
       token,
@@ -355,7 +397,7 @@ export async function createWorkflowTemplateShare(workflow: WorkflowDetail): Pro
     }),
   });
   workflowTemplateProjectionStore.upsert({ ...record, shortToken: token, revokedAt: null, updatedAt: Date.now() });
-  return { shortUrl: buildShortUrl(token, shortKey), longUrl, token };
+  return { shortUrl: await buildShortUrlDecided(token, shortKey), longUrl, token };
 }
 
 export async function buildWorkflowTemplateLongUrl(record: WorkflowTemplateProjectionLocalRecord): Promise<string> {
@@ -366,19 +408,39 @@ export async function buildWorkflowTemplateLongUrl(record: WorkflowTemplateProje
 
 export async function revokeWorkflowTemplateShare(workflowId: string): Promise<void> {
   const record = workflowTemplateProjectionStore.get(workflowId);
-  await workflowRequest(`/v1/workflows/${encodeURIComponent(workflowId)}/template-projection/revoke`, { method: "POST", body: "{}" });
+  const work = RUST_WORK ? workClient() : null;
+  const revokePath = work
+    ? await templateWorkPath(work, "revoke", { workflow_id: workflowId })
+    : `/v1/workflows/${encodeURIComponent(workflowId)}/template-projection/revoke`;
+  await workflowRequest(revokePath, { method: "POST", body: "{}" });
   if (record?.shortToken) {
-    await workflowRequest(`/v1/share/short-url/${encodeURIComponent(record.shortToken)}`, { method: "DELETE" });
+    const shortUrlPath = work
+      ? await templateWorkPath(work, "short_url_delete", { token: record.shortToken })
+      : `/v1/share/short-url/${encodeURIComponent(record.shortToken)}`;
+    await workflowRequest(shortUrlPath, { method: "DELETE" });
   }
   workflowTemplateProjectionStore.setRevoked(workflowId, Date.now());
 }
 
 export async function unrevokeWorkflowTemplateShare(workflowId: string): Promise<void> {
-  await workflowRequest(`/v1/workflows/${encodeURIComponent(workflowId)}/template-projection/unrevoke`, { method: "POST", body: "{}" });
+  const work = RUST_WORK ? workClient() : null;
+  const unrevokePath = work
+    ? await templateWorkPath(work, "unrevoke", { workflow_id: workflowId })
+    : `/v1/workflows/${encodeURIComponent(workflowId)}/template-projection/unrevoke`;
+  await workflowRequest(unrevokePath, { method: "POST", body: "{}" });
   workflowTemplateProjectionStore.setRevoked(workflowId, null);
 }
 
 export async function loadSharedWorkflowTemplate(templateId: string, templateKey: string): Promise<WorkflowTemplatePayload> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const projection = await workflowRequest<PublicProjectionResponse>(await templateWorkPath(work, "public", { template_id: templateId }));
+    await workDecide(work, "workflowTemplateProjectionCheck", { template_id: templateId, projection });
+    if (projection.ciphertext_checksum !== await checksum(projection.ciphertext)) {
+      throw new Error("Workflow template integrity check failed.");
+    }
+    return await decryptProjection(projection.ciphertext, templateKey);
+  }
   const projection = await workflowRequest<PublicProjectionResponse>(`/v1/workflows/template-projections/${encodeURIComponent(templateId)}`);
   if (projection.template_id !== templateId || projection.projection_schema_version !== PROJECTION_SCHEMA_VERSION) {
     throw new Error("Workflow template projection is not compatible with this app version.");
@@ -390,6 +452,16 @@ export async function loadSharedWorkflowTemplate(templateId: string, templateKey
 }
 
 export async function importWorkflowTemplate(payload: WorkflowTemplatePayload): Promise<ImportedWorkflowTemplate> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const validated = await validatedWork(work, payload);
+    const imported = await workflowRequest<{ workflow: ImportedWorkflowTemplate }>("/v1/workflows/template-import", {
+      method: "POST",
+      body: JSON.stringify(validated),
+    });
+    await workDecide(work, "workflowTemplateImportCheck", { response: imported });
+    return imported.workflow;
+  }
   const response = await workflowRequest<{ workflow: ImportedWorkflowTemplate }>("/v1/workflows/template-import", {
     method: "POST",
     body: JSON.stringify(validateWorkflowTemplatePayload(payload)),
@@ -399,6 +471,11 @@ export async function importWorkflowTemplate(payload: WorkflowTemplatePayload): 
 }
 
 export async function completeWorkflowTemplateBinding(workflowId: string, requirement: WorkflowTemplateBindingRequirement): Promise<void> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    await sendTemplateWork(work, "workflowTemplateBindingBody", { workflow_id: workflowId, requirement });
+    return;
+  }
   await workflowRequest(`/v1/workflows/${encodeURIComponent(workflowId)}/binding-requirements/complete`, {
     method: "POST",
     body: JSON.stringify({ type: requirement.type, node_id: requirement.node_id }),

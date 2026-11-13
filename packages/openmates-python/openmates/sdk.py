@@ -42,6 +42,7 @@ from .direct_chats import (
     recover_identity, seal_direct_chat_key, validate_public_chat_key,
 )
 from .chat_completion_recovery import derive_recovery_keypair, open_recovery_envelope
+from .raw_download import RawDownload, filename_from_disposition
 from .work_control import WorkDependenciesFacade as _WorkDependenciesFacade
 
 
@@ -178,6 +179,28 @@ class OpenMatesUnavailableError(RuntimeError):
 
     def __init__(self, action: str):
         super().__init__(f"API key {action} requires verified web Settings or an authenticated CLI session")
+
+
+class OpenMatesInvalidInputError(ValueError):
+    """Typed local refusal of malformed input before any request (shared Rust ``Error::Invalid``)."""
+
+    code = "OPENMATES_SDK_INVALID_INPUT"
+
+
+def _validate_doc_slug(slug: Any) -> None:
+    """Same policy as shared Rust ``validate_doc_slug`` (packages/openmates-rust/src/client/docs.rs)."""
+    if (
+        not isinstance(slug, str)
+        or not slug
+        or len(slug.encode("utf-8", "surrogatepass")) > 4096
+        or ".." in slug
+        or any(c in slug for c in ("\\", ":", "\0"))
+        or slug.startswith("/")
+        or slug.endswith("/")
+        or any(unicodedata.category(c) == "Cc" for c in slug)
+        or any(part in ("", ".") for part in slug.split("/"))
+    ):
+        raise OpenMatesInvalidInputError("Invalid document slug.")
 
 
 @dataclass(frozen=True)
@@ -603,6 +626,10 @@ class OpenMates:
         return {**first, "results": grouped_results}
 
     def _get_raw(self, path: str) -> dict[str, Any]:
+        """Legacy dict projection of ``_get_raw_download`` for non-billing callers."""
+        return dict(self._get_raw_download(path))
+
+    def _get_raw_download(self, path: str) -> RawDownload:
         if not self._api_key:
             raise OpenMatesConfigError("OpenMates API key is required")
 
@@ -612,12 +639,17 @@ class OpenMates:
             timeout=DEFAULT_TIMEOUT_SECONDS,
         )
         if response.status_code >= 400:
-            return self._parse_response(response)
-        return {
-            "content_type": response.headers.get("content-type", "application/octet-stream"),
-            "filename": _extract_filename(response.headers.get("content-disposition")),
-            "data": response.content,
-        }
+            # Like npm getRaw: a non-JSON error body still raises the typed API error.
+            try:
+                detail = response.json()
+            except ValueError:
+                detail = {}
+            raise OpenMatesApiError(response.status_code, detail)
+        return RawDownload(
+            content_type=response.headers.get("content-type", "application/octet-stream"),
+            filename=filename_from_disposition(response.headers.get("content-disposition")),
+            data=response.content,
+        )
 
     def _headers(self, *, has_body: bool = True) -> dict[str, str]:
         parsed_api_url = urlparse(self._api_url)
@@ -999,8 +1031,13 @@ def _resolve_project_key(client: OpenMates, project_id: str, *, personal: bool =
     return _project_key_from_record(record, _project_wrapping_key(client, context_team_id), context_team_id)
 
 
+_CANONICAL_UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
+
+
 def _resolve_project_id(client: OpenMates, project_id: str, *, personal: bool = True, team_id: str | None = None) -> str:
-    if _is_uuid(project_id):
+    # Like npm (and shared Rust for embeds), only canonical hyphenated UUID text
+    # skips the lookup; braced/URN/hex-only forms are ranked like any selector.
+    if _CANONICAL_UUID_RE.fullmatch(project_id):
         return project_id
     context_team_id = _project_context(personal=personal, team_id=team_id)
     projects = client.projects.list(personal=context_team_id is None, team_id=context_team_id, include_archived=True)
@@ -1231,15 +1268,6 @@ def _delete_project_item_by_target(
 def _unsupported_sdk_feature(feature: str) -> Any:
     raise OpenMatesConfigError(f"{feature} is not available through the API-key SDK yet")
 
-
-def _extract_filename(content_disposition: str | None) -> str | None:
-    if not content_disposition:
-        return None
-    for part in content_disposition.split(";"):
-        part = part.strip()
-        if part.startswith("filename="):
-            return part.removeprefix("filename=").strip('"')
-    return None
 
 
 def _resolve_design_icon_svg_path(*, svg_path: str | None = None, prefix: str | None = None, name: str | None = None) -> str:
@@ -2973,9 +3001,6 @@ def _generate_share_blob(kind: str, item_id: str, item_key: bytes, *, expires: i
     return _encrypt_share_blob(serialized.encode("utf-8"), _derive_share_key(item_id))
 
 
-def _hash_item_key(app_id: str, item_type: str) -> str:
-    return hashlib.sha256(f"{app_id}-{item_type}-{int(time.time() * 1000)}".encode("utf-8")).hexdigest()[:32]
-
 
 def _decrypt_connected_account_payload(encrypted_payload: str, passcode: str) -> dict[str, Any]:
     if not encrypted_payload.startswith(CONNECTED_ACCOUNT_TRANSFER_PREFIX):
@@ -3050,6 +3075,25 @@ def _parse_maybe_json(value: str | None) -> Any:
     try:
         return json.loads(value)
     except json.JSONDecodeError:
+        return value
+
+
+def _parse_memory_data(value: str | None) -> Any:
+    """Decrypted memory plaintext exactly like npm ``memories.list``.
+
+    Undecryptable or empty plaintext is None; JSON wins, then non-strict TOON
+    (the shared Rust ``toon_decode`` / ``@toon-format/toon`` strict=false
+    reading), and only text neither can read stays the raw string.
+    """
+    if not value:
+        return None
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        pass
+    try:
+        return decode_toon(value, strict=False)
+    except ToonDecodeError:
         return value
 
 
@@ -3903,24 +3947,9 @@ class OpenMatesIdeaBucket:
         )
 
     def save_settings(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        current = self.settings()
-        settings = self._normalize_settings(
-            {
-                "processing_prompt": input_data.get("processingPrompt") or input_data.get("processing_prompt") or current["processingPrompt"],
-                "processing_times": input_data.get("processingTimes") or input_data.get("processing_times") or current["processingTimes"],
-            },
-            current.get("entryId"),
-            current.get("itemVersion"),
+        raise OpenMatesConfigError(
+            "Typed app memories were replaced by Memories; Idea Bucket settings are no longer stored as a typed memory."
         )
-        item_version = int(settings.get("itemVersion") or 0) + 1 if settings.get("entryId") else 1
-        result = self._client.memories.create({
-            "id": settings.get("entryId"),
-            "appId": IDEABUCKET_APP_ID,
-            "itemType": IDEABUCKET_SETTINGS_ITEM_TYPE,
-            "itemVersion": item_version,
-            "data": self._settings_to_memory_value(settings),
-        })
-        return {**settings, "entryId": str(result.get("id") or settings.get("entryId") or ""), "itemVersion": item_version, "source": "account"}
 
     def add(self, payload: dict[str, Any]) -> dict[str, Any]:
         encrypted_payload = self._build_encrypted_add_payload(payload)
@@ -3947,12 +3976,6 @@ class OpenMatesIdeaBucket:
             "entryId": entry_id,
             "itemVersion": item_version,
             "source": "account" if entry_id else "default",
-        }
-
-    def _settings_to_memory_value(self, settings: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "processing_prompt": settings["processingPrompt"],
-            "processing_times": ",".join(settings["processingTimes"]),
         }
 
     def _build_encrypted_add_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -6202,7 +6225,11 @@ class OpenMatesApiKeys:
 
 
 class OpenMatesMemories:
-    """Public app guidance discovery and encrypted private memory entries."""
+    """Public app guidance discovery plus deprecated legacy typed-entry read/delete.
+
+    Typed app memories were replaced by Memories (personal documents, managed in
+    the web app under Settings > Memories). create/update/types were removed.
+    """
 
     def __init__(self, client: OpenMates):
         self._client = client
@@ -6216,6 +6243,7 @@ class OpenMatesMemories:
         return {"memories": [memory for app in metadata.get("apps", {}).values() for memory in app.get("memories", [])]}
 
     def list(self, **query: Any) -> dict[str, Any]:
+        """Deprecated: legacy typed entries, read-only transitional path."""
         data = self._client._get(_with_query("/v1/sdk/memories", **query))
         memories = []
         for memory in data.get("memories", []):
@@ -6225,43 +6253,14 @@ class OpenMatesMemories:
             encrypted_item_json = memory.get("encrypted_item_json")
             if isinstance(encrypted_item_json, str):
                 raw = _decrypt_aes_gcm_text(encrypted_item_json, self._client._get_master_key())
-                decrypted["data"] = _parse_maybe_json(raw)
+                decrypted["data"] = _parse_memory_data(raw)
             memories.append(decrypted)
         return {"memories": memories}
 
-    def types(self, **query: Any) -> dict[str, Any]:
-        return self._client._get(_with_query("/v1/sdk/memories/types", **query))
-
-    def create(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        return self._store_memory(input_data)
-
-    def update(self, memory_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
-        return self._store_memory({**input_data, "id": memory_id})
-
     def delete(self, memory_id: str, *, confirmed: bool = False) -> dict[str, Any]:
+        """Deprecated: transitional delete of legacy typed entries."""
         _require_confirmed(confirmed, "Deleting a memory")
         return self._client._delete(f"/v1/sdk/memories/{_quote(memory_id)}")
-
-    def _store_memory(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        app_id = str(input_data.get("appId") or input_data.get("app_id") or "")
-        item_type = str(input_data.get("itemType") or input_data.get("item_type") or "")
-        raw_item_value = input_data.get("itemValue") or input_data.get("item_value") or input_data.get("data") or {}
-        item_value = raw_item_value if isinstance(raw_item_value, dict) else {"value": raw_item_value}
-        if not app_id or not item_type:
-            raise OpenMatesConfigError("Memory create/update requires appId and itemType")
-        now = int(time.time())
-        entry = {
-            "id": str(input_data.get("id") or uuid.uuid4()),
-            "app_id": app_id,
-            "item_key": _hash_item_key(app_id, item_type),
-            "item_type": item_type,
-            "encrypted_item_json": _encrypt_aes_gcm_text(json.dumps({**item_value, "settings_group": app_id, "_original_item_key": item_type, "added_date": now}), self._client._get_master_key()),
-            "encrypted_app_key": "",
-            "created_at": int(input_data.get("created_at") or now),
-            "updated_at": now,
-            "item_version": int(input_data.get("itemVersion") or input_data.get("item_version") or 1),
-        }
-        return self._client._post("/v1/sdk/memories", {"entry": entry})
 
 
 class OpenMatesBilling:
@@ -6279,13 +6278,13 @@ class OpenMatesBilling:
     def chat_total(self, chat_id: str) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage/chat-total", chat_id=chat_id))
     def usage_summaries(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/summaries")
     def usage_daily(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/daily")
-    def usage_export(self, *, months: int | None = None) -> dict[str, Any]: return self._client._get_raw(_with_query("/v1/sdk/billing/usage/export", months=months))
+    def usage_export(self, *, months: int | None = None) -> RawDownload: return self._client._get_raw_download(_with_query("/v1/sdk/billing/usage/export", months=months))
     def create_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None, buyer_address: dict[str, Any] | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key, **({"buyer_address": buyer_address} if buyer_address is not None else {})})
     def bank_transfer_status(self, order_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/billing/bank-transfer-orders/{_quote(order_id)}")
     def list_bank_transfer_orders(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/bank-transfer-orders")
     def list_invoices(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/invoices")
-    def download_invoice(self, invoice_id: str) -> dict[str, Any]: return self._client._get_raw(f"/v1/sdk/billing/invoices/{_quote(invoice_id)}/download")
-    def download_credit_note(self, invoice_id: str) -> dict[str, Any]: return self._client._get_raw(f"/v1/sdk/billing/invoices/{_quote(invoice_id)}/credit-note/download")
+    def download_invoice(self, invoice_id: str) -> RawDownload: return self._client._get_raw_download(f"/v1/sdk/billing/invoices/{_quote(invoice_id)}/download")
+    def download_credit_note(self, invoice_id: str) -> RawDownload: return self._client._get_raw_download(f"/v1/sdk/billing/invoices/{_quote(invoice_id)}/credit-note/download")
     def request_refund(self, invoice_id: str, *, confirmed: bool = False, email_encryption_key: str | None = None) -> dict[str, Any]:
         _require_confirmed(confirmed, "Requesting an invoice refund")
         return self._client._post("/v1/sdk/billing/refund", {"invoice_id": invoice_id, "email_encryption_key": email_encryption_key})
@@ -6362,8 +6361,14 @@ class OpenMatesDocs:
     def __init__(self, client: OpenMates): self._client = client
     def list(self) -> dict[str, Any]: return self._client._get("/v1/sdk/docs")
     def search(self, query: str) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/docs/search", q=query))
-    def show(self, slug: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/docs/{_quote(slug)}")
-    def download(self, slug: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/docs/{_quote(slug)}/download")
+    def show(self, slug: str) -> dict[str, Any]:
+        """Raises ``OpenMatesInvalidInputError`` for a malformed slug before any request."""
+        _validate_doc_slug(slug)
+        return self._client._get(f"/v1/sdk/docs/{_quote(slug)}")
+    def download(self, slug: str) -> dict[str, Any]:
+        """Raises ``OpenMatesInvalidInputError`` for a malformed slug before any request."""
+        _validate_doc_slug(slug)
+        return self._client._get(f"/v1/sdk/docs/{_quote(slug)}/download")
 
 
 class OpenMatesWikipedia:
@@ -6390,10 +6395,13 @@ class OpenMatesEmbeds:
         self.preview = OpenMatesEmbedPreview(client)
     def show(self, embed_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/embeds/{_quote(embed_id)}")
     def add_to_project(self, embed_id: str, project_id: str, *, folder: str | None = None) -> dict[str, Any]:
-        project_key = _resolve_project_key(self._client, project_id)
+        # Like npm and Rust, a name/slug/prefix selector is resolved once and the
+        # item route uses the resolved Project ID, never the raw selector.
+        resolved_project_id = _resolve_project_id(self._client, project_id)
+        project_key = _resolve_project_key(self._client, resolved_project_id)
         return _create_encrypted_project_item(
             self._client,
-            project_id,
+            resolved_project_id,
             project_key,
             item_type="embed",
             target_id=embed_id,
@@ -6405,7 +6413,7 @@ class OpenMatesEmbeds:
             },
         )
     def remove_from_project(self, embed_id: str, project_id: str) -> dict[str, Any]:
-        return _delete_project_item_by_target(self._client, project_id, "embed", embed_id)
+        return _delete_project_item_by_target(self._client, _resolve_project_id(self._client, project_id), "embed", embed_id)
     def share(self, embed_id: str, *, expires: int | None = None, password: str | None = None) -> dict[str, Any]:
         shown = self.show(embed_id)
         embed_keys = shown.get("embed_keys") if isinstance(shown.get("embed_keys"), list) else []
@@ -6521,7 +6529,7 @@ class OpenMatesFinance:
         connected_account_token_ref_inputs: list[dict[str, Any]] | None = None,
         chat_id: str | None = None,
         message_id: str | None = None,
-        prompt_injection_protection: bool | None = False,
+        prompt_injection_protection: bool | None = None,
     ) -> dict[str, Any]:
         return self._client.run_connected_account_skill(
             "finance",
@@ -6775,7 +6783,16 @@ class OpenMatesTeams:
 class OpenMatesLearningMode:
     def __init__(self, client: OpenMates): self._client = client
     def status(self) -> dict[str, Any]: return self._client._get("/v1/sdk/learning-mode")
-    def enable(self, *, age_group: str, passcode: str) -> dict[str, Any]: return self._client._post("/v1/sdk/learning-mode/enable", {"age_group": age_group, "passcode": passcode})
+    def enable(self, *, age_group: str, passcode: str, collaborative_build: bool | None = None) -> dict[str, Any]:
+        body: dict[str, Any] = {"age_group": age_group, "passcode": passcode}
+        if collaborative_build is not None:
+            body["collaborative_build"] = collaborative_build
+        return self._client._post("/v1/sdk/learning-mode/enable", body)
+    def collaborative(self, enabled: bool, *, passcode: str | None = None) -> dict[str, Any]:
+        body: dict[str, Any] = {"enabled": enabled}
+        if passcode is not None:
+            body["passcode"] = passcode
+        return self._client._post("/v1/sdk/learning-mode/collaborative", body)
     def disable(self, passcode: str) -> dict[str, Any]: return self._client._post("/v1/sdk/learning-mode/disable", {"passcode": passcode})
 
 

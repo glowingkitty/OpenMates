@@ -164,6 +164,7 @@ async function submitInlineVaultForm(
 // Test 1: First-time hide → inline unlock form → chat disappears
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=chats.hidden.unlocked-section
 test('hides a chat using the inline vault form and chat disappears from visible list', async ({
 	page
 }: {
@@ -204,6 +205,8 @@ test('hides a chat using the inline vault form and chat disappears from visible 
 		.textContent()
 		.catch(() => '');
 	log(`Chat title before hide: "${chatTitleText}"`);
+	const hiddenChatId = await activeChatItem.getAttribute('data-chat-id');
+	expect(hiddenChatId, 'Active chat row must expose its chat id.').toBeTruthy();
 
 	// Right-click → context menu → Hide
 	await openContextMenuForActiveChat(page);
@@ -233,14 +236,16 @@ test('hides a chat using the inline vault form and chat disappears from visible 
 	await screenshot(page, 'form-closed');
 	log('Inline vault form closed after submit.');
 
-	// The active chat should be gone from the visible list after hiding
-	await expect(async () => {
-		const stillVisible = await activeChatItem.isVisible();
-		expect(stillVisible).toBe(false);
-	}).toPass({ timeout: 15000 });
+	// The vault is now unlocked, so the hidden chat moves out of the regular list
+	// into the unlocked hidden chats section (it does not vanish from the UI).
+	const hiddenSection = page.getByTestId('hidden-chats-section');
+	await expect(hiddenSection).toBeVisible({ timeout: 15000 });
+	await expect(
+		hiddenSection.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${hiddenChatId}"]`)
+	).toBeVisible({ timeout: 15000 });
 
 	await screenshot(page, 'chat-hidden-success');
-	log('Chat no longer visible in sidebar — hide successful.');
+	log('Chat moved into the unlocked hidden chats section — hide successful.');
 	await assertNoMissingTranslations(page);
 	log('Test complete.');
 });
@@ -249,6 +254,7 @@ test('hides a chat using the inline vault form and chat disappears from visible 
 // Test 2: Wrong password shows error; inline form stays open
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=chats.hidden.unlocked-section
 test('shows error in inline vault form on wrong password without closing the form', async ({
 	page
 }: {
@@ -370,6 +376,7 @@ test('shows error in inline vault form on wrong password without closing the for
 // Test 3: Unlock vault via sidebar button → see hidden chats → unhide
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=chats.hidden.unlocked-section
 test('unlocks hidden chats via sidebar button and can right-click to unhide', async ({
 	page
 }: {
@@ -465,6 +472,7 @@ test('unlocks hidden chats via sidebar button and can right-click to unhide', as
 // Test 4: Hide a second chat when vault is already unlocked — no form shown
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=chats.hidden.unlocked-section
 test('hides second chat directly without inline form when vault is already unlocked', async ({
 	page
 }: {

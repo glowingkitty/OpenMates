@@ -78,16 +78,16 @@ def test_answer_semantics_reject_swapped_scale_and_invalid_distributions(invalid
 # contract-test: direct surface=rest_api assertions=ai-decide.billing.bounded
 def test_quote_bounds_both_providers_and_actual_credits_use_catalog() -> None:
     _, pricing = decision_configuration()
-    assert pricing["tokens"]["input"]["per_credit_unit"] == 7900
+    assert pricing["tokens"]["input"]["per_credit_unit"] == 15875
     assert pricing["tokens"]["output"]["per_credit_unit"] == 0
-    assert decision_quote(pricing) == 43
+    assert decision_quote(pricing) == 22
     direct = account_decision_attempts([{"provider": "typesafe", "success": True, **ANSWER["usage"]}], pricing)
-    assert direct.model_dump() == {"input_tokens": 15_800, "output_tokens": 30, "credits": 2, "complete": True}
+    assert direct.model_dump() == {"input_tokens": 15_800, "output_tokens": 30, "credits": 1, "complete": True}
     fallback = account_decision_attempts([
         {"provider": "typesafe", "success": False, "input_tokens": None, "output_tokens": None},
         {"provider": "openrouter", "success": True, **ANSWER["usage"]},
     ], pricing)
-    assert fallback.credits == 11  # 9 retained + 2 actual; never assume unknown spend is zero.
+    assert fallback.credits == 6  # 5 retained + 1 actual; never assume unknown spend is zero.
     assert fallback.complete is False
 
 
@@ -126,7 +126,7 @@ async def test_skill_uses_server_model_no_retry_and_accounts_fallback(monkeypatc
         monkeypatch.setattr(decide_skill, "JevDecisionClient", client)
         result = await object.__new__(decide_skill.DecideSkill).execute(DecideRequest.model_validate(BODY))
     assert len(calls) == (1 if first_status == 200 else 2)
-    assert result.usage.credits == (2 if first_status == 200 else 11)
+    assert result.usage.credits == (1 if first_status == 200 else 6)
     assert result.usage.complete is (first_status == 200)
     assert decision_result_credits(result.model_dump()) == result.usage.credits
     assert not any(key.startswith("_") for key in result.model_dump())
@@ -144,7 +144,7 @@ async def test_skill_rejects_success_without_native_usage(monkeypatch: pytest.Mo
             await object.__new__(decide_skill.DecideSkill).execute(DecideRequest.model_validate(BODY))
     assert caught.value.status_code == 503
     assert caught.value.detail["code"] == "decision_provider_unavailable"
-    assert caught.value.incurred_credits == 9
+    assert caught.value.incurred_credits == 5
 
 
 def _request(accept: bytes = b"application/json") -> Request:
@@ -206,8 +206,8 @@ async def test_anonymous_decision_reserves_envelope_and_settles_only_actual_usag
             await anonymous.anonymous_app_skill(_request(), "ai", "decide", BODY, None, None)
         assert caught.value.status_code == 503
         service.finalize_charge.assert_awaited_once()
-        assert service.finalize_charge.call_args.kwargs["actual_credits"] == 43
-    assert service.reserve_operation.call_args.kwargs["quoted_credits"] == 43
+        assert service.finalize_charge.call_args.kwargs["actual_credits"] == 22
+    assert service.reserve_operation.call_args.kwargs["quoted_credits"] == 22
     registry.dispatch_skill.assert_awaited_once_with("ai", "decide", BODY)
     service.release_reservation.assert_not_awaited()
 
@@ -235,7 +235,7 @@ async def test_chat_tool_reserves_envelope_and_settles_native_usage(monkeypatch:
         directus_service=None, log_prefix="[test]",
     )
     assert len(operations) == 1
-    assert reserve.call_args.kwargs["quoted_credits"] == 43
+    assert reserve.call_args.kwargs["quoted_credits"] == 22
     result = {**ANSWER, "success": True, "usage": {**ANSWER["usage"], "credits": 2, "complete": True}}
     await main_processor._charge_skill_credits(
         task_id="test-task", execution_id="execution", request_data=request,
@@ -255,8 +255,8 @@ async def test_interrupted_chat_tool_settles_ambiguous_spend_before_hold_expiry(
     assert await main_processor._settle_anonymous_skill_quote(
         app_id="ai", skill_id="decide", parsed_args=BODY, discovered_apps_metadata={},
         reserved_operation_ids=["operation"], log_prefix="[test]",
-    ) == 43
-    finalize.assert_awaited_once_with(charge_id="operation", actual_credits=43)
+    ) == 22
+    finalize.assert_awaited_once_with(charge_id="operation", actual_credits=22)
 
 
 @pytest.mark.asyncio
@@ -269,13 +269,13 @@ async def test_failed_provider_spend_survives_hold_expiry_and_blocks_redispatch(
     from backend.tests.test_anonymous_free_usage_budget import FakeDirectus, FakeCache
     now = [datetime(2026, 10, 16, 12, tzinfo=timezone.utc)]
     service = AnonymousFreeUsageService(directus_service=FakeDirectus(), cache_service=FakeCache(), hmac_secret="test", now_provider=lambda: now[0])
-    await service.save_budget(enabled=True, monthly_budget_credits=43, daily_hard_cap_percent=100,
-        weekly_cap_percent=100, per_identity_daily_cap_credits=43, admin_user_id="test-admin")
+    await service.save_budget(enabled=True, monthly_budget_credits=23, daily_hard_cap_percent=100,
+        weekly_cap_percent=100, per_identity_daily_cap_credits=23, admin_user_id="test-admin")
     raw = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/ai/app.yml").read_text())
     raw["icon_image"] = raw["icon_image"].strip()
     metadata = AppYAML.model_validate(raw)
     registry = SimpleNamespace(get_metadata=lambda app: metadata, is_skill_available=lambda *args: True,
-        dispatch_skill=AsyncMock(side_effect=DecisionExecutionError(incurred_credits=9)))
+        dispatch_skill=AsyncMock(side_effect=DecisionExecutionError(incurred_credits=5)))
     monkeypatch.setattr(anonymous.limiter, "enabled", False, raising=False)
     monkeypatch.setattr(anonymous, "_require_official_cloud", lambda request: None)
     monkeypatch.setattr(anonymous, "_anonymous_usage_service", lambda *args: service)
@@ -284,9 +284,9 @@ async def test_failed_provider_spend_survives_hold_expiry_and_blocks_redispatch(
         await anonymous.anonymous_app_skill(_request(), "ai", "decide", BODY, None, None)
     assert caught.value.status_code == 503
     assert "incurred_credits" not in caught.value.detail
-    assert (await service.get_budget_status()).daily_used_credits == 9
+    assert (await service.get_budget_status()).daily_used_credits == 5
     now[0] += timedelta(hours=2)
-    assert (await service.get_budget_status()).daily_used_credits == 9
+    assert (await service.get_budget_status()).daily_used_credits == 5
     with pytest.raises(HTTPException) as denied:
         await anonymous.anonymous_app_skill(_request(), "ai", "decide", BODY, None, None)
     assert denied.value.status_code == 429
@@ -300,7 +300,7 @@ async def test_chat_executor_does_not_retry_the_public_decision(monkeypatch: pyt
     from backend.apps.ai.processing import skill_executor
     from backend.core.api.app.services import skill_registry
     registry = SimpleNamespace(has_app=lambda app: True, is_skill_available=lambda *args: True,
-        dispatch_skill=AsyncMock(side_effect=DecisionExecutionError(incurred_credits=9)))
+        dispatch_skill=AsyncMock(side_effect=DecisionExecutionError(incurred_credits=5)))
     monkeypatch.setattr(skill_registry, "get_global_registry", lambda: registry)
     with pytest.raises(DecisionExecutionError):
         await skill_executor.execute_skill("ai", "decide", BODY, max_retries=3)

@@ -25,7 +25,9 @@ def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps()
         "claude_usage": {"weekly": {"used_percent": 62.0, "resets": "Fri 06 Nov 11:00",
                                     "week_elapsed_percent": 60, "runs_out": "Fri 06 Nov 04:12"},
                          "five_hour": None},
-        "reminders": {}, "tasks": {}, "nightly": {}, "git": {}, "claude_chats": [],
+        "reminders": {}, "nightly": {}, "git": {}, "claude_chats": [],
+        "tasks": {"changed_since_last_meeting": [{"id": "TASK-1", "title": "Send the journalist emails",
+                                                  "from": "todo", "to": "in_progress"}]},
         "gaps": ["Mac offline"],
     }
     text = briefing.render(evidence, {"themes": [], "loose_ends": [], "chats": []},
@@ -39,6 +41,8 @@ def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps()
     assert "- **Apps inside chat:** search" in text
     assert "record videos" in text
     assert "Mac offline" in text
+    assert "**Changed since the last meeting, still open (1):**" in text
+    assert "- TASK-1 Send the journalist emails (todo → in_progress)" in text
 
 
 def test_discord_text_carries_link_not_document():
@@ -50,3 +54,13 @@ def test_discord_text_carries_link_not_document():
 def test_meeting_script_asks_exactly_one_question_at_a_time():
     assert "exactly one question at a time" in briefing.MEETING_SCRIPT
     assert "at most 3 questions" not in briefing.MEETING_SCRIPT
+
+
+def test_scheduled_run_only_proceeds_on_weekdays_from_1130_berlin():
+    from datetime import datetime
+    berlin = briefing.TZ
+    assert briefing.in_scheduled_slot(datetime(2026, 11, 11, 11, 30, tzinfo=berlin))
+    assert briefing.in_scheduled_slot(datetime(2026, 7, 1, 11, 31, tzinfo=berlin))  # summer time
+    assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 10, 30, tzinfo=berlin))
+    assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 12, 30, tzinfo=berlin))
+    assert not briefing.in_scheduled_slot(datetime(2026, 11, 14, 11, 30, tzinfo=berlin))  # Saturday

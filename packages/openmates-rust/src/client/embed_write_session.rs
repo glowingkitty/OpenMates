@@ -9,14 +9,22 @@ use super::keys::{
     NonceSource, OsNonces, derive_embed_key, generate_embed_key, hash_id, unwrap_key, unwrap_key_with_master,
     wrap_key_with_master,
 };
+use super::history::EncryptedDiffRow;
 use super::payload::{
     PreparedEmbedWrite, ProcessingEmbedUpdate, StreamedEmbedData, WriteKeys, build_processing_update,
     build_stream_completion,
 };
+use super::revision::{ChildRevision, REVISION_HEAD_REQUIRED, StoredChildHead, build_child_revision};
+use super::revision_recovery::RevisionRecoveryReceipt;
 use crate::crypto::{Key, master::MasterCapability};
 use crate::error::{Error, Result};
 use serde_json::Value;
 use std::collections::HashMap;
+use zeroize::Zeroizing;
+
+#[path = "embed_write_resolve.rs"]
+mod resolve;
+pub use resolve::KeyLookup;
 
 const PARENT_KEY_PENDING: Error = Error::Unavailable {
     code: "embed_parent_key_pending",
@@ -66,6 +74,7 @@ pub struct AdoptedKey {
 enum PlannedKind {
     Completion(StreamedEmbedData),
     Update(ProcessingEmbedUpdate),
+    ChildRevision { data: StreamedEmbedData, revision: ChildRevision, head: StoredChildHead, existing: Vec<EncryptedDiffRow> },
 }
 /// A planned write owning its key material; `finish` encrypts and wraps.
 pub struct PlannedEmbedWrite {
@@ -88,6 +97,9 @@ impl PlannedEmbedWrite {
         match &self.kind {
             PlannedKind::Completion(data) => build_stream_completion(data, keys, now_ms, nonces),
             PlannedKind::Update(update) => build_processing_update(update, keys, now_ms, nonces),
+            PlannedKind::ChildRevision { data, revision, head, existing } => {
+                build_child_revision(data, revision, head, existing, &self.embed_key, now_ms, nonces)
+            }
         }
     }
 }
@@ -172,7 +184,15 @@ impl EmbedWriteSession {
     /// Finalized `send_embed_data`: child inherits the parent key (adapter
     /// retries `embed_parent_key_pending` with backoff); parent uses its cached
     /// key or the HKDF chat-key derivation every tab agrees on.
+    ///
+    /// # Errors
+    /// `embed_revision_head_required` for a child revision payload (it must
+    /// go through [`Self::plan_child_revision`]); `Error::Protocol` for a
+    /// malformed `revision`; key availability errors as above.
     pub fn plan_stream_completion(&mut self, data: StreamedEmbedData) -> Result<PlannedEmbedWrite> {
+        if data.child_revision()?.is_some() {
+            return Err(REVISION_HEAD_REQUIRED);
+        }
         let chat_id = data.chat_id().to_owned();
         if let Some(parent_id) = data.parent_embed_id() {
             let (key, _) = self.embed_keys.get(parent_id).ok_or(PARENT_KEY_PENDING)?;
@@ -188,6 +208,116 @@ impl EmbedWriteSession {
         self.cache(data.key_cache_targets(), &key, &chat_id);
         let master = (!data.local_only()).then(|| self.master.clone());
         Ok(PlannedEmbedWrite { kind: PlannedKind::Completion(data), embed_key: key, chat_key: Some(chat_key), master })
+    }
+    /// Version N+1 of a generated child (`payload.revision`): keeps the parent's
+    /// key (never re-keyed or re-parented) and the stored head's identity.
+    /// `stored_head` is the child's local `embeds` row (`None` when absent);
+    /// `existing_rows` are its local `embed_diffs` rows, reused when they hold
+    /// the same plaintext so a replay sends identical ciphertext.
+    /// `finish` returns `child_revision.steps` in the contract order.
+    ///
+    /// # Errors
+    /// `embed_parent_key_pending` without the parent key; `Error::Conflict`
+    /// when a different key is already cached for the child; the typed
+    /// `embed_revision_*` refusals of `StoredChildHead::check`;
+    /// `Error::Protocol` for rows of another embed or a malformed revision;
+    /// `Error::Invalid` for a non-revision or local-only payload.
+    pub fn plan_child_revision(
+        &mut self,
+        data: StreamedEmbedData,
+        stored_head: Option<&Value>,
+        existing_rows: Vec<EncryptedDiffRow>,
+    ) -> Result<PlannedEmbedWrite> {
+        let revision = data.child_revision()?.ok_or(Error::Invalid("Payload is not a child revision."))?;
+        if data.local_only() {
+            return Err(Error::Invalid("A child revision is never local-only."));
+        }
+        let parent_id = data.parent_embed_id().ok_or(Error::Protocol)?;
+        let (key, _) = self.embed_keys.get(parent_id).ok_or(PARENT_KEY_PENDING)?;
+        let key = key.clone();
+        // A different cached child key means the child was re-keyed somewhere:
+        // writing with either key would leave one version undecryptable.
+        if self.embed_keys.get(data.embed_id()).is_some_and(|(own, _)| own[..] != key[..]) {
+            return Err(Error::Conflict);
+        }
+        let head = StoredChildHead::check(stored_head, &data, &revision, &key)?;
+        if existing_rows.iter().any(|row| row.embed_id != data.embed_id()) {
+            return Err(Error::Protocol);
+        }
+        let chat_id = data.chat_id().to_owned();
+        self.cache(vec![data.embed_id().to_owned()], &key, &chat_id);
+        Ok(PlannedEmbedWrite {
+            kind: PlannedKind::ChildRevision { data, revision, head, existing: existing_rows },
+            embed_key: key,
+            chat_key: None,
+            master: None,
+        })
+    }
+    /// Adopt the canonical row after a `store_embed_diff` conflict on a child
+    /// revision step (see [`super::revision::adopt_conflicting_row`]); uses the
+    /// child's cached (parent-inherited) key from `plan_child_revision`.
+    ///
+    /// # Errors
+    /// `embed_key_unavailable` when the key is not loaded; the errors of
+    /// `adopt_conflicting_row`.
+    pub fn adopt_child_revision_row(&self, local_row: &EncryptedDiffRow, page: &Value, now_seconds: i64) -> Result<EncryptedDiffRow> {
+        self.with_embed_key(&local_row.embed_id, |key| super::revision::adopt_conflicting_row(page, local_row, key, now_seconds))
+    }
+    /// Content of version `version` of `embed_id`
+    /// (`images-generate.revision.message-shows-its-version`): the head when it
+    /// is the head version, else the `embed_diffs` snapshot row, opened with the
+    /// key owner's key (the parent's for a child, from `head.parent_embed_id`).
+    ///
+    /// # Errors
+    /// `embed_key_unavailable` when that key is not loaded; the errors of
+    /// [`super::pinned::version_content`].
+    pub fn embed_version_content(&self, embed_id: &str, version: i64, head: &Value, rows: &[Value]) -> Result<Zeroizing<String>> {
+        let owner = head.get("parent_embed_id").and_then(Value::as_str).filter(|id| !id.is_empty()).unwrap_or(embed_id);
+        self.with_embed_key(owner, |key| super::pinned::version_content(embed_id, version, head, rows, key))
+    }
+    /// Cache a fetched bounded-v1 page as local `embed_diffs` rows, validated
+    /// with the key owner's key (the parent's for a child, from
+    /// `head.parent_embed_id`).
+    ///
+    /// # Errors
+    /// `embed_key_unavailable` when that key is not loaded; the errors of
+    /// [`super::pinned::cache_version_page`].
+    pub fn cache_version_page(&self, embed_id: &str, head: &Value, page: &Value, now_seconds: i64) -> Result<Vec<EncryptedDiffRow>> {
+        let owner = head.get("parent_embed_id").and_then(Value::as_str).filter(|id| !id.is_empty()).unwrap_or(embed_id);
+        self.with_embed_key(owner, |key| super::pinned::cache_version_page(embed_id, head, page, key, now_seconds))
+    }
+    /// Receipt of a sealed `(embed, N+1)` child revision output (see
+    /// [`super::revision_recovery::embed_receipt`]), checked with the parent's
+    /// key, the key the revision was written with.
+    ///
+    /// # Errors
+    /// `embed_parent_key_pending` without the parent key; `Error::Protocol`
+    /// for a payload without `revision`; the errors of `embed_receipt`.
+    pub fn child_revision_embed_receipt(
+        &self,
+        sealed: &StreamedEmbedData,
+        canonical_head: &Value,
+        page: Option<&Value>,
+        stored_head: Option<&Value>,
+    ) -> Result<RevisionRecoveryReceipt> {
+        let parent_id = sealed.parent_embed_id().ok_or(Error::Protocol)?;
+        let (key, _) = self.embed_keys.get(parent_id).ok_or(PARENT_KEY_PENDING)?;
+        super::revision_recovery::embed_receipt(sealed, canonical_head, page, stored_head, key)
+    }
+    /// Receipt of a sealed `(diff, N+1)` child revision row (see
+    /// [`super::revision_recovery::row_receipt`]), checked with the key of the
+    /// canonical head's parent.
+    ///
+    /// # Errors
+    /// `embed_revision_head_mismatch` for a root head; `embed_key_unavailable`
+    /// when the parent key is not loaded; the errors of `row_receipt`.
+    pub fn child_revision_row_receipt(&self, row: &Value, canonical_head: &Value, page: Option<&Value>) -> Result<RevisionRecoveryReceipt> {
+        let owner = canonical_head
+            .get("parent_embed_id")
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+            .ok_or(super::revision::REVISION_HEAD_MISMATCH)?;
+        self.with_embed_key(owner, |key| super::revision_recovery::row_receipt(row, canonical_head, page, key))
     }
     /// Processing->finished `embed_update`. Parents keep the legacy cached-or-
     /// random key; children without an inherited key are refused (never a

@@ -19,6 +19,87 @@ const fs = require('fs');
 const REPOSITORY_ROOT = path.resolve(__dirname, '../../../../..');
 const cliRecordingsCreated = new Set<string>();
 
+type CliImplementation = 'npm' | 'native';
+
+/**
+ * Selector value: OPENMATES_CLI_IMPL, else the first line of the uncommitted
+ * `.cli-impl` file next to this helper. The file only carries the selection
+ * into isolated CI, whose submit command cannot pass environment variables.
+ */
+function configuredCliImplementation(): string | undefined {
+	if (process.env.OPENMATES_CLI_IMPL !== undefined) return process.env.OPENMATES_CLI_IMPL;
+	const selectorFile = path.join(__dirname, '.cli-impl');
+	return fs.existsSync(selectorFile) ? fs.readFileSync(selectorFile, 'utf8').split('\n')[0].trim() : undefined;
+}
+
+/**
+ * Which CLI the specs drive: the npm CLI (default) or the native Rust binary.
+ * OPENMATES_CLI_IMPL=native|npm selects explicitly; any other value is an error.
+ */
+function resolveCliImplementation(value = configuredCliImplementation()): CliImplementation {
+	if (value === undefined || value === '' || value === 'npm') return 'npm';
+	if (value === 'native') return 'native';
+	throw new Error(`OPENMATES_CLI_IMPL must be "native" or "npm", got "${value}"`);
+}
+
+const CLI_IMPL: CliImplementation = resolveCliImplementation();
+let nativeCliBinary: string | undefined;
+
+/**
+ * The native binary for OPENMATES_CLI_IMPL=native. OPENMATES_RUST_CLI_BIN must
+ * name an existing file; when unset the exact checked-out source is built
+ * (release, locked). There is no fallback to the npm CLI: a missing binary or a
+ * failed build throws.
+ */
+function nativeCliPath(): string {
+	if (nativeCliBinary) return nativeCliBinary;
+	const { buildRustCli } = require('./rust-cli-terminal');
+	const binary = buildRustCli();
+	if (!fs.existsSync(binary)) throw new Error(`Native CLI binary is missing: ${binary}`);
+	nativeCliBinary = binary;
+	return binary;
+}
+
+/**
+ * Command and arguments that launch the selected CLI with the given CLI
+ * arguments. `npmEntry` lets callers with their own dist path keep it for npm.
+ */
+function cliSpawnArgs(args: string[], npmEntry?: string): [string, string[]] {
+	// The native CLI pairs only on a terminal, so `login` runs on a PTY bridge.
+	if (CLI_IMPL === 'native' && args[0] === 'login') {
+		return ['python3', [path.join(__dirname, 'cli_pty_run.py'), nativeCliPath(), ...args]];
+	}
+	if (CLI_IMPL === 'native') return [nativeCliPath(), args];
+	return ['node', [npmEntry ?? CLI_DIST, ...args]];
+}
+
+/** Directory name of the selected CLI's state inside a home directory. */
+function cliStateDir(home: string): string {
+	return path.join(home, CLI_IMPL === 'native' ? '.openmates-rust' : '.openmates');
+}
+
+/** Output the selected CLI prints when it waits for the pairing PIN. */
+const CLI_PIN_PROMPT = CLI_IMPL === 'native' ? 'Pairing PIN from the browser:' : 'Enter 6-char pairing PIN:';
+/** Output the selected CLI prints after a successful login. */
+const CLI_LOGIN_SUCCESS = CLI_IMPL === 'native' ? 'Logged in.' : 'Login successful';
+
+/**
+ * Environment entries the native CLI needs in isolated CI: no desktop keyring
+ * (credentials use the owner-only file store), plain output, no ambient API
+ * key or profile, and the web app origin for pairing links. Empty for the npm CLI.
+ */
+function cliNativeEnv(): Record<string, string | undefined> {
+	if (CLI_IMPL !== 'native') return {};
+	return {
+		DBUS_SESSION_BUS_ADDRESS: 'unix:path=/nonexistent/openmates-ci-no-bus',
+		NO_COLOR: '1',
+		// An ambient key or profile would turn pairing into API-key mode.
+		OPENMATES_API_KEY: undefined,
+		OPENMATES_PROFILE: undefined,
+		...(process.env.PLAYWRIGHT_TEST_BASE_URL ? { OPENMATES_APP_URL: process.env.PLAYWRIGHT_TEST_BASE_URL } : {})
+	};
+}
+
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
 	: path.resolve(__dirname, '../../../../packages/openmates-cli/dist/cli.js');
@@ -82,6 +163,7 @@ async function runCli(
 	if (shouldRecord) {
 		cliRecordingsCreated.add(specSlug);
 		const startedAt = performance.now();
+		const [cliCommand, cliCommandArgs] = cliSpawnArgs(args);
 		const outputDir = path.resolve(process.cwd(), 'test-results', 'cli-recordings', specSlug);
 		fs.rmSync(outputDir, {recursive: true, force: true});
 		const recorderArgs = [
@@ -90,13 +172,14 @@ async function runCli(
 			'--target-environment', apiUrl,
 			'--display-number', String(100 + Number(process.env.PLAYWRIGHT_WORKER_SLOT || '1')),
 			'--timeout-seconds', String(Math.max(30, Math.ceil(timeoutMs / 1000))),
-			'--', 'node', CLI_DIST, ...args
+			'--', cliCommand, ...cliCommandArgs
 		];
 		return new Promise((resolve) => {
 			const child = spawn('python3', recorderArgs, {
 				cwd: REPOSITORY_ROOT,
 				env: {
 					...process.env,
+					...cliNativeEnv(),
 					...options.env,
 					...(apiKey ? {OPENMATES_API_KEY: apiKey} : {}),
 					OPENMATES_API_URL: apiUrl,
@@ -141,9 +224,11 @@ async function runCli(
 	return new Promise((resolve) => {
 		const startedAt = performance.now();
 		// cli-e2e-recording: shared-recorder-fallback
-		const child = spawn('node', [CLI_DIST, ...allArgs], {
+		const [command, commandArgs] = cliSpawnArgs(allArgs);
+		const child = spawn(command, commandArgs, {
 			env: {
 				...process.env,
+				...cliNativeEnv(),
 				...options.env,
 				OPENMATES_API_URL: apiUrl,
 				OPENMATES_CLI_HTTP_TIMEOUT_MS: process.env.OPENMATES_CLI_HTTP_TIMEOUT_MS ?? String(timeoutMs),
@@ -242,8 +327,18 @@ function expectCliSuccess(
 	).toBe(0);
 }
 
+// Fail at load, outside any test timeout, when native mode cannot run.
+if (CLI_IMPL === 'native') nativeCliPath();
+
 module.exports = {
 	CLI_DIST,
+	CLI_IMPL,
+	CLI_LOGIN_SUCCESS,
+	CLI_PIN_PROMPT,
+	cliNativeEnv,
+	cliSpawnArgs,
+	cliStateDir,
+	resolveCliImplementation,
 	deriveApiUrl,
 	extractCliProofFrame,
 	runCli,

@@ -40,7 +40,6 @@ async def run() -> None:
     from backend.apps.models3d.billing import charge_model_generation_credits
     from backend.apps.music.tasks.generate_task import _charge_music_generation_credits
     from backend.apps.videos.tasks.generate_task import _charge_video_generation_credits
-    from backend.apps.videos.tasks.render_remotion_task import _charge_remotion_render_credits
 
     cache = CacheService()
     encryption = EncryptionService(cache_service=cache)
@@ -74,11 +73,9 @@ async def run() -> None:
                 "model_ref": "fal/minimax/h3-max-turbo/image-to-video", "model_id": "minimax/h3-max-turbo/image-to-video",
                 "duration_seconds": 1.0, "resolution": "480p"}),
             ("image", _charge_image_generation_credits, {
-                **common, "app_id": "images", "skill_id": "generate_draft", "model_ref": "bfl/flux-2-klein"}),
+                **common, "app_id": "images", "skill_id": "generate_draft", "model_ref": "recraft/recraftv4_1_flash"}),
             ("music", _charge_music_generation_credits, {
                 **common, "app_id": "music", "skill_id": "generate", "model_ref": "google/lyria-3-clip-preview"}),
-            ("remotion", _charge_remotion_render_credits, {
-                **common, "credits": 5, "runtime_seconds": 1, "auto_started": False, "source_version": 1}),
             ("image-to-html", charge_image_to_html_credits, {
                 **{key: value for key, value in common.items() if key not in {"chat_id", "message_id"}},
                 "app_id": "code", "skill_id": "image_to_html", "credits": 2,

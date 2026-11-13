@@ -1,0 +1,2707 @@
+{
+ "hash": [
+  {
+   "in": "",
+   "out": "ztntfp"
+  },
+  {
+   "in": "a",
+   "out": "1r9wi7g"
+  },
+  {
+   "in": "abc",
+   "out": "7aigaz"
+  },
+  {
+   "in": "Hello, world",
+   "out": "15ason1"
+  },
+  {
+   "in": "café",
+   "out": "e5rkos"
+  },
+  {
+   "in": "😀 emoji",
+   "out": "vhhzna"
+  },
+  {
+   "in": "中文",
+   "out": "mj2ca5"
+  },
+  {
+   "in": "line\nbreak",
+   "out": "8q8asq"
+  },
+  {
+   "in": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": "15wcelx"
+  }
+ ],
+ "plan": [
+  {
+   "markdown": "",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "   \n\n  ",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Hello",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "Hello",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Hello",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1w2u0qz:0",
+      "markdown": "Hello",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     }
+    ],
+    "tail": "Two.",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.\n\n",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "One.\r\n\r\nTwo.",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "One.\r\n\r\nTwo.",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "One.\n\n\n\nTwo.\n\nThree",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": null
+     }
+    ],
+    "tail": "Three",
+    "operations": []
+   }
+  },
+  {
+   "markdown": " One. \n\n﻿Two. \n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "AB\n\nC",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:17iomiz:0",
+      "markdown": "AB",
+      "reuse": null
+     }
+    ],
+    "tail": "C",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Use [the event](embed:event-ref).\n\n[!](embed:preview-ref)\n\nStill writing the final paragraph",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:sn5z6f:0",
+      "markdown": "Use [the event](embed:event-ref).",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:irwlim:0",
+      "markdown": "[!](embed:preview-ref)",
+      "reuse": null
+     }
+    ],
+    "tail": "Still writing the final paragraph",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "[!](embed:one)\n\n[!](embed:two)\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1k6k4o3:0",
+      "markdown": "[!](embed:one)\n\n[!](embed:two)",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "[!](embed:one)\n\n[!](embed:two)",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1k6k4o3:0",
+      "markdown": "[!](embed:one)\n\n[!](embed:two)",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "[!](embed:)\n\nx\n\ny",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:16jb0i8:0",
+      "markdown": "[!](embed:)",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:1y7mkjr:0",
+      "markdown": "x",
+      "reuse": null
+     }
+    ],
+    "tail": "y",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "  [!](embed:a)  \n\n  [!](embed:b)  \n\nz",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1rsxz0m:0",
+      "markdown": "[!](embed:a)  \n\n  [!](embed:b)",
+      "reuse": null
+     }
+    ],
+    "tail": "z",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "An [unfinished link](embed:",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "An [unfinished link](embed:",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "An [unfinished\n\nlink](embed:",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "An [unfinished\n\nlink](embed:",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Escaped \\[ bracket\n\nNext\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:fsds9b:0",
+      "markdown": "Escaped \\[ bracket",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:1padbm0:0",
+      "markdown": "Next",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Paren (open\n\nNext",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "Paren (open\n\nNext",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Paren (open) closed\n\nNext\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:v3o4yi:0",
+      "markdown": "Paren (open) closed",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:1padbm0:0",
+      "markdown": "Next",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "[a](b\n\nrest",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:mfv0k4:0",
+      "markdown": "[a](b\n\nrest",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "```json\n{\"type\":\"app_skill_use\"",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "```json\n{\"type\":\"app_skill_use\"",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "```js\ncode\n\nmore\n```\n\nafter",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:i7u1ao:0",
+      "markdown": "```js\ncode\n\nmore\n```",
+      "reuse": null
+     }
+    ],
+    "tail": "after",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "```js\ncode\n```",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:r2jsol:0",
+      "markdown": "```js\ncode\n```",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "```js\ncode\n```\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:r2jsol:0",
+      "markdown": "```js\ncode\n```",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "text ``` inline fence\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "text ``` inline fence\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "````\n\nx\n\ny",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "````\n\nx\n\ny",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "- first item\n- second item",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "- first item\n- second item",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "- first item\n\n  continued item text",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "- first item\n\n  continued item text",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "1. one\n2. two\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "1. one\n2. two\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "10. ten\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "10. ten\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "* star\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "* star\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "+ plus\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "+ plus\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "-no space\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:3izled:0",
+      "markdown": "-no space",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "1.no space\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:puzn6z:0",
+      "markdown": "1.no space",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "| A | B |\n|---|---|\n| 1 |",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "| A | B |\n|---|---|\n| 1 |",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "| A | B |\n|---|---|\n| 1 | 2 |\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "| A | B |\n|---|---|\n| 1 | 2 |\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "a | b\n---\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "a | b\n---\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "a | b\n:---:\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "a | b\n:---:\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "a | b\n|:----|\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "a | b\n|:----|\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "a | b\n--\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1tmajru:0",
+      "markdown": "a | b\n--",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "pipe | only\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1s4u4o1:0",
+      "markdown": "pipe | only",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "a|b\r\n---\r\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "a|b\r\n---\r\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "> an unfinished source quote",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "> an unfinished source quote",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "> [Source](embed:ref-1)\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1puln9r:0",
+      "markdown": "> [Source](embed:ref-1)",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "> [Source](embed:ref-1)  \n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1puln9r:0",
+      "markdown": "> [Source](embed:ref-1)",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": ">   [Source](embed:ref-1)\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1nkm7kn:0",
+      "markdown": ">   [Source](embed:ref-1)",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "> [](embed:ref-1)\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "> [](embed:ref-1)\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "> [Source](embed:)\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "> [Source](embed:)\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "> [Source](embed:ref) trailing\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "> [Source](embed:ref) trailing\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "> quote\n\n> quote two\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "> quote\n\n> quote two\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": " > indented quote\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [],
+    "tail": "> indented quote\n\nTail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Heading\n### Weekend 1\n```embeds_results_view\nembeds: a, b\n```\n\nMore",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:ezjg9w:0",
+      "markdown": "Heading\n### Weekend 1\n```embeds_results_view\nembeds: a, b\n```",
+      "reuse": null
+     }
+    ],
+    "tail": "More",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Same.\n\nSame.\n\nSame.\n\nTail",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1er9db:0",
+      "markdown": "Same.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:1er9db:1",
+      "markdown": "Same.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:1er9db:2",
+      "markdown": "Same.",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Same.\n\nSame.",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1er9db:0",
+      "markdown": "Same.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:1er9db:1",
+      "markdown": "Same.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "café 😀\n\n中文\n\nTail 😀",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1v2acup:0",
+      "markdown": "café 😀",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:mj2ca5:0",
+      "markdown": "中文",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail 😀",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "First paragraph.\n\nStill",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1qob6lf:0",
+      "markdown": "First paragraph.",
+      "reuse": null
+     }
+    ],
+    "tail": "Still",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "First paragraph.\n\nStill writing",
+   "phase": "streaming",
+   "previous": {
+    "phase": "streaming",
+    "committed": [
+     {
+      "id": "assistant-block:1qob6lf:0",
+      "markdown": "First paragraph."
+     }
+    ],
+    "tail": {
+     "id": "assistant-tail",
+     "markdown": "Still"
+    }
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1qob6lf:0",
+      "markdown": "First paragraph.",
+      "reuse": 0
+     }
+    ],
+    "tail": "Still writing",
+    "operations": [
+     {
+      "kind": "replace-tail"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "First paragraph.\n\nStill writing.\n\nNext",
+   "phase": "streaming",
+   "previous": {
+    "phase": "streaming",
+    "committed": [
+     {
+      "id": "assistant-block:1qob6lf:0",
+      "markdown": "First paragraph."
+     }
+    ],
+    "tail": {
+     "id": "assistant-tail",
+     "markdown": "Still writing"
+    }
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1qob6lf:0",
+      "markdown": "First paragraph.",
+      "reuse": 0
+     },
+     {
+      "id": "assistant-block:jq8szh:0",
+      "markdown": "Still writing.",
+      "reuse": null
+     }
+    ],
+    "tail": "Next",
+    "operations": [
+     {
+      "kind": "append-blocks",
+      "blockIds": [
+       "assistant-block:jq8szh:0"
+      ]
+     },
+     {
+      "kind": "replace-tail"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "First paragraph.\n\nStill writing.\n\nNext",
+   "phase": "final",
+   "previous": {
+    "phase": "streaming",
+    "committed": [
+     {
+      "id": "assistant-block:1qob6lf:0",
+      "markdown": "First paragraph."
+     },
+     {
+      "id": "assistant-block:jq8szh:0",
+      "markdown": "Still writing."
+     }
+    ],
+    "tail": {
+     "id": "assistant-tail",
+     "markdown": "Next"
+    }
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1qob6lf:0",
+      "markdown": "First paragraph.",
+      "reuse": 0
+     },
+     {
+      "id": "assistant-block:jq8szh:0",
+      "markdown": "Still writing.",
+      "reuse": 1
+     },
+     {
+      "id": "assistant-tail",
+      "markdown": "Next",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": [
+     {
+      "kind": "commit-tail"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     }
+    ],
+    "tail": "Two.",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.",
+   "phase": "final",
+   "previous": {
+    "phase": "streaming",
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One."
+     }
+    ],
+    "tail": {
+     "id": "assistant-tail",
+     "markdown": "Two."
+    }
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": 0
+     },
+     {
+      "id": "assistant-tail",
+      "markdown": "Two.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": [
+     {
+      "kind": "commit-tail"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "One.\n\nBad quote.\n\nThree.",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:15w9wnq:0",
+      "markdown": "Bad quote.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "One.\n\nVerified quote.\n\nThree.",
+   "phase": "final",
+   "previous": {
+    "phase": "final",
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One."
+     },
+     {
+      "id": "assistant-block:15w9wnq:0",
+      "markdown": "Bad quote."
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three."
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": 0
+     },
+     {
+      "id": "assistant-block:15w9wnq:0",
+      "markdown": "Verified quote.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three.",
+      "reuse": 2
+     }
+    ],
+    "tail": null,
+    "operations": [
+     {
+      "kind": "replace-block",
+      "index": 1,
+      "blockId": "assistant-block:15w9wnq:0"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.\n\nThree.",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Changed one.\n\nTwo.\n\nChanged three.",
+   "phase": "final",
+   "previous": {
+    "phase": "final",
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One."
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two."
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three."
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "Changed one.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": 1
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Changed three.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": [
+     {
+      "kind": "replace-block",
+      "index": 0,
+      "blockId": "assistant-block:1kszbeb:0"
+     },
+     {
+      "kind": "replace-block",
+      "index": 2,
+      "blockId": "assistant-block:90vbqv:0"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.\n\nThree.",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "One.\n\nThree.",
+   "phase": "final",
+   "previous": {
+    "phase": "final",
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One."
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two."
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three."
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": 0
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Three.",
+      "reuse": 2
+     }
+    ],
+    "tail": null,
+    "operations": [
+     {
+      "kind": "replace-block",
+      "index": 1,
+      "blockId": "assistant-block:p5tl0l:0"
+     },
+     {
+      "kind": "delete-block",
+      "index": 1,
+      "blockId": "assistant-block:p5tl0l:0"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.\n\nThree.",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.",
+   "phase": "final",
+   "previous": {
+    "phase": "final",
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One."
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two."
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three."
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": 0
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": 1
+     }
+    ],
+    "tail": null,
+    "operations": [
+     {
+      "kind": "delete-block",
+      "index": 2,
+      "blockId": "assistant-block:90vbqv:0"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.\n\nThree.",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Zero.\n\nThree.",
+   "phase": "final",
+   "previous": {
+    "phase": "final",
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One."
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two."
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three."
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "failed": true,
+    "operations": [
+     {
+      "kind": "convergence-failure",
+      "reason": "non-local-divergence"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.\n\nThree.",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "X.",
+   "phase": "final",
+   "previous": {
+    "phase": "final",
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One."
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two."
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three."
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "failed": true,
+    "operations": [
+     {
+      "kind": "convergence-failure",
+      "reason": "non-local-divergence"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.\n\nThree.",
+   "phase": "final",
+   "previous": {
+    "phase": "final",
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One."
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two."
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": 0
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": 1
+     },
+     {
+      "id": "assistant-block:90vbqv:0",
+      "markdown": "Three.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": [
+     {
+      "kind": "append-blocks",
+      "blockIds": [
+       "assistant-block:90vbqv:0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "Same.\n\nSame.",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1er9db:0",
+      "markdown": "Same.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:1er9db:1",
+      "markdown": "Same.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Same.\n\nSame.\n\nSame.",
+   "phase": "final",
+   "previous": {
+    "phase": "final",
+    "committed": [
+     {
+      "id": "assistant-block:1er9db:0",
+      "markdown": "Same."
+     },
+     {
+      "id": "assistant-block:1er9db:1",
+      "markdown": "Same."
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1er9db:0",
+      "markdown": "Same.",
+      "reuse": 0
+     },
+     {
+      "id": "assistant-block:1er9db:1",
+      "markdown": "Same.",
+      "reuse": 1
+     },
+     {
+      "id": "assistant-block:1er9db:2",
+      "markdown": "Same.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": [
+     {
+      "kind": "append-blocks",
+      "blockIds": [
+       "assistant-block:1er9db:2"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "Same.",
+   "phase": "final",
+   "previous": {
+    "phase": "final",
+    "committed": [
+     {
+      "id": "assistant-block:1er9db:0",
+      "markdown": "Same."
+     },
+     {
+      "id": "assistant-block:1er9db:1",
+      "markdown": "Same."
+     },
+     {
+      "id": "assistant-block:1er9db:2",
+      "markdown": "Same."
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "failed": true,
+    "operations": [
+     {
+      "kind": "convergence-failure",
+      "reason": "non-local-divergence"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.",
+   "phase": "final",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "One.\n\nTwo.\n\nPartial",
+   "phase": "streaming",
+   "previous": {
+    "phase": "final",
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One."
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two."
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two.",
+      "reuse": null
+     }
+    ],
+    "tail": "Partial",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Different start",
+   "phase": "streaming",
+   "previous": {
+    "phase": "streaming",
+    "committed": [
+     {
+      "id": "assistant-block:1kszbeb:0",
+      "markdown": "One."
+     },
+     {
+      "id": "assistant-block:p5tl0l:0",
+      "markdown": "Two."
+     }
+    ],
+    "tail": {
+     "id": "assistant-tail",
+     "markdown": "Partial"
+    }
+   },
+   "out": {
+    "failed": true,
+    "operations": [
+     {
+      "kind": "convergence-failure",
+      "reason": "non-local-divergence"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "Intro\n\nPartial",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1mtc3m9:0",
+      "markdown": "Intro",
+      "reuse": null
+     }
+    ],
+    "tail": "Partial",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Intro\n\nPartial text.\n\nMore\n\nTail",
+   "phase": "streaming",
+   "previous": {
+    "phase": "streaming",
+    "committed": [
+     {
+      "id": "assistant-block:1mtc3m9:0",
+      "markdown": "Intro"
+     }
+    ],
+    "tail": {
+     "id": "assistant-tail",
+     "markdown": "Partial"
+    }
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1mtc3m9:0",
+      "markdown": "Intro",
+      "reuse": 0
+     },
+     {
+      "id": "assistant-block:1q2dz7d:0",
+      "markdown": "Partial text.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:lz65mo:0",
+      "markdown": "More",
+      "reuse": null
+     }
+    ],
+    "tail": "Tail",
+    "operations": [
+     {
+      "kind": "append-blocks",
+      "blockIds": [
+       "assistant-block:1q2dz7d:0",
+       "assistant-block:lz65mo:0"
+      ]
+     },
+     {
+      "kind": "replace-tail"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "Here are the results.\n\n",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1w23u56:0",
+      "markdown": "Here are the results.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": []
+   }
+  },
+  {
+   "markdown": "Here are the results.\n\n### Weekend 1\n```embeds_results_view\ntitle: First weekend\nembeds: event-one, event-two\n```\n\n",
+   "phase": "streaming",
+   "previous": {
+    "phase": "streaming",
+    "committed": [
+     {
+      "id": "assistant-block:1w23u56:0",
+      "markdown": "Here are the results."
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1w23u56:0",
+      "markdown": "Here are the results.",
+      "reuse": 0
+     },
+     {
+      "id": "assistant-block:152tmiq:0",
+      "markdown": "### Weekend 1\n```embeds_results_view\ntitle: First weekend\nembeds: event-one, event-two\n```",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": [
+     {
+      "kind": "append-blocks",
+      "blockIds": [
+       "assistant-block:152tmiq:0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "Here are the results.\n\n### Weekend 1\n```embeds_results_view\ntitle: First weekend\nembeds: event-one, event-two\n```\n\n### Weekend 2\n```embeds_results_view\nembeds: event-three\n```\n\nMore details follow.",
+   "phase": "streaming",
+   "previous": {
+    "phase": "streaming",
+    "committed": [
+     {
+      "id": "assistant-block:1w23u56:0",
+      "markdown": "Here are the results."
+     },
+     {
+      "id": "assistant-block:152tmiq:0",
+      "markdown": "### Weekend 1\n```embeds_results_view\ntitle: First weekend\nembeds: event-one, event-two\n```"
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:1w23u56:0",
+      "markdown": "Here are the results.",
+      "reuse": 0
+     },
+     {
+      "id": "assistant-block:152tmiq:0",
+      "markdown": "### Weekend 1\n```embeds_results_view\ntitle: First weekend\nembeds: event-one, event-two\n```",
+      "reuse": 1
+     },
+     {
+      "id": "assistant-block:vfy09r:0",
+      "markdown": "### Weekend 2\n```embeds_results_view\nembeds: event-three\n```",
+      "reuse": null
+     }
+    ],
+    "tail": "More details follow.",
+    "operations": [
+     {
+      "kind": "append-blocks",
+      "blockIds": [
+       "assistant-block:vfy09r:0"
+      ]
+     },
+     {
+      "kind": "replace-tail"
+     }
+    ]
+   }
+  },
+  {
+   "markdown": "A.\n\nB.",
+   "phase": "streaming",
+   "previous": null,
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:zqw4p2:0",
+      "markdown": "A.",
+      "reuse": null
+     }
+    ],
+    "tail": "B.",
+    "operations": []
+   }
+  },
+  {
+   "markdown": "A.\n\nB.\n\nC.\n\nD.",
+   "phase": "final",
+   "previous": {
+    "phase": "streaming",
+    "committed": [
+     {
+      "id": "assistant-block:zqw4p2:0",
+      "markdown": "A."
+     }
+    ],
+    "tail": {
+     "id": "assistant-tail",
+     "markdown": "B."
+    }
+   },
+   "out": {
+    "failed": false,
+    "committed": [
+     {
+      "id": "assistant-block:zqw4p2:0",
+      "markdown": "A.",
+      "reuse": 0
+     },
+     {
+      "id": "assistant-tail",
+      "markdown": "B.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:18mppw4:0",
+      "markdown": "C.",
+      "reuse": null
+     },
+     {
+      "id": "assistant-block:9no0zr:0",
+      "markdown": "D.",
+      "reuse": null
+     }
+    ],
+    "tail": null,
+    "operations": [
+     {
+      "kind": "commit-tail"
+     },
+     {
+      "kind": "append-blocks",
+      "blockIds": [
+       "assistant-block:18mppw4:0",
+       "assistant-block:9no0zr:0"
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "normalize": [
+  {
+   "plan": {
+    "document": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "hi"
+        }
+       ]
+      }
+     ]
+    },
+    "committed": [],
+    "tail": {
+     "markdown": "tail 0",
+     "document": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "hi"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   },
+   "out": {
+    "appSkillIds": [],
+    "blocks": [
+     {
+      "id": "semantic:1kfab57",
+      "nodeTypes": [
+       "doc",
+       "paragraph",
+       "text"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "plan": {
+    "document": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "a"
+        }
+       ]
+      },
+      {
+       "type": "embed",
+       "attrs": {
+        "type": "app-skill-use",
+        "id": "skill-1"
+       }
+      },
+      {
+       "type": "embed",
+       "attrs": {
+        "type": "app-skill-use",
+        "id": 5
+       }
+      },
+      {
+       "type": "embed",
+       "attrs": {
+        "type": "app-skill-use"
+       }
+      }
+     ]
+    },
+    "committed": [
+     {
+      "markdown": "block 0 é",
+      "document": {
+       "type": "doc",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "hi"
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "appSkillIds": [
+     "skill-1"
+    ],
+    "blocks": [
+     {
+      "id": "semantic:qnafx9",
+      "nodeTypes": [
+       "doc",
+       "paragraph",
+       "text"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "plan": {
+    "document": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "embed",
+       "attrs": {
+        "type": "app-skill-use-group",
+        "groupedItems": [
+         {
+          "id": "g1"
+         },
+         {
+          "id": 2
+         },
+         {},
+         {
+          "id": "g3"
+         }
+        ]
+       }
+      },
+      {
+       "type": "embed",
+       "attrs": {
+        "type": "app-skill-use-group",
+        "groupedItems": "nope"
+       }
+      }
+     ]
+    },
+    "committed": [
+     {
+      "markdown": "block 0 é",
+      "document": {
+       "type": "doc",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "hi"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     {
+      "markdown": "block 1 é",
+      "document": {
+       "type": "doc",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "a"
+          }
+         ]
+        },
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use",
+          "id": "skill-1"
+         }
+        },
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use",
+          "id": 5
+         }
+        },
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use"
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "tail": {
+     "markdown": "tail 2",
+     "document": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use-group",
+         "groupedItems": [
+          {
+           "id": "g1"
+          },
+          {
+           "id": 2
+          },
+          {},
+          {
+           "id": "g3"
+          }
+         ]
+        }
+       },
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "app-skill-use-group",
+         "groupedItems": "nope"
+        }
+       }
+      ]
+     }
+    }
+   },
+   "out": {
+    "appSkillIds": [
+     "g1",
+     "g3"
+    ],
+    "blocks": [
+     {
+      "id": "semantic:qnafx9",
+      "nodeTypes": [
+       "doc",
+       "paragraph",
+       "text"
+      ]
+     },
+     {
+      "id": "semantic:1kv0tzm",
+      "nodeTypes": [
+       "doc",
+       "paragraph",
+       "text",
+       "embed",
+       "embed",
+       "embed"
+      ]
+     },
+     {
+      "id": "semantic:1kz9ij5",
+      "nodeTypes": [
+       "doc",
+       "embed",
+       "embed"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "plan": {
+    "document": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "blockquote",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "embed",
+           "attrs": {
+            "type": "app-skill-use",
+            "id": "nested"
+           }
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "notEmbed",
+       "attrs": {
+        "type": "app-skill-use",
+        "id": "ignored"
+       }
+      }
+     ]
+    },
+    "committed": [
+     {
+      "markdown": "block 0 é",
+      "document": {
+       "type": "doc",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "hi"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     {
+      "markdown": "block 1 é",
+      "document": {
+       "type": "doc",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "a"
+          }
+         ]
+        },
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use",
+          "id": "skill-1"
+         }
+        },
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use",
+          "id": 5
+         }
+        },
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use"
+         }
+        }
+       ]
+      }
+     },
+     {
+      "markdown": "block 2 é",
+      "document": {
+       "type": "doc",
+       "content": [
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use-group",
+          "groupedItems": [
+           {
+            "id": "g1"
+           },
+           {
+            "id": 2
+           },
+           {},
+           {
+            "id": "g3"
+           }
+          ]
+         }
+        },
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use-group",
+          "groupedItems": "nope"
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "tail": null
+   },
+   "out": {
+    "appSkillIds": [
+     "nested"
+    ],
+    "blocks": [
+     {
+      "id": "semantic:qnafx9",
+      "nodeTypes": [
+       "doc",
+       "paragraph",
+       "text"
+      ]
+     },
+     {
+      "id": "semantic:1kv0tzm",
+      "nodeTypes": [
+       "doc",
+       "paragraph",
+       "text",
+       "embed",
+       "embed",
+       "embed"
+      ]
+     },
+     {
+      "id": "semantic:190i5zb",
+      "nodeTypes": [
+       "doc",
+       "embed",
+       "embed"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "plan": {
+    "document": {
+     "type": "doc",
+     "content": [
+      {
+       "type": "embed",
+       "attrs": {
+        "type": "embeds-map-view",
+        "id": "x"
+       }
+      },
+      {
+       "content": [
+        {
+         "type": "noTypeParent"
+        }
+       ]
+      },
+      {
+       "type": "emptyContent",
+       "content": []
+      },
+      {
+       "type": "nonArrayContent",
+       "content": "str"
+      }
+     ]
+    },
+    "committed": [
+     {
+      "markdown": "block 0 é",
+      "document": {
+       "type": "doc",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "hi"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     {
+      "markdown": "block 1 é",
+      "document": {
+       "type": "doc",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "a"
+          }
+         ]
+        },
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use",
+          "id": "skill-1"
+         }
+        },
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use",
+          "id": 5
+         }
+        },
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use"
+         }
+        }
+       ]
+      }
+     },
+     {
+      "markdown": "block 2 é",
+      "document": {
+       "type": "doc",
+       "content": [
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use-group",
+          "groupedItems": [
+           {
+            "id": "g1"
+           },
+           {
+            "id": 2
+           },
+           {},
+           {
+            "id": "g3"
+           }
+          ]
+         }
+        },
+        {
+         "type": "embed",
+         "attrs": {
+          "type": "app-skill-use-group",
+          "groupedItems": "nope"
+         }
+        }
+       ]
+      }
+     },
+     {
+      "markdown": "block 3 é",
+      "document": {
+       "type": "doc",
+       "content": [
+        {
+         "type": "blockquote",
+         "content": [
+          {
+           "type": "paragraph",
+           "content": [
+            {
+             "type": "embed",
+             "attrs": {
+              "type": "app-skill-use",
+              "id": "nested"
+             }
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "notEmbed",
+         "attrs": {
+          "type": "app-skill-use",
+          "id": "ignored"
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "tail": {
+     "markdown": "tail 4",
+     "document": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "embed",
+        "attrs": {
+         "type": "embeds-map-view",
+         "id": "x"
+        }
+       },
+       {
+        "content": [
+         {
+          "type": "noTypeParent"
+         }
+        ]
+       },
+       {
+        "type": "emptyContent",
+        "content": []
+       },
+       {
+        "type": "nonArrayContent",
+        "content": "str"
+       }
+      ]
+     }
+    }
+   },
+   "out": {
+    "appSkillIds": [],
+    "blocks": [
+     {
+      "id": "semantic:qnafx9",
+      "nodeTypes": [
+       "doc",
+       "paragraph",
+       "text"
+      ]
+     },
+     {
+      "id": "semantic:1kv0tzm",
+      "nodeTypes": [
+       "doc",
+       "paragraph",
+       "text",
+       "embed",
+       "embed",
+       "embed"
+      ]
+     },
+     {
+      "id": "semantic:190i5zb",
+      "nodeTypes": [
+       "doc",
+       "embed",
+       "embed"
+      ]
+     },
+     {
+      "id": "semantic:4dce2k",
+      "nodeTypes": [
+       "doc",
+       "blockquote",
+       "paragraph",
+       "embed",
+       "notEmbed"
+      ]
+     },
+     {
+      "id": "semantic:1lj8px3",
+      "nodeTypes": [
+       "doc",
+       "embed",
+       "noTypeParent",
+       "emptyContent",
+       "nonArrayContent"
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

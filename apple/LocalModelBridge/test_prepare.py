@@ -130,9 +130,9 @@ class BridgePreparationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='bridge-link-fixture-') as name:
             root = Path(name)
             sources = {
-                'pair': 'int rust_eh_personality(void) { return 17; } int pair_opaque_call(void) { return rust_eh_personality(); } void pair_opaque_free(void) {}',
+                'pair': 'int rust_eh_personality(void) { return 17; } int core_call(void) { return rust_eh_personality(); } void core_free(void) {}',
                 'tokenizers': 'int rust_eh_personality(void) { return 29; } int tokenizers_probe(void) { return rust_eh_personality(); }',
-                'main': 'int pair_opaque_call(void); int tokenizers_probe(void); int main(void) { return pair_opaque_call() == 17 && tokenizers_probe() == 29 ? 0 : 1; }',
+                'main': 'int core_call(void); int tokenizers_probe(void); int main(void) { return core_call() == 17 && tokenizers_probe() == 29 ? 0 : 1; }',
             }
             for label, source in sources.items():
                 path = root / (label + '.c')
@@ -144,17 +144,14 @@ class BridgePreparationTests(unittest.TestCase):
             rejected = subprocess.run(command, capture_output=True, text=True)
             self.assertNotEqual(rejected.returncode, 0)
             self.assertIn('duplicate symbol', rejected.stderr)
-            localizer = Path(__file__).parents[1] / 'PairOpaqueBridge/localize-runtime.sh'
-            env = {**os.environ, 'PLATFORM_NAME': 'iphoneos'}
-            original_hash = bridge.sha256(library)
-            subprocess.run([str(localizer), str(library)], env=env, check=True, capture_output=True)
-            self.assertEqual(bridge.sha256(library), original_hash, 'iOS packaging is untouched')
-            subprocess.run([str(localizer), str(library)], env={**env, 'PLATFORM_NAME': 'macosx'}, check=True, capture_output=True)
+            symbols = Path(__file__).parents[2] / 'packages/openmates-apple-bindings/local-runtime-symbols.txt'
+            # Same command as localize_runtime in build-xcframework.sh (macOS slice only).
+            subprocess.run(['xcrun', 'nmedit', '-R', str(symbols), str(library)], check=True, capture_output=True)
             subprocess.run(command, check=True, capture_output=True)
             subprocess.run([str(root / 'probe')], check=True, capture_output=True)
             exports = subprocess.run(['xcrun', 'nm', '-gU', str(library)], check=True, capture_output=True, text=True).stdout
-            self.assertIn('_pair_opaque_call', exports)
-            self.assertIn('_pair_opaque_free', exports)
+            self.assertIn('_core_call', exports)
+            self.assertIn('_core_free', exports)
             self.assertNotIn('_rust_eh_personality', exports)
 
     def testEveryGeneratedLinkerArchiveHasABuildGraphProducer(self):

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
+// proof-video: not_required reason=visual_smoke_not_needed (cross-client sync contract; the Playwright video and step screenshots cover each checkpoint)
 
 /** Cross-client encrypted draft lifecycle, sending, and IdeaBucket contracts. */
 const { test, expect } = require('./helpers/cookie-audit');
@@ -206,6 +207,115 @@ test.describe('Cross-client encrypted draft sync', () => {
 			}
 			for (const chatId of cleanupChatIds) {
 				await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 10_000);
+			}
+			if (cliPaired) await runCli(apiUrl, ['logout'], 10_000);
+			cleanupIsolatedCliHome(cliHome);
+		}
+	});
+
+	// contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
+	test('web drops an idle draft-only chat that was deleted elsewhere while it was closed', async ({ page }: { page: any }) => {
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+		const log = createSignupLogger('STALE_DRAFT_RECONCILE');
+		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'stale-draft-reconcile' });
+		const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
+		const apiUrl = deriveApiUrl(baseUrl);
+		const draftText = `Packing list for the lake weekend ${Date.now().toString(36)}`;
+		const cleanupDraftIds = new Set<string>();
+		let cliPaired = false;
+		const cliHome = createIsolatedCliHome();
+		// Full Phase 2 frames (the shared tracker truncates large payloads).
+		const probeFrames: Array<{ direction: 'sent' | 'received'; payload: any }> = [];
+		page.on('websocket', (ws: any) => {
+			const capture = (direction: 'sent' | 'received') => (event: { payload?: unknown }) => {
+				const text = typeof event.payload === 'string' ? event.payload : '';
+				if (!text.includes('phased_sync_request') && !text.includes('phase_2_last_20_chats_ready')) return;
+				try {
+					probeFrames.push({ direction, payload: JSON.parse(text).payload });
+				} catch {
+					// Non-JSON frames carry no Phase 2 data.
+				}
+			};
+			ws.on('framesent', capture('sent'));
+			ws.on('framereceived', capture('received'));
+		});
+
+		await loginToTestAccount(page, log, screenshot);
+		try {
+			setIsolatedCliHome(cliHome);
+			await pairCli(page, apiUrl, baseUrl);
+			cliPaired = true;
+			await expectCliPairedToBrowserAccount(page, apiUrl);
+
+			const created = await runCliJson(apiUrl, ['drafts', 'create', draftText]);
+			const draftChatId = String(created.chatId);
+			cleanupDraftIds.add(draftChatId);
+			await page.goto(baseUrl);
+			await waitForChatReady(page, log);
+			await expect
+				.poll(async () => (await readLocalDraftMarkdown(page, draftChatId)).markdown ?? '', { timeout: 60_000 })
+				.toBe(draftText);
+			log('Draft-only chat stored locally; closing the device.');
+
+			await page.context().setOffline(true);
+			// The device has been idle: its draft row is older than the probe's
+			// fresh-draft guard, as on a laptop that was closed for a day.
+			await page.evaluate(async (chatId: string) => {
+				const old = Math.floor(Date.now() / 1000) - 24 * 3600;
+				await new Promise<void>((resolve, reject) => {
+					const open = indexedDB.open('chats_db');
+					open.onerror = () => reject(open.error);
+					open.onsuccess = () => {
+						const tx = open.result.transaction('chats', 'readwrite');
+						const store = tx.objectStore('chats');
+						const read = store.get(chatId);
+						read.onsuccess = () => {
+							if (read.result) store.put({ ...read.result, created_at: old, updated_at: old, last_edited_overall_timestamp: old });
+						};
+						tx.oncomplete = () => { open.result.close(); resolve(); };
+						tx.onerror = () => reject(tx.error);
+					};
+				});
+			}, draftChatId);
+			const cleared = await runCli(apiUrl, ['drafts', 'clear', draftChatId]);
+			expect(cleared.code, `CLI draft clear failed:\n${cleared.stderr}`).toBe(0);
+			cleanupDraftIds.delete(draftChatId);
+			log('Draft deleted on another client while this device was offline.');
+
+			probeFrames.length = 0;
+			await page.context().setOffline(false);
+			await page.reload();
+			await waitForChatReady(page, log);
+			await expect
+				.poll(async () => page.evaluate(async (chatId: string) => new Promise((resolve) => {
+					const open = indexedDB.open('chats_db');
+					open.onerror = () => resolve('unreadable');
+					open.onsuccess = () => {
+						const read = open.result.transaction('chats', 'readonly').objectStore('chats').get(chatId);
+						read.onsuccess = () => { open.result.close(); resolve(read.result ? 'present' : 'absent'); };
+						read.onerror = () => { open.result.close(); resolve('unreadable'); };
+					};
+				}), draftChatId), { timeout: CHAT_DELETION_RECONCILE_TIMEOUT_MS })
+				.toBe('absent');
+			await openSidebar(page);
+			await expect(chatItem(page, draftChatId)).toHaveCount(0, { timeout: 15_000 });
+			await screenshot(page, 'stale-draft-removed-after-reconnect');
+
+			// Rust core builds reconcile through the Phase 2 stale-draft probe,
+			// which also covers accounts beyond the 100-chat window and expired
+			// tombstones; legacy builds rely on the draft tombstone still present.
+			const rustSync = await page.evaluate(() => typeof (window as any).__openmatesRustSyncStats === 'function');
+			if (rustSync) {
+				const request = probeFrames.find((f) => f.direction === 'sent' && Array.isArray(f.payload?.stale_draft_probe));
+				expect(request?.payload.stale_draft_probe.map((e: any) => e.chat_id)).toContain(draftChatId);
+				const reply = probeFrames.find((f) => f.direction === 'received' && f.payload?.stale_draft_probe_result);
+				expect(reply?.payload.stale_draft_probe_result.absent_chat_ids).toContain(draftChatId);
+			}
+			log(`Stale draft-only chat removed after reconnect (rust sync probe: ${rustSync}).`);
+		} finally {
+			await page.context().setOffline(false).catch(() => undefined);
+			for (const chatId of cleanupDraftIds) {
+				await runCli(apiUrl, ['drafts', 'clear', chatId], 10_000);
 			}
 			if (cliPaired) await runCli(apiUrl, ['logout'], 10_000);
 			cleanupIsolatedCliHome(cliHome);

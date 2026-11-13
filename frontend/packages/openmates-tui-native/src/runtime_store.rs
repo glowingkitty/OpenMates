@@ -2,46 +2,35 @@
 //! Started operations retain their ordering permit and the profile lock even if
 //! the caller cancels its future. Logout announces a durable revocation before
 //! queued cleanup; a stalled native keyring cannot resurrect the old profile.
+//! The queue, generation guard and cache operations are the core's
+//! `CacheStore`/`OrderedBlocking`; this file adds the credential operations.
 use crate::{
     crypto::Key,
     error::{Error, Result},
-    storage::{Session, StorageMode, Store},
+    storage::{CacheBytes, Session, SessionSave, StorageMode, Store},
 };
+use openmates_sdk::{local_cache::{CacheStore, OrderedBlocking}, shell_session::ShellSession};
 use serde_json::Value;
 use std::{
     path::PathBuf,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, Ordering},
     },
 };
-use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 use zeroize::Zeroizing;
 
 /// Read-only local publication guard. It retains neither Store nor credentials.
-#[derive(Clone)]
-pub struct RuntimeStoreGeneration {
-    current: Arc<AtomicU64>,
-    expected: u64,
-}
-impl RuntimeStoreGeneration {
-    pub fn is_current(&self) -> bool {
-        self.current.load(Ordering::SeqCst) == self.expected
-    }
-}
+pub use openmates_sdk::local_cache::GenerationGuard as RuntimeStoreGeneration;
 #[derive(Clone)]
 pub struct RuntimeStore {
     store: Arc<Store>,
-    queue: Arc<Mutex<()>>,
-    generation: Arc<AtomicU64>,
-    /// Commands that never read cached Chats leave the sync cache unread and
-    /// untouched (see session_runtime::CacheLoad::Deferred).
-    deferred: Arc<std::sync::Mutex<Option<DeferredCache>>>,
-}
-#[derive(Clone, Copy)]
-struct DeferredCache {
-    revoke_freshness: bool,
+    /// Async cache façade over the core engine; shares `ops` with credentials.
+    cache: CacheStore<CacheBytes>,
+    ops: OrderedBlocking,
+    /// The core session runtime (restore, persist, logout) over `cache`.
+    session: ShellSession<CacheBytes>,
 }
 impl RuntimeStore {
     pub async fn new(path: Option<PathBuf>, force_vault: bool) -> Result<Self> {
@@ -55,38 +44,66 @@ impl RuntimeStore {
             } else {
                 Store::new(path)?
             };
-            Ok(Self {
-                store: Arc::new(store),
-                queue: Arc::new(Mutex::new(())),
-                generation: Arc::new(AtomicU64::new(0)),
-                deferred: Arc::default(),
-            })
+            Ok(Self::from_store(Arc::new(store)))
         })
         .await
         .map_err(|_| Error::Io)?
+    }
+    /// Wrap an opened `Store`: the cache façade uses the store as its
+    /// admission hook and operation scope and shares one ordered queue.
+    fn from_store(store: Arc<Store>) -> Self {
+        let ops = OrderedBlocking::new();
+        let cache = CacheStore::new(store.cache_engine().clone(), store.clone(), store.clone(), ops.clone());
+        let session = ShellSession::new(cache.clone());
+        Self { store, cache, ops, session }
+    }
+    /// The core session runtime of this profile (see `session_runtime`).
+    pub fn shell(&self) -> &ShellSession<CacheBytes> {
+        &self.session
+    }
+    /// Release the lifetime runtime lock; each later store operation takes it
+    /// only while it runs (see `Store::scope_runtime_lock_to_operations`).
+    pub fn scope_runtime_lock_to_operations(&self) -> Result<()> {
+        self.store.scope_runtime_lock_to_operations()
+    }
+    /// Credential operation on the shared queue under the runtime lock. With
+    /// `generation` it refuses once a revocation advanced the generation.
+    async fn blocking_at<T: Send + 'static>(
+        &self,
+        generation: Option<u64>,
+        operation: impl FnOnce(Arc<Store>) -> Result<T> + Send + 'static,
+    ) -> Result<T> {
+        let store = self.store.clone();
+        self.ops
+            .run(generation, move || {
+                let held = store.clone();
+                held.with_runtime_lock(move || operation(store))
+            })
+            .await
     }
     async fn blocking<T: Send + 'static>(
         &self,
         operation: impl FnOnce(Arc<Store>) -> Result<T> + Send + 'static,
     ) -> Result<T> {
-        let permit = self.queue.clone().lock_owned().await;
-        let store = self.store.clone();
-        tokio::task::spawn_blocking(move || {
-            // Keep the queue permit in the blocking closure, rather than the
-            // cancellable future, until the filesystem/keyring operation ends.
-            let _permit = permit;
-            operation(store)
-        })
-        .await
-        .map_err(|_| Error::Io)?
+        self.blocking_at(None, operation).await
+    }
+    /// Like `blocking`, refusing when the generation moved after this call.
+    async fn blocking_current<T: Send + 'static>(
+        &self,
+        operation: impl FnOnce(Arc<Store>) -> Result<T> + Send + 'static,
+    ) -> Result<T> {
+        self.blocking_at(Some(self.ops.generation()), operation).await
     }
     pub async fn load(&self, passphrase: Option<Zeroizing<String>>) -> Result<Option<Session>> {
-        let generation = self.generation();
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation {
-                return Err(Error::Cancelled);
-            }
+        self.load_at(self.ops.generation(), passphrase).await
+    }
+    /// `load` refusing once the queue moved past `generation`.
+    pub(crate) async fn load_at(
+        &self,
+        generation: u64,
+        passphrase: Option<Zeroizing<String>>,
+    ) -> Result<Option<Session>> {
+        self.blocking_at(Some(generation), move |store| {
             store.load_session(passphrase.as_ref().map(|secret| secret.as_str()))
         })
         .await
@@ -96,12 +113,7 @@ impl RuntimeStore {
         session: Session,
         passphrase: Option<Zeroizing<String>>,
     ) -> Result<()> {
-        let generation = self.generation();
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation {
-                return Err(Error::Cancelled);
-            }
+        self.blocking_current(move |store| {
             store.save_session(&session, passphrase.as_ref().map(|secret| secret.as_str()))
         })
         .await
@@ -109,7 +121,11 @@ impl RuntimeStore {
     /// Await durable local revocation without waiting for queued OS cleanup.
     /// Callers may bound cleanup separately, but must not claim remote logout.
     pub async fn revoke(&self) -> Result<()> {
-        self.generation.fetch_add(1, Ordering::SeqCst);
+        self.ops.advance();
+        self.announce_revocation().await
+    }
+    /// The durable revocation write alone; the caller advanced the generation.
+    pub(crate) async fn announce_revocation(&self) -> Result<()> {
         // A dedicated, short filesystem worker cannot sit behind saturated
         // spawn_blocking keyring jobs. It retains the descriptor even if the
         // awaiting logout future is cancelled while fsync is in progress.
@@ -118,13 +134,18 @@ impl RuntimeStore {
         std::thread::Builder::new()
             .name("native-revoke".into())
             .spawn(move || {
-                let _ = done.send(store.revoke_session());
+                let _ = done.send(store.with_runtime_lock(|| store.revoke_session()));
             })
             .map_err(|_| Error::Io)?;
         ready.await.map_err(|_| Error::Io)?
     }
     pub async fn clear(&self) -> Result<()> {
         self.revoke().await?;
+        self.cleanup().await
+    }
+    /// Credential and owner-cache cleanup after a durable revocation; never
+    /// refused by the generation (logout cleanup must run).
+    pub(crate) async fn cleanup(&self) -> Result<()> {
         self.blocking(move |store| store.clear_session()).await
     }
     /// Explicit application admission, never called by boot or ordinary
@@ -150,12 +171,12 @@ impl RuntimeStore {
         let cancelled = Arc::new(AtomicBool::new(false));
         let _cancel = CancelAdmission(cancelled.clone());
         let generation = self.generation();
-        let current = self.generation.clone();
+        let ops = self.ops.clone();
         self.blocking(move |store| {
             store.begin_session_if(&session, || {
                 if request_cancel.is_cancelled()
                     || cancelled.load(Ordering::SeqCst)
-                    || current.load(Ordering::SeqCst) != generation
+                    || !ops.is_current(generation)
                 {
                     return Err(Error::Cancelled);
                 }
@@ -165,10 +186,15 @@ impl RuntimeStore {
         .await
     }
     pub fn generation(&self) -> u64 {
-        self.generation.load(Ordering::SeqCst)
+        self.ops.generation()
     }
     pub fn generation_guard(&self) -> RuntimeStoreGeneration {
-        RuntimeStoreGeneration { current: self.generation.clone(), expected: self.generation() }
+        self.ops.guard()
+    }
+    /// The shared ordered queue (test seam: hold it to stall later operations).
+    #[cfg(test)]
+    pub(crate) fn ops(&self) -> &OrderedBlocking {
+        &self.ops
     }
     pub async fn read_cache(
         &self,
@@ -176,21 +202,12 @@ impl RuntimeStore {
         key: String,
         master: Key,
     ) -> Result<Option<Value>> {
-        let generation = self.generation();
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation {
-                return Err(Error::Cancelled);
-            }
-            store.read_cache(&owner, &key, &master)
-        })
-        .await
+        self.cache.read_cache(owner, key, master).await
     }
     /// Capacity only, no write/ACK/auth admission. The caller retains its
     /// original owner/generation/private fences around this optional decision.
     pub fn admits_ciphertext_checkpoint(&self, checkpoint_json_bytes: usize) -> Result<bool> {
-        Ok(crate::storage::cache_record_encoded_len(checkpoint_json_bytes)?
-            <= crate::storage::MAX_LOCAL_RECORD_BYTES)
+        self.cache.admits_checkpoint(checkpoint_json_bytes)
     }
     pub async fn write_cache(
         &self,
@@ -199,15 +216,7 @@ impl RuntimeStore {
         master: Key,
         value: Value,
     ) -> Result<()> {
-        let generation = self.generation();
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation {
-                return Err(Error::Cancelled);
-            }
-            store.write_ciphertext_cache(&owner, &key, &master, value)
-        })
-        .await
+        self.cache.write_cache(owner, key, master, value).await
     }
     /// Change-only credential publication (see Store::save_session_if_changed).
     pub async fn save_if_changed(
@@ -215,116 +224,63 @@ impl RuntimeStore {
         session: Session,
         passphrase: Option<Zeroizing<String>>,
     ) -> Result<bool> {
-        let generation = self.generation();
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation {
-                return Err(Error::Cancelled);
-            }
+        self.blocking_current(move |store| {
             store.save_session_if_changed(&session, passphrase.as_ref().map(|secret| secret.as_str()))
         })
         .await
     }
-    /// Mark this process's sync cache as deliberately unread. Persistence then
-    /// never reads or rewrites it; `revoke_freshness` durably revokes only the
-    /// list-freshness receipt at the next persist (pre-dispatch fence).
-    pub fn defer_sync_cache(&self, revoke_freshness: bool) {
-        *self.deferred.lock().unwrap_or_else(std::sync::PoisonError::into_inner) =
-            Some(DeferredCache { revoke_freshness });
-    }
-    /// Some(revocation still pending) while the sync cache is deferred.
-    pub fn sync_cache_deferred(&self) -> Option<bool> {
-        self.deferred
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .map(|deferred| deferred.revoke_freshness)
-    }
-    pub async fn revoke_deferred_freshness(&self, owner: String, key: String) -> Result<()> {
-        let generation = self.generation();
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation {
-                return Err(Error::Cancelled);
-            }
-            store.revoke_sync_freshness(&owner, &key)
-        })
-        .await?;
-        if let Some(deferred) = self.deferred.lock().unwrap_or_else(std::sync::PoisonError::into_inner).as_mut() {
-            deferred.revoke_freshness = false;
-        }
-        Ok(())
-    }
-    pub(crate) async fn read_sync_cache(
+    /// `save_if_changed` for long-running hosts: when another process rotated
+    /// the stored session, adopt it instead of overwriting it. The comparison
+    /// and write run in one runtime-lock critical section. One-shot (lifetime
+    /// locked) stores always report `Saved`.
+    pub async fn save_unless_superseded(
         &self,
-        owner: String,
-        key: String,
-        master: Key,
-        mode: crate::storage::SyncReadMode,
-    ) -> Result<Option<crate::storage::SyncCacheRead>> {
-        let generation = self.generation();
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation {
-                return Err(Error::Cancelled);
-            }
-            store.read_sync_cache(&owner, &key, &master, mode)
+        session: Session,
+        passphrase: Option<Zeroizing<String>>,
+    ) -> Result<SessionSave> {
+        self.save_unless_superseded_at(self.ops.generation(), session, passphrase).await
+    }
+    /// `save_unless_superseded` refusing once the queue moved past `generation`.
+    pub(crate) async fn save_unless_superseded_at(
+        &self,
+        generation: u64,
+        session: Session,
+        passphrase: Option<Zeroizing<String>>,
+    ) -> Result<SessionSave> {
+        self.blocking_at(Some(generation), move |store| {
+            store.save_session_unless_superseded(
+                &session,
+                passphrase.as_ref().map(|secret| secret.as_str()),
+            )
         })
         .await
     }
-    /// One Chat's cached content section (index must have been restored).
-    pub async fn read_sync_chat(
+    /// The session another process rotated and stored since this one last
+    /// loaded or saved, if any (hosts only). Read under the runtime lock.
+    pub async fn load_superseded(
         &self,
-        owner: String,
-        key: String,
-        master: Key,
-        chat: String,
-    ) -> Result<Option<Value>> {
-        let generation = self.generation();
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation {
-                return Err(Error::Cancelled);
-            }
-            store.read_sync_chat(&owner, &key, &master, &chat)
+        passphrase: Option<Zeroizing<String>>,
+    ) -> Result<Option<Session>> {
+        self.blocking_current(move |store| {
+            store.superseded_session(passphrase.as_ref().map(|secret| secret.as_str()))
         })
         .await
     }
-    /// Loader for the SDK's partial restore. It runs synchronously inside SDK
-    /// operations, outside this queue; Store file locks still serialize it and
-    /// a revoked/advanced generation refuses it.
+    /// Loader for the SDK's partial restore (see `CacheStore::content_loader`).
     pub fn sync_content_loader(
         &self,
         owner: String,
         key: String,
         master: Key,
     ) -> openmates_sdk::client::CachedContentLoader {
-        let store = self.store.clone();
-        let generation = self.generation_guard();
-        Arc::new(move |loaded: &[String]| {
-            if !generation.is_current() {
-                return Err(Error::Cancelled);
-            }
-            let remainder = store.read_sync_remainder(&owner, &key, &master, loaded)?;
-            if !generation.is_current() {
-                return Err(Error::Cancelled);
-            }
-            Ok(remainder)
-        })
+        self.cache.content_loader(owner, key, master)
     }
     pub(crate) async fn prepare_sync_sections(
         &self,
         value: Value,
         partial: Option<Vec<String>>,
     ) -> Result<crate::storage::PreparedSections> {
-        let generation = self.generation();
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation {
-                return Err(Error::Cancelled);
-            }
-            store.prepare_sync_sections(value, partial)
-        })
-        .await
+        self.cache.prepare_sections(value, partial).await
     }
     pub(crate) async fn write_sync_sections(
         &self,
@@ -333,15 +289,7 @@ impl RuntimeStore {
         master: Key,
         prepared: crate::storage::PreparedSections,
     ) -> Result<bool> {
-        let generation = self.generation();
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation {
-                return Err(Error::Cancelled);
-            }
-            store.write_sync_sections(&owner, &key, &master, prepared)
-        })
-        .await
+        self.cache.write_sections(owner, key, master, prepared).await
     }
     pub async fn storage_mode(&self) -> Result<Option<StorageMode>> {
         self.blocking(move |store| store.storage_mode()).await
@@ -361,14 +309,11 @@ impl RuntimeStore {
         generation: u64,
         update: impl FnOnce(Option<Value>) -> Result<(Option<Value>, T)> + Send + 'static,
     ) -> Result<T> {
-        let current = self.generation.clone();
-        self.blocking(move |store| {
-            if current.load(Ordering::SeqCst) != generation {
-                return Err(Error::Cancelled);
-            }
+        let ops = self.ops.clone();
+        self.blocking_at(Some(generation), move |store| {
             store.update_private_record(&owner, &context, &name, &key, move |previous| {
                 let next = update(previous)?;
-                if current.load(Ordering::SeqCst) != generation {
+                if !ops.is_current(generation) {
                     return Err(Error::Cancelled);
                 }
                 Ok(next)
@@ -382,7 +327,7 @@ impl RuntimeStore {
 mod tests {
     use super::*;
     use crate::storage::{CredentialBackend, KeyringFailure};
-    use std::sync::{Mutex as BlockingMutex, atomic::AtomicU8};
+    use std::sync::{Mutex as BlockingMutex, atomic::{AtomicU64, AtomicU8}};
 
     struct StalledBackend {
         secret: BlockingMutex<Option<Zeroizing<Vec<u8>>>>,
@@ -467,12 +412,7 @@ mod tests {
         // production Store::new lifetime lock (covered by storage_security).
         let store =
             Arc::new(Store::with_backend(directory.path().to_path_buf(), backend.clone()).unwrap());
-        let runtime = RuntimeStore {
-            store,
-            queue: Arc::new(Mutex::new(())),
-            generation: Arc::new(AtomicU64::new(0)),
-            deferred: Arc::default(),
-        };
+        let runtime = RuntimeStore::from_store(store);
         let session = Session {
             api_url: "https://never-contact.example.invalid".into(),
             session_id: "old-admission".into(),
@@ -666,7 +606,7 @@ mod tests {
                 client.validate_chat_view(&candidate).unwrap();
                 let receipt=ChatRefreshDurableReceipt{ciphertext_sha256:candidate.ciphertext_sha256().unwrap(),credential_revision:candidate.credential_revision()};
                 let generation=runtime.generation_guard();
-                let queue=runtime.queue.clone().lock_owned().await;
+                let queue=runtime.ops().hold().await;
                 let saved_result = {
                 let saved=crate::session_runtime::persist(&mut client,&runtime,None);
                 tokio::pin!(saved);
@@ -940,7 +880,7 @@ mod tests {
         let (directory, runtime, _backend, _release, session) = isolated();
         runtime.save(session.clone(), None).await.unwrap();
         let prepared = runtime.prepare_sync_sections(serde_json::json!({"chats":{}}), None).await.unwrap();
-        let held = runtime.queue.clone().lock_owned().await;
+        let held = runtime.ops().hold().await;
         let mut preparing = Box::pin(runtime.prepare_sync_sections(serde_json::json!({"chats":{}}), None));
         let mut publishing = Box::pin(runtime.write_sync_sections(session.hashed_email.clone(), "sync-personal".into(), session.master_key.clone(), prepared));
         assert!(futures_util::poll!(preparing.as_mut()).is_pending());
@@ -958,7 +898,7 @@ mod tests {
     async fn queued_session_reads_and_writes_cannot_cross_logout_generation() {
         let (directory, runtime, backend, _release, session) = isolated();
         runtime.save(session.clone(), None).await.unwrap();
-        let held = runtime.queue.clone().lock_owned().await;
+        let held = runtime.ops().hold().await;
         let mut read = Box::pin(runtime.load(None));
         let mut write = Box::pin(runtime.save(session, None));
         assert!(futures_util::poll!(read.as_mut()).is_pending());

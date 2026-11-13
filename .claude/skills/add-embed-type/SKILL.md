@@ -52,7 +52,9 @@ evidence. Confirm or record in the spec/inline contract:
    the deployed dev web embed works and looks correct before Apple parity starts.
    `*.spec.ts` evidence alone is not enough.
 5. Apple embed parity starts only after CLI, SDK, web, and user-confirmation
-   evidence are complete, or after an explicit waiver/blocker is recorded.
+   evidence are complete, or after an explicit waiver/blocker is recorded. This
+   applies to Apple UI parity; Apple client logic comes from the Rust core and is
+   not sequenced behind web.
 
 ### Step 1: Check Existing State
 

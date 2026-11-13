@@ -10,6 +10,23 @@ import { chatDB } from "./db";
 import { addCandidateKey } from "./db/chatCrudOperations";
 import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 import { computeKeyFingerprint } from "./encryption/ChatKeyManager";
+import { rustWebCrypto } from "./rustCore/crypto/webCryptoClient";
+import { rustEnsureChatKeySafeForWrite, type GuardReason } from "./rustCore/crypto/webCryptoFacades";
+
+const CONFLICTING_KEYS_NOTICE =
+  "We could not safely store this update because this chat has conflicting encryption keys. Please reload and try again.";
+const KEY_NOT_VALIDATED_NOTICE =
+  "We could not safely store this update because this chat key could not be validated. Please reload and try again.";
+
+const GUARD_REFUSAL_LOG: Record<GuardReason, string> = {
+  candidate_keys_pending: "chat has candidate/conflicting key(s) pending recovery",
+  fingerprint_mismatch: "raw key fingerprint does not match stored chat key fingerprint",
+  anonymous_key_unwrap_failed: "anonymous chat key could not be validated",
+  anonymous_key_mismatch: "raw key does not match anonymous chat key",
+  encrypted_key_missing: "no persisted encrypted_chat_key to validate against",
+  persisted_key_unwrap_failed: "persisted chat key could not be validated",
+  persisted_key_mismatch: "raw key does not match persisted encrypted_chat_key",
+};
 
 interface ChatKeyWriteGuardOptions {
   allowMissingEncryptedChatKey?: boolean;
@@ -44,6 +61,54 @@ export async function ensureChatKeySafeForWrite(
     chat?.encrypted_chat_key ?? (await chatDB.getEncryptedChatKey(chatId));
   const rawFingerprint = computeKeyFingerprint(rawChatKey);
   const reportFailure = shouldReportFailure(options);
+
+  // Compile-time flag: default builds fold this to null and drop the Rust branch.
+  const rust = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+  if (rust) {
+    // Decisions in shared Rust (chat_key_policy); unwraps, candidate writes and
+    // notices stay here so the observable behaviour is unchanged.
+    return rustEnsureChatKeySafeForWrite(
+      rust,
+      {
+        chatExists: Boolean(chat),
+        candidateKeyCount: chat?.candidate_encrypted_keys?.length ?? 0,
+        keyFingerprint: chat?.key_fingerprint || null,
+        isAnonymous: Boolean(chat?.is_anonymous),
+        teamScoped: Boolean(chat?.team_id),
+        directVisibility: chat?.chat_visibility === "direct",
+        encryptedChatKey: encryptedChatKey || null,
+      },
+      rawChatKey,
+      Boolean(options.allowMissingEncryptedChatKey),
+      {
+        unwrapAnonymous: () => unwrapAnonymousChatKey(chat?.anonymous_encrypted_chat_key),
+        unwrapPersisted: async (team) => {
+          if (team && chat?.team_id) {
+            const { unwrapTeamOrDirectChatKey } = await import("./directChatService");
+            return unwrapTeamOrDirectChatKey(chat.team_id, chatId, encryptedChatKey!, chat.chat_visibility);
+          }
+          return decryptChatKeyWithMasterKey(encryptedChatKey!);
+        },
+        refuse: (reason, addCandidate, notice, error) => {
+          recordChatKeyGuardFailure(reason, chat);
+          if (addCandidate && encryptedChatKey) addCandidateKey(chatDB, chatId, encryptedChatKey).catch(() => {});
+          if (reportFailure) {
+            console.error(`[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: ${GUARD_REFUSAL_LOG[reason]}`, ...(error ? [error] : []));
+            if (notice === "conflicting_keys") notificationStore.error(CONFLICTING_KEYS_NOTICE);
+            else if (notice === "key_not_validated") notificationStore.error(KEY_NOT_VALIDATED_NOTICE);
+          }
+          return false;
+        },
+        allowUnverified: () => {
+          console.warn(
+            `[ChatKeyWriteGuard] Could not decrypt encrypted_chat_key while validating ${context} for ${chatId}; ` +
+              `allowing write because hidden-chat/master-key fallback may own this wrapper.`,
+          );
+          return true;
+        },
+      },
+    );
+  }
 
   if (chat?.candidate_encrypted_keys?.length) {
     recordChatKeyGuardFailure("candidate_keys_pending", chat);

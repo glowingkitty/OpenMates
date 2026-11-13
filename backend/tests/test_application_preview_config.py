@@ -247,11 +247,11 @@ def test_auto_started_preview_session_uses_short_screenshot_deadline() -> None:
 
 # contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
 def test_preview_billing_reuses_code_run_started_minute_rate() -> None:
-    assert APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE == 5
+    assert APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE == 3
     assert calculate_preview_charge_credits(0) == 0
-    assert calculate_preview_charge_credits(1) == 5
-    assert calculate_preview_charge_credits(60) == 5
-    assert calculate_preview_charge_credits(61) == 10
+    assert calculate_preview_charge_credits(1) == 3
+    assert calculate_preview_charge_credits(60) == 3
+    assert calculate_preview_charge_credits(61) == 6
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
@@ -452,7 +452,7 @@ async def test_create_preview_session_stores_viewer_owned_queued_record() -> Non
     assert response.session_id == "session-1"
     assert response.status == "queued"
     assert response.preview_url.startswith("https://preview-testhost.openmatesusercontent.org/t/")
-    assert response.credits_per_minute == 5
+    assert response.credits_per_minute == 3
 
     key = application_preview_session_key("session-1")
     stored = json.loads((await cache.redis.get(key)).decode("utf-8"))
@@ -528,7 +528,7 @@ async def test_shared_recipient_preview_session_is_distinct_and_billed_to_recipi
     recipient_record = json.loads((await cache.redis.get(application_preview_session_key("recipient-session"))).decode("utf-8"))
     assert creator_record["viewer_user_id_hash"] == hashlib.sha256(b"alice-user").hexdigest()
     assert recipient_record["viewer_user_id_hash"] == hashlib.sha256(b"bob-user").hexdigest()
-    assert recipient_record["billing_state"]["credits_per_started_minute"] == 5
+    assert recipient_record["billing_state"]["credits_per_started_minute"] == 3
     assert recipient_record["session_id"] != creator_record["session_id"]
     assert recipient_record["uses_client_shared_context"] is True
     assert "client-decrypted" not in json.dumps(recipient_record)

@@ -353,9 +353,27 @@ impl MonitorReadReceiver {
                 _ = command.abandoned.cancelled() => return Err(Error::Cancelled.into()),
                 _ = events.closed() => return Err(Error::Cancelled.into()),
                 _ = heartbeat.tick() => None,
-                result = crate::platform::time::timeout_at(deadline, transport::receive_monitor(socket)) => {
-                    let (kind, payload) = result.map_err(|_| Error::Offline)?.map_err(ActorFailure::socket)?;
-                    Some((kind, Plain::new(payload)))
+                outbound = async { match changes { Some(changes) => changes.passthrough.next_outbound().await, None => std::future::pending().await } } => {
+                    // A shell frame between this read's frames. Types whose
+                    // replies a read consumes are refused before queueing
+                    // (`view_model::shell_may_send`).
+                    if let (Some(outbound), Some(shell)) = (outbound, changes) {
+                        command.check()?;
+                        super::write_shell_frame(socket, shell, outbound).await.map_err(ActorFailure::socket)?;
+                    }
+                    continue;
+                },
+                result = crate::platform::time::timeout_at(deadline, transport::receive_monitor_frame(socket)) => {
+                    match result.map_err(|_| Error::Offline)?.map_err(ActorFailure::socket)? {
+                        transport::MonitorFrame::Frame(kind, payload) => Some((kind, Plain::new(payload))),
+                        // An error answering a shell frame goes to the shell and
+                        // this read continues; one that may answer this read
+                        // fails it and retires the socket, as before.
+                        transport::MonitorFrame::Error(payload) => {
+                            if super::error_frames::forward_shell_error(changes, Some(&command.request), &payload) { continue; }
+                            return Err(ActorFailure::socket(Error::Protocol));
+                        }
+                    }
                 },
             };
             let Some((kind, payload)) = frame else {

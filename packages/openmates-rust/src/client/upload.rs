@@ -126,18 +126,29 @@ pub fn upload_origin(api: &url::Url) -> String {
     }
 }
 
-/// One `file` part, encoded like the WHATWG FormData serializer.
-pub fn multipart_body(boundary: &str, filename: &str, mime: &str, bytes: &[u8]) -> Vec<u8> {
+/// Head of the `file` part (boundary line, disposition with the WHATWG
+/// FormData filename escaping, content type, blank line); the file bytes and
+/// [`multipart_tail`] follow it.
+pub(super) fn file_part_head(boundary: &str, filename: &str, mime: &str) -> String {
     let name = filename
         .replace('"', "%22")
         .replace('\r', "%0D")
         .replace('\n', "%0A");
-    let mut body = format!(
+    format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{name}\"\r\nContent-Type: {mime}\r\n\r\n"
     )
-    .into_bytes();
+}
+
+/// Closing delimiter after the last part's bytes.
+pub(super) fn multipart_tail(boundary: &str) -> String {
+    format!("\r\n--{boundary}--\r\n")
+}
+
+/// One `file` part, encoded like the WHATWG FormData serializer.
+pub fn multipart_body(boundary: &str, filename: &str, mime: &str, bytes: &[u8]) -> Vec<u8> {
+    let mut body = file_part_head(boundary, filename, mime).into_bytes();
     body.extend_from_slice(bytes);
-    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+    body.extend_from_slice(multipart_tail(boundary).as_bytes());
     body
 }
 

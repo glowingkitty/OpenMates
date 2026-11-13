@@ -4,7 +4,7 @@ import {
   createDelimitedTableFileEmbedNode,
   createEmailFileEmbedNode,
   createOfficeDocumentFileEmbedNode,
-  createOfficeSpreadsheetFileEmbedNode,
+  createOfficeSpreadsheetFileEmbedNodes,
   insertFileEmbedNodes,
   insertImage,
   insertMindMapFile,
@@ -14,6 +14,10 @@ import {
 import { isCodeOrTextFile, isDelimitedTableFile, isEmailFile, isOfficeDocumentFile, isOfficeSpreadsheetFile } from "./utils"; // Import necessary utils
 import { classifyDiagramHtmlUpload } from './services/diagramHtmlUploadDetection';
 import { createDiagramHtmlEmbed } from './services/codeEmbedService';
+import { get } from 'svelte/store';
+import { text } from '../../i18n/translations';
+import { notificationStore } from '../../stores/notificationStore';
+import type { XlsxRemovedFeature } from './utils/xlsxSheetConverter';
 
 // File size limits (consider moving to a config file later)
 const FILE_SIZE_LIMITS = {
@@ -22,6 +26,23 @@ const FILE_SIZE_LIMITS = {
 };
 const MAX_TOTAL_SIZE = FILE_SIZE_LIMITS.TOTAL_MAX_SIZE * 1024 * 1024;
 const MAX_PER_FILE_SIZE = FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE * 1024 * 1024;
+
+const PRESENTATION_EXTENSIONS = /\.(pptx|pptm|ppsx|potx|ppt|pps)$/i;
+
+function warnAboutFile(key: string, filename: string): void {
+  notificationStore.warning(get(text)(key, { values: { filename } }), 8000);
+}
+
+/** Tell the user which Excel features were not carried over into the sheet embeds. */
+function warnAboutRemovedSpreadsheetFeatures(filename: string, removed: XlsxRemovedFeature[]): void {
+  if (removed.length === 0) return;
+  const tr = get(text);
+  const features = removed.map((feature) => tr(`enter_message.xlsx_feature_${feature}`)).join(', ');
+  notificationStore.warning(
+    tr('enter_message.xlsx_features_removed', { values: { filename, features } }),
+    12000,
+  );
+}
 
 function isMindMapUploadFile(filename: string): boolean {
   const lower = filename.toLowerCase();
@@ -64,8 +85,8 @@ export async function processFiles(
 
     // Supported via the upload button: images, PDFs, docs/sheets, email, and code/text files.
     // Signed-out users get local-only previews marked with needsSignup; no bytes upload.
-    // Mind maps currently require the authenticated EmbedStore path. All other
-    // file types (video, audio, EPUB, etc.) are silently skipped.
+    // Mind maps currently require the authenticated EmbedStore path. PowerPoint
+    // and all other unsupported file types are skipped with a visible notice.
     if (file.type.startsWith("image/")) {
       flushPendingLocalEmbeds();
       editor.commands.focus("end");
@@ -101,9 +122,17 @@ export async function processFiles(
     } else if (isOfficeDocumentFile(file.name)) {
       const node = await createOfficeDocumentFileEmbedNode(file, isAuthenticated);
       if (node) pendingLocalEmbeds.push(node);
+      else warnAboutFile('enter_message.file_import_failed', file.name);
     } else if (isOfficeSpreadsheetFile(file.name)) {
-      const node = await createOfficeSpreadsheetFileEmbedNode(file, isAuthenticated);
-      if (node) pendingLocalEmbeds.push(node);
+      const result = await createOfficeSpreadsheetFileEmbedNodes(file, isAuthenticated);
+      if (result) {
+        pendingLocalEmbeds.push(...result.nodes);
+        warnAboutRemovedSpreadsheetFeatures(file.name, result.removed);
+      } else {
+        warnAboutFile('enter_message.file_import_failed', file.name);
+      }
+    } else if (PRESENTATION_EXTENSIONS.test(file.name)) {
+      warnAboutFile('enter_message.file_pptx_coming_soon', file.name);
     } else if (isCodeOrTextFile(file.name)) {
       if (isAuthenticated && filenameLower.endsWith('.html') && file.size <= 750_000) {
         const source = await file.text();
@@ -120,10 +149,10 @@ export async function processFiles(
       const node = await createCodeFileEmbedNode(file, isAuthenticated);
       if (node) pendingLocalEmbeds.push(node);
     } else {
-      // Unsupported file type — skip silently
       console.warn(
         `[FileHandlers] Skipping unsupported file type: ${file.type || "unknown"} (${file.name})`,
       );
+      warnAboutFile('enter_message.file_unsupported_type', file.name);
     }
   }
 

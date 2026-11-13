@@ -111,6 +111,43 @@ recommend LOW, MEDIUM, HIGH or EXTRA_HIGH independently of complexity, resolved
 against each actual model/server's documented controls. See
 [main-answer reasoning recommendations](./reasoning-routing.md).
 
+#### Use-case routing
+
+Jev can also answer one optional `use_case` question in the same pass. The options come from the
+registry in [`use_case_routing.py`](../../backend/apps/ai/processing/use_case_routing.py): each
+`UseCaseProfile` has an id, the criterion text Jev sees, an ordered model list (primary first, then
+fallbacks) and an optional reasoning level for the primary. Adding a use case is one registry
+entry. The registry is currently empty, and while it is empty the question is not asked.
+
+A recognised use case applies to automatic selection only: an exact chat model or a saved tier
+preference always wins, and a missing, weak or unknown answer keeps ordinary tier routing. The
+use-case models lead the candidate list and the tier chain stays behind them, so the usual
+disabled-model, provider, server and input-capability filters apply unchanged. A use case never
+changes the output limit.
+
+#### Vector graphics (SVG)
+
+Vector graphics are not a chat-model use case. The ordinary routed chat model makes a short
+`images.generate` call with `output_filetype: "svg"`, and the skill task draws the graphic
+([`vector_author.py`](../../backend/apps/images/vector_author.py)):
+
+| `vector_engine` | Who draws | Billing |
+|---|---|---|
+| `llm` (default) | Author model writes the SVG: GPT-6.1 Sol, then Claude Haiku 5.5, then Gemini 3.8 Flash; MEDIUM reasoning, HIGH for `quality: "max"` | tokens |
+| `script` | Same author models write a deterministic Python generator, run once per attempt in an E2B sandbox without internet ([`vector_script.py`](../../backend/apps/images/vector_script.py)); for mathematical, symmetric or repeated shapes and smooth transitions | tokens + 5 credits per started sandbox minute |
+| `recraft` | Recraft V4.1 Vector, for dense painterly illustrations | flat 100 / 300 credits |
+
+Optional `requirements` (natural language) are checked by Jev 1.14 against the rendered result of
+any engine, one yes/no/unsure answer per requirement. Without requirements no review runs. A
+clearly unmet requirement, an invalid SVG or a failed script triggers a follow-up by the author
+model that names the problem, at most 2 rounds; then the last valid drawing is delivered with the
+requirements it still misses. Review and follow-up calls are billed by their tokens.
+
+`reference_images` hand an existing SVG to the author as source text, a script-made graphic as its
+stored generator (script engine) and a pixel image as an image. Drafts are sent to the client as
+`processing` updates of the generated image embed, so the picture builds up while it is written.
+`images.vectorize` still converts pixel images by tracing.
+
 Eligible low-complexity text uses native Mercury 3 MEDIUM by default. Gemini 3.8 Flash LOW
 handles unavailable credentials/models, disabled model/server restrictions,
 unsupported modalities and provider outages, or an effort-specific deadline before

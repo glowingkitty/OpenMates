@@ -66,6 +66,14 @@ fn display_model_mention_resolves_to_wire_syntax_with_static_catalog() {
 }
 
 #[test]
+fn gemini_4_carbon_mention_resolves_like_the_model_selector() {
+    let context = MentionContext::with_apps(vec![]);
+    let result = parse_mentions("@Gemini-4-Carbon hi", &context, "2026-11-13");
+    assert_eq!(result.processed_message, "@ai-model:gemini-4-carbon hi");
+    assert!(result.unresolved.is_empty());
+}
+
+#[test]
 fn legacy_models_expire_one_year_after_release_and_at_api_retirement() {
     let legacy = ModelInfo {
         id: "old".into(),

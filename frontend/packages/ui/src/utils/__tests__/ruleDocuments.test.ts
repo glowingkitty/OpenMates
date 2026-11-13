@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildWholeDocumentPatch, parseRuleDocument, serializeRuleDocument, validateRuleCatalog } from '../ruleDocuments';
+import { buildWholeDocumentPatch, isMemoryActive, isMemoryExpired, parseRuleDocument, serializeRuleDocument, stampMemorySave, validateRuleCatalog } from '../ruleDocuments';
 import { applyProjectFilePatch } from '../projectFilePatch';
 
 const guide = '---\ntitle: Python practices\ndescription: Reliable services.\nwhen_to_use: Writing Python.\n---\n- Release resources.\n- Preserve cancellation.\n';
@@ -35,6 +35,60 @@ describe('Rule Markdown boundaries', () => {
   });
 });
 
+const canonical = '---\ntitle: Trip\nload_mode: ask_first\nvalid_from: "2026-01-01T00:00:00Z"\nvalid_until: "2026-02-01T00:00:00Z"\nreferences:\n  - kind: embed\n    id: e1\n---\nPacking list.\n';
+
+// contract-test: supporting surface=rest_api assertions=app-memories.document.canonical-shape,app-memories.load-modes,app-memories.references.embeds
+describe('canonical Memory shape', () => {
+  it('parses and round-trips every new field with blank when_to_use', () => {
+    const fields = parseRuleDocument(canonical);
+    expect(fields).toMatchObject({ title: 'Trip', when_to_use: '', load_mode: 'ask_first', body: 'Packing list.' });
+    expect(fields.references).toEqual([{ kind: 'embed', id: 'e1' }]);
+    expect(parseRuleDocument(serializeRuleDocument(fields))).toEqual(fields);
+  });
+
+  // contract-test: direct surface=gui.web assertions=app-memories.references.embeds
+  it('drops legacy stored chat references on read without throwing', () => {
+    const legacy = canonical.replace('---\nPacking', '  - kind: chat\n    id: c1\n---\nPacking');
+    expect(parseRuleDocument(legacy).references).toEqual([{ kind: 'embed', id: 'e1' }]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.document.canonical-shape
+  it('keeps legacy description documents and minimal title+body documents valid', () => {
+    expect(parseRuleDocument(guide).description).toBe('Reliable services.');
+    expect(parseRuleDocument('---\ntitle: T\n---\nBody\n')).toEqual({ title: 'T', when_to_use: '', body: 'Body' });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.document.canonical-shape
+  it.each([
+    canonical.replace('ask_first', 'sometimes'),
+    canonical.replace('2026-02-01T00:00:00Z', '2025-01-01T00:00:00Z'),
+    canonical.replace('"2026-01-01T00:00:00Z"', 'not-a-date'),
+    canonical.replace('kind: embed', 'kind: note'),
+    canonical.replace('  - kind: embed\n    id: e1\n', '  - kind: embed\n    id: e1\n  - kind: embed\n    id: e1\n'),
+    canonical.replace('title: Trip\n', 'title: Trip\nextra: 1\n'),
+    canonical.replace('title: Trip\n', ''),
+  ])('rejects invalid canonical document %#', (document) => {
+    expect(() => parseRuleDocument(document)).toThrow();
+  });
+});
+
+// contract-test: supporting surface=rest_api assertions=app-memories.expiry.client-enforced
+describe('Memory expiry window', () => {
+  const window = { valid_from: '2026-01-01T00:00:00Z', valid_until: '2026-02-01T00:00:00Z' };
+  it('is active only inside the window', () => {
+    expect(isMemoryActive(window, new Date('2025-12-31T23:59:59Z'))).toBe(false);
+    expect(isMemoryActive(window, new Date('2026-01-15T00:00:00Z'))).toBe(true);
+    expect(isMemoryActive(window, new Date('2026-02-01T00:00:01Z'))).toBe(false);
+    expect(isMemoryActive({}, new Date())).toBe(true);
+  });
+  // contract-test: supporting surface=gui.web assertions=app-memories.expiry.client-enforced
+  it('is deletable as soon as it is expired, with no grace period', () => {
+    expect(isMemoryExpired(window, new Date('2026-02-01T00:00:00Z'))).toBe(false);
+    expect(isMemoryExpired(window, new Date('2026-02-02T00:00:00Z'))).toBe(true);
+    expect(isMemoryExpired({}, new Date('2030-01-01'))).toBe(false);
+  });
+});
+
 describe('encrypted Project document patch', () => {
   // contract-test: supporting surface=gui.web assertions=rules.ownership.encrypted-custom,projects.files.exact-patch
   it.each([
@@ -44,5 +98,30 @@ describe('encrypted Project document patch', () => {
     const path = '.openmates/rules/guide.md';
     const patch = buildWholeDocumentPatch(original, updated, path);
     expect(applyProjectFilePatch(original, patch, path).content).toBe(updated);
+  });
+});
+
+describe('Memory display metadata', () => {
+  // contract-test: supporting surface=gui.web assertions=app-memories.document.canonical-shape,app-memories.compatibility.legacy-documents
+  it('round-trips created_at, updated_at and app_id and keeps old documents unchanged', () => {
+    const fields = { ...parseRuleDocument(guide), created_at: 1_700_000_000, updated_at: 1_700_000_500, app_id: 'travel' };
+    const document = serializeRuleDocument(fields);
+    expect(parseRuleDocument(document)).toEqual(fields);
+    expect(parseRuleDocument(document).body).not.toContain('created_at');
+    expect(parseRuleDocument(guide)).not.toHaveProperty('created_at');
+    expect(parseRuleDocument(guide)).not.toHaveProperty('app_id');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.document.canonical-shape
+  it.each(['created_at: soon', 'updated_at: -4', 'created_at: 1.5', 'app_id: 12', 'app_id: ""'])('rejects malformed metadata %s', (line) => {
+    expect(() => parseRuleDocument(guide.replace('title: Python practices', `title: Python practices\n${line}`))).toThrow();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.document.canonical-shape
+  it('keeps the first save time and moves the update time on every save', () => {
+    const base = parseRuleDocument(guide);
+    const first = stampMemorySave(base, null, 100);
+    expect(first).toMatchObject({ created_at: 100, updated_at: 100 });
+    expect(stampMemorySave({ ...first, title: 'Renamed' }, first, 250)).toMatchObject({ created_at: 100, updated_at: 250 });
   });
 });

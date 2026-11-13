@@ -69,6 +69,36 @@ city_names:
     when: A user types "Send it to Hauptstrasse 5, 10115 Berlin".
     then: The street, number, postal code and Berlin are highlighted and replaced with address placeholders when sent.
 
+  - id: sentence-starter-not-a-name
+    assertion_ids: [pii.composer.city-not-personal]
+    given: Enhanced protection is on and the on-device model labels the capitalised sentence starter "Same" as a given name.
+    when: A user types "Same question. Your take?" after a model mention chip and sends it.
+    then: The word "Same" is not highlighted and the message is sent unchanged. Next to a surname ("Same Smith") the name stays protected.
+
+mention_labels:
+  - id: project-name-with-number
+    assertion_ids: [pii.composer.mention-labels-not-scanned]
+    given: The user has a Project named "Supplier contract 0301 2345 678".
+    when: The composer holds that Project's mention chip and nothing else.
+    then: No sensitive-data highlight or banner appears.
+  - id: phone-after-project-chip
+    assertion_ids: [pii.composer.mention-labels-not-scanned]
+    given: The composer holds that Project's mention chip.
+    when: The user types "call me at +49 151 23456789" after the chip.
+    then: Exactly the typed phone number is highlighted, not the chip.
+
+embed_references:
+  - id: upload-ref-with-phone-like-id
+    assertion_ids: [pii.composer.embed-references-not-scanned]
+    given: A message carries an upload whose reference contains a phone-like digit run, such as "[!](embed:x-81ede84d-0123-4567-91b3--2e1a33)".
+    when: The user sends it together with the text "call +49 2123 21234".
+    then: The phone number is replaced with a placeholder, the embed reference is unchanged and the upload preview renders.
+  - id: json-reference-block-unchanged
+    assertion_ids: [pii.composer.embed-references-not-scanned]
+    given: A message contains a fenced json block with an embed_id whose value contains a phone-like digit run.
+    when: The message is redacted before send.
+    then: The block is unchanged; a phone number elsewhere in the message is still replaced.
+
 message_reveal:
   - id: owner-message-hidden-by-default
     input: {viewer: owner, reveal_state: hidden, mapping_available: true}

@@ -434,6 +434,13 @@ class _FakeDirectus:
     def __init__(self, record, user_profile=None) -> None:
         self.record = record
         self.user_profile = user_profile
+        # The download route binds the token to an existing embed row; these
+        # assets are personal (no chat hash), so no chat scope check applies.
+
+        async def get_embed_by_id(asset_id):
+            return {"embed_id": asset_id}
+
+        self.embed = types.SimpleNamespace(get_embed_by_id=get_embed_by_id)
 
     async def get_items(self, *_args, **_kwargs):
         return [self.record]
@@ -691,3 +698,79 @@ async def test_chunked_master_rejects_invalid_key_and_unsafe_filename_before_str
             directus_service=directus,
             s3_service=_FakeGeneratedAssetS3(),
         )
+
+
+_EMBROIDERY_VARIANT_DOWNLOADS = [
+    ("pes", "fox-logo.pes", "application/octet-stream"),
+    ("dst", "fox-logo.dst", "application/octet-stream"),
+    ("preview", "fox-logo-preview.webp", "image/webp"),
+    ("preview_transparent", "fox-logo-preview-transparent.png", "image/png"),
+    ("prepared_svg", "fox-logo-prepared.svg", "image/svg+xml"),
+    ("stitches", "fox-logo-stitches.json", "application/json"),
+]
+
+
+# contract-test: direct surface=rest_api assertions=design-embroidery.result.view-and-download
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("variant", "filename", "mime_type"), _EMBROIDERY_VARIANT_DOWNLOADS)
+async def test_embroidery_variant_downloads_with_its_own_filename_and_type(variant, filename, mime_type) -> None:
+    key = b"\x74" * 32
+    nonce = b"\x36" * 12
+    plaintext = f"{variant}-machine-file".encode()
+    encrypted = nonce + AESGCM(key).encrypt(nonce, plaintext, None)
+    token = create_download_token(asset_id="embroidery-1", user_id="user-1", variant=variant)
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+    directus = _FakeDirectus(
+        {
+            "content_type": "application/octet-stream",
+            "files_metadata": {
+                variant: {
+                    "s3_key": f"user-1/embroidery_{variant}.enc",
+                    "mime_type": mime_type,
+                    "filename": filename,
+                    "encryption": MEDIA_ENCRYPTION_V2,
+                }
+            },
+            "aes_key": __import__("base64").b64encode(key).decode(),
+            "aes_nonce": "",
+            "original_filename": "fox-logo.dst",
+        }
+    )
+
+    response = await download_generated_asset(
+        asset_id="embroidery-1", variant=variant, request=request, token=token,
+        directus_service=directus, s3_service=_FakeBoundedAssetS3(encrypted),
+    )
+
+    assert response.body == plaintext
+    assert response.media_type == mime_type
+    assert response.headers["content-disposition"] == f"attachment; filename*=UTF-8''{filename}"
+
+
+# contract-test: supporting surface=rest_api assertions=design-embroidery.result.view-and-download
+@pytest.mark.asyncio
+async def test_variant_without_filename_keeps_record_download_name() -> None:
+    key = b"\x75" * 32
+    nonce = b"\x37" * 12
+    encrypted = nonce + AESGCM(key).encrypt(nonce, b"provider-poster", None)
+    token = create_download_token(asset_id="model-1", user_id="user-1", variant="poster")
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+    directus = _FakeDirectus(
+        {
+            "content_type": "model/gltf-binary",
+            "files_metadata": {
+                "poster": {"s3_key": "models/poster.webp.enc", "mime_type": "image/webp",
+                           "encryption": MEDIA_ENCRYPTION_V2}
+            },
+            "aes_key": __import__("base64").b64encode(key).decode(),
+            "aes_nonce": "",
+            "original_filename": "openmates_model_1234.glb",
+        }
+    )
+
+    response = await download_generated_asset(
+        asset_id="model-1", variant="poster", request=request, token=token,
+        directus_service=directus, s3_service=_FakeBoundedAssetS3(encrypted),
+    )
+
+    assert response.headers["content-disposition"] == "attachment; filename*=UTF-8''openmates_model_1234.glb"

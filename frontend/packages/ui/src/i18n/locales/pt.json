@@ -105,6 +105,36 @@
         "description": {
           "text": "Descubra quanto cobrar por produtos artesanais ou de pequena produção, com uma planilha ao vivo que você pode editar."
         }
+      },
+      "find_business_angels": {
+        "text": "Encontrar investidores-anjo",
+        "description": {
+          "text": "Monte uma lista ranqueada de investidores-anjo para sua rodada, com evidências de afinidade e como contatá-los."
+        }
+      },
+      "research_investor": {
+        "text": "Pesquisar um investidor",
+        "description": {
+          "text": "Pesquise um investidor ou firma antes de abordá-lo, com fatos verificados, alertas e caminhos para apresentação."
+        }
+      },
+      "write_investor_outreach": {
+        "text": "Escrever contato com investidores",
+        "description": {
+          "text": "Redija um e-mail curto para um investidor, uma apresentação encaminhável para um contato em comum e dois follow-ups."
+        }
+      },
+      "prepare_investor_pitch": {
+        "text": "Prepare seu pitch",
+        "description": {
+          "text": "Monte a narrativa do seu deck, encontre os pontos fracos e ensaie perguntas difíceis de investidores, uma por vez."
+        }
+      },
+      "plan_funding_round": {
+        "text": "Planejar uma rodada de investimento",
+        "description": {
+          "text": "Calcule quanto captar, qual instrumento se encaixa, a diluição e um cronograma, com uma planilha de cap table editável."
+        }
       }
     },
     "code": {
@@ -240,6 +270,24 @@
           "3": {
             "text": "Quero **mudar de setor** das finanças para a tecnologia — como devo começar?"
           }
+        }
+      },
+      "create_cv": {
+        "text": "Criar ou atualizar currículo",
+        "description": {
+          "text": "Crie um currículo claro e legível por máquinas como documento Word editável ou melhore o que você já tem."
+        }
+      },
+      "write_application": {
+        "text": "Escrever candidatura",
+        "description": {
+          "text": "Escreva uma candidatura para uma vaga específica, com a sua própria voz e baseada na sua experiência real."
+        }
+      },
+      "prepare_interview": {
+        "text": "Preparar entrevista",
+        "description": {
+          "text": "Prepare-se para uma entrevista de emprego com perguntas prováveis, suas próprias histórias e um treino com feedback."
         }
       }
     },
@@ -417,767 +465,6 @@
       }
     }
   },
-  "app_settings_memories": {
-    "books": {
-      "favorite_books": {
-        "text": "Livros favoritos",
-        "description": {
-          "text": "Livros que você amou e recomendaria."
-        },
-        "example_1": {
-          "text": "1984",
-          "title": {
-            "text": "O Grande Gatsby"
-          },
-          "genre": {
-            "text": "Ficção clássica"
-          },
-          "notes": {
-            "text": "Bela prosa sobre o sonho americano"
-          }
-        },
-        "example_2": {
-          "text": "Sapiens",
-          "title": {
-            "text": "Sapiens"
-          },
-          "genre": {
-            "text": "Não ficção"
-          },
-          "notes": {
-            "text": "Visão fascinante da história da humanidade"
-          }
-        },
-        "example_3": {
-          "text": "Duna"
-        }
-      },
-      "currently_reading": {
-        "text": "Lendo atualmente",
-        "description": {
-          "text": "Livros que você está lendo atualmente."
-        },
-        "example_1": {
-          "text": "Projeto Hail Mary",
-          "title": {
-            "text": "Projeto Hail Mary"
-          },
-          "notes": {
-            "text": "Ótima aventura de ficção científica"
-          }
-        },
-        "example_2": {
-          "text": "Hábitos atômicos",
-          "title": {
-            "text": "Hábitos atômicos"
-          },
-          "notes": {
-            "text": "Estratégias práticas para construir bons hábitos"
-          }
-        }
-      },
-      "to_read_list": {
-        "text": "Lista de leitura",
-        "description": {
-          "text": "Livros que você quer ler em seguida."
-        },
-        "example_1": {
-          "text": "O Problema dos Três Corpos",
-          "title": {
-            "text": "Duna"
-          },
-          "genre": {
-            "text": "Ficção científica"
-          },
-          "notes": {
-            "text": "Ficção científica clássica, recomendada por amigos"
-          }
-        },
-        "example_2": {
-          "text": "Rápido e devagar",
-          "title": {
-            "text": "Rápido e devagar"
-          },
-          "genre": {
-            "text": "Psicologia"
-          },
-          "notes": {
-            "text": "Quero entender os vieses cognitivos"
-          }
-        },
-        "example_3": {
-          "text": "Trabalho focado"
-        }
-      }
-    },
-    "code": {
-      "preferred_tech": {
-        "text": "Tecnologias preferidas",
-        "description": {
-          "text": "Suas linguagens e frameworks preferidos."
-        },
-        "example_1": {
-          "text": "Python",
-          "name": {
-            "text": "Python"
-          }
-        },
-        "example_2": {
-          "text": "TypeScript",
-          "name": {
-            "text": "TypeScript"
-          }
-        },
-        "example_3": {
-          "text": "Svelte"
-        }
-      },
-      "projects": {
-        "text": "Projetos",
-        "description": {
-          "text": "Seus projetos (ativos, planejados ou concluídos)"
-        },
-        "example_1": {
-          "text": "Site pessoal",
-          "name": {
-            "text": "Site pessoal"
-          },
-          "description": {
-            "text": "Um site de portfólio construído com SvelteKit"
-          }
-        },
-        "example_2": {
-          "text": "Aplicativo móvel",
-          "name": {
-            "text": "Aplicativo de clima"
-          },
-          "description": {
-            "text": "Um aplicativo de previsão do tempo usando React e OpenWeather API"
-          }
-        },
-        "example_3": {
-          "text": "Backend de API"
-        }
-      },
-      "want_to_learn": {
-        "text": "Quero aprender",
-        "description": {
-          "text": "Tecnologias e habilidades que você quer aprender"
-        },
-        "example_1": {
-          "text": "Rust",
-          "name": {
-            "text": "Rust"
-          }
-        },
-        "example_2": {
-          "text": "Aprendizado de máquina",
-          "name": {
-            "text": "Aprendizado de máquina"
-          }
-        },
-        "example_3": {
-          "text": "Kubernetes"
-        }
-      },
-      "coding_setup": {
-        "text": "Configuração de codificação",
-        "description": {
-          "text": "Como você gosta de programar, colaborar com a IA e inserir instruções"
-        },
-        "example_1": {
-          "text": "Configuração com terminal primeiro",
-          "notes": {
-            "text": "Neovim + tmux, apenas sugestões curtas"
-          }
-        },
-        "example_2": {
-          "text": "Fluxo de trabalho web guiado",
-          "notes": {
-            "text": "Prefere presets e ações de um clique"
-          }
-        }
-      }
-    },
-    "docs": {
-      "writing_style": {
-        "text": "Estilos de escrita",
-        "description": {
-          "text": "Seus estilos de escrita preferidos para documentos."
-        },
-        "example_1": {
-          "text": "Negócios formal",
-          "name": {
-            "text": "Documentação técnica"
-          },
-          "description": {
-            "text": "Escrita clara e estruturada para documentação de desenvolvedores e referências de API"
-          }
-        },
-        "example_2": {
-          "text": "Acadêmico",
-          "name": {
-            "text": "Postagem de blog"
-          },
-          "description": {
-            "text": "Tom envolvente e conversacional para artigos de blog"
-          }
-        },
-        "example_3": {
-          "text": "Blog casual"
-        }
-      }
-    },
-    "events": {
-      "saved_events": {
-        "text": "Eventos salvos",
-        "description": {
-          "text": "Eventos que salvaste dos resultados de pesquisa."
-        }
-      }
-    },
-    "health": {
-      "appointments": {
-        "text": "Consultas",
-        "description": {
-          "text": "Suas consultas e visitas médicas."
-        },
-        "example_1": {
-          "text": "Dentista Dr. Mueller",
-          "where": {
-            "text": "Hospital da Cidade"
-          },
-          "notes": {
-            "text": "Exame anual"
-          }
-        },
-        "example_2": {
-          "text": "Exame oftalmológico",
-          "where": {
-            "text": "Clínica Dentária do Centro"
-          },
-          "notes": {
-            "text": "Limpeza dentária"
-          }
-        }
-      },
-      "medical_history": {
-        "text": "Histórico médico",
-        "description": {
-          "text": "Cirurgias passadas, condições e alergias."
-        },
-        "example_1": {
-          "text": "Alergia à penicilina",
-          "name": {
-            "text": "Alergia a amendoim"
-          },
-          "details": {
-            "text": "Reação alérgica grave, portar EpiPen"
-          }
-        },
-        "example_2": {
-          "text": "Cirurgia no joelho 2023",
-          "name": {
-            "text": "Vacina COVID-19"
-          },
-          "details": {
-            "text": "Dose de reforço da Pfizer"
-          }
-        }
-      },
-      "symptoms_log": {
-        "text": "Registro de sintomas",
-        "description": {
-          "text": "Acompanhe sintomas com datas e detalhes."
-        }
-      },
-      "sleep_diary": {
-        "text": "Diário de sono",
-        "description": {
-          "text": "Acompanhe padrões e qualidade do sono."
-        }
-      }
-    },
-    "home": {
-      "saved_listings": {
-        "text": "Anúncios salvos",
-        "description": {
-          "text": "Casas e apartamentos que salvaste dos resultados de pesquisa."
-        }
-      }
-    },
-    "images": {
-      "preferred_styles": {
-        "text": "Estilos preferidos",
-        "description": {
-          "text": "Seus estilos preferidos para imagens geradas"
-        },
-        "example_1": {
-          "text": "Aquarela",
-          "name": {
-            "text": "Minimalista"
-          },
-          "description": {
-            "text": "Linhas limpas, composições simples, paleta de cores suaves"
-          }
-        },
-        "example_2": {
-          "text": "Minimalista",
-          "name": {
-            "text": "Fotografia vibrante"
-          },
-          "description": {
-            "text": "Cores brilhantes, alto contraste, composições dinâmicas"
-          }
-        },
-        "example_3": {
-          "text": "Cyberpunk"
-        }
-      }
-    },
-    "mail": {
-      "writing_styles": {
-        "text": "Estilos de escrita",
-        "description": {
-          "text": "Como você escreve e-mails em contextos diferentes."
-        },
-        "example_1": {
-          "text": "Formal de negócios",
-          "title": {
-            "text": "Profissional"
-          },
-          "description": {
-            "text": "Tom formal para e-mails de negócios"
-          },
-          "when_to_use": {
-            "text": "E-mails de trabalho e comunicação com clientes"
-          },
-          "footer": {
-            "text": "Atenciosamente,"
-          }
-        },
-        "example_2": {
-          "text": "Equipe casual",
-          "title": {
-            "text": "Casual"
-          },
-          "description": {
-            "text": "Tom descontraído e amigável para e-mails pessoais"
-          },
-          "when_to_use": {
-            "text": "Amigos e família"
-          },
-          "footer": {
-            "text": "Abraços,"
-          }
-        },
-        "example_3": {
-          "text": "Acompanhamentos e lembretes"
-        }
-      }
-    },
-    "maps": {
-      "favorite_places": {
-        "text": "Lugares favoritos",
-        "description": {
-          "text": "Seus lugares favoritos salvos para acesso rápido."
-        },
-        "example_1": {
-          "text": "Casa",
-          "name": {
-            "text": "Central Park"
-          },
-          "address": {
-            "text": "Nova York, NY 10024"
-          }
-        },
-        "example_2": {
-          "text": "Escritório",
-          "name": {
-            "text": "Torre Eiffel"
-          },
-          "address": {
-            "text": "Champ de Mars, 75007 Paris"
-          }
-        },
-        "example_3": {
-          "text": "Cafeteria favorita"
-        }
-      }
-    },
-    "nutrition": {
-      "saved_recipes": {
-        "text": "Receitas salvas",
-        "description": {
-          "text": "Receitas que você salvou para cozinhar novamente mais tarde."
-        }
-      },
-      "meal_plan": {
-        "text": "Plano de refeições",
-        "description": {
-          "text": "Ideias de refeições, horários e preferências alimentares que você quer lembrar."
-        }
-      }
-    },
-    "plants": {
-      "my_plants": {
-        "text": "Minhas plantas",
-        "description": {
-          "text": "Sua coleção de plantas com horários de cuidados"
-        },
-        "example_1": {
-          "text": "Monstera Deliciosa",
-          "name": {
-            "text": "Monstera Deliciosa"
-          },
-          "location": {
-            "text": "Sala de estar"
-          },
-          "notes": {
-            "text": "Precisa de luz indireta, limpar as folhas mensalmente"
-          }
-        },
-        "example_2": {
-          "text": "Espada-de-são-jorge",
-          "name": {
-            "text": "Manjericão"
-          },
-          "location": {
-            "text": "Janela da cozinha"
-          },
-          "notes": {
-            "text": "Colher regularmente para estimular o crescimento"
-          }
-        }
-      }
-    },
-    "reminder": {
-      "saved_item_reminder_defaults": {
-        "text": "Lembretes de itens salvos",
-        "description": {
-          "text": "Personaliza os tempos padrão de lembrete para eventos, viagens, anúncios, estadias e compromissos salvos."
-        }
-      }
-    },
-    "shopping": {
-      "preferred_supermarkets": {
-        "text": "Supermercados preferidos",
-        "description": {
-          "text": "Seus supermercados preferidos para pesquisas de produtos."
-        }
-      },
-      "dietary_preferences": {
-        "text": "Preferências alimentares",
-        "description": {
-          "text": "Suas necessidades alimentares (vegano, vegetariano, sem glúten, etc.)."
-        }
-      }
-    },
-    "study": {
-      "learning_goals": {
-        "text": "Objetivos de aprendizado",
-        "description": {
-          "text": "Seus objetivos de aprendizado e tópicos a dominar"
-        },
-        "example_1": {
-          "text": "Espanhol nível B2",
-          "topic": {
-            "text": "Ciência de dados"
-          },
-          "notes": {
-            "text": "Foco em Python pandas e visualização de dados"
-          }
-        },
-        "example_2": {
-          "text": "Fundamentos de ciência de dados",
-          "topic": {
-            "text": "Língua espanhola"
-          },
-          "notes": {
-            "text": "Alcançar nível conversacional até o verão"
-          }
-        }
-      },
-      "education_history": {
-        "text": "Histórico educacional",
-        "description": {
-          "text": "Seu histórico acadêmico e certificações"
-        }
-      },
-      "career_interests": {
-        "text": "Interesses profissionais",
-        "description": {
-          "text": "Seus objetivos e aspirações profissionais"
-        }
-      }
-    },
-    "travel": {
-      "saved_connections": {
-        "text": "Conexões salvas",
-        "description": {
-          "text": "Voos e conexões de trem que salvaste dos resultados de pesquisa."
-        }
-      },
-      "saved_stays": {
-        "text": "Estadias salvas",
-        "description": {
-          "text": "Hotéis e estadias que salvaste dos resultados de pesquisa."
-        }
-      },
-      "trips": {
-        "text": "Viagens",
-        "description": {
-          "text": "Suas viagens planejadas e passadas com datas."
-        },
-        "example_1": {
-          "text": "Japão, março de 2026",
-          "destination": {
-            "text": "Tóquio, Japão"
-          },
-          "notes": {
-            "text": "Férias de duas semanas explorando templos e culinária"
-          }
-        },
-        "example_2": {
-          "text": "Barcelona, verão de 2025",
-          "destination": {
-            "text": "Barcelona, Espanha"
-          },
-          "notes": {
-            "text": "Férias de verão, praia e arquitetura"
-          }
-        },
-        "example_3": {
-          "text": "Viagem de carro pela Escócia"
-        }
-      },
-      "preferred_airlines": {
-        "text": "Companhias aéreas preferidas",
-        "description": {
-          "text": "Suas companhias aéreas favoritas"
-        },
-        "example_1": {
-          "text": "Lufthansa",
-          "name": {
-            "text": "Lufthansa"
-          }
-        },
-        "example_2": {
-          "text": "Swiss",
-          "name": {
-            "text": "Singapore Airlines"
-          }
-        },
-        "example_3": {
-          "text": "KLM"
-        }
-      },
-      "preferred_transport_methods": {
-        "text": "Transporte preferido",
-        "description": {
-          "text": "Suas formas preferidas de viajar."
-        },
-        "example_1": {
-          "text": "Trem"
-        },
-        "example_2": {
-          "text": "Avião"
-        },
-        "example_3": {
-          "text": "Bicicleta"
-        }
-      },
-      "preferred_activities": {
-        "text": "Atividades preferidas",
-        "description": {
-          "text": "Suas atividades e experiências de viagem favoritas."
-        },
-        "example_1": {
-          "text": "Visitar praias",
-          "name": {
-            "text": "Trilhas"
-          }
-        },
-        "example_2": {
-          "text": "Explorar museus",
-          "name": {
-            "text": "Visitas a museus"
-          }
-        },
-        "example_3": {
-          "text": "Trilhas"
-        },
-        "example_4": {
-          "text": "Experimentar comida local"
-        }
-      }
-    },
-    "tv": {
-      "watched_movies": {
-        "text": "Filmes assistidos",
-        "description": {
-          "text": "Filmes que você assistiu"
-        },
-        "example_1": {
-          "text": "A Origem",
-          "title": {
-            "text": "A Origem"
-          },
-          "notes": {
-            "text": "Obra-prima surpreendente sobre sonhos dentro de sonhos"
-          }
-        },
-        "example_2": {
-          "text": "Um Sonho de Liberdade",
-          "title": {
-            "text": "Parasita"
-          },
-          "notes": {
-            "text": "Comentário social brilhante com reviravoltas inesperadas"
-          }
-        }
-      },
-      "watched_tv_shows": {
-        "text": "Séries de TV assistidas",
-        "description": {
-          "text": "Séries de TV que você assistiu ou está assistindo"
-        },
-        "example_1": {
-          "text": "Breaking Bad",
-          "title": {
-            "text": "Breaking Bad"
-          },
-          "notes": {
-            "text": "Uma das maiores séries de TV já feitas"
-          }
-        },
-        "example_2": {
-          "text": "Stranger Things",
-          "title": {
-            "text": "O Urso"
-          },
-          "notes": {
-            "text": "Drama de cozinha intenso com performances incríveis"
-          }
-        }
-      },
-      "to_watch_list": {
-        "text": "Lista para assistir",
-        "description": {
-          "text": "Filmes e séries de TV que você quer assistir"
-        },
-        "example_1": {
-          "text": "Oppenheimer",
-          "title": {
-            "text": "Oppenheimer"
-          },
-          "reason": {
-            "text": "Filme biográfico premiado"
-          }
-        },
-        "example_2": {
-          "text": "O Urso",
-          "title": {
-            "text": "Ruptura"
-          },
-          "reason": {
-            "text": "Thriller único de ficção científica no ambiente de trabalho"
-          }
-        }
-      }
-    },
-    "videos": {
-      "to_watch_list": {
-        "text": "Lista para assistir",
-        "description": {
-          "text": "Vídeos que você quer assistir"
-        },
-        "example_1": {
-          "text": "Palestra de conferência tech",
-          "name": {
-            "text": "Como os computadores funcionam"
-          }
-        },
-        "example_2": {
-          "text": "Tutorial de culinária",
-          "name": {
-            "text": "TypeScript avançado"
-          }
-        },
-        "example_3": {
-          "text": "Vlog de viagem"
-        }
-      },
-      "subscribed_channels": {
-        "text": "Canais inscritos",
-        "description": {
-          "text": "Canais do YouTube aos quais você está inscrito"
-        },
-        "example_1": {
-          "text": "Fireship"
-        },
-        "example_2": {
-          "text": "Kurzgesagt"
-        },
-        "example_3": {
-          "text": "Veritasium"
-        }
-      }
-    },
-    "web": {
-      "bookmarks": {
-        "text": "Marcadores",
-        "description": {
-          "text": "Seus sites marcados"
-        },
-        "example_1": {
-          "text": "github.com"
-        },
-        "example_2": {
-          "text": "developer.mozilla.org"
-        },
-        "example_3": {
-          "text": "news.ycombinator.com"
-        }
-      },
-      "favorite_websites": {
-        "text": "Sites favoritos",
-        "description": {
-          "text": "Seus sites favoritos para acesso rápido"
-        },
-        "example_1": {
-          "text": "ExampleCommunity.com"
-        },
-        "example_2": {
-          "text": "medium.com"
-        },
-        "example_3": {
-          "text": "stackoverflow.com"
-        }
-      },
-      "read_later": {
-        "text": "Ler depois",
-        "description": {
-          "text": "Sites e artigos salvos para depois"
-        },
-        "example_1": {
-          "text": "Artigo interessante de pesquisa em IA",
-          "notes": {
-            "text": "Artigo interessante sobre IA"
-          }
-        },
-        "example_2": {
-          "text": "Artigo sobre padrões de design",
-          "notes": {
-            "text": "Tutorial sobre desenvolvimento web"
-          }
-        },
-        "example_3": {
-          "text": "Post de blog de tecnologia"
-        }
-      }
-    }
-  },
   "app_skills": {
     "ai": {
       "ask": {
@@ -1340,6 +627,18 @@
         "text": "Pesquisar marcas",
         "description": {
           "text": "Pesquise marcas por região com fontes e limites de cobertura."
+        }
+      },
+      "search_investors": {
+        "text": "Pesquisar investidores",
+        "description": {
+          "text": "Encontre business angels, redes de anjos e investidores em fase inicial por tema e região."
+        }
+      },
+      "company_ownership": {
+        "text": "Propriedade de empresas",
+        "description": {
+          "text": "Consulte quem é dono ou dirige uma empresa, ou que empresas uma pessoa detém, nos registos oficiais da Alemanha, do Reino Unido e de França."
         }
       }
     },
@@ -1605,6 +904,12 @@
         "description": {
           "text": "Encontre ícones SVG de código aberto nas coleções do Iconify."
         }
+      },
+      "embroidery": {
+        "text": "Bordado",
+        "description": {
+          "text": "Transforme um gráfico vetorial em arquivos para máquina de bordar com prévia dos pontos."
+        }
       }
     },
     "electronics": {
@@ -1854,6 +1159,23 @@
           },
           "3": {
             "text": "Converta este ícone PNG em SVG para que fique nítido em qualquer tamanho"
+          }
+        }
+      },
+      "modify": {
+        "text": "Modificar",
+        "description": {
+          "text": "Combine, posicione, recorte, redimensione e ajuste imagens do chat com exatidão, sem inventar conteúdo novo."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Coloque meu bordado nas costas da jaqueta nesta foto"
+          },
+          "2": {
+            "text": "Faça uma colagem destas cinco fotos com espaços brancos iguais"
+          },
+          "3": {
+            "text": "Recorte esta foto em um quadrado ao redor do farol e deixe as cores um pouco mais quentes"
           }
         }
       },
@@ -2374,7 +1696,10 @@
       "generate": {
         "text": "Gerar",
         "description": {
-          "text": "Gera um vídeo curto de IA a partir de um comando de texto."
+          "text": "Cria um vídeo curto a partir da tua descrição e das imagens do chat, como filmagem de IA ou como vídeo composto exato."
+        },
+        "pricing_note": {
+          "text": "Clipes gerados: 35 (360p), 105 (720p), 160 (1080p) ou 315 (4K) créditos por segundo. Vídeos compostos: os tokens do modelo de escrita mais 10 créditos por minuto de renderização iniciado. As alterações são cobradas apenas pelo que acrescentam. Nada é cobrado quando nenhum vídeo é entregue. Som em vídeos compostos: 2 créditos por segundo de narração, 15 créditos por segundo de efeito sonoro e 120 créditos por faixa de música; só são cobrados os clipes criados de novo para uma versão."
         }
       },
       "create": {
@@ -2973,6 +2298,12 @@
       },
       "day": {
         "text": "Dia do tempo"
+      }
+    },
+    "slides": {
+      "text": "Slides",
+      "description": {
+        "text": "Crie, edite e apresente slides."
       }
     }
   },
@@ -3840,46 +3171,6 @@
       },
       "discover_math_calculate": {
         "text": "Calcule: quanto é 15% de 240?"
-      }
-    },
-    "quick_tips": {
-      "eyebrow": {
-        "text": "Dica rápida"
-      },
-      "cta_learn_more": {
-        "text": "Saiba mais"
-      },
-      "shorter_chats_equal_better_responses": {
-        "title": {
-          "text": "Chats curtos funcionam melhor"
-        },
-        "body": {
-          "text": "Obténs melhores respostas e poupas créditos ao dividir os tópicos em chats separados e mais curtos."
-        }
-      },
-      "search_current_info_next_time": {
-        "title": {
-          "text": "Pesquise quando a atualidade for importante"
-        },
-        "body": {
-          "text": "Da próxima vez que precisares de preços atuais, eventos, notícias, detalhes de produtos ou factos recentes, o OpenMates pode pesquisar na web por ti."
-        }
-      },
-      "travel_can_add_local_context": {
-        "title": {
-          "text": "Adiciona mais contexto de viagem"
-        },
-        "body": {
-          "text": "Depois de planeares uma viagem, o OpenMates também pode ajudar a encontrar locais, eventos, estadias, rotas e detalhes práticos para a mesma viagem."
-        }
-      },
-      "use_apps_for_better_results": {
-        "title": {
-          "text": "Experimenta uma app para o próximo passo"
-        },
-        "body": {
-          "text": "Quando souberes o que queres fazer a seguir, as apps do OpenMates podem dar à IA melhores ferramentas para tarefas como programação, pesquisa, eventos, compras, escrita ou planeamento."
-        }
       }
     },
     "suggestions": {
@@ -6664,6 +5955,7 @@
       }
     }
   },
+  "embed_user_edits": {},
   "embeds": {
     "hosting": {
       "search_domains": {
@@ -7266,6 +6558,15 @@
       "loading": {
         "text": "Carregando imagem..."
       },
+      "checking": {
+        "text": "Verificando o resultado…"
+      },
+      "scripting": {
+        "text": "Escrevendo o script gerador…"
+      },
+      "correcting": {
+        "text": "Melhorando…"
+      },
       "prompt_label": {
         "text": "Prompt"
       },
@@ -7293,6 +6594,29 @@
     },
     "image_generate_draft": {
       "text": "Gerar rascunho"
+    },
+    "image_modify": {
+      "writing": {
+        "text": "Escrevendo a edição…"
+      },
+      "running": {
+        "text": "Executando…"
+      },
+      "checking": {
+        "text": "Verificando o resultado…"
+      },
+      "correcting": {
+        "text": "Corrigindo…"
+      },
+      "attempt": {
+        "text": "tentativa {n}"
+      },
+      "unmet_title": {
+        "text": "Não totalmente atendido"
+      },
+      "title": {
+        "text": "Imagem editada"
+      }
     },
     "context_menu": {
       "view": {
@@ -8344,6 +7668,48 @@
       },
       "no_frame": {
         "text": "Não há nenhuma captura guardada disponível."
+      },
+      "phase_starting": {
+        "text": "A iniciar"
+      },
+      "phase_working": {
+        "text": "A trabalhar"
+      },
+      "phase_finishing": {
+        "text": "A concluir"
+      },
+      "starting_browser": {
+        "text": "A iniciar o navegador…"
+      },
+      "steps_title": {
+        "text": "Passos"
+      },
+      "step_start": {
+        "text": "Navegador iniciado"
+      },
+      "step_goto": {
+        "text": "Página aberta"
+      },
+      "step_click": {
+        "text": "Clicou em"
+      },
+      "step_type": {
+        "text": "Escreveu em"
+      },
+      "step_select": {
+        "text": "Selecionou"
+      },
+      "step_scroll": {
+        "text": "Deslocou"
+      },
+      "step_wait": {
+        "text": "Esperou"
+      },
+      "step_back": {
+        "text": "Voltou"
+      },
+      "partial": {
+        "text": "Verificado em parte — não foi possível confirmar: {fields}"
       }
     },
     "authoring": {
@@ -8475,6 +7841,652 @@
       "unavailable": {
         "text": "Título indisponível"
       }
+    },
+    "slides_deck_default_title": {
+      "text": "Apresentação"
+    },
+    "slides_count_singular": {
+      "text": "slide"
+    },
+    "slides_count_plural": {
+      "text": "slides"
+    },
+    "slides_prev": {
+      "text": "Slide anterior"
+    },
+    "slides_next": {
+      "text": "Próximo slide"
+    },
+    "slides_strip_label": {
+      "text": "Slides"
+    },
+    "slides_slide_label": {
+      "text": "Slide"
+    },
+    "slides_no_content": {
+      "text": "Ainda não há slides."
+    },
+    "slides_present": {
+      "text": "Apresentar"
+    },
+    "slides_presenter_view": {
+      "text": "Visão do apresentador"
+    },
+    "slides_exit_presentation": {
+      "text": "Sair da apresentação"
+    },
+    "slides_popup_blocked": {
+      "text": "Seu navegador bloqueou a segunda janela. A apresentação será feita nesta janela."
+    },
+    "slides_speaker_notes": {
+      "text": "Notas do apresentador"
+    },
+    "slides_no_notes": {
+      "text": "Não há notas para este slide."
+    },
+    "slides_timer_reset": {
+      "text": "Reiniciar cronômetro"
+    },
+    "slides_editor_loading": {
+      "text": "Abrindo o editor…"
+    },
+    "slides_editor_unavailable": {
+      "text": "Não é possível editar esta apresentação aqui agora."
+    },
+    "slides_editor_change_failed": {
+      "text": "Não foi possível aplicar essa alteração."
+    },
+    "slides_editor_saving": {
+      "text": "Salvando…"
+    },
+    "slides_editor_save_failed": {
+      "text": "Não foi possível salvar suas alterações. Elas continuam aqui, então você pode tentar de novo."
+    },
+    "slides_editor_toolbar": {
+      "text": "Ferramentas de edição de slides"
+    },
+    "slides_editor_selection_tools": {
+      "text": "Elemento selecionado"
+    },
+    "slides_editor_undo": {
+      "text": "Desfazer"
+    },
+    "slides_editor_redo": {
+      "text": "Refazer"
+    },
+    "slides_editor_add_text": {
+      "text": "Adicionar texto"
+    },
+    "slides_editor_bring_forward": {
+      "text": "Trazer para a frente"
+    },
+    "slides_editor_send_backward": {
+      "text": "Enviar para trás"
+    },
+    "slides_editor_new_text": {
+      "text": "Novo texto"
+    },
+    "slides_editor_element": {
+      "text": "Elemento"
+    },
+    "slides_editor_text_box": {
+      "text": "Texto do slide"
+    },
+    "slides_editor_font_size": {
+      "text": "Tamanho da fonte"
+    },
+    "slides_editor_smaller": {
+      "text": "Texto menor"
+    },
+    "slides_editor_larger": {
+      "text": "Texto maior"
+    },
+    "slides_editor_bold": {
+      "text": "Negrito"
+    },
+    "slides_editor_align": {
+      "text": "Alinhamento"
+    },
+    "slides_editor_align_left": {
+      "text": "Esquerda"
+    },
+    "slides_editor_align_center": {
+      "text": "Centro"
+    },
+    "slides_editor_align_right": {
+      "text": "Direita"
+    },
+    "slides_editor_align_justify": {
+      "text": "Justificado"
+    },
+    "slides_editor_color": {
+      "text": "Cor do texto"
+    },
+    "slides_editor_color_foreground": {
+      "text": "Texto"
+    },
+    "slides_editor_color_accent": {
+      "text": "Destaque"
+    },
+    "slides_editor_color_accent_2": {
+      "text": "Segundo destaque"
+    },
+    "slides_editor_color_muted": {
+      "text": "Suave"
+    },
+    "slides_editor_color_surface": {
+      "text": "Superfície"
+    },
+    "slides_editor_color_background": {
+      "text": "Fundo"
+    },
+    "slides_editor_custom_color": {
+      "text": "Cor personalizada"
+    },
+    "slides_editor_slide_actions": {
+      "text": "Ações do slide"
+    },
+    "slides_editor_add_slide": {
+      "text": "Adicionar slide"
+    },
+    "slides_editor_duplicate_slide": {
+      "text": "Duplicar slide"
+    },
+    "slides_editor_delete_slide": {
+      "text": "Excluir slide"
+    },
+    "slides_editor_move_left": {
+      "text": "Mover slide para trás"
+    },
+    "slides_editor_move_right": {
+      "text": "Mover slide para frente"
+    },
+    "slides_editor_notes_placeholder": {
+      "text": "Notas que só você vê ao apresentar"
+    },
+    "design": {
+      "embroidery": {
+        "threads": {
+          "text": "Linhas"
+        },
+        "stitches_unit": {
+          "text": "pontos"
+        },
+        "stitches": {
+          "text": "Pontos"
+        },
+        "size": {
+          "text": "Tamanho"
+        },
+        "thread_changes": {
+          "text": "Trocas de linha"
+        },
+        "sewing_time": {
+          "text": "Tempo de bordado estimado"
+        },
+        "sewing_time_note": {
+          "text": "O tempo de bordado e o comprimento de linha são estimativas. Variam conforme a máquina e as suas configurações."
+        },
+        "thread_length": {
+          "text": "Linha necessária"
+        },
+        "thread_amount": {
+          "text": "{length} de linha"
+        },
+        "fits_hoop": {
+          "text": "Cabe no bastidor {hoop}"
+        },
+        "too_large_for_hoop": {
+          "text": "Grande demais para o bastidor {hoop}"
+        },
+        "fabric": {
+          "text": "Tecido"
+        },
+        "fabric_light": {
+          "text": "Leve"
+        },
+        "fabric_normal": {
+          "text": "Normal"
+        },
+        "fabric_stretchy": {
+          "text": "Elástico"
+        },
+        "hoop": {
+          "text": "Bastidor"
+        },
+        "hoop_none": {
+          "text": "Sem bastidor"
+        },
+        "width": {
+          "text": "Largura (mm)"
+        },
+        "width_range": {
+          "text": "Insira uma largura de {min} a {max} mm."
+        },
+        "apply": {
+          "text": "Aplicar"
+        },
+        "change_settings": {
+          "text": "Alterar configurações"
+        },
+        "download": {
+          "text": "Baixar"
+        },
+        "download_all": {
+          "text": "Baixar todos os formatos (ZIP)"
+        },
+        "download_single": {
+          "text": "Ou apenas o formato que sua máquina lê:"
+        },
+        "notes": {
+          "text": "Observações"
+        },
+        "reworked_hint": {
+          "text": "O gráfico foi ajustado para bordado antes de gerar os pontos."
+        },
+        "view": {
+          "text": "Tipo de visualização"
+        },
+        "view_stitches": {
+          "text": "Pontos"
+        },
+        "view_graphic": {
+          "text": "Gráfico"
+        },
+        "converting": {
+          "text": "Convertendo em pontos…"
+        },
+        "failed": {
+          "text": "A conversão falhou"
+        },
+        "preview_unavailable": {
+          "text": "Não foi possível carregar a prévia dos pontos."
+        },
+        "apply_request": {
+          "text": "Converta este design de bordado novamente: largura {width} mm, bastidor {hoop}, tecido {fabric}."
+        },
+        "border": {
+          "text": "Borda"
+        },
+        "border_none": {
+          "text": "Nenhuma"
+        },
+        "border_mm": {
+          "text": "{width} mm"
+        },
+        "apply_request_border": {
+          "text": "Adicione uma borda de {width} mm para costurar."
+        },
+        "apply_request_no_border": {
+          "text": "Omita a borda."
+        },
+        "error": {
+          "generic": {
+            "text": "Não foi possível converter este design."
+          },
+          "unreadable_svg": {
+            "text": "Não foi possível ler o gráfico."
+          },
+          "nothing_to_sew": {
+            "text": "Não sobra nada para bordar depois de remover o fundo."
+          },
+          "too_many_stitches": {
+            "text": "O design tem pontos demais. Tente um tamanho menor ou um gráfico mais simples."
+          },
+          "timeout": {
+            "text": "A conversão demorou demais e foi interrompida."
+          },
+          "sandbox_failed": {
+            "text": "Não foi possível concluir a conversão. Tente novamente."
+          },
+          "invalid_source": {
+            "text": "A fonte não é um gráfico vetorial. Crie primeiro um gráfico vetorial."
+          }
+        },
+        "note": {
+          "background_removed": {
+            "text": "Fundo omitido"
+          },
+          "tiny_details_removed": {
+            "text": "Detalhes pequenos demais para bordar foram omitidos ({count})"
+          },
+          "lines_running": {
+            "text": "Linhas mais finas que 1 mm são bordadas como uma linha fina de pontos"
+          },
+          "gradient_flattened": {
+            "text": "Gradientes são bordados em uma única cor lisa"
+          },
+          "effects_ignored": {
+            "text": "Efeitos de desfoque, sombra e máscara foram omitidos"
+          },
+          "image_left_out": {
+            "text": "Uma imagem de pixels incorporada foi omitida"
+          },
+          "text_left_out": {
+            "text": "O texto que não está desenhado como formas foi omitido"
+          },
+          "rotate_for_hoop": {
+            "text": "Gire o desenho 90 graus para caber no bastidor"
+          },
+          "rework_failed": {
+            "text": "Não foi possível ajustar o desenho automaticamente, então ele foi convertido como está"
+          },
+          "instructions_applied": {
+            "text": "Seus pedidos foram aplicados"
+          },
+          "border_added": {
+            "text": "Borda de {mm} mm adicionada para costurar"
+          },
+          "sized_to_hoop": {
+            "text": "Tamanho ajustado para preencher o bastidor"
+          },
+          "solved_gradient_or_filter": {
+            "text": "Gradientes e filtros foram substituídos por cores lisas"
+          },
+          "solved_live_text": {
+            "text": "O texto foi redesenhado como formas ou omitido"
+          },
+          "solved_embedded_pixel_image": {
+            "text": "A imagem de pixels incorporada foi redesenhada como formas ou omitida"
+          },
+          "solved_detail_below_1mm": {
+            "text": "Detalhes pequenos foram ampliados ou omitidos"
+          },
+          "solved_more_than_12_colours": {
+            "text": "As cores foram reduzidas a no máximo 12 linhas"
+          },
+          "unsolved_gradient_or_filter": {
+            "text": "Ainda contém gradientes ou filtros; o resultado pode não ficar limpo ali"
+          },
+          "unsolved_live_text": {
+            "text": "Ainda contém texto editável; o resultado pode não ficar limpo ali"
+          },
+          "unsolved_embedded_pixel_image": {
+            "text": "Ainda contém uma imagem de pixels incorporada; o resultado pode não ficar limpo ali"
+          },
+          "unsolved_detail_below_1mm": {
+            "text": "Ainda contém detalhes menores que 1 mm; o resultado pode não ficar limpo ali"
+          },
+          "unsolved_more_than_12_colours": {
+            "text": "Ainda contém mais de 12 cores de linha; o resultado pode não ficar limpo ali"
+          }
+        }
+      }
+    },
+    "code": {
+      "test_result": {
+        "title": {
+          "text": "Resultado do teste"
+        },
+        "status_passed": {
+          "text": "Aprovado"
+        },
+        "status_failed": {
+          "text": "Falhou"
+        },
+        "status_skipped": {
+          "text": "Ignorado"
+        },
+        "status_error": {
+          "text": "Erro"
+        },
+        "status_cancelled": {
+          "text": "Cancelado"
+        },
+        "status_timed_out": {
+          "text": "Tempo esgotado"
+        },
+        "stale": {
+          "text": "Desatualizado"
+        },
+        "steps": {
+          "text": "Etapas do teste"
+        },
+        "no_video": {
+          "text": "Nenhum vídeo disponível para esta execução"
+        }
+      }
+    },
+    "video_generate": {
+      "apply": {
+        "text": "Aplicar"
+      },
+      "cancel": {
+        "text": "Cancelar"
+      },
+      "clip": {
+        "text": "Clipe"
+      },
+      "discard": {
+        "text": "Descartar"
+      },
+      "discard_confirm": {
+        "text": "Descartar as alterações pendentes?"
+      },
+      "edit_hint": {
+        "text": "Selecione uma parte da linha do tempo para editá-la."
+      },
+      "edit_part": {
+        "text": "Editar {label}"
+      },
+      "extend_empty": {
+        "text": "Descreva primeiro o que deve acontecer na parte adicionada."
+      },
+      "extend_end": {
+        "text": "Estender o vídeo no final"
+      },
+      "extend_placeholder_end": {
+        "text": "O que deve acontecer no clipe adicionado após o final?"
+      },
+      "extend_placeholder_start": {
+        "text": "O que deve acontecer no clipe adicionado antes do início?"
+      },
+      "extend_start": {
+        "text": "Estender o vídeo no início"
+      },
+      "keep_editing": {
+        "text": "Continuar editando"
+      },
+      "kind_composed": {
+        "text": "Vídeo composto"
+      },
+      "kind_generative": {
+        "text": "Vídeo gerado"
+      },
+      "load_error": {
+        "text": "Falha ao carregar o vídeo"
+      },
+      "loading": {
+        "text": "Carregando vídeo..."
+      },
+      "model": {
+        "text": "Modelo"
+      },
+      "new_length": {
+        "text": "Nova duração {length}"
+      },
+      "part_aria": {
+        "text": "{label}, de {start} a {end}"
+      },
+      "pending_changes": {
+        "text": "Alterações pendentes: {count}"
+      },
+      "created_by": {
+        "text": "Criado por {model}"
+      },
+      "change_edit": {
+        "text": "Editando o vídeo"
+      },
+      "change_extend_start": {
+        "text": "Estendendo o vídeo no início"
+      },
+      "change_extend_end": {
+        "text": "Estendendo o vídeo no final"
+      },
+      "progress_correcting_round": {
+        "text": "Corrigindo um problema de renderização (rodada {round})…"
+      },
+      "failed": {
+        "text": "Falha ao gerar o vídeo"
+      },
+      "progress_deciding": {
+        "text": "Decidindo como fazer o vídeo…"
+      },
+      "progress_writing": {
+        "text": "Escrevendo a composição…"
+      },
+      "progress_rendering": {
+        "text": "Renderizando o vídeo…"
+      },
+      "progress_correcting": {
+        "text": "Corrigindo o vídeo…"
+      },
+      "progress_generating": {
+        "text": "Gerando o clipe…"
+      },
+      "progress_audio_speech": {
+        "text": "Gravando a narração…"
+      },
+      "progress_audio_sound": {
+        "text": "Criando efeitos sonoros…"
+      },
+      "progress_audio_music": {
+        "text": "Compondo a música…"
+      },
+      "progress_audio_unknown": {
+        "text": "Criando o som…"
+      },
+      "progress_audio_several": {
+        "text": "Criando {kinds}…"
+      },
+      "audio_noun_speech": {
+        "text": "narração"
+      },
+      "audio_noun_sound": {
+        "text": "efeitos sonoros"
+      },
+      "audio_noun_music": {
+        "text": "música"
+      },
+      "audio_list_and": {
+        "text": "{head} e {last}"
+      },
+      "timeline_audio_speech": {
+        "text": "Voz"
+      },
+      "timeline_audio_sound": {
+        "text": "Som"
+      },
+      "timeline_audio_music": {
+        "text": "Música"
+      },
+      "prompt": {
+        "text": "Prompt"
+      },
+      "remove_last_hint": {
+        "text": "A última parte não pode ser removida."
+      },
+      "remove_part": {
+        "text": "Remover parte"
+      },
+      "request_change_text": {
+        "text": "Parte {label} (id {id}): alterar o texto {text} de {from} para {to}"
+      },
+      "request_remove_part": {
+        "text": "Remover a parte {label} (id {id})"
+      },
+      "request_shorten_end": {
+        "text": "Parte {label} (id {id}): encurtar {seconds} s no final"
+      },
+      "request_shorten_start": {
+        "text": "Parte {label} (id {id}): encurtar {seconds} s no início"
+      },
+      "request_trim_video": {
+        "text": "Cortar o vídeo: remover {start} s do início e {end} s do final"
+      },
+      "request_trim_video_end": {
+        "text": "Cortar o vídeo: remover {end} s do final"
+      },
+      "request_trim_video_start": {
+        "text": "Cortar o vídeo: remover {start} s do início"
+      },
+      "resolution": {
+        "text": "Resolução"
+      },
+      "restore_part": {
+        "text": "Restaurar parte"
+      },
+      "send": {
+        "text": "Enviar"
+      },
+      "shorten_end": {
+        "text": "Encurtar do final"
+      },
+      "shorten_less": {
+        "text": "Devolver 0.5 s"
+      },
+      "shorten_more": {
+        "text": "Encurtar 0.5 s"
+      },
+      "shorten_start": {
+        "text": "Encurtar do início"
+      },
+      "sources": {
+        "text": "Fontes"
+      },
+      "timeline": {
+        "text": "Linha do tempo do vídeo"
+      },
+      "trim_video": {
+        "text": "Cortar o vídeo"
+      }
+    },
+    "video_create": {
+      "not_available": {
+        "text": "O vídeo ainda não está disponível."
+      },
+      "status_cancelled": {
+        "text": "Renderização interrompida"
+      },
+      "status_error": {
+        "text": "Falha na renderização"
+      },
+      "status_finished": {
+        "text": "Concluído"
+      },
+      "status_needs_rerender": {
+        "text": "Precisa renderizar de novo"
+      },
+      "status_processing": {
+        "text": "Preparando o código-fonte…"
+      },
+      "status_rendering": {
+        "text": "Renderizando vídeo..."
+      },
+      "subtitle": {
+        "text": "Remotion · v{version} · {status}"
+      },
+      "view_code": {
+        "text": "Código"
+      },
+      "view_timeline": {
+        "text": "Linha do tempo"
+      },
+      "view_video": {
+        "text": "Vídeo"
+      }
+    },
+    "progress_searching_sources": {
+      "text": "{done}/{total} fontes"
+    },
+    "progress_searching": {
+      "text": "Pesquisando…"
+    },
+    "progress_results": {
+      "text": "{count} resultados"
+    },
+    "progress_result_one": {
+      "text": "1 resultado"
     }
   },
   "embeds_input": {},
@@ -8764,6 +8776,57 @@
       "selected_model_label": {
         "text": "Modelo selecionado:"
       }
+    },
+    "send_failed": {
+      "text": "Não foi possível enviar sua mensagem. Ela continua no campo de entrada, tente novamente."
+    },
+    "file_import_failed": {
+      "text": "Não foi possível ler {filename}, por isso ele não foi anexado. O arquivo pode estar vazio, danificado ou protegido por senha."
+    },
+    "file_unsupported_type": {
+      "text": "{filename} não foi anexado porque este tipo de arquivo ainda não é compatível."
+    },
+    "file_pptx_coming_soon": {
+      "text": "Arquivos do PowerPoint ainda não são compatíveis; o suporte a apresentações chegará em breve. {filename} não foi anexado."
+    },
+    "xlsx_features_removed": {
+      "text": "{filename} foi importado como planilhas. Estes recursos do Excel não são compatíveis e foram removidos: {features}."
+    },
+    "xlsx_feature_formatting": {
+      "text": "cores e estilos de célula"
+    },
+    "xlsx_feature_conditional_formatting": {
+      "text": "formatação condicional"
+    },
+    "xlsx_feature_merged_cells": {
+      "text": "células mescladas"
+    },
+    "xlsx_feature_charts": {
+      "text": "gráficos"
+    },
+    "xlsx_feature_images": {
+      "text": "imagens"
+    },
+    "xlsx_feature_pivot_tables": {
+      "text": "tabelas dinâmicas"
+    },
+    "xlsx_feature_macros": {
+      "text": "macros"
+    },
+    "xlsx_feature_external_links": {
+      "text": "vínculos com outras pastas de trabalho"
+    },
+    "xlsx_feature_comments": {
+      "text": "comentários"
+    },
+    "xlsx_feature_unsupported_formulas": {
+      "text": "fórmulas ainda não compatíveis (os valores calculados foram mantidos)"
+    },
+    "xlsx_feature_hidden_sheets": {
+      "text": "planilhas ocultas"
+    },
+    "xlsx_feature_sheet_limit": {
+      "text": "planilhas além das 10 primeiras"
     },
     "mention_dropdown": {
       "header": {
@@ -10097,398 +10160,6 @@
         "text": "Discutir os modelos de financiamento para plataformas independentes de código aberto"
       }
     },
-    "memory_books_currently_reading": {
-      "title": {
-        "text": "Memory Books Currently Reading"
-      },
-      "summary": {
-        "text": "OpenMates uses saved books currently_reading memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.\n\nHere is your spoiler-free one-week reading plan to keep you on track:\n\n*   **Night 1:** Page 250 to 275\n*   **Night 2:** Page 275 to 300\n*   **Night 3:** Page 300 to 325\n*   **Night 4:** Page 325 to 350\n*   **Night 5:** Page 350 to 375\n*   **Night 6:** Page 375 to 400\n*   **Night 7:** Page 400 to 425\n\nBy the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!"
-      }
-    },
-    "memory_books_favorite_books": {
-      "title": {
-        "text": "Memory Books Favorite Books"
-      },
-      "summary": {
-        "text": "OpenMates uses saved books favorite_books memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved favorite books memory to recommend one novel I should read next and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved preference for [The Left Hand of Darkness](wiki:The_Left_Hand_of_Darkness) by [Ursula K. Le Guin](wiki:Ursula_K._Le_Guin), I recommend you read **[The Dispossessed](wiki:The_Dispossessed)**, also by Le Guin.\n\nYour memories indicate that you value \"thoughtful worldbuilding,\" \"humane political themes,\" and \"restrained pacing.\" *The Dispossessed* is a perfect follow-up because it explores a complex, dual-world society through the eyes of a deeply humane protagonist, Shevek. Much like your favorite book, it prioritizes philosophical depth and the exploration of identity—in this case, through the lens of anarchism versus capitalism—rather than fast-paced action. It offers the same reflective atmosphere and meticulous cultural detail that you appreciated in your previous reading."
-      }
-    },
-    "memory_books_to_read_list": {
-      "title": {
-        "text": "Memory Books To Read List"
-      },
-      "summary": {
-        "text": "OpenMates uses saved books to_read_list memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.\n\nYour notes specifically identify it as a \"big immersive book for a quiet trip\" and a \"high priority,\" which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a \"gentle weekend read,\" the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly."
-      }
-    },
-    "memory_code_coding_setup": {
-      "title": {
-        "text": "Memory Code Coding Setup"
-      },
-      "summary": {
-        "text": "OpenMates uses saved code coding_setup memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved coding setup memory to suggest how I should structure a debugging session tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.\n\nHere is how you should structure your debugging session tonight to align perfectly with your preferences:\n\n1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.\n2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.\n3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.\n4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.\n5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue."
-      }
-    },
-    "memory_code_preferred_tech": {
-      "title": {
-        "text": "Memory Code Preferred Tech"
-      },
-      "summary": {
-        "text": "OpenMates uses saved code preferred_tech memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:\n\n1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.\n2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).\n3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.\n4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.\n5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple \"git push.\"\n\nThis combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience."
-      }
-    },
-    "memory_code_projects": {
-      "title": {
-        "text": "Memory Code Projects"
-      },
-      "summary": {
-        "text": "OpenMates uses saved code projects memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:\n\n1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the \"Thirst Status\" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., \"Satisfied,\" \"Due,\" or \"Overdue\") which can then be used to drive visual indicators in your UI.\n2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness."
-      }
-    },
-    "memory_code_want_to_learn": {
-      "title": {
-        "text": "Memory Code Want To Learn"
-      },
-      "summary": {
-        "text": "OpenMates uses saved code want_to_learn memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your interest in learning [Rust](wiki:Rust_(programming_language)), [WebAssembly](wiki:WebAssembly), and Asynchronous programming patterns, I suggest building a **Web-Based Real-Time Image Filter**.\n\nThis project is an ideal entry point because it provides immediate visual feedback and highlights why WebAssembly is valuable.\n\n### The Project: Rust-Powered Image Processor\nThe goal is to create a simple web page where you can upload an image and apply filters (like grayscale, sepia, or brightness) using a Rust backend compiled to Wasm.\n\n**Why this fits your goals:**\n*   **WebAssembly:** You will use `wasm-pack` and `wasm-bindgen` to bridge the gap between [JavaScript](wiki:JavaScript) and Rust, learning how to pass large buffers of memory (pixel data) between the two.\n*   **Rust Fundamentals:** You'll practice using [Iterators](wiki:Iterator) and handling raw byte arrays efficiently.\n*   **Async Patterns:** You can extend the project by using [Future](wiki:Futures_and_promises) patterns in Rust to handle file loading or to offload the processing to a [Web worker](wiki:Web_worker), ensuring the UI remains responsive during heavy computation.\n\n**Suggested Weekend Roadmap:**\n1.  **Setup:** Initialize a project with `wasm-pack` and set up a basic HTML/JS frontend with a `<canvas>` element.\n2.  **The Bridge:** Write a Rust function that takes a `Vec<u8>` (representing RGBA pixels), iterates through them to calculate grayscale values, and returns the modified vector.\n3.  **Optimization:** Once the basic filter works, explore using Rayon or internal async tasks to see if you can parallelize the pixel processing for very large images.\n\nThis project directly applies what you've shared about your learning path by combining high-performance computation with modern web integration."
-      }
-    },
-    "memory_docs_writing_style": {
-      "title": {
-        "text": "Memory Docs Writing Style"
-      },
-      "summary": {
-        "text": "OpenMates uses saved docs writing_style memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "### Bulk Data Import\nBring your existing data into the platform in seconds with our new import tool.\n\n*   **Multi-format Support**: Upload data directly from CSV and JSON files.\n*   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.\n*   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows."
-      }
-    },
-    "memory_events_saved_events": {
-      "title": {
-        "text": "Memory Events Saved Events"
-      },
-      "summary": {
-        "text": "OpenMates uses saved events saved_events memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "It looks like you have the **Berlin AI Builders Gathering** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.\n\nBased on the specific notes you've saved for this event, here is a practical checklist to help you prepare:\n\n*   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.\n*   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.\n*   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.\n*   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.\n*   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.\n*   **Review your goals:** Remind yourself of what you want to get out of this specific Gathering—whether it's feedback on your demo or meeting potential collaborators.\n---\n*⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*"
-      }
-    },
-    "memory_health_appointments": {
-      "title": {
-        "text": "Memory Health Appointments"
-      },
-      "summary": {
-        "text": "OpenMates uses saved health appointments memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.\n\nHere is a simple preparation checklist based on your notes:\n\n*   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.\n*   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.\n*   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.\n*   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.\n---\n*⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*"
-      }
-    },
-    "memory_health_medical_history": {
-      "title": {
-        "text": "Memory Health Medical History"
-      },
-      "summary": {
-        "text": "OpenMates uses saved health medical_history memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved medical history memory to list what I should remember to tell a new doctor. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved medical history, here are the key details you should share with a new doctor:\n\n*   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.\n*   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.\n---\n*⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*"
-      }
-    },
-    "memory_home_saved_listings": {
-      "title": {
-        "text": "Memory Home Saved Listings"
-      },
-      "summary": {
-        "text": "OpenMates uses saved home saved_listings memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:\n\n### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)\n*   **Cellar Storage:** \"Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed.\"\n*   **Balcony & Sunlight:** \"You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?\"\n*   **Commute Logistics:** \"Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?\"\n\n### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio\n*   **Noise & Insulation:** \"Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?\"\n*   **Connectivity:** \"What are the exact internet speeds currently available at this address, and which providers are already connected to the building?\"\n*   **Heating & Energy:** \"How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?\"\n*   **Environment:** \"Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?\"\n\n### General Questions for Both Listings\n*   **Warm Rent Breakdown:** \"The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?\"\n*   **Lease Terms:** \"Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?\"\n*   **Deposit:** \"How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?\""
-      }
-    },
-    "memory_images_preferred_styles": {
-      "title": {
-        "text": "Memory Images Preferred Styles"
-      },
-      "summary": {
-        "text": "OpenMates uses saved images preferred_styles memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:\n\n**Prompt:**\nA high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware."
-      }
-    },
-    "memory_mail_writing_styles": {
-      "title": {
-        "text": "Memory Mail Writing Styles"
-      },
-      "summary": {
-        "text": "OpenMates uses saved mail writing_styles memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved email writing style memory to draft a short Friday progress update to a client. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Subject: Friday Update - [Project Name]\n\nHi [Client Name],\n\nI hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:\n\n* **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].\n* **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.\n* **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.\n\nWe are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.\n\nBest, Alex"
-      }
-    },
-    "memory_reminder_defaults": {
-      "title": {
-        "text": "Memory Reminder Defaults"
-      },
-      "summary": {
-        "text": "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.\n\nFor any event you have saved for next week, you will be nudged at the following times:\n\n1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.\n2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.\n---\n*⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*"
-      }
-    },
-    "memory_study_learning_goals": {
-      "title": {
-        "text": "Memory Study Learning Goals"
-      },
-      "summary": {
-        "text": "OpenMates uses saved study learning_goals memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.\n\n### One-Week Linear Algebra Intensive\n\n**Day 1: The Geometry of Vectors and Linear Transformations**\nFocus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).\n*   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.\n\n**Day 2: Matrix Multiplication as Composition**\nInstead of focusing on the \"row-by-column\" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.\n*   **Key Concept:** Why order matters (Matrix multiplication is not commutative).\n\n**Day 3: Determinants and the Change of Area**\nLearn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.\n*   **Key Concept:** The relationship between the determinant and matrix invertibility.\n\n**Day 4: Eigenvalues and Eigenvectors**\nFind the special \"hidden\" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.\n*   **Key Concept:** $Ax = \\lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\\lambda$ is the scale factor.\n\n**Day 5: Matrix Decompositions (The ML Foundation)**\nIntroduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.\n*   **Key Concept:** How SVD \"factors\" a transformation into a rotation, a stretch, and another rotation.\n\n**Day 6: Applications in Graphics and ML**\nStudy how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.\n*   **Key Concept:** Change of basis and coordinate systems.\n\n**Day 7: Practical Exercise and Review**\nConsolidate the week's concepts by working through a manual transformation exercise.\n\n***\n\n### Practical Exercise: The \"Hand-Drawn\" Transformation\n\nTo build your intuition for graphics and matrix operations, perform the following exercise:\n\n1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.\n2.  **Create a Transformation Matrix:** Use the matrix $M = \\begin{bmatrix} 0 & -1 \\\\ 1 & 0 \\end{bmatrix}$.\n3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.\n    *   Example for point $A$: $\\begin{bmatrix} 0 & -1 \\\\ 1 & 0 \\end{bmatrix} \\begin{bmatrix} 1 \\\\ 1 \\end{bmatrix} = \\begin{bmatrix} -1 \\\\ 1 \\end{bmatrix}$.\n4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).\n    *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.\n5.  **Challenge:** Try to find a new 2x2 matrix that would \"squish\" the triangle so its area becomes zero. (Hint: Think about the determinant)."
-      }
-    },
-    "memory_travel_preferred_activities": {
-      "title": {
-        "text": "Memory Travel Preferred Activities"
-      },
-      "summary": {
-        "text": "OpenMates uses saved travel preferred_activities memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved preferred travel activities memory to suggest what kind of afternoon plan I would probably enjoy in a new city. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved travel preferences, which highlight an interest in **small local food markets and guided tasting walks**, you would likely enjoy an afternoon centered around culinary discovery.\n\nYour ideal plan would involve heading to a historic neighborhood known for its independent vendors rather than a tourist-heavy center. You could spend the first half of the afternoon wandering through a local market, sampling regional cheeses, seasonal fruits, or freshly baked goods while observing the daily rhythm of the residents. Afterward, you might enjoy a guided walking tour led by a local expert who can share the stories behind specific stalls and traditional recipes, finishing the afternoon with a tasting at a small, family-run bistro or a specialty spice shop. This approach allows you to connect with the city's culture through its flavors and community-driven commerce."
-      }
-    },
-    "memory_travel_preferred_airlines": {
-      "title": {
-        "text": "Memory Travel Preferred Airlines"
-      },
-      "summary": {
-        "text": "OpenMates uses saved travel preferred_airlines memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved preferred airline memory to explain what flight options I should compare first for a work trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:\n\n1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.\n2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.\n3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.\n\nStarting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals."
-      }
-    },
-    "memory_travel_preferred_transport": {
-      "title": {
-        "text": "Memory Travel Preferred Transport"
-      },
-      "summary": {
-        "text": "OpenMates uses saved travel preferred_transport_methods memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved preferred transport memory to suggest how I should travel for a nearby weekend trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your travel settings, your preferred method of transportation is the train. For a nearby weekend trip, I suggest choosing a destination accessible by rail. Traveling by train allows you to relax and enjoy the landscape as you arrive at your destination, which perfectly matches your stated preference."
-      }
-    },
-    "memory_travel_saved_connections": {
-      "title": {
-        "text": "Memory Travel Saved Connections"
-      },
-      "summary": {
-        "text": "OpenMates uses saved travel saved_connections memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved travel connection memory to suggest what I should prepare before my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.\n\nHere is what you should prepare based on the specific notes you've saved:\n\n*   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.\n*   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.\n*   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.\n*   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip."
-      }
-    },
-    "memory_travel_saved_stays": {
-      "title": {
-        "text": "Memory Travel Saved Stays"
-      },
-      "summary": {
-        "text": "OpenMates uses saved travel saved_stays memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:\n\n*   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to \"check stairs,\" always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.\n*   **Transit Proximity:** You have prioritized locations \"near bus routes\" and \"transit access.\" Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.\n*   **Atmosphere and Quietude:** Both of your saved options highlight a \"quiet\" environment or a \"traditional atmosphere.\" Look for guest reviews that specifically mention noise levels or the \"family-friendly\" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer."
-      }
-    },
-    "memory_travel_trips": {
-      "title": {
-        "text": "Memory Travel Trips"
-      },
-      "summary": {
-        "text": "OpenMates uses saved travel trips memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved travel trips memory to suggest a relaxed first-day plan for my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved trip to [Lisbon](wiki:Lisbon) from September 10 to September 17, 2026, here is a relaxed first-day plan that incorporates your notes about remote work, viewpoints, and the [Alfama](wiki:Alfama) district:\n\n*   **Morning (Remote Work):** Since you mentioned working remotely in the morning, start your day at a local café or your accommodation. The Alfama area has several quiet spots where you can stay productive while enjoying a [Bica](wiki:Bica_(coffee)) (a traditional Portuguese espresso).\n*   **Early Afternoon (Viewpoints):** After your work block, head to the Miradouro de Santa Luzia. It offers a stunning terrace with [Azulejo](wiki:Azulejo) tile panels and a panoramic view of Alfama's red rooftops and the [Tagus](wiki:Tagus) River. A short walk away is the Miradouro das Portas do Sol, which is perfect for photos.\n*   **Late Afternoon (Alfama Wandering):** Spend the rest of your afternoon wandering through the narrow, winding alleys of Alfama. Because it is the city's oldest district, it is best explored slowly on foot. You can admire the flower-filled balconies and listen for the faint sounds of [Fado](wiki:Fado) music practicing in the distance.\n*   **Evening (Local Food):** For dinner, visit a traditional [Tasca](wiki:Tasca). These are small, family-run eateries where you can try local staples like [Bacalhau](wiki:Bacalhau) (salted cod) or grilled sardines. This fits your preference for local food while keeping the evening low-key and authentic."
-      }
-    },
-    "memory_tv_to_watch_list": {
-      "title": {
-        "text": "Memory Tv To Watch List"
-      },
-      "summary": {
-        "text": "OpenMates uses saved tv to_watch_list memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight!\n\nSince it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!"
-      }
-    },
-    "memory_tv_watched_movies": {
-      "title": {
-        "text": "Memory Tv Watched Movies"
-      },
-      "summary": {
-        "text": "OpenMates uses saved tv watched_movies memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).\n\nSince you noted that you loved the \"thoughtful first-contact story\" and \"language-centered approach\" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.\n\nLike [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the \"emotional ending\" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity."
-      }
-    },
-    "memory_tv_watched_shows": {
-      "title": {
-        "text": "Memory Tv Watched Shows"
-      },
-      "summary": {
-        "text": "OpenMates uses saved tv watched_tv_shows memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved watched shows memory to recommend what kind of series I should try next. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your interest in [Severance](wiki:Severance_(TV_series)), particularly your appreciation for its eerie office mystery, slow-burn reveals, and identity puzzles, here are a few series you should try next:\n\n1. **[Devs](wiki:Devs_(TV_series))**: Created by [Alex Garland](wiki:Alex_Garland), this miniseries is perhaps the closest in tone to the unsettling corporate atmosphere of Lumon. It follows a software engineer investigating a secretive division within a massive tech company called Amaya. It shares that same clinical, high-design aesthetic and explores deep philosophical questions about free will and determinism.\n\n2. **[Mr. Robot](wiki:Mr._Robot)**: This series stars [Rami Malek](wiki:Rami_Malek) as a cybersecurity engineer pulled into a world of corporate conspiracy and hacktivism. Much like *Severance*, it heavily features identity puzzles and a fractured sense of reality, all while maintaining a deeply tense and psychological atmosphere.\n\n3. **[Counterpart](wiki:Counterpart_(TV_series))**: This show is a brilliant blend of a bureaucratic thriller and high-concept science fiction. It stars [J.K. Simmons](wiki:J._K._Simmons) as a low-level UN employee who discovers his agency is guarding a gateway to a parallel dimension. The \"identity puzzle\" aspect is literal here, as characters often have to interact with their own counterparts from the other side.\n\n4. **[Homecoming](wiki:Homecoming_(TV_series))**: The first season, directed by [Sam Esmail](wiki:Sam_Esmail), centers on a facility that supposedly helps soldiers transition back to civilian life. It uses a unique visual style and a slow-burn mystery to peel back the layers of a corporate conspiracy, echoing the \"unsettling corporate atmosphere\" you enjoyed in your notes."
-      }
-    },
-    "memory_videos_to_watch_list": {
-      "title": {
-        "text": "Memory Videos To Watch List"
-      },
-      "summary": {
-        "text": "OpenMates uses saved videos to_watch_list memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.\n\nSince this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:\n\n1.  **Core Principles:** Focus on the \"Three Pillars\" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.\n2.  **The \"Trade-offs\":** Data-intensive design is rarely about finding a \"perfect\" solution but about choosing the right compromise. Create a specific section for \"Pros vs. Cons\" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.\n3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the \"source of truth\" sits and how data is partitioned.\n4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like \"Strong Consistency\" or \"Eventual Consistency\") applies to the projects you are currently interested in.\n\nUsing these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design."
-      }
-    },
-    "memory_web_bookmarks": {
-      "title": {
-        "text": "Memory Web Bookmarks"
-      },
-      "summary": {
-        "text": "OpenMates uses saved web bookmarks memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved web bookmarks memory to tell me which saved bookmark I should open first while planning a SvelteKit dashboard, and why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved bookmarks, you should open the SvelteKit documentation first.\n\nThis is the most critical resource for planning your dashboard because it serves as the definitive guide for the framework's core features. When building a dashboard, you will need to establish a robust [routing](wiki:Routing) structure, handle complex data fetching from APIs, and manage application state efficiently. The official docs provide the latest best practices for server-side rendering (SSR), [form actions](wiki:Data_validation), and [adapters](wiki:Deployment_environment), ensuring your architecture is scalable and follows the intended patterns of the [Svelte](wiki:Svelte) ecosystem."
-      }
-    },
-    "memory_web_read_later": {
-      "title": {
-        "text": "Memory Web Read Later"
-      },
-      "summary": {
-        "text": "OpenMates uses saved web read_later memory in a real chat."
-      },
-      "message_1": {
-        "text": "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-      },
-      "message_2": {
-        "text": "Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.\n\nAccording to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase."
-      }
-    },
     "mortgage_payment_calculation": {
       "title": {
         "text": "Mortgage Payment Calculation"
@@ -11055,10 +10726,40 @@
         "text": "- Entender o projeto\n- selecionar nomes\n- verificar finalistas\n- comparar evidências"
       }
     },
+    "business_find_business_angels": {
+      "text": "Encontrar investidores-anjo",
+      "description": {
+        "text": "Monte uma lista ranqueada de investidores-anjo para sua rodada, com evidências de afinidade e como contatá-los."
+      }
+    },
+    "business_plan_funding_round": {
+      "text": "Planejar uma rodada de investimento",
+      "description": {
+        "text": "Calcule quanto captar, qual instrumento se encaixa, a diluição e um cronograma, com uma planilha de cap table editável."
+      }
+    },
+    "business_prepare_investor_pitch": {
+      "text": "Prepare seu pitch",
+      "description": {
+        "text": "Monte a narrativa do seu deck, encontre os pontos fracos e ensaie perguntas difíceis de investidores, uma por vez."
+      }
+    },
     "business_price_products": {
       "text": "Definir o preço dos seus produtos",
       "description": {
         "text": "Descubra quanto cobrar por produtos artesanais ou de pequena produção, com uma planilha ao vivo que você pode editar."
+      }
+    },
+    "business_research_investor": {
+      "text": "Pesquisar um investidor",
+      "description": {
+        "text": "Pesquise um investidor ou firma antes de abordá-lo, com fatos verificados, alertas e caminhos para apresentação."
+      }
+    },
+    "business_write_investor_outreach": {
+      "text": "Escrever contato com investidores",
+      "description": {
+        "text": "Redija um e-mail curto para um investidor, uma apresentação encaminhável para um contato em comum e dois follow-ups."
       }
     },
     "code_analyze_logs": {
@@ -11206,6 +10907,24 @@
       },
       "systemprompt": {
         "text": "Você é um conselheiro de carreira atencioso e experiente. Seu objetivo é ajudar os usuários a ganhar clareza sobre sua direção profissional, compreendendo profundamente quem eles são, o que querem e o que é realista para eles.\n\nComece entendendo a situação atual do usuário: O que ele faz agora? Há quanto tempo faz isso? O que o levou a buscar orientação? Ele está frustrado, curioso ou ativamente procurando uma mudança?\n\nEm seguida, explore seu histórico através de uma conversa natural:\n- Quais aspectos de funções passadas e atuais ele achou mais gratificantes ou desgastantes?\n- Quais são suas habilidades e pontos fortes fundamentais — tanto habilidades técnicas quanto interpessoais?\n- Quais são seus interesses e paixões, incluindo coisas fora do trabalho?\n- O que ele mais valoriza em uma carreira? (p. ex., autonomia, criatividade, segurança financeira, ajudar outros, desafio intelectual, flexibilidade, cultura de equipe)\n- Existem limitações práticas como restrições geográficas, necessidades financeiras, considerações familiares ou de tempo?\n\nFaça uma ou duas perguntas de cada vez. Não sobrecarregue o usuário com uma longa lista de perguntas. Ouça atentamente e construa sobre as respostas dele. Use um tom caloroso mas profissional.\n\nAssim que tiver contexto suficiente, sintetize sua compreensão e sugira 2-4 direções de carreira concretas com uma breve explicação de por que cada uma é uma boa escolha. Para cada sugestão, mencione:\n- Por que ela se alinha com suas habilidades, interesses e valores\n- Como é o caminho típico para essa carreira\n- Lacunas que ele pode precisar abordar (habilidades, certificações, experiência)\n\nConclua com próximos passos acionáveis que possam ser tomados imediatamente, como cursos específicos, estratégias de networking, comunidades para participar ou quadros de empregos para explorar.\n\nDiretrizes importantes:\n- Nunca se apresse em dar conselhos antes de entender a pessoa. A qualidade das suas recomendações depende da profundidade da sua compreensão.\n- Seja honesto se um caminho desejado parece irrealista dadas as suas limitações, mas enquadre-o de forma construtiva.\n- Reconheça as emoções — a incerteza profissional pode ser estressante, e a empatia cria confiança.\n- Se o usuário parecer travado ou inseguro sobre como responder, ofereça exemplos ou reformule sua pergunta."
+      }
+    },
+    "jobs_create_cv": {
+      "text": "Criar ou atualizar currículo",
+      "description": {
+        "text": "Crie um currículo claro e legível por máquinas como documento Word editável ou melhore o que você já tem."
+      }
+    },
+    "jobs_prepare_interview": {
+      "text": "Preparar entrevista",
+      "description": {
+        "text": "Prepare-se para uma entrevista de emprego com perguntas prováveis, suas próprias histórias e um treino com feedback."
+      }
+    },
+    "jobs_write_application": {
+      "text": "Escrever candidatura",
+      "description": {
+        "text": "Escreva uma candidatura para uma vaga específica, com a sua própria voz e baseada na sua experiência real."
       }
     },
     "life_coaching_crisis_support": {
@@ -14427,6 +14146,7 @@
     }
   },
   "projects": {},
+  "recommendations": {},
   "reminder": {
     "panel": {
       "title": {
@@ -15432,11 +15152,11 @@
         "follow_up_suggestions_save_error": {
           "text": "Não foi possível salvar a configuração de sugestões de acompanhamento."
         },
-        "quick_tips": {
-          "text": "Dicas rápidas"
+        "recommendations": {
+          "text": "Recomendações"
         },
-        "quick_tips_description": {
-          "text": "Mostra dicas ocasionais do produto após as respostas do assistente. Desativa esta opção se não quiseres que o OpenMates gere cartões de dicas rápidas."
+        "recommendations_description": {
+          "text": "Sugere memórias e fluxos de trabalho para criar ou atualizar após as respostas do assistente. Nada é guardado até que o guardes."
         },
         "server_region": {
           "text": "Região do servidor"
@@ -15446,15 +15166,6 @@
         },
         "prefer_eu_servers_description": {
           "text": "Ativado (padrão): os modelos de IA correm primeiro em servidores da UE, com outras regiões apenas como alternativa. Desativado: o mais rápido, global – o OpenMates escolhe o servidor mais rápido do mundo."
-        },
-        "quick_tips_enabled": {
-          "text": "Dicas rápidas ativadas."
-        },
-        "quick_tips_disabled": {
-          "text": "Dicas rápidas desativadas."
-        },
-        "quick_tips_save_error": {
-          "text": "Não foi possível salvar a configuração de dicas rápidas."
         },
         "manual_select_note": {
           "text": "Você sempre pode selecionar manualmente um modelo usando @menção no chat."
@@ -15676,66 +15387,6 @@
             "text": "Default prompt and processing times for IdeaBucket buckets."
           }
         }
-      },
-      "encryption_notice": {
-        "text": "Seus companheiros de equipe digitais podem solicitar memórias para dar respostas mais personalizadas e economizar seu tempo de ter que repetir detalhes várias vezes. Assim como seus chats, suas memórias são criptografadas e descriptografadas em seus dispositivos. Então o servidor OpenMates e os provedores de IA nunca podem ver o conteúdo real, a menos que você decida compartilhar explicitamente o conteúdo para um chat."
-      },
-      "examples_label": {
-        "text": "Exemplos:"
-      },
-      "my": {
-        "text": "Minhas"
-      },
-      "settings_and_memories": {
-        "text": "Memórias"
-      },
-      "my_settings_and_memories": {
-        "text": "Minhas memórias"
-      },
-      "no_entries_yet": {
-        "text": "Ainda sem entradas."
-      },
-      "examples": {
-        "text": "Exemplos"
-      },
-      "no_settings": {
-        "text": "Nenhuma configuração ou memória sincronizada ainda. Eles aparecerão aqui assim que disponíveis."
-      },
-      "add_entry": {
-        "text": "Adicionar entrada"
-      },
-      "loading": {
-        "text": "Carregando configurações e memórias..."
-      },
-      "item_key": {
-        "text": "Chave do item"
-      },
-      "settings_group": {
-        "text": "Grupo de configurações"
-      },
-      "item_value": {
-        "text": "Valor do item"
-      },
-      "cancel": {
-        "text": "Cancelar"
-      },
-      "creating": {
-        "text": "Criando..."
-      },
-      "placeholder": {
-        "text": "Em breve você poderá gerenciar e criar suas configurações de aplicativos e memórias aqui."
-      },
-      "just_now": {
-        "text": "Agora mesmo"
-      },
-      "edit": {
-        "text": "Editar"
-      },
-      "delete": {
-        "text": "Excluir"
-      },
-      "save": {
-        "text": "Salvar"
       }
     },
     "app_store": {
@@ -15864,6 +15515,9 @@
           "credits_per_minute": {
             "text": "{credits} credits per minute"
           },
+          "credits_per_second": {
+            "text": "{credits} créditos por segundo"
+          },
           "credits_per_started_minute": {
             "text": "{credits} credits per started sandbox minute"
           },
@@ -15931,6 +15585,9 @@
           },
           "per_minute": {
             "text": "por minuto"
+          },
+          "per_second": {
+            "text": "por segundo"
           },
           "servers": {
             "text": "Servidores"
@@ -16147,14 +15804,6 @@
         },
         "loading": {
           "text": "Carregando incorporações..."
-        }
-      },
-      "app_settings_memories": {
-        "no_settings": {
-          "text": "Nenhuma configuração ou memória sincronizada ainda. Eles aparecerão aqui assim que disponíveis."
-        },
-        "add_entry": {
-          "text": "Adicionar entrada"
         }
       },
       "plus_n_more": {
@@ -16576,6 +16225,16 @@
       "banner": {
         "sample_data": {
           "text": "Dados de exemplo — é assim que os resultados reais desta skill se parecem."
+        }
+      },
+      "design": {
+        "embroidery": {
+          "1": {
+            "text": "Logotipo de raposa para um boné, 90 mm"
+          },
+          "2": {
+            "text": "Patch de raposa em tecido elástico, 60 mm"
+          }
         }
       }
     },
@@ -17574,7 +17233,7 @@
       "text": "Digite o código de acesso do Learning Mode para desativá-lo nesta conta."
     },
     "learning_mode_guest_description": {
-      "text": "Escolha a faixa etária do aprendiz. Para convidados, o Learning Mode dura apenas nesta sessão do navegador e não tem código de acesso."
+      "text": "Escolha a faixa etária do aprendiz e defina um código de acesso. O código é necessário para desativar o Learning Mode ou para permitir novamente a criação colaborativa. Ele fica neste navegador e nunca é enviado aos nossos servidores."
     },
     "learning_mode_active_detail": {
       "text": "O Learning Mode está ativo para todos os chats desta conta. As respostas priorizam o ensino e algumas ferramentas são restritas."
@@ -17583,10 +17242,10 @@
       "text": "Quando ativado, o OpenMates orienta o aprendiz passo a passo em vez de dar respostas completas."
     },
     "learning_mode_guest_active_detail": {
-      "text": "O Learning Mode está ativo para chats anônimos nesta sessão do navegador. Crie uma conta para bloqueá-lo com um código de acesso em todos os dispositivos."
+      "text": "O Learning Mode está ativo para os chats anônimos neste navegador. Ele continua ativo até ser desativado com o código de acesso."
     },
     "learning_mode_guest_inactive_detail": {
-      "text": "Convidados podem experimentar o Learning Mode para chats anônimos nesta sessão do navegador. Crie uma conta para bloqueá-lo com um código de acesso."
+      "text": "Convidados podem usar o Learning Mode em chats anônimos neste navegador, protegido por um código de acesso."
     },
     "learning_mode_age_group_label": {
       "text": "Faixa etária do aprendiz"
@@ -17626,6 +17285,30 @@
     },
     "learning_mode_disable_button": {
       "text": "Desativar Learning Mode"
+    },
+    "learning_mode_collaborative_label": {
+      "text": "Permitir criação colaborativa"
+    },
+    "learning_mode_collaborative_help": {
+      "text": "Permite que o aprendiz crie coisas junto com a IA, como código, documentos e arquivos. Quando desativado, a IA apenas explica e orienta. Não disponível para aprendizes com menos de 10 anos."
+    },
+    "learning_mode_collaborative_enable_prompt": {
+      "text": "Digite o código de acesso do Learning Mode para permitir a criação colaborativa novamente."
+    },
+    "learning_mode_collaborative_confirm_button": {
+      "text": "Permitir criação colaborativa"
+    },
+    "learning_mode_collaborative_enabled": {
+      "text": "A criação colaborativa está ativada."
+    },
+    "learning_mode_collaborative_disabled": {
+      "text": "A criação colaborativa está desativada."
+    },
+    "learning_mode_guest_notice": {
+      "text": "Sem uma conta, o Learning Mode existe apenas neste navegador. Limpar os dados do navegador ou usar uma janela privada o remove ou contorna. Crie uma conta para um bloqueio que vale em todos os lugares."
+    },
+    "learning_mode_passcode_invalid": {
+      "text": "O código de acesso deve ter entre 4 e 128 caracteres."
     },
     "incognito_explainer_description": {
       "text": "O modo incógnito aplica-se apenas aos novos chats que você cria. Os novos chats criados enquanto o modo incógnito está ativo não são sincronizados entre dispositivos, não são armazenados no servidor e não são armazenados em cache. Esses chats existem apenas na sua sessão atual do navegador. Os chats existentes permanecem inalterados."
@@ -20021,6 +19704,23 @@
         "export_hint": {
           "text": "Exporte e baixe todos os seus dados"
         }
+      },
+      "sounds": {
+        "silent_mode": {
+          "text": "Modo silencioso"
+        },
+        "silent_mode_info": {
+          "text": "Desativa sons e vibrações neste dispositivo"
+        },
+        "notice_title": {
+          "text": "Os sons estão ativados"
+        },
+        "notice_message": {
+          "text": "Um som curto avisa quando uma mensagem é enviada com segurança, chega uma notificação ou algo falha."
+        },
+        "notice_turn_off": {
+          "text": "Desativar sons"
+        }
       }
     },
     "buy_credits": {
@@ -21076,7 +20776,7 @@
       "text": "Testar gratuitamente"
     },
     "version_title": {
-      "text": "v0.29"
+      "text": "v0.30"
     },
     "domain_not_allowed": {
       "text": "Domínio de e-mail não permitido."

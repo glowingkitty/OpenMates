@@ -78,32 +78,3 @@ skills: []
 focus_modes: []
 
 # Memories for document generation preferences
-settings_and_memories:
-  - id: writing_style
-    name_translation_key: docs.writing_style
-    description_translation_key: docs.writing_style.description
-    icon_image: text.svg
-    type: list
-    example_translation_keys:
-      - "docs.writing_style.example_1"
-      - "docs.writing_style.example_2"
-      - "docs.writing_style.example_3"
-    example_entries:
-      - name: "docs.writing_style.example_1.name"
-        description: "docs.writing_style.example_1.description"
-      - name: "docs.writing_style.example_2.name"
-        description: "docs.writing_style.example_2.description"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Style name (e.g., Formal Business, Academic, Casual Blog)
-          is_title: true
-        description:
-          type: string
-          description: Description of this writing style and when to use it
-          is_subtitle: true
-          multiline: true
-      required:
-        - name

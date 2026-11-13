@@ -108,6 +108,8 @@
     : latestScreenshotUrl || initialScreenshotUrl || decryptedScreenshotUrl);
   let canStart = $derived(Boolean(previewChatId && embedId && !isBusy && previewStatus !== 'running' && previewStatus !== 'starting' && previewStatus !== 'queued'));
   let canStop = $derived(Boolean(sessionId && !isBusy && ['queued', 'starting', 'running'].includes(previewStatus)));
+  // Start applies only while no preview is active; Stop and Open apply only while one is.
+  let showStart = $derived(!['queued', 'starting', 'running'].includes(previewStatus));
   let canOpenWindow = $derived(Boolean(previewUrl && previewStatus === 'running'));
   let previewActionLabel = $derived(previewStatus === 'stopped' || previewStatus === 'timeout' ? $text('embeds.application_resume_preview') : $text('embeds.application_start_preview'));
   let previewStatusLabel = $derived.by(() => {
@@ -356,9 +358,11 @@
       {#if canOpenWindow}
         <button class="secondary-action" data-testid="application-open-preview-window" type="button" onclick={handleOpenPreviewWindow}>{$text('embeds.application_open_preview_window')}</button>
       {/if}
-      <button class="primary-action" data-testid="application-start-preview" type="button" onclick={handleStartPreview} disabled={!canStart}>
-        {previewActionLabel}
-      </button>
+      {#if showStart}
+        <button class="primary-action" data-testid="application-start-preview" type="button" onclick={handleStartPreview} disabled={!canStart}>
+          {previewActionLabel}
+        </button>
+      {/if}
     </div>
   {/snippet}
 
@@ -463,8 +467,12 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
     gap: var(--spacing-4);
+    box-sizing: border-box;
     height: 100%;
     min-height: 0;
+    /* The header action row hangs half its height below the banner; keep the
+       preview and details panels clear of it. */
+    padding-top: var(--spacing-12);
   }
 
   .preview-panel,

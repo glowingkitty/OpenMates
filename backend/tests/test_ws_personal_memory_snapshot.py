@@ -84,9 +84,9 @@ def auth_data(**changes):
 
 
 def install_authority(monkeypatch, *, ledger=None, pair=None):
-    ledger_read = AsyncMock(return_value={"user_id": "owner"} if ledger is None else ledger)
+    ledger_read = AsyncMock(return_value=(SESSION_HASH, {"user_id": "owner"} if ledger is None else ledger))
     pair_read = AsyncMock(return_value=pair)
-    monkeypatch.setattr(websockets, "get_session_state_cached", ledger_read)
+    monkeypatch.setattr(websockets, "get_session_lineage_state", ledger_read)
     monkeypatch.setattr(websockets, "get_pair_deadline_hash", pair_read)
     return ledger_read, pair_read
 
@@ -260,3 +260,35 @@ def test_user_budget_spans_distinct_session_hashes():
     )) for index in range(1, 62)]
     assert outcomes == ["accepted"] * 60 + ["rate_limited"]
     assert len({user_key for _, user_key in cache.redis.calls}) == 1
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.authoritative-enforcement,auth.session.lifecycle
+def test_snapshot_authority_follows_rotation_to_live_member(monkeypatch):
+    """After a reload rotated the cookie, the opening socket checks the live member."""
+    successor = "b" * 64
+
+    class RotatedCache(FakeCache):
+        async def get(self, key):
+            self.reads.append(key)
+            if key == f"session:{successor}":
+                return {"user_id": "owner"}
+            if key == "user_tokens:owner":
+                return {successor: {"security_country_code": "DE"}}
+            # The retired opening link was deleted by the rotation.
+            return None
+
+    cache, directus, socket = RotatedCache(), FakeDirectus(), FakeSocket()
+    ledger_read, pair_read = install_authority(monkeypatch)
+    ledger_read.return_value = (successor, {"user_id": "owner"})
+    monkeypatch.setattr(websockets, "_load_fresh_personal_memories", AsyncMock(
+        return_value=SimpleNamespace(model_dump=lambda mode: {"memories": []})))
+
+    asyncio.run(websockets.handle_personal_memory_snapshot(
+        websocket=socket, payload={"request_id": REQUEST_ID}, auth_data=auth_data(),
+        cache_service=cache, directus_service=directus,
+    ))
+
+    assert socket.frames[0]["payload"]["success"] is True
+    ledger_read.assert_awaited_once_with(directus, cache, SESSION_HASH, user_id="owner", allow_risk=False)
+    pair_read.assert_awaited_once_with(directus, cache, successor)
+    assert f"session:{SESSION_HASH}" not in cache.reads

@@ -135,13 +135,17 @@
   }
 
   .result-image {
+    /* Pinned to the box (not height: 100%): Safari cannot resolve a percentage
+       height inside a flex item, which cropped square images top and bottom. */
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: contain;
     display: block;
     opacity: 0;
     transition: opacity var(--duration-normal) var(--easing-default);
-    background: color-mix(in srgb, var(--color-grey-20) 27.272727%, var(--color-grey-25));
+    background: var(--color-media-letterbox);
   }
 
   .result-image.visible {
@@ -177,11 +181,7 @@
     50%       { opacity: 1; }
   }
 
-  :global([data-theme="dark"]) .result-image {
-    background: var(--color-grey-20);
-  }
-
-  :global([data-theme="dark"]) .skeleton-image,
+    :global([data-theme="dark"]) .skeleton-image,
   :global([data-theme="dark"]) .image-placeholder {
     background: var(--color-grey-20);
   }

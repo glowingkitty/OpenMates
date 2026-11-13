@@ -17,7 +17,6 @@ import { codexResumeArguments, assertCodexClaimCaller, assertClaudeClaimCaller, 
 import {
   OpenMatesClient,
   INTEREST_TAG_IDS,
-  MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
   deriveAppUrl,
   type ChatListPage,
@@ -70,6 +69,7 @@ import {
   type TeamRole,
   type WorkspaceMoveType,
   type DecryptedConnectedAccountForSkill,
+  TYPED_MEMORIES_REMOVED_MESSAGE,
 } from "./client.js";
 import { OpenMates, OpenMatesApiError, type ChatResponse, type EncryptedChatMetadata } from "./sdk.js";
 import { WebSocketProtocolError, type PendingTaskUpdateJobFrame, type StreamEvent, type SubChatEvent, type TaskEventFrame } from "./ws.js";
@@ -700,7 +700,7 @@ async function main(): Promise<void> {
   }
 
   if (command === "learning-mode") {
-    await handleLearningMode(client, subcommand, parsed.flags);
+    await handleLearningMode(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -1270,6 +1270,7 @@ async function handleTasks(
       projectIds: flags.project || flags.projects ? splitCsvFlag(flags.project ?? flags.projects) : undefined,
       planId: flags.plan === true ? null : typeof flags.plan === "string" ? flags.plan : undefined,
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
+      dueAt: parseDueAt(flags.due),
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
     }), scope);
     const updated = flags["delivery-id"]
@@ -9414,7 +9415,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["newsletter", "subscribe"], description: "Subscribe an email to the newsletter", examples: ["openmates settings newsletter subscribe you@example.com --language en"] },
   { path: ["newsletter", "confirm"], description: "Confirm newsletter subscription token", examples: ["openmates settings newsletter confirm <token>"] },
   { path: ["newsletter", "unsubscribe"], description: "Unsubscribe with newsletter token", examples: ["openmates settings newsletter unsubscribe <token>"] },
-  { path: ["memories"], description: "Manage encrypted memories", examples: ["openmates settings memories list", "openmates settings memories create --app-id code --item-type projects --data '{\"name\":\"OpenMates\"}'"] },
+  { path: ["memories"], description: "List or delete Memories (typed app memories were replaced; create in the web app under Settings > Memories)", examples: ["openmates settings memories list", "openmates settings memories delete --id <entry-id>"] },
 ];
 
 const SETTINGS_INFO_COMMANDS: SettingsInfoCommand[] = [
@@ -11549,6 +11550,7 @@ const LEARNING_MODE_AGE_GROUPS = new Set<LearningModeAgeGroup>([
 async function handleLearningMode(
   client: OpenMatesClient,
   subcommand: string | undefined,
+  rest: string[],
   flags: Record<string, string | boolean>,
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
@@ -11564,8 +11566,25 @@ async function handleLearningMode(
   if (subcommand === "enable") {
     const ageGroup = parseLearningModeAgeGroup(flags["age-group"]);
     const passcode = parseRequiredStringFlag(flags.passcode, "--passcode");
+    const collaborativeBuild = parseCollaborativeBuildFlags(flags);
     printLearningModeStatus(
-      await client.activateLearningMode({ ageGroup, passcode }),
+      await client.activateLearningMode({ ageGroup, passcode, collaborativeBuild }),
+      flags.json === true,
+    );
+    return;
+  }
+
+  if (subcommand === "collaborative") {
+    const state = rest[0];
+    if (state !== "on" && state !== "off") {
+      throw new Error("Provide on or off: openmates learning-mode collaborative on|off [--passcode <passcode>].");
+    }
+    // Enabling needs the passcode; the backend refuses an unauthenticated enable.
+    const passcode = state === "on"
+      ? parseRequiredStringFlag(flags.passcode, "--passcode")
+      : typeof flags.passcode === "string" && flags.passcode.length > 0 ? flags.passcode : undefined;
+    printLearningModeStatus(
+      await client.setLearningModeCollaborative({ enabled: state === "on", passcode }),
       flags.json === true,
     );
     return;
@@ -11580,6 +11599,16 @@ async function handleLearningMode(
   console.error(`Unknown learning-mode command '${subcommand}'.\n`);
   printLearningModeHelp();
   process.exit(1);
+}
+
+/** `--collaborative-build` / `--no-collaborative-build`; neither => undefined (backend default). */
+function parseCollaborativeBuildFlags(flags: Record<string, string | boolean>): boolean | undefined {
+  const on = flags["collaborative-build"] === true;
+  const off = flags["no-collaborative-build"] === true;
+  if (on && off) throw new Error("Use only one of --collaborative-build and --no-collaborative-build.");
+  if (on) return true;
+  if (off) return false;
+  return undefined;
 }
 
 function parseLearningModeAgeGroup(value: string | boolean | undefined): LearningModeAgeGroup {
@@ -11612,6 +11641,9 @@ function printLearningModeStatus(status: LearningModeStatus, json: boolean): voi
   }
   console.log(`Learning Mode: ${status.enabled ? "enabled" : "disabled"}`);
   if (status.age_group) console.log(`Age group: ${status.age_group}`);
+  if (status.enabled && typeof status.collaborative_build === "boolean") {
+    console.log(`Collaborative build: ${status.collaborative_build ? "on" : "off"}`);
+  }
   if (status.failed_attempts > 0) console.log(`Failed disable attempts: ${status.failed_attempts}`);
   if (status.deactivation_blocked_until) {
     console.log(`Disable blocked until: ${new Date(status.deactivation_blocked_until * 1000).toISOString()}`);
@@ -11649,90 +11681,28 @@ async function handleMemories(
     return;
   }
 
-  if (action === "types") {
-    const types = Object.entries(MEMORY_TYPE_REGISTRY).map(([key, def]) => ({
-      key,
-      app_id: def.appId,
-      item_type: def.itemType,
-      entry_type: def.entryType,
-      required: def.required,
-      properties: Object.keys(def.properties),
-    }));
-    const appFilter =
-      typeof flags["app-id"] === "string" ? flags["app-id"] : null;
-    const filtered = appFilter
-      ? types.filter((t) => t.app_id === appFilter)
-      : types;
-    if (flags.json === true) {
-      printJson(filtered);
-    } else {
-      printMemoryTypes(filtered);
-    }
-    return;
-  }
-
-  if (action === "create") {
-    const appId = typeof flags["app-id"] === "string" ? flags["app-id"] : "";
-    const itemType =
-      typeof flags["item-type"] === "string" ? flags["item-type"] : "";
-    const dataRaw = typeof flags.data === "string" ? flags.data : null;
-
-    if (!appId || !itemType) {
-      console.error(
-        "Missing required flags.\n\n" +
-          "Usage: openmates settings memories create --app-id <id> --item-type <type> --data '<json>'\n\n" +
-          "Run 'openmates settings memories types' to see all available types.",
-      );
-      process.exit(1);
-    }
-    if (!dataRaw) {
-      console.error(
-        "Missing --data '<json>'. Provide the memory field values as a JSON object.\n\n" +
-          `Example: --data '{"name":"Python","proficiency":"advanced"}'`,
-      );
-      process.exit(1);
-    }
-
-    const itemValue = JSON.parse(dataRaw) as Record<string, unknown>;
-    const result = await client.createMemory({ appId, itemType, itemValue, ...teamContextFromFlags(flags) });
-    if (flags.json === true) {
-      printJson(result);
-    } else {
-      console.log(
-        `\x1b[32m✓\x1b[0m Memory created  \x1b[2mid: ${result.id}\x1b[0m`,
-      );
-    }
-    return;
+  if (action === "types" || action === "create") {
+    console.error(TYPED_MEMORIES_REMOVED_MESSAGE);
+    process.exit(1);
   }
 
   if (action === "update") {
     const entryId = typeof flags.id === "string" ? flags.id : "";
-    const appId = typeof flags["app-id"] === "string" ? flags["app-id"] : "";
-    const itemType =
-      typeof flags["item-type"] === "string" ? flags["item-type"] : "";
     const dataRaw = typeof flags.data === "string" ? flags.data : null;
-    const currentVersion =
-      typeof flags.version === "string" ? parseInt(flags.version, 10) : 1;
-
-    if (!entryId || !appId || !itemType) {
+    if (!entryId.startsWith("account-memory-") || !dataRaw) {
       console.error(
-        "Missing required flags.\n\n" +
-          "Usage: openmates settings memories update --id <entry-id> --app-id <id> --item-type <type> --data '<json>' [--version <n>]",
+        TYPED_MEMORIES_REMOVED_MESSAGE +
+          "\n\nOnly Memory documents can be edited here: openmates settings memories update --id account-memory-<id> --data '{\"title\":\"...\",\"document\":\"...\"}'",
       );
       process.exit(1);
     }
-    if (!dataRaw) {
-      console.error("Missing --data '<json>'.");
-      process.exit(1);
-    }
-
     const itemValue = JSON.parse(dataRaw) as Record<string, unknown>;
     const result = await client.updateMemory({
       entryId,
-      appId,
-      itemType,
+      appId: "openmates",
+      itemType: "memories",
       itemValue,
-      currentVersion,
+      currentVersion: 1,
       ...teamContextFromFlags(flags),
     });
     if (flags.json === true) {
@@ -11763,7 +11733,7 @@ async function handleMemories(
   }
 
   console.error(
-    `Unknown memories action '${action}'.\n\nUsage: openmates settings memories <list|types|create|update|delete>`,
+    `Unknown memories action '${action}'.\n\nUsage: openmates settings memories <list|update|delete>`,
   );
   process.exit(1);
 }
@@ -14085,40 +14055,6 @@ function printMemoriesList(
   }
 }
 
-function printMemoryTypes(
-  types: Array<{
-    key: string;
-    app_id: string;
-    item_type: string;
-    entry_type: string;
-    required: string[];
-    properties: string[];
-  }>,
-): void {
-  if (types.length === 0) {
-    console.log("No memory types found.");
-    return;
-  }
-  header(`Memory types  (${types.length})\n`);
-  let lastApp = "";
-  for (const t of types) {
-    if (t.app_id !== lastApp) {
-      if (lastApp !== "") console.log();
-      process.stdout.write(`\x1b[1m${t.app_id}\x1b[0m\n`);
-      lastApp = t.app_id;
-    }
-    process.stdout.write(
-      `  \x1b[36m${t.item_type}\x1b[0m  \x1b[2m${t.entry_type}\x1b[0m\n`,
-    );
-    kv("required", t.required.join(", ") || "none", 12);
-    kv("fields", t.properties.join(", "), 12);
-  }
-  console.log();
-  console.log(
-    `\x1b[2mCreate: openmates settings memories create --app-id <id> --item-type <type> --data '<json>'\x1b[0m`,
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
@@ -14808,7 +14744,8 @@ Options:
 function printLearningModeHelp(): void {
   console.log(`Learning Mode commands:
   openmates learning-mode status [--json]
-  openmates learning-mode enable --age-group <group> --passcode <passcode> [--json]
+  openmates learning-mode enable --age-group <group> --passcode <passcode> [--collaborative-build | --no-collaborative-build] [--json]
+  openmates learning-mode collaborative <on|off> [--passcode <passcode>] [--json]
   openmates learning-mode disable --passcode <passcode> [--json]
 
 Learning Mode is account-wide and applies to CLI, web, Apple, and API chat requests.
@@ -14818,7 +14755,10 @@ Age groups:
 
 Options:
   --age-group <group>  Required for enable
-  --passcode <value>   Required for enable and disable
+  --passcode <value>   Required for enable, disable and collaborative on
+  --collaborative-build / --no-collaborative-build
+                       Choose collaborative build when enabling (default on,
+                       always off for under_10)
   --json               Output backend status JSON`);
 }
 
@@ -15016,7 +14956,7 @@ function printTasksHelp(): void {
   openmates tasks history <task-id|short-id> [--limit <n>] [--json]
   openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
-  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--json]
+  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat codex:<thread-uuid>|claude:<session-uuid> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--due <date>] [--json]
   openmates tasks delete <task-id|short-id> --confirm [--json]
   openmates tasks start <task-id|short-id> [--json]
   openmates tasks status [<task-id|short-id>] [--json]
@@ -15503,16 +15443,11 @@ Examples:
 function printMemoriesHelp(): void {
   console.log(`Memories commands:
   openmates settings memories list [--app-id <id>] [--item-type <type>] [--json]
-  openmates settings memories types [--app-id <id>] [--json]
-  openmates settings memories create --app-id <id> --item-type <type> --data '<json>'
-  openmates settings memories update --id <id> --app-id <id> --item-type <type> --data '<json>' [--version <n>]
+  openmates settings memories update --id account-memory-<id> --data '{"title":"...","document":"..."}'
   openmates settings memories delete --id <entry-id>
 
-Examples:
-  openmates settings memories types --app-id code
-  openmates settings memories list --app-id code
-  openmates settings memories create --app-id code --item-type preferred_tech --data '{"name":"Python","proficiency":"advanced"}'
-  openmates settings memories delete --id <uuid>`);
+Typed app memories were replaced by Memories (personal documents).
+Create and organize Memories in the web app under Settings > Memories.`);
 }
 
 // ---------------------------------------------------------------------------

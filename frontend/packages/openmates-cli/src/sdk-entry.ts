@@ -3,6 +3,8 @@ export * from "./sdk.js";
 export * from "./sdkSession.js";
 export * from "./sdkTaskOrder.js";
 export * from "./sdkPrivacy.js";
+export * from "./sdkKeyManagement.js";
+export * from "./sdkModels.js";
 export { APP_SKILL_METADATA } from "./generated/appSkills.js";
 
 export * from "./sdkProjectTaskWatch.js";

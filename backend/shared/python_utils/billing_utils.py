@@ -35,6 +35,26 @@ class BillingError(Exception):
     pass
 
 
+# One customer rounding step (credits per 1M tokens) allowed between derived context-band prices.
+CONTEXT_BAND_ROUNDING_CREDITS = Fraction(5)
+# Stored token rates are rounded up to a multiple of this many tokens.
+CONTEXT_BAND_ROUNDING_TOKENS = Fraction(5)
+
+
+def context_band_tolerance_credits(base_unit: Fraction, band_unit: Fraction, multiplier: Fraction) -> Fraction:
+    """Credits per 1M tokens by which a band may differ from base x multiplier.
+
+    Each stored rate is rounded up by less than CONTEXT_BAND_ROUNDING_TOKENS
+    tokens per credit, which moves credits per 1M by at most step * 1M / unit^2.
+    """
+    base_unit, band_unit = Fraction(base_unit), Fraction(band_unit)
+    step = CONTEXT_BAND_ROUNDING_TOKENS * 1_000_000
+    return (
+        multiplier * step / (base_unit * base_unit)
+        + step / (band_unit * band_unit)
+        + CONTEXT_BAND_ROUNDING_CREDITS * multiplier + 1
+    )
+
 def has_credit_headroom(current_credits: int, estimated_credits: int) -> bool:
     """Return whether a planned charge stays within the allowed overdraft."""
     return current_credits - estimated_credits >= OVERDRAFT_LIMIT_CREDITS
@@ -189,6 +209,19 @@ def is_cache_tariff_eligible(cache_policy: Dict[str, Any], inference_host: str |
     )
 
 
+def is_cache_review_lapsed(cache_policy: Dict[str, Any], inference_host: str | None) -> bool:
+    """True for a verified cache route whose evidence review deadline has passed.
+
+    Such a route may still read or write provider caches, so its whole reported
+    input is billed at the ordinary rate. Only routes that never had a verified
+    cache tariff keep the old native-input charge.
+    """
+    return bool(
+        cache_policy.get("status") == "expired_pending_review"
+        and (not cache_policy.get("eligible_hosts") or inference_host in cache_policy["eligible_hosts"])
+    )
+
+
 def is_cache_tariff_admissible(
     cache_policy: Dict[str, Any], inference_host: str | None, *, on_date: date | None = None,
 ) -> bool:
@@ -290,13 +323,14 @@ def select_customer_context_band(
             raise BillingError("Invalid customer context band token unit") from exc
         if not base_unit.is_finite() or base_unit <= 0 or not band_unit.is_finite() or band_unit <= 0:
             raise BillingError("Invalid customer context band token unit")
-        if anthropic_band:
-            expected = Fraction(base_unit) / 5
-        elif category == "output":
-            expected = Fraction(base_unit) * Fraction(2, 3) // 1
-        else:
-            expected = Fraction(base_unit) / 2
-        if Fraction(band_unit) != expected:
+        multiplier = Fraction(5) if anthropic_band else Fraction(3, 2) if category == "output" else Fraction(2)
+        # Compare credits per 1M tokens. Each derived price is rounded up to a
+        # 5-token step, so the band may differ from base x multiplier by the
+        # credit effect of one token step on each rate.
+        base_credits = Fraction(1_000_000) / Fraction(base_unit)
+        band_credits = Fraction(1_000_000) / Fraction(band_unit)
+        tolerance = context_band_tolerance_credits(Fraction(base_unit), Fraction(band_unit), multiplier)
+        if abs(band_credits - base_credits * multiplier) > tolerance:
             raise BillingError("Customer context band does not match the approved multiplier")
     if inference_host not in band["eligible_hosts"]:
         return None, base_rates
@@ -338,8 +372,9 @@ def calculate_token_category_credits(
     )
     cache_policy = model_pricing_details.get("cache_pricing", {})
     eligible_policy = is_cache_tariff_eligible(cache_policy, inference_host)
+    inclusive_policy = eligible_policy or is_cache_review_lapsed(cache_policy, inference_host)
     charged_output = (
-        output_tokens if eligible_policy or model_pricing_details.get("bill_reasoning_tokens") is True
+        output_tokens if inclusive_policy or model_pricing_details.get("bill_reasoning_tokens") is True
         else output_tokens if legacy_billable_output is None else legacy_billable_output
     )
     separate_writes = cache_policy.get("write_billing") == "separate"
@@ -376,10 +411,11 @@ def calculate_token_category_credits(
     if not active:
         # An enabled/eligible route with partial counters has already incurred
         # every *known* reported input category. Bill that inclusive total at
-        # the ordinary rate. Only disabled/ineligible routes retain the old
-        # native-input charge (exclusive of cache tokens on Anthropic/Bedrock).
+        # the ordinary rate, as does a verified route whose review has lapsed.
+        # Only disabled/ineligible routes retain the old native-input charge
+        # (exclusive of cache tokens on Anthropic/Bedrock).
         legacy_input = (
-            input_total if eligible_policy or legacy_billable_input is None
+            input_total if inclusive_policy or legacy_billable_input is None
             else legacy_billable_input
         )
         return {

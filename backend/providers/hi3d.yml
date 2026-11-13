@@ -1,8 +1,8 @@
 # backend/providers/hi3d.yml
 #
 # Hi3D image-to-3D generation metadata for models3d.generate.
-# V1 uses the v2.1 fast PBR GLB API and passes provider cost through without
-# markup. API credentials live at kv/data/providers/hi3d.
+# V1 uses the v2.1 fast PBR GLB API; its price is provider cost plus the
+# standard margin. API credentials live at kv/data/providers/hi3d.
 
 provider_id: hi3d
 name: Hi3D
@@ -39,8 +39,12 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 25
+        credits: 40
         unit_name: model
     costs:
       output_per_model:
         credits: 25
+      per_model:
+        price: 0.025
+        currency: USD
+        note: Hi3D per-model price

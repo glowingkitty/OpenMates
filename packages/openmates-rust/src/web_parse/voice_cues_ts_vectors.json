@@ -1,0 +1,144 @@
+{
+ "strip": [
+  {
+   "in": "",
+   "out": ""
+  },
+  {
+   "in": "plain text",
+   "out": "plain text"
+  },
+  {
+   "in": "<!-- voice:curious -->Hi",
+   "out": " Hi"
+  },
+  {
+   "in": "a <!--voice:excited--> b",
+   "out": "a   b"
+  },
+  {
+   "in": "<!--\tvoice:laughs\n--> x",
+   "out": "  x"
+  },
+  {
+   "in": "<!-- voice:short pause -->Then",
+   "out": " Then"
+  },
+  {
+   "in": "<!-- voice:short  pause -->Then",
+   "out": "<!-- voice:short  pause -->Then"
+  },
+  {
+   "in": "<!-- voice:Curious -->",
+   "out": "<!-- voice:Curious -->"
+  },
+  {
+   "in": "<!-- voice:unknown --> kept?",
+   "out": "<!-- voice:unknown --> kept?"
+  },
+  {
+   "in": "<!-- voice:whispers --><!-- voice:thoughtful -->x",
+   "out": "  x"
+  },
+  {
+   "in": "Useful answer. <!-- voice:cur",
+   "out": "Useful answer.  "
+  },
+  {
+   "in": "Useful answer. <!-- voice:",
+   "out": "Useful answer.  "
+  },
+  {
+   "in": "<!-- voice:curious",
+   "out": " "
+  },
+  {
+   "in": "<!-- voice:curious -- >",
+   "out": "<!-- voice:curious -- >"
+  },
+  {
+   "in": "<!-- voice:curious --> tail <!-- voice:exc",
+   "out": "  tail  "
+  },
+  {
+   "in": "<!-- voice:unknown --> then <!-- voice:curious -->",
+   "out": "<!-- voice:unknown --> then  "
+  },
+  {
+   "in": "<!-- voice:x\nnewline --",
+   "out": " "
+  },
+  {
+   "in": "<!-- other -->",
+   "out": "<!-- other -->"
+  },
+  {
+   "in": "<!-- voice:curious --> x　<!--　voice:laughs -->",
+   "out": "  x　 "
+  },
+  {
+   "in": "`<!-- voice:curious -->`",
+   "out": "`<!-- voice:curious -->`"
+  },
+  {
+   "in": "``a `<!-- voice:laughs -->` b``<!-- voice:laughs -->",
+   "out": "``a `<!-- voice:laughs -->` b`` "
+  },
+  {
+   "in": "`unclosed <!-- voice:curious -->",
+   "out": "`unclosed <!-- voice:curious -->"
+  },
+  {
+   "in": "```text\n<!-- voice:excited -->\n```\n<!-- voice:excited -->",
+   "out": "```text\n<!-- voice:excited -->\n```\n "
+  },
+  {
+   "in": "````markdown\n```\n<!-- voice:excited -->\n````<!-- voice:excited -->",
+   "out": "````markdown\n```\n<!-- voice:excited -->\n```` "
+  },
+  {
+   "in": "~~~text\n<!-- voice:laughs -->\n~~~ <!-- voice:laughs -->",
+   "out": "~~~text\n<!-- voice:laughs -->\n~~~  "
+  },
+  {
+   "in": "~~ <!-- voice:laughs --> ~~",
+   "out": "~~   ~~"
+  },
+  {
+   "in": "~~~~ a ~~~ <!-- voice:laughs --> ~~~~ <!-- voice:laughs -->",
+   "out": "~~~~ a ~~~ <!-- voice:laughs --> ~~~~  "
+  },
+  {
+   "in": "~~~ never closed <!-- voice:laughs -->",
+   "out": "~~~ never closed <!-- voice:laughs -->"
+  },
+  {
+   "in": "``a``` <!-- voice:laughs -->",
+   "out": "``a``` <!-- voice:laughs -->"
+  },
+  {
+   "in": "a ` b <!-- voice:laughs --> c ` d <!-- voice:laughs -->",
+   "out": "a ` b <!-- voice:laughs --> c ` d  "
+  },
+  {
+   "in": "Read [the guide](https://example.org). <!-- voice:short pause -->Then continue.",
+   "out": "Read [the guide](https://example.org).  Then continue."
+  },
+  {
+   "in": "café 😀 <!-- voice:curious --> 中文 <!-- voice:exc",
+   "out": "café 😀   中文  "
+  },
+  {
+   "in": "<<!-- voice:curious -->",
+   "out": "< "
+  },
+  {
+   "in": "<!-<!-- voice:curious -->",
+   "out": "<!- "
+  },
+  {
+   "in": "a>b <!-- voice:excited --> c>d",
+   "out": "a>b   c>d"
+  }
+ ]
+}

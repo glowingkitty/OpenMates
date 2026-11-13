@@ -1,5 +1,9 @@
 <!--
   frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Renderers/ImageGenerateEmbedRenderer.swift
+    Enhance and version restore: apple/OpenMates/Sources/Features/Embeds/Views/EmbedVersionEditControls.swift,
+    apple/OpenMates/Sources/Core/CoreBridge/CoreEmbedVersions.swift
   
   Fullscreen view for Image Generate embeds.
   Uses UnifiedEmbedFullscreen as base and provides image-specific content.
@@ -15,10 +19,11 @@
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
   const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
-  import { onDestroy, getContext} from 'svelte';
+  import { onDestroy, getContext, untrack } from 'svelte';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import { text, settingsDeepLink, panelState } from '@repo/ui';
+  import { notificationStore } from '../../../stores/notificationStore';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
   const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
 
@@ -30,6 +35,22 @@
   import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
+  import SvgEmbedImage from '../code/SvgEmbedImage.svelte';
+  import AiGeneratedBadge from '../AiGeneratedBadge.svelte';
+  import { containedFrame, trackContainedInset, type ContainedFrame, type ContainedInset } from '../containedMedia';
+  import ImageModifyProgress from './ImageModifyProgress.svelte';
+  import ImageModifyUnmet from './ImageModifyUnmet.svelte';
+  import { isModifySkill, readImageModify, readUnmetRequirements } from './imageDraft';
+  import { readSvgDraft, shouldShowDraftStatusOnly, shouldShowSvgDraft, svgDraftStageLabelKey } from './svgDraft';
+  import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
+  import { EMBED_VERSIONS_ENABLED, embedContentAtVersion, embedHead } from '../../../services/rustCore/embeds/messageEmbedVersion';
+  import { takeFullscreenVersion, versionBadgeLabel } from './imageVersionScope';
+  import { createImageEnhance, imageEditAvailability, imageEditErrorKey } from './imageEnhance.svelte';
+  import { EMBED_EDITS_ENABLED, enhanceImage, restoreEmbedVersion, runningEnhance } from '../../../services/rustCore/embeds/embedEditSession';
+  import { requestEmbedFromServerOnce } from '../../../services/embedResolver';
+  import { noteEmbedHeadChanged } from '../../../services/rustCore/embeds/messageEmbedVersion';
+  import { activeTeamId } from '../../../stores/teamStore';
+  import { get } from 'svelte/store';
 
   /**
    * Type for files metadata from embed content
@@ -73,6 +94,21 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button */
     onShowChat?: () => void;
+    /** Version to open at (the card's message version); defaults to the version the card remembered, else the head. */
+    initialVersion?: number;
+    /** Preview only: the version shown and the number of versions, without the core. */
+    version?: number;
+    versionCount?: number;
+    /** Enhance button (presentation only; the caller runs the Enhance). Omit onEnhance to hide it. */
+    onEnhance?: () => void;
+    /** False shows the button disabled with a reason (viewer without edit rights). Default true. */
+    canEnhance?: boolean;
+    enhanceState?: 'idle' | 'running' | 'failed';
+    /** Message of a failed Enhance; shown as a notification and as the button tooltip. */
+    enhanceError?: string;
+    /** Opened from the Projects workspace: Enhance and restore save in this Project. */
+    projectId?: string;
+    teamId?: string | null;
   }
 
   let {
@@ -86,11 +122,33 @@
     navigateDirection,
     showChatButton = false,
     onShowChat,
+    initialVersion,
+    version: previewVersion,
+    versionCount,
+    onEnhance,
+    canEnhance = true,
+    enhanceState = 'idle',
+    enhanceError,
+    projectId,
+    teamId,
   }: Props = $props();
 
   // ── Extract fields from data.decodedContent and data.embedData ──────────────
 
-  let dc = $derived(data.decodedContent);
+  // Image versions (`images-generate.revision.message-shows-its-version`): the fullscreen
+  // opens at the version of the message it came from; the timeline switches versions.
+  // Read once on open (on purpose): later version changes come from the timeline.
+  const startVersion = untrack(() => initialVersion ?? previewVersion ?? takeFullscreenVersion(embedId));
+  let headVersion = $state<number | undefined>(untrack(() => versionCount));
+  let shownVersion = $state<number | undefined>(startVersion);
+  // The "AI generated" badge sits on the visible picture, not on the margin beside it.
+  let pictureFrame = $state<ContainedFrame | null>(null);
+  const trackPicture = (inset: ContainedInset | null, element: HTMLElement) => (pictureFrame = containedFrame(element, inset));
+  let versionContent = $state<Record<string, unknown> | null>(null);
+  let versionError = $state<string | undefined>(undefined);
+  let versionBadge = $derived(versionBadgeLabel(shownVersion ?? headVersion, headVersion));
+
+  let dc = $derived(versionContent ?? data.decodedContent);
   let ed = $derived(data.embedData);
   let prompt = $derived(typeof dc.prompt === 'string' ? dc.prompt : undefined);
   let model = $derived(typeof dc.model === 'string' ? dc.model : undefined);
@@ -103,7 +161,18 @@
   let aesNonce = $derived(typeof dc.aes_nonce === 'string' ? dc.aes_nonce : undefined);
   let status = $derived(typeof ed?.status === 'string' ? ed.status : 'finished');
   let error = $derived(typeof dc.error === 'string' ? dc.error : undefined);
-  let skillIdProp = $derived<'generate' | 'generate_draft'>(typeof dc.skill_id === 'string' && dc.skill_id === 'generate_draft' ? 'generate_draft' : 'generate');
+  // Live SVG drawing while the vector author is still working
+  let svgDraftState = $derived(readSvgDraft(dc));
+  let showSvgDraft = $derived(shouldShowSvgDraft(status, svgDraftState.draft));
+  let showDraftStatusOnly = $derived(shouldShowDraftStatusOnly(status, svgDraftState.draft, svgDraftState.stage));
+  let draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
+  let skillIdProp = $derived<'generate' | 'generate_draft' | 'modify'>(
+    typeof dc.skill_id === 'string' && dc.skill_id === 'generate_draft' ? 'generate_draft'
+      : isModifySkill(dc.skill_id) ? 'modify' : 'generate');
+  // images.modify progress and review result
+  let modifyState = $derived(readImageModify(dc));
+  let showModifyProgress = $derived(isModifySkill(skillIdProp) && status === 'processing' && (!!modifyState.stage || !!modifyState.draft));
+  let unmetRequirements = $derived(readUnmetRequirements(dc));
   let generatedAt = $derived(typeof dc.generated_at === 'string' ? dc.generated_at : undefined);
   let inputEmbedIds = $derived(Array.isArray(dc.input_embed_ids) ? dc.input_embed_ids as string[] : undefined);
   // Direct preview image URL for store examples — bypasses S3 decrypt
@@ -132,13 +201,13 @@
 
   // The header and download use the same saved asset name.
   let embedHeaderTitle = $derived(filename || (skillIdProp === 'generate_draft'
-    ? $text('embeds.image_generate_draft') : $text('common.generate')));
+    ? $text('embeds.image_generate_draft') : skillIdProp === 'modify' ? $text('embeds.image_modify.title') : $text('common.generate')));
 
   // Header subtitle: skill display name (doubles as "Generated image" label)
   let embedHeaderSubtitle = $derived(
     skillIdProp === 'generate_draft'
       ? $text('embeds.image_generate_draft')
-      : $text('common.generate')
+      : skillIdProp === 'modify' ? $text('embeds.image_modify.title') : $text('common.generate')
   );
   
   let modelMetadata = $derived(model ? getModelByNameOrId(model) : undefined);
@@ -152,6 +221,54 @@
   // Track copy feedback state
   let showCopied = $state(false);
   
+  /** Drop the shown picture so the image effect loads the selected version's files. */
+  function resetImage() {
+    if (retainedPreviewKey) releaseCachedImage(retainedPreviewKey);
+    if (retainedFullKey) releaseCachedImage(retainedFullKey);
+    retainedPreviewKey = undefined;
+    retainedFullKey = undefined;
+    previewImageUrl = undefined;
+    fullImageUrl = undefined;
+    imageError = undefined;
+  }
+
+  /** Show version `version`: `toon` is its plaintext, null for the stored head. */
+  async function showVersion(version: number, toon: string | null) {
+    versionError = undefined;
+    const content = toon === null ? null : await decodeToonContent(toon);
+    if (toon !== null && !content) {
+      versionError = 'embed_version_content_undecodable';
+      return;
+    }
+    resetImage();
+    shownVersion = version;
+    versionContent = (content as Record<string, unknown> | null) ?? null;
+  }
+
+  function versionChatId(): string {
+    if (!sourceChatId) throw new Error('embed_version_chat_unknown');
+    return sourceChatId;
+  }
+
+  $effect(() => {
+    if (!EMBED_VERSIONS_ENABLED || !embedId || versionCount !== undefined) return;
+    const id = embedId;
+    void (async () => {
+      try {
+        const head = await embedHead(id);
+        headVersion = head?.version ?? 1;
+        if (startVersion && startVersion < headVersion) {
+          await showVersion(startVersion, await embedContentAtVersion(versionChatId(), id, startVersion));
+        } else {
+          shownVersion = headVersion;
+        }
+      } catch (err) {
+        console.error('[ImageGenerateEmbedFullscreen] Failed to open the image version:', err);
+        versionError = err instanceof Error ? err.message : String(err);
+      }
+    })();
+  });
+
   /**
    * Load the full-resolution image from S3 with progressive enhancement.
    * 1. Instantly show the cached preview (likely already decrypted by the inline preview)
@@ -388,45 +505,82 @@
     panelState.openSettings();
   }
 
-  /**
-   * Build the same blob and filename as the download button (original file + embedded PNG metadata).
-   * Returns undefined if original file is not available.
-   */
-  async function getDownloadBlobAndFilename(): Promise<{ blob: Blob; filename: string } | undefined> {
-    if (!files?.original?.s3_key || !s3BaseUrl || !aesKey || !hasMediaEncryptionMetadata(files.original, aesNonce)) return undefined;
-    const blob = await fetchAndDecryptImage(s3BaseUrl, files.original.s3_key, aesKey, aesNonce ?? '', files.original);
-    const ext = files.original.format || 'png';
-    let resultBlob: Blob = blob;
-    if (ext === 'png') {
-      const arrayBuffer = await blob.arrayBuffer();
-      const metadataBytes = embedPngMetadata(arrayBuffer, {
-        prompt,
-        model,
-        software: 'OpenMates',
-        generatedAt
-      });
-      const ab = new ArrayBuffer(metadataBytes.byteLength);
-      new Uint8Array(ab).set(metadataBytes);
-      resultBlob = new Blob([ab], { type: 'image/png' });
+  // Enhance and restore through the client core (embed-user-edits); the preview passes its own onEnhance.
+  let chatTeamId = $state<string | null | undefined>(undefined);
+  $effect(() => {
+    const chatId = sourceChatContext?.chatId;
+    if (!EMBED_EDITS_ENABLED || projectId || !chatId) { chatTeamId = null; return; }
+    void import('../../../services/db').then(({ chatDB }) => chatDB.getChat(chatId))
+      .then((chat) => { chatTeamId = chat?.team_id ?? get(activeTeamId) ?? null; })
+      .catch((err: unknown) => { console.error('[ImageGenerateEmbedFullscreen] Chat of the image unreadable:', err); chatTeamId = null; });
+  });
+  let editPlace = $derived(chatTeamId === undefined ? null : imageEditAvailability({
+    chatId: sourceChatContext?.chatId ?? null, chatTeamId, projectId, projectTeamId: teamId,
+    readOnly: sourceChatContext?.isReadOnly === true || !!sourceChatContext?.exampleChatId,
+  }));
+  let coreEditable = $derived(EMBED_EDITS_ENABLED && !!embedId && !onEnhance && status === 'finished' && !!files);
+  let editScope = $derived(editPlace?.kind === 'available' ? editPlace.scope : null);
+
+  /** After a save: load the new head from the server so this view and the chat card show it. */
+  async function reloadHead(version: number | null) {
+    if (!embedId) return;
+    await requestEmbedFromServerOnce(embedId, 'user embed version saved', { chatId: projectId ? null : sourceChatId, refresh: true });
+    noteEmbedHeadChanged(embedId);
+    const head = await embedHead(embedId);
+    headVersion = Math.max(head?.version ?? 0, version ?? 0) || headVersion;
+    // The local row can still be the old head right after the save: open the saved version by number.
+    if (version !== null && !projectId && sourceChatId) {
+      await showVersion(version, await embedContentAtVersion(sourceChatId, embedId, version));
+      return;
     }
-    const downloadFilename = filename || generateImageFilename(prompt, ext);
-    return { blob: resultBlob, filename: downloadFilename };
+    const stored = await resolveEmbed(embedId, { chatId: projectId ? null : sourceChatId });
+    if (typeof stored?.content === 'string' && headVersion !== undefined) await showVersion(headVersion, stored.content);
+  }
+  const coreEnhance = createImageEnhance(() => embedId, () => editScope, {
+    enhance: enhanceImage, running: runningEnhance, translate: (key) => $text(key), reloadHead,
+  });
+  $effect(() => { if (coreEditable && editScope) void untrack(() => coreEnhance.resume()); });
+
+  async function restoreVersion(restoredContent: string, selected: number): Promise<{ version: number; content: string }> {
+    if (!embedId || !editScope) throw new Error($text('embed_user_edits.restore_failed'));
+    try {
+      const restored = await restoreEmbedVersion(embedId, editScope, selected);
+      await reloadHead(restored.version);
+      return { version: restored.version, content: restoredContent };
+    } catch (err) {
+      const code = (err as { code?: unknown } | null)?.code;
+      if (code === 'embed_version_conflict') await reloadHead(null);
+      throw new Error($text(imageEditErrorKey(typeof code === 'string' ? code : undefined, 'restore')));
+    }
   }
 
+  let shownEnhance = $derived(coreEditable && editPlace ? {
+    onEnhance: coreEnhance.start,
+    state: editScope ? coreEnhance.state : 'unavailable' as const,
+    error: coreEnhance.error,
+    reason: $text(editPlace.kind === 'unavailable' && editPlace.reason === 'team'
+      ? 'embed_user_edits.enhance_unavailable_team' : 'embed_user_edits.enhance_unavailable'),
+  } : null);
+
+  let notifiedEnhanceError: string | undefined;
+  $effect(() => {
+    const failed = (shownEnhance?.state ?? enhanceState) === 'failed'
+      ? (shownEnhance?.error ?? enhanceError ?? $text('embed_user_edits.enhance_failed')) : undefined;
+    if (failed && failed !== notifiedEnhanceError) notificationStore.error(failed);
+    notifiedEnhanceError = failed;
+  });
+
   /**
-   * Open the image by itself in a new tab (same file as download: original + metadata).
-   * The user can zoom in/out with the browser. Middle-click and Ctrl/Cmd+click use the native link.
+   * Open the shown image by itself in a new tab. The tab must open inside the tap
+   * itself: waiting for a download or decryption first makes mobile browsers block
+   * the popup, and re-decrypting the original per tap is heavy. The browser's own
+   * zoom then works on the image, so no in-app zoom is needed.
+   * Middle-click and Ctrl/Cmd+click use the native link.
    */
-  async function handleImageClick(e: MouseEvent) {
+  function handleImageClick(e: MouseEvent) {
     if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
     e.preventDefault();
-    const payload = await getDownloadBlobAndFilename();
-    if (payload) {
-      const imageBlobUrl = URL.createObjectURL(payload.blob);
-      window.open(imageBlobUrl, '_blank', 'noopener,noreferrer');
-    } else if (fullImageUrl) {
-      window.open(fullImageUrl, '_blank', 'noopener,noreferrer');
-    }
+    if (fullImageUrl) window.open(fullImageUrl, '_blank', 'noopener,noreferrer');
   }
 </script>
 
@@ -441,6 +595,10 @@
   showSkillIcon={true}
   {onClose}
   onDownload={files?.original ? handleDownload : undefined}
+  onEnhance={shownEnhance?.onEnhance ?? onEnhance}
+  enhanceState={shownEnhance?.state ?? (canEnhance ? enhanceState : 'unavailable')}
+  enhanceError={shownEnhance?.error ?? enhanceError ?? $text('embed_user_edits.enhance_failed')}
+  enhanceUnavailableReason={shownEnhance?.reason ?? $text('embed_user_edits.enhance_unavailable')}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -468,19 +626,49 @@
              2. Swap to full-res when ready
              On desktop this sits on the right; on narrow containers it appears first (top via CSS order). -->
         <div class="image-section">
-          {#if fullImageUrl}
-            <div class="image-wrapper">
+          {#if showModifyProgress}
+            <div class="svg-draft" data-testid="image-modify-opened">
+              <ImageModifyProgress state={modifyState} title={prompt || filename} fit="contain" />
+            </div>
+          {:else if showSvgDraft}
+            <div
+              class="svg-draft"
+              data-testid="image-generate-svg-draft"
+              data-stage={svgDraftState.stage}
+              data-attempt={svgDraftState.attempt}
+            >
+              <SvgEmbedImage code={svgDraftState.draft} title={prompt || filename} streaming={true} />
+              {#if draftStageLabelKey}
+                <span class="svg-draft-stage" data-testid="image-generate-svg-draft-stage">{$text(draftStageLabelKey)}</span>
+              {/if}
+            </div>
+          {:else if showDraftStatusOnly && draftStageLabelKey}
+            <div class="svg-draft draft-status" data-testid="image-generate-draft-status" data-stage={svgDraftState.stage}>
+              <span class="svg-draft-stage" data-testid="image-generate-svg-draft-stage">{$text(draftStageLabelKey)}</span>
+            </div>
+          {:else if versionError}
+            <div class="error-container" data-testid="image-generate-version-error">
+              <div class="error-icon">!</div>
+              <p class="error-message">{versionError}</p>
+            </div>
+          {:else if fullImageUrl}
+            <div class="image-wrapper" data-embed-version={shownVersion ?? 1}>
               <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" title={$text('embeds.image_generate.open_full_size')} onclick={handleImageClick}>
-                <img src={fullImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image" />
+                <img src={fullImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image" data-embed-version={shownVersion ?? 1} use:trackContainedInset={trackPicture} />
               </a>
+              {#if versionBadge}
+                <span class="version-badge" data-testid="image-generate-version-badge">{versionBadge}</span>
+              {/if}
+              {@render pictureBadge()}
             </div>
           {:else if previewImageUrl && isLoadingImage}
             <!-- Progressive: show preview while full-res loads -->
             <div class="image-wrapper progressive">
-              <img src={previewImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image preview-placeholder" />
+              <img src={previewImageUrl} alt={prompt || 'Generated image'} class="result-primary-media full-image preview-placeholder" use:trackContainedInset={trackPicture} />
               <div class="progressive-overlay">
                 <div class="loading-spinner small"></div>
               </div>
+              {@render pictureBadge()}
             </div>
           {:else if isLoadingImage}
             <div class="image-loading">
@@ -494,8 +682,20 @@
             </div>
           {/if}
         </div>
-
-
+        {#if embedId && headVersion && headVersion > 1}
+          <EmbedVersionTimeline
+            {embedId}
+            chatId={sourceChatId ?? undefined}
+            currentVersion={headVersion}
+            currentContent=""
+            initialVersion={shownVersion}
+            showChangesToggle={false}
+            loadVersionContent={(version) => embedContentAtVersion(versionChatId(), embedId, version)}
+            onVersionSelect={(version, content) => { void showVersion(version, content); }}
+            onVersionError={(version) => { versionError = `embed_version_unavailable:v${version}`; }}
+            onRestoreVersion={coreEditable && editScope ? restoreVersion : undefined}
+          />
+        {/if}
       {/if}
     </div>
   {/snippet}
@@ -526,7 +726,7 @@
           {/if}
 
           <!-- "Generated by {Model}" line with provider icon - clickable to open images skill settings -->
-          {#if modelDisplayName}
+          {#if modelDisplayName && skillIdProp !== 'modify'}
             <button class="generated-by-line" onclick={handleModelClick}>
               {#if providerIconUrl}
                 <img src={providerIconUrl} alt="" class="provider-icon" />
@@ -537,6 +737,10 @@
             </button>
           {/if}
           
+          {#if unmetRequirements.length > 0}
+            <ImageModifyUnmet requirements={unmetRequirements} />
+          {/if}
+
           <!-- Prompt quote card with decorative quote icons -->
           {#if prompt}
             <div class="quote-card">
@@ -564,7 +768,19 @@
   {/snippet}
 </ResultEmbedFullscreen>
 
+{#snippet pictureBadge()}
+  <div class="picture-frame" style:top="{pictureFrame?.top ?? 0}px" style:left="{pictureFrame?.left ?? 0}px"
+    style:width={pictureFrame ? `${pictureFrame.width}px` : '100%'} style:height={pictureFrame ? `${pictureFrame.height}px` : '100%'}>
+    <AiGeneratedBadge variant="fullscreen" corner="top-left" detail={modelDisplayName} />
+  </div>
+{/snippet}
+
 <style>
+  .picture-frame {
+    position: absolute;
+    pointer-events: none;
+  }
+
 
   .image-section { width: 100%; box-sizing: border-box; }
   /* ===========================================
@@ -600,6 +816,7 @@
   }
   
   .image-wrapper {
+    position: relative;
     width: 100%;
     max-width: 100%;
     max-height: 100%;
@@ -608,6 +825,21 @@
     justify-content: center;
   }
   
+  /* Version of the picture when the image has more than one */
+  .version-badge {
+    position: absolute;
+    top: var(--spacing-4);
+    right: var(--spacing-4);
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-2);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: var(--font-size-tiny);
+    font-weight: 600;
+    line-height: 1.3;
+    pointer-events: none;
+  }
+
   /* Clickable link wrapper for the image - opens full size in new tab */
   .image-link {
     width: 100%;
@@ -999,5 +1231,27 @@
     .quote-card {
       padding: 20px 46px;
     }
+  }
+
+  .svg-draft {
+    position: relative;
+    width: 100%;
+    min-height: 240px;
+    aspect-ratio: 1 / 1;
+    max-height: 100%;
+    overflow: hidden;
+    border-radius: var(--radius-3);
+  }
+
+  .svg-draft-stage {
+    position: absolute;
+    left: var(--spacing-4);
+    bottom: var(--spacing-4);
+    padding: var(--spacing-1) var(--spacing-4);
+    border-radius: var(--radius-2);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: var(--font-size-tiny);
+    pointer-events: none;
   }
 </style>

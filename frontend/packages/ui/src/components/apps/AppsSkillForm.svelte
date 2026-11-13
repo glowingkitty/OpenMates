@@ -6,6 +6,7 @@
   import { getAnonymousAppsSkillAvailability } from '../../services/appsWorkspaceService';
   import { isCachePricingDisplayActive, isLongContextPricingDisplayActive, supportsOneHourCacheWrites, type CachePricingAvailability } from '../../utils/cachePricingAvailability';
   import { getAutomaticSummaryPricing } from '../../utils/automaticSummaryPricing';
+  import { formatTokensPerCredit } from '../../utils/tokenRateFormat';
   import {
     expandCompositeSkillPaths, getSkillPath, prepareSkillInput, remainingSkillPaths, schemaForPath,
     selectSkillSchema, setSkillPath, showAllSkillSchema, skillLeafPaths,
@@ -82,7 +83,7 @@
     if (longContextActive) lines.push($text('settings.ai_ask.ai_ask_model_details.standard_pricing'));
     for (const direction of ['input', 'output'] as const) {
       const count = amount(data(tokens[direction]).per_credit_unit);
-      if (count !== null && count > 0) lines.push(`${tr('one_credit_per')} ${count} ${tr(`${direction}_tokens`)}`);
+      if (count !== null && count > 0) lines.push(`${tr('one_credit_per')} ${formatTokensPerCredit(count)} ${tr(`${direction}_tokens`)}`);
     }
     if (isCachePricingDisplayActive(cachePricing, defaultHost, standardRates)) {
       for (const direction of ['cache_read', 'cache_write', 'cache_write_1h'] as const) {
@@ -94,7 +95,7 @@
         if (direction === 'cache_write' && cachePricing.write_billing === 'included_in_input') {
           lines.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: ${$text('settings.ai_ask.ai_ask_model_details.included_in_input')}`);
         } else if (count !== null && count > 0) {
-          lines.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: ${tr('one_credit_per')} ${count} ${tr('input_tokens')}`);
+          lines.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: ${tr('one_credit_per')} ${formatTokensPerCredit(count)} ${tr('input_tokens')}`);
         }
       }
     }
@@ -118,7 +119,7 @@
           cache_write: longContextBand.cache_write_tokens_per_credit,
           output: longContextBand.output_tokens_per_credit,
         }[category];
-        if (count) lines.push(`${labelText}: ${tr('one_credit_per')} ${count} ${tr(unit)}`);
+        if (count) lines.push(`${labelText}: ${tr('one_credit_per')} ${formatTokensPerCredit(count)} ${tr(unit)}`);
       }
     }
     return lines;
@@ -289,11 +290,11 @@
       {#if automaticSummaryPricing}
         <p data-testid="apps-skill-automatic-summary-title"><strong>{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_title')}</strong></p>
         <p data-testid="apps-skill-automatic-summary-explanation">{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_explanation')}</p>
-        <p data-testid="apps-skill-summary-primary-input">{automaticSummaryPricing.primary.name} · {$text('settings.usage.cache_receipt_standard_input')}: {tr('one_credit_per')} {automaticSummaryPricing.primary.inputTokensPerCredit} {tr('input_tokens')}</p>
-        <p data-testid="apps-skill-summary-primary-output">{automaticSummaryPricing.primary.name} · {$text('settings.ai_ask.ai_ask_model_details.billable_output')}: {tr('one_credit_per')} {automaticSummaryPricing.primary.outputTokensPerCredit} {tr('output_tokens')}</p>
+        <p data-testid="apps-skill-summary-primary-input">{automaticSummaryPricing.primary.name} · {$text('settings.usage.cache_receipt_standard_input')}: {tr('one_credit_per')} {formatTokensPerCredit(automaticSummaryPricing.primary.inputTokensPerCredit)} {tr('input_tokens')}</p>
+        <p data-testid="apps-skill-summary-primary-output">{automaticSummaryPricing.primary.name} · {$text('settings.ai_ask.ai_ask_model_details.billable_output')}: {tr('one_credit_per')} {formatTokensPerCredit(automaticSummaryPricing.primary.outputTokensPerCredit)} {tr('output_tokens')}</p>
         <p>{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_fallback')}</p>
-        <p data-testid="apps-skill-summary-fallback-input">{automaticSummaryPricing.fallback.name} · {$text('settings.usage.cache_receipt_standard_input')}: {tr('one_credit_per')} {automaticSummaryPricing.fallback.inputTokensPerCredit} {tr('input_tokens')}</p>
-        <p data-testid="apps-skill-summary-fallback-output">{automaticSummaryPricing.fallback.name} · {$text('settings.ai_ask.ai_ask_model_details.billable_output')}: {tr('one_credit_per')} {automaticSummaryPricing.fallback.outputTokensPerCredit} {tr('output_tokens')}</p>
+        <p data-testid="apps-skill-summary-fallback-input">{automaticSummaryPricing.fallback.name} · {$text('settings.usage.cache_receipt_standard_input')}: {tr('one_credit_per')} {formatTokensPerCredit(automaticSummaryPricing.fallback.inputTokensPerCredit)} {tr('input_tokens')}</p>
+        <p data-testid="apps-skill-summary-fallback-output">{automaticSummaryPricing.fallback.name} · {$text('settings.ai_ask.ai_ask_model_details.billable_output')}: {tr('one_credit_per')} {formatTokensPerCredit(automaticSummaryPricing.fallback.outputTokensPerCredit)} {tr('output_tokens')}</p>
       {/if}
     </div>
   {/if}

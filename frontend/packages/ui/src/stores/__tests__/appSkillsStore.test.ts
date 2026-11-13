@@ -84,19 +84,6 @@ describe("appSkillsStore", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=settings-ui.navigation.contextual-availability
-  it("filters disabled settings and memory fields", () => {
-    featureAvailabilityStore.set({
-      initialized: true,
-      loading: false,
-      disabledById: { "memory:ai:communication_style": true },
-    });
-
-    const ai = appSkillsStore.getState().apps.ai;
-
-    expect(ai.settings_and_memories.some((memory) => memory.id === "communication_style")).toBe(false);
-  });
-
-  // contract-test: supporting surface=gui.web assertions=settings-ui.navigation.contextual-availability
   it("overlays runtime provider and model availability from app metadata", () => {
     userAvailableSkillsStore.set({
       initialized: true,
@@ -117,7 +104,6 @@ describe("appSkillsStore", () => {
             } as any,
           ],
           focus_modes: [],
-          settings_and_memories: [],
           providers: [{ id: "openai", name: "OpenAI" }] as any,
         },
       },
@@ -129,12 +115,75 @@ describe("appSkillsStore", () => {
     expect(ai.providers).toEqual(["OpenAI"]);
     expect(ask.models).toEqual([{ id: "gpt-4o-mini", provider_id: "openai" }]);
   });
+
+  // contract-test: supporting surface=gui.web assertions=instance-app-packages.instance-availability
+  it("admits a runtime-only skill and drops it when the server stops reporting it", () => {
+    const runtimeApp = (skills: unknown[]) => ({
+      id: "events",
+      skills,
+      focus_modes: [],
+    }) as unknown as AppMetadata;
+    const eventsSearch = {
+      id: "search",
+      name: "Search",
+      description: "Search events",
+      icon_image: "search.svg",
+      providers: [{ name: "Example Events", display_name: null, no_api_key: true }],
+      provider_details: [{ id: "example", name: "Example Events" }],
+    };
+
+    userAvailableSkillsStore.set({
+      initialized: true,
+      loading: false,
+      skillsByApp: { events: ["search"] },
+      appsById: { events: runtimeApp([eventsSearch]) },
+    });
+    const skill = appSkillsStore.getState().apps.events?.skills.find((s) => s.id === "search") as any;
+    expect(skill).toMatchObject({
+      name_translation_key: "events.search",
+      description_translation_key: "events.search.description",
+      icon_image: "search.svg",
+      providers: ["Example Events"],
+    });
+    expect(appSkillsStore.getState().apps.events.providers).toEqual(["Example Events"]);
+
+    userAvailableSkillsStore.set({
+      initialized: true,
+      loading: false,
+      skillsByApp: { events: [] },
+      appsById: { events: runtimeApp([]) },
+    });
+    const after = appSkillsStore.getState().apps.events;
+    expect(after?.skills.find((s) => s.id === "search")).toBeUndefined();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=instance-app-packages.instance-availability
+  it("admits a runtime-only app reported by the server", () => {
+    userAvailableSkillsStore.set({
+      initialized: true,
+      loading: false,
+      skillsByApp: { operator_app: ["lookup"] },
+      appsById: {
+        operator_app: {
+          id: "operator_app",
+          name: "Operator App",
+          description: "Installed by operator",
+          icon_image: "operator.svg",
+          skills: [{ id: "lookup", name: "Lookup", description: "Look up", providers: [], pricing: { fixed: 1 } }],
+          focus_modes: [],
+        } as unknown as AppMetadata,
+      },
+    });
+    const app = appSkillsStore.getState().apps.operator_app as any;
+    expect(app).toMatchObject({ id: "operator_app", name_translation_key: "apps.operator_app", icon_image: "operator.svg" });
+    expect(app.skills[0]).toMatchObject({ id: "lookup", pricing: { fixed: 1 } });
+  });
 });
 
 const fixtureApp = (id: string, skills: string[] = [], focuses: string[] = []): AppMetadata => ({
   id, skills: skills.map(id => ({ id, name_translation_key: id, description_translation_key: id })),
   focus_modes: focuses.map(id => ({ id, name_translation_key: id, description_translation_key: id })),
-  settings_and_memories: [{ id: 'saved', name_translation_key: 'saved' }] as AppMetadata['settings_and_memories'],
+  memories: [{ id: 'app:memory:saved' }] as AppMetadata['memories'],
 });
 
 describe('discoverable Apps projection', () => {
@@ -142,7 +191,7 @@ describe('discoverable Apps projection', () => {
   it('requires usable capabilities while preserving raw memory metadata', () => {
     const apps = { memory: fixtureApp('memory'), skill: fixtureApp('skill', ['run']), focus: fixtureApp('focus', [], ['research']) };
     expect(Object.keys(selectDiscoverableApps(apps))).toEqual(['skill', 'focus']);
-    expect(apps.memory.settings_and_memories).toHaveLength(1);
+    expect(apps.memory.memories).toHaveLength(1);
   });
 
   // contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog,settings-ui.navigation.contextual-availability

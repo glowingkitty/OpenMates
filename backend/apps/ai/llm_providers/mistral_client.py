@@ -87,6 +87,29 @@ class UnifiedMistralResponse(BaseModel):
     usage: Optional[MistralUsage] = None
 
 
+# Canonical effort vocabulary, ordered low to high. Anything outside it is a
+# programming error and is rejected; anything inside it is adapted to what the
+# target Mistral-hosted model accepts.
+_REASONING_EFFORT_ORDER = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
+
+
+def _adapt_reasoning_effort(model_id: str, requested: str) -> str:
+    """Map a requested effort onto the nearest value the model's API accepts.
+
+    Mistral-hosted models take only ``none``/``high``: ``low`` and below mean
+    off, everything above means on. GLM models take ``low``/``high``/``max``.
+    """
+    if requested not in _REASONING_EFFORT_ORDER:
+        raise ValueError(f"Invalid Mistral reasoning effort override: {requested!r}")
+    rank = _REASONING_EFFORT_ORDER.index(requested)
+    low_rank = _REASONING_EFFORT_ORDER.index("low")
+    if model_id.startswith("zai-glm-"):
+        if rank <= low_rank:
+            return "low"
+        return "max" if rank >= _REASONING_EFFORT_ORDER.index("xhigh") else "high"
+    return "none" if rank <= low_rank else "high"
+
+
 def _get_mistral_reasoning_effort(
     model_id: str, catalog_model_id: Optional[str] = None,
 ) -> Optional[str]:
@@ -229,10 +252,7 @@ async def invoke_mistral_chat_completions(
         if catalog_model_id else _get_mistral_reasoning_effort(model_id)
     )
     if requested_reasoning_effort is not None:
-        supported = GLM_REASONING_EFFORTS if model_id.startswith("zai-glm-") else MISTRAL_REASONING_EFFORTS
-        if requested_reasoning_effort not in supported:
-            raise ValueError(f"Invalid Mistral reasoning effort override: {requested_reasoning_effort!r}")
-        reasoning_effort = requested_reasoning_effort
+        reasoning_effort = _adapt_reasoning_effort(model_id, requested_reasoning_effort)
     if reasoning_effort is not None:
         payload["reasoning_effort"] = reasoning_effort
     if tools:

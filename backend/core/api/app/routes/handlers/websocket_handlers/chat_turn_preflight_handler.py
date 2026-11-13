@@ -57,6 +57,10 @@ def _end_ws_span(otel_span: Any, otel_token: Any) -> None:
         pass
 
 
+# Memory fields whose Project rows may be added after preflight (see below).
+PROJECT_BOUND_MEMORY_FIELDS = ("custom_memory_documents", "custom_rule_documents", "memory_catalog")
+
+
 def canonicalize_inference_request(inference_request: dict[str, Any]) -> bytes:
     if not isinstance(inference_request, dict) or not inference_request:
         raise ValueError("inference_request must be a non-empty object")
@@ -67,6 +71,21 @@ def canonicalize_inference_request(inference_request: dict[str, Any]) -> bytes:
         key: None if key in {"current_project", "active_project_focus"} else value
         for key, value in inference_request.items()
     }
+    # Project Memory rows share that lifecycle: an @Project mention activates the
+    # focus after preflight, and only then can the client read the Project's
+    # Memories. They are re-authorized against the live Project at dispatch.
+    # Personal rows stay committed; a list left empty counts as absent, so a field
+    # first added after activation commits the same as before it existed.
+    for key in PROJECT_BOUND_MEMORY_FIELDS:
+        rows = committed_request.get(key)
+        if isinstance(rows, list):
+            committed_rows = [
+                row for row in rows if not (isinstance(row, dict) and row.get("source") == "project")
+            ]
+            if committed_rows:
+                committed_request[key] = committed_rows
+            else:
+                committed_request.pop(key)
     return json.dumps(
         committed_request,
         sort_keys=True,
@@ -110,9 +129,15 @@ def server_client_capabilities(manager: Any, user_id: str, device_fingerprint_ha
     supports_project_file_jobs = getattr(manager, "supports_project_file_jobs", None)
     if callable(supports_project_file_jobs) and supports_project_file_jobs(user_id, device_fingerprint_hash):
         capabilities.append("project_file_jobs")
+    supports_project_create_requests = getattr(manager, "supports_project_create_requests", None)
+    if callable(supports_project_create_requests) and supports_project_create_requests(user_id, device_fingerprint_hash):
+        capabilities.append("project_create_requests")
     supports_remote_command_jobs = getattr(manager, "supports_remote_command_jobs", None)
     if callable(supports_remote_command_jobs) and supports_remote_command_jobs(user_id, device_fingerprint_hash):
         capabilities.append("remote_command_jobs")
+    supports_memory_write_jobs = getattr(manager, "supports_memory_write_jobs", None)
+    if callable(supports_memory_write_jobs) and supports_memory_write_jobs(user_id, device_fingerprint_hash):
+        capabilities.append("memory_write_jobs")
     return capabilities
 
 

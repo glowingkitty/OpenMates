@@ -3,6 +3,7 @@ import { activeTeamContext } from "../stores/teamStore";
 import { userProfile } from "../stores/userProfile";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
+import { decideOfflineBatchReceipt } from "./offlineBatchReceipt";
 
 export interface OfflineSyncContext {
   accountId: string | null;
@@ -95,6 +96,25 @@ export function finishOfflineSyncBatch(id: string | undefined): boolean {
   return retry;
 }
 
+export interface OfflineSyncBatchClaim {
+  changeIds: string[];
+  terminalConflictDeleteIds: string[];
+  submittedOrders?: ReadonlyMap<string, { queueOrder: number | undefined; queueToken?: string }>;
+}
+
+/** Takes the batch state for a receipt without deciding it (the decision may run in Rust). */
+export function claimOfflineSyncBatch(
+  id: string | undefined, holdForCleanup: boolean,
+): OfflineSyncBatchClaim | null {
+  const batch = pendingBatch;
+  if (!id || !batch || batch.id !== id || batch.receiptConsumed) return null;
+  if (!isOfflineSyncContextCurrent(batch)) { pendingBatch = null; return null; }
+  if (holdForCleanup) batch.receiptConsumed = true;
+  else pendingBatch = null;
+  return { changeIds: [...batch.changeIds], terminalConflictDeleteIds: [...batch.terminalConflictDeleteIds],
+    ...(batch.submittedOrders ? { submittedOrders: batch.submittedOrders } : {}) };
+}
+
 export function consumeOfflineSyncBatch(id: string | undefined, successfulIds: string[]): string[] | null;
 export function consumeOfflineSyncBatch(
   id: string | undefined, successfulIds: string[], counts: OfflineSyncBatchReceiptCounts, holdForCleanup?: boolean,
@@ -102,22 +122,13 @@ export function consumeOfflineSyncBatch(
 export function consumeOfflineSyncBatch(
   id: string | undefined, successfulIds: string[], counts?: OfflineSyncBatchReceiptCounts, holdForCleanup = false,
 ): string[] | OfflineSyncBatchResult | null {
-  const batch = pendingBatch;
-  if (!id || !batch || batch.id !== id || batch.receiptConsumed) return null;
-  if (!isOfflineSyncContextCurrent(batch)) { pendingBatch = null; return null; }
-  if (holdForCleanup && counts) batch.receiptConsumed = true;
-  else pendingBatch = null;
-  const accepted = successfulIds.filter((changeId) => batch.changeIds.has(changeId));
+  const claim = claimOfflineSyncBatch(id, !!(holdForCleanup && counts));
+  if (!claim) return null;
+  const decision = decideOfflineBatchReceipt(
+    claim.changeIds, claim.terminalConflictDeleteIds, successfulIds, counts);
+  const accepted = decision.accepted;
   if (!counts) return accepted;
-  const uniqueSuccesses = new Set(successfulIds);
-  const missingIds = [...batch.changeIds].filter((changeId) => !uniqueSuccesses.has(changeId));
-  const exactSingleConflict = counts.errors === 0 && counts.conflicts === 1 &&
-    Number.isInteger(counts.processed) && counts.processed === batch.changeIds.size - 1 &&
-    successfulIds.length === uniqueSuccesses.size &&
-    uniqueSuccesses.size === batch.changeIds.size - 1 &&
-    [...uniqueSuccesses].every((changeId) => batch.changeIds.has(changeId)) &&
-    missingIds.length === 1 && batch.terminalConflictDeleteIds.has(missingIds[0]);
   return { successfulIds: accepted,
-    retiredConflictIds: exactSingleConflict ? missingIds : [],
-    ...(batch.submittedOrders ? { submittedOrders: batch.submittedOrders } : {}) };
+    retiredConflictIds: decision.retiredConflictIds,
+    ...(claim.submittedOrders ? { submittedOrders: claim.submittedOrders } : {}) };
 }

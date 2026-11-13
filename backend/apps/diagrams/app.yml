@@ -5,7 +5,6 @@ description_translation_key: diagrams.description
 icon_image: diagram.svg
 category: work
 last_updated: "2026-10-11"
-settings_and_memories: []
 instructions:
   - instruction: |
       These public guides may be loaded whenever architectures, processes,

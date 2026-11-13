@@ -75,9 +75,15 @@ for (const width of [390, 1100]) for (const theme of ['light', 'dark'] as const)
             // authored title remains asserted in its fullscreen header below.
             await expect(card).toContainText(usefulFacts[item.kind]);
           } else await expect(card).toContainText(item.title);
-          await expect(card.getByTestId('authored-result-context')).toHaveAttribute('data-origin', item.origin);
-          await expect(card.getByTestId('authored-result-origin')).toHaveText(item.origin === 'draft' ? 'Draft' : 'User-provided');
-          await assertProvenanceHasOwnSpace(card);
+          if (item.origin === 'draft') {
+            await expect(card.getByTestId('authored-result-context')).toHaveAttribute('data-origin', 'draft');
+            await expect(card.getByTestId('authored-result-origin')).toHaveText('Draft');
+            await assertProvenanceHasOwnSpace(card);
+          } else {
+            // A card built from what the user supplied carries no origin label; its details view does.
+            await expect(card.getByTestId('authored-result-provenance')).toHaveCount(0);
+            await expect(card).not.toContainText('User-provided');
+          }
           await expect(card).not.toContainText(/openmates_embeds|"schema_version"|"content_commitment"|app_skill_use/);
           await assertReadableAuthoredBounds(page, card);
           await expect(card).toHaveAttribute('role', 'button');
@@ -218,7 +224,8 @@ for (const width of [390, 1100]) for (const theme of ['light', 'dark'] as const)
       await expect(carrier.getByTestId('embed-preview')).toHaveCount(1);
       const eventId = authoredChild('events.event').embed_id;
       const card = carrier.locator(`[data-testid="embed-preview"][data-embed-id="${eventId}"]`);
-      await assertProvenanceHasOwnSpace(card);
+      // A user-provided card carries no origin label in its preview; the details view lists the origin.
+      await expect(card.getByTestId('authored-result-provenance')).toHaveCount(0);
       await expect(card).toHaveAttribute('role', 'group');
       await expect(card.getByTestId('result-preview-more')).toBeVisible();
       const expand = card.getByTestId('result-preview-expand');
@@ -261,13 +268,14 @@ for (const width of [390, 1100]) for (const theme of ['light', 'dark'] as const)
     await failedImage;
     const card = page.getByTestId('authored-results-preview').getByTestId('embed-preview');
     await expect(card).toContainText('Supplied: events.event');
-    await expect(card.getByTestId('authored-result-context')).toHaveAttribute('data-origin', 'user_provided');
+    await expect(card.getByTestId('authored-result-context')).toHaveCount(0);
     await assertReadableAuthoredBounds(page, card);
     await card.getByTestId('result-preview-expand').focus();
     await card.getByTestId('result-preview-expand').press('Enter');
     const fullscreen = page.getByTestId('authored-fixture-fullscreen');
     await expect(fullscreen).toHaveAttribute('data-embed-id', authoredChild('events.event').embed_id);
     await expect(fullscreen.getByTestId('embed-header-title')).toHaveText('Supplied: events.event');
+    await expect(fullscreen.getByTestId('authored-result-context')).toHaveAttribute('data-origin', 'user_provided');
     await expect(fullscreen.getByTestId('authored-result-context').getByRole('link', { name: 'Supplied test reference' })).toHaveAttribute('href', 'https://example.org/reference');
     // Sources, observed-at and credits form a SOURCES section at the very bottom, not a block under the date chip.
     const sources = fullscreen.getByTestId('result-sources');

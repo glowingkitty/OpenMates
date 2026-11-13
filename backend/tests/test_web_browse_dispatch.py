@@ -18,7 +18,7 @@ def test_compute_display_rate_preserves_fractional_credits_without_dispatch_doub
     )
     skill = next(item for item in config["skills"] if item["id"] == "browse")
     pricing = AppPricing.model_validate(skill["pricing"]).model_dump(exclude_none=True)
-    assert pricing == {"per_minute": 5.52}
+    assert pricing == {"per_minute": 5.0}
     # Dispatch has no measured duration. Browse alone settles resource seconds
     # and internal model usage, so metadata must not add a second flat charge.
     assert calculate_total_credits(pricing_config=pricing, units_processed=1) == 0

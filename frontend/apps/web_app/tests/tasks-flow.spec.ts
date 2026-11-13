@@ -28,12 +28,16 @@ test.describe('Tasks V1 flow', () => {
         // Logging in here first would make pairing wait for an already-hidden Login button.
         // A browser-created Task or copied shared-dev receipt cannot unlock it.
         await createRunnerCodexEligibility(page);
-        const eligibilityResponse = page.waitForResponse((response) =>
-            response.request().method() === 'GET' && response.url().includes('/v1/user-tasks?limit=1') && response.ok()
-        );
-		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
-        expect((await (await eligibilityResponse).json()).eligible_external_ai,
+        // The board loads Tasks through the client core, whose requests the page does not
+        // observe, so ask the eligibility endpoint directly with the paired browser session.
+        const apiUrl = (process.env.PLAYWRIGHT_TEST_API_URL
+            || (process.env.PLAYWRIGHT_TEST_BASE_URL || '').replace('://app.', '://api.')).replace(/\/$/, '');
+        const eligibilityResponse = await page.request.get(`${apiUrl}/v1/user-tasks/assignment-eligibility`);
+        expect(eligibilityResponse.status(), await eligibilityResponse.text()).toBe(200);
+        expect((await eligibilityResponse.json()).eligible_external_ai,
             'Run the approved real CLI creator gate for this account before web proof').toContain('codex');
+        // Pairing leaves the page on the chat home; open the Tasks workspace.
+        await page.goto(getE2EDebugUrl('/#tasks'), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30000 });
 
 		// /tasks uses the workspace composer; the separate form belongs to compact project views.
@@ -95,7 +99,8 @@ test.describe('Tasks V1 flow', () => {
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(createdCard).toBeVisible({ timeout: 30000 });
 		await expect(createdCard).toContainText(editedTitle);
-		await expect(createdCard).toContainText(editedDescription);
+		// Board cards show only the title since the Figma card redesign (201f98cbdc);
+		// the saved description is asserted in the reopened detail below.
 		await createdCard.getByTestId('task-card-open').click();
 		await expect(detail.getByTestId('task-detail-title')).toHaveText(editedTitle);
 		await expect(detail.getByTestId('workspace-detail-description')).toHaveText(editedDescription);

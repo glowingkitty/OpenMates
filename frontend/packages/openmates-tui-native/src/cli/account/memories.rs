@@ -3,7 +3,8 @@
 use super::settings_more::text_output;
 use super::{CliError, CliOutput, Invocation, handlers, path};
 use crate::client::Client;
-use openmates_sdk::account::{memory_types, validate_memory};
+use crate::client::memory_documents::MemoryDocumentError;
+use crate::client::memory_write_jobs::MemoryUndoOutcome;
 use serde_json::{Value, json};
 
 pub(super) fn supported(invocation: &Invocation) -> bool {
@@ -15,32 +16,37 @@ pub(super) fn supported(invocation: &Invocation) -> bool {
                 | "memories create"
                 | "memories update"
                 | "memories delete"
+                | "memories undo"
         )
 }
+/// Typed app memories were replaced by Memories (personal documents).
+const TYPED_MEMORIES_REMOVED: &str = "Typed app memories were replaced by Memories (personal documents). Manage them in the web app under Settings > Memories.";
 fn flag<'a>(i: &'a Invocation, name: &str) -> Option<&'a str> {
     i.text(name).filter(|v| !v.is_empty())
 }
+/// Maps a core Memory refusal to the CLI's stable `code` contract error.
+fn memory_error(error: MemoryDocumentError) -> CliError {
+    match error {
+        MemoryDocumentError::Core(error) => CliError::Client(error),
+        other => CliError::Contract {
+            code: other.code(),
+            message: match other {
+                MemoryDocumentError::Changed => {
+                    "This Memory changed after the assistant wrote it; Undo was not applied.".into()
+                }
+                MemoryDocumentError::NotFound => "This Memory no longer exists.".into(),
+                _ => format!("Undo failed: {other}."),
+            },
+        },
+    }
+}
+/// `--id` accepts the `settings memories list` id (`account-memory-<id>`) or the core id.
+fn matches_memory(entry_id: &str, wanted: &str) -> bool {
+    let wanted = wanted.strip_prefix("account-memory-").unwrap_or(wanted);
+    entry_id == wanted || entry_id.strip_prefix("personal:") == Some(wanted)
+}
 fn fail(message: &str) -> CliError {
     CliError::Invalid(message.into())
-}
-/// Legacy `JSON.parse(--data)` input.
-fn data(i: &Invocation) -> Result<Value, CliError> {
-    let raw = flag(i, "data").ok_or_else(|| {
-        fail("Missing --data '<json>'. Provide the memory field values as a JSON object.\n\nExample: --data '{\"name\":\"Python\",\"proficiency\":\"advanced\"}'")
-    })?;
-    serde_json::from_str(raw).map_err(|_| fail("--data must be valid JSON."))
-}
-fn types_json(app: Option<&str>) -> Value {
-    Value::Array(
-        memory_types()
-            .iter()
-            .filter(|t| app.is_none_or(|app| t.app_id == app))
-            .map(|t| {
-                json!({"key":t.key,"app_id":t.app_id,"item_type":t.item_type,"entry_type":t.entry_type,
-                    "required":t.required,"properties":t.properties.iter().map(|p| p.name.as_str()).collect::<Vec<_>>()})
-            })
-            .collect(),
-    )
 }
 fn kv(out: &mut String, key: &str, value: &str, width: usize) {
     out.push_str(&format!(
@@ -48,51 +54,6 @@ fn kv(out: &mut String, key: &str, value: &str, width: usize) {
         key,
         super::super::terminal_text(value)
     ));
-}
-fn types_text(types: &[Value]) -> String {
-    if types.is_empty() {
-        return "No memory types found.\n".into();
-    }
-    let mut out = format!("\x1b[1mMemory types  ({})\n\x1b[0m\n", types.len());
-    let mut last = "";
-    for t in types {
-        let app = t["app_id"].as_str().unwrap_or("");
-        if app != last {
-            if !last.is_empty() {
-                out.push('\n');
-            }
-            out.push_str(&format!("\x1b[1m{app}\x1b[0m\n"));
-            last = app;
-        }
-        out.push_str(&format!(
-            "  \x1b[36m{}\x1b[0m  \x1b[2m{}\x1b[0m\n",
-            t["item_type"].as_str().unwrap_or(""),
-            t["entry_type"].as_str().unwrap_or("")
-        ));
-        let join = |field: &str| {
-            t[field]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .filter_map(Value::as_str)
-                .collect::<Vec<_>>()
-                .join(", ")
-        };
-        let required = join("required");
-        kv(
-            &mut out,
-            "required",
-            if required.is_empty() {
-                "none"
-            } else {
-                &required
-            },
-            12,
-        );
-        kv(&mut out, "fields", &join("properties"), 12);
-    }
-    out.push_str("\n\x1b[2mCreate: openmates settings memories create --app-id <id> --item-type <type> --data '<json>'\x1b[0m\n");
-    out
 }
 /// Legacy formatTimestamp layout ("—" for 0). The native crate renders UTC;
 /// the legacy CLI used the host time zone.
@@ -146,6 +107,45 @@ fn list_text(memories: &[Value]) -> String {
     out
 }
 
+/// `settings memories undo`: reverts the newest assistant write of a chat
+/// (optionally of one Memory) through the core's sha-guarded Undo.
+async fn undo(
+    i: &Invocation,
+    client: &mut Client,
+    json_output: bool,
+) -> Result<CliOutput, CliError> {
+    handlers::flags(i, &["chat", "id"])?;
+    let usage = "Usage: openmates settings memories undo --chat <chat-id> [--id <entry-id>]";
+    let chat = flag(i, "chat").ok_or_else(|| fail(&format!("Missing chat ID.\n\n{usage}")))?;
+    let wanted = flag(i, "id");
+    // Newest assistant write first: Undo reverts the latest write of that Memory.
+    let event = client
+        .assistant_memory_writes(chat)
+        .await?
+        .into_iter()
+        .rev()
+        .find(|event| wanted.is_none_or(|id| matches_memory(&event.entry_id, id)))
+        .ok_or_else(|| fail("No assistant Memory write to undo in this chat."))?;
+    let outcome = client
+        .undo_assistant_memory_write(&event)
+        .await
+        .map_err(memory_error)?;
+    if json_output {
+        CliOutput::json(
+            &json!({"undone": true, "outcome": outcome, "memory_id": event.entry_id, "title": event.title}),
+        )
+    } else {
+        let verb = match outcome {
+            MemoryUndoOutcome::Deleted => "deleted",
+            MemoryUndoOutcome::Restored => "restored to its previous version",
+        };
+        Ok(text_output(format!(
+            "\x1b[32m✓\x1b[0m Memory {verb}: {}\n",
+            super::super::terminal_text(&event.title)
+        )))
+    }
+}
+
 pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
     let command = path(i);
     let json_output = i.boolean("json");
@@ -168,37 +168,10 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
                 Ok(text_output(list_text(&memories)))
             }
         }
-        "memories types" => {
-            handlers::flags(i, &["app-id"])?;
-            let types = types_json(flag(i, "app-id"));
-            if json_output {
-                CliOutput::json(&types)
-            } else {
-                Ok(text_output(types_text(
-                    types.as_array().map(Vec::as_slice).unwrap_or(&[]),
-                )))
-            }
-        }
-        "memories create" | "memories update" => {
-            let update = command == "memories update";
+        "memories types" | "memories create" | "memories update" => {
             handlers::flags(i, &["app-id", "item-type", "data", "id", "version"])?;
-            let app = flag(i, "app-id").unwrap_or("");
-            let item_type = flag(i, "item-type").unwrap_or("");
             let id = flag(i, "id").unwrap_or("");
-            if app.is_empty() || item_type.is_empty() || (update && id.is_empty()) {
-                return Err(fail(if update {
-                    "Missing required flags.\n\nUsage: openmates settings memories update --id <entry-id> --app-id <id> --item-type <type> --data '<json>' [--version <n>]"
-                } else {
-                    "Missing required flags.\n\nUsage: openmates settings memories create --app-id <id> --item-type <type> --data '<json>'\n\nRun 'openmates settings memories types' to see all available types."
-                }));
-            }
-            let value = if update {
-                let raw = flag(i, "data").ok_or_else(|| fail("Missing --data '<json>'."))?;
-                serde_json::from_str(raw).map_err(|_| fail("--data must be valid JSON."))?
-            } else {
-                data(i)?
-            };
-            if update && id.starts_with("account-memory-") {
+            if command == "memories update" && id.starts_with("account-memory-") {
                 return Err(CliError::Unsupported {
                     command: i.command_path(),
                     reason:
@@ -206,38 +179,7 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
                             .into(),
                 });
             }
-            validate_memory(app, item_type, &value).map_err(CliError::Invalid)?;
-            let result = if update {
-                // Legacy parseInt(--version, 10) with default 1.
-                let version = match flag(i, "version") {
-                    None => 1,
-                    Some(raw) => raw
-                        .trim()
-                        .chars()
-                        .take_while(char::is_ascii_digit)
-                        .collect::<String>()
-                        .parse::<u64>()
-                        .map_err(|_| fail("--version must be a whole number."))?,
-                };
-                client
-                    .account()
-                    .update_memory(id, app, item_type, &value, version)
-                    .await?
-            } else {
-                client
-                    .account()
-                    .create_memory(app, item_type, &value)
-                    .await?
-            };
-            if json_output {
-                CliOutput::json(&result)
-            } else {
-                Ok(text_output(format!(
-                    "\x1b[32m✓\x1b[0m Memory {}  \x1b[2mid: {}\x1b[0m\n",
-                    if update { "updated" } else { "created" },
-                    result["id"].as_str().unwrap_or("")
-                )))
-            }
+            Err(fail(TYPED_MEMORIES_REMOVED))
         }
         "memories delete" => {
             handlers::flags(i, &["id"])?;
@@ -259,6 +201,8 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
                 Ok(text_output("\x1b[32m✓\x1b[0m Memory deleted\n".into()))
             }
         }
+        // Boxed: keeps the chat read and settings write out of every command future.
+        "memories undo" => Box::pin(undo(i, client, json_output)).await,
         _ => Err(CliError::Unsupported {
             command: i.command_path(),
             reason: "Unknown memories action.".into(),

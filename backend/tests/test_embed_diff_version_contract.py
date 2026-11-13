@@ -29,7 +29,7 @@ DIFF_INSTRUCTION_PATH = Path(__file__).resolve().parents[1] / "apps/ai/instructi
 APPS_DIR = Path(__file__).resolve().parents[1] / "apps"
 SHARED_EMBED_TYPES_PATH = Path(__file__).resolve().parents[2] / "shared/config/embed_types.yml"
 API_CACHE_PATH = Path(__file__).resolve().parents[1] / "apps/ai/testing/api_cache"
-SUPPORTED_DIFF_UPDATE_TYPES = {"code", "diagram_html", "document", "mail", "mindmap", "notebook", "pcb_schematic", "sheet"}
+SUPPORTED_DIFF_UPDATE_TYPES = {"code", "deck", "diagram_html", "document", "mail", "mindmap", "notebook", "pcb_schematic", "sheet"}
 
 
 # contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.versions.bounded-reconstruction

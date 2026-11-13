@@ -3,6 +3,9 @@ use super::*;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use task_crypto::{Resolved, decrypt, encrypt_create, encrypt_patch};
+mod action_delivery;
+mod legacy_delivery;
+pub use legacy_delivery::LegacyRefusal;
 mod ai_jobs;
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -324,7 +327,13 @@ impl<'a> Tasks<'a> {
         {
             let (master, wrapping) = self.keys().await?;
             let p = self.scoped(&format!("/v1/user-tasks/{id}"), &[]);
-            let data = self.backend.request(Method::GET, &p, None, None).await?;
+            let data = match self.backend.request(Method::GET, &p, None, None).await {
+                // Backend 404/410 reaches here as the generic transport message; npm reports "Task not found".
+                Err(Error::Invalid("The requested item is unavailable.")) => {
+                    return Err(Error::Invalid("Task not found."));
+                }
+                other => other?,
+            };
             let row = data.get("task").ok_or(Error::Protocol)?;
             if string(row, "task_id")? != id {
                 return Err(Error::Forbidden);
@@ -363,6 +372,10 @@ impl<'a> Tasks<'a> {
         } else {
             matches
         };
+        if matches.is_empty() && uuid::Uuid::parse_str(id).is_ok() {
+            // A full Task ID that resolves to nothing is a missing Task (npm: HTTP 404), not a bad selector.
+            return Err(Error::Invalid("Task not found."));
+        }
         if matches.len() != 1 {
             return Err(Error::Invalid(
                 "Task selector is missing or ambiguous; use its full ID.",
@@ -769,7 +782,8 @@ impl<'a> Tasks<'a> {
         }
         let headers = self.owner_headers(Some(&task), false)?;
         let p = format!("/v1/user-tasks/{}/start-ai", string(&task.raw, "task_id")?);
-        let payload = json!({"version":task.raw["version"],"primary_chat_id":task.public["primary_chat_id"],"linked_project_ids":task.public["linked_project_ids"],"plaintext_title":task.public["title"],"plaintext_description":task.public["description"],"plaintext_latest_instruction":task.public["latest_instruction"],"team_id":self.filters.team_id});
+        let mut payload = self.start_intent(&task);
+        action_delivery::add_start_plaintext(&mut payload, &task);
         let data = self
             .backend
             .request(Method::POST, &p, Some(payload), Some(&headers))
@@ -793,26 +807,9 @@ impl<'a> Tasks<'a> {
         self.action(id, "skip", json!({})).await
     }
     pub async fn block(&mut self, id: &str, reason: &str, text: Option<&str>) -> Result<Value> {
-        let reason = reason.trim().to_lowercase().replace([' ', '-'], "_");
-        if ![
-            "needs_user_input",
-            "waiting_for_approval",
-            "missing_credentials",
-            "ambiguous_requirement",
-            "external_dependency",
-            "environment_unavailable",
-            "verification_failed",
-            "other",
-        ]
-        .contains(&reason.as_str())
-        {
-            return Err(Error::Invalid("Invalid Task blocked reason code."));
-        }
+        let reason = action_delivery::blocked_reason(reason)?;
         let task = self.resolve(id).await?;
-        let mut payload = json!({"blocked_reason_code":reason});
-        if let Some(text) = text {
-            payload["encrypted_blocked_reason"] = json!(crypto::server_fields::encrypt_text(text, &task.key, &[])?);
-        }
+        let payload = action_delivery::block_payload(&task, &reason, text)?;
         self.action_resolved(task, "block", payload).await
     }
     async fn action(&mut self, id: &str, action: &str, payload: Value) -> Result<Value> {
@@ -864,20 +861,7 @@ impl<'a> Tasks<'a> {
         let task = self.resolve(id).await?;
         readonly(&task)?;
         let headers = self.owner_headers(Some(&task), false)?;
-        if movement.before_task_id.is_some() && movement.after_task_id.is_some() {
-            return Err(Error::Invalid(
-                "Choose either a before or after Task anchor.",
-            ));
-        }
-        for anchor in [&mut movement.before_task_id, &mut movement.after_task_id]
-            .into_iter()
-            .flatten()
-        {
-            *anchor = string(&self.resolve(anchor).await?.raw, "task_id")?.into();
-        }
-        let mut item = serde_json::to_value(movement)?;
-        item["task_id"] = task.raw["task_id"].clone();
-        item["version"] = task.raw["version"].clone();
+        let item = self.reorder_item(&task, &mut movement).await?;
         let data = self
             .backend
             .request(
@@ -899,45 +883,12 @@ impl<'a> Tasks<'a> {
         Ok(result)
     }
     pub async fn add_to_project(&mut self, id: &str, project: &str) -> Result<Value> {
-        let task = self.resolve(id).await?;
-        let project = self.reference("project", project).await?;
-        let mut projects = task.public["linked_project_ids"]
-            .as_array()
-            .ok_or(Error::Protocol)?
-            .iter()
-            .map(|v| v.as_str().ok_or(Error::Protocol).map(str::to_owned))
-            .collect::<Result<Vec<_>>>()?;
-        if !projects.contains(&project) {
-            projects.push(project);
-        }
-        self.update(
-            id,
-            TaskPatch {
-                linked_project_ids: Some(projects),
-                ..TaskPatch::default()
-            },
-        )
-        .await
+        let patch = self.project_patch(id, project, true).await?;
+        self.update(id, patch).await
     }
     pub async fn remove_from_project(&mut self, id: &str, project: &str) -> Result<Value> {
-        let task = self.resolve(id).await?;
-        let project = self.reference("project", project).await?;
-        let projects = task.public["linked_project_ids"]
-            .as_array()
-            .ok_or(Error::Protocol)?
-            .iter()
-            .filter_map(Value::as_str)
-            .filter(|id| *id != project)
-            .map(str::to_owned)
-            .collect();
-        self.update(
-            id,
-            TaskPatch {
-                linked_project_ids: Some(projects),
-                ..TaskPatch::default()
-            },
-        )
-        .await
+        let patch = self.project_patch(id, project, false).await?;
+        self.update(id, patch).await
     }
     pub async fn connect(&mut self, id: &str, external: ExternalChat) -> Result<Value> {
         let task = self.resolve(id).await?;
@@ -1114,6 +1065,17 @@ pub enum TaskMutationKind {
     Delete,
     Activity,
     Noop,
+    /// Task action routes and dependency/history/Activity-delete mutations.
+    /// Prepared, dispatched and reconciled in `tasks/action_delivery.rs`.
+    Block,
+    Unblock,
+    Skip,
+    Start,
+    Reorder,
+    Restore,
+    DependencyAdd,
+    DependencyRemove,
+    ActivityDelete,
 }
 /// Ciphertext-only durable intent. The application encrypts and persists this
 /// exact DTO before dispatch; retries must not regenerate its random ciphertext.
@@ -1333,6 +1295,11 @@ impl Tasks<'_> {
             self.owner_headers(Some(&task), false)?;
             return Ok(task.public);
         }
+        if delivery.kind.is_action() {
+            return self
+                .execute_action_delivery(delivery, uncertain, &headers)
+                .await;
+        }
         if uncertain && let Some(value) = self.reconcile_delivery(delivery).await? {
             return Ok(value);
         }
@@ -1349,7 +1316,6 @@ impl Tasks<'_> {
             payload["plaintext_description"] = task.public["description"].clone();
         }
         let p = match delivery.kind {
-            TaskMutationKind::Noop => return Err(Error::Protocol),
             TaskMutationKind::Create => "/v1/user-tasks".into(),
             TaskMutationKind::Update => {
                 self.scoped(&format!("/v1/user-tasks/{}", delivery.task_id), &[])
@@ -1363,6 +1329,8 @@ impl Tasks<'_> {
                 &format!("/v1/user-tasks/{}/activity", delivery.task_id),
                 &[],
             ),
+            // Noop returned above; action kinds were routed to their executor.
+            _ => return Err(Error::Protocol),
         };
         let method = match delivery.kind {
             TaskMutationKind::Update => Method::PATCH,
@@ -1408,6 +1376,44 @@ impl Tasks<'_> {
         }
     }
     async fn reconcile_delivery(&mut self, delivery: &TaskDelivery) -> Result<Option<Value>> {
+        let raw = self.current_raw(delivery).await?;
+        if delivery.kind == TaskMutationKind::Activity {
+            let raw = raw.ok_or(Error::Conflict)?;
+            if delivery
+                .expected_owner_hash
+                .as_ref()
+                .is_some_and(|h| raw["external_chat_lookup_hash"] != *h)
+            {
+                return Err(Error::Conflict);
+            }
+            let Some(entry) = self
+                .find_activity_entry(&delivery.task_id, &delivery.input["entry_id"])
+                .await?
+            else {
+                return Ok(None);
+            };
+            if !same_activity(&delivery.input, &entry) {
+                return Err(Error::Conflict);
+            }
+            let (master, wrapping) = self.keys().await?;
+            let task = self.decode_row(raw, &master, &wrapping).await?;
+            return Ok(Some(task_crypto::activity(&task, &entry)?));
+        }
+        if accepted(delivery, raw.as_ref())? {
+            self.verify_delivery_wrappers(delivery).await?;
+            return match raw {
+                Some(raw) => {
+                    let (master, wrapping) = self.keys().await?;
+                    Ok(Some(self.decode_row(raw, &master, &wrapping).await?.public))
+                }
+                None => Ok(Some(json!({"deleted":true,"task_id":delivery.task_id}))),
+            };
+        }
+        Ok(None)
+    }
+    /// Current encrypted row for reconciliation; `None` when it is no longer
+    /// accessible. API-key and projection rows are read through the list route.
+    async fn current_raw(&mut self, delivery: &TaskDelivery) -> Result<Option<Value>> {
         let p = self.scoped(&format!("/v1/user-tasks/{}", delivery.task_id), &[]);
         let raw = if matches!(self.backend, Backend::ApiKey(_))
             || delivery.input["projection_scheduled_at"].is_number()
@@ -1431,60 +1437,7 @@ impl Tasks<'_> {
                 Err(e) => return Err(e),
             }
         };
-        if delivery.kind == TaskMutationKind::Activity {
-            let raw = raw.ok_or(Error::Conflict)?;
-            if delivery
-                .expected_owner_hash
-                .as_ref()
-                .is_some_and(|h| raw["external_chat_lookup_hash"] != *h)
-            {
-                return Err(Error::Conflict);
-            }
-            let mut cursor: Option<String> = None;
-            for _ in 0..100 {
-                let mut query = vec![("limit".into(), "200".into())];
-                if let Some(cursor) = &cursor {
-                    query.push(("cursor".into(), cursor.clone()));
-                }
-                let p = self.scoped(
-                    &format!("/v1/user-tasks/{}/activity", delivery.task_id),
-                    &query,
-                );
-                let data = self.backend.request(Method::GET, &p, None, None).await?;
-                for entry in data["entries"].as_array().ok_or(Error::Protocol)? {
-                    if entry["entry_id"] == delivery.input["entry_id"] {
-                        if !same_activity(&delivery.input, entry) {
-                            return Err(Error::Conflict);
-                        }
-                        let (master, wrapping) = self.keys().await?;
-                        let task = self.decode_row(raw, &master, &wrapping).await?;
-                        return Ok(Some(task_crypto::activity(&task, entry)?));
-                    }
-                }
-                let next = data["next_cursor"].as_str().filter(|s| !s.is_empty());
-                if next.is_none() {
-                    return Ok(None);
-                }
-                if next == cursor.as_deref() {
-                    return Err(Error::Protocol);
-                }
-                cursor = next.map(str::to_owned);
-            }
-            return Err(Error::Invalid(
-                "Activity reconciliation exceeded the supported pagination limit.",
-            ));
-        }
-        if accepted(delivery, raw.as_ref())? {
-            self.verify_delivery_wrappers(delivery).await?;
-            return match raw {
-                Some(raw) => {
-                    let (master, wrapping) = self.keys().await?;
-                    Ok(Some(self.decode_row(raw, &master, &wrapping).await?.public))
-                }
-                None => Ok(Some(json!({"deleted":true,"task_id":delivery.task_id}))),
-            };
-        }
-        Ok(None)
+        Ok(raw)
     }
 }
 fn same_activity(input: &Value, entry: &Value) -> bool {
@@ -1602,7 +1555,7 @@ fn accepted(delivery: &TaskDelivery, current: Option<&Value>) -> Result<bool> {
                 Err(Error::Conflict)
             }
         }
-        TaskMutationKind::Activity | TaskMutationKind::Noop => Err(Error::Protocol),
+        _ => Err(Error::Protocol),
     }
 }
 

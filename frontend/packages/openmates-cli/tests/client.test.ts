@@ -63,7 +63,6 @@ const { WebSocketServer } = require("ws");
 const {
   OpenMatesClient,
   nextPersonalUserCreatedAt,
-  MEMORY_TYPE_REGISTRY,
   buildAppSettingsMemoryRequestSystemMessage,
   buildAppSettingsMemoryResponseSystemMessage,
 	buildInferenceHistoryMessage,
@@ -1886,41 +1885,14 @@ describe("OpenMatesClient session API URL", () => {
   });
 });
 
-describe("memory type registry", () => {
-  // contract-test: direct surface=sdks.npm assertions=app-memories.catalog.declared-types-only,app-memories.surface.semantic-parity
-  it("covers all production memory types needed by CLI memory commands", () => {
-    assert.deepEqual(Object.keys(MEMORY_TYPE_REGISTRY).sort(), [
-      "books/currently_reading",
-      "books/favorite_books",
-      "books/to_read_list",
-      "code/coding_setup",
-      "code/preferred_tech",
-      "code/projects",
-      "code/want_to_learn",
-      "docs/writing_style",
-      "events/saved_events",
-      "health/appointments",
-      "health/medical_history",
-      "home/saved_listings",
-      "ideabucket/processing_settings",
-      "images/preferred_styles",
-      "mail/writing_styles",
-      "openmates/memories",
-      "reminder/saved_item_reminder_defaults",
-      "study/learning_goals",
-      "travel/preferred_activities",
-      "travel/preferred_airlines",
-      "travel/preferred_transport_methods",
-      "travel/saved_connections",
-      "travel/saved_stays",
-      "travel/trips",
-      "tv/to_watch_list",
-      "tv/watched_movies",
-      "tv/watched_tv_shows",
-      "videos/to_watch_list",
-      "web/bookmarks",
-      "web/read_later",
-    ]);
+describe("memories", () => {
+  // contract-test: direct surface=sdks.npm assertions=app-memories.typed.removed,app-memories.catalog.no-typed-types
+  it("rejects typed memory writes and exposes no typed registry", async () => {
+    const client = OpenMatesClient.load({ apiUrl: "http://127.0.0.1:1" }) as unknown as OpenMatesClient;
+    assert.equal("createMemory" in client, false);
+    await assert.rejects(client.updateMemory({ entryId: "typed-1", appId: "code", itemType: "preferred_tech",
+      itemValue: { name: "Python" }, currentVersion: 1 }), /replaced by Memories/);
+    await assert.rejects(client.saveIdeaBucketSettings({ processingPrompt: "x" }), /replaced by Memories/);
   });
 
   // contract-test: direct surface=cli assertions=app-memories.surface.semantic-parity

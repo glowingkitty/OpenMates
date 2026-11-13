@@ -33,6 +33,14 @@ describe('workflow home ordering', () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.continue-priority
+  it('ranks an edit saved after the page clock tick first, not last', () => {
+    const entries = [item('seed-a', 20), item('seed-b', 10), item('saved-after-tick', -15)];
+    expect(sortWorkflowContinue(entries, now * 1000).map(entry => entry.id)).toEqual([
+      'saved-after-tick', 'seed-b', 'seed-a',
+    ]);
+  });
+
   // contract-test: direct surface=gui.web assertions=workflows-ui.workspace.owned-library-and-templates
   it('sorts the all-workflows grid by edits or future enabled runs', () => {
     const entries = [item('recent', 10), item('late-run', 200, 500), item('early-run', 300, 100), item('disabled', 5, 50, false)];

@@ -85,12 +85,7 @@ const {
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 
-const LLM_QUICK_TIP_SLUGS = [
-	'search-current-info-next-time',
-	'travel-can-add-local-context',
-	'use-apps-for-better-results'
-];
-const QUICK_TIP_CHAT_RESPONSE_MARKER = 'Kyoto and Osaka quick tip test';
+const CHAT_RESPONSE_MARKER = 'Open source conference recommendations test';
 const CHAT_RESPONSE_SMOKE_TIMEOUT_MS = 90000;
 const IS_PHONE_PROOF_CAPTURE = process.env.PLAYWRIGHT_VIDEO_WIDTH === '390'
 	&& process.env.PLAYWRIGHT_VIDEO_HEIGHT === '844';
@@ -104,7 +99,7 @@ const CHAT_STREAMING_PHONE_PROOF = defineVideoProof({
 	transcript: [
 		{
 			id: 'request',
-			text: 'The phone chat shows the sent Kyoto and Osaka request above the composer.',
+			text: 'The phone chat shows the sent open source conference request above the composer.',
 			checkpoint: 'request-visible',
 			devices: ['web-phone']
 		},
@@ -299,39 +294,15 @@ function assertNoEncryptionErrors(
 	logCheckpoint(`[${phase}] ✅ No encryption errors detected.`);
 }
 
-async function assertLlmQuickTipCardVisible(
-	page: any,
-	logCheckpoint: (...args: any[]) => void,
-	phase: string
-): Promise<void> {
-	const quickTipCard = page.getByTestId('quick-tip-card');
-	await expect(quickTipCard).toBeVisible({ timeout: 90000 });
-
-	const slug = await quickTipCard.getAttribute('data-quick-tip-slug');
-	logCheckpoint(`[${phase}] Quick tip card visible with slug: ${slug}`);
-	expect(slug).toBeTruthy();
-	expect(LLM_QUICK_TIP_SLUGS).toContain(slug as string);
-}
-
 async function assertAssistantFeedbackReportIssueFlow(
 	page: any,
 	logCheckpoint: (...args: any[]) => void,
 	takeStepScreenshot: (...args: any[]) => Promise<void>
 ): Promise<void> {
 	const feedback = page.getByTestId('assistant-response-feedback');
-	const quickTipCard = page.getByTestId('quick-tip-card');
 	await expect(feedback).toBeVisible({ timeout: 30000 });
 	await expect(feedback).toContainText('Rate assistant response:', { timeout: 10000 });
-	await expect(quickTipCard).toBeVisible({ timeout: 90000 });
-
-	const feedbackAfterQuickTip = await page.evaluate(() => {
-		const feedbackEl = document.querySelector('[data-testid="assistant-response-feedback"]');
-		const quickTipEl = document.querySelector('[data-testid="quick-tip-card"]');
-		if (!feedbackEl || !quickTipEl) return false;
-		return Boolean(quickTipEl.compareDocumentPosition(feedbackEl) & Node.DOCUMENT_POSITION_FOLLOWING);
-	});
-	expect(feedbackAfterQuickTip, 'Assistant response feedback should render after quick tips').toBe(true);
-	logCheckpoint('Assistant response feedback is visible after quick tips.');
+	logCheckpoint('Assistant response feedback is visible.');
 
 	await page.getByTestId('assistant-feedback-star-3').click();
 	const feedbackSubmit = page.getByTestId('assistant-feedback-submit');
@@ -490,7 +461,7 @@ async function assertChatDecryptedCorrectly(
 	await expect(assistantMsg).toBeVisible({ timeout: 10000 });
 
 	// Confirm assistant response still decrypted.
-	await expect(assistantMsg).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 15000 });
+	await expect(assistantMsg).toContainText(CHAT_RESPONSE_MARKER, { timeout: 15000 });
 	logCheckpoint(`[${phase}] Messages: user + assistant visible and contain expected content.`);
 
 	// Check for error-state inline styles: opacity 0.7 + error border.
@@ -761,8 +732,8 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	const firstMessage = `First write the exact phrase "${QUICK_TIP_CHAT_RESPONSE_MARKER}", then write exactly this sentence: A weekend trip plan should balance meals, transit, and rest.`;
-	const markedFirstMessage = withMockMarker(firstMessage, 'chat_flow_quick_tip');
+	const firstMessage = `First write the exact phrase "${CHAT_RESPONSE_MARKER}", then write exactly this sentence: A conference plan should balance talks, hallway time, and rest.`;
+	const markedFirstMessage = withMockMarker(firstMessage, 'chat_recommendations');
 	const testMockMarker = markedFirstMessage.match(/<<<TEST_MOCK:[^>]+>>>$/)?.[0] ?? null;
 	await page.keyboard.type(testMockMarker ? firstMessage : markedFirstMessage);
 	await takeStepScreenshot(page, '02-message-filled');
@@ -813,7 +784,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 		const streamingAssistant = assistantResponse.last();
 		await expect(streamingAssistant).toBeVisible({ timeout: 60000 });
 		const streamingCard = page.getByTestId('mate-message-content').last();
-		await expect(streamingCard).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 60000 });
+		await expect(streamingCard).toContainText(CHAT_RESPONSE_MARKER, { timeout: 60000 });
 		firstChunkText = ((await streamingCard.textContent()) || '').trim();
 		await proof.assert('chat.progressive_response', async () => {
 			expect(firstChunkText.length).toBeGreaterThan(0);
@@ -837,12 +808,12 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	const otelFilePath = saveOtelTimeline(otelSpans, chatId, 'message-send');
 	logChatCheckpoint(`OTel timeline saved (${otelSpans.length} spans) to ${otelFilePath}`);
 
-	// Wait for assistant response from the travel-planning fixture.
+	// Wait for assistant response from the conference-planning fixture.
 	logChatCheckpoint('Waiting for assistant response...');
 	const permissionDialog = page.getByTestId('app-settings-memories-permission-dialog');
 	const firstResponseOrPermission = await Promise.race([
 		permissionDialog.waitFor({ state: 'visible', timeout: 60000 }).then(() => 'permission').catch(() => null),
-		expect(assistantResponse.last()).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 60000 }).then(() => 'assistant').catch(() => null)
+		expect(assistantResponse.last()).toContainText(CHAT_RESPONSE_MARKER, { timeout: 60000 }).then(() => 'assistant').catch(() => null)
 	]);
 	if (firstResponseOrPermission === 'permission') {
 		logChatCheckpoint('App memories permission dialog appeared; rejecting memories for deterministic test flow.');
@@ -850,7 +821,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 		await expect(permissionDialog).not.toBeVisible({ timeout: 10000 });
 	}
 	if (firstResponseOrPermission !== 'assistant') {
-		await expect(assistantResponse.last()).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 60000 });
+		await expect(assistantResponse.last()).toContainText(CHAT_RESPONSE_MARKER, { timeout: 60000 });
 	}
 	const messageResponseMs = Date.now() - messageSendStartedAt;
 	console.log(`[PERF] chat_flow_message_response_ms=${messageResponseMs}`);
@@ -880,10 +851,8 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 		await page.waitForTimeout(5000);
 	}
 	await takeStepScreenshot(page, '04-response-received');
-	logChatCheckpoint('Confirmed travel-planning assistant response.');
+	logChatCheckpoint('Confirmed conference-planning assistant response.');
 
-	await assertLlmQuickTipCardVisible(page, logChatCheckpoint, 'after_initial_response');
-	await takeStepScreenshot(page, '04a-quick-tip-visible');
 	await assertAssistantFeedbackReportIssueFlow(page, logChatCheckpoint, takeStepScreenshot);
 
 	// CRITICAL: Verify exactly 2 messages in the DOM (1 user + 1 assistant).
@@ -1115,7 +1084,9 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	// After Phase 4.5 we're on the home page; a plain reload would reload `/`
 	// which doesn't include the chat hash. So we set the URL first, then reload.
 	await page.goto(`${baseUrl}/#chat-id=${chatId}`);
-	await page.reload({ waitUntil: 'networkidle' });
+	// The app keeps a WebSocket and periodic telemetry requests open, so the network never goes
+	// idle; readiness is asserted below on the rendered messages and header instead.
+	await page.reload({ waitUntil: 'domcontentloaded' });
 	logChatCheckpoint('Page reloaded with chat hash. Waiting for messages...');
 
 	// Wait for the chat messages to render (key derivation + sync after reload)
@@ -1130,7 +1101,6 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	logChatCheckpoint('Verifying chat after tab reload...');
 	// Re-assert full decryption health
 	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'after_reload', chatId);
-	await assertLlmQuickTipCardVisible(page, logChatCheckpoint, 'after_reload');
 	await takeStepScreenshot(page, '06-after-reload');
 
 	// Run inspectChat again to confirm client-side data survived the reload
@@ -1234,7 +1204,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	const userMessageLoaded = await userMsgAfterRelogin.isVisible({ timeout: 5000 }).catch(() => false);
 	const assistantMessageLoaded = await assistantMsgAfterRelogin
 		.textContent({ timeout: 15000 })
-		.then((text: string | null) => (text || '').includes(QUICK_TIP_CHAT_RESPONSE_MARKER))
+		.then((text: string | null) => (text || '').includes(CHAT_RESPONSE_MARKER))
 		.catch(() => false);
 	const chatLoaded = userMessageLoaded && assistantMessageLoaded;
 	if (!chatLoaded) {
@@ -1252,7 +1222,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	userMsgAfterRelogin = page.getByTestId('message-user').first();
 	await expect(userMsgAfterRelogin).toBeVisible({ timeout: 30000 });
 	await expect(page.getByTestId('message-assistant').last()).toContainText(
-		QUICK_TIP_CHAT_RESPONSE_MARKER,
+		CHAT_RESPONSE_MARKER,
 		{ timeout: 60000 }
 	);
 
@@ -1260,7 +1230,6 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 
 	logChatCheckpoint('Verifying chat after re-login...');
 	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'after_relogin', chatId);
-	await assertLlmQuickTipCardVisible(page, logChatCheckpoint, 'after_relogin');
 
 	// Run inspectChat a third time to confirm data is intact after full logout/login cycle
 	logChatCheckpoint('Running inspectChat after re-login...');

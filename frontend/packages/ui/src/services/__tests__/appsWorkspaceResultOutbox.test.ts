@@ -1,4 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+// The Rust core owns the scope rule; this stand-in mirrors its error so the outbox's rejection path stays covered.
+vi.mock("../rustCore/apps/rustAppsRetention", () => ({
+  assertRustOutboxScope: async (record: { id: string; userId: string; teamId: string | null; rootEmbedId: string; revision: string; graph: { root_embed_id: string; team_id?: string } }) => {
+    if (record.id !== JSON.stringify([record.userId, record.teamId, record.rootEmbedId]) || record.graph.root_embed_id !== record.rootEmbedId
+      || (record.graph.team_id ?? null) !== record.teamId) throw new Error("Invalid Apps result outbox scope");
+  },
+}));
 import {
   deletePendingAppsResult,
   getPendingAppsResult,
@@ -105,7 +112,10 @@ describe("Apps result outbox", () => {
     const bob = pending("bob", null, "1");
     (alice.graph.embeds[0] as unknown as Record<string, unknown>).plaintext = "secret content";
     (alice.graph as unknown as Record<string, unknown>).input = "secret input";
-    await Promise.all([stagePendingAppsResult(alice), stagePendingAppsResult(aliceTeam), stagePendingAppsResult(bob)]);
+    // Sequential: concurrent first dynamic imports of the vi.mock'd Rust adapter never settle under vitest.
+    await stagePendingAppsResult(alice);
+    await stagePendingAppsResult(aliceTeam);
+    await stagePendingAppsResult(bob);
     expect(disk.size).toBe(3);
     expect(JSON.stringify(disk.get(alice.id))).not.toContain("secret");
     expect((await getPendingAppsResult("alice", null, "root"))?.deferredChildIds).toEqual(["child-id"]);

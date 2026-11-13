@@ -8,6 +8,14 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
+#[cfg(test)]
+mod embed_ref_tests;
+mod exclusions;
+#[cfg(test)]
+mod exclusions_tests;
+mod placeholder;
+pub use exclusions::{MAX_PII_EXCLUSION_BYTES, MAX_PII_EXCLUSIONS, PiiExclusions};
+
 /// Caller policy; no state directory or installed CLI preferences are consulted.
 #[derive(Clone, Default)]
 pub struct PrivacyOptions {
@@ -303,11 +311,17 @@ fn ranges_for(pattern: &Regex, text: &str) -> Vec<Range> {
         })
         .collect()
 }
+// Hand scanners, not regex: restore runs on every rendered message (see placeholder.rs).
 fn valid_token(token: &str) -> bool {
-    regex(r"^\[[A-Za-z][A-Za-z0-9_]*\]$").is_match(token)
+    placeholder::is_token(token)
+}
+/// Whether `token` is a privacy placeholder (`[A-Za-z][A-Za-z0-9_]*` in
+/// brackets), the grammar caller mappings and exclusions must use.
+pub fn is_placeholder(token: &str) -> bool {
+    valid_token(token)
 }
 fn generated_token(token: &str) -> bool {
-    regex(r"^\[OM_PII_[A-F0-9]{32}\]$").is_match(token)
+    placeholder::is_generated(token)
 }
 fn legacy_token(token: &str) -> bool {
     let re = regex(r"^\[([A-Z_]+)_[0-9]+_[A-Za-z0-9]{1,3}\]$");
@@ -340,19 +354,36 @@ pub fn restore(text: &str, mappings: &[Value]) -> Result<String> {
 pub(crate) fn restore_page(text: &str, mappings: &[Value]) -> Result<String> {
     restore_internal(text, mappings, Some(LOCAL_PRIVACY_MAX_TEXT_BYTES), true)
 }
-pub(crate) fn restore_page_refs(text:&str,mappings:&[&Value])->Result<String> {
-    restore_borrowed(text,mappings.iter().copied(),Some(LOCAL_PRIVACY_MAX_TEXT_BYTES),true)
+pub(crate) fn restore_page_refs(text: &str, mappings: &[&Value]) -> Result<String> {
+    restore_borrowed(
+        text,
+        mappings.iter().copied(),
+        Some(LOCAL_PRIVACY_MAX_TEXT_BYTES),
+        true,
+    )
 }
-fn restore_internal(text: &str, mappings: &[Value], output_limit: Option<usize>, unknown_literal: bool) -> Result<String> {
-    restore_borrowed(text,mappings.iter(),output_limit,unknown_literal)
+fn restore_internal(
+    text: &str,
+    mappings: &[Value],
+    output_limit: Option<usize>,
+    unknown_literal: bool,
+) -> Result<String> {
+    restore_borrowed(text, mappings.iter(), output_limit, unknown_literal)
 }
-fn restore_borrowed<'a>(text:&str,mappings:impl IntoIterator<Item=&'a Value>,output_limit:Option<usize>,unknown_literal:bool)->Result<String> {
-    let mut count=0usize;
+fn restore_borrowed<'a>(
+    text: &str,
+    mappings: impl IntoIterator<Item = &'a Value>,
+    output_limit: Option<usize>,
+    unknown_literal: bool,
+) -> Result<String> {
+    let mut count = 0usize;
     let mut originals: HashMap<&str, &str> = HashMap::new();
     let mut ambiguous = HashSet::new();
     for mapping in mappings {
-        count+=1;
-        if count>10_000 {return Err(Error::Invalid("Privacy mapping limit exceeded."));}
+        count += 1;
+        if count > 10_000 {
+            return Err(Error::Invalid("Privacy mapping limit exceeded."));
+        }
         let Some(token) = mapping
             .get("placeholder")
             .and_then(Value::as_str)
@@ -376,9 +407,9 @@ fn restore_borrowed<'a>(text:&str,mappings:impl IntoIterator<Item=&'a Value>,out
     }
     let mut result = String::with_capacity(text.len());
     let mut cursor = 0;
-    for matched in regex(r"\[[A-Za-z][A-Za-z0-9_]*\]").find_iter(text) {
-        append_privacy(&mut result, &text[cursor..matched.start()], output_limit)?;
-        let token = matched.as_str();
+    for (start, end) in placeholder::find(text) {
+        append_privacy(&mut result, &text[cursor..start], output_limit)?;
+        let token = &text[start..end];
         if ambiguous.contains(token) {
             return Err(Error::Invalid(
                 "A privacy placeholder has conflicting mappings.",
@@ -393,14 +424,36 @@ fn restore_borrowed<'a>(text:&str,mappings:impl IntoIterator<Item=&'a Value>,out
         } else {
             append_privacy(&mut result, token, output_limit)?;
         }
-        cursor = matched.end();
+        cursor = end;
     }
     append_privacy(&mut result, &text[cursor..], output_limit)?;
     Ok(result)
 }
 
 pub fn prepare(text: &str, memories: &[Value], existing: &[Value]) -> Result<PreparedPrivacy> {
-    prepare_internal(text, memories, existing, None, None)
+    prepare_internal(
+        text,
+        memories,
+        existing,
+        None,
+        None,
+        &PiiExclusions::default(),
+    )
+}
+/// [`prepare`] honouring the user's composer exclusions: an excluded original
+/// is never replaced (by a detector, a personal entry or a known mapping) and
+/// an excluded placeholder's mapping is never re-applied. Existing mappings
+/// still enter the returned list so earlier messages restore.
+///
+/// # Errors
+/// As [`prepare`].
+pub fn prepare_excluding(
+    text: &str,
+    memories: &[Value],
+    existing: &[Value],
+    exclusions: &PiiExclusions,
+) -> Result<PreparedPrivacy> {
+    prepare_internal(text, memories, existing, None, None, exclusions)
 }
 fn prepare_internal(
     text: &str,
@@ -408,6 +461,7 @@ fn prepare_internal(
     existing: &[Value],
     output_limit: Option<usize>,
     mapping_limit: Option<usize>,
+    exclusions: &PiiExclusions,
 ) -> Result<PreparedPrivacy> {
     if text.len() > 16 * 1024 * 1024 || existing.len() > 10_000 {
         return Err(Error::Invalid("Privacy input exceeds the supported limit."));
@@ -459,7 +513,14 @@ fn prepare_internal(
         })
         .unwrap_or_default();
     let tokens = ranges_for(&regex(r"\[[A-Za-z][A-Za-z0-9_]*\]"), text);
-    let token_index = RangeIndex::from_ranges(&tokens);
+    let mut token_index = RangeIndex::from_ranges(&tokens);
+    // Embed refs in the message (e.g. an appended upload reference block) are
+    // ids, not personal data: known values, patterns and personal entries never
+    // cut into them, exactly like existing tokens. Redacting one would make the
+    // upload unresolvable. Same grammar as `embedReferenceRanges` (TS).
+    for (start, end) in crate::web_composer::embed_refs::embed_reference_byte_ranges(text) {
+        token_index.insert(start, end);
+    }
     let mut accepted = RangeIndex::default();
     let mut ranges = Vec::new();
     for r in &tokens {
@@ -475,7 +536,16 @@ fn prepare_internal(
             ranges.push(r.clone());
         }
     }
-    let mut known: Vec<&Value> = mappings.iter().collect();
+    // An excluded known mapping keeps restoring history but is not re-applied.
+    let mut known: Vec<&Value> = mappings
+        .iter()
+        .filter(|m| {
+            !exclusions.excludes_mapping(
+                m["original"].as_str().unwrap_or(""),
+                m["placeholder"].as_str().unwrap_or(""),
+            )
+        })
+        .collect();
     known.sort_by_key(|m| {
         std::cmp::Reverse(m["original"].as_str().unwrap_or("").encode_utf16().count())
     });
@@ -514,6 +584,7 @@ fn prepare_internal(
                         || token_index.overlaps(start, end)
                         || accepted.overlaps(start, end)
                         || pattern.kind == "PHONE" && identifier_index.overlaps(start, end)
+                        || exclusions.excludes_original(matched.as_str())
                         || !valid(pattern.kind, matched.as_str(), text[end..].chars().next())
                     {
                         continue;
@@ -548,6 +619,9 @@ fn prepare_internal(
                 let search = Regex::new(&format!("(?i){}", regex::escape(value)))
                     .map_err(|_| Error::Invalid("Personal privacy data could not be processed."))?;
                 for m in search.find_iter(text) {
+                    if exclusions.excludes_original(m.as_str()) {
+                        continue;
+                    }
                     if !personal_index.overlaps(m.start(), m.end()) {
                         personal_index.insert(m.start(), m.end());
                         personal.push(Range {
@@ -593,9 +667,9 @@ fn prepare_internal(
                     .iter()
                     .find(|m| {
                         m["original"] == part
-                            && m["placeholder"]
-                                .as_str()
-                                .is_some_and(|p| !ambiguous.contains(p))
+                            && m["placeholder"].as_str().is_some_and(|p| {
+                                !ambiguous.contains(p) && !exclusions.excludes_mapping(part, p)
+                            })
                     })
                     .and_then(|m| m["placeholder"].as_str())
                 {
@@ -796,6 +870,7 @@ pub fn prepare_local(
         existing_mappings,
         Some(LOCAL_PRIVACY_MAX_TEXT_BYTES),
         Some(LOCAL_PRIVACY_MAX_ENTRIES),
+        &PiiExclusions::default(),
     )?;
     restore_bounds(&prepared.text, &prepared.mappings)?;
     Ok(prepared)
@@ -943,7 +1018,17 @@ mod local_tests {
         assert!(restore_internal("[X][X]", &maps, Some(7), false).is_err());
         let maps = [json!({"original":"x","placeholder":"[LONG]"})];
         assert_eq!(prepare("xx", &[], &maps).unwrap().text, "[LONG][LONG]");
-        assert!(prepare_internal("xx", &[], &maps, Some(11), Some(1024)).is_err());
+        assert!(
+            prepare_internal(
+                "xx",
+                &[],
+                &maps,
+                Some(11),
+                Some(1024),
+                &PiiExclusions::default()
+            )
+            .is_err()
+        );
     }
 
     // contract-test: supporting surface=sdks.rust assertions=pii.surface.semantic-parity

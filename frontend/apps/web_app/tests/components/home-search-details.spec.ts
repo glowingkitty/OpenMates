@@ -54,7 +54,7 @@ for (const width of [390, 1280]) {
     await expect(prices.locator('div').filter({hasText: 'Cold rent'})).toContainText('1000 EUR');
     await expect(prices.locator('div').filter({has: page.locator('dt').filter({hasText: /^Warm rent$/})})).toContainText('1250 EUR');
     await expect(prices.locator('div').filter({hasText: 'Utilities'})).toContainText('250 EUR');
-    await expect(prices.locator('div').filter({hasText: 'Deposit'})).toContainText('3000');
+    await expect(prices.locator('div').filter({hasText: 'Deposit'})).toContainText('3,000');
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('home-location-label')).toContainText('Approximate location');
     await expect(page.getByTestId('home-location-area-label')).toContainText('1200 m radius');
@@ -379,7 +379,7 @@ test('shared home map keeps overlapping area selections and provider filters lin
   await page.getByTestId('embeds-map-view-show-all-results').click();
   await expect(cards).toHaveCount(3);
   await page.getByTestId('embeds-map-view-filter-button').click();
-  const provider = page.getByTestId('embeds-map-view-option-provider-ExampleHousingA');
+  const provider = page.getByTestId('embeds-map-view-option-provider-examplehousinga');
   await provider.click();
   await expect(provider).toHaveAttribute('aria-checked', 'false');
   await expect(page.getByTestId('home-location-pin')).toHaveCount(0);
@@ -419,6 +419,7 @@ test('filtering between homes with identical city geometry updates area activati
 for (const width of [390, 1280]) {
   // contract-test: direct surface=gui.web assertions=home-search.location.precision,home-search.web.map-and-filter,home-search.images.complete-gallery
   test(`Home cards show the photo alone and fall back to factual maps at ${width}px`, async ({page}, testInfo) => {
+    test.setTimeout(120_000); // seven sequential preview loads exceed the 30s default
     await page.setViewportSize({width, height: 900});
     await page.goto(`/dev/preview/embeds/home/HomeListingEmbedPreview?${capture(width, 'chat')}&context=chat`);
     await waitForComponentPreview(page);

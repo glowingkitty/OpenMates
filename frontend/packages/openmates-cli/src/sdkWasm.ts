@@ -15,6 +15,8 @@ export interface SdkWasmExports {
   privacy(input: string): string;
   taskOrder(input: string): string;
   reconstructEmbedVersion(input: string): string;
+  keyManagement(input: string): string;
+  models(input: string): string;
 }
 
 interface WasmGlue extends SdkWasmExports {
@@ -31,7 +33,7 @@ export function loadSdkWasm(): SdkWasmExports | null {
     // synchronous require(esm) loads it; the bytes are instantiated directly.
     const glue = createRequire(import.meta.url)("../wasm/openmates_sdk.js") as WasmGlue;
     glue.initSync({ module: readFileSync(new URL("../wasm/openmates_sdk_bg.wasm", import.meta.url)) });
-    if ([glue.privacy, glue.taskOrder, glue.reconstructEmbedVersion].some(fn => typeof fn !== "function")) return null;
+    if ([glue.privacy, glue.taskOrder, glue.reconstructEmbedVersion, glue.keyManagement, glue.models].some(fn => typeof fn !== "function")) return null;
     loaded = glue;
   } catch {
     // Missing/incompatible artifact: the caller raises its typed refusal.

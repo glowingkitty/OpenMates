@@ -1,0 +1,28 @@
+schema_version: 2
+id: embed-user-revision-commit
+title: Client-authored revision commit for allowlisted chat embeds
+status: draft
+profile: concise
+goal: >
+  Let a user's manual edit of a chat-owned HTML diagram, slide deck or sheet
+  advance an assistant-created head as one atomic, client-encrypted server
+  commit checked against the expected revision and content hash, so a manually
+  edited deck is saved as version 2 and survives a reload while a stale edit is
+  refused instead of overwriting.
+specifications:
+  - feature.slides@1
+scope:
+  in:
+    - Directus embed-version-transaction commitChatDiagramRevision accepts an explicit allowlist of stored app/skill pairs (diagrams/html, slides/deck, sheets/sheet); owner, Team, chat-only, not Project-linked, client encryption, revision/hash compare-and-swap, immutable history and receipts stay unchanged.
+    - Shared web helper embedUserRevision.ts (version check, encryption, v1 snapshot seed, checkpoint every 32 versions, receipt-bound commit, local cache only after the receipt); diagrams become a thin caller with identical behaviour.
+    - Manual deck save in a chat uses the helper with the stored head content hash; a Project deck keeps the Project revision path.
+  out:
+    - Switching sheet cell edits and version-timeline restores to the helper (follow-up lane).
+    - Renaming the wire message, route or receipt table (would need a migration).
+    - Apple and CLI deck editing.
+verification:
+  required:
+    - Extension node tests for deck and sheet v1 to v2 commits, stale hash conflict and non-allowlisted refusal.
+    - Vitest for embedUserRevision, slidesDeckVersion and the existing diagram revision tests.
+    - Isolated GitHub E2E slides-manual-edit.spec.ts with the Rust core flag on and diagram-html-editing.spec.ts.
+    - Scoped eslint and Specification validation for feature.slides.

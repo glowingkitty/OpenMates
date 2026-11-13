@@ -6,7 +6,7 @@ client_persistence_adapters:
     assertion_ids: [storage.client.shared-policy-existing-adapters, storage.surface.semantic-parity]
     given: A user has encrypted local chats in browser IndexedDB and Apple SwiftData, including an older archived chat and pending recovery state.
     when: The application adopts shared Rust client policy through thin persistence adapters.
-    then: Existing stores and data remain readable under the same owner and encryption boundaries; archive reads and recovery preserve their server authority, and no SQLite or OPFS conversion or cache reset is required.
+    then: Data stays readable under the same owner and encryption boundaries; unsynced drafts and recovery state are migrated into the Rust-owned cache or kept until re-synchronized, archive reads and recovery preserve their server authority, and the old store is removed only after that check passes.
   - id: logout-and-owner-boundaries-survive-adapter-change
     assertion_ids: [storage.client.shared-policy-existing-adapters, storage.surface.semantic-parity]
     given: A user logs out while a local save is pending, then signs into another account on the migrated client.

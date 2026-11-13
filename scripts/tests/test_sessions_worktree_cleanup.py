@@ -39,6 +39,8 @@ def load_sessions_module():
     import tempfile
     module._test_expiry_directory = tempfile.TemporaryDirectory(prefix="openmates-expiry-test-")
     module.WORKTREE_EXPIRY_LOCK_FILE = Path(module._test_expiry_directory.name) / "expiry.lock"
+    # Expiry prunes old archives: never let a unit test touch the host archive directory.
+    module.WORKTREE_EXPIRY_ARCHIVE_DIR = Path(module._test_expiry_directory.name) / "archives"
     # Expiry unit tests own a synthetic runtime; dedicated tests below exercise
     # the real probes without consulting host services during filesystem tests.
     module._expiry_worktree_has_runtime_references = lambda _path: False
@@ -430,8 +432,8 @@ def test_hard_expiry_rejects_age_below_seven_days(monkeypatch):
     sessions = load_sessions_module()
     monkeypatch.setattr(sessions, "_managed_worktree_records", lambda: pytest.fail("must reject before discovery"))
 
-    with pytest.raises(ValueError, match="below the configured hard lifetime"):
-        sessions.expire_managed_worktrees(max_age_hours=167)
+    with pytest.raises(ValueError, match="below the minimum inactivity window"):
+        sessions.expire_managed_worktrees(max_age_hours=23)
 
 
 def test_seven_day_expiry_ignores_stale_lifecycle_and_task_bindings(monkeypatch, tmp_path):
@@ -830,7 +832,15 @@ def test_worktree_capacity_does_not_count_reserved_blocks_as_used(monkeypatch, t
 def test_checkpoint_ref_refuses_unverified_session_id_reuse(monkeypatch):
     sessions = load_sessions_module()
     checkpoint_ref = sessions._worktree_checkpoint_ref("abcd")
-    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "old-checkpoint", ""))
+
+    def run_command(command, **_kwargs):
+        if command[:3] == ["git", "merge-base", "--is-ancestor"]:
+            return 1, "", ""  # the foreign commit is not on origin/dev
+        if command[:2] == ["git", "rev-parse"] and "--verify" not in command:
+            return 0, "tree-new\ntree-parent", ""  # and it carries unique work
+        return 0, "old-checkpoint", ""
+
+    monkeypatch.setattr(sessions, "_run_cmd", run_command)
     monkeypatch.setattr(
         sessions,
         "_load_sessions",
@@ -1169,6 +1179,7 @@ def test_expiry_privileged_probe_requires_elected_owner_and_stable_process(monke
     from scripts import disk_coordinator
     monkeypatch.setattr(disk_coordinator, 'configured', lambda _root: object())
     monkeypatch.setattr(disk_coordinator, 'owner_check', lambda _owner: outcome != 'denied')
+    monkeypatch.setattr(sessions, '_EXPIRY_PROBE_CACHE', {})
     real_read_text = Path.read_text
     monkeypatch.setattr(Path, 'read_text', lambda p, *a, **kw: (
         '123 (test) ' + ' '.join(['S'] * 19 + ['42'])
@@ -1184,7 +1195,11 @@ def test_expiry_privileged_probe_requires_elected_owner_and_stable_process(monke
         assert '--read-only' in cmd and '--pull=never' in cmd
         assert cmd[cmd.index('--network') + 1] == 'none'
         assert cmd[cmd.index('--cap-drop') + 1] == 'ALL'
-        assert cmd[cmd.index('--cap-add') + 1] == 'SYS_PTRACE'
+        added = [cmd[i + 1] for i, arg in enumerate(cmd) if arg == '--cap-add']
+        # DAC_READ_SEARCH: root in the probe must list the host user's
+        # dr-x------ /proc/<pid>/fd, or every non-dumpable process (systemd
+        # --user) makes all worktrees look referenced.
+        assert added == ['SYS_PTRACE', 'DAC_READ_SEARCH']
         assert cmd[cmd.index('--security-opt') + 1] == 'no-new-privileges'
         assert 'apparmor=unconfined' in cmd
         assert cmd[cmd.index('--mount') + 1] == 'type=bind,source=/proc,target=/host-proc,readonly'
@@ -1196,6 +1211,11 @@ def test_expiry_privileged_probe_requires_elected_owner_and_stable_process(monke
     result = sessions._expiry_privileged_process_references(123)
     if outcome in {'reference', 'none'}:
         assert result == expected
+        # One pass checks every worktree against the same process: the
+        # verified result is reused instead of starting another container.
+        runs = sum(1 for cmd in calls if cmd[:2] == ['docker', 'run'])
+        assert sessions._expiry_privileged_process_references(123) == expected
+        assert sum(1 for cmd in calls if cmd[:2] == ['docker', 'run']) == runs
     else:
         assert result is None
     if outcome == 'denied':

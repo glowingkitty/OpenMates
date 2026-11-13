@@ -1,0 +1,2073 @@
+{
+ "nowMs": 1794052800000,
+ "timeZone": "Europe/Berlin",
+ "sort": [
+  {
+   "name": "empty",
+   "chats": [],
+   "serverOrder": [],
+   "input": {
+    "chats": [],
+    "serverOrder": []
+   },
+   "out": []
+  },
+  {
+   "name": "single",
+   "chats": [
+    {
+     "chat_id": "a"
+    }
+   ],
+   "serverOrder": [],
+   "input": {
+    "chats": [
+     {
+      "id": "a",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 0
+     }
+    ],
+    "serverOrder": []
+   },
+   "out": [
+    0
+   ]
+  },
+  {
+   "name": "newest first by last edit",
+   "chats": [
+    {
+     "chat_id": "old",
+     "last_edited_overall_timestamp": 100
+    },
+    {
+     "chat_id": "new",
+     "last_edited_overall_timestamp": 300
+    },
+    {
+     "chat_id": "mid",
+     "last_edited_overall_timestamp": 200
+    }
+   ],
+   "serverOrder": [],
+   "input": {
+    "chats": [
+     {
+      "id": "old",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 100,
+      "updated": 0
+     },
+     {
+      "id": "new",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 300,
+      "updated": 0
+     },
+     {
+      "id": "mid",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 200,
+      "updated": 0
+     }
+    ],
+    "serverOrder": []
+   },
+   "out": [
+    1,
+    2,
+    0
+   ]
+  },
+  {
+   "name": "pinned before drafts before regular",
+   "chats": [
+    {
+     "chat_id": "regular",
+     "last_edited_overall_timestamp": 900
+    },
+    {
+     "chat_id": "draft",
+     "last_edited_overall_timestamp": 100,
+     "encrypted_draft_md": "x"
+    },
+    {
+     "chat_id": "pinned-old",
+     "pinned": true,
+     "last_edited_overall_timestamp": 1
+    },
+    {
+     "chat_id": "pinned-draft",
+     "pinned": true,
+     "last_edited_overall_timestamp": 2,
+     "encrypted_draft_md": "y"
+    }
+   ],
+   "serverOrder": [],
+   "input": {
+    "chats": [
+     {
+      "id": "regular",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 900,
+      "updated": 0
+     },
+     {
+      "id": "draft",
+      "pinned": false,
+      "draft": true,
+      "timestamp": 100,
+      "updated": 0
+     },
+     {
+      "id": "pinned-old",
+      "pinned": true,
+      "draft": false,
+      "timestamp": 1,
+      "updated": 0
+     },
+     {
+      "id": "pinned-draft",
+      "pinned": true,
+      "draft": true,
+      "timestamp": 2,
+      "updated": 0
+     }
+    ],
+    "serverOrder": []
+   },
+   "out": [
+    3,
+    2,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "empty and null drafts are not drafts",
+   "chats": [
+    {
+     "chat_id": "empty-draft",
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 5
+    },
+    {
+     "chat_id": "null-draft",
+     "encrypted_draft_md": null,
+     "last_edited_overall_timestamp": 9
+    },
+    {
+     "chat_id": "real-draft",
+     "encrypted_draft_md": "z",
+     "last_edited_overall_timestamp": 1
+    }
+   ],
+   "serverOrder": [],
+   "input": {
+    "chats": [
+     {
+      "id": "empty-draft",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 5,
+      "updated": 0
+     },
+     {
+      "id": "null-draft",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 9,
+      "updated": 0
+     },
+     {
+      "id": "real-draft",
+      "pinned": false,
+      "draft": true,
+      "timestamp": 1,
+      "updated": 0
+     }
+    ],
+    "serverOrder": []
+   },
+   "out": [
+    2,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "missing and null timestamps count as zero",
+   "chats": [
+    {
+     "chat_id": "none"
+    },
+    {
+     "chat_id": "null",
+     "last_edited_overall_timestamp": null
+    },
+    {
+     "chat_id": "zero",
+     "last_edited_overall_timestamp": 0
+    },
+    {
+     "chat_id": "negative",
+     "last_edited_overall_timestamp": -50
+    },
+    {
+     "chat_id": "positive",
+     "last_edited_overall_timestamp": 1
+    }
+   ],
+   "serverOrder": [],
+   "input": {
+    "chats": [
+     {
+      "id": "none",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 0
+     },
+     {
+      "id": "null",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 0
+     },
+     {
+      "id": "zero",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 0
+     },
+     {
+      "id": "negative",
+      "pinned": false,
+      "draft": false,
+      "timestamp": -50,
+      "updated": 0
+     },
+     {
+      "id": "positive",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 1,
+      "updated": 0
+     }
+    ],
+    "serverOrder": []
+   },
+   "out": [
+    4,
+    0,
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "name": "server order breaks timestamp ties",
+   "chats": [
+    {
+     "chat_id": "c",
+     "last_edited_overall_timestamp": 10
+    },
+    {
+     "chat_id": "a",
+     "last_edited_overall_timestamp": 10
+    },
+    {
+     "chat_id": "b",
+     "last_edited_overall_timestamp": 10
+    }
+   ],
+   "serverOrder": [
+    "a",
+    "b",
+    "c"
+   ],
+   "input": {
+    "chats": [
+     {
+      "id": "c",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 10,
+      "updated": 0
+     },
+     {
+      "id": "a",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 10,
+      "updated": 0
+     },
+     {
+      "id": "b",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 10,
+      "updated": 0
+     }
+    ],
+    "serverOrder": [
+     "a",
+     "b",
+     "c"
+    ]
+   },
+   "out": [
+    1,
+    2,
+    0
+   ]
+  },
+  {
+   "name": "only some chats in server order",
+   "chats": [
+    {
+     "chat_id": "local-1",
+     "updated_at": 5
+    },
+    {
+     "chat_id": "known"
+    },
+    {
+     "chat_id": "local-2",
+     "updated_at": 50
+    },
+    {
+     "chat_id": "also-known"
+    }
+   ],
+   "serverOrder": [
+    "also-known",
+    "known"
+   ],
+   "input": {
+    "chats": [
+     {
+      "id": "local-1",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 5
+     },
+     {
+      "id": "known",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 0
+     },
+     {
+      "id": "local-2",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 50
+     },
+     {
+      "id": "also-known",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 0
+     }
+    ],
+    "serverOrder": [
+     "also-known",
+     "known"
+    ]
+   },
+   "out": [
+    3,
+    1,
+    2,
+    0
+   ]
+  },
+  {
+   "name": "updated_at is the last tie break",
+   "chats": [
+    {
+     "chat_id": "u1",
+     "last_edited_overall_timestamp": 7,
+     "updated_at": 1
+    },
+    {
+     "chat_id": "u2",
+     "last_edited_overall_timestamp": 7,
+     "updated_at": 3
+    },
+    {
+     "chat_id": "u3",
+     "last_edited_overall_timestamp": 7
+    },
+    {
+     "chat_id": "u4",
+     "last_edited_overall_timestamp": 7,
+     "updated_at": 3
+    }
+   ],
+   "serverOrder": [],
+   "input": {
+    "chats": [
+     {
+      "id": "u1",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 7,
+      "updated": 1
+     },
+     {
+      "id": "u2",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 7,
+      "updated": 3
+     },
+     {
+      "id": "u3",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 7,
+      "updated": 0
+     },
+     {
+      "id": "u4",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 7,
+      "updated": 3
+     }
+    ],
+    "serverOrder": []
+   },
+   "out": [
+    1,
+    3,
+    0,
+    2
+   ]
+  },
+  {
+   "name": "duplicate ids and duplicate server order entries",
+   "chats": [
+    {
+     "chat_id": "dup",
+     "last_edited_overall_timestamp": 1
+    },
+    {
+     "chat_id": "dup",
+     "last_edited_overall_timestamp": 1
+    },
+    {
+     "chat_id": "other",
+     "last_edited_overall_timestamp": 1
+    }
+   ],
+   "serverOrder": [
+    "other",
+    "dup",
+    "other",
+    "dup"
+   ],
+   "input": {
+    "chats": [
+     {
+      "id": "dup",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 1,
+      "updated": 0
+     },
+     {
+      "id": "dup",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 1,
+      "updated": 0
+     },
+     {
+      "id": "other",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 1,
+      "updated": 0
+     }
+    ],
+    "serverOrder": [
+     "other",
+     "dup",
+     "other",
+     "dup"
+    ]
+   },
+   "out": [
+    2,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "server order ids with no chat are ignored",
+   "chats": [
+    {
+     "chat_id": "x",
+     "last_edited_overall_timestamp": 2
+    },
+    {
+     "chat_id": "y",
+     "last_edited_overall_timestamp": 2
+    }
+   ],
+   "serverOrder": [
+    "ghost",
+    "y",
+    "x"
+   ],
+   "input": {
+    "chats": [
+     {
+      "id": "x",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 2,
+      "updated": 0
+     },
+     {
+      "id": "y",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 2,
+      "updated": 0
+     }
+    ],
+    "serverOrder": [
+     "ghost",
+     "y",
+     "x"
+    ]
+   },
+   "out": [
+    1,
+    0
+   ]
+  },
+  {
+   "name": "millisecond and huge timestamps",
+   "chats": [
+    {
+     "chat_id": "ms",
+     "last_edited_overall_timestamp": 1700000000000
+    },
+    {
+     "chat_id": "s",
+     "last_edited_overall_timestamp": 1700000000
+    },
+    {
+     "chat_id": "huge",
+     "last_edited_overall_timestamp": 9007199254740991
+    },
+    {
+     "chat_id": "fraction",
+     "last_edited_overall_timestamp": 1700000000.5
+    }
+   ],
+   "serverOrder": [],
+   "input": {
+    "chats": [
+     {
+      "id": "ms",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 1700000000000,
+      "updated": 0
+     },
+     {
+      "id": "s",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 1700000000,
+      "updated": 0
+     },
+     {
+      "id": "huge",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 9007199254740991,
+      "updated": 0
+     },
+     {
+      "id": "fraction",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 1700000000.5,
+      "updated": 0
+     }
+    ],
+    "serverOrder": []
+   },
+   "out": [
+    2,
+    0,
+    3,
+    1
+   ]
+  },
+  {
+   "name": "truthy non-boolean pinned values",
+   "chats": [
+    {
+     "chat_id": "p0",
+     "pinned": 0,
+     "last_edited_overall_timestamp": 9
+    },
+    {
+     "chat_id": "p1",
+     "pinned": 1,
+     "last_edited_overall_timestamp": 1
+    },
+    {
+     "chat_id": "pf",
+     "pinned": false,
+     "last_edited_overall_timestamp": 8
+    },
+    {
+     "chat_id": "pn",
+     "pinned": null,
+     "last_edited_overall_timestamp": 7
+    }
+   ],
+   "serverOrder": [],
+   "input": {
+    "chats": [
+     {
+      "id": "p0",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 9,
+      "updated": 0
+     },
+     {
+      "id": "p1",
+      "pinned": true,
+      "draft": false,
+      "timestamp": 1,
+      "updated": 0
+     },
+     {
+      "id": "pf",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 8,
+      "updated": 0
+     },
+     {
+      "id": "pn",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 7,
+      "updated": 0
+     }
+    ],
+    "serverOrder": []
+   },
+   "out": [
+    1,
+    0,
+    2,
+    3
+   ]
+  },
+  {
+   "name": "identical chats keep input order",
+   "chats": [
+    {
+     "chat_id": "s1"
+    },
+    {
+     "chat_id": "s2"
+    },
+    {
+     "chat_id": "s3"
+    },
+    {
+     "chat_id": "s4"
+    }
+   ],
+   "serverOrder": [],
+   "input": {
+    "chats": [
+     {
+      "id": "s1",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 0
+     },
+     {
+      "id": "s2",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 0
+     },
+     {
+      "id": "s3",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 0
+     },
+     {
+      "id": "s4",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 0
+     }
+    ],
+    "serverOrder": []
+   },
+   "out": [
+    0,
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "name": "many chats mixed",
+   "chats": [
+    {
+     "chat_id": "m0",
+     "pinned": true,
+     "encrypted_draft_md": "d",
+     "last_edited_overall_timestamp": 0,
+     "updated_at": 0
+    },
+    {
+     "chat_id": "m1",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 4,
+     "updated_at": 3
+    },
+    {
+     "chat_id": "m2",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 8,
+     "updated_at": 1
+    },
+    {
+     "chat_id": "m3",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 1,
+     "updated_at": 4
+    },
+    {
+     "chat_id": "m4",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 5,
+     "updated_at": 2
+    },
+    {
+     "chat_id": "m5",
+     "pinned": false,
+     "encrypted_draft_md": "d",
+     "last_edited_overall_timestamp": 9,
+     "updated_at": 0
+    },
+    {
+     "chat_id": "m6",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 2,
+     "updated_at": 3
+    },
+    {
+     "chat_id": "m7",
+     "pinned": true,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 6,
+     "updated_at": 1
+    },
+    {
+     "chat_id": "m8",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 10,
+     "updated_at": 4
+    },
+    {
+     "chat_id": "m9",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 3,
+     "updated_at": 2
+    },
+    {
+     "chat_id": "m10",
+     "pinned": false,
+     "encrypted_draft_md": "d",
+     "last_edited_overall_timestamp": 7,
+     "updated_at": 0
+    },
+    {
+     "chat_id": "m11",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 0,
+     "updated_at": 3
+    },
+    {
+     "chat_id": "m12",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 4,
+     "updated_at": 1
+    },
+    {
+     "chat_id": "m13",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 8,
+     "updated_at": 4
+    },
+    {
+     "chat_id": "m14",
+     "pinned": true,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 1,
+     "updated_at": 2
+    },
+    {
+     "chat_id": "m15",
+     "pinned": false,
+     "encrypted_draft_md": "d",
+     "last_edited_overall_timestamp": 5,
+     "updated_at": 0
+    },
+    {
+     "chat_id": "m16",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 9,
+     "updated_at": 3
+    },
+    {
+     "chat_id": "m17",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 2,
+     "updated_at": 1
+    },
+    {
+     "chat_id": "m18",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 6,
+     "updated_at": 4
+    },
+    {
+     "chat_id": "m19",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 10,
+     "updated_at": 2
+    },
+    {
+     "chat_id": "m20",
+     "pinned": false,
+     "encrypted_draft_md": "d",
+     "last_edited_overall_timestamp": 3,
+     "updated_at": 0
+    },
+    {
+     "chat_id": "m21",
+     "pinned": true,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 7,
+     "updated_at": 3
+    },
+    {
+     "chat_id": "m22",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 0,
+     "updated_at": 1
+    },
+    {
+     "chat_id": "m23",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 4,
+     "updated_at": 4
+    },
+    {
+     "chat_id": "m24",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 8,
+     "updated_at": 2
+    },
+    {
+     "chat_id": "m25",
+     "pinned": false,
+     "encrypted_draft_md": "d",
+     "last_edited_overall_timestamp": 1,
+     "updated_at": 0
+    },
+    {
+     "chat_id": "m26",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 5,
+     "updated_at": 3
+    },
+    {
+     "chat_id": "m27",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 9,
+     "updated_at": 1
+    },
+    {
+     "chat_id": "m28",
+     "pinned": true,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 2,
+     "updated_at": 4
+    },
+    {
+     "chat_id": "m29",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 6,
+     "updated_at": 2
+    },
+    {
+     "chat_id": "m30",
+     "pinned": false,
+     "encrypted_draft_md": "d",
+     "last_edited_overall_timestamp": 10,
+     "updated_at": 0
+    },
+    {
+     "chat_id": "m31",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 3,
+     "updated_at": 3
+    },
+    {
+     "chat_id": "m32",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 7,
+     "updated_at": 1
+    },
+    {
+     "chat_id": "m33",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 0,
+     "updated_at": 4
+    },
+    {
+     "chat_id": "m34",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 4,
+     "updated_at": 2
+    },
+    {
+     "chat_id": "m35",
+     "pinned": true,
+     "encrypted_draft_md": "d",
+     "last_edited_overall_timestamp": 8,
+     "updated_at": 0
+    },
+    {
+     "chat_id": "m36",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 1,
+     "updated_at": 3
+    },
+    {
+     "chat_id": "m37",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 5,
+     "updated_at": 1
+    },
+    {
+     "chat_id": "m38",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 9,
+     "updated_at": 4
+    },
+    {
+     "chat_id": "m39",
+     "pinned": false,
+     "encrypted_draft_md": "",
+     "last_edited_overall_timestamp": 2,
+     "updated_at": 2
+    }
+   ],
+   "serverOrder": [
+    "m3",
+    "m11",
+    "m2",
+    "m30"
+   ],
+   "input": {
+    "chats": [
+     {
+      "id": "m0",
+      "pinned": true,
+      "draft": true,
+      "timestamp": 0,
+      "updated": 0
+     },
+     {
+      "id": "m1",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 4,
+      "updated": 3
+     },
+     {
+      "id": "m2",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 8,
+      "updated": 1
+     },
+     {
+      "id": "m3",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 1,
+      "updated": 4
+     },
+     {
+      "id": "m4",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 5,
+      "updated": 2
+     },
+     {
+      "id": "m5",
+      "pinned": false,
+      "draft": true,
+      "timestamp": 9,
+      "updated": 0
+     },
+     {
+      "id": "m6",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 2,
+      "updated": 3
+     },
+     {
+      "id": "m7",
+      "pinned": true,
+      "draft": false,
+      "timestamp": 6,
+      "updated": 1
+     },
+     {
+      "id": "m8",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 10,
+      "updated": 4
+     },
+     {
+      "id": "m9",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 3,
+      "updated": 2
+     },
+     {
+      "id": "m10",
+      "pinned": false,
+      "draft": true,
+      "timestamp": 7,
+      "updated": 0
+     },
+     {
+      "id": "m11",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 3
+     },
+     {
+      "id": "m12",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 4,
+      "updated": 1
+     },
+     {
+      "id": "m13",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 8,
+      "updated": 4
+     },
+     {
+      "id": "m14",
+      "pinned": true,
+      "draft": false,
+      "timestamp": 1,
+      "updated": 2
+     },
+     {
+      "id": "m15",
+      "pinned": false,
+      "draft": true,
+      "timestamp": 5,
+      "updated": 0
+     },
+     {
+      "id": "m16",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 9,
+      "updated": 3
+     },
+     {
+      "id": "m17",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 2,
+      "updated": 1
+     },
+     {
+      "id": "m18",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 6,
+      "updated": 4
+     },
+     {
+      "id": "m19",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 10,
+      "updated": 2
+     },
+     {
+      "id": "m20",
+      "pinned": false,
+      "draft": true,
+      "timestamp": 3,
+      "updated": 0
+     },
+     {
+      "id": "m21",
+      "pinned": true,
+      "draft": false,
+      "timestamp": 7,
+      "updated": 3
+     },
+     {
+      "id": "m22",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 1
+     },
+     {
+      "id": "m23",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 4,
+      "updated": 4
+     },
+     {
+      "id": "m24",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 8,
+      "updated": 2
+     },
+     {
+      "id": "m25",
+      "pinned": false,
+      "draft": true,
+      "timestamp": 1,
+      "updated": 0
+     },
+     {
+      "id": "m26",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 5,
+      "updated": 3
+     },
+     {
+      "id": "m27",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 9,
+      "updated": 1
+     },
+     {
+      "id": "m28",
+      "pinned": true,
+      "draft": false,
+      "timestamp": 2,
+      "updated": 4
+     },
+     {
+      "id": "m29",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 6,
+      "updated": 2
+     },
+     {
+      "id": "m30",
+      "pinned": false,
+      "draft": true,
+      "timestamp": 10,
+      "updated": 0
+     },
+     {
+      "id": "m31",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 3,
+      "updated": 3
+     },
+     {
+      "id": "m32",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 7,
+      "updated": 1
+     },
+     {
+      "id": "m33",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 0,
+      "updated": 4
+     },
+     {
+      "id": "m34",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 4,
+      "updated": 2
+     },
+     {
+      "id": "m35",
+      "pinned": true,
+      "draft": true,
+      "timestamp": 8,
+      "updated": 0
+     },
+     {
+      "id": "m36",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 1,
+      "updated": 3
+     },
+     {
+      "id": "m37",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 5,
+      "updated": 1
+     },
+     {
+      "id": "m38",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 9,
+      "updated": 4
+     },
+     {
+      "id": "m39",
+      "pinned": false,
+      "draft": false,
+      "timestamp": 2,
+      "updated": 2
+     }
+    ],
+    "serverOrder": [
+     "m3",
+     "m11",
+     "m2",
+     "m30"
+    ]
+   },
+   "out": [
+    35,
+    0,
+    21,
+    7,
+    28,
+    14,
+    30,
+    5,
+    10,
+    15,
+    20,
+    25,
+    8,
+    19,
+    38,
+    16,
+    27,
+    2,
+    13,
+    24,
+    32,
+    18,
+    29,
+    26,
+    4,
+    37,
+    23,
+    1,
+    34,
+    12,
+    31,
+    9,
+    6,
+    39,
+    17,
+    3,
+    36,
+    11,
+    33,
+    22
+   ]
+  }
+ ],
+ "group": [
+  {
+   "name": "empty",
+   "chats": [],
+   "input": {
+    "chats": [],
+    "today": [
+     2026,
+     11,
+     7
+    ]
+   },
+   "out": []
+  },
+  {
+   "name": "time buckets",
+   "chats": [
+    {
+     "chat_id": "today",
+     "last_edited_overall_timestamp": 1794052800
+    },
+    {
+     "chat_id": "yesterday",
+     "last_edited_overall_timestamp": 1793966400
+    },
+    {
+     "chat_id": "d3",
+     "last_edited_overall_timestamp": 1793793600
+    },
+    {
+     "chat_id": "d6",
+     "last_edited_overall_timestamp": 1793534400
+    },
+    {
+     "chat_id": "d7",
+     "last_edited_overall_timestamp": 1793448000
+    },
+    {
+     "chat_id": "d29",
+     "last_edited_overall_timestamp": 1791547200
+    },
+    {
+     "chat_id": "d30",
+     "last_edited_overall_timestamp": 1791460800
+    },
+    {
+     "chat_id": "d400",
+     "last_edited_overall_timestamp": 1759492800
+    }
+   ],
+   "input": {
+    "chats": [
+     {
+      "group": null,
+      "day": [
+       2026,
+       11,
+       7
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       11,
+       6
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       11,
+       4
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       11,
+       1
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       10,
+       31
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       10,
+       9
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       10,
+       8
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2025,
+       10,
+       3
+      ]
+     }
+    ],
+    "today": [
+     2026,
+     11,
+     7
+    ]
+   },
+   "out": [
+    [
+     "today",
+     [
+      0
+     ]
+    ],
+    [
+     "yesterday",
+     [
+      1
+     ]
+    ],
+    [
+     "previous_7_days",
+     [
+      2,
+      3
+     ]
+    ],
+    [
+     "previous_30_days",
+     [
+      4,
+      5
+     ]
+    ],
+    [
+     "month_2026_10",
+     [
+      6
+     ]
+    ],
+    [
+     "month_2025_10",
+     [
+      7
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "month groups and order of first appearance",
+   "chats": [
+    {
+     "chat_id": "feb",
+     "last_edited_overall_timestamp": 1770112800
+    },
+    {
+     "chat_id": "today",
+     "last_edited_overall_timestamp": 1794052800
+    },
+    {
+     "chat_id": "jan",
+     "last_edited_overall_timestamp": 1769900400
+    },
+    {
+     "chat_id": "feb2",
+     "last_edited_overall_timestamp": 1771581600
+    },
+    {
+     "chat_id": "dec25",
+     "last_edited_overall_timestamp": 1767223800
+    }
+   ],
+   "input": {
+    "chats": [
+     {
+      "group": null,
+      "day": [
+       2026,
+       2,
+       3
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       11,
+       7
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       2,
+       1
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       2,
+       20
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       1,
+       1
+      ]
+     }
+    ],
+    "today": [
+     2026,
+     11,
+     7
+    ]
+   },
+   "out": [
+    [
+     "month_2026_2",
+     [
+      0,
+      2,
+      3
+     ]
+    ],
+    [
+     "today",
+     [
+      1
+     ]
+    ],
+    [
+     "month_2026_1",
+     [
+      4
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "explicit group keys override time",
+   "chats": [
+    {
+     "chat_id": "intro",
+     "group_key": "intro",
+     "last_edited_overall_timestamp": 1794052800
+    },
+    {
+     "chat_id": "plain",
+     "last_edited_overall_timestamp": 1794052800
+    },
+    {
+     "chat_id": "legal",
+     "group_key": "legal"
+    },
+    {
+     "chat_id": "intro2",
+     "group_key": "intro"
+    },
+    {
+     "chat_id": "empty-key",
+     "group_key": "",
+     "last_edited_overall_timestamp": 1793880000
+    }
+   ],
+   "input": {
+    "chats": [
+     {
+      "group": "intro",
+      "day": [
+       2026,
+       11,
+       7
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       11,
+       7
+      ]
+     },
+     {
+      "group": "legal",
+      "day": null
+     },
+     {
+      "group": "intro",
+      "day": null
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       11,
+       5
+      ]
+     }
+    ],
+    "today": [
+     2026,
+     11,
+     7
+    ]
+   },
+   "out": [
+    [
+     "intro",
+     [
+      0,
+      3
+     ]
+    ],
+    [
+     "today",
+     [
+      1
+     ]
+    ],
+    [
+     "legal",
+     [
+      2
+     ]
+    ],
+    [
+     "previous_7_days",
+     [
+      4
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "missing, zero, null and invalid timestamps are today",
+   "chats": [
+    {
+     "chat_id": "none"
+    },
+    {
+     "chat_id": "zero",
+     "last_edited_overall_timestamp": 0
+    },
+    {
+     "chat_id": "null",
+     "last_edited_overall_timestamp": null
+    },
+    {
+     "chat_id": "nan",
+     "last_edited_overall_timestamp": null
+    },
+    {
+     "chat_id": "too-big",
+     "last_edited_overall_timestamp": 9000000000000000
+    }
+   ],
+   "input": {
+    "chats": [
+     {
+      "group": null,
+      "day": null
+     },
+     {
+      "group": null,
+      "day": null
+     },
+     {
+      "group": null,
+      "day": null
+     },
+     {
+      "group": null,
+      "day": null
+     },
+     {
+      "group": null,
+      "day": null
+     }
+    ],
+    "today": [
+     2026,
+     11,
+     7
+    ]
+   },
+   "out": [
+    [
+     "today",
+     [
+      0,
+      1,
+      2,
+      3,
+      4
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "future timestamps land in previous_7_days",
+   "chats": [
+    {
+     "chat_id": "tomorrow",
+     "last_edited_overall_timestamp": 1794139200
+    },
+    {
+     "chat_id": "next-month",
+     "last_edited_overall_timestamp": 1797508800
+    }
+   ],
+   "input": {
+    "chats": [
+     {
+      "group": null,
+      "day": [
+       2026,
+       11,
+       8
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       12,
+       17
+      ]
+     }
+    ],
+    "today": [
+     2026,
+     11,
+     7
+    ]
+   },
+   "out": [
+    [
+     "previous_7_days",
+     [
+      0,
+      1
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "local midnight boundaries (Europe/Berlin)",
+   "chats": [
+    {
+     "chat_id": "23:59 yesterday",
+     "last_edited_overall_timestamp": 1794005999
+    },
+    {
+     "chat_id": "00:00 today",
+     "last_edited_overall_timestamp": 1794006000
+    },
+    {
+     "chat_id": "23:59 today",
+     "last_edited_overall_timestamp": 1794092399
+    }
+   ],
+   "input": {
+    "chats": [
+     {
+      "group": null,
+      "day": [
+       2026,
+       11,
+       6
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       11,
+       7
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       11,
+       7
+      ]
+     }
+    ],
+    "today": [
+     2026,
+     11,
+     7
+    ]
+   },
+   "out": [
+    [
+     "yesterday",
+     [
+      0
+     ]
+    ],
+    [
+     "today",
+     [
+      1,
+      2
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "daylight-saving change window",
+   "chats": [
+    {
+     "chat_id": "before dst end",
+     "last_edited_overall_timestamp": 1792888200
+    },
+    {
+     "chat_id": "after dst end",
+     "last_edited_overall_timestamp": 1792895400
+    },
+    {
+     "chat_id": "week before",
+     "last_edited_overall_timestamp": 1793448000
+    }
+   ],
+   "input": {
+    "chats": [
+     {
+      "group": null,
+      "day": [
+       2026,
+       10,
+       25
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       10,
+       25
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2026,
+       10,
+       31
+      ]
+     }
+    ],
+    "today": [
+     2026,
+     11,
+     7
+    ]
+   },
+   "out": [
+    [
+     "previous_30_days",
+     [
+      0,
+      1,
+      2
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "millisecond timestamps and epoch edges",
+   "chats": [
+    {
+     "chat_id": "ms-today",
+     "last_edited_overall_timestamp": 1794052799000
+    },
+    {
+     "chat_id": "epoch-1s",
+     "last_edited_overall_timestamp": 1
+    },
+    {
+     "chat_id": "negative",
+     "last_edited_overall_timestamp": -34560000
+    },
+    {
+     "chat_id": "1e10 boundary",
+     "last_edited_overall_timestamp": 10000000000
+    },
+    {
+     "chat_id": "just under 1e10",
+     "last_edited_overall_timestamp": 9999999999
+    }
+   ],
+   "input": {
+    "chats": [
+     {
+      "group": null,
+      "day": [
+       2026,
+       11,
+       7
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       1970,
+       1,
+       1
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       1968,
+       11,
+       27
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       1970,
+       4,
+       26
+      ]
+     },
+     {
+      "group": null,
+      "day": [
+       2286,
+       11,
+       20
+      ]
+     }
+    ],
+    "today": [
+     2026,
+     11,
+     7
+    ]
+   },
+   "out": [
+    [
+     "today",
+     [
+      0
+     ]
+    ],
+    [
+     "month_1970_1",
+     [
+      1
+     ]
+    ],
+    [
+     "month_1968_11",
+     [
+      2
+     ]
+    ],
+    [
+     "month_1970_4",
+     [
+      3
+     ]
+    ],
+    [
+     "previous_7_days",
+     [
+      4
+     ]
+    ]
+   ]
+  }
+ ]
+}

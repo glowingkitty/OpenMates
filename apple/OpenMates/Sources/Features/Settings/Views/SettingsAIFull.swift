@@ -31,6 +31,7 @@ struct SettingsAIFullView: View {
     var onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)? = nil
     @EnvironmentObject private var authManager: AuthManager
     @ObservedObject private var modelCatalog = NativeModelCatalogRuntime.shared
+    @ObservedObject private var serverRegion = ServerRegionSetting.shared
     @State private var defaultSimpleModel = ""
     @State private var defaultComplexModel = ""
     @State private var defaultMostDemandingModel = ""
@@ -38,7 +39,7 @@ struct SettingsAIFullView: View {
     @State private var selectedTierProviderID: String?
     @State private var fixturePreferences = NativeModelDisabledPreferences.Value()
     @State private var followUpSuggestionsEnabled = true
-    @State private var quickTipsEnabled = true
+    @State private var recommendationsEnabled = true
     @State private var isSaving = false
     @State private var isLoadingPreferences = false
     @State private var hasLoadedPreferences = false
@@ -125,6 +126,24 @@ struct SettingsAIFullView: View {
             }
 
             VStack(alignment: .leading, spacing: .spacing5) {
+                AISettingsHeading(title: AppStrings.aiServerRegionHeading, icon: "settings")
+                HStack(spacing: AISettingsMetrics.rowGap) {
+                    AISettingsFamilyRow(title: AppStrings.aiPreferEUServers,
+                        subtitle: AppStrings.aiPreferEUServersDescription, logo: "settings", trailingPadding: 0) {
+                        serverRegion.setPrefersEU(!serverRegion.prefersEU)
+                    }
+                    AISettingsToggle(isOn: Binding(
+                        get: { serverRegion.prefersEU },
+                        set: { serverRegion.setPrefersEU($0) }),
+                        accessibilityIdentifier: "ai-server-region-eu-toggle")
+                        .accessibilityLabel(AppStrings.aiPreferEUServers)
+                        .padding(.trailing, .spacing10)
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("ai-server-region-group")
+            }
+
+            VStack(alignment: .leading, spacing: .spacing5) {
                 AISettingsHeading(title: AppStrings.aiModelsAndAccounts, icon: "ai")
                 VStack(spacing: .spacing4) {
                     ForEach(providerFamilies, id: \.id) { provider in
@@ -150,13 +169,13 @@ struct SettingsAIFullView: View {
                             saveDefaults(rollbackFollowUpsTo: previous)
                         }), disabled: isSaving || !hasLoadedPreferences,
                         identifier: "ai-response-feature-follow-up-suggestions")
-                    AISettingsSwitchRow(title: AppStrings.aiQuickTips, subtitle: AppStrings.aiQuickTipsDescription,
-                        logo: "insight", value: Binding(get: { quickTipsEnabled }, set: { next in
-                            let previous = quickTipsEnabled
-                            quickTipsEnabled = next
-                            saveDefaults(rollbackQuickTipsTo: previous)
+                    AISettingsSwitchRow(title: AppStrings.aiRecommendations, subtitle: AppStrings.aiRecommendationsDescription,
+                        logo: "insight", value: Binding(get: { recommendationsEnabled }, set: { next in
+                            let previous = recommendationsEnabled
+                            recommendationsEnabled = next
+                            saveDefaults(rollbackRecommendationsTo: previous)
                         }), disabled: isSaving || !hasLoadedPreferences,
-                        identifier: "ai-response-feature-quick-tips")
+                        identifier: "ai-response-feature-recommendations")
                 }
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("ai-response-settings-group")
@@ -605,23 +624,22 @@ struct SettingsAIFullView: View {
         isLoadingPreferences = true
         defer { isLoadingPreferences = false }
         do {
-            let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
-            guard let user = response.user else { throw CocoaError(.coderValueNotFound) }
+            let user = try await AuthManager.admittedProfile()
             defaultSimpleModel = user.defaultAiModelSimple ?? ""
             defaultComplexModel = user.defaultAiModelComplex ?? ""
             defaultMostDemandingModel = user.defaultAiModelMostDemanding ?? ""
             followUpSuggestionsEnabled = user.followUpSuggestionsEnabled ?? true
-            quickTipsEnabled = user.quickTipsEnabled ?? true
+            recommendationsEnabled = user.recommendationsEnabled ?? true
             hasLoadedPreferences = true
         } catch {
             errorMessage = AppStrings.aiPreferencesSaveError
             NativeDiagnostics.error("AI preference load failed", category: "settings.ai")
         }
     }
-    private func saveDefaults(rollbackFollowUpsTo: Bool? = nil, rollbackQuickTipsTo: Bool? = nil) {
+    private func saveDefaults(rollbackFollowUpsTo: Bool? = nil, rollbackRecommendationsTo: Bool? = nil) {
         guard isAuthenticated, hasLoadedPreferences, !isSaving, !isLoadingPreferences else { return }
-        let field = rollbackFollowUpsTo != nil ? "follow_up_suggestions_enabled" : "quick_tips_enabled"
-        let value = rollbackFollowUpsTo != nil ? followUpSuggestionsEnabled : quickTipsEnabled
+        let field = rollbackFollowUpsTo != nil ? "follow_up_suggestions_enabled" : "recommendations_enabled"
+        let value = rollbackFollowUpsTo != nil ? followUpSuggestionsEnabled : recommendationsEnabled
         isSaving = true
         errorMessage = nil
         Task {
@@ -633,7 +651,7 @@ struct SettingsAIFullView: View {
                 }
             } catch {
                 if let rollbackFollowUpsTo { followUpSuggestionsEnabled = rollbackFollowUpsTo }
-                if let rollbackQuickTipsTo { quickTipsEnabled = rollbackQuickTipsTo }
+                if let rollbackRecommendationsTo { recommendationsEnabled = rollbackRecommendationsTo }
                 errorMessage = AppStrings.aiPreferencesSaveError
                 NativeDiagnostics.error("AI response preference save failed", category: "settings.ai")
             }
@@ -896,8 +914,8 @@ private extension AppStrings {
     static var aiResponseSettings: String { localized("settings.ai_ask.ai_ask_settings.response_settings") }
     static var aiFollowUpSuggestions: String { localized("settings.ai_ask.ai_ask_settings.follow_up_suggestions") }
     static var aiFollowUpDescription: String { localized("settings.ai_ask.ai_ask_settings.follow_up_suggestions_description") }
-    static var aiQuickTips: String { localized("settings.ai_ask.ai_ask_settings.quick_tips") }
-    static var aiQuickTipsDescription: String { localized("settings.ai_ask.ai_ask_settings.quick_tips_description") }
+    static var aiRecommendations: String { localized("settings.ai_ask.ai_ask_settings.recommendations") }
+    static var aiRecommendationsDescription: String { localized("settings.ai_ask.ai_ask_settings.recommendations_description") }
     static var aiProviderModelsInstruction: String { localized("settings.ai_ask.ai_ask_settings.provider_models_instruction") }
     static var aiPreferencesSaveError: String { localized("settings.ai_ask.ai_ask_settings.default_models_save_error") }
     static func aiCapability(_ level: String) -> String { localized("settings.ai_ask.ai_ask_settings.capability_" + level) }

@@ -25,6 +25,9 @@ interface ChatDatabaseInstance {
     mode: IDBTransactionMode,
   ): Promise<IDBTransaction>;
 
+  // Chat retrieval (needed for chatCrudOps)
+  getChat(chatId: string, transaction?: IDBTransaction): Promise<Chat | null>;
+
   // Chat key management methods (needed for chatCrudOps)
   getChatKey(chatId: string): Uint8Array | null;
   setChatKey(chatId: string, chatKey: Uint8Array): void;
@@ -202,31 +205,20 @@ export async function updateChatComponentVersion(
     return;
   }
 
-  // Now create a transaction for the update operation
-  const tx = await dbInstance.getTransaction(
-    dbInstance.CHATS_STORE_NAME,
-    "readwrite",
-  );
-
-  try {
-    if (component === "draft_v") {
-      chat.draft_v = version;
-    } else if (component === "messages_v") {
-      chat.messages_v = version;
-    } else if (component === "title_v") {
-      chat.title_v = version;
-    }
-    chat.updated_at = Math.floor(Date.now() / 1000);
-    await chatCrudOps.addChat(dbInstance, chat, tx);
-
-    return new Promise((resolve, reject) => {
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch (error) {
-    if (tx.abort) tx.abort();
-    throw error;
+  if (component === "draft_v") {
+    chat.draft_v = version;
+  } else if (component === "messages_v") {
+    chat.messages_v = version;
+  } else if (component === "title_v") {
+    chat.title_v = version;
   }
+  chat.updated_at = Math.floor(Date.now() / 1000);
+
+  // addChat opens its own transaction and settles on that transaction's
+  // completion. Never wait on a caller-created transaction here: it can expire
+  // before the put, addChat then commits on a replacement transaction, and a
+  // listener on the expired one never fires (the awaiting handler hangs forever).
+  await chatCrudOps.addChat(dbInstance, chat);
 }
 
 /**
@@ -256,25 +248,11 @@ export async function updateChatLastEditedTimestamp(
     return;
   }
 
-  // Now create a transaction for the update operation
-  const tx = await dbInstance.getTransaction(
-    dbInstance.CHATS_STORE_NAME,
-    "readwrite",
-  );
+  chat.last_edited_overall_timestamp = timestamp;
+  chat.updated_at = Math.floor(Date.now() / 1000);
 
-  try {
-    chat.last_edited_overall_timestamp = timestamp;
-    chat.updated_at = Math.floor(Date.now() / 1000);
-    await chatCrudOps.addChat(dbInstance, chat, tx);
-
-    return new Promise((resolve, reject) => {
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch (error) {
-    if (tx.abort) tx.abort();
-    throw error;
-  }
+  // See updateChatComponentVersion: addChat owns the transaction and its completion.
+  await chatCrudOps.addChat(dbInstance, chat);
 }
 
 // ============================================================================

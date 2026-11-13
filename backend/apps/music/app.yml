@@ -72,8 +72,8 @@ embed_types:
 instructions:
   - instruction: |
       Once music generation finishes, describe the actual successful tracks
-      and include the returned parent and every successful child embed_ref
-      inline. Report failed outputs honestly. Do not expose raw task IDs,
+      and include every successful child embed_ref inline (never the parent).
+      Report failed outputs honestly. Do not expose raw task IDs,
       embed IDs, or status codes.
 skills:
   - id: generate
@@ -91,6 +91,7 @@ skills:
       Do not use this to imitate the voice, vocals, cadence, or persona of a real
       public figure, living artist, famous educator, or recognizable person. Use
       original voices and styles only, and reject scams, spam, or detection evasion.
+      Not for the music of a video: videos.generate makes a video's music, voice-over and sound effects itself.
     class_path: backend.apps.music.skills.generate_skill.GenerateSkill
     providers:
       - Google
@@ -99,6 +100,9 @@ skills:
       per_unit:
         credits: 120
         unit_name: track
+    supplier_costs:
+      per_unit:
+        model: google/lyria-3-pro-preview
     tool_schema:
       type: object
       properties:

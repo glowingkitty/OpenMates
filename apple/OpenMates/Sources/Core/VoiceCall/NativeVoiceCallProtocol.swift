@@ -1,7 +1,9 @@
-// Web source: frontend/packages/ui/src/services/voiceCall.ts, voiceCallMessages.ts
+// Web source: frontend/packages/ui/src/services/voiceCall.ts, voiceCallMessages.ts,
+// voiceCallBackground.ts, components/enter_message/VoiceCallLiveTranscript.svelte
 // Specification: specifications/features/video-call/specification.yml
 // Assertions: video-call.chat.fixed-binding, video-call.chat.transcripts,
-// video-call.chat.typed-input, video-call.audio.startup-buffer, video-call.provider.boundary, video-call.chat.skill-integration
+// video-call.chat.typed-input, video-call.audio.startup-buffer, video-call.provider.boundary, video-call.chat.skill-integration,
+// video-call.audio.background-resume
 
 import Foundation
 
@@ -21,6 +23,47 @@ enum NativeVoiceCallError: String, Error, Equatable, Sendable {
     case audioUnavailable, audioQueueFull, startupTimedOut, connectionLost
     case contextUnavailable, contextTooLarge, persistenceFailed, textRejected
     case callUnavailable, unsupportedTransport
+    /// The system took the microphone away and did not give it back. Ends the
+    /// call cleanly (hangup, transcript kept, billing stopped), never a failure.
+    case endedInBackground
+}
+
+/// System audio-session events of a running iOS call. Leaving the screen or
+/// locking it is deliberately not an event: with the `audio` background mode
+/// the call keeps capturing, playing and streaming (web ends only when the
+/// browser takes the microphone away, `endBecauseMicrophoneLost`).
+enum NativeVoiceCallAudioSessionEvent: Equatable, Sendable {
+    case interruptionBegan
+    case interruptionEnded(shouldResume: Bool)
+    case mediaServicesReset
+    case inputDeviceLost(otherInputAvailable: Bool)
+}
+
+enum NativeVoiceCallAudioSessionAction: Equatable, Sendable {
+    /// The system holds the audio for now (phone call, Siri); wait for its end.
+    case suspend
+    /// The system returned the audio: reactivate the session and continue.
+    case resume
+    case end(NativeVoiceCallError)
+}
+
+/// Only a microphone the system removes for good ends the call. An
+/// interruption the system lets resume continues the same call.
+enum NativeVoiceCallInterruptionPolicy {
+    static func action(for event: NativeVoiceCallAudioSessionEvent) -> NativeVoiceCallAudioSessionAction {
+        switch event {
+        case .interruptionBegan:
+            return .suspend
+        case .interruptionEnded(let shouldResume):
+            return shouldResume ? .resume : .end(.endedInBackground)
+        case .mediaServicesReset:
+            return .end(.endedInBackground)
+        case .inputDeviceLost(let otherInputAvailable):
+            // A lost headset with the built-in microphone left stays a visible
+            // failure (no silent capture on a new route), as before.
+            return otherInputAvailable ? .end(.audioUnavailable) : .end(.endedInBackground)
+        }
+    }
 }
 
 /// JSON values are bounded at the frame/context boundaries. No Any or unchecked
@@ -65,6 +108,9 @@ enum NativeVoiceCallWire {
     static let startupByteLimit = 16_000 * 2 * 10
     static let maximumAudioChunkBytes = 32_000 // <= 1 second PCM16 mono input
     static let maximumFrameBytes = 512 * 1_024
+    /// Server and web pin this in `start` and `ready` (backend voice_call.py).
+    static let speechOutputTransport = "mp3_turn_stream_v2"
+    static let maximumSourceFrameCharacters = 350_000
 
     static func encode(_ frame: NativeVoiceCallFrame) throws -> String {
         let data = try JSONEncoder().encode(frame)
@@ -207,6 +253,24 @@ struct NativeVoiceCallTurn: Sendable, Equatable {
     }
 }
 
+/// The user's in-progress utterance (web `VoiceCallLiveTranscript`). Display
+/// only: it never edits the draft and grants no chat authority.
+struct NativeVoiceCallLiveTranscript: Equatable, Sendable {
+    let messageID: String
+    let text: String
+    /// Final transcript admitted for processing; awaiting its chat row.
+    let submitted: Bool
+    /// The server is holding this turn (`transcript.pending`) until speech completes.
+    var held = false
+}
+
+/// Camera notices the server can report for this call. Apple has no camera
+/// capture yet, so these arrive only if the server reports them unprompted.
+enum NativeVoiceCallCameraNotice: String, Equatable, Sendable {
+    case cameraFailed = "camera_failed"
+    case sourceFrameFailed = "source_frame_failed"
+}
+
 struct NativeVoiceCallSnapshot: Equatable, Sendable {
     enum Status: String, Sendable { case idle, connecting, live, ended, failed }
     var status: Status = .idle
@@ -219,6 +283,10 @@ struct NativeVoiceCallSnapshot: Equatable, Sendable {
     var processing = false
     var activeSeconds: TimeInterval = 0
     var error: NativeVoiceCallError?
+    var liveTranscript: NativeVoiceCallLiveTranscript?
+    var cameraAvailable = false
+    var cameraEnabled = false
+    var cameraNotice: NativeVoiceCallCameraNotice?
 }
 
 enum NativeVoiceCallEvent: Sendable {

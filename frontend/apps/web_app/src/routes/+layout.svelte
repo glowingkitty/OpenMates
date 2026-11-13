@@ -136,6 +136,10 @@
 		initializeTheme();
 		themeInitialized = true;
 		initializeUiFont();
+		// Shared Rust core Worker (flag-on builds only; folded away and unbundled otherwise).
+		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && browser) void import('$lib/rustCore/shared/sharedWorkerStart').then((shared) => shared.startSharedRustCore());
+		// chatState unit: open it now so the first sidebar sort does not wait for the Worker (measurement opt-out keeps the TS arm clean).
+		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && browser && localStorage.getItem('openmates_rust_core_chatstate') !== 'ts') void import('@openmates/ui/src/services/rustCore/chatState/chatListUnitClient').then((client) => client.prepareChatStateUnit()).catch((error) => console.error('[chatState] prepare failed', error));
 		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
 		// Only dictionary/local preference readiness gates app text. Auth and sync start afterwards.
 		await setupI18n();

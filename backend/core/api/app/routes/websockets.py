@@ -14,8 +14,9 @@ from backend.core.api.app.utils.websocket_lifecycle import (
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
+from backend.core.api.app.services.chat_unread_counter import UNREAD_COUNT_UPDATED_EVENT
 from backend.core.api.app.services.pair_session_deadline import get_pair_deadline_hash
-from backend.core.api.app.services.session_security_state import get_session_state_cached
+from backend.core.api.app.services.session_security_state import get_session_lineage_state
 from backend.core.api.app.services.storage_archive_client_compatibility import (
     REQUIRED_CAPABILITY, archive_phase_active, declares_archive_capability, invalidate_runtime_proof,
 )
@@ -79,6 +80,8 @@ from .handlers.websocket_handlers.focus_mode_deactivate_handler import handle_fo
 from .handlers.websocket_handlers.focus_mode_rejected_handler import handle_focus_mode_rejected # Handler for focus mode rejection during countdown
 from .handlers.websocket_handlers.project_focus_decision_handler import handle_project_focus_decision
 from .handlers.websocket_handlers.project_focus_catalog_handler import handle_project_focus_catalog_result
+from .handlers.websocket_handlers.project_create_result_handler import handle_project_create_result
+from backend.core.api.app.services.project_create_request_service import outbound_create_event
 from .handlers.websocket_handlers.workflow_metadata_warmup_handler import (
     accept_workflow_warmup_request, warm_workflow_metadata,
 )
@@ -116,6 +119,10 @@ from .handlers.websocket_handlers.workflow_chat_delivery_handlers import (
     handle_workflow_chat_delivery_claim,
     handle_workflow_chat_delivery_persist,
     send_available_workflow_chat_deliveries,
+)
+from .handlers.websocket_handlers.memory_write_job_handlers import (
+    handle_memory_write_job_claim,
+    handle_memory_write_job_result,
 )
 from .handlers.websocket_handlers.task_update_job_handlers import (
     handle_task_update_job_claim,
@@ -322,27 +329,31 @@ async def _fresh_personal_snapshot_authority(
             except (OverflowError, ValueError):
                 return False
 
-    # The cache link selects the owner, while the durable ledger is the
-    # revocation/risk fence. Neither may be replaced by the opening result.
-    link = await cache_service.get(f"session:{session_hash}")
+    # The durable ledger is the revocation/risk fence and follows refresh-token
+    # rotation of this socket's own logical session; the cache link of the live
+    # member selects the owner. Neither may be replaced by the opening result.
+    lineage = await get_session_lineage_state(
+        directus_service, cache_service, session_hash,
+        user_id=user_id, allow_risk=False,
+    )
+    if lineage is None:
+        return False
+    current_hash, state = lineage
+    link = await cache_service.get(f"session:{current_hash}")
     if canonical_session_user_id(link) != user_id:
         return False
-    state, current_pair_deadline, device_profile, token_map = await asyncio.gather(
-        get_session_state_cached(
-            directus_service, cache_service, session_hash,
-            user_id=user_id, allow_risk=False,
-        ),
-        get_pair_deadline_hash(directus_service, cache_service, session_hash),
+    current_pair_deadline, device_profile, token_map = await asyncio.gather(
+        get_pair_deadline_hash(directus_service, cache_service, current_hash),
         directus_service.get_user_fields_direct(
             user_id, ["id", "connected_devices"], no_cache=True,
         ),
         cache_service.get(f"user_tokens:{user_id}"),
         return_exceptions=True,
     )
-    for result in (state, current_pair_deadline, device_profile, token_map):
+    for result in (current_pair_deadline, device_profile, token_map):
         if isinstance(result, BaseException):
             raise result
-    if state is None or state.get("user_id") != user_id:
+    if state.get("user_id") != user_id:
         return False
     if current_pair_deadline is not None and current_pair_deadline <= time.time():
         return False
@@ -353,7 +364,7 @@ async def _fresh_personal_snapshot_authority(
     if device_hash not in {row.get("hash") for row in known_devices}:
         return False
 
-    session_metadata = token_map.get(session_hash) if isinstance(token_map, dict) else None
+    session_metadata = token_map.get(current_hash) if isinstance(token_map, dict) else None
     previous_country = (
         session_metadata.get("security_country_code") or session_metadata.get("country_code")
         if isinstance(session_metadata, dict) else None
@@ -1211,6 +1222,14 @@ async def listen_for_cache_events(app: FastAPI):
                                     await manager.send_personal_message(
                                         {"type": event_type, "payload": outbound}, user_id, device_id,
                                     )
+                    elif event_type == "project_create_requested":
+                        # Only this chat's capable executor device creates the Project.
+                        outbound = outbound_create_event(payload)
+                        for device_id in (manager.get_connections_for_user(user_id) if outbound else []):
+                            if manager.can_execute_project_create(user_id, device_id, outbound["chat_id"]):
+                                await manager.send_personal_message(
+                                    {"type": event_type, "payload": outbound}, user_id, device_id,
+                                )
                     elif event_type in ("focus_mode_activated", "focus_mode_pending"):
                         # Focus mode was auto-confirmed after countdown. Push the activation
                         # event to all connected devices so the client can update its local
@@ -1493,6 +1512,25 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             user_id=owner_id,
                             device_fingerprint_hash=device_hash,
                         )
+                    continue
+
+                if event_type == "memory_write_job_available":
+                    # Cleartext Memory document for the owner's capable device(s) with this
+                    # chat open only; the first claim wins (memory_write_tool.py).
+                    user_id_uuid = redis_payload.get("user_id_uuid")
+                    chat_id_from_payload = redis_payload.get("chat_id")
+                    if not user_id_uuid or not chat_id_from_payload:
+                        continue
+                    payload = {key: value for key, value in redis_payload.items()
+                               if key not in {"type", "user_id_uuid", "user_id_hash"}}
+                    for device_hash in list(manager.get_connections_for_user(user_id_uuid)):
+                        if (manager.supports_memory_write_jobs(user_id_uuid, device_hash)
+                                and chat_id_from_payload == manager.get_active_chat(user_id_uuid, device_hash)):
+                            await manager.send_personal_message(
+                                message={"type": event_type, "payload": payload},
+                                user_id=user_id_uuid,
+                                device_fingerprint_hash=device_hash,
+                            )
                     continue
 
                 if event_type in ("task_event", "task_update_jobs_available"):
@@ -2088,7 +2126,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "chat_tags": redis_payload.get("chat_tags", []),
                         "harmful_response": redis_payload.get("harmful_response", 0.0),
                         "top_recommended_apps_for_user": redis_payload.get("top_recommended_apps_for_user", []),
-                        "quick_tip_slugs": redis_payload.get("quick_tip_slugs", []),
+                        "recommendations": redis_payload.get("recommendations", []),
                         "source_title_v": redis_payload.get("source_title_v"),
                         "source_metadata_v": redis_payload.get("source_metadata_v"),
                     }
@@ -2526,6 +2564,24 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
                 redis_channel_name = message.get("channel", "")
                 
                 internal_event_type = redis_payload.get("type")
+                if internal_event_type == UNREAD_COUNT_UPDATED_EVENT:
+                    unread_count = redis_payload.get("unread_count")
+                    if not redis_payload.get("user_id_uuid") or not isinstance(unread_count, int):
+                        logger.warning(
+                            "AI Persisted Listener: Malformed unread payload "
+                            f"(summary: {_safe_payload_summary(redis_payload)})"
+                        )
+                        continue
+                    await manager.broadcast_to_user_specific_event(
+                        user_id=redis_payload["user_id_uuid"],
+                        event_name="chat_read_status_updated",
+                        payload={
+                            "chat_id": redis_payload.get("chat_id"),
+                            "unread_count": unread_count,
+                            "message_id": redis_payload.get("message_id"),
+                        },
+                    )
+                    continue
                 if internal_event_type != "ai_message_persisted":
                     logger.warning(f"AI Persisted Listener: Received unexpected event type '{internal_event_type}' on channel '{redis_channel_name}'. Skipping.")
                     continue
@@ -2586,6 +2642,21 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
                     f"AI Persisted Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} "
                     f"with payload summary: {_safe_payload_summary(client_payload)}"
                 )
+
+                # Server-authoritative unread count for the reply (set by stream_consumer).
+                # Sent to every device, including the visible one, which re-reports 0
+                # immediately if the reply's last line is already on screen.
+                unread_count = redis_payload.get("unread_count")
+                if isinstance(unread_count, int):
+                    await manager.broadcast_to_user_specific_event(
+                        user_id=user_id_uuid,
+                        event_name="chat_read_status_updated",
+                        payload={
+                            "chat_id": redis_payload.get("chat_id"),
+                            "unread_count": unread_count,
+                            "message_id": message_content_for_client.get("message_id"),
+                        },
+                    )
 
             elif message and message.get("error") == "json_decode_error":
                 logger.error(
@@ -3218,7 +3289,9 @@ async def websocket_endpoint(
     inventory_request_id = (_validated_inventory_request_id(websocket.query_params.get("inventory_request_id"))
                             if complete_task_inventory else None)
     supports_project_file_jobs = "project_file_jobs" in connection_capabilities
+    supports_project_create_requests = "project_create_requests" in connection_capabilities
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
+    supports_memory_write_jobs = "memory_write_jobs" in connection_capabilities
     supports_canonical_embed_receipts = "canonical_embed_receipts_v1" in connection_capabilities
     supports_typed_recovery_outputs = "typed_recovery_outputs_v2" in connection_capabilities
     supports_empty_call_cleanup = websocket.query_params.get("empty_call_cleanup_guard") == "1"
@@ -3267,7 +3340,9 @@ async def websocket_endpoint(
         supports_task_update_jobs=supports_task_update_jobs,
         supports_chat_metadata_recovery=supports_chat_metadata_recovery,
         supports_project_file_jobs=supports_project_file_jobs,
+        supports_project_create_requests=supports_project_create_requests,
         supports_remote_command_jobs=supports_remote_command_jobs,
+        supports_memory_write_jobs=supports_memory_write_jobs,
         supports_storage_archive=supports_storage_archive,
         supports_canonical_embed_receipts=supports_canonical_embed_receipts,
         supports_typed_recovery_outputs=supports_typed_recovery_outputs,
@@ -3302,16 +3377,17 @@ async def websocket_endpoint(
     websocket.scope["voice_call_session_hash"] = session_hash
     if session_hash:
         from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
-        from backend.core.api.app.services.session_security_state import get_session_state_cached
-
         async def watch_session_authority() -> None:
             while True:
                 await asyncio.sleep(10)
                 try:
-                    link = await cache_service.get(f"session:{session_hash}")
-                    state = await get_session_state_cached(
+                    # Follow refresh-token rotation of this socket's own logical
+                    # session; a retired opening hash is not a revocation.
+                    lineage = await get_session_lineage_state(
                         directus_service, cache_service, session_hash, user_id=user_id,
                     )
+                    current_hash, state = lineage if lineage is not None else (session_hash, None)
+                    link = await cache_service.get(f"session:{current_hash}")
                     link_user_id = canonical_session_user_id(link)
                     if (link_user_id != user_id
                             or state is None or state.get("risk_pending")):
@@ -3812,6 +3888,20 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type in ("memory_write_job_claim", "memory_write_job_result"):
+                if not supports_memory_write_jobs:
+                    await websocket.send_json({"type": "error", "payload": {"message": "Memory write jobs require a memory-write-jobs capable client"}})
+                    continue
+                memory_write_handler = (handle_memory_write_job_claim if message_type == "memory_write_job_claim"
+                                        else handle_memory_write_job_result)
+                await memory_write_handler(
+                    manager=manager,
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
                 )
 
             elif message_type == "task_update_job_claim":
@@ -4521,6 +4611,12 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash, payload=payload,
                     cache_service=cache_service, directus_service=directus_service,
                 )
+            elif message_type == "project_create_result":
+                await handle_project_create_result(
+                    websocket=websocket, manager=manager, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    cache_service=cache_service, directus_service=directus_service,
+                )
             elif message_type == "focus_mode_rejected":
                 # Handle user rejection of focus mode during the countdown
                 # Triggered when user clicks the embed or presses ESC within 4 seconds
@@ -4851,7 +4947,7 @@ async def websocket_endpoint(
                         user_id=user_id,
                         exclude_device_hash=device_fingerprint_hash,
                     )
-                    
+
                     logger.info(f"User {user_id}: Updated and broadcast read status for chat {chat_id}: unread_count = {unread_count}")
                 except Exception as e:
                     logger.error(f"User {user_id}: Failed to update read status: {str(e)}")

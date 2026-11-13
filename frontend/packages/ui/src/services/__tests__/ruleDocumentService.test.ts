@@ -3,7 +3,7 @@ import { webcrypto } from 'node:crypto';
 
 const mocks = vi.hoisted(() => ({
   activeFocus: vi.fn(), getProject: vi.fn(), contents: vi.fn(), settings: vi.fn(),
-  readHead: vi.fn(), receipt: vi.fn(), approve: vi.fn(), decrypt: vi.fn(), encrypt: vi.fn(),
+  readHead: vi.fn(), removeEmbed: vi.fn(), receipt: vi.fn(), approve: vi.fn(), decrypt: vi.fn(), encrypt: vi.fn(),
 }));
 vi.mock('../../config/api', () => ({ getApiEndpoint: (path: string) => `https://api.test${path}` }));
 vi.mock('../../stores/authStore', async () => {
@@ -23,11 +23,13 @@ vi.mock('../projectService', () => ({
   getActiveProjectFocus: mocks.activeFocus, getProject: mocks.getProject, getProjectContents: mocks.contents,
   getProjectSettings: mocks.settings, readEncryptedProjectFile: mocks.readHead,
   getProjectFileRevisionReceipt: mocks.receipt, approveProjectWrite: mocks.approve,
+  removeEmbedFromProject: mocks.removeEmbed,
 }));
 
 import { authStore } from '../../stores/authStore';
 import { userProfile } from '../../stores/userProfile';
-import { collectCustomRuleDocuments, personalDocumentMemoryEntries, listPersonalRuleDocuments, savePersonalRuleDocument, saveProjectMarkdownDocument, readActiveProjectMarkdownDocuments } from '../ruleDocumentService';
+import { serializeRuleDocument } from '../../utils/ruleDocuments';
+import { deleteExpiredProjectMemories, collectCustomRuleDocuments, collectMemoryCatalog, personalDocumentMemoryEntries, listPersonalRuleDocuments, savePersonalRuleDocument, saveProjectMarkdownDocument, readActiveProjectMarkdownDocuments } from '../ruleDocumentService';
 import { collectProjectFocusCatalog, collectPrivateFocusForRequest, collectProjectReferenceDocuments } from '../agenticProjectContextService';
 
 const guide = '---\ntitle: Private Python practices\ndescription: Private reusable service practices.\nwhen_to_use: Writing Python services.\n---\n- Preserve cancellation.\n- Release resources.\n';
@@ -186,4 +188,70 @@ it('merges legacy account Memories once and exposes entries only to the private 
   expect(entries[0].item_value.document).toBe(updated);
   mocks.activeFocus.mockResolvedValue(null);
   expect(await collectCustomRuleDocuments({chatId: 'chat-1'})).toEqual([]);
+});
+
+// contract-test: direct surface=gui.web assertions=app-memories.expiry.client-enforced
+it('deletes Project memories as soon as they are expired', async () => {
+  const now = Date.parse('2026-06-20T00:00:00Z');
+  const doc = (validUntil: string) => `---\ntitle: Temp\nvalid_until: '${validUntil}'\n---\nBody\n`;
+  const rule = (id: string, validUntil: string) => ({ id, source: 'project' as const, project_id: 'p1', document: doc(validUntil) });
+  mocks.getProject.mockResolvedValue(project);
+  mocks.contents.mockResolvedValue({ folders: [], items: [
+    { project_item_id: 'item-old', target_id: 'embed-old', metadata: {} },
+    { project_item_id: 'item-recent', target_id: 'embed-recent', metadata: {} },
+    { project_item_id: 'item-live', target_id: 'embed-live', metadata: {} },
+  ] });
+  const deleted = await deleteExpiredProjectMemories({ projectId: 'p1', teamId: null, documents: [
+    rule('item-old', '2026-06-01T00:00:00Z'), rule('item-recent', '2026-06-18T00:00:00Z'), rule('item-live', '2026-06-21T00:00:00Z'),
+  ] }, now);
+  expect(deleted).toBe(2);
+  expect(mocks.removeEmbed).toHaveBeenCalledTimes(2);
+  expect(mocks.removeEmbed).toHaveBeenCalledWith('p1', 'embed-old', { teamId: undefined });
+  expect(mocks.removeEmbed).toHaveBeenCalledWith('p1', 'embed-recent', { teamId: undefined });
+});
+
+describe('Project Memory load modes', () => {
+  const memoryFor = (mode: 'auto_include' | 'ask_first' | 'mention_only') => serializeRuleDocument({
+    title: `Project ${mode}`, when_to_use: 'Release work.', body: '- Check the changelog.', load_mode: mode,
+  });
+  async function collect(mode: 'auto_include' | 'ask_first' | 'mention_only') {
+    mocks.activeFocus.mockResolvedValue(focus);
+    mocks.contents.mockResolvedValue({ folders: [], items: [{
+      project_item_id: 'project-item-1', item_type: 'embed', target_id: 'embed-1', displayName: '',
+      metadata: { path: '.openmates/memories/m1.md' }, encrypted: {},
+    }] });
+    mocks.readHead.mockResolvedValue({ content: { code: memoryFor(mode) }, revision: 1, embedKey: new Uint8Array(32), hasInitialHistory: true });
+    const documents = await collectCustomRuleDocuments({ chatId: 'chat-1' });
+    return { documents, catalog: await collectMemoryCatalog(documents) };
+  }
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('crypto', webcrypto);
+    authStore.set({ isAuthenticated: true, isInitialized: true });
+    userProfile.update((value) => ({ ...value, user_id: 'owner', encrypted_settings: 'existing-ciphertext' }));
+    mocks.decrypt.mockResolvedValue(JSON.stringify({ memory_documents: [] }));
+    mocks.getProject.mockResolvedValue(project);
+    mocks.settings.mockResolvedValue({ settings: {} });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.load-modes
+  it('sends the body of an Auto include Project Memory and does not catalog it', async () => {
+    const { documents, catalog } = await collect('auto_include');
+    expect(documents.map((item) => item.id)).toEqual(['project-item-1']);
+    expect(catalog).toEqual([]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.load-modes
+  it('catalogs an Ask first Project Memory without its body', async () => {
+    const { documents, catalog } = await collect('ask_first');
+    expect(documents).toEqual([]);
+    expect(catalog).toEqual([{ id: 'project-item-1', title: 'Project ask_first', when_to_use: 'Release work.', load_mode: 'ask_first', source: 'project' }]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.load-modes
+  it('neither sends nor catalogs a Mention only Project Memory', async () => {
+    const { documents, catalog } = await collect('mention_only');
+    expect(documents).toEqual([]);
+    expect(catalog).toEqual([]);
+  });
 });

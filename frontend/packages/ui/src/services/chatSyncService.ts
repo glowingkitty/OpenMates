@@ -111,6 +111,10 @@ import {
 
 // All payload interface definitions are now expected to be in types/chat.ts
 
+/** Rust core build: the sync unit decides the reconnect stale-draft probe (same opt-out as the Phase 2 handlers). */
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+
 const CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS = 8_000;
 
 type EarlyEmptyConnectedAccounts = { scope: string; mutationEpoch: number; empty: boolean } | null;
@@ -726,7 +730,7 @@ export class ChatSynchronizationService extends EventTarget {
 
     // Defer websocketStatus subscription to avoid a Temporal Dead Zone (TDZ) crash
     // when this module is loaded as part of a circular import chain:
-    //   authStore → authSessionActions → appSettingsMemoriesStore → chatSyncService → authStore
+    //   authStore → authSessionActions → chatSyncService → authStore
     // In that chain, authStore's const binding hasn't been initialized yet when the
     // ChatSynchronizationService constructor runs. queueMicrotask defers until after
     // the synchronous module-evaluation stack completes, at which point authStore is
@@ -2168,6 +2172,13 @@ export class ChatSynchronizationService extends EventTarget {
     // Import and register remaining app settings/memories handlers.
     // These events are not time-critical (they don't arrive immediately after a user message)
     // so registering them inside a dynamic import .then() is safe here.
+    import("./appSettingsMemoriesEntryDeleted").then((module) => {
+      webSocketService.on("app_settings_memories_entry_deleted", async (payload) => {
+        await module.handleAppSettingsMemoriesEntryDeleted(
+          payload as Parameters<typeof module.handleAppSettingsMemoriesEntryDeleted>[0],
+        );
+      });
+    });
     import("./chatSyncServiceHandlersAppSettings").then((module) => {
       webSocketService.on("app_settings_memories_sync_ready", (payload) =>
         module.handleAppSettingsMemoriesSyncReadyImpl(
@@ -2369,7 +2380,7 @@ export class ChatSynchronizationService extends EventTarget {
           chat_tags: string[];
           harmful_response: number;
           top_recommended_apps_for_user?: string[];
-          quick_tip_slugs?: string[];
+          recommendations?: import("../types/recommendations").ChatRecommendation[];
         },
       ),
     );
@@ -3539,6 +3550,17 @@ export class ChatSynchronizationService extends EventTarget {
         `[ChatSyncService] 3/4: Phased sync preparing request with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions, ${client_embed_ids.length} embed(s) already on device`,
       );
 
+      // Rust core builds also ask the server about idle local drafts outside
+      // the inferred-deletion window (the eligibility rule lives in the core).
+      const stale_draft_probe = RUST_SYNC_BUILD
+        ? await (await import("./rustCore/sync/rustStaleDraftReconcile")).buildStaleDraftProbe(
+            teamId ?? null,
+            context.epoch,
+            Object.entries(client_chat_versions).map(([chatId, versions]) => [chatId, versions.draft_v]),
+            pendingDeletions,
+          )
+        : undefined;
+
       const payload: PhasedSyncRequestPayload = {
         phase: "all",
         client_chat_versions,
@@ -3547,6 +3569,7 @@ export class ChatSynchronizationService extends EventTarget {
         client_embed_ids,
         context_epoch: context.epoch,
         ...(teamId ? { team_id: teamId } : {}),
+        ...(stale_draft_probe ? { stale_draft_probe } : {}),
       };
 
       // The context may have changed while IndexedDB was preparing this request.

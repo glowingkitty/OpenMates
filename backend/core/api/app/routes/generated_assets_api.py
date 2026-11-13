@@ -243,6 +243,18 @@ def _content_type_for_variant(record_content_type: str, variant: Dict[str, Any])
     return record_content_type or "application/octet-stream"
 
 
+def _filename_for_variant(record_filename: str, variant: Dict[str, Any], asset_id: str) -> str:
+    """A variant may name its own download file (e.g. one per embroidery machine format).
+
+    Variants without a ``filename`` keep the record-level ``original_filename``,
+    so existing image, audio and 3D model downloads are unchanged.
+    """
+    variant_filename = variant.get("filename")
+    if isinstance(variant_filename, str) and variant_filename.strip():
+        return variant_filename.strip()
+    return record_filename or f"openmates_generated_{asset_id}"
+
+
 def _attachment_header(filename: str) -> str:
     safe_filename = "".join(character for character in filename if character >= " " and character not in {'"', "\\"})
     return f"attachment; filename*=UTF-8''{quote(safe_filename or 'openmates_generated_asset')}"
@@ -322,7 +334,7 @@ async def download_generated_asset(
         raise HTTPException(status_code=404, detail="Generated asset variant not found")
 
     media_type = _content_type_for_variant(str(record.get("content_type") or ""), variant_meta)
-    filename = str(record.get("original_filename") or f"openmates_generated_{asset_id}")
+    filename = _filename_for_variant(str(record.get("original_filename") or ""), variant_meta, asset_id)
     try:
         aes_key = await _resolve_asset_aes_key(
             record,

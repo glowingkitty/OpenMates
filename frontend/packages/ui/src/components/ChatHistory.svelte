@@ -1,9 +1,11 @@
 <script lang="ts">
 import { storageArchiveFetch } from "../config/api";
+  import { memoryResponseMappings } from '../services/rustCore/memory/memoryResponseMappings';
 
   import { searchResultImageUrl } from '../utils/searchPreviewImages';
   import { collectHeaderImageRefs } from './embeds/embedPreviewHydration';
   import { embedStore, embedRefIndexVersion } from '../services/embedStore';
+  import { publishChatMessageOrder } from '../services/rustCore/embeds/messageEmbedVersion';
   import { createEventDispatcher, tick, onMount, onDestroy, untrack } from "svelte"; // Removed afterUpdate for runes mode compatibility
   import type { Snippet, SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
@@ -19,10 +21,19 @@ import { storageArchiveFetch } from "../config/api";
   import { associateLoadedMemories } from '../utils/associateLoadedMemories';
   import { projectAuthoringJobs, saveProjectAuthoring } from '../services/projectAuthoringClientService';
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
-  import QuickTipsCard from './QuickTipsCard.svelte';
+  import ChatRecommendations from './ChatRecommendations.svelte';
+  import ContextEntryEventNotice from './ContextEntryEventNotice.svelte';
+  import EmbedUpdatedEventNotice from './EmbedUpdatedEventNotice.svelte';
+  import { embedEventRows, embedUpdatedCandidateKey, isEmbedUpdatedCandidate, placeEmbedUpdatedGroups, type EmbedUpdatedPlacement } from './embedUpdatedHistory';
+  import { EMBED_EDITS_ENABLED, groupEmbedUpdatedEvents, reconcileEmbedNotices } from '../services/rustCore/embeds/embedEditSession';
+  import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
+  import SystemMessageNotice from './SystemMessageNotice.svelte';
+  import { RECOMMENDATIONS_IN_BUILD } from '../services/chatRecommendationsPersistence';
+  import { isContextEntryCandidateContent, readContextEntryHistory } from '../services/contextEntryEvents';
+  import { contextEntryExists, openContextEntryMemory, undoAssistantContextEntry } from '../services/contextEntryLinks';
+  import type { ContextEntryHistoryEvent } from '../types/recommendations';
   import { fade, slide } from "svelte/transition";
   import type { MessageStatus, ProcessingPhase, ResumeCardImageBubble } from '../types/chat'; // Import global MessageStatus and ProcessingPhase
-  import type { QuickTipDefinition } from '../data/quickTips';
 
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
@@ -30,10 +41,14 @@ import { storageArchiveFetch } from "../config/api";
   import type { ChatCompressionCheckpoint, Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parse_message } from '../message_parsing/parse_message';
+  import type { AssistantRenderPlan } from '../message_parsing/streamingMessageBlocks';
   import {
-    createAssistantRenderPlan,
-    type AssistantRenderPlan,
-  } from '../message_parsing/streamingMessageBlocks';
+    onRenderPlanReady,
+    renderPlansAreAsync,
+    resetRenderPlanState,
+    renderPlanRequestFailed,
+    resolveAssistantRenderPlan,
+  } from '../services/rustCore/parse/renderPlanBranch';
   import { StreamingRenderScheduler } from '../message_parsing/streamingRenderScheduler';
   import { truncateTiptapContent } from '../utils/messageTruncation';
   import { orderSharedInteractiveQuestionMessages } from '../utils/sharedInteractiveQuestionOrdering';
@@ -94,7 +109,6 @@ import { storageArchiveFetch } from "../config/api";
   import { MAX_WIDTH_PREVIEW_THUMBNAIL, proxyImage } from '../utils/imageProxy';
   import { extractSearchResultsFromContent } from './embeds/embedPreviewHydration';
   import { chatDB } from '../services/db';
-  import { chatKeyManager } from '../services/encryption/ChatKeyManager';
   import { authStore } from '../stores/authStore';
   import { userProfile } from '../stores/userProfile';
   import { activeTeamId } from '../stores/teamStore';
@@ -242,11 +256,12 @@ import { storageArchiveFetch } from "../config/api";
     const cumulativeMappings = new Map<string, PIIMapping>();
     
     for (const msg of allMessages) {
-      if (msg.role === 'user' && msg.pii_mappings && msg.pii_mappings.length > 0) {
-        for (const mapping of msg.pii_mappings) {
-          cumulativeMappings.set(mapping.placeholder, mapping);
-        }
-      }
+      // Memory responses carry the placeholders of anonymized Memory bodies (the core
+      // read path exposes them per system row; IndexedDB rows carry them in the content).
+      const mappings = msg.role === 'user' ? msg.pii_mappings
+        : msg.role === 'system' ? (msg.pii_mappings?.length ? msg.pii_mappings : memoryResponseMappings(msg.content))
+        : undefined;
+      for (const mapping of mappings ?? []) cumulativeMappings.set(mapping.placeholder, mapping);
     }
     
     return cumulativeMappings;
@@ -315,6 +330,18 @@ import { storageArchiveFetch } from "../config/api";
   }
 
   const assistantRenderPlans = new Map<string, AssistantRenderPlan>();
+  // Flag-on build only. Before the first Rust plan of a message resolves the message is
+  // empty: showing its source here made embed reference JSON and markdown flash before the
+  // rendered result. The plain text is shown only after a plan request failed, so a parse
+  // unit that does not answer never leaves a message blank.
+  function plainTextDoc(text: string): unknown {
+    const paragraphs = text.split('\n\n').map(chunk => chunk.length > 0
+      ? { type: 'paragraph', content: [{ type: 'text', text: chunk }] }
+      : { type: 'paragraph' });
+    return { type: 'doc', content: paragraphs };
+  }
+  const EMPTY_DOC = { type: 'doc', content: [{ type: 'paragraph' }] };
+  let renderPlanVersion = $state(0);
 
   // Helper function to map incoming message structure to InternalMessage
   // IMPORTANT: piiMappings parameter is optional - when provided, PII restoration is applied
@@ -336,13 +363,17 @@ import { storageArchiveFetch } from "../config/api";
       }
       
       if (incomingMessage.role === 'assistant') {
-        const plan = createAssistantRenderPlan(contentToProcess, {
+        if (renderPlansAreAsync()) void renderPlanVersion; // flag-on: re-run when an async plan resolves
+        const plan = resolveAssistantRenderPlan(incomingMessage.message_id, contentToProcess, {
           phase: incomingMessage.status === 'streaming' ? 'streaming' : 'final',
-          previous: assistantRenderPlans.get(incomingMessage.message_id),
           chatId: incomingMessage.chat_id,
-        });
-        assistantRenderPlans.set(incomingMessage.message_id, plan);
-        processedContent = plan.document;
+        }, assistantRenderPlans);
+        // null only on the flag-on build while the Rust parse unit resolves the plan:
+        // show the last resolved document (or none) until onRenderPlanReady remaps.
+        processedContent = plan
+          ? plan.document
+          : (assistantRenderPlans.get(incomingMessage.message_id)?.document
+            ?? (renderPlanRequestFailed(incomingMessage.message_id) ? plainTextDoc(contentToProcess) : EMPTY_DOC));
       } else {
         const tiptapJson = parse_message(contentToProcess, 'read', {
           unifiedParsingEnabled: true,
@@ -390,6 +421,8 @@ import { storageArchiveFetch } from "../config/api";
  
   // Array that holds all chat messages using $state (Svelte 5 runes mode)
   let messages = $state<InternalMessage[]>([]);
+  // Image cards show the version valid at their message (core rule; no-op without the Rust core).
+  $effect(() => publishChatMessageOrder(currentChatId, messages));
   type ScheduledAssistantRender = {
     message: GlobalMessage;
     piiMappings: Map<string, PIIMapping>;
@@ -423,7 +456,20 @@ import { storageArchiveFetch } from "../config/api";
     streamingRenderSchedulers.clear();
     streamingRenderRevisions.clear();
     assistantRenderPlans.clear();
+    resetRenderPlanState();
   }
+
+  // Flag-on: an async Rust render plan resolved for a message; remap it from its
+  // original message (the mapper now hits the resolved plan) and refresh derived views.
+  onMount(() => onRenderPlanReady((messageId) => {
+    const current = messages.find(m => m.id === messageId);
+    if (current?.original_message) {
+      const originals = messages.map(m => m.original_message).filter((m): m is GlobalMessage => m !== undefined);
+      const remapped = G_mapToInternalMessage(current.original_message, buildCumulativePIIMappings(originals));
+      messages = messages.map(m => m.id === messageId ? remapped : m);
+    }
+    renderPlanVersion++;
+  }));
   let headerImageBubbles = $state<HeaderImageBubble[] | null>(null);
   let headerImageBubbleRequestId = 0;
   let headerImageBubbleCandidateKey = '';
@@ -850,11 +896,37 @@ import { storageArchiveFetch } from "../config/api";
     const shared = isSharedChat;
     const signal = timelineController.signal;
     timelineCatalogueLoading = true;
+    // Rust core: every merge sends the whole catalogue to the core, so pages are merged in
+    // batches that double in size. A long history then costs a handful of merges, not one per page.
+    let unmergedPages: TimelineEntry[][] = [];
+    let mergeAfterPages = 1;
+    const mergeUnmergedPages = async (): Promise<boolean> => {
+      if (!unmergedPages.length) return true;
+      const pages = unmergedPages;
+      unmergedPages = [];
+      mergeAfterPages *= 2;
+      const merged = await rustTransitions().then(rust => rust.rustMergeTimelineEntries(...pages, timelineCatalogue));
+      if (generation !== timelineGeneration || signal.aborted) return false;
+      timelineCatalogue = merged;
+      return true;
+    };
     try {
       do {
-        const page = await fetchTimelinePage(chatId, shared, timelineCursor, signal);
+        let page;
+        try {
+          page = await fetchTimelinePage(chatId, shared, timelineCursor, signal);
+        } catch (error) {
+          // Pages already read stay in the catalogue; the cursor has moved past them.
+          if (generation === timelineGeneration && !signal.aborted) await mergeUnmergedPages();
+          throw error;
+        }
         if (generation !== timelineGeneration || signal.aborted) return;
-        timelineCatalogue = mergeTimelineEntries(page.entries, timelineCatalogue);
+        if (RUST_CHAT_TRANSITIONS) {
+          unmergedPages.push(page.entries);
+          if ((!page.has_more || unmergedPages.length >= mergeAfterPages) && !(await mergeUnmergedPages())) return;
+        } else {
+          timelineCatalogue = mergeTimelineEntries(page.entries, timelineCatalogue);
+        }
         timelineCursor = page.before;
         timelineCatalogueIncomplete = page.has_more;
       } while (timelineCatalogueIncomplete);
@@ -871,10 +943,14 @@ import { storageArchiveFetch } from "../config/api";
 
   async function readTimelineSection(entry: TimelineEntry): Promise<GlobalMessage[]> {
     if (!currentChatId) throw new Error('No active timeline');
-    const responseId = timelineResponseId(timelineAllEntries, entry.message_id);
+    const responseId = RUST_CHAT_TRANSITIONS
+      ? await rustTransitions().then(rust => rust.rustTimelineResponseId(timelineAllEntries, entry.message_id))
+      : timelineResponseId(timelineAllEntries, entry.message_id);
     for (const rows of [sourceMessages, oldCompressedMessages]) {
       if (rows.some(message => message.message_id === entry.message_id)) {
-        const pair = pairTimelineExchange(rows, entry.message_id, pendingAssistantResponse?.userMessageId);
+        const pair = RUST_CHAT_TRANSITIONS
+          ? await rustTransitions().then(rust => rust.rustPairTimelineExchange(rows, entry.message_id, pendingAssistantResponse?.userMessageId))
+          : pairTimelineExchange(rows, entry.message_id, pendingAssistantResponse?.userMessageId);
         if (pair.assistant || (!responseId && entry.message_id === timelineUserEntries[timelineUserEntries.length - 1]?.message_id)) return rows;
       }
     }
@@ -886,6 +962,7 @@ import { storageArchiveFetch } from "../config/api";
     const generation = timelineGeneration;
     const operation = fetchTimelineSection(chatId, entry.message_id, isSharedChat, responseId).then(rows => {
       if (scope !== timelineScopeKey || epoch !== getWorkspaceCacheEpoch() || generation !== timelineGeneration) throw new Error('Timeline scope changed');
+      if (RUST_CHAT_TRANSITIONS) return rustTransitions().then(rust => rust.rustPairTimelineExchange(rows, entry.message_id)).then(() => rows);
       pairTimelineExchange(rows, entry.message_id);
       return rows;
     });
@@ -896,7 +973,10 @@ import { storageArchiveFetch } from "../config/api";
   }
 
   async function previewTimelineExchange(entry: TimelineEntry): Promise<TimelinePreview> {
-    return pairTimelineExchange(await readTimelineSection(entry), entry.message_id, pendingAssistantResponse?.userMessageId);
+    const section = await readTimelineSection(entry);
+    return RUST_CHAT_TRANSITIONS
+      ? (await rustTransitions()).rustPairTimelineExchange(section, entry.message_id, pendingAssistantResponse?.userMessageId)
+      : pairTimelineExchange(section, entry.message_id, pendingAssistantResponse?.userMessageId);
   }
 
   function timelineTarget(id: string): HTMLElement | undefined {
@@ -1138,6 +1218,10 @@ import { storageArchiveFetch } from "../config/api";
         if (request?.type === 'app_settings_memories_request') {
           return false;
         }
+        // context_entry events show only once validated, and never in shared/public views.
+        if (isContextEntryCandidate(msg) && !contextEntryEvents[msg.id]) return false;
+        // embed_updated events: drawn once per folded run (core grouping), never as a bubble.
+        if (isEmbedUpdatedCandidate(historyRowOf(msg)) && !embedUpdated.shownAt[msg.id]) return false;
       }
       return true;
     });
@@ -1534,7 +1618,7 @@ import { storageArchiveFetch } from "../config/api";
     backgroundFrames = null,
     autoplayVideo = false,
     followUpSuggestions = [],
-    quickTipSlugs = [],
+    recommendationsAllowed = false,
     compressionCheckpoints = [],
     hasOlderMessages = false,
     olderMessagesLoading = false,
@@ -1628,7 +1712,8 @@ import { storageArchiveFetch } from "../config/api";
      *  Passed from ActiveChat; shown without input-focus requirement so users
      *  see them immediately without clicking the message input. */
     followUpSuggestions?: string[];
-    quickTipSlugs?: string[];
+    /** Regular owned chat with Recommendations on (not a sub-chat, setting enabled). */
+    recommendationsAllowed?: boolean;
     /** Callback fired when the user clicks a follow-up suggestion. */
     onSuggestionClick?: (suggestion: string) => void;
     onChatNavigate?: (chatId: string) => Promise<void> | void;
@@ -1646,13 +1731,34 @@ import { storageArchiveFetch } from "../config/api";
 
   let timelineScopeKey = $derived(`${currentChatId ?? ''}:${$activeTeamId ?? ''}:${$userProfile.user_id ?? ''}`);
   let timelineRemoteEnabled = $derived(!!currentChatId && !isExampleChat && !isIncognito && (isSharedChat || $authStore.isAuthenticated));
-  let timelineAllEntries = $derived(mergeTimelineEntries(timelineCatalogue, sourceMessages, oldCompressedMessages));
+  // Flag on (VITE_OPENMATES_RUST_CORE): the chatState unit merges and pairs the timeline; no TypeScript fallback.
+  const RUST_CHAT_TRANSITIONS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+    && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
+  const rustTransitions = () => import('../services/rustCore/chatState/rustTransitions');
+  let rustTimelineAll = $state<TimelineEntry[]>([]);
+  if (RUST_CHAT_TRANSITIONS) $effect(() => {
+    const pages = [timelineCatalogue, sourceMessages, oldCompressedMessages];
+    let stale = false;
+    void rustTransitions().then(rust => rust.rustMergeTimelineEntries(...pages)).then(merged => { if (!stale) rustTimelineAll = merged; });
+    return () => { stale = true; };
+  });
+  let timelineAllEntries = $derived(RUST_CHAT_TRANSITIONS ? rustTimelineAll : mergeTimelineEntries(timelineCatalogue, sourceMessages, oldCompressedMessages));
   const bookmarkMode = $derived<BookmarkMode>(isIncognito ? 'transient' : $authStore.isAuthenticated ? 'account' : 'device');
   const bookmarkedIds = $derived.by(() => {
     void $messageBookmarksStore; void $userProfile.encrypted_settings;
     return currentChatId ? getMessageBookmarkIds(currentChatId, bookmarkMode) : new Set<string>();
   });
-  const timelineIndex = $derived(buildTimelineExchangeIndex(timelineAllEntries, bookmarkedIds));
+  let rustTimelineIndex = $state<ReturnType<typeof buildTimelineExchangeIndex>>({
+    entries: [], answeredCount: 0, assistantBookmarks: new Set(), legacyAliases: new Map(), assistantUsers: new Map(), bookmarkedExchanges: new Set(),
+  });
+  if (RUST_CHAT_TRANSITIONS) $effect(() => {
+    const entries = timelineAllEntries;
+    const bookmarks = bookmarkedIds;
+    let stale = false;
+    void rustTransitions().then(rust => rust.rustTimelineExchangeIndex(entries, bookmarks)).then(index => { if (!stale) rustTimelineIndex = index; });
+    return () => { stale = true; };
+  });
+  const timelineIndex = $derived(RUST_CHAT_TRANSITIONS ? rustTimelineIndex : buildTimelineExchangeIndex(timelineAllEntries, bookmarkedIds));
   const timelineUserEntries = $derived(timelineIndex.entries);
   const timelineEnabled = $derived(timelineIndex.answeredCount >= 2);
   $effect(() => {
@@ -1692,73 +1798,78 @@ import { storageArchiveFetch } from "../config/api";
         || message.original_message?.user_message_id === pendingAssistantResponse.userMessageId)));
 
 
-  let hydratedQuickTipSlugs = $state<string[]>([]);
-  let effectiveQuickTipSlugs = $derived(
-    quickTipSlugs.length > 0 ? quickTipSlugs : hydratedQuickTipSlugs
+  // Recommendations card and context_entry history events exist only in Rust core
+  // builds and only in the owner's view of a regular chat (plan chat-recommendations).
+  let ownedRecommendationsView = $derived(
+    RECOMMENDATIONS_IN_BUILD && canAnnotate && recommendationsAllowed && $authStore.isAuthenticated
+      && !!currentChatId && !isIncognito && !isExampleChat && !isSharedChat && !isPublicChat(currentChatId),
   );
-  // Persisted tips are a login-recovery fallback only; once live props own a chat,
-  // do not revive its previous tips after a later message clears them.
-  let quickTipPropsSeenChatId: string | null = null;
-  let quickTipHydrationAttemptKey: string | null = null;
-  let quickTipKeyReadyVersion = $state(0);
-  let quickTipHydrationGeneration = 0;
-
-  onMount(() => chatKeyManager.onKeyReady((chatId) => {
-    if (chatId === currentChatId) quickTipKeyReadyVersion += 1;
-  }));
-
+  let contextEntryEvents = $state<Record<string, ContextEntryHistoryEvent>>({});
+  // Job ids of assistant Memory writes with a persisted undone marker (hidden rows).
+  let undoneMemoryJobs = $state<Set<string>>(new Set());
+  // Candidate set key: re-parse only when context_entry rows change, not on every stream chunk.
+  let contextEntryCandidateKey = $derived(
+    ownedRecommendationsView
+      ? candidateDisplayMessages.filter(isContextEntryCandidate).map((msg) => `${msg.id}:${systemContentOf(msg).length}`).join('|')
+      : '',
+  );
   $effect(() => {
-    const isAuthenticated = $authStore.isAuthenticated;
-    const chatId = currentChatId;
-    const lastMessageRole = sourceMessages[sourceMessages.length - 1]?.role;
-    const hydrationAttemptKey = chatId ? `${chatId}:${quickTipKeyReadyVersion}` : null;
-    const generation = ++quickTipHydrationGeneration;
-
-    if (!isAuthenticated) {
-      hydratedQuickTipSlugs = [];
-      quickTipPropsSeenChatId = null;
-      quickTipHydrationAttemptKey = null;
-      return;
-    }
-    if (quickTipSlugs.length > 0) {
-      hydratedQuickTipSlugs = [];
-      quickTipPropsSeenChatId = chatId ?? null;
-      return;
-    }
-    if (
-      !chatId ||
-      lastMessageRole !== 'assistant' ||
-      isPublicChat(chatId) ||
-      quickTipPropsSeenChatId === chatId ||
-      quickTipHydrationAttemptKey === hydrationAttemptKey
-    ) {
-      hydratedQuickTipSlugs = [];
-      return;
-    }
-    hydratedQuickTipSlugs = [];
-    quickTipHydrationAttemptKey = hydrationAttemptKey;
-
-    void (async () => {
-      try {
-        const storedChat = await chatDB.getChat(chatId);
-        if (!storedChat?.encrypted_quick_tip_slugs) return;
-        const chatKey = await chatKeyManager.getKey(chatId);
-        if (!chatKey) return;
-        const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-        const slugs = await decryptArrayWithChatKey(storedChat.encrypted_quick_tip_slugs, chatKey) || [];
-        if (
-          generation === quickTipHydrationGeneration &&
-          $authStore.isAuthenticated &&
-          currentChatId === chatId &&
-          quickTipSlugs.length === 0
-        ) {
-          hydratedQuickTipSlugs = slugs;
-        }
-      } catch (error) {
-        console.error(`[ChatHistory] Failed to hydrate quick tips for chat ${chatId}:`, error);
-      }
-    })();
+    if (!contextEntryCandidateKey) { contextEntryEvents = {}; undoneMemoryJobs = new Set(); return; }
+    const candidates = untrack(() => candidateDisplayMessages.filter(isContextEntryCandidate));
+    let stale = false;
+    void readContextEntryHistory(candidates.map((msg) => ({ id: msg.id, content: systemContentOf(msg) })))
+      .then((history) => {
+        if (stale) return;
+        contextEntryEvents = history.events;
+        undoneMemoryJobs = history.undoneJobIds;
+      })
+      .catch((error) => console.error('[ChatHistory] Could not read context entry events', error));
+    return () => { stale = true; };
   });
+
+  function systemContentOf(msg: InternalMessage): string {
+    const raw = msg.original_message?.content ?? msg.content;
+    return typeof raw === 'string' ? raw : '';
+  }
+
+  /** Cheap pre-check only; the Rust core validates the event. */
+  function isContextEntryCandidate(msg: InternalMessage): boolean {
+    return msg.role === 'system' && isContextEntryCandidateContent(systemContentOf(msg));
+  }
+
+  // embed_updated chat events (feature.embed-user-edits): the Rust core folds them.
+  let embedUpdated = $state<EmbedUpdatedPlacement>({ shownAt: {}, hidden: new Set() });
+  let embedUpdatedKey = $derived(
+    EMBED_EDITS_ENABLED && $authStore.isAuthenticated ? embedUpdatedCandidateKey(candidateDisplayMessages.map(historyRowOf)) : '',
+  );
+  $effect(() => {
+    if (!embedUpdatedKey) { embedUpdated = { shownAt: {}, hidden: new Set() }; return; }
+    const rows = untrack(() => embedEventRows(candidateDisplayMessages.map(historyRowOf)));
+    let stale = false;
+    groupEmbedUpdatedEvents(rows)
+      .then((items) => { if (!stale) embedUpdated = placeEmbedUpdatedGroups(items); })
+      .catch((error) => console.error('[ChatHistory] Could not fold embed_updated events:', error?.code ?? error));
+    return () => { stale = true; };
+  });
+  // Chat open: the core writes this chat's pending "embed updated" events (edits made elsewhere).
+  const reconciledEmbedNoticeChats = new Set<string>();
+  $effect(() => {
+    const chatId = currentChatId;
+    if (!EMBED_EDITS_ENABLED || !chatId || !$authStore.isAuthenticated || isSharedChat || isExampleChat || isIncognito
+      || isPublicChat(chatId) || reconciledEmbedNoticeChats.has(chatId)) return;
+    reconciledEmbedNoticeChats.add(chatId);
+    reconcileEmbedNotices(chatId)
+      .then((report) => { if (report.deferred) console.warn('[ChatHistory] Embed update notices deferred:', report.deferred); })
+      .catch((error) => console.warn('[ChatHistory] Embed update notices not reconciled:', error?.code ?? error));
+  });
+
+  function historyRowOf(msg: InternalMessage): { id: string; role: string; content: string } {
+    return { id: msg.id, role: msg.role, content: msg.role === 'system' ? systemContentOf(msg) : '' };
+  }
+
+  function openUpdatedEmbed(embedId: string): void {
+    dispatchEmbedFullscreen({ embedId, sourceChatId: currentChatId ?? null, hasChatContext: true });
+  }
 
   let lastSourceSyncChatKey = $state<string | undefined>(undefined);
 
@@ -1858,6 +1969,7 @@ import { storageArchiveFetch } from "../config/api";
       requestId: unpairedRequest.request_id,
       responseTransport: unpairedRequest.response_transport,
       chatId: currentChatId,
+      autoMemoryIds: unpairedRequest.auto_memory_ids,
       messageId: unpairedRequest.user_message_id,
       categories: fullCategories,
       yamlContent: '', // YAML content not stored in system message (not needed for dialog)
@@ -1938,8 +2050,8 @@ import { storageArchiveFetch } from "../config/api";
     !isCurrentlyStreaming
   );
 
-  let showQuickTipsInHistory = $derived(
-    effectiveQuickTipSlugs.length > 0 &&
+  let showRecommendationsInHistory = $derived(
+    ownedRecommendationsView &&
     lastAssistantMessageId !== null &&
     !isCurrentlyStreaming
   );
@@ -1952,10 +2064,6 @@ import { storageArchiveFetch } from "../config/api";
   let assistantFeedbackKey = $derived(
     currentChatId && lastAssistantMessageId ? `${currentChatId}:${lastAssistantMessageId}` : null
   );
-
-  function handleQuickTipAction(tip: QuickTipDefinition): void {
-    dispatch('quickTipAction', tip);
-  }
 
   $effect(() => {
     const submittedForCurrentMessage = assistantFeedbackKey !== null && submittedAssistantFeedbackKeys.includes(assistantFeedbackKey);
@@ -3037,6 +3145,30 @@ import { storageArchiveFetch } from "../config/api";
     }
   }
 
+  const UNFINISHED_REPLY_STATUSES = new Set(['processing', 'streaming', 'sending']);
+
+  /**
+   * True when the end (last text line) of the newest rendered message is inside
+   * the visible chat viewport. Drives unread clearing: a reply only counts as
+   * read once its last line has been on screen, not when the chat is opened.
+   * The newest message must be a finished assistant reply: while a reply is
+   * pending or still rendering, its short placeholder (or the user's question
+   * above it) is not the reply's last line.
+   */
+  export function isLatestMessageEndVisible(): boolean {
+    if (!container || timelineSection !== null || isRestoringScroll) return false;
+    const messages = container.querySelectorAll<HTMLElement>('[data-message-id]');
+    const latest = messages[messages.length - 1];
+    if (!latest) return false;
+    if (latest.dataset.testid !== 'message-assistant' || latest.dataset.streaming === 'true'
+        || UNFINISHED_REPLY_STATUSES.has(latest.dataset.status ?? '')) return false;
+    const containerRect = container.getBoundingClientRect();
+    const latestRect = latest.getBoundingClientRect();
+    if (latestRect.height <= 0) return false;
+    // Same 50px tolerance as the scrolled-to-bottom check.
+    return latestRect.bottom <= containerRect.bottom + 50 && latestRect.bottom > containerRect.top;
+  }
+
   // Restore scroll position to a specific message with 70px offset
   export function restoreScrollPosition(messageId: string) {
     // Background repair/restoration of the live window must not move a reader
@@ -3386,6 +3518,19 @@ import { storageArchiveFetch } from "../config/api";
                       animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
                     {#if agentContext}
                       <AgentContextMessage event={agentContext} onAuthoring={startContextAuthoring} jobs={Object.values($projectAuthoringJobs)} onSaveJob={saveProjectAuthoring} />
+                    {:else if msg.role === 'system' && contextEntryEvents[msg.id]}
+                      <div class="context-entry-row">
+                        <SystemMessageNotice testId="context-entry-notice">
+                          <ContextEntryEventNotice event={contextEntryEvents[msg.id]} checkExists={contextEntryExists} onOpenMemory={openContextEntryMemory}
+                            undone={undoneMemoryJobs.has(contextEntryEvents[msg.id].undo?.job_id ?? '')}
+                            onUndo={(event) => undoAssistantContextEntry(msg.original_message?.chat_id ?? currentChatId ?? '', event)} />
+                        </SystemMessageNotice>
+                      </div>
+                    {:else if msg.role === 'system' && embedUpdated.shownAt[msg.id]}
+                      {@const updatedGroup = embedUpdated.shownAt[msg.id]}
+                      <div class="context-entry-row">
+                        <EmbedUpdatedEventNotice group={updatedGroup} onOpen={() => openUpdatedEmbed(updatedGroup.embed_id)} />
+                      </div>
                     {:else}
                     <ChatMessage
                         role={msg.role}
@@ -3537,13 +3682,9 @@ import { storageArchiveFetch } from "../config/api";
             
             <!-- Follow-up suggestions shown after the last assistant message.
                  Visible without requiring the user to focus the message input first. -->
-            {#if showQuickTipsInHistory && !timelineSection}
-                <div class="quick-tips-wrapper" in:fade={{ duration: 200 }}>
-                    <QuickTipsCard
-                        slugs={effectiveQuickTipSlugs}
-                        category={chatCategory}
-                        on:action={(event) => handleQuickTipAction(event.detail)}
-                    />
+            {#if showRecommendationsInHistory && currentChatId && !timelineSection}
+                <div class="recommendations-wrapper" in:fade={{ duration: 200 }}>
+                    <ChatRecommendations chatId={currentChatId} category={chatCategory ?? null} />
                 </div>
             {/if}
 
@@ -3836,7 +3977,13 @@ import { storageArchiveFetch } from "../config/api";
 
   /* Follow-up suggestions wrapper — shown inline below the chat history, aligned
      to the right as quick user-response actions rather than assistant content. */
-  .quick-tips-wrapper,
+  .context-entry-row {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .recommendations-wrapper,
   .follow-up-suggestions-wrapper {
     padding: 8px 0 14px;
     padding-inline-start: 20px;
@@ -3966,7 +4113,7 @@ import { storageArchiveFetch } from "../config/api";
   }
 
   @media (max-width: 500px) {
-    .quick-tips-wrapper,
+    .recommendations-wrapper,
     .follow-up-suggestions-wrapper {
       padding-inline-start: 10px;
       padding-inline-end: 10px;

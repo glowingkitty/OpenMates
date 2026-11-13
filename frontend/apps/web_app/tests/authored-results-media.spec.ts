@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { authoredEncryptedSnapshot, clearAuthoredChatCache } from './helpers/authored-results-flow-helpers';
+import { closeSettingsPanel } from './helpers/settings-readiness';
 import { allowIsolatedAuthoredMedia, deleteSelectedUploadMessage, explicitlyShareSelectedChild,
   expectSelectedRecipeImage, openSelectedRecipe } from './helpers/authored-results-media-helpers';
 
@@ -53,7 +54,7 @@ test('selected uploaded media survives source-message deletion and explicit chil
     // A real unrelated upload is in authorized history, but is never selected by
     // the authored document. The seed fixture also replaces postprocessing AI.
     const initial = parseCliJson(await mediaStep('Save the unrelated upload', () => runWorkflowCli(apiUrl, home, ['chats', 'new',
-      `Keep this unrelated upload separate. @${unrelatedFile} <<<TEST_MOCK:chat_flow_quick_tip:instant>>>`, '--json'],
+      `Keep this unrelated upload separate. @${unrelatedFile} <<<TEST_MOCK:chat_recommendations:instant>>>`, '--json'],
     180_000)), 'seed saved chat with unrelated upload');
     expect(initial.status).toBe('completed');
     chatId = initial.chatId;
@@ -62,7 +63,7 @@ test('selected uploaded media survives source-message deletion and explicit chil
     // ledger binds each authored cohort to its initiating user message; deleting
     // that message would legitimately delete the card as well as the upload.
     const upload = await mediaStep('Save the selected upload in its own message', () => runWorkflowCli(apiUrl, home, ['chats', 'send', '--chat', chatId,
-      `Keep this selected illustration for my next request. @${selectedFile} <<<TEST_MOCK:chat_flow_quick_tip:instant>>>`, '--json'],
+      `Keep this selected illustration for my next request. @${selectedFile} <<<TEST_MOCK:chat_recommendations:instant>>>`, '--json'],
     180_000, { OPENMATES_CLI_RECORD_E2E: '1', OPENMATES_E2E_SPEC: 'authored-selected-media-upload' }));
     expect(upload.recording, 'real terminal capture of selected CLI upload').toBeTruthy();
     if (upload.recording) {
@@ -146,12 +147,22 @@ test('selected uploaded media survives source-message deletion and explicit chil
     expect(JSON.stringify(recipe).includes(unrelatedId)).toBe(false);
 
     const ownChat = new URL(`/#chat-id=${chatId}`, baseUrl).href;
+    // Pairing leaves the settings drawer open on the new-chat screen; close it so
+    // it cannot cover or reset the chat before the message context menu is used.
+    if (await page.getByTestId('profile-container').getAttribute('data-action') === 'close-settings') {
+      await closeSettingsPanel(page, info);
+    }
     await page.goto(ownChat);
     await waitForChatReady(page, undefined, 60_000);
     await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', chatId);
     let overlay = await mediaStep('Open the saved selected-media recipe before source deletion', () =>
       openSelectedRecipe(page, recipeId, created.messageId));
     await overlay.getByTestId('embed-minimize').click();
+    await expect(overlay).not.toBeVisible();
+    // The chat must still be the open one (not the new-chat screen) and the
+    // source upload message must be rendered before its context menu is opened.
+    await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', chatId, { timeout: 30_000 });
+    await page.locator(`[data-testid="message-user"][data-message-id="${selectedMessageId}"]`).scrollIntoViewIfNeeded({ timeout: 30_000 });
     await mediaStep('Delete only the source upload message and await canonical deletion', () =>
       deleteSelectedUploadMessage(page, apiUrl, chatId!, selectedMessageId, uploadId));
     // Cold CLI reads prove the child's selected keys did not live only in its

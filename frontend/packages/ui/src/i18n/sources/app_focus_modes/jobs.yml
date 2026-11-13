@@ -294,3 +294,147 @@ career_insights.how_to_use.3:
   sv: "Jag vill **byta bransch** från finans till teknik — hur ska jag börja?"
   he: "אני רוצה **לעבור ענף** ממימון לטכנולוגיה — כיצד כדאי להתחיל?"
   verified_by_human: []
+create_cv:
+  context: Focus mode name
+  en: Create or update CV
+  de: Lebenslauf erstellen oder aktualisieren
+  zh: 创建或更新简历
+  es: Crear o actualizar CV
+  fr: Créer ou mettre à jour un CV
+  pt: Criar ou atualizar currículo
+  ru: Создать или обновить резюме
+  ja: 履歴書を作成・更新
+  ko: 이력서 작성 또는 업데이트
+  it: Crea o aggiorna il CV
+  tr: CV oluştur veya güncelle
+  vi: Tạo hoặc cập nhật CV
+  id: Buat atau perbarui CV
+  pl: Utwórz lub zaktualizuj CV
+  nl: Cv maken of bijwerken
+  ar: إنشاء السيرة الذاتية أو تحديثها
+  hi: सीवी बनाएं या अपडेट करें
+  th: สร้างหรืออัปเดตเรซูเม่
+  cs: Vytvořit nebo aktualizovat životopis
+  sv: Skapa eller uppdatera cv
+  he: יצירה או עדכון של קורות חיים
+  verified_by_human: []
+create_cv.description:
+  context: Focus mode description
+  en: Build a clear, machine-readable CV as an editable Word document, or improve the one you have.
+  de: Erstelle einen klaren, maschinenlesbaren Lebenslauf als bearbeitbares Word-Dokument oder verbessere deinen bestehenden.
+  zh: 创建一份清晰、机器可读的简历，生成可编辑的 Word 文档，或改进你现有的简历。
+  es: Crea un CV claro y legible por máquinas como documento de Word editable, o mejora el que ya tienes.
+  fr: Créez un CV clair et lisible par les machines sous forme de document Word modifiable, ou améliorez celui que vous avez.
+  pt: Crie um currículo claro e legível por máquinas como documento Word editável ou melhore o que você já tem.
+  ru: Создайте понятное, машиночитаемое резюме в виде редактируемого документа Word или улучшите уже имеющееся.
+  ja: 明確で機械が読み取りやすい履歴書を編集可能なWord文書として作成、または既存のものを改善します。
+  ko: 명확하고 기계가 읽기 쉬운 이력서를 편집 가능한 Word 문서로 만들거나 기존 이력서를 개선하세요.
+  it: Crea un CV chiaro e leggibile dai software come documento Word modificabile, oppure migliora quello che hai.
+  tr: Düzenlenebilir bir Word belgesi olarak açık ve makine tarafından okunabilir bir CV oluştur veya mevcut CV'ni iyileştir.
+  vi: Tạo một CV rõ ràng, máy đọc được dưới dạng tài liệu Word có thể chỉnh sửa, hoặc cải thiện CV bạn đang có.
+  id: Buat CV yang jelas dan mudah dibaca mesin sebagai dokumen Word yang dapat diedit, atau perbaiki CV yang sudah ada.
+  pl: Utwórz przejrzyste, czytelne maszynowo CV jako edytowalny dokument Word albo ulepsz to, które już masz.
+  nl: Maak een helder, machineleesbaar cv als bewerkbaar Word-document, of verbeter het cv dat je al hebt.
+  ar: أنشئ سيرة ذاتية واضحة وقابلة للقراءة آليًا كمستند Word قابل للتعديل، أو حسّن سيرتك الحالية.
+  hi: संपादन योग्य Word दस्तावेज़ के रूप में एक स्पष्ट, मशीन-पठनीय सीवी बनाएं या अपने मौजूदा सीवी को बेहतर करें।
+  th: สร้างเรซูเม่ที่ชัดเจนและระบบอ่านได้เป็นเอกสาร Word ที่แก้ไขได้ หรือปรับปรุงฉบับที่คุณมีอยู่
+  cs: Vytvořte přehledný, strojově čitelný životopis jako upravitelný dokument Word, nebo vylepšete ten stávající.
+  sv: Skapa ett tydligt, maskinläsbart cv som ett redigerbart Word-dokument, eller förbättra det du redan har.
+  he: צרו קורות חיים ברורים וקריאים למכונה כמסמך Word שניתן לעריכה, או שפרו את הקיימים.
+  verified_by_human: []
+write_application:
+  context: Focus mode name
+  en: Write application
+  de: Bewerbung schreiben
+  zh: 撰写求职申请
+  es: Escribir candidatura
+  fr: Rédiger une candidature
+  pt: Escrever candidatura
+  ru: Написать отклик на вакансию
+  ja: 応募書類を書く
+  ko: 지원서 작성
+  it: Scrivi la candidatura
+  tr: Başvuru yaz
+  vi: Viết đơn ứng tuyển
+  id: Tulis lamaran
+  pl: Napisz aplikację
+  nl: Sollicitatie schrijven
+  ar: كتابة طلب التوظيف
+  hi: आवेदन लिखें
+  th: เขียนใบสมัครงาน
+  cs: Napsat žádost o práci
+  sv: Skriv ansökan
+  he: כתיבת מועמדות
+  verified_by_human: []
+write_application.description:
+  context: Focus mode description
+  en: Write an application for one specific job, in your own voice and built on your real experience.
+  de: Schreibe eine Bewerbung für eine konkrete Stelle, in deinem eigenen Stil und auf Basis deiner echten Erfahrung.
+  zh: 针对某个具体职位撰写申请，用你自己的语气，基于你的真实经历。
+  es: Escribe una candidatura para un puesto concreto, con tu propia voz y basada en tu experiencia real.
+  fr: Rédigez une candidature pour un poste précis, avec votre propre voix et fondée sur votre expérience réelle.
+  pt: Escreva uma candidatura para uma vaga específica, com a sua própria voz e baseada na sua experiência real.
+  ru: Напишите отклик на конкретную вакансию своим голосом и на основе реального опыта.
+  ja: 特定の求人に向けて、あなた自身の言葉で、実際の経験に基づいた応募書類を書きます。
+  ko: 특정 채용 공고에 맞춰, 나만의 문체로 실제 경험을 바탕으로 지원서를 작성하세요.
+  it: Scrivi una candidatura per un lavoro specifico, con la tua voce e basata sulla tua esperienza reale.
+  tr: Belirli bir iş için, kendi üslubunla ve gerçek deneyimine dayanan bir başvuru yaz.
+  vi: Viết đơn ứng tuyển cho một công việc cụ thể, bằng giọng văn của bạn và dựa trên kinh nghiệm thật.
+  id: Tulis lamaran untuk satu pekerjaan tertentu, dengan gaya bahasamu sendiri dan berdasarkan pengalaman nyata.
+  pl: Napisz aplikację na konkretne stanowisko, własnym stylem i w oparciu o swoje prawdziwe doświadczenie.
+  nl: Schrijf een sollicitatie voor één specifieke vacature, in je eigen stijl en gebaseerd op je echte ervaring.
+  ar: اكتب طلبًا لوظيفة محددة بأسلوبك الخاص واستنادًا إلى خبرتك الحقيقية.
+  hi: किसी एक खास नौकरी के लिए अपनी शैली में और अपने वास्तविक अनुभव के आधार पर आवेदन लिखें।
+  th: เขียนใบสมัครสำหรับงานที่เจาะจง ด้วยน้ำเสียงของคุณเองและจากประสบการณ์จริง
+  cs: Napište žádost o konkrétní pracovní místo vlastním stylem a na základě svých skutečných zkušeností.
+  sv: Skriv en ansökan för ett specifikt jobb, med din egen röst och utifrån din verkliga erfarenhet.
+  he: כתבו מועמדות למשרה מסוימת, בקול שלכם ועל בסיס הניסיון האמיתי שלכם.
+  verified_by_human: []
+prepare_interview:
+  context: Focus mode name
+  en: Prepare interview
+  de: Vorstellungsgespräch vorbereiten
+  zh: 准备面试
+  es: Preparar entrevista
+  fr: Préparer un entretien
+  pt: Preparar entrevista
+  ru: Подготовиться к собеседованию
+  ja: 面接の準備
+  ko: 면접 준비
+  it: Prepara il colloquio
+  tr: Mülakata hazırlan
+  vi: Chuẩn bị phỏng vấn
+  id: Persiapan wawancara
+  pl: Przygotuj się do rozmowy
+  nl: Sollicitatiegesprek voorbereiden
+  ar: التحضير للمقابلة
+  hi: इंटरव्यू की तैयारी
+  th: เตรียมสัมภาษณ์งาน
+  cs: Připravit se na pohovor
+  sv: Förbered intervju
+  he: הכנה לראיון
+  verified_by_human: []
+prepare_interview.description:
+  context: Focus mode description
+  en: Get ready for a job interview with likely questions, your own stories and a practice run with feedback.
+  de: Bereite dich mit wahrscheinlichen Fragen, deinen eigenen Beispielen und einem Probegespräch mit Feedback auf ein Vorstellungsgespräch vor.
+  zh: 通过可能被问到的问题、你自己的经历故事和带反馈的模拟练习，为求职面试做好准备。
+  es: Prepárate para una entrevista de trabajo con preguntas probables, tus propias historias y una práctica con comentarios.
+  fr: Préparez-vous à un entretien d'embauche avec les questions probables, vos propres exemples et un entraînement avec retours.
+  pt: Prepare-se para uma entrevista de emprego com perguntas prováveis, suas próprias histórias e um treino com feedback.
+  ru: 'Подготовьтесь к собеседованию: вероятные вопросы, ваши собственные примеры и тренировка с обратной связью.'
+  ja: 想定される質問、あなた自身のエピソード、フィードバック付きの練習で面接に備えます。
+  ko: 예상 질문, 나만의 경험 사례, 피드백이 있는 모의 면접으로 면접을 준비하세요.
+  it: Preparati a un colloquio di lavoro con le domande probabili, le tue storie e una simulazione con feedback.
+  tr: Olası sorular, kendi hikâyelerin ve geri bildirimli bir prova ile iş görüşmesine hazırlan.
+  vi: Sẵn sàng cho buổi phỏng vấn với các câu hỏi dễ gặp, câu chuyện của chính bạn và một buổi luyện tập có nhận xét.
+  id: Bersiap untuk wawancara kerja dengan pertanyaan yang mungkin muncul, cerita pengalamanmu, dan latihan dengan umpan balik.
+  pl: 'Przygotuj się do rozmowy kwalifikacyjnej: prawdopodobne pytania, własne przykłady i próbna rozmowa z informacją zwrotną.'
+  nl: Bereid je voor op een sollicitatiegesprek met waarschijnlijke vragen, je eigen verhalen en een oefenronde met feedback.
+  ar: استعد لمقابلة العمل بالأسئلة المتوقعة وقصصك الخاصة وجولة تدريبية مع ملاحظات.
+  hi: संभावित सवालों, अपने अनुभवों की कहानियों और फ़ीडबैक के साथ अभ्यास से इंटरव्यू के लिए तैयार हों।
+  th: เตรียมพร้อมสำหรับการสัมภาษณ์งานด้วยคำถามที่น่าจะถูกถาม เรื่องราวของคุณเอง และการซ้อมพร้อมคำแนะนำ
+  cs: Připravte se na pracovní pohovor s pravděpodobnými otázkami, vlastními příběhy a zkouškou se zpětnou vazbou.
+  sv: Förbered dig inför en anställningsintervju med troliga frågor, dina egna exempel och en övning med återkoppling.
+  he: התכוננו לראיון עבודה עם שאלות צפויות, הסיפורים שלכם ותרגול עם משוב.
+  verified_by_human: []

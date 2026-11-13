@@ -7,6 +7,7 @@ import { authStore } from "../stores/authStore";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { webSocketService } from "./websocketService";
 import { get } from "svelte/store";
+import { decideShareState } from "./shareState/decide";
 
 /**
  * Interface for pending OG metadata update (for chats)
@@ -44,7 +45,6 @@ export interface PendingEmbedShareUpdate {
 class ShareMetadataQueueService {
   private readonly STORE_NAME = "pending_og_metadata_updates";
   private readonly EMBED_STORE_NAME = "pending_embed_share_updates";
-  private readonly MAX_RETRY_COUNT = 5; // Maximum retry attempts before giving up
   private retryInterval: NodeJS.Timeout | null = null;
   private readonly RETRY_INTERVAL = 10000; // Retry every 10 seconds when offline
   private isRetrying = false;
@@ -127,7 +127,7 @@ class ShareMetadataQueueService {
     shareHighlights?: boolean,
   ): Promise<void> {
     try {
-      const update: PendingOGMetadataUpdate = {
+      const update: PendingOGMetadataUpdate = await decideShareState("queueChatRecord", {
         update_id: crypto.randomUUID(),
         chat_id: chatId,
         title,
@@ -136,9 +136,8 @@ class ShareMetadataQueueService {
         encrypted_shared_short_url: encryptedSharedShortUrl,
         share_pii: sharePii,
         share_highlights: shareHighlights,
-        created_at: Math.floor(Date.now() / 1000),
-        retry_count: 0,
-      };
+        now_ms: Date.now(),
+      });
 
       await this.storePendingUpdate(update);
       console.debug(
@@ -305,7 +304,7 @@ class ShareMetadataQueueService {
       for (const update of pendingUpdates) {
         try {
           // Check if we've exceeded max retry count
-          if (update.retry_count >= this.MAX_RETRY_COUNT) {
+          if ((await decideShareState("queueRetryDecision", { retry_count: update.retry_count })) === "drop") {
             console.warn(
               `[ShareMetadataQueue] Update ${update.update_id} exceeded max retry count, removing`,
             );
@@ -325,7 +324,10 @@ class ShareMetadataQueueService {
             update.share_highlights,
           );
 
-          if (success) {
+          const outcome = await decideShareState("queueAttemptOutcome", {
+            success, retry_count: update.retry_count,
+          });
+          if (outcome.action === "delete") {
             // Success - delete the pending update
             console.debug(
               `[ShareMetadataQueue] Successfully sent OG metadata update for chat ${update.chat_id}`,
@@ -333,7 +335,7 @@ class ShareMetadataQueueService {
             await this.deletePendingUpdate(update.update_id);
           } else {
             // Failed - increment retry count and update
-            update.retry_count++;
+            update.retry_count = outcome.retry_count;
             await this.storePendingUpdate(update);
             console.debug(
               `[ShareMetadataQueue] Failed to send update ${update.update_id}, retry count: ${update.retry_count}`,
@@ -345,7 +347,10 @@ class ShareMetadataQueueService {
             error,
           );
           // Increment retry count and continue
-          update.retry_count++;
+          const failed = await decideShareState("queueAttemptOutcome", {
+            success: false, retry_count: update.retry_count,
+          });
+          if (failed.action === "store") update.retry_count = failed.retry_count;
           await this.storePendingUpdate(update);
         }
       }
@@ -374,18 +379,16 @@ class ShareMetadataQueueService {
     shareHighlights?: boolean,
   ): Promise<boolean> {
     try {
-      const requestBody: Record<string, unknown> = {
+      const requestBody = await decideShareState("queueChatBody", {
         chat_id: chatId,
-        title: title || null,
-        summary: summary || null,
-        share_cta_text: shareCtaText || summary || null,
+        title,
+        summary,
+        share_cta_text: shareCtaText,
+        encrypted_shared_short_url: encryptedSharedShortUrl,
         is_shared: isShared, // Mark chat as shared on server
         share_pii: sharePii,
         share_highlights: shareHighlights,
-      };
-      if (encryptedSharedShortUrl !== undefined) {
-        requestBody.encrypted_shared_short_url = encryptedSharedShortUrl;
-      }
+      });
 
       const response = await fetch(getApiEndpoint("/v1/share/chat/metadata"), {
         method: "POST",
@@ -407,7 +410,7 @@ class ShareMetadataQueueService {
       }
 
       const data = await response.json();
-      return data.success === true;
+      return await decideShareState("queueResponseSuccess", { body: data });
     } catch (error) {
       // Network error - will be retried
       console.debug(
@@ -433,15 +436,14 @@ class ShareMetadataQueueService {
     description?: string | null,
   ): Promise<void> {
     try {
-      const update: PendingEmbedShareUpdate = {
+      const update: PendingEmbedShareUpdate = await decideShareState("queueEmbedRecord", {
         update_id: crypto.randomUUID(),
         embed_id: embedId,
         is_shared: isShared,
         title,
         description,
-        created_at: Math.floor(Date.now() / 1000),
-        retry_count: 0,
-      };
+        now_ms: Date.now(),
+      });
 
       await this.storeEmbedPendingUpdate(update);
       console.debug(
@@ -634,7 +636,7 @@ class ShareMetadataQueueService {
       for (const update of pendingUpdates) {
         try {
           // Check if we've exceeded max retry count
-          if (update.retry_count >= this.MAX_RETRY_COUNT) {
+          if ((await decideShareState("queueRetryDecision", { retry_count: update.retry_count })) === "drop") {
             console.warn(
               `[ShareMetadataQueue] Embed update ${update.update_id} exceeded max retry count, removing`,
             );
@@ -650,14 +652,17 @@ class ShareMetadataQueueService {
             update.description,
           );
 
-          if (success) {
+          const outcome = await decideShareState("queueAttemptOutcome", {
+            success, retry_count: update.retry_count,
+          });
+          if (outcome.action === "delete") {
             console.debug(
               `[ShareMetadataQueue] Successfully sent embed share update for embed ${update.embed_id}`,
             );
             await this.deleteEmbedPendingUpdate(update.update_id);
           } else {
             // Failed - increment retry count and update
-            update.retry_count++;
+            update.retry_count = outcome.retry_count;
             await this.storeEmbedPendingUpdate(update);
             console.debug(
               `[ShareMetadataQueue] Failed to send embed update ${update.update_id}, retry count: ${update.retry_count}`,
@@ -669,7 +674,10 @@ class ShareMetadataQueueService {
             error,
           );
           // Increment retry count and continue
-          update.retry_count++;
+          const failed = await decideShareState("queueAttemptOutcome", {
+            success: false, retry_count: update.retry_count,
+          });
+          if (failed.action === "store") update.retry_count = failed.retry_count;
           await this.storeEmbedPendingUpdate(update);
         }
       }
@@ -699,12 +707,12 @@ class ShareMetadataQueueService {
           Accept: "application/json",
           Origin: window.location.origin,
         },
-        body: JSON.stringify({
+        body: JSON.stringify(await decideShareState("queueEmbedBody", {
           embed_id: embedId,
           is_shared: isShared,
-          title: title || null,
-          description: description || null,
-        }),
+          title,
+          description,
+        })),
         credentials: "include",
       });
 
@@ -720,7 +728,7 @@ class ShareMetadataQueueService {
       }
 
       const data = await response.json();
-      return data.success === true;
+      return await decideShareState("queueResponseSuccess", { body: data });
     } catch (error) {
       // Network error - will be retried
       console.debug(

@@ -1,9 +1,14 @@
 // Native passkey login using ASAuthorizationController.
 // Mirrors Login.svelte's passkey loading state and immediate WebAuthn start.
-// Uses the PRF extension for zero-knowledge master-key unwrapping, then
-// completes the same /auth/login session path as the web app.
+// Swift runs only the system ceremony with the PRF extension: the Rust core
+// begins the login (request options), then verifies the assertion, derives
+// the wrapping key from the PRF output, unwraps, signs in and admits
+// (`AuthManager.finishPasskeyLogin`). Passkey device verification uses the
+// same ceremony without PRF.
 // Specification: specifications/features/auth/specification.yml
 // Assertions: auth.login.method-convergence, auth.session.isolation
+// Specification: specifications/architecture/client-core/specification.yml
+// Assertions: client-core.viewmodel.capability-contract, client-core.apple.strangler-order
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/Login.svelte
@@ -129,141 +134,112 @@ enum PasskeyLoginCoordinator {
         try Task.checkCancellation()
         guard options.success else { throw PasskeyError.serverMessage(options.message) }
         let assertion = try await performPlatformAssertion(
-            options: options, stayLoggedIn: true,
-            sessionId: AuthManager.nativeSessionId,
-            preferImmediatelyAvailableCredentials: false
-        )
+            options: options, preferImmediatelyAvailableCredentials: false)
         let response: PasskeyVerifyResponse = try await APIClient.shared.request(
-            .post, path: "/v1/auth/passkey/assertion/verify", body: assertion.verifyRequest
+            .post, path: "/v1/auth/passkey/assertion/verify",
+            body: assertion.verifyRequest(sessionId: AuthManager.nativeSessionId, stayLoggedIn: true)
         )
         guard response.success, response.userId == expectedUserID else {
             throw PasskeyError.assertionFailed
         }
     }
 
+    /// Passkey sign-in: the core's options, the system ceremony, the core's
+    /// finish. A begun login is forgotten in the core when anything fails.
     @MainActor
     static func login(
         authManager: AuthManager,
         stayLoggedIn: Bool,
         preferImmediatelyAvailableCredentials: Bool
     ) async throws {
-        let api = APIClient.shared
-
-        let options: PasskeyAssertionInitResponse = try await api.request(
-            .post,
-            path: "/v1/auth/passkey/assertion/initiate",
-            body: [:] as [String: String]
-        )
-
-        try Task.checkCancellation()
-        guard options.success else {
-            throw PasskeyError.serverMessage(options.message)
+        let challenge = try await authManager.beginPasskeyLogin(email: nil)
+        do {
+            try Task.checkCancellation()
+            let assertion = try await performPlatformAssertion(
+                options: try decodeOptions(challenge.optionsJson),
+                preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials)
+            try Task.checkCancellation()
+            // Without a PRF output the core refuses with its fixed reason
+            // (shown as `PasskeyError.missingPRF`) before any request.
+            try await authManager.finishPasskeyLogin(assertionJSON: try assertion.coreAssertionJSON(),
+                prfOutput: assertion.prfOutput ?? Data(), stayLoggedIn: stayLoggedIn)
+        } catch {
+            await authManager.cancelPasskeyLogin()
+            throw error
         }
+    }
 
-        let assertion = try await performPlatformAssertion(
-            options: options,
-            stayLoggedIn: stayLoggedIn,
-            sessionId: AuthManager.nativeSessionId,
-            preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials
-        )
-
-        try Task.checkCancellation()
-        let verifyResponse: PasskeyVerifyResponse = try await api.request(
-            .post,
-            path: "/v1/auth/passkey/assertion/verify",
-            body: assertion.verifyRequest
-        )
-
-        try Task.checkCancellation()
-        guard verifyResponse.success else {
-            throw PasskeyError.serverMessage(verifyResponse.message)
+    /// Passkey device verification of the core's pending session: the
+    /// core's options, the system ceremony, the core's finish.
+    @MainActor
+    static func verifyDevice(authManager: AuthManager) async throws {
+        let challenge = try await authManager.beginPasskeyDeviceVerification()
+        do {
+            try Task.checkCancellation()
+            let assertion = try await performPlatformAssertion(
+                options: try decodeOptions(challenge.optionsJson),
+                preferImmediatelyAvailableCredentials: false)
+            try Task.checkCancellation()
+            try await authManager.finishPasskeyDeviceVerification(assertionJSON: try assertion.coreAssertionJSON())
+        } catch {
+            await authManager.cancelPasskeyLogin()
+            throw error
         }
+    }
 
-        guard let emailSaltB64 = verifyResponse.userEmailSalt,
-              let emailSalt = Data(base64Encoded: emailSaltB64),
-              let encryptedMasterKey = verifyResponse.encryptedMasterKey,
-              let keyIv = verifyResponse.keyIv else {
-            throw PasskeyError.missingCryptoData
+    /// The server's assertion options as the core handed them over.
+    static func decodeOptions(_ json: Data) throws -> PasskeyAssertionInitResponse {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        do {
+            return try decoder.decode(PasskeyAssertionInitResponse.self, from: json)
+        } catch is DecodingError {
+            throw PasskeyError.invalidChallenge
         }
-
-        let wrappingKey = await CryptoManager.shared.deriveWrappingKeyFromPRF(
-            prfSignature: assertion.prfSignature,
-            emailSalt: emailSalt
-        )
-        let masterKey = try await CryptoManager.shared.unwrapMasterKey(
-            wrappedKeyBase64: encryptedMasterKey,
-            ivBase64: keyIv,
-            wrappingKey: wrappingKey
-        )
-
-        let userEmail: String
-        if let providedEmail = verifyResponse.userEmail, !providedEmail.isEmpty {
-            userEmail = providedEmail
-        } else if let encryptedEmail = verifyResponse.encryptedEmail {
-            userEmail = try await CryptoManager.shared.decryptContent(
-                base64String: encryptedEmail,
-                key: masterKey
-            )
-        } else {
-            throw PasskeyError.missingEmail
-        }
-
-        let hashedEmail: String
-        if let responseHashedEmail = verifyResponse.hashedEmail {
-            hashedEmail = responseHashedEmail
-        } else {
-            hashedEmail = await CryptoManager.shared.hashEmail(userEmail)
-        }
-        let lookupHash = await CryptoManager.shared.hashKeyFromPRF(
-            prfSignature: assertion.prfSignature,
-            emailSalt: emailSalt
-        )
-        let emailEncryptionKey = await CryptoManager.shared.deriveEmailEncryptionKey(
-            email: userEmail,
-            salt: emailSalt
-        ).base64EncodedString()
-
-        try Task.checkCancellation()
-        let response: LoginResponse = try await api.request(
-            .post,
-            path: "/v1/auth/login",
-            body: LoginRequest(
-                hashedEmail: hashedEmail,
-                lookupHash: lookupHash,
-                loginMethod: "passkey",
-                credentialId: assertion.credentialId,
-                tfaCode: nil,
-                codeType: nil,
-                emailEncryptionKey: emailEncryptionKey,
-                stayLoggedIn: stayLoggedIn,
-                sessionId: AuthManager.nativeSessionId,
-                deviceInfo: AuthManager.makeNativeDeviceInfo()
-            )
-        )
-
-        try Task.checkCancellation()
-        try await authManager.completePasskeyLogin(response: response, masterKey: masterKey)
     }
 
     @MainActor
     private static func performPlatformAssertion(
         options: PasskeyAssertionInitResponse,
-        stayLoggedIn: Bool,
-        sessionId: String,
         preferImmediatelyAvailableCredentials: Bool
     ) async throws -> PasskeyAssertionResult {
         try await assertions.perform {
-            try PlatformPasskeyAssertionController(options: options, stayLoggedIn: stayLoggedIn,
-                sessionId: sessionId,
+            try PlatformPasskeyAssertionController(options: options,
                 preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials)
         }
     }
 }
 
+/// One finished system ceremony: the raw credential id as base64url, the
+/// signed fields as standard base64 of the raw bytes, and the PRF `first`
+/// output when the passkey produced one (secret: memory only, never logged).
 struct PasskeyAssertionResult {
     let credentialId: String
-    let prfSignature: Data
-    let verifyRequest: PasskeyAssertionVerifyRequest
+    let clientDataJSON: String
+    let authenticatorData: String
+    let signature: String
+    let userHandle: String?
+    let prfOutput: Data?
+
+    /// The core's assertion JSON (`finishPasskeyLogin`,
+    /// `finishPasskeyDeviceVerification`); `user_handle` only when present.
+    func coreAssertionJSON() throws -> Data {
+        var fields = ["credential_id": credentialId, "client_data_json": clientDataJSON,
+                      "authenticator_data": authenticatorData, "signature": signature]
+        if let userHandle { fields["user_handle"] = userHandle }
+        return try JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys])
+    }
+
+    /// The server's verify body of a signed-in assertion (pair approval).
+    func verifyRequest(sessionId: String, stayLoggedIn: Bool) -> PasskeyAssertionVerifyRequest {
+        PasskeyAssertionVerifyRequest(
+            credentialId: credentialId,
+            assertionResponse: PasskeyAssertionData(
+                authenticatorData: authenticatorData, clientDataJSON: clientDataJSON,
+                signature: signature, userHandle: userHandle),
+            clientDataJSON: clientDataJSON, authenticatorData: authenticatorData,
+            sessionId: sessionId, stayLoggedIn: stayLoggedIn, hashedEmail: nil, emailEncryptionKey: nil)
+    }
 }
 
 /// Owns one OS authorization at a time. Cancellation waits for the controller's
@@ -354,8 +330,6 @@ enum PasskeyError: LocalizedError {
     case assertionFailed
     case cancelled
     case missingPRF
-    case missingCryptoData
-    case missingEmail
     case serverMessage(String?)
 
     var errorDescription: String? {
@@ -364,8 +338,6 @@ enum PasskeyError: LocalizedError {
         case .assertionFailed: return "Passkey verification failed"
         case .cancelled: return "Passkey login was cancelled"
         case .missingPRF: return "This passkey does not support OpenMates encryption. Please use another login method."
-        case .missingCryptoData: return "Passkey login data is incomplete. Please try again."
-        case .missingEmail: return "Could not recover the account email for passkey login."
         case .serverMessage(let message): return message ?? "Passkey login failed"
         }
     }
@@ -379,11 +351,8 @@ private final class PlatformPasskeyAssertionController: NSObject, PasskeyAsserti
     private let controller: ASAuthorizationController
     private let preferImmediatelyAvailableCredentials: Bool
     private var completion: (@MainActor (Result<PasskeyAssertionResult, Error>) -> Void)?
-    private let stayLoggedIn: Bool
-    private let sessionId: String
 
-    init(options: PasskeyAssertionInitResponse, stayLoggedIn: Bool, sessionId: String,
-         preferImmediatelyAvailableCredentials: Bool) throws {
+    init(options: PasskeyAssertionInitResponse, preferImmediatelyAvailableCredentials: Bool) throws {
         guard let challenge = Data(base64URLEncoded: options.challenge) else { throw PasskeyError.invalidChallenge }
         let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: options.rp.id)
         let request = provider.createCredentialAssertionRequest(challenge: challenge)
@@ -398,8 +367,6 @@ private final class PlatformPasskeyAssertionController: NSObject, PasskeyAsserti
             request.prf = .inputValues(.saltInput1(salt))
         }
         self.controller = ASAuthorizationController(authorizationRequests: [request])
-        self.stayLoggedIn = stayLoggedIn
-        self.sessionId = sessionId
         self.preferImmediatelyAvailableCredentials = preferImmediatelyAvailableCredentials
         super.init()
         controller.delegate = self
@@ -429,36 +396,20 @@ private final class PlatformPasskeyAssertionController: NSObject, PasskeyAsserti
             return
         }
 
-        guard #available(iOS 18.0, macOS 15.0, *),
-              let prfSignature = credential.prf?.first.withUnsafeBytes({ Data($0) }) else {
-            finish(.failure(PasskeyError.missingPRF))
-            return
+        // Login needs the PRF output; the core refuses a missing one. Device
+        // and signed-in verification send the assertion without it.
+        var prfOutput: Data?
+        if #available(iOS 18.0, macOS 15.0, *) {
+            prfOutput = credential.prf?.first.withUnsafeBytes { Data($0) }
         }
-
-        let credentialId = credential.credentialID.base64URLEncodedString()
-        let clientDataJSON = credential.rawClientDataJSON.base64EncodedString()
-        let authenticatorData = credential.rawAuthenticatorData.base64EncodedString()
-
-        let request = PasskeyAssertionVerifyRequest(
-            credentialId: credentialId,
-            assertionResponse: PasskeyAssertionData(
-                authenticatorData: authenticatorData,
-                clientDataJSON: clientDataJSON,
-                signature: credential.signature.base64EncodedString(),
-                userHandle: credential.userID.base64EncodedString()
-            ),
-            clientDataJSON: clientDataJSON,
-            authenticatorData: authenticatorData,
-            sessionId: sessionId,
-            stayLoggedIn: stayLoggedIn,
-            hashedEmail: nil,
-            emailEncryptionKey: nil
-        )
-
+        let userHandle = credential.userID.flatMap { $0.isEmpty ? nil : $0.base64EncodedString() }
         finish(.success(PasskeyAssertionResult(
-            credentialId: credentialId,
-            prfSignature: prfSignature,
-            verifyRequest: request
+            credentialId: credential.credentialID.base64URLEncodedString(),
+            clientDataJSON: credential.rawClientDataJSON.base64EncodedString(),
+            authenticatorData: credential.rawAuthenticatorData.base64EncodedString(),
+            signature: credential.signature.base64EncodedString(),
+            userHandle: userHandle,
+            prfOutput: prfOutput
         )))
     }
 

@@ -1,3 +1,11 @@
+/** Opt-in shared Rust core build: the decision runs in the shared Worker `sync` unit. */
+// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+function rustRecoveryPolicy() {
+  return import("./rustCore/sync/rustRecoveryPolicy");
+}
+
 /** Derive the exact source string represented by a version row from sealed embed TOON. */
 export async function catalogContextFromSealedEmbed(
   content: string, producerApp: unknown, producerSkill: unknown,
@@ -14,9 +22,13 @@ export async function catalogContextFromSealedEmbed(
       fields = decoded as Record<string, unknown>;
     }
   }
+  if (RUST_SYNC_BUILD) return (await rustRecoveryPolicy()).catalogContext(producerApp, producerSkill, fields);
   const app = producerApp ?? fields?.app_id;
   const skill = producerSkill ?? fields?.skill_id;
   if (app === undefined && skill === undefined) return null;
+  // An embed no skill produced (a focus-mode activation) carries only its app in
+  // the sealed fields: it has no skill catalog identity, which is not an invalid one.
+  if (skill === undefined && (producerApp === undefined || producerApp === null)) return null;
   const catalogId = /^[a-z][a-z0-9_]{0,63}$/;
   if (typeof app !== "string" || !catalogId.test(app)
     || typeof skill !== "string" || !catalogId.test(skill)) {
@@ -35,9 +47,11 @@ export function isUnwrittenInitialDiffRead(status: number, detail: unknown, vers
 export async function historySourceFromSealedEmbed(content: string, type: string): Promise<string> {
   const fieldByType: Record<string, string> = {
     code: "code", pcb_schematic: "code", sheet: "table", mermaid: "diagram_code",
+    deck: "slides_markup",
   };
   const { decode } = await import("@toon-format/toon");
   const decoded = decode(content);
+  if (RUST_SYNC_BUILD) return (await rustRecoveryPolicy()).historySource(type, decoded);
   if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)
     || (decoded as Record<string, unknown>).type !== type) {
     throw new Error("Sealed embed does not contain the expected historical source.");

@@ -1,0 +1,365 @@
+schema_version: 2
+profile: concise
+id: apple-client-core-migration
+title: Apple Apps on the Shared Rust Client Core
+status: approved
+
+goal: >
+  (User request 2026-11-10.) Move the native Apple apps completely onto the shared
+  Rust client core (crate openmates-sdk) so that transport, sync, crypto, cache,
+  send, streaming and recovery run once in Rust off the main thread, Swift keeps
+  only UI, platform APIs and Keychain storage, and the Apple performance problems
+  (slow cold start, slow chat opening, main-thread stalls) are fixed. Verification
+  runs on GitHub macos-26 through the apple-core, apple-unit and apple-ui CI modes.
+  Performance is measured before and after with the same seeded encrypted fixture.
+
+parent: docs/plans/client-core-one-core-three-shells/plan.yml  # this Plan executes its Apple column (TASK-1, TASK-5..TASK-9) and refines it with the 2026-11-10 findings
+contract: specifications/architecture/client-core/specification.yml (draft)
+task: TASK-8258
+
+scope:
+  in:
+    - UniFFI binding crate packages/openmates-apple-bindings and the Swift package apple/OpenMatesCore.
+    - Core additions every shell needs and only the TUI has today (runtime ownership, encrypted cache behind a byte-store adapter, session restore, view-model actor with an update listener).
+    - Replacing the Swift implementations listed per step and deleting them in the same deploy.
+    - A seeded encrypted performance fixture and before/after measurements.
+    - Extending the apple-core CI lane to build the framework and the Swift package.
+  out:
+    - UI redesign or web parity work.
+    - Web shell flips (owned by the web Rust core chat).
+    - Passkey ceremony UI and other platform APIs (stay Swift).
+    - TestFlight release; real-account checks on the Mac are run only when the user asks or a step's done definition needs one.
+
+# ---------------------------------------------------------------------------
+# Findings 2026-11-10 that change the parent Plan's Apple tasks.
+# ---------------------------------------------------------------------------
+findings:
+  - id: F-1
+    text: >
+      The core has no shell-facing runtime. Client is `async fn(&mut self)` on an
+      ambient tokio runtime, exchanges tokio channels and serde_json::Value, and
+      has no storage root. The encrypted cache (envelope, AES-GCM/AAD, sections,
+      epochs, locks), session restore orchestration and the view-model actor live
+      in frontend/packages/openmates-tui-native (storage.rs, storage_sections.rs,
+      runtime_store.rs, session_runtime.rs, runtime.rs). Binding Apple to the core
+      as-is would force Swift to reimplement them, which the client-core rule forbids.
+    consequence: Step A2 lifts these into the core behind a byte-store trait before any Apple sync work; the TUI rebinds to the lifted code in the same lane (no twin).
+  - id: F-2
+    text: The core only has the OPAQUE receiver role (pairing.rs PairReceiver). Apple also uses the server and registration roles (approve another device, PairV2Runtime.swift) and derivePasswordV2 through PairOpaqueBridge.
+    consequence: Step A1 adds the missing OPAQUE roles to the core pairing module; only then is PairOpaqueBridge deleted.
+  - id: F-3
+    text: SyncManager.swift is dead code. The real phased-sync handling is in MainAppView.processSyncEvent and its helpers (about MainAppView.swift 6584-7330), plus ChatViewModel.loadSyncedChat and decryptMessagesForDisplay.
+    consequence: Step A4 moves that logic out of MainAppView/ChatViewModel; SyncManager.swift is deleted at once as dead code.
+  - id: F-4
+    text: >
+      Measured causes of slowness are all on the main actor: SwiftData reads and
+      writes on mainContext with one fetch per chat; every WebSocket frame hops to
+      the main actor, is JSON-decoded twice and is processed strictly serially;
+      metadata and message decrypt run field by field with actor hops and a
+      Keychain master-key read per chat. Recorded: about 17 s startup, 14.7 s
+      initial sync, 153 REST loads and 461 first paints in one cold process.
+    consequence: A3 (batched decrypt in the core, one call per batch, off main) gives the first measurable gain; A4 removes the rest.
+  - id: F-5
+    text: No CI test measures encrypted cold start or chat open. ChatOpeningScalabilityUITests uses plaintext fixtures and skips WebSocket, crypto and SwiftData.
+    consequence: Step A0 adds a seeded encrypted fixture and timing test that runs without secrets on macos-26.
+  - id: F-6
+    text: apple-core CI builds neither the app nor a framework and installs no aarch64-apple-ios target; uniffi is not yet a dependency; ClientIdentity has no Apple variant; the Apple crate must leave the workflow-yaml feature off.
+    consequence: Step A1 extends ci_apple.py and the workflow job, adds ClientIdentity::Apple.
+  - id: F-7
+    text: SwiftData stores plaintext columns (title, content, renderDocumentJSON, piiMappingsJSON) next to ciphertext.
+    consequence: A4 never migrates plaintext into the core cache; server content is re-synced, only local-only state (drafts, queued sends, checkpoints, last-opened chat) is migrated, and the SwiftData files are deleted after the check passes.
+  - id: F-8
+    text: >
+      The full core does not build for the 32-bit (ILP32) Watch slice
+      arm64_32-apple-watchos: ring (under rustls, used by reqwest rustls-tls,
+      tokio-tungstenite rustls-tls-webpki-roots and the recovery-socket
+      preconnect) does not support ILP32 arm64 (apple-core run 42938906020,
+      E0599 in_out_whole_block_bits and the _ASSUMED_POINTER_SIZE assertion).
+      iOS, simulator, macOS and 64-bit Watch slices build.
+    consequence: >
+      openmates-sdk builds without any TLS stack only under
+      cfg(all(target_os = "watchos", target_pointer_width = "32")); every other
+      target resolves exactly as before. On that slice HTTPS fails with
+      Error::Offline and WSS with tungstenite's TLS-not-enabled error, never a
+      plain-HTTP/WS fallback. The UniFFI surface is unchanged, so the pairing
+      functions the Watch uses today work. A7 must choose the Watch TLS path
+      before any Watch networking moves into the core.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: The binding crate owns one multi-thread tokio runtime and one actor task that owns the Client. Swift sees async functions (UniFFI async) and one listener interface for updates; it hops to @MainActor once at the view-model boundary.
+  - id: D-2
+    status: active
+    decision: The core cache is persisted through a byte-store trait (get/put/delete/list of opaque keys and ciphertext). Apple implements it with files in the app group container (complete-until-first-unlock protection); the TUI implements it with its existing files. Schema, encryption, partitioning and fences are core code.
+  - id: D-3
+    status: active
+    decision: The Xcode build links one static library built per build for the active platform and architecture by a pre-build script phase (build-xcframework.sh --xcode-phase, pinned 1.98.1 toolchain), as the old pairing bridge did. The generated Swift, C header and modulemap are committed under apple/OpenMatesCore and compiled into the app targets; CI fails when they are stale (build-xcframework.sh --check-bindings). The xcframework is built only in CI to prove every slice compiles.
+  - id: D-4
+    status: active
+    decision: Watch stays on its Swift runtime until A7. In A1 the Watch target gets the framework's watchOS slices only for the pairing functions (same build-std recipe as today); if those slices cannot be built with the full core, the pairing functions are built from a minimal feature set of the binding crate.
+  - id: D-5
+    status: active
+    decision: Order is A0 baseline, A1 bridge, A2 core shell runtime, A3 crypto+keys+auth, A4 sync+cache+list+window, A5 send+stream+recovery, A6 remaining capabilities, A7 Watch. Each Apple step deletes the Swift it replaces.
+
+acceptance_criteria:
+  - id: AC-1
+    text: Each step deletes the Swift implementation it replaces in the same deploy (no flag, no fallback) and the parity tests of that subject.
+    required: true
+  - id: AC-2
+    text: apple-core, apple-unit and the step's apple-ui selectors are green on macos-26 for the exact deployed commit; rust-check and sdk-conformance are green for core changes.
+    required: true
+  - id: AC-3
+    text: The parent Plan's capability inventory (or docs/migration/rust/capabilities.yml once it exists) records the new Apple status with the commit.
+    required: true
+  - id: AC-4
+    text: The seeded encrypted performance test reports cold load, chat-list decrypt and chat-open timings on macos-26; after A3 and A4 the numbers are recorded next to the A0 baseline and are not worse.
+    required: true
+  - id: AC-5
+    text: No unsynced local state is lost in A4 (seeded SwiftData store with a draft, a queued send and a recovery checkpoint migrates; XCTest proves it).
+    required: true
+
+verifications:
+  - id: V-RUST
+    kind: command
+    covers: [AC-2]
+    command: ci_coordinator.py submit --mode rust-check and --mode sdk-conformance via sessions.py ci-source, then ci_coordinator.py wait
+  - id: V-APPLE
+    kind: command
+    covers: [AC-2]
+    command: ci_coordinator.py submit --mode apple-core --spec all; --mode apple-unit --spec OpenMatesTests[/<Class>]; --mode apple-ui --spec OpenMatesUITests/<Class>
+  - id: V-PERF
+    kind: command
+    covers: [AC-4]
+    command: ci_coordinator.py submit --mode apple-unit --spec OpenMatesTests/NativeEncryptedSyncPerformanceTests; timings are read from the job log lines starting with APPLE_PERF
+  - id: V-DELETE
+    kind: command
+    covers: [AC-1]
+    command: git grep for each deleted type name returns nothing outside comments
+
+tasks:
+  - id: A0
+    title: Performance baseline - seeded encrypted fixture and timing test
+    create:
+      - apple/OpenMatesTests/NativeEncryptedSyncPerformanceTests.swift (600 chats with encrypted title/summary/category and wrapped chat keys, one chat with 1000 encrypted messages; measures key bulk load, chat-list metadata decrypt, SwiftData persist, cold load from disk, chat open of a 50-message window; prints APPLE_PERF name=<phase> ms=<n> n=<count>)
+    note: Uses the current Swift path (ChatKeyManager, CryptoManager, OfflineStore, ChatStore). No timing assertions beyond a generous ceiling; the numbers are the product. The same fixture later drives the core path.
+    done: The test runs green in apple-unit on macos-26 and the baseline numbers are recorded in results.md of this Plan.
+  - id: A1
+    title: Bridge - openmates-apple-bindings, OpenMatesCore, PairOpaqueBridge retired (parent TASK-1)
+    create:
+      - packages/openmates-apple-bindings (workspace member, staticlib + lib, UniFFI proc macros, owns the runtime; surface - version, async probe, credential snapshot emit/ack with an in-memory store, password v2 derivation, OPAQUE operations)
+      - packages/openmates-apple-bindings/build-xcframework.sh
+      - apple/OpenMatesCore (Swift package - binaryTarget plus the generated Swift)
+      - apple/OpenMatesTests/OpenMatesCoreBridgeTests.swift (version, async delivery off main with result applied on MainActor, cancellation, credential round trip, OPAQUE register/login round trip, password v2 vector)
+    change:
+      - packages/openmates-rust/src/pairing.rs gains the server and registration OPAQUE roles now in apple/PairOpaqueBridge/src/lib.rs, with tests ported from it and its interop vectors
+      - ClientIdentity::Apple
+      - apple/project.yml - OpenMatesCore package for OpenMates and OpenMatesWatch, pre-build script building the framework; PairOpaque.swift calls OpenMatesCore
+      - scripts/ci_apple.py and the workflow apple job - build the xcframework, swift test, device target
+    delete: apple/PairOpaqueBridge and its script phases, linker flags and workspace exclusion
+    done: apple-core and apple-unit green; framework size and app size delta recorded; Watch builds (D-4).
+  - id: A2
+    title: Core shell runtime (Rust; unblocks every later Apple step)
+    split:
+      - (a) byte-store trait and core-owned encrypted cache, lifted from tui-native storage.rs/storage_sections.rs/runtime_store.rs; TUI rebinds
+      - (b) session restore and credential persistence orchestration, lifted from tui-native session_runtime.rs; TUI rebinds
+      - (c) view-model actor - commands in, typed updates out (chat list, chat window, stream events, sync phase progress), lifted from tui-native runtime.rs Actor/Request/Reply; TUI rebinds
+    done: TUI suite, rust-check and sdk-conformance green; tui-native no longer contains cache policy or the lifted orchestration; the binding crate exposes the actor over UniFFI with a listener.
+  - id: A3
+    title: Crypto, keys and auth session through the core (parent TASK-5)
+    delete: CryptoManager.swift, ChatKeyManager.swift, ChatRecoveryV2Envelope.swift, ShareLinkCrypto.swift, crypto in NotificationPreviewCrypto.swift, PasswordV2Keys logic, the matching parity tests
+    note: Batched calls only (one call decrypts a list of chats or a message window). Measure the notification service extension's peak memory with the framework linked. KeychainHelper stays and stores the credential snapshot.
+    done: AC-1..AC-4 for crypto-keys and auth-session.
+  - id: A4
+    title: Sync, cache, chat list and chat window in the core - the performance fix (parent TASK-6)
+    split:
+      - (a) transport and phased sync - WebSocketManager routing, MainAppView.processSyncEvent and helpers, SyncManager.swift (dead) deleted
+      - (b) cache - OfflineStore, ChatStore persistence, OfflineSyncBridge, NativeWorkspaceOfflineCache replaced by the byte-store adapter; local-only state migrated (AC-5)
+      - (c) chat list and chat window view models bound in MainAppView and ChatViewModel; ChatMessageWindowClient deleted
+    done: AC-1..AC-5; cold start to usable chat list and chat open faster than the A0 baseline; ChatOpeningScalabilityUITests green.
+  - id: A5
+    title: Send, streaming and completion recovery (parent TASK-7)
+    done: AC-1..AC-3; BackgroundChatSender, StreamingClient, the recovery coordinators and queues deleted; share extension and background entry points call the core.
+  - id: A6
+    title: Remaining capabilities, one lane each (parent TASK-8)
+    split: [drafts, search, settings, projects-tasks-teams, embeds, transfer, composer-parse, apps-skills, anonymous-public-chats]
+    done: AC-1..AC-3 per capability.
+  - id: A7
+    title: Watch runtime onto the core (parent TASK-9)
+    done: WatchChatRuntime logic deleted and Watch UI tests green, or the user accepts keeping Watch on Swift with a recorded reason.
+  - id: A8
+    title: Web parity of screens, embeds and features (runs in parallel with A4 to A6)
+    split: [voice-call protocol and speech playback, memories settings on the core, embed versions and Enhance, jobs and rain-radar embeds, chat and message menus, learning-mode and billing-address settings, recommendations card, assistant-created Projects card, workflow editor pane, slides viewer, server region preference, font setting, image-generate card states, notification variants, dictation purposes, word-progress display]
+    done: Each item has an Apple unit or UI test green in CI and a simulator screenshot shown to the owner; items that need core work land in the core first.
+
+risks:
+  - id: R-1
+    risk: A2 touches tui-native and core files that other running chats edit.
+    mitigation: Additive core modules first; the TUI rebinding is a small, late change per lane, deployed quickly; check agent_peers before each lane.
+  - id: R-2
+    risk: Each Apple verification needs a macos-26 CI run (20-60 minutes); no local Apple build exists on the dev server.
+    mitigation: Compile and test the binding crate on Linux first (cargo check/test through heavy_slot); batch Swift changes per CI run.
+  - id: R-3
+    risk: The full core may not build for watchOS arm64_32 (ring, mio).
+    mitigation: D-4.
+  - id: R-4
+    risk: Binary size and extension memory with the full core linked.
+    mitigation: Record size in A1; measure the notification extension in A3; a reduced feature set for extensions if needed.
+  - id: R-5
+    risk: Data loss when SwiftData is retired.
+    mitigation: AC-5 and client-core.cache.safe-store-retirement.
+
+# ---------------------------------------------------------------------------
+# Status and resume notes (2026-11-10, session fe65, TASK-8258). Only this Plan
+# folder is deployed. All code below is uncommitted in the worktree
+# .openmates-agent-worktrees/agent-fe65; resume there (managed worktrees
+# inactive for more than 7 days may be cleaned up).
+# ---------------------------------------------------------------------------
+progress:
+  updated: 2026-11-12
+  deployed_commits_on_dev:
+    022e1fd: plan and measurements
+    3d1c5cf: A0 baseline test and A1 UniFFI bridge, PairOpaqueBridge deleted
+    0b16254: A2 L1 FileByteStore, L6a view-model records, Watch arm64_32 build fix (F-8)
+    fbd4396: A3a batched key unwrap, metadata and message decrypt through the core
+    5ec9922: A2 L2 record codec and fence, L3 sections and CacheStore, L4 shell_session
+    941bac9: message render form rebuilt once per decrypted message; finer timing phases
+    62b8bc1: A2 L6b view-model actor (start, cached chat list before network, boot sync, refresh, team switch, logout)
+    583ebb3: A2 L7 (open chat, paging, close, mark read, live window in the core) and L8 part 1 (Apple binding ViewModelCore, credential store interface, event listener, cache folder inside a system container)
+    b8a01f6: A2 L9 send, stream and cancel in the view-model actor; L8 part 2 (open chat, paging, close, mark read for Swift)
+    5bf66ae: core login for Swift (password, pair login) and send through the binding
+    6d15ee2: full chat row and message fields, per-message stream update, httpRequest, adoptSession, sessionInfo, legacy grants, pair-login cancel fix, test-support fixture
+  A0: {state: done, evidence: results.md}
+  A1: {state: done, evidence: "apple-core builds iOS, simulator, macOS and both Watch slices; OpenMatesCoreBridgeTests 12 of 12 on candidate 4b28f90f"}
+  A2:
+    state: in progress
+    done: [L1, L2, L3, L4, L6a, L6b, L7, L8, L9, core login hand-over (password and pair), pair-login cancel]
+    remaining_in_order:
+      - "L5: completion recovery pump into the core (client/completion_recovery_pump.rs), terminal adapter deleted (on hold: another task edits those files)"
+      - "A 401 on a core httpRequest wipes the session; it must not for the password-migration routes."
+      - "Pair login has no stay-logged-in option: the approving device sets the lifetime (auto_logout_minutes); a receiver flag needs a backend contract change first."
+      - "A custom upload host that is neither the API origin nor the official upload host is refused by the core upload call; no retry after a 401 on upload."
+      - "Personal-memories call in the binding; Watch, share extensions and the background sender still make their own session calls."
+    built_not_deployed_2026_11_11:
+      note: In the worktree, CI running on candidate 2ccc942c. Move to deployed_commits_on_dev with the commit.
+      core_and_binding:
+        - "Session verification: typed VerificationRequired state, verifyDevice2fa, userProfileJson, userProfile (cached profile for an offline restored session, fresh flag)."
+        - "Backup-code and recovery-key login and the v1 to v2 password migration in the core (LoginRecord.passwordMigration)."
+        - "Passkey login and passkey device verification: begin (options JSON) and finish (assertion, PRF output); the continuation stays in the core."
+        - "Draft versions call; passthrough of socket frames the core does not own (UnownedSocketFrame, SendUnownedFrame); a server error frame answering a forwarded frame no longer retires the monitor socket."
+        - "uploadFile: authenticated multipart upload streamed from a file path, strict host and route allow-list; the cookie never reaches the shell."
+      swift:
+        - "Login (password, pair, backup code, recovery key, passkey), device verification, session check, logout, REST and uploads go through CoreSession; AuthManager+CeremonyLogin and AuthManager+PasswordMigration deleted."
+        - "Kept: CoreSessionAdoption and the pre-session transport, because passkey signup and signed-out lookup and signup REST still run in Swift."
+        - "A4 lane 2 (first slice): the sidebar rows come only from the core (CoreChatList created at app start, CoreChatRowMapper); the Swift pinned re-sort and sidebar paging requests are deleted. UI-test fixtures seed the core through a test-support C entry (Debug and test builds only)."
+      lane_2_remaining:
+        - "Swift phased-sync list ingestion into ChatStore stays until the chat window (lane 3) and core-held chat keys (A3b) land; search, Spotlight, widgets, the welcome screen, drafts and the Watch transfer still read ChatStore."
+        - "The core list has no account total, no section grouping and no flag for saved-item home rows (Swift filters the embed: id prefix and keeps its time-bucket headers)."
+        - "A draft typed on this device appears in the sidebar only once the core reports it."
+        - "Chat row times are unix seconds (the server sends seconds; the core passes them through)."
+      correction: "The server keys sockets by sha256(device_hash:sessionId), not by account and device. The core uses a fresh session id per socket, so the core monitor socket, its per-turn send socket and the Swift socket coexist. Folding send into the monitor socket is not required."
+    notes:
+      - "Apple cache location: Swift passes the container the system hands out plus one folder name (CoreConfig.cache_container, cache_directory_name); Rust creates and checks only that folder (FileByteStore::open_in). An app cannot open the folders above its container."
+      - "The unsigned CI simulator build has no Keychain entitlement (status -34018). KeychainCredentialStore.swift is therefore not exercised in CI; bridge tests use an in-memory store. Prove it on a signed build."
+      - "The terminal UI has no load-older or close-chat command; only the core supports them."
+      - "The core emits Partial list events, never Complete; the core Message record has no timestamp."
+      - "Frozen remainders: legacySocketGrant (removed with A4a; the server keys sockets by account and device, so it holds only while the core opens no socket) and legacyMasterKey (removed with A3b); both refused while signed out. Uploads (upload host) and streaming are not in the passthrough; typed core calls follow."
+      - "Undeployed at the time of writing (CI on candidate b4338a18): userProfileJson (server user payload, refreshed on each admission; Swift decodes it with its own UserProfile), typed VerificationRequired state (device 2FA or passkey, re-auth) that keeps the stored session, verifyDevice2fa; socket passthrough for un-migrated shell features (UnownedSocketFrame, UnownedSocketFramesDropped, SendUnownedFrame; one classification function, temporary until A5/A6); build-xcframework.sh --test-support for the apple-unit build only; CoreSession.swift created at app start with timing lines and CoreSessionTests (6 tests)."
+      - "Swift lane 1 stopped before login, session check, logout and APIClient rewiring because the binding had no user profile and no verification states; a fresh Swift lane follows the deploy above."
+      - "Contract findings in the frozen Swift code: device verification sends {code} while the server requires tfa_code, and Swift looks for needs_device_verification, which the server never sends (verification is reported by /v1/auth/session)."
+      - "The Swift socket code consumes about 60 event types the core does not handle (embeds, code runs, reminders, sub-chats, queued messages, focus modes, payments, highlights, compression); they arrive through the passthrough until A5/A6."
+      - "Fields still not in the core records: shared-by-others (general), last visible message id, chat app id, sub-chat settings, list total count, message updated_at and app id."
+      - "The test-support fixture is not callable from Swift tests yet: the committed bindings stay product-only, so test-only Swift bindings must be generated separately."
+      - "Server switch: the binding fixes the API URL at creation; follow the terminal app (refuse a stored session of another server, new core per server)."
+      - "uploads (upload host, multipart) and streaming HTTP clients cannot use httpRequest and still run in Swift."
+  working_rules_2026_11_12:
+    note: Owner corrections; they apply to every further lane of this plan.
+    rules:
+      - "One job compiles and tests: apple-unit and apple-ui build first (all Swift errors listed on failure, no x86_64 Watch build, Rust cache shared between the modes) and test on that build; submit both together and fix all listed errors in one round. No separate compile job before them, no static compile-review lanes."
+      - "Deploy each green candidate before starting lanes that edit the worktree. At deploy time refresh the base and regenerate the bindings, config/sdk-capabilities.json and the specification indexes. One deploy per green batch."
+      - "Sub-agents run on the default model; the stronger model only for hard core design (actor and streaming, crypto, send pipeline). Lanes end after about 80 turns and hand off to a fresh agent."
+      - "Critical path: Swift send, edit and stop through the core and deletion of the old Swift send pipeline. Workflow editor, slides viewer, Watch and notification variants wait until that is deployed."
+      - "Overview only after a deploy or a CI result, at most every 3 hours; the CI runner reports, no polling."
+  audit_against_parent_plan_2026_11_11:
+    note: Read-only audit of the parent plan, client-core rules and Specifications. Details and per-lane rules are in a4-design.md.
+    owner_decisions:
+      - "2026-11-11: no runtime switch and no twin phase in the Apple app; each lane replaces Swift code directly."
+      - "2026-11-12 (exception to AC-5, decided by the implementing agent with the owner's leave): drafts and queued sends that exist only in the old SwiftData cache of an existing install are not carried over when that cache is retired. Synced data returns from the server; the release note must say so."
+      - "2026-11-12: web parity of screens, embeds and features is part of this plan (task A8); the three audit reports are summarised under parity_audit_2026_11_12."
+      - "2026-11-12: a running voice call continues while the app is in the background (background audio mode; assertion video-call.audio.background-resume)."
+    open_items:
+      - "sdk-conformance has not run for any core deploy of this plan (submit needs --spec sdk-conformance without preparation)."
+      - "Parent plan capability inventory: Apple cells still read swift-only; update with commits (crypto-keys, pairing, session and view-model exposure)."
+      - "apple/PairOpaqueBridge/local-runtime-symbols.txt is still tracked although the bridge is deleted."
+      - "App size after linking is unmeasured; the notification service, share extensions and widget do not link the core."
+      - "Stale documents: .claude/rules/client-core.md (flag-on specs), client-core Specification wording about the apple-ui CI mode, docs/architecture/platforms/apple.md, docs/architecture/data/sync.md."
+      - "Older Apple plans that still describe Swift logic and should be frozen or superseded: apple-guest-offline-storage, apple-durable-chat-persistence-parity, apple-daily-use-recovery, apple-core-cross-client-parity, apple-watch-chat-loading, apple-auth-security-parity."
+      - "The 32-bit Watch slice has no TLS stack in the core (F-8); the parent plan's Watch risk does not mention it."
+  lessons_from_web_core_rollout:
+    note: Defects found while turning the Rust core on in the web app (dev commits b8b83bbba0, 6c67df588b, 18ffa6a947, 1164c58318). Check each one when rewiring the Apple app (A4, A5).
+    items:
+      - "Nothing the app needs offline or on a dropped connection may be loaded on first use. Apple links the core statically, so code loading is not an issue, but the same rule holds for state: create the core object, cache and listener at app start, not on the first chat open."
+      - "A dropped connection must settle every pending connect and send. Swift callers of core calls always pass a CoreCancellation and handle the error branch; no continuation may wait forever."
+      - "Do not merge a whole chat with the core once per page or per stream update (quadratic for long chats). The core emits a full ChatWindow record after each stream update; Swift applies Stream events to the open message and replaces the window only on Canonical, or the core gains a delta event before A5."
+      - "Decide on stored rows first, filter presentation-only rows afterwards (the first voice turn lost its history because a system row was filtered before the history decision). History and send decisions stay in the core; Swift filters only for display."
+      - "A failed request for derived content (formatting, render plan) is retried with backoff instead of leaving the message unrendered."
+  parity_audit_2026_11_12:
+    findings:
+      - "Voice calls were broken against the current server: start needs speech_output_transport mp3_turn_stream_v2, ready carries no mate_category, assistant speech arrives as MP3 frames on the chat socket."
+      - "Memories settings were broken: the typed /v1/sdk/memories route answers 410; the web uses unified Memory documents."
+      - "Signup already matches the web (password or passkey, then completion; web commit 5d84ffdad7 moved the security steps to Settings), so the audit line about missing signup steps was wrong. Missing: embed versions and Enhance, recommendations card, assistant-created Projects, workflow editor pane, slides viewer, server region preference, font setting, image-generate card states, notification variants, dictation guest and report-issue purposes, word-progress display."
+    deployed_03a7aed_2026_11_12:
+      core_and_binding:
+        - "Chat list: isSavedItem per row, totalCount and completeness on the list event, chat_total_count; a 401 on the password-v2 routes returns its status instead of wiping the session (this closes two lane_2_remaining lines and one A2 remaining line above)."
+        - "Memories binding (view_memories.rs): list, read, create, update, delete, delete expired, assistant write opt-in, write notices, undo, typed Memory error codes."
+        - "Embed versions binding (view_embeds.rs, view_embed_enhance.rs): version history, commit edit, restore, Enhance start, wait, status and save, update-notice reconcile, timeline folding. The binding uses dev's embed_user_edit_head; the core keeps embed_version_history."
+      swift:
+        - "Chat window from the core (CoreChatWindow, CoreMessageMapper); the REST cold-open path is deleted."
+        - "Voice call on the current protocol with MP3 speech playback; jobs and rain-radar embeds; web-order chat and message menus; collaborative learning mode; billing address page; Memories settings on Memory documents (typed-memory service deleted); embed versions and Enhance in the fullscreen; server region preference in the core and binding."
+      open_after_memory_cleanup:
+        - "Voice call: a memory request during a call is refused; offering personal Memory documents to a call (as the web does) needs the Memory records wired into the call permission prompt."
+        - "Hide personal data settings: saving is broken (the REST save route answers 410; the web saves over the socket with store_app_settings_memories_entry). Needs a core call."
+        - "Embed Save/Saved (encrypted saved flag on the embed, web savedEmbedService.ts) has no Apple button; the old save-as-memory button is deleted."
+      not_possible_yet:
+        - "Image crop as a new version (the core cannot send a new file with a revision); reading the content of an older embed version."
+    built_after_03a7aed_not_deployed:
+      core_and_binding:
+        - "Chat actions (client/message_actions.rs, view_model/chat_actions.rs, view_chat_actions.rs): deleteChat, deleteMessage, editMessage, retryLastTurn, forkChat, saveDraft, clearDraft, stopReply."
+        - "sendWithOptions (view_send_options.rs, view_model/send_request.rs, client/send_reserved_ids.rs): PII detection switch, first-turn incognito, queued receipt (status, mode, revision), caller-reserved chat and message ids."
+        - "An already cancelled caller no longer races the forwarding task (view_core.rs)."
+      swift:
+        - "Server region setting (device-local) with the Settings toggle; sidebar show-more count from the core total; embed-updated row and image refresh after a new version; delete chat, delete message and fork through the core for personal chats."
+        - "Fixes found by apple-ui on 03a7aed: voice call bar keeps its buttons' identifiers; rain radar title and headline size; settings header and page identifiers (pre-existing since 77cb81e)."
+        - "Tests moved to the current boundary: WatchPairCookieCancellationTests drive the Watch transport directly (iOS pair login runs in the core); sheet fullscreen mount waiter 20 s."
+      send_not_switched_core_gaps:
+        - "A send turn cannot carry embeds or attachments (client/send_prepared_turn.rs)."
+        - "Caller-supplied PII mappings or exclusions (composer un-redact)."
+        - "The core is busy for the whole streamed turn (Client::send holds &mut Client); a second send, queued edit and steer need the stream off the actor (model: client/owned_saved_send*)."
+        - "Incognito continuation (no in-memory transcript for volatile chats)."
+        - "Task id of a reply this core did not start: client/monitor.rs drops ai_typing_started and non-final ai_message_update (file owned by another lane)."
+        - "Edit, delete and fork in team and Direct chats are refused by the core."
+        - "Server region on the web is stored in the synced profile (server_region_preference); Apple stores it on the device until the core syncs it."
+      second_round_2026_11_12:
+        note: Built after the block above, in the same worktree; CI on candidate a12696a4. The first three send_not_switched_core_gaps lines above are closed by this round.
+        core_and_binding:
+          - "Send split: the actor only admits a turn (Client::admit_send, client/send_split.rs); the stream runs on its own task (view_model/live_turns.rs, send_relay.rs, send_stream.rs), so a second send, edit and stop work while a reply streams."
+          - "A send turn carries embeds and attachments (client/send_attachments.rs, SendEmbedRecord) and caller-supplied PII exclusions and mappings (privacy/exclusions.rs)."
+          - "Drafts: draft() read and a DraftChanged event from live refresh, list refresh and boot sync (client/draft_cached.rs, view_model/draft_view.rs, draft_flows.rs, view_drafts.rs)."
+        swift:
+          - "Drafts through the core (CoreDrafts.swift); DraftSyncCoordinator and its parity tests deleted. The encrypted local draft copy stays because the core has no offline draft outbox."
+          - "Voice call continues in the background."
+          - "Chat cards: image-generate card states, project-created card, recommendations card (built, not mounted: the binding has no recommendations data); ChatCardsParityUITests."
+        open:
+          - "Swift send, edit and stop still use ChatSendPipeline and StreamingClient; switching them to sendWithOptions and deleting the old code is the next lane."
+          - "Drafts: no offline outbox in the core; unsynced state is tracked in memory only; a remote clear while the app is closed can bring the local copy back; the welcome composer has no unsaved-typing guard."
+          - "Send: no stored-embed availability check, the bundle is rebuilt on retry, the optimistic message has no reference blocks, upload keys still come from Swift; incognito turns run whole on the actor; the terminal app still uses the joined send."
+      unit_suite_on_03a7aed: "26 failing (baseline 39 on fbd4396): 16 baseline failures gone, 23 unchanged, 3 new (2 pair cookie tests, 1 sheet fullscreen waiter), addressed in the built changes above."
+  A3:
+    state: A3a done (batched decrypt); A3b not started
+    remaining: about 20 Swift files still call CryptoManager, decryptChatField or decryptMessageContent; chat key bytes still cross into Swift; decide the core-held key store
+  A4: {state: "in progress: lane 0 (record fields) deployed in 6d15ee2; lane 1 (core session at app start, all logins, session, logout, REST, uploads), lane 2 (sidebar) and lane 3 (chat window) deployed in 03a7aed, apple-unit build green on candidate ec1f735a", needs: "apple-ui run for the seeded sidebar and the passkey device-verification screen; lane 3 chat window; an end-to-end cold-start measurement before and after"}
+  A5_to_A7: {state: not started}
+  not_run: [apple-ui suite, "e2e cli-rust-chat-sync-feed, cli-session-cookie-rotation and cli-pair-login for 6d15ee2 (CI runner DNS failure in Install browser, three attempts)", full terminal app suite in CI, app size after linking (static library is 164 MB per slice before linking), Watch runtime behaviour, Keychain store on a signed build]
+  known_unrelated_failures:
+    - "sdk_crate_has_no_cli_credential_discovery (TASK-7197) fails apple-core's host test step"
+    - "36 Apple unit tests fail on dev before and after this work (TASK-8027)"

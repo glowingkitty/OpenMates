@@ -2,10 +2,12 @@
 //
 // Lightweight client-side parsers for uploaded text-like files.
 // These intentionally avoid heavy document dependencies: they support simple
-// CSV/TSV, RFC822-style EML, and minimal Office Open XML extraction so PII
+// CSV/TSV, RFC822-style EML, and Office Open XML extraction (see docxHtmlConverter.ts, xlsxSheetConverter.ts) so PII
 // redaction can happen before embed content leaves the browser.
 
-import JSZip from "jszip";
+import { convertXlsxWorkbook } from "./xlsxSheetConverter";
+
+export { docxArrayBufferToHtml } from "./docxHtmlConverter";
 
 export interface ParsedEmailFile {
   receiver: string;
@@ -15,7 +17,6 @@ export interface ParsedEmailFile {
 }
 
 const EML_HEADER_SEPARATOR = /\r?\n\r?\n/;
-const XLSX_CELL_REF_RE = /^([A-Z]+)(\d+)$/i;
 
 function escapeMarkdownCell(value: string): string {
   return value.replace(/\|/g, "\\|").replace(/\r?\n/g, " ").trim();
@@ -110,153 +111,10 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function decodeXmlText(value: string): string {
-  return value
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, "&");
-}
-
-function getXmlBlocks(xml: string, localName: string): string[] {
-  const pattern = new RegExp(`<(?:[\\w-]+:)?${localName}\\b[^>]*>([\\s\\S]*?)<\\/(?:[\\w-]+:)?${localName}>`, "gi");
-  return Array.from(xml.matchAll(pattern)).map((match) => match[1] || "");
-}
-
-function getXmlElements(xml: string, localName: string): Array<{ attrs: string; body: string }> {
-  const pattern = new RegExp(`<(?:[\\w-]+:)?${localName}\\b([^>]*)>([\\s\\S]*?)<\\/(?:[\\w-]+:)?${localName}>`, "gi");
-  return Array.from(xml.matchAll(pattern)).map((match) => ({
-    attrs: match[1] || "",
-    body: match[2] || "",
-  }));
-}
-
-function getXmlStartTags(xml: string, localName: string): string[] {
-  const pattern = new RegExp(`<(?:[\\w-]+:)?${localName}\\b([^>]*)/?>`, "gi");
-  return Array.from(xml.matchAll(pattern)).map((match) => match[1] || "");
-}
-
-function getXmlAttribute(attrs: string, name: string): string | null {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = attrs.match(new RegExp(`(?:^|\\s)${escaped}="([^"]*)"`, "i"));
-  return match?.[1] || null;
-}
-
-function getTextFromDocxParagraph(paragraphXml: string): string {
-  const textRuns = getXmlBlocks(paragraphXml, "t").map(decodeXmlText);
-  if (textRuns.length > 0) return textRuns.join("");
-  return decodeXmlText(paragraphXml.replace(/<[^>]+>/g, "")).trim();
-}
-
-export async function docxArrayBufferToHtml(buffer: ArrayBuffer): Promise<string> {
-  const zip = await JSZip.loadAsync(buffer);
-  const documentXml = await zip.file("word/document.xml")?.async("string");
-  if (!documentXml) return "";
-
-  const paragraphs = getXmlBlocks(documentXml, "p")
-    .map(getTextFromDocxParagraph)
-    .map((text) => text.trim())
-    .filter(Boolean);
-
-  if (paragraphs.length === 0) return "";
-  return paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("\n");
-}
-
-function columnLettersToIndex(letters: string): number {
-  let index = 0;
-  for (const char of letters.toUpperCase()) {
-    index = index * 26 + char.charCodeAt(0) - 64;
-  }
-  return index - 1;
-}
-
-function parseSharedStrings(xml: string | undefined): string[] {
-  if (!xml) return [];
-  return getXmlBlocks(xml, "si").map((item) =>
-    getXmlBlocks(item, "t").map(decodeXmlText).join(""),
-  );
-}
-
-function getFirstWorksheetPath(zip: JSZip, workbookXml: string | undefined): string {
-  if (!workbookXml) return "xl/worksheets/sheet1.xml";
-
-  const firstSheet = getXmlStartTags(workbookXml, "sheet")[0];
-  const relationshipId = firstSheet ? getXmlAttribute(firstSheet, "r:id") : null;
-  if (!relationshipId) return "xl/worksheets/sheet1.xml";
-
-  const relsXml = zip.file("xl/_rels/workbook.xml.rels");
-  if (!relsXml) return "xl/worksheets/sheet1.xml";
-
-  // Relationship resolution happens in the caller after async file loading.
-  return relationshipId;
-}
-
-async function resolveWorksheetPath(zip: JSZip): Promise<string> {
-  const workbookXml = await zip.file("xl/workbook.xml")?.async("string");
-  const relationshipIdOrPath = getFirstWorksheetPath(zip, workbookXml);
-  if (relationshipIdOrPath.startsWith("xl/")) return relationshipIdOrPath;
-
-  const relsXml = await zip.file("xl/_rels/workbook.xml.rels")?.async("string");
-  if (!relsXml) return "xl/worksheets/sheet1.xml";
-
-  const relationship = getXmlStartTags(relsXml, "Relationship").find(
-    (attrs) => getXmlAttribute(attrs, "Id") === relationshipIdOrPath,
-  );
-  const target = relationship ? getXmlAttribute(relationship, "Target") || "worksheets/sheet1.xml" : "worksheets/sheet1.xml";
-  return target.startsWith("/") ? target.slice(1) : `xl/${target.replace(/^\.\.\//, "")}`;
-}
-
-function getCellValue(cell: { attrs: string; body: string }, sharedStrings: string[]): string {
-  const type = getXmlAttribute(cell.attrs, "t");
-  if (type === "inlineStr") {
-    return getXmlBlocks(cell.body, "t").map(decodeXmlText).join("");
-  }
-
-  const value = decodeXmlText(getXmlBlocks(cell.body, "v")[0] || "");
-  if (type === "s") {
-    return sharedStrings[Number(value)] || "";
-  }
-  if (type === "b") {
-    return value === "1" ? "TRUE" : "FALSE";
-  }
-  return value;
-}
-
+/** First visible worksheet as a markdown table (all sheets: convertXlsxWorkbook). */
 export async function xlsxArrayBufferToMarkdownTable(buffer: ArrayBuffer): Promise<string> {
-  const zip = await JSZip.loadAsync(buffer);
-  const sharedStrings = parseSharedStrings(await zip.file("xl/sharedStrings.xml")?.async("string"));
-  const worksheetPath = await resolveWorksheetPath(zip);
-  const sheetXml = await zip.file(worksheetPath)?.async("string");
-  if (!sheetXml) return "";
-
-  const rows = getXmlBlocks(sheetXml, "row").map((row) => {
-    const cells: string[] = [];
-    for (const cell of getXmlElements(row, "c")) {
-      const cellRef = getXmlAttribute(cell.attrs, "r") || "";
-      const match = cellRef.match(XLSX_CELL_REF_RE);
-      const index = match ? columnLettersToIndex(match[1]) : cells.length;
-      cells[index] = getCellValue(cell, sharedStrings);
-    }
-    return cells.map((cell) => cell || "");
-  }).filter((row) => row.some((cell) => cell.trim().length > 0));
-
-  if (rows.length === 0) return "";
-  const maxCols = Math.max(...rows.map((row) => row.length));
-  const csvLike = rows.map((row) => {
-    const next = [...row];
-    while (next.length < maxCols) next.push("");
-    return next.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",");
-  }).join("\n");
-  return delimitedTextToMarkdownTable(csvLike, ",");
+  const workbook = await convertXlsxWorkbook(buffer);
+  return workbook.sheets[0]?.markdown ?? "";
 }
 
 function extractMultipartBody(body: string, contentType: string): string {

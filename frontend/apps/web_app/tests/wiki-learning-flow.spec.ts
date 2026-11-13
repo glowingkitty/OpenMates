@@ -54,6 +54,10 @@ test.beforeEach(async ({ page }, testInfo) => {
   }
   const frames = { entries: [] as Record<string, unknown>[], submissions: [] as { chatId: string; preserveDraft: boolean }[], draftEvents: [] as Record<string, unknown>[] };
   captured.set(page, frames);
+  page.on('request', request => {
+    if (request.method() !== 'POST' || !request.url().includes('/v1/settings/encrypted-account')) return;
+    try { frames.entries.push(JSON.parse(request.postData() ?? '{}')); } catch { /* Non-JSON bodies carry no encrypted settings. */ }
+  });
   page.on('websocket', socket => {
     for (const direction of ['framesent', 'framereceived'] as const) socket.on(direction, frame => {
       try {
@@ -68,7 +72,6 @@ test.beforeEach(async ({ page }, testInfo) => {
     socket.on('framesent', frame => {
     try {
       const message = JSON.parse(String(frame.payload));
-      if (message.type === 'store_app_settings_memories_entry') frames.entries.push(message.payload.entry);
       if (message.type === 'chat_message_added') frames.submissions.push({ chatId: message.payload.chat_id, preserveDraft: message.payload.preserve_draft === true });
     } catch { /* Other transports are outside this assertion. */ }
     });
@@ -108,8 +111,10 @@ test('wiki actions save one encrypted Study interest and submit in the same chat
   await page.getByTestId('message-assistant').last().getByRole('link', { name: title, exact: true }).click();
   await expect(page.getByTestId('wiki-fullscreen-title')).toHaveText(title);
   await expect(page.getByTestId('wiki-learning')).toContainText('in this chat');
+  const savesBefore = storedEntries.length;
   await page.getByTestId('wiki-save-interest').click();
   await expect(page.getByTestId('wiki-interest-saved')).toBeVisible();
+  expect(storedEntries.length - savesBefore).toBe(1);
   await page.getByTestId('wiki-related-article').click();
   await expect(page.getByTestId('wiki-fullscreen-title')).toHaveText('Charles Babbage');
   await page.getByTestId('embed-minimize').click();
@@ -118,12 +123,13 @@ test('wiki actions save one encrypted Study interest and submit in the same chat
   await expect(page.getByTestId('wiki-save-interest')).toHaveCount(0);
   await recordDraftCheckpoint(page, 'related-article-round-trip');
   await page.getByRole('button', { name: 'Edit learning goal', exact: true }).click();
-  await expect(page.locator('#topic')).toHaveValue(title);
+  await expect(page.getByTestId('rule-title')).toHaveValue(`Study interest: ${title}`);
   await recordDraftCheckpoint(page, 'study-editor-open');
-  await expect(page.locator('#difficulty_level')).toHaveValue('');
-  await page.locator('.entry-detail').getByRole('button', { name: /cancel/i }).click();
-  page.once('dialog', dialog => dialog.accept());
-  await page.locator('.entry-detail').getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(page.getByTestId('rule-body')).toHaveText(new RegExp(sourceUrl));
+  await page.getByTestId('memory-delete').click();
+  // Delete returns to the Memories list, which no longer shows the study memory.
+  await expect(page.getByTestId('memories-editor')).toHaveAttribute('data-page', 'list');
+  await expect(page.getByTestId('memory-row').filter({ hasText: `Study interest: ${title}` })).toHaveCount(0);
   await recordDraftCheckpoint(page, 'study-editor-cleanup');
   await returnToChatWorkspace(page, originalUrl);
   await recordDraftCheckpoint(page, 'chat-reopened');
@@ -140,9 +146,9 @@ test('wiki actions save one encrypted Study interest and submit in the same chat
   await expect(page.getByTestId('message-assistant').last()).toContainText('symbolic computation');
   await page.reload();
   await expect(page.getByTestId('message-editor').last()).toContainText(draft, { timeout: 30000 });
-  expect(storedEntries).toHaveLength(1);
-  expect(storedEntries[0].encrypted_item_json).toBeTruthy();
-  expect(JSON.stringify(storedEntries[0])).not.toContain(title);
+  const savedSettings = storedEntries[savesBefore];
+  expect(savedSettings.encrypted_settings).toBeTruthy();
+  expect(JSON.stringify(savedSettings)).not.toContain(title);
   expect(submissions.at(-1)).toEqual({ chatId: originalChatId, preserveDraft: true });
   await deleteActiveChat(page);
 });

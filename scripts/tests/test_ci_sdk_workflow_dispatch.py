@@ -436,7 +436,7 @@ class WorkflowDispatchTests(unittest.TestCase):
         end = after.index("        require(cwd == self.root", start)
         self.assertEqual(
             hashlib.sha256((after[:start] + after[end:]).encode()).hexdigest(),
-            "e9de9394fb60ff1531debce8f4709b7abdd168c6ae72a1cf1a4fc2f8484a5fb5",
+            "50b84aebe8009d877964f1f8ac1c99464cd894cc619f9d768f41d024daa39bf6",
         )
         source = (CONTROL / "ci_sdk_conformance.py").read_text()
         self.assertIn("BUDGET = 5400", source)

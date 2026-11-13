@@ -5,16 +5,20 @@ use super::plaintext::{Plain, Wipe};
 use super::sync_capability::AsyncCryptoScope;
 #[path = "apps_input_size.rs"]
 mod input_size;
+#[path = "apps_metadata.rs"]
+mod metadata;
 
 // Existing accepted task-array bound, shared by validation and concurrency.
 const MAX_APP_TASKS:usize=64;
+/// App and skill ids as declared in backend app.yml: lowercase start, then lowercase,
+/// digits, `_` or `-` (e.g. `reminder/list-reminders`, `openmates/get-docs`).
 fn identifier(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 64
         && value.as_bytes()[0].is_ascii_lowercase()
         && value
             .bytes()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'_')
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'_' || c == b'-')
 }
 fn routing_field(key: &str) -> bool {
     matches!(
@@ -375,12 +379,7 @@ impl Client {
             return Err(Error::Invalid("This App skill is currently unavailable."));
         }
         let input = Plain::new(automatic_input(supplied, 0)?);
-        if !validate_schema(
-            &details.fields["input_schema"],
-            &details.fields["input_schema"],
-            &input,
-            0,
-        ) {
+        if !validate_schema(&details.fields["input_schema"], &input) {
             return Err(Error::Invalid(
                 "Check the required App input fields and their types.",
             ));
@@ -894,25 +893,27 @@ fn remove_routing_defaults(value: &Value) -> Value {
         _ => value.clone(),
     }
 }
+/// Skill failure detection shared with the web Apps unit (`web_apps::skill_failure`,
+/// proven against `appsWorkspaceService.ts` by `web_apps_ts_vectors.json`).
 fn failed(value: &Value) -> bool {
-    value.get("success") == Some(&json!(false))
-        || value.get("data").is_some_and(|v| {
-            v.get("success") == Some(&json!(false))
-                || v.get("error")
-                    .and_then(Value::as_str)
-                    .is_some_and(|s| !s.trim().is_empty())
-        })
+    crate::web_apps::skill_failure(value).is_some()
 }
+/// Accepted task ids selected exactly like the web Apps unit
+/// (`web_apps::accepted_task_ids`). The native client additionally refuses an
+/// envelope it could not poll safely: a non-string `task_id`/`task_ids` entry,
+/// more than the accepted bound, duplicates, empty or over-long ids and any
+/// character outside `[A-Za-z0-9_-]`.
 fn task_ids(envelope: &Value) -> Result<Vec<String>> {
-    let value = envelope.get("data").unwrap_or(envelope);
-    let mut ids = Vec::new();
-    if let Some(id) = value.get("task_id") {
-        ids.push(id.as_str().ok_or(Error::Protocol)?.to_owned())
-    } else if let Some(values) = value.get("task_ids") {
-        for id in values.as_array().ok_or(Error::Protocol)? {
-            ids.push(id.as_str().ok_or(Error::Protocol)?.to_owned())
-        }
+    let value = envelope.get("data").filter(|data| data.is_object()).unwrap_or(envelope);
+    let malformed = match (value.get("task_id"), value.get("task_ids")) {
+        (Some(id), _) => !id.is_string(),
+        (None, Some(ids)) => !ids.as_array().is_some_and(|ids| ids.iter().all(Value::is_string)),
+        (None, None) => false,
+    };
+    if malformed {
+        return Err(Error::Protocol);
     }
+    let ids = crate::web_apps::accepted_task_ids(envelope);
     let mut seen = std::collections::HashSet::new();
     if ids.len() > MAX_APP_TASKS
         || ids.iter().any(|id| {
@@ -928,6 +929,10 @@ fn task_ids(envelope: &Value) -> Result<Vec<String>> {
     }
     Ok(ids)
 }
+/// Multi-task result merge. Stays CLI-owned: it is part of the cross-SDK
+/// direct-skill conformance contract (tests/sdk-conformance/fixtures/
+/// direct-skill-retention.json); the web resolves tasks through
+/// `web_apps::assemble_tasks_json`, which keeps the TS envelope shape instead.
 fn merge_results(results: Vec<Value>) -> Value {
     let results = Plain::new(results);
     if results.len() == 1 {
@@ -997,153 +1002,11 @@ fn result_item(request: &AppRun, response: &Value, status: &str) -> Item {
     }
 }
 
-/// Bounded request validation for the same public JSON-schema scalar/container shapes.
-fn validate_schema(root: &Value, schema: &Value, value: &Value, depth: usize) -> bool {
-    if depth > 64 {
-        return false;
-    }
-    if schema == &Value::Bool(true) {
-        return true;
-    }
-    if schema == &Value::Bool(false) {
-        return false;
-    }
-    let Some(schema) = schema.as_object() else {
-        return false;
-    };
-    if let Some(choices) = schema.get("allOf").and_then(Value::as_array)
-        && choices
-            .iter()
-            .any(|schema| !validate_schema(root, schema, value, depth + 1))
-    {
-        return false;
-    }
-    if schema
-        .get("not")
-        .is_some_and(|schema| validate_schema(root, schema, value, depth + 1))
-    {
-        return false;
-    }
-    if let Some(reference) = schema.get("$ref").and_then(Value::as_str) {
-        let Some(pointer) = reference.strip_prefix('#') else {
-            return false;
-        };
-        return root
-            .pointer(pointer)
-            .is_some_and(|schema| validate_schema(root, schema, value, depth + 1));
-    }
-    for alternative in ["anyOf", "oneOf"] {
-        if let Some(choices) = schema.get(alternative).and_then(Value::as_array) {
-            let count = choices
-                .iter()
-                .filter(|s| validate_schema(root, s, value, depth + 1))
-                .count();
-            if count == 0 || alternative == "oneOf" && count != 1 {
-                return false;
-            }
-        }
-    }
-    if let Some(choices) = schema.get("enum").and_then(Value::as_array)
-        && !choices.contains(value)
-    {
-        return false;
-    }
-    if schema.get("const").is_some_and(|v| v != value) {
-        return false;
-    }
-    if let Some(kind) = schema.get("type") {
-        let matches = |kind: &str| match kind {
-            "object" => value.is_object(),
-            "array" => value.is_array(),
-            "string" => value.is_string(),
-            "boolean" => value.is_boolean(),
-            "null" => value.is_null(),
-            "number" => value.is_number(),
-            "integer" => value.as_f64().is_some_and(|n| n.fract() == 0.0),
-            _ => false,
-        };
-        if !kind.as_str().is_some_and(matches)
-            && !kind
-                .as_array()
-                .is_some_and(|kinds| kinds.iter().any(|k| k.as_str().is_some_and(matches)))
-        {
-            return false;
-        }
-    }
-    if let Some(fields) = value.as_object() {
-        if fields.len() > 256 {
-            return false;
-        }
-        if let Some(required) = schema.get("required").and_then(Value::as_array)
-            && required
-                .iter()
-                .any(|name| name.as_str().is_none_or(|name| !fields.contains_key(name)))
-        {
-            return false;
-        }
-        for (key, child) in fields {
-            if let Some(child_schema) = schema.get("properties").and_then(|p| p.get(key)) {
-                if !validate_schema(root, child_schema, child, depth + 1) {
-                    return false;
-                }
-            } else if schema.get("additionalProperties") == Some(&Value::Bool(false)) {
-                return false;
-            }
-        }
-    }
-    if let Some(items) = value.as_array() {
-        if items.len() > 10_000
-            || schema
-                .get("minItems")
-                .and_then(Value::as_u64)
-                .is_some_and(|min| items.len() < (min as usize))
-            || schema
-                .get("maxItems")
-                .and_then(Value::as_u64)
-                .is_some_and(|max| items.len() > (max as usize))
-        {
-            return false;
-        }
-        if let Some(item_schema) = schema.get("items")
-            && items
-                .iter()
-                .any(|v| !validate_schema(root, item_schema, v, depth + 1))
-        {
-            return false;
-        }
-    }
-    if let Some(text) = value.as_str() {
-        let count = text.chars().count();
-        if schema
-            .get("minLength")
-            .and_then(Value::as_u64)
-            .is_some_and(|min| count < (min as usize))
-            || schema
-                .get("maxLength")
-                .and_then(Value::as_u64)
-                .is_some_and(|max| count > (max as usize))
-        {
-            return false;
-        }
-        if let Some(pattern) = schema.get("pattern").and_then(Value::as_str)
-            && (pattern.len() > 4096 || !regex::Regex::new(pattern).is_ok_and(|p| p.is_match(text)))
-        {
-            return false;
-        }
-    }
-    if let Some(number) = value.as_f64()
-        && (schema
-            .get("minimum")
-            .and_then(Value::as_f64)
-            .is_some_and(|min| number < min)
-            || schema
-                .get("maximum")
-                .and_then(Value::as_f64)
-                .is_some_and(|max| number > max))
-    {
-        return false;
-    }
-    true
+/// Pre-dispatch input validation shared with the web Apps request flow
+/// (`web_apps::schema`, the web form's semantics, proven by
+/// `schema_ts_vectors.json`). The backend stays authoritative.
+fn validate_schema(schema: &Value, value: &Value) -> bool {
+    crate::web_apps::schema::validate_skill_input(schema, value).is_empty()
 }
 
 #[cfg(test)]

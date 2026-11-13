@@ -167,7 +167,7 @@ Apps can connect to external services on a per-user basis (e.g., Revolut Busines
 
 ### How It Fits the Existing Memories Pipeline
 
-Connected accounts piggyback on the existing settings/memories infrastructure (`preprocessor.py` → permission request → `app_settings_memories_confirmed_handler.py` → Redis cache → `main_processor.py`). The only difference: **credentials are stripped before LLM context**.
+Connected accounts follow the unified Memories model (metadata-only catalog to the preprocessor → client approval → client-supplied bodies on demand, never durably stored server-side → `main_processor.py`). The only difference: **credentials are stripped before LLM context**.
 
 **Existing flow (settings/memories):**
 1. Client sends metadata (available keys) with each message
@@ -252,7 +252,7 @@ When a user enables background features (scheduled reports, webhook-triggered ac
 ### Connected Accounts Memory Field Schema
 
 ```yaml
-# In app.yml settings_and_memories
+# Legacy typed-memory schema (superseded by unified Memories; kept for reference)
 - id: connected_accounts
   type: list
   schema:

@@ -679,8 +679,11 @@ def _current_date_line(context: dict[str, Any]) -> str:
     )
 
 
-def render_bounded_ask_ai_prompt(template: str, context: dict[str, Any]) -> str:
+def render_bounded_ask_ai_prompt(template: str, context: dict[str, Any], memory_snapshots: list[dict[str, Any]] | None = None) -> str:
     """Separate authored instructions from bounded, explicitly referenced data."""
+
+    from backend.core.api.app.services.workflow_memory_snapshots import memory_prompt_block, strip_memory_tokens
+    template = strip_memory_tokens(template, memory_snapshots or [])
 
     matches = list(re.finditer(r"\{\{\s*([^{}]+?)\s*\}\}", template))
     if len(matches) > MAX_REFERENCE_COUNT:
@@ -717,6 +720,7 @@ def render_bounded_ask_ai_prompt(template: str, context: dict[str, Any]) -> str:
         f"authored_instruction:\n{rendered_instruction}\n\n"
         "workflow_values:\n"
         + json.dumps(values, ensure_ascii=False, separators=(",", ":"))
+        + memory_prompt_block(memory_snapshots or [])
     )
     if complete_diff and len(prompt) > MAX_RUNTIME_INPUT_CHARS:
         raise ValueError("WORKFLOW_WEBSITE_DIFF_TOO_LARGE")

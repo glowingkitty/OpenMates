@@ -2840,3 +2840,70 @@ builder.signup:
   en: "Signup"
   de: "Registrieren"
   verified_by_human: []
+
+builder.memory_snapshot_consent:
+  context: Notice under an Ask AI instruction that mentions a memory; the saved snapshot is readable by the server at run time
+  en: "This step mentions a memory. When you save, a snapshot of it is stored in your Automation Vault and the server can read it each time this Workflow runs, even when none of your devices is online. Other memories stay unavailable."
+  verified_by_human: []
+
+builder.memory_needs_attention:
+  context: Workflow Ask AI step error state when a mentioned memory was deleted or expired and its snapshot was removed
+  en: "A memory mentioned in this step was deleted or expired, so its snapshot was removed. Update the instruction before this step can run."
+  verified_by_human: []
+
+builder.memory_picker_label:
+  context: Label before the list of personal memories that can be mentioned in an Ask AI step
+  en: "Memories"
+  verified_by_human: []
+
+builder.memory_picker_unavailable:
+  context: Shown when personal memories could not be loaded for mentioning in an Ask AI step
+  en: "Memories could not be loaded."
+  verified_by_human: []
+
+builder.memory_needs_attention_badge:
+  context: Badge on a Workflow step whose mentioned memory was deleted or expired
+  en: "Needs attention: a mentioned memory is no longer available"
+  verified_by_human: []
+
+side_panel.close:
+  context: Button that closes the workflow editor next to the chat and returns to the chat
+  en: Close workflow editor
+  de: Workflow-Editor schließen
+  verified_by_human: []
+
+side_panel.generating:
+  context: Status while AI generates a workflow draft in the chat side panel
+  en: Generating the workflow draft…
+  de: Workflow-Entwurf wird erstellt…
+  verified_by_human: []
+
+side_panel.loading:
+  context: Status while the chat side panel loads an existing workflow
+  en: Loading the workflow…
+  de: Workflow wird geladen…
+  verified_by_human: []
+
+side_panel.load_failed:
+  context: Error when the chat side panel cannot load the workflow to edit
+  en: The workflow could not be loaded. Please try again.
+  de: Der Workflow konnte nicht geladen werden. Bitte versuche es erneut.
+  verified_by_human: []
+
+side_panel.save_failed:
+  context: Error when saving the workflow in the chat side panel fails
+  en: The workflow could not be saved. Please try again.
+  de: Der Workflow konnte nicht gespeichert werden. Bitte versuche es erneut.
+  verified_by_human: []
+
+side_panel.retry:
+  context: Button that retries generating the workflow draft in the chat side panel
+  en: Try again
+  de: Erneut versuchen
+  verified_by_human: []
+
+side_panel.draft_unavailable:
+  context: Error in the chat side panel when AI workflow drafts are not available in this app build
+  en: AI workflow drafts are not available here yet.
+  de: KI-Workflow-Entwürfe sind hier noch nicht verfügbar.
+  verified_by_human: []

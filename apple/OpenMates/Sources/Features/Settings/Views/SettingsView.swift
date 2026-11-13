@@ -268,25 +268,13 @@ struct SettingsDeepLinkRoute: Equatable {
             $0.range(of: "^[a-z][a-z0-9_-]*$", options: .regularExpression) != nil
         }
     }
-    var memoryRoute: SettingsMemoryRoute? {
-        guard topLevel == "apps", hasMemoryChild else { return nil }
-        return SettingsMemoryRoute(path: path)
-    }
-    private var hasMemoryChild: Bool {
-        let parts = path.split(separator: "/")
-        guard parts.count >= 4, parts[0] == "apps", parts[2] == "settings_memories" else { return false }
-        if parts.count == 4 { return true }
-        if parts.count == 5 { return parts[4] == "create" }
-        return parts[4] == "entry" && (parts.count == 6 || (parts.count == 7 && parts[6] == "edit"))
-    }
+    /// Settings > Memories page: `settings_memories`, `settings_memories/create`,
+    /// `settings_memories/<id>` or `memories/<id>` (web SettingsMemoriesHub routes).
+    var memoryRoute: SettingsMemoryPage? { SettingsMemoryPage(path: path) }
     var requiresAuthentication: Bool {
-        if let memoryRoute {
-            switch memoryRoute {
-            case .hub, .category: return false
-            case .entry(_, _, let id): return !id.hasPrefix("example_")
-            case .editor: return true
-            }
-        }
+        // The list (help text and app discovery) is a guest destination; a
+        // Memory's page and the create page need the account.
+        if let memoryRoute { return memoryRoute != .list }
         // The public Memories examples and Privacy overview are guest destinations.
         // Their private child routes retain the account requirement.
         if ["settings_memories", "privacy"].contains(topLevel) { return !childPath.isEmpty }
@@ -302,7 +290,8 @@ struct SettingsDeepLinkRoute: Equatable {
     // Each child maps to an existing native page/control. Transient receipts
     // such as payment/confirmation need their originating action state.
     var hasNativeChild: Bool {
-        if topLevel == "apps" { return isMemoriesDiscovery || hasMemoryChild || isCatalogFocusDetail }
+        if topLevel == "apps" { return isMemoriesDiscovery || isCatalogFocusDetail }
+        if ["settings_memories", "memories"].contains(topLevel) { return memoryRoute != nil }
         if childPath.isEmpty { return true }
         let children: [String: Set<String>] = [
             "interface": ["language", "dark_mode"],
@@ -366,9 +355,7 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     var onClose: (() -> Void)?
     var onOpenExampleChat: ((String) -> Void)?
-    var memoriesEmbedRecords: [String: EmbedRecord]
     var usageContext: BillingUsageContext
-    var onOpenMemoryEmbed: ((EmbedRecord) -> Void)?
     var reportIssuePrefill: ReportIssuePrefill?
     var referralCodeRequest: Int
     var shareChatId: String?
@@ -424,6 +411,8 @@ struct SettingsView: View {
         viewportWidth: CGFloat? = nil,
         onClose: (() -> Void)? = nil,
         onOpenExampleChat: ((String) -> Void)? = nil,
+        // Accepted and unused: Settings > Memories no longer opens embeds. Kept
+        // only until MainAppView stops passing them.
         memoriesEmbedRecords: [String: EmbedRecord] = [:],
         usageContext: BillingUsageContext = .init(),
         onOpenMemoryEmbed: ((EmbedRecord) -> Void)? = nil
@@ -461,8 +450,6 @@ struct SettingsView: View {
         self.messageSettingsTarget = messageSettingsTarget
         self.onClose = onClose
         self.onOpenExampleChat = onOpenExampleChat
-        self.memoriesEmbedRecords = memoriesEmbedRecords
-        self.onOpenMemoryEmbed = onOpenMemoryEmbed
         let messageDestination: SettingsDestination?
         if let messageSettingsTarget {
             switch messageSettingsTarget {
@@ -846,6 +833,13 @@ struct SettingsView: View {
                     onBillingClick: { navigateTo(.billing) }
                 )
             }
+            // A container over a single container merges with it and the outer
+            // name wins, hiding settings-main-header behind this shell. This
+            // zero-size sibling keeps the banner its own node, as the workspace
+            // settings anchor does.
+            Color.clear
+                .frame(width: 0, height: 0)
+                .accessibilityIdentifier("settings-banner-shell-anchor")
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings-banner-shell")
@@ -871,11 +865,13 @@ struct SettingsView: View {
         activeDeepLinkRevision += 1
     }
 
+    /// Typed app memory categories were removed; a category picked in the
+    /// app discovery opens the Memories list.
     private func openMemoryCategory(app: String, category: String) {
         navigationDirection = .forward
         memoryChildNavigation = nil
         showsMemoriesDiscovery = false
-        activeDeepLinkRoute = SettingsDeepLinkRoute("apps/\(app)/settings_memories/\(category)")
+        activeDeepLinkRoute = SettingsDeepLinkRoute("settings_memories")
         activeDeepLinkRevision += 1
     }
 
@@ -1140,8 +1136,7 @@ struct SettingsView: View {
                     onChildNavigationChanged: { memoryChildNavigation = $0 }, onReturnToMemories: returnToMemoriesHub)
             } else {
                 SettingsMemoriesFullView(deepLinkPath: activeDeepLinkRoute?.path,
-                    onChildNavigationChanged: { memoryChildNavigation = $0 }, onDiscoverApps: discoverMemoryApps,
-                    onOpenExampleChat: openMemoryExampleChat, embedRecords: memoriesEmbedRecords, onOpenEmbed: onOpenMemoryEmbed)
+                    onChildNavigationChanged: { memoryChildNavigation = $0 }, onDiscoverApps: discoverMemoryApps)
             }
         case .projects:
             SettingsProjectsView(initialProjectID: activeDeepLinkRoute?.childID ?? projectID, teamID: teamContext?.teamID)
@@ -1638,6 +1633,9 @@ private struct SettingsMainBanner: View {
         .contentShape(Rectangle())
         .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 14, bottomTrailingRadius: 14))
         .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 4)
+        // Contain, so the header name does not overwrite the identifiers of the
+        // avatar, username and credits buttons inside it.
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings-main-header")
     }
 

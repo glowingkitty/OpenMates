@@ -6,6 +6,8 @@
  * Access at: /dev/preview/embeds/images/ImageGenerateEmbedFullscreen
  */
 
+import { MODIFY_PROMPT, MODIFY_UNMET, SAMPLE_MODIFY_DRAFT, SAMPLE_MODIFY_RESULT_URL } from './imageModifyFixtures';
+
 /** Default props — shows a fullscreen image generation view (without actual image data) */
 const defaultProps = {
 	prompt: 'A serene mountain landscape at sunset with vibrant orange and purple skies',
@@ -57,10 +59,28 @@ export const variants = {
 		error: 'Image generation failed: content policy violation'
 	},
 
+	/** Enhance round button states (embed-user-edits.enhance.button) */
+	enhanceIdle: { ...defaultProps, onEnhance: () => {} },
+	enhanceRunning: { ...defaultProps, onEnhance: () => {}, enhanceState: 'running' },
+	enhanceFailed: {
+		...defaultProps,
+		onEnhance: () => {},
+		enhanceState: 'failed',
+		enhanceError: 'Enhance failed. Please try again.'
+	},
+	enhanceNotAllowed: { ...defaultProps, onEnhance: () => {}, canEnhance: false },
+
 	/** Processing state */
 	processing: {
 		...defaultProps,
 		status: 'processing'
+	},
+
+	/** Version 2 of 3 with badge (the timeline needs stored versions and stays empty in the preview) */
+	versionTwoOfThree: {
+		...defaultProps,
+		version: 2,
+		versionCount: 3
 	},
 
 	/** Square aspect ratio */
@@ -68,5 +88,68 @@ export const variants = {
 		...defaultProps,
 		aspect_ratio: '1:1',
 		prompt: 'A detailed portrait of a robot reading a book in a cozy library'
+	},
+
+	/** images.modify variants: content fields use the wire names of the backend. */
+	modifyWriting: {
+		...defaultProps,
+		previewImageUrl: undefined,
+		prompt: MODIFY_PROMPT,
+		skill_id: 'modify',
+		model: 'gpt-6.1-sol',
+		status: 'processing',
+		draft_stage: 'writing',
+		draft_attempt: 1
+	},
+	modifyCheckingWithDraft: {
+		...defaultProps,
+		previewImageUrl: undefined,
+		prompt: MODIFY_PROMPT,
+		skill_id: 'modify',
+		model: 'gpt-6.1-sol',
+		status: 'processing',
+		draft_stage: 'checking',
+		draft_attempt: 1,
+		image_draft: SAMPLE_MODIFY_DRAFT
+	},
+	modifyCorrecting: {
+		...defaultProps,
+		previewImageUrl: undefined,
+		prompt: MODIFY_PROMPT,
+		skill_id: 'modify',
+		model: 'gpt-6.1-sol',
+		status: 'processing',
+		draft_stage: 'correcting',
+		draft_attempt: 2,
+		image_draft: SAMPLE_MODIFY_DRAFT
+	},
+	modifyFinished: {
+		...defaultProps,
+		prompt: MODIFY_PROMPT,
+		skill_id: 'modify',
+		model: 'gpt-6.1-sol',
+		filename: 'edited_image.png',
+		previewImageUrl: SAMPLE_MODIFY_RESULT_URL,
+		review_status: 'accepted',
+		attempts: 1
+	},
+	modifyUnmet: {
+		...defaultProps,
+		prompt: MODIFY_PROMPT,
+		skill_id: 'modify',
+		model: 'gpt-6.1-sol',
+		filename: 'edited_image.png',
+		previewImageUrl: SAMPLE_MODIFY_RESULT_URL,
+		review_status: 'unmet_delivered',
+		unmet_requirements: MODIFY_UNMET,
+		attempts: 3
+	},
+	modifyFailed: {
+		...defaultProps,
+		prompt: MODIFY_PROMPT,
+		skill_id: 'modify',
+		model: 'gpt-6.1-sol',
+		status: 'error',
+		error: 'The edit could not be completed'
 	}
 };

@@ -1,0 +1,180 @@
+{
+ "cases": [
+  {
+   "name": "mixed rows",
+   "chat": {
+    "created_at": 5,
+    "updated_at": 6
+   },
+   "messages": [
+    {
+     "message_id": "m0",
+     "role": "user",
+     "status": "sending",
+     "content": "hi",
+     "created_at": 10
+    },
+    {
+     "message_id": "m1",
+     "role": "system",
+     "status": "synced",
+     "content": "sys",
+     "created_at": 11
+    },
+    {
+     "message_id": "m2",
+     "role": "assistant",
+     "status": "synced",
+     "content": "   ",
+     "created_at": 12
+    },
+    {
+     "message_id": "m3",
+     "role": "assistant",
+     "status": "synced",
+     "content": "ok",
+     "created_at": 13
+    },
+    {
+     "message_id": "m4",
+     "role": "user",
+     "status": "failed",
+     "content": "z",
+     "created_at": 14
+    },
+    {
+     "message_id": "m5",
+     "role": "assistant",
+     "status": "synced",
+     "content": null,
+     "created_at": 15
+    }
+   ],
+   "expected": {
+    "promotable": [
+     0,
+     3
+    ],
+    "delete": [
+     1
+    ],
+    "resave": [
+     0
+    ],
+    "messages_v": 2,
+    "created_at": 5,
+    "last_edited": 13
+   }
+  },
+  {
+   "name": "js whitespace set",
+   "chat": {
+    "created_at": 5,
+    "updated_at": 6
+   },
+   "messages": [
+    {
+     "message_id": "m0",
+     "role": "user",
+     "status": "synced",
+     "content": " ﻿ ",
+     "created_at": 10
+    },
+    {
+     "message_id": "m1",
+     "role": "user",
+     "status": "synced",
+     "content": "",
+     "created_at": 11
+    },
+    {
+     "message_id": "m2",
+     "role": "user",
+     "status": "synced",
+     "content": "᠎",
+     "created_at": 12
+    }
+   ],
+   "expected": {
+    "promotable": [
+     1,
+     2
+    ],
+    "delete": [],
+    "resave": [],
+    "messages_v": 2,
+    "created_at": 5,
+    "last_edited": 12
+   }
+  },
+  {
+   "name": "nothing promotable",
+   "chat": {
+    "created_at": 5,
+    "updated_at": 6
+   },
+   "messages": [
+    {
+     "message_id": "m0",
+     "role": "system",
+     "status": "synced",
+     "content": "s",
+     "created_at": 10
+    },
+    {
+     "message_id": "m1",
+     "role": "user",
+     "status": "failed",
+     "content": "f",
+     "created_at": 11
+    }
+   ],
+   "expected": {
+    "promotable": [],
+    "delete": [
+     0
+    ],
+    "resave": [],
+    "messages_v": 0,
+    "created_at": 5,
+    "last_edited": 6
+   }
+  },
+  {
+   "name": "chat without created_at",
+   "chat": {
+    "created_at": null,
+    "updated_at": 6
+   },
+   "messages": [
+    {
+     "message_id": "m0",
+     "role": "user",
+     "status": "synced",
+     "content": "a",
+     "created_at": 10
+    },
+    {
+     "message_id": "m1",
+     "role": "assistant",
+     "status": "sending",
+     "content": "b",
+     "created_at": 12
+    }
+   ],
+   "expected": {
+    "promotable": [
+     0,
+     1
+    ],
+    "delete": [],
+    "resave": [
+     1
+    ],
+    "messages_v": 2,
+    "created_at": 10,
+    "last_edited": 12
+   }
+  }
+ ]
+}

@@ -452,6 +452,7 @@ class ProjectWriteAuthorizationService:
         proposal_digest: str,
         team_id: str | None = None,
         consume_approval: bool = False,
+        single_use: bool = False,
     ) -> dict[str, Any]:
         """Authorize preflight/commit for the relay-resolved requester.
 
@@ -468,10 +469,22 @@ class ProjectWriteAuthorizationService:
             project_id=project_id,
             team_id=team_id,
         )
+        receipt_key = self._receipt_key(requester_user_id, chat_id, project_id, operation_id)
+        if single_use and await self.cache_service.get(receipt_key) is not None:
+            # Commands are not idempotent: one operation_id runs at most once.
+            raise ProjectWriteAuthorizationError("PROJECT_OPERATION_ALREADY_USED", status_code=409)
         if decision["write_mode"] == "apply_and_show":
+            if single_use and consume_approval:
+                receipt = {
+                    "operation_id": operation_id,
+                    "proposal_digest": proposal_digest,
+                    "focus_id_hash": decision["focus_id_hash"],
+                    "consumed_at": int(time.time()),
+                }
+                if not await self.cache_service.set(receipt_key, receipt, ttl=PROJECT_WRITE_RECEIPT_TTL_SECONDS):
+                    raise ProjectWriteAuthorizationError("PROJECT_WRITE_APPROVAL_CACHE_UNAVAILABLE", status_code=503)
             return {**decision, "approval": "not_required"}
 
-        receipt_key = self._receipt_key(requester_user_id, chat_id, project_id, operation_id)
         receipt = await self.cache_service.get(receipt_key)
         if isinstance(receipt, dict) and receipt.get("proposal_digest") == proposal_digest:
             return {**decision, "approval": "consumed", "idempotent_replay": True}

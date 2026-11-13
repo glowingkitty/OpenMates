@@ -1,0 +1,115 @@
+enhance:
+  context: Round button label, tooltip and More-menu entry in the image fullscreen that re-renders the image at higher quality
+  en: Enhance
+  de: Verbessern
+  verified_by_human: []
+enhance_running:
+  context: Accessible name and tooltip of the Enhance button while an Enhance is running; the button cannot be pressed again
+  en: Enhancing…
+  de: Wird verbessert…
+  verified_by_human: []
+enhance_failed:
+  context: Error shown when an Enhance did not produce a new version; nothing was charged and the button can be used again
+  en: Enhance failed. Please try again.
+  de: Verbessern fehlgeschlagen. Bitte versuche es erneut.
+  verified_by_human: []
+enhance_unavailable:
+  context: Tooltip of the disabled Enhance button when the viewer may not edit this image
+  en: You can't enhance this image
+  de: Du kannst dieses Bild nicht verbessern
+  verified_by_human: []
+enhance_unavailable_team:
+  context: Tooltip of the disabled Enhance button in a Team chat or Team Project, where Enhance is not offered yet
+  en: Enhance is not available in Teams yet
+  de: Verbessern ist in Teams noch nicht verfügbar
+  verified_by_human: []
+enhance_insufficient_credits:
+  context: Error after pressing Enhance when the account has fewer credits than one Enhance costs; nothing was charged
+  en: Not enough credits to enhance this image.
+  de: Nicht genug Credits, um dieses Bild zu verbessern.
+  verified_by_human: []
+version_conflict:
+  context: Error when an image was changed on another device before this change was saved; the newest version is shown and nothing was overwritten
+  en: This image was changed elsewhere. The newest version is shown now.
+  de: Dieses Bild wurde woanders geändert. Jetzt wird die neueste Version angezeigt.
+  verified_by_human: []
+edit_conflict:
+  context: Error when a diagram, slide deck, sheet or document was changed elsewhere before this edit was saved; nothing was overwritten and the edit was not saved
+  en: This was changed elsewhere, so your edit was not saved. Reload and try again.
+  de: Dies wurde woanders geändert, deshalb wurde deine Änderung nicht gespeichert. Lade neu und versuche es erneut.
+  verified_by_human: []
+edit_failed:
+  context: Error when saving an edit of a diagram, slide deck, sheet or document did not work; nothing changed
+  en: Your edit could not be saved. Please try again.
+  de: Deine Änderung konnte nicht gespeichert werden. Bitte versuche es erneut.
+  verified_by_human: []
+restore_failed:
+  context: Error when restoring an earlier version of an embed did not work; nothing changed
+  en: The version could not be restored. Please try again.
+  de: Die Version konnte nicht wiederhergestellt werden. Bitte versuche es erneut.
+  verified_by_human: []
+kind.image:
+  context: Embed kind noun at the start of a chat history line about a user edit ("Image enhanced")
+  en: Image
+  de: Bild
+  verified_by_human: []
+kind.diagram:
+  context: Embed kind noun at the start of a chat history line about a user edit ("Diagram edited")
+  en: Diagram
+  de: Diagramm
+  verified_by_human: []
+kind.slides:
+  context: Embed kind noun at the start of a chat history line about a user edit ("Slides edited")
+  en: Slides
+  de: Folien
+  verified_by_human: []
+kind.sheet:
+  context: Embed kind noun at the start of a chat history line about a user edit ("Sheet edited")
+  en: Sheet
+  de: Tabelle
+  verified_by_human: []
+kind.document:
+  context: Embed kind noun at the start of a chat history line about a user edit ("Document edited")
+  en: Document
+  de: Dokument
+  verified_by_human: []
+event.edit:
+  context: Quiet chat history line after the user edited an embed. {kind} is the embed kind noun, {version} the new version number
+  en: "{kind} edited · version {version}"
+  de: "{kind} bearbeitet · Version {version}"
+  verified_by_human: []
+event.enhance:
+  context: Quiet chat history line after the user enhanced an image. {kind} is the embed kind noun, {version} the new version number
+  en: "{kind} enhanced · version {version}"
+  de: "{kind} verbessert · Version {version}"
+  verified_by_human: []
+event.crop:
+  context: Quiet chat history line after the user cropped an image. {kind} is the embed kind noun, {version} the new version number
+  en: "{kind} cropped · version {version}"
+  de: "{kind} zugeschnitten · Version {version}"
+  verified_by_human: []
+event.restore:
+  context: Quiet chat history line after the user restored an earlier version. {from} is the restored version, {version} the new version number
+  en: "{kind} restored to version {from} · version {version}"
+  de: "{kind} auf Version {from} zurückgesetzt · Version {version}"
+  verified_by_human: []
+event.restore_plain:
+  context: Quiet chat history line after the user restored an earlier version when the restored version is unknown
+  en: "{kind} restored · version {version}"
+  de: "{kind} zurückgesetzt · Version {version}"
+  verified_by_human: []
+event.edit_many:
+  context: Quiet chat history line for several user edits in a row to one embed. {count} is the number of edits (2 or more)
+  en: "{kind} edited {count} times · version {version}"
+  de: "{kind} {count}-mal bearbeitet · Version {version}"
+  verified_by_human: []
+event.updated_many:
+  context: Quiet chat history line for several mixed user changes in a row to one embed. {count} is the number of changes (2 or more)
+  en: "{kind} updated, {count} changes · version {version}"
+  de: "{kind} aktualisiert, {count} Änderungen · Version {version}"
+  verified_by_human: []
+event.open:
+  context: Accessible hint of the chat history line that opens the changed embed
+  en: Open
+  de: Öffnen
+  verified_by_human: []

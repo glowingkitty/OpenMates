@@ -252,6 +252,14 @@ async fn real_core_queued_protocol_decrypts_master_memories_without_leaking_them
                         assert!(!wire.contains("never-auto-share-rule"));
                         assert!(body["inference_request"].get("model").is_none());
                         assert!(body["inference_request"].get("provider").is_none());
+                        // The opaque run sends with the Global region preference;
+                        // the EU default leaves the turn without restrictions.
+                        let region = &body["inference_request"]["model_routing_restrictions"];
+                        if mode == "opaque" {
+                            assert_eq!(region, &json!({"server_region_preference": "global"}));
+                        } else {
+                            assert!(region.is_null());
+                        }
                         emit(&mut ws,"chat_turn_preflight_ack",json!({"turn_id":TURN,"preflight_id":"synthetic-preflight","committed_messages_v":1})).await;
                         emit(
                             &mut ws,
@@ -286,6 +294,11 @@ async fn real_core_queued_protocol_decrypts_master_memories_without_leaking_them
             pii_detection: false,
             task_update_jobs: false,
             response_timeout_ms: Some(2_000),
+            server_region: if mode == "opaque" {
+                crate::client::server_region::ServerRegionPreference::Global
+            } else {
+                crate::client::server_region::ServerRegionPreference::Eu
+            },
             ..Default::default()
         };
         let generation = c.generation;

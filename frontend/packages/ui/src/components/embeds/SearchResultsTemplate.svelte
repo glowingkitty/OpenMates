@@ -122,6 +122,8 @@
     /** Optional data-testid for the empty state. */
     emptyTestId?: string;
     emptyContent?: Snippet;
+    /** Shown in the error state when the skill returned a reason worth reading (default: nothing). */
+    errorContent?: Snippet;
     /** Current status for error state display */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Original search query string. Kept for callers that also display it elsewhere. */
@@ -179,6 +181,7 @@
     errorMessage: errorMessageProp,
     emptyTestId = 'search-template-empty',
     emptyContent,
+    errorContent,
     status = 'finished',
     query,
     filters,
@@ -616,7 +619,8 @@
     {#if isOpeningInitialChild || isDirectInitialChildOpen}
       <div class="search-template-child-transition" data-testid="search-template-child-transition" aria-busy="true"></div>
     {:else if status === 'error'}
-      <!-- Failure is reported through the shared notification system. -->
+      <!-- Failure is reported through the shared notification system; a caller may add the skill's own reason. -->
+      {#if errorContent}<div class="search-template-empty" data-testid={emptyTestId} role="status">{@render errorContent()}</div>{/if}
     {:else if results.length === 0}
       {#if ctx.isLoadingChildren}
         <!-- Skeleton loading grid -->
@@ -792,7 +796,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 200px;
+    min-height: 200px;
+    padding: 0 var(--spacing-8);
+    text-align: center;
     color: var(--color-font-secondary);
     font-size: var(--font-size-p);
   }

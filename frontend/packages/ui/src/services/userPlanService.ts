@@ -18,6 +18,13 @@ import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { listProjects } from "./projectService";
 import { getWorkspaceCacheIdentity, WorkspaceCacheDiscardedError, WorkspaceQueryCache } from "./workspaceQueryCache";
 import { registerWorkspaceCacheClear } from "./workspaceCacheLifecycle";
+import { buildWorkBody, workClient, workDecide, workView, type WorkRequest } from "./work/workRust";
+import type { WorkClient } from "./rustCore/crypto/workOps";
+
+// Flag-on builds run this service's pure logic (views, flow validation, paths,
+// bodies) in the shared Rust core Worker (`work` op, web_work); the constant
+// folds to false otherwise, so flag-off keeps the original synchronous paths.
+const RUST_WORK = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 
 export type UserPlanStatus = "draft" | "checking_assumptions" | "awaiting_confirmation" | "active" | "executing" | "running_checks" | "blocked" | "completed" | "archived";
 export type UserPlanCriterionStatus = "pending" | "satisfied" | "failed" | "waived";
@@ -577,6 +584,8 @@ async function decryptPlan(record: EncryptedUserPlanRecord): Promise<UserPlanVie
   if (!encryptedPlanKey) return null;
   const planKey = await decryptChatKeyWithMasterKey(encryptedPlanKey);
   if (!planKey) return null;
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return workView<EncryptedUserPlanRecord, UserPlanViewModel>(work, "planView", record, planKey);
   return {
     plan_id: record.plan_id,
     title: await decryptOptional(record.encrypted_title, planKey),
@@ -605,6 +614,8 @@ async function decryptPlan(record: EncryptedUserPlanRecord): Promise<UserPlanVie
 }
 
 async function decryptCriterion(record: EncryptedUserPlanCriterionRecord, planKey: Uint8Array): Promise<UserPlanCriterionViewModel> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return workView(work, "planCriterionView", record, planKey);
   return {
     criterionId: record.criterion_id,
     text: await decryptOptional(record.encrypted_text, planKey),
@@ -626,6 +637,8 @@ async function decryptCriterion(record: EncryptedUserPlanCriterionRecord, planKe
 }
 
 async function decryptVerification(record: EncryptedUserPlanVerificationRecord, planKey: Uint8Array): Promise<UserPlanVerificationViewModel> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return workView(work, "planVerificationView", record, planKey);
   return {
     verificationId: record.verification_id,
     kind: record.kind,
@@ -659,6 +672,8 @@ async function decryptVerification(record: EncryptedUserPlanVerificationRecord, 
 }
 
 async function decryptAssumption(record: EncryptedUserPlanAssumptionRecord, planKey: Uint8Array): Promise<UserPlanAssumptionViewModel> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return workView(work, "planAssumptionView", record, planKey);
   return {
     assumptionId: record.assumption_id,
     text: await decryptOptional(record.encrypted_text, planKey),
@@ -682,6 +697,8 @@ async function decryptAssumption(record: EncryptedUserPlanAssumptionRecord, plan
 }
 
 async function decryptReferencePattern(record: EncryptedUserPlanReferencePatternRecord, planKey: Uint8Array): Promise<UserPlanReferencePatternViewModel> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) return workView(work, "planPatternView", record, planKey);
   return {
     patternId: record.pattern_id,
     title: await decryptOptional(record.encrypted_title, planKey),
@@ -797,13 +814,38 @@ async function buildTaskKeyWrappers(
   return wrappers;
 }
 
+/**
+ * Flag on: asks the Worker for one request (path, method, ordered body steps) and sends it.
+ * `prepare` runs between the decision and the body (page key generation), `slots` build page-only members.
+ */
+async function sendPlanWork<T>(
+  work: WorkClient, op: string, input: Record<string, unknown>, source: object,
+  keys: Record<string, Uint8Array | null>, slots?: (request: WorkRequest) => Record<string, () => unknown>,
+  prepare?: (request: WorkRequest, keys: Record<string, Uint8Array | null>) => Promise<void>,
+): Promise<T> {
+  const request = await workDecide<WorkRequest>(work, op, input);
+  if (prepare) await prepare(request, keys);
+  const body = await buildWorkBody(request.steps, source, keys, slots?.(request));
+  return requestJson<T>(request.path, { method: request.method, body: JSON.stringify(body) });
+}
+
+/** The plan facts the update/verification bodies read (the view without its records). */
+function planWorkFacts(plan: UserPlanViewModel): Record<string, unknown> {
+  return {
+    plan_id: plan.plan_id, version: plan.version, primaryChatId: plan.primaryChatId, linkedProjectIds: plan.linkedProjectIds,
+    has_master_wrapper: Boolean(plan.encrypted.key_wrappers?.find((wrapper) => wrapper.key_type === "master")?.encrypted_plan_key),
+  };
+}
+
 export async function listUserPlans(filters: ListUserPlansFilters = {}): Promise<UserPlanViewModel[]> {
   ensurePlanScope();
   const key = planQueryKey(filters);
   knownPlanFilters.set(key, { ...filters });
   if (knownPlanFilters.size > 32) knownPlanFilters.delete(knownPlanFilters.keys().next().value!);
   return planListCache.load(key, async () => {
-    const data = await requestJson<{ plans: EncryptedUserPlanRecord[] }>(`/v1/user-plans${buildQuery(filters)}`);
+    const work = RUST_WORK ? workClient() : null;
+    const path = work ? await workDecide<string>(work, "planListPath", { filters, team_id: null }) : `/v1/user-plans${buildQuery(filters)}`;
+    const data = await requestJson<{ plans: EncryptedUserPlanRecord[] }>(path);
     const decrypted = await Promise.all(data.plans.map(decryptPlan));
     return decrypted.filter((plan): plan is UserPlanViewModel => plan !== null);
   });
@@ -817,7 +859,11 @@ function planContextRoute(path: string, teamId?: string | null): string {
 /** Fresh owner/Team metadata discovery without decrypting unrelated Plan bodies. */
 export async function listFreshUserPlanRecords(filters: ListUserPlansFilters, teamId?: string | null): Promise<EncryptedUserPlanRecord[]> {
   const scope = getWorkspaceCacheIdentity();
-  const data = await requestJson<{ plans: EncryptedUserPlanRecord[] }>(planContextRoute(`/v1/user-plans${buildQuery(filters)}`, teamId));
+  const work = RUST_WORK ? workClient() : null;
+  const path = work
+    ? await workDecide<string>(work, "planListPath", { filters, team_id: teamId ?? null })
+    : planContextRoute(`/v1/user-plans${buildQuery(filters)}`, teamId);
+  const data = await requestJson<{ plans: EncryptedUserPlanRecord[] }>(path);
   if (scope !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
   return data.plans;
 }
@@ -825,7 +871,11 @@ export async function listFreshUserPlanRecords(filters: ListUserPlansFilters, te
 /** Bypass workspace projections for a current inference snapshot at an exact revision. */
 export async function getFreshUserPlan(planId: string, teamId?: string | null): Promise<UserPlanViewModel> {
   const scope = getWorkspaceCacheIdentity();
-  const data = await requestJson<{ plan: EncryptedUserPlanRecord }>(planContextRoute(`/v1/user-plans/${encodeURIComponent(planId)}`, teamId));
+  const work = RUST_WORK ? workClient() : null;
+  const path = work
+    ? await workDecide<string>(work, "planItemPath", { plan_id: planId, team_id: teamId ?? null })
+    : planContextRoute(`/v1/user-plans/${encodeURIComponent(planId)}`, teamId);
+  const data = await requestJson<{ plan: EncryptedUserPlanRecord }>(path);
   if (scope !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
   const plan = await decryptPlan(data.plan);
   if (scope !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
@@ -836,7 +886,9 @@ export async function getFreshUserPlan(planId: string, teamId?: string | null): 
 export async function getUserPlan(planId: string): Promise<UserPlanViewModel> {
   const warm = peekUserPlan(planId);
   const load = () => planEntityCache.load(planId, async () => {
-    const data = await requestJson<{ plan: EncryptedUserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}`);
+    const work = RUST_WORK ? workClient() : null;
+    const path = work ? await workDecide<string>(work, "planItemPath", { plan_id: planId, team_id: null }) : `/v1/user-plans/${encodeURIComponent(planId)}`;
+    const data = await requestJson<{ plan: EncryptedUserPlanRecord }>(path);
     const plan = await decryptPlan(data.plan);
     if (!plan) throw new Error(`Plan ${planId} could not be decrypted`);
     const latest = peekUserPlan(planId);
@@ -853,6 +905,22 @@ export async function getUserPlan(planId: string): Promise<UserPlanViewModel> {
 
 export async function createUserPlan(input: CreateUserPlanInput): Promise<UserPlanViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    // Rust validates first (the TS refusal precedence), then the page makes and wraps the key.
+    const timestamp = nowSeconds();
+    const request = await workDecide<WorkRequest>(work, "planCreateBody", { input, plan_id: crypto.randomUUID(), timestamp });
+    const planKey = generateEmbedKey();
+    const encryptedPlanKey = await encryptChatKeyWithMasterKey(planKey);
+    if (!encryptedPlanKey) throw new Error("Could not wrap plan key with master key");
+    const body = await buildWorkBody(request.steps, input, { plan: planKey }, {
+      key_wrappers: () => buildPlanKeyWrappers(planKey, encryptedPlanKey, timestamp, request.wrapper_chat_id ?? null, request.wrapper_project_ids ?? []),
+    });
+    const created = await requestJson<{ plan: EncryptedUserPlanRecord }>(request.path, { method: request.method, body: JSON.stringify(body) });
+    const view = await decryptPlan(created.plan);
+    if (!view) throw new Error("Created plan could not be decrypted");
+    return rememberPlan(view, cacheScope);
+  }
   const linkedProjectIds = Array.from(new Set((input.linkedProjectIds ?? []).map((id) => id.trim()).filter(Boolean)));
   if (linkedProjectIds.length === 0) throw new Error("New plans require a Project");
   const planKey = generateEmbedKey();
@@ -881,12 +949,25 @@ export async function createUserPlan(input: CreateUserPlanInput): Promise<UserPl
   return rememberPlan(decrypted, cacheScope);
 }
 
+/** Flag on: `/v1/user-plans/<id>/<collection>` decided by the Worker (`planChildPath`). */
+function planChildPathRust(planId: string, collection: string): Promise<string> {
+  const work = workClient();
+  if (!work) throw new Error("Rust core Worker is unavailable for Plan paths");
+  return workDecide<string>(work, "planChildPath", { plan_id: planId, collection });
+}
+
 export async function listUserPlanKeyWrappers(planId: string): Promise<UserPlanKeyWrapperRecord[]> {
-  const data = await requestJson<{ key_wrappers: UserPlanKeyWrapperRecord[] }>(`/v1/user-plans/${planId}/key-wrappers`);
+  const data = await requestJson<{ key_wrappers: UserPlanKeyWrapperRecord[] }>(RUST_WORK ? await planChildPathRust(planId, "key-wrappers") : `/v1/user-plans/${planId}/key-wrappers`);
   return data.key_wrappers;
 }
 
 export async function addUserPlanKeyWrappers(planId: string, keyWrappers: UserPlanKeyWrapperRecord[]): Promise<UserPlanKeyWrapperRecord[]> {
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const added = await sendPlanWork<{ key_wrappers: UserPlanKeyWrapperRecord[] }>(work, "planKeyWrappersAddBody",
+      { plan_id: planId, key_wrappers: keyWrappers }, {}, {});
+    return added.key_wrappers;
+  }
   const data = await requestJson<{ key_wrappers: UserPlanKeyWrapperRecord[] }>(`/v1/user-plans/${planId}/key-wrappers`, {
     method: "POST",
     body: JSON.stringify({ key_wrappers: keyWrappers }),
@@ -897,6 +978,17 @@ export async function addUserPlanKeyWrappers(planId: string, keyWrappers: UserPl
 export async function updateUserPlan(plan: UserPlanViewModel, patch: Partial<CreateUserPlanInput> & { status?: UserPlanStatus }): Promise<UserPlanViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
   const planKey = await decryptPlanKey(plan);
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const master = plan.encrypted.key_wrappers?.find((wrapper) => wrapper.key_type === "master")?.encrypted_plan_key ?? "";
+    const data = await sendPlanWork<{ plan: EncryptedUserPlanRecord }>(work, "planUpdateBody",
+      { plan_id: plan.plan_id, plan: planWorkFacts(plan), patch, timestamp: nowSeconds() }, patch, { plan: planKey }, (request) => ({
+        key_wrappers: () => buildPlanKeyWrappers(planKey, master, nowSeconds(), request.wrapper_chat_id ?? null, request.wrapper_project_ids ?? []),
+      }));
+    const view = await decryptPlan(data.plan);
+    if (!view) throw new Error("Updated plan could not be decrypted");
+    return rememberPlan(view, cacheScope);
+  }
   const body: Record<string, unknown> = { version: plan.version, updated_at: nowSeconds() };
   if (patch.title !== undefined) body.encrypted_title = await encryptWithEmbedKey(patch.title, planKey);
   if (patch.goal !== undefined) body.encrypted_goal = await encryptWithEmbedKey(patch.goal, planKey);
@@ -931,7 +1023,10 @@ export async function updateUserPlan(plan: UserPlanViewModel, patch: Partial<Cre
 
 export async function activateUserPlan(plan: UserPlanViewModel): Promise<UserPlanViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
-  const data = await requestJson<{ plan: EncryptedUserPlanRecord }>(`/v1/user-plans/${plan.plan_id}/activate`, {
+  const work = RUST_WORK ? workClient() : null;
+  const data = work
+    ? await sendPlanWork<{ plan: EncryptedUserPlanRecord }>(work, "planActivateBody", { plan_id: plan.plan_id, plan: planWorkFacts(plan), timestamp: nowSeconds() }, {}, {})
+    : await requestJson<{ plan: EncryptedUserPlanRecord }>(`/v1/user-plans/${plan.plan_id}/activate`, {
     method: "POST",
     body: JSON.stringify({
       chat_id: plan.primaryChatId,
@@ -946,7 +1041,11 @@ export async function activateUserPlan(plan: UserPlanViewModel): Promise<UserPla
 
 export async function completeUserPlan(plan: UserPlanViewModel, completionNote?: string): Promise<UserPlanViewModel> {
   const cacheScope = getWorkspaceCacheIdentity();
-  const data = await requestJson<{ plan: EncryptedUserPlanRecord }>(`/v1/user-plans/${plan.plan_id}/complete`, {
+  const work = RUST_WORK ? workClient() : null;
+  const data = work
+    ? await sendPlanWork<{ plan: EncryptedUserPlanRecord }>(work, "planCompleteBody",
+      { plan_id: plan.plan_id, plan: planWorkFacts(plan), completion_note: completionNote, timestamp: nowSeconds() }, {}, {})
+    : await requestJson<{ plan: EncryptedUserPlanRecord }>(`/v1/user-plans/${plan.plan_id}/complete`, {
     method: "POST",
     body: JSON.stringify({ updated_at: nowSeconds(), completion_note: completionNote, version: plan.version }),
   });
@@ -957,25 +1056,25 @@ export async function completeUserPlan(plan: UserPlanViewModel, completionNote?:
 
 export async function listPlanCriteria(plan: UserPlanViewModel): Promise<UserPlanCriterionViewModel[]> {
   const planKey = await decryptPlanKey(plan);
-  const data = await requestJson<{ criteria: EncryptedUserPlanCriterionRecord[] }>(`/v1/user-plans/${plan.plan_id}/criteria`);
+  const data = await requestJson<{ criteria: EncryptedUserPlanCriterionRecord[] }>(RUST_WORK ? await planChildPathRust(plan.plan_id, "criteria") : `/v1/user-plans/${plan.plan_id}/criteria`);
   return Promise.all(data.criteria.map((record) => decryptCriterion(record, planKey)));
 }
 
 export async function listPlanVerifications(plan: UserPlanViewModel): Promise<UserPlanVerificationViewModel[]> {
   const planKey = await decryptPlanKey(plan);
-  const data = await requestJson<{ verifications: EncryptedUserPlanVerificationRecord[] }>(`/v1/user-plans/${plan.plan_id}/verification`);
+  const data = await requestJson<{ verifications: EncryptedUserPlanVerificationRecord[] }>(RUST_WORK ? await planChildPathRust(plan.plan_id, "verification") : `/v1/user-plans/${plan.plan_id}/verification`);
   return Promise.all(data.verifications.map((record) => decryptVerification(record, planKey)));
 }
 
 export async function listPlanAssumptions(plan: UserPlanViewModel): Promise<UserPlanAssumptionViewModel[]> {
   const planKey = await decryptPlanKey(plan);
-  const data = await requestJson<{ assumptions: EncryptedUserPlanAssumptionRecord[] }>(`/v1/user-plans/${plan.plan_id}/assumptions`);
+  const data = await requestJson<{ assumptions: EncryptedUserPlanAssumptionRecord[] }>(RUST_WORK ? await planChildPathRust(plan.plan_id, "assumptions") : `/v1/user-plans/${plan.plan_id}/assumptions`);
   return Promise.all(data.assumptions.map((record) => decryptAssumption(record, planKey)));
 }
 
 export async function listPlanReferencePatterns(plan: UserPlanViewModel): Promise<UserPlanReferencePatternViewModel[]> {
   const planKey = await decryptPlanKey(plan);
-  const data = await requestJson<{ reference_patterns: EncryptedUserPlanReferencePatternRecord[] }>(`/v1/user-plans/${plan.plan_id}/reference-patterns`);
+  const data = await requestJson<{ reference_patterns: EncryptedUserPlanReferencePatternRecord[] }>(RUST_WORK ? await planChildPathRust(plan.plan_id, "reference-patterns") : `/v1/user-plans/${plan.plan_id}/reference-patterns`);
   return Promise.all(data.reference_patterns.map((record) => decryptReferencePattern(record, planKey)));
 }
 
@@ -992,7 +1091,11 @@ export async function loadUserPlanDetailState(plan: UserPlanViewModel): Promise<
 export async function createPlanCriterion(plan: UserPlanViewModel, input: CreatePlanCriterionInput): Promise<UserPlanCriterionViewModel> {
   const planKey = await decryptPlanKey(plan);
   const timestamp = nowSeconds();
-  const data = await requestJson<{ criterion: EncryptedUserPlanCriterionRecord }>(`/v1/user-plans/${plan.plan_id}/criteria`, {
+  const work = RUST_WORK ? workClient() : null;
+  const data = work
+    ? await sendPlanWork<{ criterion: EncryptedUserPlanCriterionRecord }>(work, "planCriterionCreateBody",
+      { plan_id: plan.plan_id, input, fresh_id: crypto.randomUUID(), timestamp }, input, { plan: planKey })
+    : await requestJson<{ criterion: EncryptedUserPlanCriterionRecord }>(`/v1/user-plans/${plan.plan_id}/criteria`, {
     method: "POST",
     body: JSON.stringify({
       criterion_id: input.criterionId ?? crypto.randomUUID(),
@@ -1016,6 +1119,12 @@ export async function updatePlanCriterion(
   input: UpdatePlanCriterionInput,
 ): Promise<UserPlanCriterionViewModel> {
   const planKey = await decryptPlanKey(plan);
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const updated = await sendPlanWork<{ criterion: EncryptedUserPlanCriterionRecord }>(work, "planCriterionUpdateBody",
+      { plan_id: plan.plan_id, criterion_id: criterionId, input, timestamp: nowSeconds() }, input, { plan: planKey });
+    return decryptCriterion(updated.criterion, planKey);
+  }
   const body: Record<string, unknown> = { updated_at: nowSeconds() };
   if (input.status !== undefined) body.status = input.status;
   if (input.evidence !== undefined) body.encrypted_evidence = await encryptWithEmbedKey(input.evidence, planKey);
@@ -1035,6 +1144,27 @@ export async function updatePlanCriterion(
 export async function createPlanVerification(plan: UserPlanViewModel, input: CreatePlanVerificationInput): Promise<UserPlanVerificationViewModel> {
   const planKey = await decryptPlanKey(plan);
   const timestamp = nowSeconds();
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    let taskKey: Uint8Array | null = null;
+    let encryptedTaskKey: string | null = null;
+    const created = await sendPlanWork<{ verification: EncryptedUserPlanVerificationRecord }>(work, "planVerificationCreateBody",
+      { plan_id: plan.plan_id, plan: planWorkFacts(plan), input, fresh_id: crypto.randomUUID(), timestamp }, input,
+      { plan: planKey, task: null }, (request) => {
+        // Same order as the TS original: the task key exists before the body is built.
+        return {
+          encrypted_task_key: () => encryptedTaskKey,
+          task_key_wrappers: () => (taskKey && encryptedTaskKey
+            ? buildTaskKeyWrappers(taskKey, encryptedTaskKey, timestamp, request.wrapper_chat_id ?? null, request.wrapper_project_ids ?? [])
+            : []),
+        };
+      }, async (request, keys) => {
+        taskKey = request.create_task ? generateEmbedKey() : null;
+        encryptedTaskKey = taskKey ? await encryptChatKeyWithMasterKey(taskKey) : null;
+        keys.task = taskKey;
+      });
+    return decryptVerification(created.verification, planKey);
+  }
   const taskKey = input.createTask ? generateEmbedKey() : null;
   const encryptedTaskKey = taskKey ? await encryptChatKeyWithMasterKey(taskKey) : null;
   const linkedProjectIds = input.linkedProjectIds ?? plan.linkedProjectIds;
@@ -1081,7 +1211,11 @@ export async function addPlanVerificationEvidence(
   input: PlanVerificationEvidenceInput,
 ): Promise<UserPlanVerificationViewModel> {
   const planKey = await decryptPlanKey(plan);
-  const data = await requestJson<{ verification: EncryptedUserPlanVerificationRecord }>(`/v1/user-plans/${plan.plan_id}/verification/${verificationId}/evidence`, {
+  const work = RUST_WORK ? workClient() : null;
+  const data = work
+    ? await sendPlanWork<{ verification: EncryptedUserPlanVerificationRecord }>(work, "planEvidenceBody",
+      { plan_id: plan.plan_id, verification_id: verificationId, input, timestamp: nowSeconds() }, input, { plan: planKey })
+    : await requestJson<{ verification: EncryptedUserPlanVerificationRecord }>(`/v1/user-plans/${plan.plan_id}/verification/${verificationId}/evidence`, {
     method: "POST",
     body: JSON.stringify({
       status: input.status,
@@ -1100,7 +1234,11 @@ export async function addPlanVerificationEvidence(
 export async function createPlanAssumption(plan: UserPlanViewModel, input: CreatePlanAssumptionInput): Promise<UserPlanAssumptionViewModel> {
   const planKey = await decryptPlanKey(plan);
   const timestamp = nowSeconds();
-  const data = await requestJson<{ assumption: EncryptedUserPlanAssumptionRecord }>(`/v1/user-plans/${plan.plan_id}/assumptions`, {
+  const work = RUST_WORK ? workClient() : null;
+  const data = work
+    ? await sendPlanWork<{ assumption: EncryptedUserPlanAssumptionRecord }>(work, "planAssumptionCreateBody",
+      { plan_id: plan.plan_id, input, fresh_id: crypto.randomUUID(), timestamp }, input, { plan: planKey })
+    : await requestJson<{ assumption: EncryptedUserPlanAssumptionRecord }>(`/v1/user-plans/${plan.plan_id}/assumptions`, {
     method: "POST",
     body: JSON.stringify({
       assumption_id: input.assumptionId ?? crypto.randomUUID(),
@@ -1130,6 +1268,12 @@ export async function updatePlanAssumption(
   input: UpdatePlanAssumptionInput,
 ): Promise<UserPlanAssumptionViewModel> {
   const planKey = await decryptPlanKey(plan);
+  const work = RUST_WORK ? workClient() : null;
+  if (work) {
+    const updated = await sendPlanWork<{ assumption: EncryptedUserPlanAssumptionRecord }>(work, "planAssumptionUpdateBody",
+      { plan_id: plan.plan_id, assumption_id: assumptionId, input, timestamp: nowSeconds() }, input, { plan: planKey });
+    return decryptAssumption(updated.assumption, planKey);
+  }
   const body: Record<string, unknown> = { updated_at: nowSeconds() };
   if (input.status !== undefined) body.status = input.status;
   if (input.requiredBefore !== undefined) body.required_before = input.requiredBefore;
@@ -1152,7 +1296,11 @@ export async function updatePlanAssumption(
 export async function createPlanReferencePattern(plan: UserPlanViewModel, input: CreatePlanReferencePatternInput): Promise<UserPlanReferencePatternViewModel> {
   const planKey = await decryptPlanKey(plan);
   const timestamp = nowSeconds();
-  const data = await requestJson<{ reference_pattern: EncryptedUserPlanReferencePatternRecord }>(`/v1/user-plans/${plan.plan_id}/reference-patterns`, {
+  const work = RUST_WORK ? workClient() : null;
+  const data = work
+    ? await sendPlanWork<{ reference_pattern: EncryptedUserPlanReferencePatternRecord }>(work, "planPatternCreateBody",
+      { plan_id: plan.plan_id, input, fresh_id: crypto.randomUUID(), timestamp }, input, { plan: planKey })
+    : await requestJson<{ reference_pattern: EncryptedUserPlanReferencePatternRecord }>(`/v1/user-plans/${plan.plan_id}/reference-patterns`, {
     method: "POST",
     body: JSON.stringify({
       pattern_id: input.patternId ?? crypto.randomUUID(),

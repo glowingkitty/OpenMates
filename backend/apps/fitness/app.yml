@@ -128,7 +128,11 @@ skills:
     class_path: |
       backend.apps.fitness.skills.search_locations.SearchLocationsSkill
     pricing:
-      fixed: 5
+      fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Operator-installed provider; no official cost
     provider_required: true
     providers: []
   - id: search_classes
@@ -250,6 +254,10 @@ skills:
     class_path: |
       backend.apps.fitness.skills.search_classes.SearchClassesSkill
     pricing:
-      fixed: 5
+      fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Operator-installed provider; no official cost
     provider_required: true
     providers: []

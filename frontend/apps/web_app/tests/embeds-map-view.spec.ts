@@ -200,8 +200,8 @@ test.describe('Embeds map view preview', () => {
 		const cards = mapView.getByTestId('embeds-map-view-card');
 		await expect(cards).toHaveCount(5, { timeout: 15_000 });
 		await expect(cards.getByTestId('embed-preview')).toHaveCount(5);
-		await expect(cards.first()).toContainText('Berlin (BER)');
-		await expect(cards.first()).toContainText('Bangkok (BKK)');
+		await expect(cards.first()).toContainText('BER');
+		await expect(cards.first()).toContainText('BKK');
 		await expect(cards.first()).toHaveAttribute('data-highlighted', 'true');
 		await expect(cards.first()).toHaveAttribute('data-entry-category', 'route');
 		await expect(cards.getByTestId('connection-preview-details')).toHaveCount(5);
@@ -259,7 +259,7 @@ test.describe('Embeds map view preview', () => {
 		await expect(mapView.getByTestId('embeds-results-view-calendar-week-label')).toContainText('Apr 13');
 		await expect(mapView.getByRole('button', { name: 'Previous week', exact: true })).toBeDisabled();
 		await expect(mapView.getByRole('button', { name: 'Next week', exact: true })).toBeDisabled();
-		await expect(calendarItems.filter({ hasText: 'Berlin (BER)' })).toHaveCount(10);
+		await expect(calendarItems.filter({ hasText: 'BER' })).toHaveCount(10);
 		await expect(cards).toHaveCount(0);
 		if (PROOF_DEVICE === 'web-phone') {
 			const calendar = mapView.getByTestId('embeds-results-view-calendar');
@@ -270,7 +270,7 @@ test.describe('Embeds map view preview', () => {
 		if (proof) {
 			await proof.assert('calendar-tab-week', async () => {
 				await expect(mapView.getByTestId('embeds-results-view-calendar-week')).toBeVisible();
-				await expect(calendarItems.filter({ hasText: 'Berlin (BER)' })).toHaveCount(10);
+				await expect(calendarItems.filter({ hasText: 'BER' })).toHaveCount(10);
 			});
 			await proof.checkpoint('calendar-tab-week');
 		}

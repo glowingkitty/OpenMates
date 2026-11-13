@@ -15,6 +15,7 @@ pub fn supported(i: &Invocation) -> bool {
         i.command_path().as_str(),
         "embeds versions list"
             | "embeds versions show"
+            | "embeds test-result"
             | "embeds versions restore"
             | "embeds preview start"
             | "embeds preview status"
@@ -42,7 +43,7 @@ fn first(i: &Invocation) -> Result<&str, CliError> {
 }
 // Existing versions uses parseInt(value, 10): preserve its decimal prefix,
 // including '+2' and '2suffix', rather than silently replacing its grammar.
-fn version(i: &Invocation) -> Result<i64, CliError> {
+pub(super) fn version(i: &Invocation) -> Result<i64, CliError> {
     let value = i.text("version").unwrap_or("").trim_start();
     let signed = value.strip_prefix('+').unwrap_or(value);
     let digits = signed.bytes().take_while(u8::is_ascii_digit).count();
@@ -99,6 +100,20 @@ fn preview_output(i: &Invocation, value: Value) -> Result<CliOutput, CliError> {
     }
     Ok(CliOutput::text(out))
 }
+/// "  by you · enhance" / "  by the assistant" from the versions list's
+/// `revision_origin` / `revision_action` (feature.embed-user-edits); empty for
+/// servers that do not send them.
+fn made_by(row: &Value) -> String {
+    let who = match row["revision_origin"].as_str() {
+        Some("user") => "you",
+        Some("assistant") => "the assistant",
+        _ => return String::new(),
+    };
+    match row["revision_action"].as_str().filter(|a| !a.is_empty()) {
+        Some(action) => format!("  by {who} · {}", super::terminal_text(action)),
+        None => format!("  by {who}"),
+    }
+}
 fn versions_output(i: &Invocation, value: Value) -> Result<CliOutput, CliError> {
     if i.boolean("json") {
         return CliOutput::json(&value);
@@ -130,7 +145,7 @@ fn versions_output(i: &Invocation, value: Value) -> Result<CliOutput, CliError> 
             date.second(),
             date.millisecond()
         );
-        out.push_str(&format!("  v{number}{marker}  {date}\n"));
+        out.push_str(&format!("  v{number}{marker}  {date}{}\n", made_by(row)));
     }
     if value["readonly"] == true {
         out.push_str("\x1b[2mRead-only shared history\x1b[0m\n");
@@ -156,6 +171,7 @@ pub async fn execute_sdk_embeds_with_gate(
     match path.as_str(){
         "embeds versions list"=>super::handlers::flags(i,&[])?,
         "embeds versions show"=>super::handlers::flags(i,&["version","output"])?,
+        "embeds test-result"=>super::handlers::flags(i,&["version"])?,
         "embeds versions restore"=>super::handlers::flags(i,&["version","yes"])?,
         "embeds preview start"=>super::handlers::flags(i,&["chat-id","chat","shared-context","runtime","source-message-id","wait","timeout-seconds"])?,
         "embeds preview status"|"embeds preview open"|"embeds preview stop"=>super::handlers::flags(i,&[])?,
@@ -173,6 +189,11 @@ pub async fn execute_sdk_embeds_with_gate(
             let number=version(i)?;
             let value=client.embeds().version_content(id,number).await?;
             version_content_output(i,value,&cancel,private_gate)
+        },
+        "embeds test-result"=>{
+            let number=version(i)?;
+            let value=client.embeds().version_content(id,number).await?;
+            super::test_result_cmd::output(i.boolean("json"),&value)
         },
         "embeds versions restore"=>{
             let number=version(i)?;
@@ -360,18 +381,41 @@ fn write_version_output(
 #[path = "embed_commands_tests.rs"]
 mod tests;
 
+/// `embeds test-result <id>` without `--version`: the current embed, read and
+/// decrypted by the shared Client (`embeds show` path), rendered like a
+/// version read. `version_number` is the embed's own, when it reports one.
+async fn current_test_result(
+    i:&Invocation,client:&mut openmates_sdk::Client,cancel:CancellationToken,
+)->Result<CliOutput,CliError>{
+    let id=first(i)?;
+    if cancel.is_cancelled(){return Err(Error::Cancelled.into());}
+    client.set_operation_cancel(cancel);
+    let item=client.detail(openmates_sdk::model::Workspace::Apps,&format!("embed:{id}")).await?;
+    let mut content=serde_json::to_string(&item.fields["content"]).map_err(|_|CliError::Client(Error::Protocol))?;
+    let value=serde_json::json!({"embed_id":id,"version_number":item.fields["content"]["version_number"],"content":content});
+    let result=super::test_result_cmd::output(i.boolean("json"),&value);
+    use zeroize::Zeroize;content.zeroize();
+    result
+}
+
 /// Personal Cookie facade: shared Client owns auth/key/read/reconstruction;
 /// preserve the exact same JSON/human/atomic fsync output implementation.
 pub(super) async fn execute_cookie_version(
     i:&Invocation,client:&mut openmates_sdk::Client,cancel:CancellationToken,
 )->Result<CliOutput,CliError>{
-    super::handlers::flags(i,&["version","output"])?;
+    let test_result=i.command_path()=="embeds test-result";
+    super::handlers::flags(i,if test_result{&["version"][..]}else{&["version","output"][..]})?;
+    // A fresh test result has no version history yet (the code worker
+    // creates it whole), so without --version read the current embed.
+    if test_result && !i.has("version") {
+        return current_test_result(i,client,cancel).await;
+    }
     let id=first(i)?;let number=version(i)?;
     if cancel.is_cancelled(){return Err(Error::Cancelled.into());}
     client.set_operation_cancel(cancel.clone());
     let(value,admission)=client.embed_version_content_with_admission(id,number).await?;
     let mut value=PendingVersion(value);
-    let result=version_content_output(i,std::mem::take(&mut value.0),&cancel,&||admission.check(client));
+    let result=if test_result{super::test_result_cmd::output(i.boolean("json"),&value.0)}else{version_content_output(i,std::mem::take(&mut value.0),&cancel,&||admission.check(client))};
     if let Err(error)=admission.check(client) {
         if let Ok(mut output)=result {use zeroize::Zeroize;output.stdout.zeroize();output.stderr.zeroize();}
         return Err(error.into());

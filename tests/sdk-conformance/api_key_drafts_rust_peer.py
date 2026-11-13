@@ -59,9 +59,6 @@ def responses(suite, vector):
                 {"detail": "synthetic-error"},
             )
         ]
-    if kind == "open-parity-limit":
-        raw = vector["draft"]
-        return [get(raw), session(suite["session"])]
     raise AssertionError("unknown scenario")
 
 
@@ -174,13 +171,8 @@ def check(suite, vector, observed):
     kind = vector["kind"]
     if "expected_error" in vector:
         assert observed == {"ok": False, "error": vector["expected_error"]}
-    elif kind in ("record", "open-parity-limit"):
-        expected = {
-            "markdown": vector["markdown"],
-            "preview": vector["preview"]
-            if kind == "record"
-            else vector["previews"]["rust"],
-        }
+    elif kind == "record":
+        expected = {"markdown": vector["markdown"], "preview": vector["preview"]}
         assert observed == {"ok": True, "value": expected}
     else:
         assert observed == {"ok": True, "value": [] if kind == "empty-list" else None}
@@ -200,12 +192,11 @@ def main():
     suite = document["capabilities"][args.capability]
     assert document["schema_version"] == 1
     assert (
-        len(suite["vectors"]) == 15 and len({v["id"] for v in suite["vectors"]}) == 15
+        len(suite["vectors"]) == 17 and len({v["id"] for v in suite["vectors"]}) == 17
     )
-    results, limits = [], []
-    for vector in suite["vectors"] + [
-        dict(v, kind="open-parity-limit") for v in suite["open_parity_limits"]
-    ]:
+    assert not suite.get("open_parity_limits"), "drafts parity limits are retired"
+    results = []
+    for vector in suite["vectors"]:
         peer = Peer(suite, vector)
         server = peer.server()
         thread = threading.Thread(
@@ -224,16 +215,7 @@ def main():
             assert peer.failure is None and peer.requests == len(peer.expected), (
                 "exact wire/no replay"
             )
-            if vector["kind"] == "open-parity-limit":
-                limits.append(
-                    {
-                        "id": vector["id"],
-                        "status": "open-existing-sdk-divergence",
-                        "observed": "Unicode scalar slice",
-                    }
-                )
-            else:
-                results.append({"id": vector["id"], "status": "passed"})
+            results.append({"id": vector["id"], "status": "passed"})
         finally:
             server.shutdown()
             server.server_close()
@@ -247,7 +229,6 @@ def main():
                 "status": "passed",
                 "fixtureSha256": hashlib.sha256(raw).hexdigest(),
                 "results": results,
-                "openParityLimits": limits,
             }
         )
     )

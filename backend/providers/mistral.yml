@@ -46,41 +46,43 @@ models:
         model_id: "mistral-large-4"
         region: "EU"
         country: "FR"
-    # Regular direct-API supplier rates, verified 2026-10-08:
+    # Direct-API supplier rates, verified 2026-11-09:
     # https://docs.mistral.ai/models/mistral-large
-    # The page currently advertises a half-price sale without an expiry.
-    # Keep regular rates separate from the verified undated sale below.
+    # The page now lists one price ($0.70 / $0.07 cached / $2.10) with no sale
+    # label. The earlier $1.36 regular rate and its half-price sale are gone;
+    # the sale entry below is kept, closed, for historical receipts.
     pricing:
       tokens:
         input:
-          per_credit_unit: 245 # About 3x regular $1.36/M at $0.001 per credit.
+          per_credit_unit: 955
         cache_read:
-          per_credit_unit: 2380 # About 3x regular $0.14/M.
+          per_credit_unit: 9525
         output:
-          per_credit_unit: 79 # About 3x regular $4.18/M, including reasoning tokens.
+          per_credit_unit: 320
     cache_pricing:
       enabled: true
       write_billing: included_in_input
       eligible_hosts: [mistral]
       source_url: https://docs.mistral.ai/models/mistral-large
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
     costs:
       input_per_million_token:
-        price: 1.36
+        price: 0.70
         currency: USD
         max_context: 1000000
       cached_input_per_million_token:
-        price: 0.14
+        price: 0.07
         currency: USD
       output_per_million_token:
-        price: 4.18
+        price: 2.10
         currency: USD
         max_context: 1000000
     temporary_prices:
       - id: half-price-sale-2026
         effective_from: '2026-10-14'
+        expires_on: '2026-11-08'
         source_url: https://docs.mistral.ai/models/mistral-large
         reviewed_on: '2026-10-14'
         eligible_hosts:
@@ -89,11 +91,11 @@ models:
         pricing:
           tokens:
             input:
-              per_credit_unit: 490
+              per_credit_unit: 985
             cache_read:
-              per_credit_unit: 4760
+              per_credit_unit: 9525
             output:
-              per_credit_unit: 158
+              per_credit_unit: 320
         costs:
           input_per_million_token:
             price: 0.68
@@ -161,19 +163,19 @@ models:
     pricing: # Current Small 4 API rates: $0.15 input / $0.60 output per million tokens.
       tokens:
         input:
-          per_credit_unit: 2200 # Approximately 3x $0.15/M at $0.001 per credit.
+          per_credit_unit: 4445
         cache_read:
-          per_credit_unit: 22000
+          per_credit_unit: 44445
         output:
-          per_credit_unit: 550 # 1 credit per 550 output tokens ($0.60/M)
+          per_credit_unit: 1115
     cache_pricing:
       enabled: true
       write_billing: included_in_input
       eligible_hosts: [mistral]
       source_url: https://docs.mistral.ai/studio/conversations/advanced/prompt-caching
-      reviewed_on: "2026-10-08"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-08"
+      expires_on: "2026-12-09"
     costs:
       input_per_million_token:
         price: 0.15
@@ -224,11 +226,11 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 220 # 1 credit per ~220 input tokens ($1.50/M)
+          per_credit_unit: 445
         cache_read:
-          per_credit_unit: 2200
+          per_credit_unit: 4445
         output:
-          per_credit_unit: 45 # 1 credit per ~45 output tokens ($7.50/M)
+          per_credit_unit: 90
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -276,7 +278,7 @@ models:
         region: "EU"
         country: "FR"
     pricing:
-      per_minute: 3 # Existing batch audio.transcribe price
+      per_minute: 5
     costs:
       per_minute:
         price: 0.003
@@ -303,7 +305,7 @@ models:
         region: "EU"
         country: "FR"
     pricing:
-      per_minute: 8 # Whole-credit ceiling of $0.006/min provider cost + 20%
+      per_minute: 10
     costs:
       per_minute:
         price: 0.006
@@ -321,7 +323,7 @@ models:
     default_server: "mistral"
     servers:
       - {id: "mistral", name: "Mistral", model_id: "voxtral-mini-transcribe-realtime-3-0", region: "EU", country: "FR"}
-    pricing: {per_minute: 10}
+    pricing: {per_minute: 15}
     costs:
       per_minute: {price: 0.008, currency: USD}
 
@@ -337,32 +339,11 @@ models:
     default_server: "mistral"
     servers:
       - {id: "mistral", name: "Mistral", model_id: "voxtral-mini-tts-3-0", region: "EU", country: "FR"}
+    pricing: {per_million_characters: 19500}
     costs:
       per_million_characters: {price: 13, currency: USD}
 
-# Pricing Formula:
-# 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
-# 2. Tokens per credit = credit_value_usd / cost_per_token
-#
-# Where:
-# - credit_value_usd = 0.001 (110 USD / 110,000 credits)
-# - markup = 3 (3x your cost)
-#
-# Simplified: tokens_per_credit = 0.001 /
-# ((your_cost_per_million * 3) / 1,000,000)
-# Or even simpler: tokens_per_credit = 333.33 / your_cost_per_million
-#
-# Examples:
-# - Input ($1.25/M): 333.33 / 1.25 = 267 tokens/credit → round to 300
-# - Output ($10/M): 333.33 / 10 = 33 tokens/credit → round to 30
-
-# FOR PER-UNIT PRICING (images, API calls, etc.):
-# 1. Your price to user = your_cost_per_unit * markup
-# 2. Credits per unit = your_price_to_user / credit_value_usd
-#
-# Simplified: credits_per_unit = (your_cost_per_unit * 3) / 0.001
-# Or even simpler: credits_per_unit = your_cost_per_unit * 3000
-#
-# Per-Unit Examples:
-# - Image ($0.04 each): 0.04 * 3000 = 120 credits per image
-# - API call ($0.01 each): 0.01 * 3000 = 30 credits per call
+# Customer pricing: every `pricing` value is derived from `costs` (supplier USD)
+# as cost x (1 + pricing.margin_percent in backend/config/backend_config.yml),
+# rounded up to 5-credit steps (1 credit = $0.001). Regenerate with
+# `python3 scripts/derive_customer_prices.py --write`; tests fail on drift.

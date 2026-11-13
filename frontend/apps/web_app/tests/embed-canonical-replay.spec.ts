@@ -98,7 +98,8 @@ asyncio.run(main())
 	const output = execFileSync('docker', ['compose', '-f', compose, 'exec', '-T',
 		'-e', 'OPENMATES_CI_CANONICAL_REPLAY_EPOCH_FIXTURE=1',
 		'api', 'python', '-c', program], { cwd: root, encoding: 'utf8', timeout: 60_000 });
-	return JSON.parse(output.trim());
+	// The exec can print warnings before the fixture's single JSON line.
+	return JSON.parse(output.trim().split('\n').pop() ?? '');
 }
 
 /** Bounded structural receipt: never attach ciphertext, private text or raw IDs. */
@@ -187,7 +188,8 @@ asyncio.run(main())
 `;
 	const output = execFileSync('docker', ['compose', '-f', compose, 'exec', '-T',
 		'api', 'python', '-c', program], { cwd: root, input: JSON.stringify({ ...fixture, stage }), encoding: 'utf8', timeout: 60_000 });
-	return JSON.parse(output.trim());
+	// The exec can print warnings before the fixture's single JSON line.
+	return JSON.parse(output.trim().split('\n').pop() ?? '');
 }
 
 // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted,chats.sync.key-gated-recovery

@@ -14,7 +14,6 @@ icon_image: |
   news.svg
 category: personal
 last_updated: "2026-09-24"
-settings_and_memories: []
 instructions: []
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:

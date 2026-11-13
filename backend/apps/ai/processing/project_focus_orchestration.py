@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 async def request_project_focus_catalog(*, task_id: str, directus_service: Any, request_data: Any, preprocessing_results: Any,
@@ -34,6 +37,52 @@ async def request_project_focus_catalog(*, task_id: str, directus_service: Any, 
             "project_id": project_id, "team_id": request_data.team_id,
         },
     }))
+
+
+async def request_project_creation(*, task_id: str, directus_service: Any, request_data: Any,
+                                   preprocessing_results: Any, cache_service: Any,
+                                   skill_config_dict: dict[str, Any] | None,
+                                   proposal: dict[str, Any]) -> dict[str, Any]:
+    """Ask the chat's executor client to create an encrypted Project.
+
+    Contract: docs/plans/cloud-project-development/contracts/project-create-request.md.
+    The original turn resumes when the client's ``project_create_result`` arrives.
+    """
+    from backend.apps.ai.processing.project_creation_routing import project_creation_skip_reason
+    from backend.apps.ai.tasks.async_skill_continuation import cache_async_skill_continuation_context
+    from backend.core.api.app.services.project_create_request_service import (
+        PROJECT_CREATE_EVENT, PROJECT_CREATE_REQUEST_TTL, ProjectCreateRequestService,
+        build_project_create_action, new_project_create_request_id,
+    )
+    # Recheck the request-field gate: a resumed or replayed result cannot bypass it.
+    if not cache_service or project_creation_skip_reason(request_data) is not None:
+        raise PermissionError("Project creation was not offered for this turn")
+    action = build_project_create_action(
+        request_id=new_project_create_request_id(), name=proposal["proposed_name"],
+        chat_id=request_data.chat_id, message_id=request_data.message_id,
+        team_id=request_data.team_id, origin="preprocessor", kind=proposal["kind"],
+        location=proposal.get("location", "cloud"), machine_hint=proposal.get("machine_hint", ""),
+    )
+    await cache_async_skill_continuation_context(
+        cache_service=cache_service, async_task_id=action["request_id"], request_data=request_data,
+        skill_config_dict=skill_config_dict, app_id="system", skill_id="project_create_request",
+        tool_name="create_project_request",
+        # The name stays out of the model-visible completion arguments.
+        tool_arguments={"kind": action["kind"], "subfolder": action["subfolder"]},
+        source_delivery_task_id=task_id, directus_service=directus_service,
+        preprocessing_result=preprocessing_results, requires_current_turn=True,
+        defer_until_initial_response_complete=True, ttl_seconds=PROJECT_CREATE_REQUEST_TTL,
+    )
+    await ProjectCreateRequestService(cache_service).create_pending(user_id=request_data.user_id, action=action)
+    request_data.awaiting_async_skill_continuation = True
+    redis_client = await cache_service.client
+    await redis_client.publish(f"user_cache_events:{request_data.user_id}", json.dumps({
+        "event_type": PROJECT_CREATE_EVENT, "payload": {
+            "chat_id": request_data.chat_id, "request_id": action["request_id"],
+            "pending_client_action": action,
+        },
+    }))
+    return action
 
 
 async def request_project_focus(*, task_id: str, request_data: Any,
@@ -97,4 +146,62 @@ async def request_project_focus(*, task_id: str, request_data: Any,
     await redis_client.publish(f"user_cache_events:{request_data.user_id}", json.dumps({
         "event_type": "focus_mode_pending", "payload": service.pending_event(pending),
     }))
+    return embed["embed_reference"]
+
+
+async def created_project_activation_reference(*, task_id: str, request_data: Any,
+                                               active_project_focus: dict[str, Any] | None,
+                                               cache_service: Any, directus_service: Any,
+                                               encryption_service: Any, user_vault_key_id: str | None,
+                                               log_prefix: str) -> str | None:
+    """The resumed turn's "Created project" activation card, or None.
+
+    Contract: docs/plans/cloud-project-development/contracts/project-create-request.md
+    section 6. Runs only on the continuation of a verified ``created`` report and
+    only while the chat's live focus binding is still that Project and focus
+    (an Undo before this point shows no card). The card is already activated:
+    no countdown and no accept/reject. ``focus_id`` keeps the embed's Project
+    form ``project-<project_id>``; ``project_focus_id`` is the bound default
+    focus id that clients persist as the chat's active focus.
+    """
+    from backend.core.api.app.services.embed_service import EmbedService
+    from backend.core.api.app.services.project_create_request_service import (
+        PROJECT_CREATE_CAPABILITY, PROJECT_CREATE_REQUEST_PREFIX, ProjectCreateRequestService,
+    )
+    request_id = getattr(request_data, "async_skill_task_id", None)
+    capabilities = set(getattr(request_data, "client_capabilities", None) or [])
+    if (not getattr(request_data, "is_async_skill_continuation", False) or not isinstance(request_id, str)
+            or not request_id.startswith(PROJECT_CREATE_REQUEST_PREFIX)
+            or request_data.is_incognito or request_data.is_external or not cache_service
+            or not {PROJECT_CREATE_CAPABILITY, "project_file_jobs"} <= capabilities):
+        return None
+    record = await ProjectCreateRequestService(cache_service).take_created(
+        user_id=request_data.user_id, request_id=request_id,
+    )
+    if record is None:
+        return None
+    turn_id = getattr(request_data, "original_user_message_id", None) or request_data.message_id
+    # active_project_focus was revalidated against Directus ownership this turn.
+    if (record.get("user_id") != request_data.user_id or record.get("chat_id") != request_data.chat_id
+            or record.get("message_id") != turn_id or not active_project_focus
+            or active_project_focus.get("project_id") != record.get("project_id")
+            or active_project_focus.get("team_id") != record.get("team_id")
+            or active_project_focus.get("focus_id") != record.get("focus_id")):
+        logger.info("%s Created Project card skipped: focus binding changed", log_prefix)
+        return None
+    name = record["name"]
+    embed = await EmbedService(
+        cache_service=cache_service, directus_service=directus_service,
+        encryption_service=encryption_service,
+    ).create_focus_mode_activation_embed(
+        focus_id=f"project-{record['project_id']}", app_id="projects", focus_mode_name=f"Work on {name}",
+        chat_id=request_data.chat_id, message_id=request_data.message_id,
+        user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+        user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+        extra_fields={"project_created": True, "project_id": record["project_id"],
+                      "project_focus_id": record["focus_id"], "project_name": name},
+    )
+    if not embed:
+        logger.warning("%s Created Project activation card could not be created", log_prefix)
+        return None
     return embed["embed_reference"]

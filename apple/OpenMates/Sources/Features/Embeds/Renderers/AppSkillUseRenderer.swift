@@ -307,8 +307,8 @@ struct AppSkillUseRenderer: View {
             return AnyView(ImagesSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
         } else if appId == "videos", skillId == "search" {
             return AnyView(VideosSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
-        } else if appId == "images", skillId == "generate" || skillId == "generate_draft" {
-            return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview))
+        } else if appId == "images", ImageGenerateCardState.skillIds.contains(skillId) {
+            return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview, status: embed.status, skillId: skillId))
         } else if appId == "images", skillId == "view" {
             let model = ImageViewSkillModel(embed: embed, allEmbedRecords: allEmbedRecords)
             return AnyView(ImageEmbedRenderer(
@@ -332,6 +332,8 @@ struct AppSkillUseRenderer: View {
             return AnyView(SearchDomainParentRenderer(embed: embed, kind: .nutrition, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "shopping", skillId == "search_products" {
             return AnyView(SearchDomainParentRenderer(embed: embed, kind: .shopping, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if appId == "jobs", skillId == "search" {
+            return AnyView(JobsSearchEmbedRenderer(embed: embed, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if isCalendarActionSkill {
             return AnyView(CalendarActionEmbedRenderer(embed: embed, data: data, skillId: skillId, mode: .preview))
         } else if isFitnessSearchSkill {
@@ -486,8 +488,8 @@ struct AppSkillUseRenderer: View {
             ImagesSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
         } else if appId == "videos", skillId == "search" {
             VideosSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
-        } else if appId == "images", skillId == "generate" || skillId == "generate_draft" {
-            ImageGenerateEmbedRenderer(data: data, mode: .fullscreen)
+        } else if appId == "images", ImageGenerateCardState.skillIds.contains(skillId) {
+            ImageGenerateEmbedRenderer(data: data, mode: .fullscreen, status: embed.status, skillId: skillId)
         } else if appId == "images", skillId == "view" {
             let model = ImageViewSkillModel(embed: embed, allEmbedRecords: allEmbedRecords)
             ImageEmbedRenderer(
@@ -511,6 +513,8 @@ struct AppSkillUseRenderer: View {
             SearchDomainParentRenderer(embed: embed, kind: .nutrition, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if appId == "shopping", skillId == "search_products" {
             SearchDomainParentRenderer(embed: embed, kind: .shopping, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if appId == "jobs", skillId == "search" {
+            JobsSearchEmbedRenderer(embed: embed, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if isCalendarActionSkill {
             CalendarActionEmbedRenderer(embed: embed, data: data, skillId: skillId, mode: .fullscreen)
         } else if isFitnessSearchSkill {
@@ -2239,7 +2243,8 @@ private struct RainRadarFullscreen: View {
                 Text(locationName).font(.omSmall).foregroundStyle(Color.grey70)
             }
             Text(model.summaryInTenMinutes ?? (unavailable ? AppStrings.rainRadarUnavailable : AppStrings.rainRadarNoRain))
-                .font(.omH1.weight(.bold))
+                .font(.omH3.weight(.bold))
+                .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(Color.grey100)
             if let nextTwoHours = model.summaryNextTwoHours {
                 Text(nextTwoHours).font(.omSmall).foregroundStyle(Color.grey70)

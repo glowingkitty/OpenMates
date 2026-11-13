@@ -103,3 +103,43 @@ def test_direct_release_cannot_claim_missing_managed_packaging_provenance(tmp_pa
     exec(compile(module, "inert-release-policy", "exec"), namespace)
     with pytest.raises(ValueError, match="managed isolated CI packaged openmates/sdk/v1 evidence"):
         namespace["run"](release=True, root=tmp_path)
+
+
+def test_rust_examples_prebuild_once_per_manifest_with_locked_dev_profile(tmp_path, monkeypatch):
+    """INERT: the one-time prebuild names exactly the examples that the literal
+    locked example-run adapters and the fixed gate runners will execute."""
+    import sys
+    root = tmp_path / "subject"
+    for manifest in ("packages/sdk/Cargo.toml", "packages/bindings/Cargo.toml"):
+        (root / manifest).parent.mkdir(parents=True)
+        (root / manifest).write_text("[package]\n")
+    runners = root / "tests/sdk-conformance/runners"
+    runners.mkdir(parents=True)
+    (runners / "gate.py").write_text('COMMAND = [\n    "cargo",\n    "run",\n    "--locked",\n'
+                                      '    "--manifest-path",\n    str(ROOT / "packages/bindings/Cargo.toml"),\n'
+                                      '    "--example",\n    "gate-worker",\n]\n')
+    launch = ["cargo", "run", "--quiet", "--locked", "--manifest-path"]
+    commands = [
+        [*launch, "packages/sdk/Cargo.toml", "--example", "b-conformance", "--", "--capability", "x"],
+        [*launch, "packages/sdk/Cargo.toml", "--example", "a-conformance", "--", "--capability", "y"],
+        [*launch, "packages/sdk/Cargo.toml", "--example", "a-conformance", "--", "--capability", "z"],
+        [*launch, "packages/bindings/Cargo.toml", "--example", "a-conformance", "--"],
+        [sys.executable, "tests/sdk-conformance/runners/gate.py", "--language", "rust"],
+        ["node", "tests/sdk-conformance/runners/other.mjs"],
+    ]
+    calls = []
+    driver = types.SimpleNamespace(root=root, commands=commands,
+                                   run=lambda command, **options: calls.append((command, options)))
+    monkeypatch.setattr(executor.os, "cpu_count", lambda: 16)
+    executor.prebuild_rust_examples(driver)
+    build = ["cargo", "build", "--quiet", "--locked", "--manifest-path"]
+    options = {"cwd": root, "capture_output": True, "text": True, "timeout": 1500}
+    assert calls == [
+        ([*build, "packages/bindings/Cargo.toml", "--jobs", "4", "--example", "a-conformance",
+          "--example", "gate-worker"], options),
+        ([*build, "packages/sdk/Cargo.toml", "--jobs", "4", "--example", "a-conformance",
+          "--example", "b-conformance"], options),
+    ]
+    commands.append([*launch, "../escape/Cargo.toml", "--example", "x", "--"])
+    with pytest.raises(sdk.Refused, match="prebuild_target"):
+        executor.prebuild_rust_examples(driver)

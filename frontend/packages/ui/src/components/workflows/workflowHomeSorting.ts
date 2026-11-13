@@ -28,11 +28,13 @@ function recency(left: SortableWorkflow, right: SortableWorkflow): number {
 export function sortWorkflowContinue<T extends SortableWorkflow>(items: readonly T[], nowMs = Date.now()): T[] {
   const now = nowMs / 1000;
   const bucket = (item: T): number => {
-    const editAge = now - latestEdit(item);
+    // The page clock ticks every 30 s, so an edit saved since the last tick is
+    // newer than `now`; it is the freshest edit, not one outside the window.
+    const editAge = Math.max(0, now - latestEdit(item));
     const run = futureRun(item, now);
-    if (editAge >= 0 && editAge <= 30 * MINUTE) return 0;
+    if (editAge <= 30 * MINUTE) return 0;
     if (run !== null && run - now <= 30 * MINUTE) return 1;
-    if (editAge >= 0 && editAge <= DAY) return 2;
+    if (editAge <= DAY) return 2;
     if (run !== null && run - now <= DAY) return 3;
     return 4;
   };

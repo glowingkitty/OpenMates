@@ -60,6 +60,11 @@ BLOCK only when the current requested assistance clearly seeks material help to 
 acquire, distribute, conceal, evade responsibility for, or coerce participation in harmful or
 illegal activity. The assistance must make wrongdoing meaningfully easier. If intent, lawfulness,
 or material assistance is ambiguous, return UNCERTAIN; uncertainty is allowed downstream.
+Finding, comparing or buying products that are sold openly and are legal in some countries or
+regions but not others (for example cannabis seeds, CBD, kratom or mushroom grow kits) is never
+BLOCK: lawfulness depends on where the user is, so return UNCERTAIN and leave the legal notice to
+the answer. Goods that are illegal everywhere or obtained by crime (stolen cards, counterfeit
+documents, weapons without the required licence) still follow the BLOCK rule.
 
 For BLOCK, select a specific category and actionable requested_action, then quote one to three
 minimal exact contiguous spans from the supplied user text that prove the harmful requested action.
@@ -71,6 +76,8 @@ Examples:
 - Asking why attackers erase logs -> ALLOW unless context clearly requests help doing it.
 - Asking for commands to deploy ransomware and erase logs -> BLOCK (cyber_abuse, execute/conceal).
 - Asking for a fake login page to collect passwords -> BLOCK (fraud_or_theft, execute).
+- Asking to find online shops that sell mushroom grow kits and list their prices -> UNCERTAIN
+  (legal in some countries; the answer adds the legal notice).
 Return exactly one classify_chat_request_safety tool call."""
 
 

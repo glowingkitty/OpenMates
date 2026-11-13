@@ -150,10 +150,13 @@ def test_approved_acknowledgement_catalog_has_three_confirming_variants_per_cate
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.acknowledgement.deterministic-free,assistant-speech.voice.fixed-versioned-mate-profile
 def test_acknowledgement_generation_plan_is_complete_and_unique(tmp_path: Path) -> None:
-    plan = build_plan("en-US", tmp_path)
+    full_plan = build_plan("en-US", tmp_path)
+    # Mate clips plus one neutral system clip that confirms a chat still being created.
+    plan = [item for item in full_plan if item["voice_profile_id"] != "system"]
+    assert [item["clip_id"] for item in full_plan if item not in plan] == ["system-en-US-chat_start-1"]
 
     assert len(plan) == 17 * 4 * 3
-    assert len({item["clip_id"] for item in plan}) == len(plan)
+    assert len({item["clip_id"] for item in full_plan}) == len(full_plan)
     assert {item["voice_profile_id"] for item in plan} == EXPECTED_MATE_PROFILE_KEYS
 
 

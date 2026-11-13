@@ -59,3 +59,13 @@ export async function withCanonicalEmbedWrite<T>(
     if (tails.get(embedId) === settled) tails.delete(embedId);
   }
 }
+
+/**
+ * Resolves once every canonical embed write running or queued NOW has settled
+ * (later writes are not awaited). Lets a user-pressed embed edit start the
+ * server-checked Rust session only after this page's streamed-embed writes are
+ * done, so the new session never joins an embed write midway.
+ */
+export function canonicalEmbedWritesSettled(): Promise<void> {
+  return Promise.all([...tails.values()]).then(() => undefined);
+}

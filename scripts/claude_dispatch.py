@@ -11,9 +11,17 @@ Two cron-driven entry points (see docs/architecture/infrastructure/claude-dispat
                dev api container (deterministic, server-generated signals only)
                and opens one investigation chat for new failure fingerprints.
 
-Chats are launched with ``claude --bg --remote-control <title> --model claude-sonnet-5-5 --effort high <prompt>`` from
-the canonical checkout, so they appear in the owner's Claude app on the
-dev-server bridge and can ask the admin for input there.
+Each chat runs ``claude --remote-control <title> --model <model> --effort <effort> <prompt>``
+(issue chats: claude-opus-5-5 at medium effort; prod-errors chats: claude-opus-5-5 at high effort)
+in its own tab of the persistent zellij session ``claude`` (created on demand,
+with a ``claude remote-control`` bridge tab), from the canonical checkout. It
+appears in the owner's Claude app and stays online while it waits for the
+admin's input. ``--bg`` is not used: background jobs retire after ~8h idle.
+
+Model policy: every chat started here defaults to Opus. Fable is much more
+expensive and runs only when a caller passes ``explicit_model=True`` for a user's
+explicit request (e.g. the voice connector's ``start_chat`` with model Fable);
+``launch_claude_chat`` refuses it otherwise, including from environment overrides.
 
 Prompts are built only from validated identifiers and server-defined labels;
 no report text or log message text is ever interpolated.
@@ -40,8 +48,11 @@ QUEUE_DIR = STATE_ROOT / "queue"
 PROCESSED_DIR = STATE_ROOT / "processed"
 PROD_STATE_FILE = STATE_ROOT / "prod-errors-state.json"
 LAUNCH_LOG = STATE_ROOT / "launches.jsonl"
-CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_MODEL", "claude-sonnet-5-5")
+DEFAULT_CHAT_MODEL = "claude-opus-5-5"
+CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_MODEL", DEFAULT_CHAT_MODEL)
 CLAUDE_EFFORT = os.getenv("CLAUDE_DISPATCH_EFFORT", "high")
+ISSUE_CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_ISSUE_MODEL", DEFAULT_CHAT_MODEL)
+ISSUE_CLAUDE_EFFORT = os.getenv("CLAUDE_DISPATCH_ISSUE_EFFORT", "medium")
 
 
 def resolve_claude_bin() -> str:
@@ -57,6 +68,8 @@ def resolve_claude_bin() -> str:
 
 
 CLAUDE_BIN = resolve_claude_bin()
+ZELLIJ_BIN = os.getenv("ZELLIJ_BIN") or shutil.which("zellij") or "/usr/local/bin/zellij"
+ZELLIJ_SESSION = os.getenv("CLAUDE_DISPATCH_ZELLIJ_SESSION", "claude")
 
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 SHORT_ID_RE = re.compile(r"^[A-HJ-NP-Z2-9]{5}$")
@@ -78,19 +91,97 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def launch_claude_chat(title: str, prompt: str) -> str:
-    """Start a background Remote Control session; returns the CLI's short id."""
+def _zellij(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
-        [CLAUDE_BIN, "--bg", "--remote-control", title, "--model", CLAUDE_MODEL,
-         "--effort", CLAUDE_EFFORT, "--permission-mode", "auto", prompt],
-        cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
+        [ZELLIJ_BIN, *args], cwd=REPO_ROOT, env=_zellij_env(),
+        capture_output=True, text=True, timeout=60,
     )
-    if result.returncode != 0:
-        raise DispatchError(f"claude exited {result.returncode}: {(result.stderr or result.stdout)[-500:]}")
-    match = re.search(r"backgrounded\s+·\s+(\S+)", result.stdout)
-    if not match:
-        raise DispatchError(f"could not read session id from claude output: {result.stdout[-300:]}")
-    return match.group(1)
+    if check and result.returncode != 0:
+        raise DispatchError(f"zellij {args[0]} exited {result.returncode}: {(result.stderr or result.stdout)[-500:]}")
+    return result
+
+
+def _zellij_env() -> dict[str, str]:
+    """Cron has no XDG_RUNTIME_DIR; without it zellij looks in another socket dir
+    and cannot see the live session, so pin it to the login runtime dir."""
+    env = dict(os.environ)
+    env.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+    return env
+
+
+def _chat_command(*claude_args: str) -> list[str]:
+    """Command for a zellij tab. Tabs inherit the zellij server's environment, and a
+    server started from cron has only the system PATH, so the chat could not find
+    user-installed tools (the `openmates` CLI). Put the user bin folders first."""
+    home = Path.home()
+    user_bins = [str(home / ".npm-global/bin"), str(home / ".local/bin")]
+    inherited = [part for part in os.environ.get("PATH", os.defpath).split(os.pathsep)
+                 if part and part not in user_bins]
+    path = os.pathsep.join([*user_bins, *inherited])
+    return ["/usr/bin/env", f"PATH={path}", CLAUDE_BIN, *claude_args]
+
+
+def _session_state(listing: str, name: str) -> str:
+    """'live', 'exited' or 'missing' for `name` in `zellij list-sessions -n` output."""
+    for line in listing.splitlines():
+        parts = line.split()
+        if parts and parts[0] == name:
+            return "exited" if "EXITED" in line else "live"
+    return "missing"
+
+
+def ensure_zellij_session() -> None:
+    """Make sure the persistent `claude` zellij session exists and hosts the
+    `claude remote-control` bridge (for new chats started from the app)."""
+    listing = _zellij("list-sessions", "-n", check=False).stdout
+    state = _session_state(listing, ZELLIJ_SESSION)
+    if state == "live":
+        return
+    if state == "exited":
+        _zellij("delete-session", ZELLIJ_SESSION, "--force", check=False)
+    _zellij("attach", "--create-background", ZELLIJ_SESSION)
+    _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", "remote-control",
+            "--cwd", str(REPO_ROOT), "--", *_chat_command("remote-control"))
+
+
+def is_fable(model: str) -> bool:
+    """True for any Fable model id or alias (claude-fable-5-2, fable, fable[1m])."""
+    return "fable" in model.lower()
+
+
+def check_chat_model(model: str, explicit_model: bool = False) -> str:
+    """Return the model a new chat may start on; Fable only for an explicit user request."""
+    if is_fable(model) and not explicit_model:
+        raise DispatchError(
+            f"refusing to start a chat on {model}: Fable runs only when the user explicitly asks for it "
+            f"(the default for new chats is {DEFAULT_CHAT_MODEL}); check CLAUDE_DISPATCH_*MODEL overrides"
+        )
+    return model
+
+
+def launch_claude_chat(
+    title: str, prompt: str, model: str = CLAUDE_MODEL, effort: str = CLAUDE_EFFORT, explicit_model: bool = False,
+) -> str:
+    """Open the chat as an interactive Remote Control session in its own tab of the
+    persistent zellij session; returns `<session>/<tab title>`.
+
+    `explicit_model` is set only by callers relaying a user's explicit model choice;
+    without it a Fable model is refused (`check_chat_model`).
+
+    Not `claude --bg`: background jobs are retired after ~8h idle at a prompt, which
+    takes chats that are waiting for the admin's answer offline in the Claude app.
+    Interactive sessions stay connected until the tab is closed.
+    """
+    check_chat_model(model, explicit_model)
+    command = _chat_command(
+        "--remote-control", title, "--model", model, "--effort", effort, "--permission-mode", "auto", prompt,
+    )
+    if is_fable(model):
+        # Tells the SessionStart Fable guard (scripts/fable_guard.py) this Fable chat was asked for.
+        command.insert(2, "OPENMATES_FABLE_REQUESTED=1")
+    ensure_zellij_session()
+    _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", str(REPO_ROOT), "--", *command)
+    return f"{ZELLIJ_SESSION}/{title}"
 
 
 def _record_launch(entry: dict[str, Any]) -> None:
@@ -100,6 +191,12 @@ def _record_launch(entry: dict[str, Any]) -> None:
 
 
 # ── Admin issue reports (dev) ────────────────────────────────────────────────
+
+def launch_issue_chat(title: str, prompt: str) -> str:
+    """Issue chats investigate and fix a reported issue end to end, so they run on
+    the issue model and effort instead of the dispatcher default."""
+    return launch_claude_chat(title, prompt, model=ISSUE_CLAUDE_MODEL, effort=ISSUE_CLAUDE_EFFORT)
+
 
 def parse_issue_request(raw: str) -> tuple[str, str]:
     data = json.loads(raw)
@@ -127,7 +224,7 @@ def issue_prompt(issue_id: str, short_id: str) -> str:
     )
 
 
-def dispatch_issues(launcher: Launcher = launch_claude_chat, dry_run: bool = False) -> list[dict[str, Any]]:
+def dispatch_issues(launcher: Launcher = launch_issue_chat, dry_run: bool = False) -> list[dict[str, Any]]:
     QUEUE_DIR.mkdir(parents=True, exist_ok=True)
     results: list[dict[str, Any]] = []
     for path in sorted(QUEUE_DIR.glob("issue-*.json"))[:MAX_ISSUE_LAUNCHES_PER_RUN]:
@@ -146,7 +243,7 @@ def dispatch_issues(launcher: Launcher = launch_claude_chat, dry_run: bool = Fal
         target = PROCESSED_DIR / ("ok" if outcome["status"] == "launched" else "failed")
         target.mkdir(parents=True, exist_ok=True)
         path.replace(target / f"{_now():%Y%m%dT%H%M%S}-{path.name}")
-        _record_launch({"kind": "issue", **outcome})
+        _record_launch({"kind": "issue", "model": ISSUE_CLAUDE_MODEL, **outcome})
         results.append(outcome)
     return results
 

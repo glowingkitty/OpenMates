@@ -3,13 +3,15 @@
 // unaffected. Browsers without `CSS.highlights` show the reply undimmed.
 //
 // Words are whitespace-separated tokens of readable text, matching how the
-// realtime speech turn counts words in its spoken source. Code blocks and
-// embeds are not spoken and are skipped. Read-only messages render the whole
-// editor as contenteditable=false, so editability is no embed signal.
+// realtime speech turn counts words in its spoken source. Code blocks, embeds
+// and anything marked `data-speech-skip` (the skill activity group, which shows
+// app use the call announces separately) are not spoken and are skipped.
+// Read-only messages render the whole editor as contenteditable=false, so
+// editability is no embed signal.
 
 export const UNSPOKEN_HIGHLIGHT_NAME = 'assistant-speech-unspoken';
 
-const SKIPPED_SELECTOR = 'pre, code, [data-embed-id], [data-embed-type]';
+const SKIPPED_SELECTOR = 'pre, code, [data-embed-id], [data-embed-type], [data-speech-skip]';
 const BLOCK_SELECTOR = 'p, li, blockquote, h1, h2, h3, h4, h5, h6, td, th';
 const rangesByRoot = new Map<Element, Range>();
 

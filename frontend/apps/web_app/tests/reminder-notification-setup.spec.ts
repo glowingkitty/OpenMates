@@ -12,34 +12,48 @@ const { deriveApiUrl } = require('./helpers/cli-test-helpers');
 const credentials = getTestAccount();
 const settingsPath = '/#settings/notifications/chat';
 
+const emailSettingsFrames = new WeakMap<Page, Record<string, number>>();
+
+/** Count email settings WebSocket frames seen by the page, independent of which client logs them. */
+function trackEmailSettingsFrames(page: Page) {
+	const counts: Record<string, number> = {};
+	emailSettingsFrames.set(page, counts);
+	page.on('websocket', (socket) => socket.on('framereceived', (frame) => {
+		try {
+			const type = JSON.parse(String(frame.payload)).type;
+			if (typeof type === 'string' && type.startsWith('email_notification_settings_')) {
+				counts[type] = (counts[type] ?? 0) + 1;
+			}
+		} catch { /* Other frames do not affect email settings. */ }
+	}));
+}
+
+async function waitForFrameAfter(page: Page, type: string, before: number) {
+	await expect.poll(() => emailSettingsFrames.get(page)?.[type] ?? 0, { timeout: 30_000 }).toBeGreaterThan(before);
+}
+
 function masterToggle(page: Page) {
 	return page.getByTestId('email-section').getByTestId('email-notifications-master')
 		.locator('input[type="checkbox"]');
 }
 
 async function openSettings(page: Page) {
-	const snapshot = page.waitForEvent('console', {
-		predicate: (message) => message.text().includes('email_notification_settings_snapshot received'),
-		timeout: 30_000
-	});
+	const snapshotsBefore = emailSettingsFrames.get(page)?.email_notification_settings_snapshot ?? 0;
 	if (new URL(page.url()).hash.split('&')[0] === '#settings/notifications/chat') {
 		await page.reload({ waitUntil: 'domcontentloaded' });
 	} else {
 		await page.goto(getE2EDebugUrl(settingsPath), { waitUntil: 'domcontentloaded' });
 	}
-	await snapshot;
+	await waitForFrameAfter(page, 'email_notification_settings_snapshot', snapshotsBefore);
 	await expect(masterToggle(page)).toBeEnabled();
 }
 
 async function setEnabled(page: Page, enabled: boolean) {
 	const checkbox = masterToggle(page);
 	if (await checkbox.isChecked() !== enabled) {
-		const ack = page.waitForEvent('console', {
-			predicate: (message) => message.text().includes('email_notification_settings_ack received'),
-			timeout: 30_000
-		});
+		const acksBefore = emailSettingsFrames.get(page)?.email_notification_settings_ack ?? 0;
 		await checkbox.locator('..').click();
-		await ack;
+		await waitForFrameAfter(page, 'email_notification_settings_ack', acksBefore);
 	}
 	await expect(checkbox).toHaveJSProperty('checked', enabled);
 }
@@ -49,6 +63,7 @@ test('reminder setup respects saved email settings and its activation action ope
 	skipWithoutCredentials(test, credentials.email, credentials.password, credentials.otpKey);
 	test.setTimeout(150_000);
 	const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL || deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+	trackEmailSettingsFrames(page);
 	const activationEvents: Array<{ action_deep_link?: string }> = [];
 	page.on('websocket', (socket) => socket.on('framereceived', (frame) => {
 		try {

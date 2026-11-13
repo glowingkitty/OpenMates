@@ -103,6 +103,11 @@
     onClose: () => void;
     /** Optional primary edit action in the top-right chrome. */
     onEdit?: () => void;
+    /** Image Enhance round button (see EmbedTopBar). */
+    onEnhance?: () => void;
+    enhanceState?: 'idle' | 'running' | 'failed' | 'unavailable';
+    enhanceError?: string;
+    enhanceUnavailableReason?: string;
     editActive?: boolean;
     /** Opt-in Edit placement/labels and Report-in-More layout (see EmbedTopBar). */
     editPlacement?: 'close' | 'share';
@@ -126,6 +131,10 @@
     downloadHref?: string | null;
     /** Suggested filename for prepared native-anchor downloads. */
     downloadFilename?: string;
+    /** Label of the main download action; defaults to the generic "Download". */
+    downloadLabel?: string;
+    /** Optional second download in PDF format, shown next to the main download. */
+    onDownloadPdf?: () => void;
     /** Optional calendar handler - downloads an .ics calendar file for scheduled embeds */
     onCalendar?: () => void;
     /** Optional run handler - starts sandbox execution for executable code embeds */
@@ -386,6 +395,10 @@
     skillId,
     onClose,
     onEdit,
+    onEnhance,
+    enhanceState,
+    enhanceError,
+    enhanceUnavailableReason,
     editActive = false,
     editPlacement = 'close',
     editTestId = 'embed-edit-button',
@@ -400,6 +413,8 @@
     isImporting = false,
     downloadHref = null,
     downloadFilename = 'download',
+    downloadLabel,
+    onDownloadPdf,
     onCalendar,
     onRun,
     onShare,
@@ -1522,6 +1537,8 @@
       showDownload={!!onDownload}
       {downloadHref}
       {downloadFilename}
+      {downloadLabel}
+      {onDownloadPdf}
       showCalendar={!!onCalendar}
       {showRun}
       {runActive}
@@ -1532,6 +1549,10 @@
       {showPIIIncludeOriginal}
       onClose={handleClose}
       {onEdit}
+      {onEnhance}
+      {enhanceState}
+      {enhanceError}
+      {enhanceUnavailableReason}
       {editActive}
       {editPlacement}
       {editTestId}

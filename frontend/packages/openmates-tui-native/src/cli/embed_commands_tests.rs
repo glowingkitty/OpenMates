@@ -8,6 +8,7 @@ fn invocation(path: &str) -> Invocation {
         flags: Default::default(),
     }
 }
+// contract-test: supporting surface=cli assertions=cli.migration.complete-compatible
 #[test]
 fn decimal_prefix_versions_and_strict_timeout_match_baseline() {
     for (raw, want) in [("2suffix", 2), (" +2", 2), ("2.9", 2), ("002", 2)] {
@@ -35,6 +36,7 @@ fn decimal_prefix_versions_and_strict_timeout_match_baseline() {
         );
     }
 }
+// contract-test: supporting surface=cli assertions=cli.migration.complete-compatible
 #[test]
 fn preview_json_and_human_output_preserve_fields_and_no_browser_launch() {
     let mut i = invocation("embeds preview open");
@@ -56,6 +58,7 @@ fn preview_json_and_human_output_preserve_fields_and_no_browser_launch() {
         value
     );
 }
+// contract-test: supporting surface=cli assertions=cli.migration.complete-compatible
 #[test]
 fn versions_keep_order_readonly_current_marker_and_utc_milliseconds() {
     let i = invocation("embeds versions list");
@@ -68,6 +71,7 @@ fn versions_keep_order_readonly_current_marker_and_utc_milliseconds() {
     assert!(out.stdout.contains("Read-only shared history"));
     assert_eq!(out.exit_code, 0);
 }
+// contract-test: supporting surface=cli assertions=cli.migration.complete-compatible
 #[test]
 fn actual_parser_admits_six_bounded_routes_and_no_project_grant() {
     for argv in [
@@ -112,6 +116,7 @@ fn actual_parser_admits_six_bounded_routes_and_no_project_grant() {
         assert!(!supported(&invocation(path)));
     }
 }
+// contract-test: supporting surface=cli assertions=cli.migration.complete-compatible
 #[tokio::test]
 async fn missing_confirmation_never_starts_sdk_io() {
     let mut sdk = OpenMates::new(openmates_sdk::SdkOptions {
@@ -134,6 +139,7 @@ async fn missing_confirmation_never_starts_sdk_io() {
     ));
 }
 
+// contract-test: supporting surface=cli assertions=cli.migration.complete-compatible
 #[test]
 fn version_show_formatting_matches_actual_maintained_handler_oracle() {
     let f: Value = serde_json::from_str(include_str!(
@@ -169,6 +175,7 @@ fn version_show_formatting_matches_actual_maintained_handler_oracle() {
     assert!(supported(&invocation("embeds versions show")));
     assert!(!supported(&invocation("embeds show")));
 }
+// contract-test: supporting surface=cli assertions=cli.migration.complete-compatible
 #[test]
 fn version_show_keeps_only_trusted_styling_and_preserves_json_payloads() {
     for (payload, escaped) in [
@@ -231,6 +238,7 @@ fn version_show_keeps_only_trusted_styling_and_preserves_json_payloads() {
         }
     }
 }
+// contract-test: supporting surface=cli assertions=cli.migration.complete-compatible
 #[cfg(unix)]
 #[test]
 fn output_is_private_atomic_durable_and_refuses_symlink_or_late_denial() {
@@ -281,6 +289,7 @@ fn output_is_private_atomic_durable_and_refuses_symlink_or_late_denial() {
     }));
 }
 
+// contract-test: supporting surface=cli assertions=cli.migration.complete-compatible
 #[tokio::test]
 async fn cookie_version_flags_and_short_selector_refuse_before_account_io() {
     let mut client = openmates_sdk::Client::new("http://127.0.0.1:9", None).unwrap();
@@ -301,4 +310,18 @@ async fn cookie_version_flags_and_short_selector_refuse_before_account_io() {
         .err()
         .unwrap_or_else(|| panic!("unknown flag admitted"));
     assert!(!error.to_string().contains("synthetic-private-value"));
+}
+
+// contract-test: supporting surface=cli assertions=embed-user-edits.edit.next-version,embed-user-edits.restore.creates-version
+#[test]
+fn versions_list_names_who_made_each_version_and_the_action() {
+    let i = invocation("embeds versions list");
+    let value = json!({"embed_id":"embed-synthetic","current_version":3,"versions":[
+        {"version_number":3,"created_at":0,"revision_origin":"user","revision_action":"restore"},
+        {"version_number":2,"created_at":0,"revision_origin":"user","revision_action":"enhance"},
+        {"version_number":1,"created_at":0,"revision_origin":"assistant","revision_action":null}]});
+    let out = versions_output(&i, value).unwrap_or_else(|_| panic!("synthetic versions"));
+    assert!(out.stdout.contains("v3 (current)  1970-01-01T00:00:00.000Z  by you · restore\n"));
+    assert!(out.stdout.contains("v2  1970-01-01T00:00:00.000Z  by you · enhance\n"));
+    assert!(out.stdout.contains("v1  1970-01-01T00:00:00.000Z  by the assistant\n"));
 }

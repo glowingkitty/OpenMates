@@ -20,6 +20,8 @@ from backend.shared.python_utils.encrypted_slug_metadata import (
 
 logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
+# Hard cap on rows scanned to resolve a uuid keyset cursor (Directus has no _gt on uuid).
+PLAN_CHILD_CURSOR_SCAN_CAP = 5000
 KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 
 
@@ -743,17 +745,23 @@ class UserPlanMethods:
     ) -> list[dict[str, Any]]:
         """Read opaque Plan children; the caller authorizes their parent first."""
         params = {"filter[plan_id][_eq]": plan_id, "fields": fields, "sort": "created_at"}
+        page_size = max(1, min(limit, 500)) + 1
         if paginate:
-            params.update(sort="id", limit=max(1, min(limit, 500)) + 1)
-            if cursor is not None:
-                params["filter[id][_gt]"] = cursor
+            # Directus rejects _gt on uuid ids, so a cursor reads the plan's rows
+            # (hard-capped) in id order and slices after the cursor here.
+            params.update(sort="id", limit=PLAN_CHILD_CURSOR_SCAN_CAP + 1 if cursor is not None else page_size)
         response = await self.directus_service.get_items(
             collection, params=params, no_cache=True,
             **({"raise_on_error": True} if paginate else {}),
         )
         if paginate and not isinstance(response, list):
             raise RuntimeError("Invalid Plan child inventory response")
-        return response if isinstance(response, list) else []
+        rows = response if isinstance(response, list) else []
+        if paginate and cursor is not None:
+            if len(rows) > PLAN_CHILD_CURSOR_SCAN_CAP:
+                raise RuntimeError("Plan child inventory exceeds the cursor scan cap")
+            rows = [row for row in rows if str(row.get("id", "")).lower() > cursor.lower()][:page_size]
+        return rows
 
     async def list_criteria(self, plan_id: str, *, paginate: bool = False,
                           limit: int = 100, cursor: str | None = None) -> list[dict[str, Any]]:

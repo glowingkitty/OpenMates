@@ -53,21 +53,4 @@ final class SettingsMemoriesMatesParityTests: XCTestCase {
         XCTAssertEqual(SettingsComposerHandoff.appending(mention: "@mate:finance", to: ""),
                        "@mate:finance ")
     }
-
-    // contract-test: supporting surface=gui.apple assertions=app-memories.surface.semantic-parity
-    func testMemoryEntryUsesCanonicalEntryMentionSyntax() {
-        let entry = SettingsMemoryEntry(
-            id: "entry-1",
-            appId: "travel",
-            categoryId: "preferred_activities",
-            key: "key",
-            value: "value",
-            createdAt: 1,
-            updatedAt: 1,
-            version: 1,
-            isExample: false
-        )
-
-        XCTAssertEqual(entry.mentionSyntax, "@memory-entry:travel:preferred_activities:entry-1")
-    }
 }

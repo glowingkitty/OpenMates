@@ -1,9 +1,15 @@
 //! Project CLI authoring through the locally encrypted, typed SDK namespace.
 mod ask;
+mod command_protection;
 mod command_settings;
+mod commits;
+mod created;
 mod files;
 mod focus;
+mod hosted;
 mod items;
+mod remote_create;
+mod remote_ops;
 mod sources;
 use super::{CliError, CliOutput, Invocation, task_input as input};
 use crate::{client::Client, error::Error, runtime_store::RuntimeStore};
@@ -57,13 +63,33 @@ pub(super) fn supported(i: &Invocation) -> bool {
             | "projects items remove"
             | "projects sources list"
             | "projects sources remove"
+            | "projects commit"
+            | "projects created"
+            | "projects undo-create"
+            | "projects commits list"
+            | "projects commits show"
+            | "projects commits restore"
+            | "projects hosted list"
+            | "projects hosted read"
+            | "projects hosted create"
+            | "projects hosted update"
+            | "projects hosted rename"
+            | "projects hosted delete"
+            | "projects hosted adopt"
             | "projects files list"
             | "projects files search"
             | "projects files read"
+            | "projects remote run"
+            | "projects remote git status"
+            | "projects remote git commit"
+            | "projects remote git land"
+            | "projects remote hosts"
+            | "projects remote create"
             | "projects settings focus activate"
             | "projects settings focus deactivate"
             | "projects settings command stop"
             | "projects settings command-presets list"
+            | "projects settings command-presets enable"
             | "projects settings command-presets disable"
             | "projects settings command-resources list"
             | "projects settings command-resources enable writable"
@@ -74,6 +100,7 @@ pub(super) fn supported(i: &Invocation) -> bool {
             | "projects settings command-resources disable credential"
     )
 }
+pub(super) use created::card_text;
 fn check(i: &Invocation, allowed: &[&str]) -> Result<(), CliError> {
     for (key, value) in &i.flags {
         if !GLOBALS.contains(&key.as_str()) && !allowed.contains(&key.as_str()) {
@@ -283,6 +310,11 @@ fn with_project(mut output: CliOutput, id: &str, json: bool) -> Result<CliOutput
         let mut value: Value =
             serde_json::from_str(&output.stdout).map_err(|_| CliError::Client(Error::Protocol))?;
         value["project_id"] = json!(id);
+        // npm `projects tasks|plans --json` prints only {project_id, tasks|plans};
+        // the delegated `tasks list` completeness marker is not part of it.
+        if let Some(object) = value.as_object_mut() {
+            object.remove("complete");
+        }
         output = CliOutput::json(&value)?;
     }
     Ok(output)
@@ -380,11 +412,26 @@ async fn execute_service(
     if i.path.get(1).map(String::as_str) == Some("items") {
         return items::execute(i, &mut service).await;
     }
+    if matches!(i.command_path().as_str(), "projects created" | "projects undo-create") {
+        return created::execute(i, &mut service).await;
+    }
+    if i.command_path() == "projects commit" {
+        return commits::create(i, &mut service).await;
+    }
+    if i.command_path().starts_with("projects hosted ") {
+        return hosted::execute(i, &mut service).await;
+    }
+    if i.command_path().starts_with("projects commits ") {
+        return commits::execute(i, &mut service).await;
+    }
     if i.command_path() == "projects sources list" {
         return sources::execute(i, &mut service, &cancel).await;
     }
     if i.command_path().starts_with("projects files ") {
         return files::execute(i, &mut service).await;
+    }
+    if i.command_path().starts_with("projects remote ") {
+        return remote_ops::execute(i, &mut service).await;
     }
     if i.command_path().starts_with("projects settings command") {
         return command_settings::execute(i, &mut service).await;
@@ -652,15 +699,15 @@ mod tests {
         assert!(delegated.boolean("personal"));
         assert_eq!(delegated.text("project"), Some("canonical"));
         let output = with_project(
-            CliOutput::json(&json!({"tasks":[]})).ok().unwrap(),
+            CliOutput::json(&json!({"tasks":[],"complete":true})).ok().unwrap(),
             "canonical",
             true,
         )
         .ok()
         .unwrap();
         assert_eq!(
-            serde_json::from_str::<Value>(&output.stdout).unwrap()["project_id"],
-            "canonical"
+            serde_json::from_str::<Value>(&output.stdout).unwrap(),
+            json!({"project_id":"canonical","tasks":[]})
         );
     }
 }

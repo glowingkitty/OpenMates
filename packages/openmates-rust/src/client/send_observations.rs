@@ -7,6 +7,7 @@ pub(super) struct SendObservations {
     pub(super) model: Option<String>,
     pub(super) mate: Option<String>,
     pub(super) suggestions: Vec<String>,
+    pub(super) recommendations: Vec<Value>,
     pub(super) suggested: Option<Option<String>>,
     pub(super) proposals: Vec<Value>,
     pub(super) updates: Vec<Value>,
@@ -16,6 +17,7 @@ pub(super) struct SendObservations {
     pub(super) memories: Vec<SendMemoryRequest>,
     pub(super) usage: Option<Value>,
     pub(super) budget: Option<Value>,
+    pub(super) project_create: super::project_create_request::ProjectCreateState,
 }
 impl SendObservations {
     /// The caller establishes current chat/user/turn/task ownership first.
@@ -71,6 +73,13 @@ impl SendObservations {
                     .filter_map(Value::as_str)
                     .filter(|v| !v.is_empty())
                     .map(str::to_owned)
+                    .collect();
+            }
+            if let Some(rows) = p["recommendations"].as_array() {
+                // Only well-formed rows survive so CLI output never shows junk.
+                self.recommendations = super::recommendations::recommendations_from_payload(rows)
+                    .iter()
+                    .filter_map(|row| serde_json::to_value(row).ok())
                     .collect();
             }
             for (wire, target) in [
@@ -138,6 +147,13 @@ impl SendObservations {
             .and_then(|id| chat.messages.iter().find(|m| m.id == id))
             .map(|m| m.content.clone())
             .unwrap_or_default();
+        // Like the npm CLI, the mate comes from the category when the server omits it.
+        let mate_name = self.mate.or_else(|| {
+            self.category
+                .as_deref()
+                .and_then(super::search::mate_name)
+                .map(str::to_owned)
+        });
         SendOutcome {
             chat_id: chat.id.clone(),
             chat,
@@ -149,8 +165,9 @@ impl SendObservations {
             assistant: content,
             category: self.category,
             model_name: self.model,
-            mate_name: self.mate,
+            mate_name,
             follow_up_suggestions: self.suggestions,
+            recommendations: self.recommendations,
             suggested_followup_message: self.suggested,
             task_proposals: self.proposals,
             task_update_proposals: self.updates,
@@ -160,6 +177,9 @@ impl SendObservations {
             app_settings_memory_requests: self.memories,
             token_usage: self.usage,
             prompt_budget: self.budget,
+            project_creations: self.project_create.cards(),
+            project_embed_adoptions: self.project_create.adoptions(),
+            memory_writes: self.project_create.memory_jobs.records(),
         }
     }
 }
@@ -185,6 +205,25 @@ mod tests {
             )
             .unwrap();
         assert_eq!(observed.suggested.unwrap().unwrap().len(), 400);
+    }
+    #[test]
+    fn post_processing_recommendations_keep_only_well_formed_rows() {
+        let mut observed = SendObservations::default();
+        let good = json!({"id":"r1","kind":"memory","action":"create","target_id":null,"title":"T","summary":"S"});
+        observed
+            .capture_owned(
+                "post_processing_completed",
+                &json!({"recommendations":[good,{"id":"bad"},"x"]}),
+            )
+            .unwrap();
+        assert_eq!(observed.recommendations, vec![good.clone()]);
+        // Other frame kinds never touch the field.
+        observed
+            .capture_owned("ai_message_update", &json!({"recommendations":[]}))
+            .unwrap();
+        assert_eq!(observed.recommendations.len(), 1);
+        let outcome = observed.finish(Chat::default(), "u", None, SendStatus::Completed);
+        assert_eq!(outcome.recommendations, vec![good]);
     }
     #[test]
     fn jobs_require_exact_chat_and_remain_pending_without_a_persistence_receipt() {

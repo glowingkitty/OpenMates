@@ -234,6 +234,28 @@ resolvers.set("app:business:search_trademarks", async ({ embedId, decodedContent
   } };
 });
 
+resolvers.set("app:business:search_investors", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import("../components/embeds/business/BusinessInvestorSearchEmbedPreview.svelte");
+  return { component, props: {
+    id: embedId,
+    data: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status),
+    isMobile: false,
+    onFullscreen,
+  } };
+});
+
+resolvers.set("app:business:company_ownership", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import("../components/embeds/business/BusinessCompanyOwnershipEmbedPreview.svelte");
+  return { component, props: {
+    id: embedId,
+    data: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status),
+    isMobile: false,
+    onFullscreen,
+  } };
+});
+
 resolvers.set("app:hosting:search_domains", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
   const { default: component } = await import("../components/embeds/hosting/HostingSearchEmbedPreview.svelte");
   return { component, props: {
@@ -691,14 +713,17 @@ resolvers.set("music-generated-music", async ({ embedId, decodedContent, embedDa
 });
 
 resolvers.set("videos-generated-video", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
-  const { default: component } = await import('../components/embeds/videos/VideoGenerateEmbedPreview.svelte');
+  const [{ default: component }, { videoGenerateCardProps }] = await Promise.all([
+    import('../components/embeds/videos/VideoGenerateEmbedPreview.svelte'),
+    import('../components/embeds/videos/videoGenerateCard'),
+  ]);
   return { component, props: {
     id: embedId, prompt: decodedContent.prompt, model: decodedContent.model,
     durationSeconds: decodedContent.duration_seconds, resolution: decodedContent.resolution,
     s3BaseUrl: decodedContent.s3_base_url, files: decodedContent.files,
     aesKey: decodedContent.aes_key, aesNonce: decodedContent.aes_nonce,
-    previewVideoUrl: decodedContent.previewVideoUrl ?? decodedContent.preview_video_url,
     previewImageUrl: decodedContent.previewImageUrl ?? decodedContent.preview_image_url,
+    error: decodedContent.error, ...videoGenerateCardProps(decodedContent),
     status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen,
   } };
 });
@@ -713,14 +738,23 @@ resolvers.set("models3d-generated-model", async ({ embedId, decodedContent, embe
   } };
 });
 
+resolvers.set("design-embroidery", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/design/DesignEmbroideryEmbedPreview.svelte');
+  return { component, props: {
+    id: embedId, content: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen,
+  } };
+});
+
 // An app-skill-use generation parent has no media file of its own. Resolve it
 // as a group card; concrete generated_* children keep their leaf previews.
 for (const [appId, skillIds, leafKey] of [
-  ['images', ['generate', 'generate_draft', 'vectorize'], 'images-generated-image'],
+  ['images', ['generate', 'generate_draft', 'vectorize', 'modify'], 'images-generated-image'],
   ['audio', ['generate', 'speak'], 'audio-generated-audio'],
   ['music', ['generate'], 'music-generated-music'],
   ['videos', ['generate'], 'videos-generated-video'],
   ['models3d', ['generate'], 'models3d-generated-model'],
+  ['design', ['embroidery'], 'design-embroidery'],
 ] as const) {
   const leafResolver = resolvers.get(leafKey);
   for (const skillId of skillIds) {
@@ -1005,6 +1039,29 @@ const codeResolver: PreviewResolver = async ({
     },
   };
 };
+// Hosted application card (chat mounts it through GroupRenderer; Projects use this resolver).
+resolvers.set("code-application", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } =
+    await import("../components/embeds/code/ApplicationEmbedPreview.svelte");
+  return {
+    component,
+    props: {
+      id: embedId,
+      name: decodedContent.name || decodedContent.title,
+      framework: decodedContent.framework,
+      runtime: decodedContent.runtime,
+      file_refs: Array.isArray(decodedContent.file_refs) ? decodedContent.file_refs : [],
+      entrypoints: Array.isArray(decodedContent.entrypoints) ? decodedContent.entrypoints : [],
+      latest_screenshot_url: decodedContent.latest_screenshot_url,
+      latest_screenshot: decodedContent.latest_screenshot,
+      status: normalizeStatus(embedData.status),
+      taskId: decodedContent.task_id,
+      isMobile: false,
+      onFullscreen,
+    },
+  };
+});
+
 // All known type strings that mean "code embed"
 resolvers.set("code-code", codeResolver);
 resolvers.set("code", codeResolver); // legacy server type
@@ -1136,6 +1193,35 @@ resolvers.set("document", docsResolver); // legacy server type
 // App-skill route for docs app
 resolvers.set("app:docs:doc", docsResolver);
 
+// ── Direct: slides (slides_markup deck) ──────────────────────────────────────
+
+const slidesDeckResolver: PreviewResolver = async ({
+  embedId,
+  decodedContent,
+  embedData,
+  onFullscreen,
+}) => {
+  const { default: component } =
+    await import("../components/embeds/slides/SlidesDeckEmbedPreview.svelte");
+  return {
+    component,
+    props: {
+      id: embedId,
+      status: normalizeStatus(embedData.status) as
+        | "processing"
+        | "finished"
+        | "error",
+      title: decodedContent.title || "",
+      slideCount: decodedContent.slide_count || 0,
+      slidesMarkup: decodedContent.slides_markup || "",
+      isMobile: false,
+      onFullscreen,
+    },
+  };
+};
+resolvers.set("slides-deck", slidesDeckResolver);
+resolvers.set("deck", slidesDeckResolver); // backend type name
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -1165,6 +1251,7 @@ const directResults: Array<[string, DirectPreviewModule, DirectPreviewFields]> =
     licenseName: d.license_name, licenseSpdxId: d.license_spdx_id, stars: d.stars, forks: d.forks,
     openIssues: d.open_issues, updatedAt: d.updated_at,
   })],
+  ['code-test-result', () => import('../components/embeds/code/TestResultEmbedPreview.svelte'), d => ({ ...d })],
   ['electronics-component', () => import('../components/embeds/electronics/ElectronicsComponentEmbedPreview.svelte'), d => ({ ...d })],
   ['business-company-financial-result', () => import('../components/embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte'), d => ({
     company: d.company ?? d.title, ticker: d.ticker, fiscalYear: d.fiscal_year, fiscalQuarter: d.fiscal_quarter,

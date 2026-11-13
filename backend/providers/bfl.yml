@@ -38,15 +38,18 @@ models:
       #   name: "BFL API"
     pricing:
       per_unit:
-        credits: 15
+        credits: 20
         unit_name: "image"
     costs:
       # fal.ai charges $0.011/MP output. A 1024×1024 image is 1MP → $0.011/image.
-      # At 3× markup: $0.033 → 33 credits, rounded up to 15 credits (our rate includes some subsidy).
       output_per_megapixel:
         price: 0.011
         currency: USD
 
+      per_image:
+        price: 0.011
+        currency: USD
+        note: 1 MP output at $0.011/MP
   - id: "flux-2-klein-edit"
     name: "FLUX.2 [klein] 4B Edit"
     description: "FLUX.2 [klein] 4B Base image-to-image editing model. Accepts 1-4 reference images alongside a text prompt for style transfer, composition editing, or reference-guided generation."
@@ -67,20 +70,23 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 15
+        credits: 30
         unit_name: "image"
     costs:
       # fal.ai charges $0.009/MP for BOTH input and output on the edit endpoint.
       # Typical call: 1MP output + 1MP input (each reference image is resized to 1MP) = $0.018/image.
-      # We charge 15 credits (same as the 9B text-to-image model) for user-friendliness.
       output_per_megapixel:
         price: 0.009
         currency: USD
       input_per_megapixel:
         price: 0.009
         currency: USD
+      per_image:
+        price: 0.018
+        currency: USD
+        note: 1 MP input + 1 MP output at $0.009/MP
 
-# Pricing Formula:
-# 1. Your price to user = your_cost_per_unit * markup
-# 2. Credits per unit = your_price_to_user / credit_value_usd (0.001)
-# Simplified: credits_per_unit = your_cost_per_unit * 3000
+# Customer pricing: every `pricing` value is derived from `costs` (supplier USD)
+# as cost x (1 + pricing.margin_percent in backend/config/backend_config.yml),
+# rounded up to 5-credit steps (1 credit = $0.001). Regenerate with
+# `python3 scripts/derive_customer_prices.py --write`; tests fail on drift.

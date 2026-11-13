@@ -13459,14 +13459,14 @@ providers.ai_models.google_gemini_v2.description:
   en: Google's Gemini API processes eligible chat messages when normal routing selects a Gemini model, including ordinary
     text turns submitted from voice calls. On the Gemini correction route for audio recordings, Gemini corrects raw Mistral
     voice transcripts and creates titles, and may process prompts, reference images, screenshots, or generated code for
-    image generation or editing, Veo video generation, and screenshot-to-HTML conversion. Raw recording transcripts do
+    image generation or editing, Gemini Omni video generation, and screenshot-to-HTML conversion. Raw recording transcripts do
     not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not
     used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context,
     and outputs may be retained for 55 days.
   de: Die Gemini-API von Google verarbeitet geeignete Chatnachrichten, wenn die normale KI-Auswahl ein Gemini-Modell bestimmt,
     einschließlich gewöhnlicher Textbeiträge aus Sprachanrufen. Auf dem Gemini-Korrekturweg für Audioaufnahmen korrigiert
     Gemini Mistral-Rohtranskripte und erstellt Titel. Gemini kann außerdem Prompts, Referenzbilder, Screenshots oder erzeugten
-    Code für die Bilderzeugung oder -bearbeitung, die Veo-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten.
+    Code für die Bilderzeugung oder -bearbeitung, die Gemini-Omni-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten.
     Rohtranskripte von Aufnahmen erhalten nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut den Bedingungen
     für die kostenpflichtige Gemini-API von Google werden Prompts und Ausgaben nicht zur Verbesserung seiner Produkte
     verwendet; die aktuelle Dokumentation zur Missbrauchsüberwachung gibt jedoch an, dass protokollierte Prompts, Kontext
@@ -13518,8 +13518,8 @@ providers.business_data.heading:
   verified_by_human: []
 providers.business_data.description:
   context: Provider group description for public company information
-  en: These providers are used when you request company financial information or trademark searches.
-  de: Diese Anbieter werden verwendet, wenn du Finanzinformationen zu Unternehmen oder Markenrecherchen anforderst.
+  en: These providers are used when you request company financial information, company ownership lookups, or trademark searches.
+  de: Diese Anbieter werden verwendet, wenn du Finanzinformationen zu Unternehmen, Eigentümerabfragen zu Unternehmen oder Markenrecherchen anforderst.
   verified_by_human: []
 providers.business_data.sec_edgar.heading:
   context: Provider heading for SEC EDGAR
@@ -13533,6 +13533,36 @@ providers.business_data.sec_edgar.description:
   de: Die SEC erhält den ausdrücklich angegebenen Unternehmensnamen, das Börsenkürzel oder die CIK sowie die für die Recherche
     zu einem börsennotierten Unternehmen benötigten Angaben zu Einreichungen oder Zeiträumen. Anfragen werden serverseitig
     ohne eine OpenMates-Nutzerkennung gesendet.
+  verified_by_human: []
+providers.business_data.openregister.heading:
+  context: Provider heading for OpenRegister
+  en: "OpenRegister"
+  de: "OpenRegister"
+  verified_by_human: []
+providers.business_data.openregister.description:
+  context: OpenRegister lookup disclosure
+  en: "OpenRegister receives the company name, register number, or person name you ask to look up in the German commercial register. Requests are sent server-side without an OpenMates user identifier; birth dates and private addresses in the reply are discarded."
+  de: "OpenRegister erhält den Unternehmensnamen, die Registernummer oder den Personennamen, den du im deutschen Handelsregister nachschlagen möchtest. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet; Geburtsdaten und private Adressen in der Antwort werden verworfen."
+  verified_by_human: []
+providers.business_data.companies_house.heading:
+  context: Provider heading for Companies House
+  en: "Companies House"
+  de: "Companies House"
+  verified_by_human: []
+providers.business_data.companies_house.description:
+  context: Companies House lookup disclosure
+  en: "Companies House receives the company name, company number, or officer name you ask to look up in the UK company register. Requests are sent server-side without an OpenMates user identifier; birth dates and addresses in the reply are discarded."
+  de: "Companies House erhält den Unternehmensnamen, die Unternehmensnummer oder den Namen der Person, den du im britischen Unternehmensregister nachschlagen möchtest. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet; Geburtsdaten und Adressen in der Antwort werden verworfen."
+  verified_by_human: []
+providers.business_data.recherche_entreprises.heading:
+  context: Provider heading for Annuaire des Entreprises
+  en: "Annuaire des Entreprises"
+  de: "Annuaire des Entreprises"
+  verified_by_human: []
+providers.business_data.recherche_entreprises.description:
+  context: Annuaire des Entreprises lookup disclosure
+  en: "The French State company directory (Annuaire des Entreprises) receives the company name, SIREN, or person name you ask to look up. Requests are sent server-side without an OpenMates user identifier; birth years and nationality in the reply are discarded."
+  de: "Das französische staatliche Unternehmensverzeichnis (Annuaire des Entreprises) erhält den Unternehmensnamen, die SIREN oder den Personennamen, den du nachschlagen möchtest. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet; Geburtsjahre und Staatsangehörigkeit in der Antwort werden verworfen."
   verified_by_human: []
 providers.weather.heading:
   context: Provider group heading for weather data

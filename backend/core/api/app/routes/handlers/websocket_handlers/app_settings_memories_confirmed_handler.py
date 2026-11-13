@@ -17,12 +17,14 @@ import logging
 import time
 import json
 import os
+import uuid
 import yaml
 from datetime import datetime, timezone
 from typing import Dict, Any, List
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.shared.python_utils.voice_call_admission import resumed_voice_delivery
 from backend.shared.python_utils.app_memory_policy import (
     REMOVED_APP_MEMORY_ERROR,
     is_removed_app_memory,
@@ -336,6 +338,52 @@ async def _cache_app_settings_memories(
     return cached_count
 
 
+async def _requested_memory_catalog(
+    pending_context: Dict[str, Any],
+    requested_keys: List[str],
+    encryption_service: EncryptionService,
+    user_vault_key_id: str,
+) -> List[Dict[str, Any]]:
+    """Decrypt the stored metadata snapshot and keep only requested ``memory:<id>`` rows."""
+    ciphertext = pending_context.get("memory_catalog_ciphertext")
+    requested = {key for key in requested_keys if isinstance(key, str) and key.startswith("memory:")}
+    if not ciphertext or not requested:
+        return []
+    plaintext = await encryption_service.decrypt_with_user_key(ciphertext, user_vault_key_id)
+    if not plaintext:
+        logger.warning("Memory catalog snapshot could not be decrypted; no Memories will apply")
+        return []
+    try:
+        rows = json.loads(plaintext)
+    except json.JSONDecodeError:
+        logger.warning("Memory catalog snapshot is malformed; no Memories will apply")
+        return []
+    if not isinstance(rows, list):
+        return []
+    return [row for row in rows if isinstance(row, dict) and f"memory:{row.get('id')}" in requested]
+
+
+async def _claim_continuation_task(
+    cache_service: CacheService, chat_id: str, original_task_id: str,
+) -> tuple[str, bool]:
+    """Reserve the chat's active-task marker for the continuation before dispatch.
+
+    The paused source task releases the marker when it finishes, so the
+    continuation would otherwise run unowned: a Focus activation it pauses for
+    can then never resume (the resumed task must find its root still active).
+    A source that has not finished yet hands the marker over atomically. A
+    marker held by a newer turn is never taken; that continuation runs unowned.
+    """
+    child_task_id = str(uuid.uuid4())
+    if await cache_service.try_claim_active_ai_task(chat_id, child_task_id):
+        return child_task_id, True
+    if original_task_id and await cache_service.transfer_active_ai_task(
+        chat_id, original_task_id, child_task_id,
+    ):
+        return child_task_id, True
+    return child_task_id, False
+
+
 async def _trigger_continuation(
     cache_service: CacheService,
     directus_service: DirectusService,
@@ -343,7 +391,7 @@ async def _trigger_continuation(
     user_id: str,
     chat_id: str,
     device_fingerprint_hash: str,
-    is_rejection: bool
+    is_rejection: bool,
 ) -> None:
     """
     Load pending request context and trigger a new ask_skill task.
@@ -496,6 +544,11 @@ async def _trigger_continuation(
             logger.debug(f"App settings/memories metadata keys for continuation: {app_settings_memories_metadata}")
         
         request_data_dict = {
+            # Body-free catalog snapshot restricted to ids requested in this pending
+            # request; the continuation accepts memory content for these ids only.
+            "memory_catalog": await _requested_memory_catalog(
+                pending_context, requested_keys, encryption_service, user_vault_key_id,
+            ),
             "chat_id": chat_id,
             "message_id": message_id,
             "user_id": user_id,
@@ -509,6 +562,11 @@ async def _trigger_continuation(
             "mate_id": mate_id,
             "active_focus_id": active_focus_id,
             "user_preferences": user_preferences,
+            # Spoken call delivery of the paused turn; a call that has ended
+            # since then continues as a text turn.
+            **await resumed_voice_delivery(
+                cache_service, pending_context, user_id=user_id, chat_id=chat_id,
+            ),
             "embed_file_path_index": embed_file_path_index,
             "has_image_upload_embed": has_image_upload_embed,
             # Pass the app_settings_memories_metadata so preprocessing knows what's available
@@ -522,6 +580,8 @@ async def _trigger_continuation(
             # recovery_task_id stays unset: only the original task claims inference.
             "recovery_inference_task_id": pending_context.get("recovery_inference_task_id"),
             "recovery_preflight_id": pending_context.get("recovery_preflight_id"),
+            # Inherited root admission of a turn admitted without a recovery turn.
+            "root_legacy_cutover_task_id": pending_context.get("root_legacy_cutover_task_id"),
             "recovery_turn_id": pending_context.get("recovery_turn_id"),
             "recovery_public_key": pending_context.get("recovery_public_key"),
             "chat_key_version": pending_context.get("chat_key_version"),
@@ -541,7 +601,16 @@ async def _trigger_continuation(
         # Trigger the task with the original request parameters
         # The task will find app settings/memories in cache (if confirmed)
         # or process without them (if rejected)
+        continuation_task_id, owns_chat = await _claim_continuation_task(
+            cache_service, chat_id, original_task_id,
+        )
+        if not owns_chat:
+            logger.warning(
+                f"Continuation task {continuation_task_id} for chat {chat_id} runs without the active-task "
+                f"marker: a newer turn owns the chat (original task: {original_task_id})"
+            )
         task = process_ai_skill_ask_task.apply_async(
+            task_id=continuation_task_id,
             kwargs={
                 "request_data_dict": request_data_dict,
                 "skill_config_dict": skill_config_dict,

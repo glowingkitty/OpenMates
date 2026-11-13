@@ -6,26 +6,26 @@ vi.mock('../../../../utils/aiModelSelection', () => ({aiModelSelectionValue: () 
 vi.mock('../../../../stores/personalDocumentMemories', () => ({currentPersonalDocumentMemories: () => []}));
 vi.mock('../../../../stores/userProfile', async () => ({userProfile: (await import('svelte/store')).writable({disabled_ai_models: []})}));
 vi.mock('../../../../stores/appHealthStore', async () => ({isProviderHealthy: (await import('svelte/store')).writable(() => true)}));
-vi.mock('../../../../stores/appSettingsMemoriesStore', async () => ({appSettingsMemoriesStore: (await import('svelte/store')).writable({entries: [], decryptedEntries: new Map()})}));
 vi.mock('../../../../stores/appSkillsStore', () => ({appSkillsStore: {apps: {}}}));
 vi.mock('../../../../services/projectService', () => ({listProjects: async () => [], getProjectSettings: vi.fn(), listProjectSources: vi.fn()}));
 vi.mock('../../../../i18n/translations', async () => ({text: (await import('svelte/store')).writable((key: string) => key)}));
 vi.mock('../../../../i18n/setup', () => ({getCurrentLanguage: () => 'en'}));
 vi.mock('../../../../config/api', () => ({getApiUrl: () => ''}));
 vi.mock('../../../../utils/imageProxy', () => ({proxyImage: (url: string) => url}));
+vi.mock('../rustComposerSuggestions', () => ({rustRankMentionResults: async <T extends {searchTerms: string[]}>(results: T[], query: string, limit: number) => results.filter(r => r.searchTerms.some(t => t.toLowerCase().includes(query.toLowerCase()))).slice(0, limit)}));
 
 import {searchMentions} from '../mentionSearchService';
 
 // contract-test: supporting surface=gui.web assertions=teams.chat.encrypted-until-invoked
-it('offers the exact @openmates token for Team chats at @ and during case-insensitive search', () => {
-  const atResult = searchMentions('', 8, true)[0];
+it('offers the exact @openmates token for Team chats at @ and during case-insensitive search', async () => {
+  const atResult = (await searchMentions('', 8, true))[0];
   expect(atResult).toMatchObject({type: 'openmates', displayName: 'OpenMates', mentionSyntax: '@openmates'});
-  expect(searchMentions('OPENMATES', 8, true)[0]).toMatchObject({type: 'openmates', mentionSyntax: '@openmates'});
-  expect(searchMentions('openmat', 8, true)[0]).toMatchObject({type: 'openmates', mentionSyntax: '@openmates'});
+  expect((await searchMentions('OPENMATES', 8, true))[0]).toMatchObject({type: 'openmates', mentionSyntax: '@openmates'});
+  expect((await searchMentions('openmat', 8, true))[0]).toMatchObject({type: 'openmates', mentionSyntax: '@openmates'});
 });
 
 // contract-test: supporting surface=gui.web assertions=teams.chat.encrypted-until-invoked
-it('keeps Personal mention defaults and search free of the Team-only OpenMates result', () => {
-  expect(searchMentions('').some(result => result.type === 'openmates')).toBe(false);
-  expect(searchMentions('OPENMATES').some(result => result.type === 'openmates')).toBe(false);
+it('keeps Personal mention defaults and search free of the Team-only OpenMates result', async () => {
+  expect((await searchMentions('')).some(result => result.type === 'openmates')).toBe(false);
+  expect((await searchMentions('OPENMATES')).some(result => result.type === 'openmates')).toBe(false);
 });

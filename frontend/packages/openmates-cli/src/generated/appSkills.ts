@@ -372,7 +372,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "audio",
     "skill_method_py": "generate",
     "description_key": "app_skills.audio.generate.description",
-    "description": "Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation.",
+    "description": "Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation. Not for the sound of a video: videos.generate makes a video's voice-over, sound effects and music itself.",
     "schema": {
       "type": "object",
       "properties": {
@@ -497,7 +497,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "audio",
     "skill_method_py": "speak",
     "description_key": "app_skills.audio.speak.description",
-    "description": "Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech.",
+    "description": "Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech. Not for the sound of a video: videos.generate makes a video's voice-over, sound effects and music itself.",
     "schema": {
       "type": "object",
       "properties": {
@@ -821,6 +821,317 @@ export const APP_SKILL_METADATA = [
         },
         "error": {
           "type": "string",
+          "x-ui": {
+            "basic": false
+          }
+        }
+      }
+    }
+  },
+  {
+    "app_id": "business",
+    "skill_id": "search_investors",
+    "app_namespace_ts": "business",
+    "skill_method_ts": "searchInvestors",
+    "app_namespace_py": "business",
+    "skill_method_py": "search_investors",
+    "description_key": "app_skills.business.search_investors.description",
+    "description": "This capability is currently unavailable because no permitted provider is configured.",
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Topic, sector or investment thesis keywords describing the company, for example \"climate software seed\". Do not include confidential company details."
+        },
+        "regions": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "description": "Countries the user wants investors from, as upper-case ISO 3166-1 alpha-2 codes. Pass exactly the countries the user named; never widen silently to other countries. Use WORLDWIDE only when the user asks for it.",
+          "items": {
+            "type": "string",
+            "pattern": "^([A-Z]{2}|WORLDWIDE)$"
+          }
+        },
+        "investor_types": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "array",
+          "maxItems": 6,
+          "uniqueItems": true,
+          "description": "Optional investor kinds; omit to search all kinds.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "angel",
+              "angel_network",
+              "vc",
+              "family_office",
+              "accelerator",
+              "public_funding"
+            ]
+          }
+        },
+        "stages": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "array",
+          "maxItems": 4,
+          "uniqueItems": true,
+          "description": "Optional financing stages the company is at; omit when unknown.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pre_seed",
+              "seed",
+              "series_a",
+              "later"
+            ]
+          }
+        },
+        "ticket_min": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "number",
+          "minimum": 0,
+          "description": "Optional minimum investment size per investor, in the given currency."
+        },
+        "ticket_max": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "number",
+          "minimum": 0,
+          "description": "Optional maximum investment size per investor, in the given currency."
+        },
+        "currency": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "default": "EUR",
+          "description": "ISO 4217 currency of ticket_min and ticket_max."
+        },
+        "max_results": {
+          "x-ui": {
+            "basic": false
+          },
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "default": 15
+        }
+      },
+      "required": [
+        "query",
+        "regions"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "result_count": {
+          "type": "integer",
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "investors": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "provider": {
+          "type": "string",
+          "x-ui": {
+            "basic": false
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "partial": {
+          "type": "boolean",
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "limitation": {
+          "type": "string",
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "error": {
+          "type": "string",
+          "x-ui": {
+            "basic": false
+          }
+        }
+      }
+    }
+  },
+  {
+    "app_id": "business",
+    "skill_id": "company_ownership",
+    "app_namespace_ts": "business",
+    "skill_method_ts": "companyOwnership",
+    "app_namespace_py": "business",
+    "skill_method_py": "company_ownership",
+    "description_key": "app_skills.business.company_ownership.description",
+    "description": "Look up who owns or runs a named company, or which companies a named person holds or directs, in the official company register of Germany (DE), the United Kingdom (GB) or France (FR). Use to research investors, shareholders and directors; not for other countries, credit checks, private contact details or legal advice.",
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "description": "One entry per company or person to look up. Each runs only in the register of its own country.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "query": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160,
+                "description": "Exact company name or register number (for example \"Example GmbH\", \"12345678\", a 9-digit SIREN), or a person's full name."
+              },
+              "subject": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "enum": [
+                  "company",
+                  "person"
+                ],
+                "default": "company",
+                "description": "company to see owners and officers; person to see which companies they hold or direct."
+              },
+              "country": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "pattern": "^[A-Z]{2}$",
+                "description": "Upper-case ISO 3166-1 alpha-2 code of the register to search (DE, GB or FR). Never guess a different country."
+              },
+              "include": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "array",
+                "uniqueItems": true,
+                "maxItems": 3,
+                "default": [
+                  "owners"
+                ],
+                "description": "Which facts to fetch. Ask only for what the user needs; each extra value costs a separate register call.",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "owners",
+                    "holdings",
+                    "officers"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "query",
+              "country"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "result_count": {
+          "type": "integer",
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-ui": {
+            "basic": false
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-ui": {
+            "basic": true
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
           "x-ui": {
             "basic": false
           }
@@ -1809,7 +2120,7 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "string",
-                "description": "Optional session topic within the requested known conference. Omit for the full schedule."
+                "description": "Event topic to search for (e.g. 'AI', 'security'). Required for every request unless conference is set to a known conference; then omit it for the full schedule. Location or dates alone are not a query."
               },
               "location": {
                 "x-ui": {
@@ -4406,7 +4717,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "images",
     "skill_method_py": "generate",
     "description_key": "images.generate.description",
-    "description": "Generate high-quality images from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Use output_filetype=\"svg\" for logos, icons, illustrations, and any other vector graphics that need to be scalable or editable. When the user provides uploaded images as refe",
+    "description": "Generate images or SVG vector graphics (logos, icons, patterns, drawings), new or modified. Works from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Also the way to create or modify ANY vector graphic (SVG): logos, icons, illustrations, infographics, la",
     "schema": {
       "type": "object",
       "properties": {
@@ -4415,7 +4726,7 @@ export const APP_SKILL_METADATA = [
             "basic": true
           },
           "type": "array",
-          "description": "REQUIRED: Array of image generation request objects for parallel processing (up to 5 requests).\nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single image.\nExample for single image: {\"requests\": [{\"prompt\": \"a cute cat\"}]}\nEach object must contain 'prompt' (detailed description), and can include optional\n'aspect_ratio', 'output_filetype', and 'quality'.\n",
+          "description": "REQUIRED: Array of image generation request objects for parallel processing (up to 5 requests).\nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single image.\nExample for single image: {\"requests\": [{\"prompt\": \"a cute cat\"}]}\nEach object must contain 'prompt' (detailed description), and can include optional\n'aspect_ratio', 'output_filetype', 'vector_engine', 'requirements', 'quality' and 'reference_images'.\n",
           "items": {
             "type": "object",
             "properties": {
@@ -4447,7 +4758,7 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "string",
-                "description": "Output file format. Use \"svg\" to generate a scalable vector graphic (SVG) via\nRecraft V4.1 \u2014 ideal for logos, icons, illustrations, and any graphic that needs\nto be scalable, editable in design tools, or used at any size without quality loss.\nUse \"png\" or \"jpg\" for photos, realistic scenes, and detailed raster images.\nWhen a Recraft model is selected, Recraft V4 is used for raster output as well.\n",
+                "description": "Output file format. Use \"svg\" for every vector graphic: logos, icons, illustrations,\ninfographics, labelled or technical drawings, patterns, and for changing an existing\nSVG or redrawing a pixel image as vector. See vector_engine for who draws it.\nUse \"png\" or \"jpg\" for photos, realistic scenes, and detailed raster images.\nWhen a Recraft model is selected, Recraft V4 is used for raster output as well.\n",
                 "enum": [
                   "png",
                   "jpg",
@@ -4460,19 +4771,42 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "string",
-                "description": "Generation quality. Controls which model tier is used when Recraft is the provider.\nFor SVG output (output_filetype=\"svg\"):\n  \"default\" uses Recraft V4.1 Vector (100 credits \u2014 good for web/UI use).\n  \"max\" uses Recraft V4.1 Pro Vector (300 credits \u2014 best for print, large-format,\n  or highly detailed vector illustrations).\nFor raster output (output_filetype=\"png\"/\"jpg\") with a Recraft model selected:\n  \"default\" uses Recraft V4.1 (50 credits \u2014 fast, cost-effective).\n  \"max\" uses Recraft V4.1 Pro (250 credits \u2014 high-resolution, print-ready).\nFor other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.\n",
+                "description": "Generation quality.\nFor SVG output with vector_engine \"llm\" or \"script\": \"max\" lets the vector author reason longer\n(for complex, multi-part drawings; costs more tokens).\nFor SVG output with vector_engine \"recraft\":\n  \"default\" uses Recraft V4.1 Vector (100 credits \u2014 good for web/UI use).\n  \"max\" uses Recraft V4.1 Pro Vector (300 credits \u2014 best for print, large-format,\n  or highly detailed vector illustrations).\nFor raster output (output_filetype=\"png\"/\"jpg\") with a Recraft model selected:\n  \"default\" uses Recraft V4.1 (50 credits \u2014 fast, cost-effective).\n  \"max\" uses Recraft V4.1 Pro (250 credits \u2014 high-resolution, print-ready).\nFor other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.\n",
                 "enum": [
                   "default",
                   "max"
                 ],
                 "default": "default"
               },
+              "vector_engine": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string",
+                "description": "Only for output_filetype=\"svg\": how the vector graphic is made.\n\"llm\" (default): a vector author model writes clean, editable SVG code directly.\nBest for logos, icons, flat illustrations, diagrams, text and organic hand-drawn\nshapes. Billed by the tokens used (typically 10-80 credits).\n\"script\": the author model writes a small deterministic program that computes the\nSVG and runs in a sandbox. Recommended whenever geometry should be calculated\nrather than drawn by hand: mathematical or parametric shapes, spirals, fractals,\nmandalas, exact symmetry, repeated or tiled patterns, many similar elements,\nsmooth curve or colour transitions, charts from numbers. Billed by the tokens used\nplus 5 credits per started minute of sandbox time.\n\"recraft\": Recraft V4.1 Vector, for richly detailed, painterly or decorative\nillustrations where a traced look is fine (100 credits, or 300 with quality \"max\").\nCannot use reference_images.\n\"llm\" and \"script\" can modify an existing graphic passed in reference_images.\n",
+                "enum": [
+                  "llm",
+                  "script",
+                  "recraft"
+                ],
+                "default": "llm"
+              },
+              "requirements": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "array",
+                "description": "Only for output_filetype=\"svg\". Optional list of short natural-language requirements\nthe finished graphic must meet, each one checkable by looking at the picture\n(e.g. \"exactly two variations side by side\", \"only solid closed fills, no\ngradients\", \"the name is written in uppercase\", \"nothing is cut off\").\nWhen given, the rendered result is checked against each requirement and a clearly\nunmet one triggers an automatic correction (at most 2 rounds); each check and\ncorrection is billed by its tokens. Omit it for simple requests: then no check\nruns. Include the user's hard constraints here, not style wishes.\n",
+                "items": {
+                  "type": "string"
+                }
+              },
               "reference_images": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "array",
-                "description": "Optional list of reference image filenames (embed_refs) to use as visual\nreferences for this generation. Pass the exact embed_ref values (original\nfilenames, e.g. \"my_photo.jpg\") from the toon blocks in the conversation.\nThe server resolves all cryptographic and storage details automatically.\nSupports up to 14 reference images. When provided, enables image-to-image\nediting/style-transfer mode (Google Gemini: same endpoint; FLUX: switches\nto the 4B edit model). Ignored for SVG/Recraft output.\n",
+                "description": "Optional list of reference image filenames (embed_refs) to use as visual\nreferences for this generation. Pass the exact embed_ref values (original\nfilenames, e.g. \"my_photo.jpg\") from the toon blocks in the conversation.\nThe server resolves all cryptographic and storage details automatically.\nSupports up to 14 reference images. When provided, enables image-to-image\nediting/style-transfer mode (Google Gemini: same endpoint; FLUX: switches\nto the 4B edit model). With output_filetype=\"svg\" and vector_engine \"llm\" or \"script\": an SVG\nreference is modified from its source code (a script-made one always through its\ngenerator script), a pixel reference is redrawn as vector.\nIgnored by vector_engine \"recraft\".\n",
                 "items": {
                   "type": "string",
                   "description": "Original filename (embed_ref) of an uploaded image"
@@ -4523,7 +4857,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "array",
-                "description": "Optional list of reference image filenames (embed_refs) to use as visual\nreferences for this generation. Pass the exact embed_ref values (original\nfilenames, e.g. \"my_photo.jpg\") from the toon blocks in the conversation.\nThe server resolves all cryptographic and storage details automatically.\nSupports up to 4 reference images. When provided, automatically switches to\nthe FLUX.2 [klein] 4B edit model (image-to-image, 27 credits).\n",
+                "description": "Optional list of reference image filenames (embed_refs) to use as visual\nreferences for this generation. Pass the exact embed_ref values (original\nfilenames, e.g. \"my_photo.jpg\") from the toon blocks in the conversation.\nThe server resolves all cryptographic and storage details automatically.\nSupports up to 4 reference images. When provided, automatically switches to\nthe FLUX.2 [klein] 4B edit model (image-to-image) instead of the text-only Recraft V4.1 Flash model.\n",
                 "items": {
                   "type": "string",
                   "description": "Original filename (embed_ref) of an uploaded image"
@@ -4549,29 +4883,26 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "jobs",
     "skill_method_py": "search",
     "description_key": "app_skills.jobs.search.description",
-    "description": "Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Never invent listing facts or broaden filters after empty results.",
+    "description": "Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty results.",
     "schema": {
       "type": "object",
       "properties": {
         "countries": {
           "type": "array",
           "minItems": 1,
-          "maxItems": 2,
+          "maxItems": 10,
           "uniqueItems": true,
           "default": [
             "DE"
           ],
           "items": {
             "type": "string",
-            "enum": [
-              "DE",
-              "SE"
-            ]
+            "pattern": "^[A-Z]{2}$"
           },
           "x-ui": {
             "basic": true
           },
-          "description": "Select SE for the available source. DE remains accepted but returns an explicit coverage gap."
+          "description": "ISO 3166-1 alpha-2 country codes. The built-in source covers SE; other countries return an explicit coverage gap unless an installed provider answers them.\n"
         },
         "requests": {
           "type": "array",
@@ -4602,26 +4933,20 @@ export const APP_SKILL_METADATA = [
               },
               "country": {
                 "type": "string",
-                "enum": [
-                  "DE",
-                  "SE"
-                ],
+                "pattern": "^[A-Z]{2}$",
                 "x-ui": {
                   "basic": false
                 },
-                "description": "Legacy singleton country override; DE is unavailable. Do not combine with countries."
+                "description": "Legacy singleton ISO 3166-1 alpha-2 country override. Do not combine with countries."
               },
               "countries": {
                 "type": "array",
                 "minItems": 1,
-                "maxItems": 2,
+                "maxItems": 10,
                 "uniqueItems": true,
                 "items": {
                   "type": "string",
-                  "enum": [
-                    "DE",
-                    "SE"
-                  ]
+                  "pattern": "^[A-Z]{2}$"
                 },
                 "x-ui": {
                   "basic": false
@@ -4716,6 +5041,136 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "description": "Optional user-stated career or impact goal that should change ranking. Use only explicit listing evidence; omit for a neutral search.\n"
+              },
+              "visa_sponsorship": {
+                "type": "boolean",
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Keep only listings that state this visa sponsorship value. Listings that do not state it are excluded, as for every listing filter below.\n"
+              },
+              "experience_levels": {
+                "type": "array",
+                "maxItems": 5,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "internship",
+                    "entry",
+                    "mid",
+                    "senior",
+                    "lead"
+                  ]
+                },
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Keep listings whose stated experience level is one of these; unstated levels are excluded."
+              },
+              "education_levels": {
+                "type": "array",
+                "maxItems": 5,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "vocational",
+                    "bachelor",
+                    "master",
+                    "doctorate"
+                  ]
+                },
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Keep listings whose required education level is one of these (include the user's level and every lower one); unstated levels are excluded.\n"
+              },
+              "start_after": {
+                "type": "string",
+                "format": "date",
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Keep listings whose stated start date is on or after this ISO date; unstated start dates are excluded."
+              },
+              "start_before": {
+                "type": "string",
+                "format": "date",
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Keep listings whose stated start date is on or before this ISO date; unstated start dates are excluded."
+              },
+              "min_contract_duration_months": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600,
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Minimum stated contract duration in months. Permanent or unstated durations are excluded.\n"
+              },
+              "max_contract_duration_months": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600,
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Maximum stated contract duration in months, for fixed-term roles. Permanent or unstated durations are excluded.\n"
+              },
+              "deadline_after": {
+                "type": "string",
+                "format": "date",
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Keep listings whose application deadline is on or after this ISO date; listings without a stated deadline are excluded.\n"
+              },
+              "min_salary": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Minimum salary; requires salary_currency and salary_period. A listing passes when its highest stated salary in that currency reaches it (month and year convert, other periods must match). Listings without a comparable salary are excluded.\n"
+              },
+              "salary_currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$",
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "ISO 4217 currency of min_salary, such as EUR. No conversion between currencies."
+              },
+              "salary_period": {
+                "type": "string",
+                "enum": [
+                  "hour",
+                  "day",
+                  "week",
+                  "month",
+                  "year"
+                ],
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "Period of min_salary."
+              },
+              "languages": {
+                "type": "array",
+                "maxItems": 10,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z]{2}$"
+                },
+                "x-ui": {
+                  "basic": false
+                },
+                "description": "ISO 639-1 codes of languages the user can work in. Keep listings whose stated working languages include at least one; unstated languages are excluded.\n"
               }
             },
             "required": [
@@ -4907,10 +5362,14 @@ export const APP_SKILL_METADATA = [
                       }
                     },
                     "country": {
-                      "type": "string",
+                      "type": [
+                        "string",
+                        "null"
+                      ],
                       "x-ui": {
                         "basic": false
-                      }
+                      },
+                      "description": "ISO 3166-1 alpha-2 country of the listing; null for global or remote listings without one."
                     },
                     "remote": {
                       "type": [
@@ -5009,7 +5468,8 @@ export const APP_SKILL_METADATA = [
                       ],
                       "x-ui": {
                         "basic": false
-                      }
+                      },
+                      "description": "Application deadline (ISO 8601)."
                     },
                     "impact": {
                       "type": [
@@ -5018,7 +5478,107 @@ export const APP_SKILL_METADATA = [
                       ],
                       "x-ui": {
                         "basic": false
+                      },
+                      "description": "Why the work matters",
+                      "in the source's words.": null
+                    },
+                    "impact_area": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "description": "Cause or problem area label",
+                      "such as climate.": null
+                    },
+                    "start_date": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date",
+                      "x-ui": {
+                        "basic": false
                       }
+                    },
+                    "contract_duration_months": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "description": "Fixed-term length; null when permanent or unstated."
+                    },
+                    "visa_sponsorship": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "education_level": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "none",
+                        "vocational",
+                        "bachelor",
+                        "master",
+                        "doctorate",
+                        null
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "description": "Minimum required education."
+                    },
+                    "experience_level": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "internship",
+                        "entry",
+                        "mid",
+                        "senior",
+                        "lead",
+                        null
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "description": "Normalized level; seniority keeps the source's wording."
+                    },
+                    "experience_years_min": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "languages": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      },
+                      "x-ui": {
+                        "basic": false
+                      },
+                      "description": "ISO 639-1 working languages."
                     },
                     "detail_status": {
                       "type": [
@@ -5637,7 +6197,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "music",
     "skill_method_py": "generate",
     "description_key": "app_skills.music.generate.description",
-    "description": "Generate music from a text prompt, including full songs, instrumental tracks, background music, loops, jingles, lyric-based songs, and soundtrack cues. Use this when the user asks to create music or background music. Do not use this to imitate the voice, vocals, cadence, or persona of a real public figure, living artist, famous educator, or recognizable person. Use original voices and styles only, and reject scams, spam, or detection evasion.",
+    "description": "Generate music from a text prompt, including full songs, instrumental tracks, background music, loops, jingles, lyric-based songs, and soundtrack cues. Use this when the user asks to create music or background music. Do not use this to imitate the voice, vocals, cadence, or persona of a real public figure, living artist, famous educator, or recognizable person. Use original voices and styles only, and reject scams, spam, or detection evasion. Not for the music of a video: videos.generate makes a",
     "schema": {
       "type": "object",
       "properties": {
@@ -6332,7 +6892,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "pdf",
     "skill_method_py": "read",
     "description_key": "pdf.read.description",
-    "description": "Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates \u2014 use them to select the most relevant pages. Limits output to 50 000 tokens; call again for remaining pages if needed. Pass the exact embed_ref (original filename) from the toon block \u2014",
+    "description": "Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates \u2014 use them to select the most relevant pages. When the embed says whole_document_readable, call without pages to read the whole small document (about 30 000 tokens or less) in one result",
     "schema": {
       "type": "object",
       "properties": {
@@ -6342,7 +6902,7 @@ export const APP_SKILL_METADATA = [
         },
         "pages": {
           "type": "array",
-          "description": "1-indexed page numbers to read (e.g. [1, 2, 3]). If omitted, reads from page 1 onwards up to the token budget.",
+          "description": "1-indexed page numbers to read (e.g. [1, 2, 3]). If omitted, reads from page 1 onwards up to the token budget; a small document (whole_document_readable) is returned whole.",
           "items": {
             "type": "integer"
           }
@@ -6361,7 +6921,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "pdf",
     "skill_method_py": "search",
     "description_key": "pdf.search.description",
-    "description": "Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required \u2014 pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.",
+    "description": "Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Pages are ranked by BM25 keyword relevance (best first, top pages may be re-ranked by a decision model); each result has the page number, rank, score and a context snippet. Exact short strings such as part numbers still match. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. Pass the exact embed_ref (original fil",
     "schema": {
       "type": "object",
       "properties": {
@@ -6371,7 +6931,7 @@ export const APP_SKILL_METADATA = [
         },
         "query": {
           "type": "string",
-          "description": "The search query string (case-insensitive substring match)."
+          "description": "The search query (keywords or a phrase). Pages are ranked by BM25 keyword relevance, best first."
         },
         "context_chars": {
           "type": "integer",
@@ -7814,7 +8374,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "videos",
     "skill_method_py": "generate",
     "description_key": "app_skills.videos.generate.description",
-    "description": "Generate short photorealistic or generative footage from text prompts using Google Veo. Use this when the user asks for cinematic footage, realistic scenes, camera movement, stylized animation, or non-deterministic video generation. Do not use this for exact text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter; those requests should use videos.create with an explicit ```remotion:Name.tsx fence instead. Do not use this",
+    "description": "Make any short video from a natural-language instruction, optionally with up to 12 references from this chat (uploads, generated images, vector graphics, image/web/news/video search results with or without a picture, or a whole search). Each request is made either as a generative clip (invented realistic or stylized footage, camera movement, animating one picture) or as a composed, code-rendered video (exact texts and titles, lists, numbers, charts, diagrams, slideshows or recaps of the given pi",
     "schema": {
       "type": "object",
       "properties": {
@@ -7823,16 +8383,47 @@ export const APP_SKILL_METADATA = [
             "basic": true
           },
           "type": "array",
-          "description": "REQUIRED array of video generation request objects.",
+          "description": "REQUIRED array of video request objects, one per video.",
           "items": {
             "type": "object",
             "properties": {
-              "prompt": {
+              "instructions": {
                 "x-ui": {
                   "basic": true
                 },
                 "type": "string",
-                "description": "Detailed text description of the video to generate."
+                "maxLength": 4000,
+                "description": "What the user asked for, kept close to their own words: what the video shows, order, style, mood and pacing. Say so when it is based on search results or given pictures, and include the exact texts to show (headlines, titles, numbers) word for word.\n"
+              },
+              "user_request": {
+                "type": "string",
+                "maxLength": 2000,
+                "description": "The user's latest message about this video, copied word for word. Always pass it.\n"
+              },
+              "images": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "string"
+                },
+                "description": "Exact embed_refs of what the video shows or is about, in the order they should appear: uploads, generated images, vector graphics, and search results of image, web, news or video search. Pass every search result the video is based on, also when you see no picture for it: the skill reads each result's picture (when it has one) together with its title, description, source and date. The embed_ref of a whole search (e.g. a news search shown earlier) stands for all of its results. A generative clip can start from one picture only.\n"
+              },
+              "mode": {
+                "x-assistant": false,
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "generative",
+                  "composed"
+                ],
+                "default": "auto",
+                "description": "auto decides per request. generative = invented footage from a video model. composed = exact, code-rendered video (texts, charts, slideshows, several pictures).\n"
               },
               "aspect_ratio": {
                 "x-ui": {
@@ -7841,107 +8432,95 @@ export const APP_SKILL_METADATA = [
                 "type": "string",
                 "enum": [
                   "16:9",
-                  "9:16"
+                  "9:16",
+                  "1:1"
                 ],
-                "default": "16:9"
+                "default": "16:9",
+                "description": "1:1 is available for composed videos only."
               },
               "duration_seconds": {
                 "x-ui": {
                   "basic": true
                 },
                 "type": "integer",
-                "enum": [
-                  4,
-                  5,
-                  6,
-                  8
-                ],
-                "default": 8
+                "minimum": 2,
+                "maximum": 60,
+                "description": "Optional length. Generative clips last 3 to 15 seconds (default 8); composed videos 2 to 60; a clip added by extend_start or extend_end 3 to 10."
               },
               "resolution": {
                 "x-ui": {
-                  "basic": true
+                  "basic": false
                 },
                 "type": "string",
                 "enum": [
+                  "360p",
                   "480p",
                   "720p",
                   "1080p",
                   "4k"
                 ],
-                "default": "720p"
+                "description": "Generative Gemini Omni clips 360p, 720p, 1080p or 4k (default 720p); H3 is fixed 480p."
               },
-              "input_embed_ids": {
-                "type": "array",
-                "maxItems": 1,
-                "items": {
-                  "type": "string",
-                  "format": "uuid"
+              "model": {
+                "x-assistant": false,
+                "x-ui": {
+                  "basic": false
                 },
-                "description": "Optional first-frame image embed UUID, owned by the authenticated caller. H3 only; the output follows this image canvas."
+                "type": "string",
+                "enum": [
+                  "gemini-omni-1.2-flash",
+                  "minimax/h3-max-turbo/image-to-video"
+                ],
+                "description": "Only for generative clips; naming a model makes the request generative. H3 (fixed 5-second 480p clips from one picture) is available in authenticated chats; REST supports Gemini Omni only.\n"
               },
               "seed": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "integer",
-                "description": "Optional seed for more reproducible output when supported."
+                "description": "Optional seed for more reproducible generative output when supported."
               },
-              "model": {
+              "source_video": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "string",
+                "description": "Exact embed_ref of an earlier videos-generate result to change. Use with change.\n"
+              },
+              "change": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "string",
                 "enum": [
-                  "veo-3.1-generate-preview",
-                  "veo-3.1-fast-generate-preview",
-                  "veo-3.0-generate-001",
-                  "minimax/h3-max-turbo/image-to-video"
+                  "edit",
+                  "extend_start",
+                  "extend_end"
                 ],
-                "description": "H3 is available in authenticated chats/calls with fixed 5-second 480p clips. REST supports Veo only.",
-                "default": "veo-3.1-generate-preview"
+                "description": "How source_video changes (it becomes the next version of the same video): edit applies the instructions to it, extend_start adds a new generated clip before it, extend_end adds one after it (only for videos made of generated clips).\n"
+              },
+              "input_embed_ids": {
+                "x-assistant": false,
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "array",
+                "maxItems": 1,
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Former first-frame field (one image embed UUID, H3 only). Prefer images."
               }
             },
             "required": [
-              "prompt"
+              "instructions"
             ]
           }
         }
       },
       "required": [
         "requests"
-      ]
-    }
-  },
-  {
-    "app_id": "videos",
-    "skill_id": "create",
-    "app_namespace_ts": "videos",
-    "skill_method_ts": "create",
-    "app_namespace_py": "videos",
-    "skill_method_py": "create",
-    "description_key": "app_skills.videos.create.description",
-    "description": "Create deterministic code-backed videos with Remotion. Use this for text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter. The assistant must write an explicit ```remotion:Name.tsx fence; do not use this for photorealistic footage or generic TSX components.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "source": {
-          "x-ui": {
-            "basic": true
-          },
-          "type": "string",
-          "description": "Remotion TSX source code to render."
-        },
-        "filename": {
-          "x-ui": {
-            "basic": true
-          },
-          "type": "string",
-          "description": "Source filename, for example ProductAnnouncement.tsx."
-        }
-      },
-      "required": [
-        "source"
       ]
     }
   },
@@ -9582,7 +10161,7 @@ export class AudioAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation.
+   * Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation. Not for the sound of a video: videos.generate makes a video's voice-over, sound effects and music itself.
    * Description key: app_skills.audio.generate.description
    * Skill: audio/generate
    */
@@ -9590,7 +10169,7 @@ export class AudioAppSkills {
     return this.runSkill<T>("audio", "generate", input, options);
   }
   /**
-   * Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech.
+   * Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech. Not for the sound of a video: videos.generate makes a video's voice-over, sound effects and music itself.
    * Description key: app_skills.audio.speak.description
    * Skill: audio/speak
    */
@@ -9626,6 +10205,22 @@ export class BusinessAppSkills {
    */
   async companyFinancials<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("business", "company_financials", input, options);
+  }
+  /**
+   * Look up who owns or runs a named company, or which companies a named person holds or directs, in the official company register of Germany (DE), the United Kingdom (GB) or France (FR). Use to research investors, shareholders and directors; not for other countries, credit checks, private contact details or legal advice.
+   * Description key: app_skills.business.company_ownership.description
+   * Skill: business/company_ownership
+   */
+  async companyOwnership<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("business", "company_ownership", input, options);
+  }
+  /**
+   * This capability is currently unavailable because no permitted provider is configured.
+   * Description key: app_skills.business.search_investors.description
+   * Skill: business/search_investors
+   */
+  async searchInvestors<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("business", "search_investors", input, options);
   }
   /**
    * This capability is currently unavailable because no permitted provider is configured.
@@ -9835,7 +10430,7 @@ export class ImagesAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Generate high-quality images from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Use output_filetype="svg" for logos, icons, illustrations, and any other vector graphics that need to be scalable or editable. When the user provides uploaded images as refe
+   * Generate images or SVG vector graphics (logos, icons, patterns, drawings), new or modified. Works from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Also the way to create or modify ANY vector graphic (SVG): logos, icons, illustrations, infographics, la
    * Description key: images.generate.description
    * Skill: images/generate
    */
@@ -9858,7 +10453,7 @@ export class JobsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Never invent listing facts or broaden filters after empty results.
+   * Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty results.
    * Description key: app_skills.jobs.search.description
    * Skill: jobs/search
    */
@@ -9933,7 +10528,7 @@ export class MusicAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Generate music from a text prompt, including full songs, instrumental tracks, background music, loops, jingles, lyric-based songs, and soundtrack cues. Use this when the user asks to create music or background music. Do not use this to imitate the voice, vocals, cadence, or persona of a real public figure, living artist, famous educator, or recognizable person. Use original voices and styles only, and reject scams, spam, or detection evasion.
+   * Generate music from a text prompt, including full songs, instrumental tracks, background music, loops, jingles, lyric-based songs, and soundtrack cues. Use this when the user asks to create music or background music. Do not use this to imitate the voice, vocals, cadence, or persona of a real public figure, living artist, famous educator, or recognizable person. Use original voices and styles only, and reject scams, spam, or detection evasion. Not for the music of a video: videos.generate makes a
    * Description key: app_skills.music.generate.description
    * Skill: music/generate
    */
@@ -10001,7 +10596,7 @@ export class PdfAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates — use them to select the most relevant pages. Limits output to 50 000 tokens; call again for remaining pages if needed. Pass the exact embed_ref (original filename) from the toon block —
+   * Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates — use them to select the most relevant pages. When the embed says whole_document_readable, call without pages to read the whole small document (about 30 000 tokens or less) in one result
    * Description key: pdf.read.description
    * Skill: pdf/read
    */
@@ -10009,7 +10604,7 @@ export class PdfAppSkills {
     return this.runSkill<T>("pdf", "read", input, options);
   }
   /**
-   * Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required — pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.
+   * Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Pages are ranked by BM25 keyword relevance (best first, top pages may be re-ranked by a decision model); each result has the page number, rank, score and a context snippet. Exact short strings such as part numbers still match. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. Pass the exact embed_ref (original fil
    * Description key: pdf.search.description
    * Skill: pdf/search
    */
@@ -10193,15 +10788,7 @@ export class VideosAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Create deterministic code-backed videos with Remotion. Use this for text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter. The assistant must write an explicit ```remotion:Name.tsx fence; do not use this for photorealistic footage or generic TSX components.
-   * Description key: app_skills.videos.create.description
-   * Skill: videos/create
-   */
-  async create<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
-    return this.runSkill<T>("videos", "create", input, options);
-  }
-  /**
-   * Generate short photorealistic or generative footage from text prompts using Google Veo. Use this when the user asks for cinematic footage, realistic scenes, camera movement, stylized animation, or non-deterministic video generation. Do not use this for exact text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter; those requests should use videos.create with an explicit ```remotion:Name.tsx fence instead. Do not use this
+   * Make any short video from a natural-language instruction, optionally with up to 12 references from this chat (uploads, generated images, vector graphics, image/web/news/video search results with or without a picture, or a whole search). Each request is made either as a generative clip (invented realistic or stylized footage, camera movement, animating one picture) or as a composed, code-rendered video (exact texts and titles, lists, numbers, charts, diagrams, slideshows or recaps of the given pi
    * Description key: app_skills.videos.generate.description
    * Skill: videos/generate
    */

@@ -400,6 +400,12 @@ export function buildPrivacyPolicyContent(
   lines.push(t("legal.privacy.providers.business_data.description"));
   lines.push("");
   renderProvider("legal.privacy.providers.business_data.sec_edgar", privacyPolicyLinks.secEdgar);
+  renderProvider("legal.privacy.providers.business_data.openregister", privacyPolicyLinks.openregister);
+  renderProvider("legal.privacy.providers.business_data.companies_house", privacyPolicyLinks.companiesHouse);
+  renderProvider(
+    "legal.privacy.providers.business_data.recherche_entreprises",
+    privacyPolicyLinks.rechercheEntreprises,
+  );
 
   // Group J4 — Weather
   lines.push(`### ${t("legal.privacy.providers.weather.heading")}`);

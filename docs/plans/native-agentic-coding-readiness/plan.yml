@@ -4,7 +4,7 @@ title: 'Agentic coding implementation: project file access first'
 status: implementing
 goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
   Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
-revision: r79
+revision: r80
 conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
 workspace_session: '8c51'
 approved_by_user: true
@@ -286,6 +286,7 @@ user_direction:
 - id: U6
   decision: Use direct edits to the connected remote folder. Automatic worktree creation and management
     are out of scope for now; revisit only if later multitasking warrants it.
+  superseded_by: agentic_flow_extension_2026_11_10 (user decision 2026-11-10; one worktree per chat for connected Git repositories, no named branch).
 - id: U7
   decision: Apply and show changes is the default write-policy option, with Always ask before writes as
     the alternative. New Project setup and adding an existing folder as a Project require an explicit
@@ -407,6 +408,7 @@ open_questions:
   recommendation: Direct connected-folder edits first; no model-decided automatic worktree creation.
   status: resolved
   answer: Direct edits; automatic worktrees deferred.
+  revised_answer_2026_11_10: Connected Git repositories get one worktree per chat (detached HEAD, no named branch); plain folders keep direct edits. See agentic_flow_extension_2026_11_10.
 - id: Q3
   topic: Read versus write consent
   question: When the correct Project focus is active and the user asks for an edit, apply routine changes
@@ -1917,3 +1919,66 @@ hosted_browser_commit_recovery_2026_10_02:
       root: /tmp/openmates-agentic-validation-8c51
       source_id: ec3c0e40-785e-41ee-a648-1ff83e2c54a3
       host: Existing openmates-remote Zellij session, terminal_5.
+agentic_flow_extension_2026_11_10:
+  source: User decisions in the Claude chat of 2026-11-10 (session 5349).
+  target_flow: The user asks for a feature in a connected repository; preprocessing selects the Project and its focus starts; the assistant searches, edits, runs tests on the machine, commits in the chat's worktree, lands the commits on the target branch locally after green tests and asks before push.
+  decisions:
+    - Connected Git repositories get one worktree per chat. There is no named branch per chat. The worktree starts from the source's target branch (a per-source setting, for example dev) with a detached HEAD, created on first write. A hidden ref refs/openmates/chats/<chat-id> protects the chat's commits; it is not a branch. Sub-chats use the parent chat's worktree. Plain folders stay live-edited.
+    - Commits in the worktree happen automatically after green tests. When the work is ready, the commits are rebased onto the target branch and land there automatically on the local machine after green tests. If the rebase conflicts, the assistant resolves the conflicts in the chat worktree and the tests run again before landing. Push always asks for approval of that exact action. After landing, the worktree and the hidden ref are removed.
+    - Worktree location is ~/.openmates/worktrees/<source>/<chat>. Cleanup happens after landing or after 14 idle days and never deletes commits that have not landed.
+    - This reverses U6 and Q2 above and the lines in integration_constraints that forbid a worktree or staging layer for chat writes. The confinement rule that a command never runs against a copied or overlay tree is kept; a Git worktree is a real checkout that the same AppArmor and private-path policy must cover.
+    - Tests for remote Projects run on the remote machine by default; the assistant can choose the target.
+    - Push always asks; local landing on the target branch does not (see above). Test commands run unprompted only through a command list the user enabled.
+    - New Projects are created in the cloud by default. When the user asks for a new Project on their own machine, OpenMates asks the connected remote-access host to create it (user decision 2026-11-12): a new folder under the machine's configured new-Projects folder, initialised as a Git repository with a first commit, and registered as a source of the new Project. The user confirms this creation in the chat first (a confirmation card like the one for including memories); nothing is created on the machine before that. A host without a configured new-Projects folder does not offer the capability.
+    - Rust first. The source-host side of remote access (the `remote-access` command) is not ported; docs/architecture/platforms/rust-migration-status.md records the native handler as failing explicitly. Requester-side Rust exists in packages/openmates-rust/src/web_projects/remote_access.rs and work/projects/remote_files.rs. The port is a prerequisite for proving this flow with the Rust CLI.
+  specification_changes: Draft assertion projects.sources.chat-worktrees was added and the worktree exclusion in feature.projects was replaced on 2026-11-10; code-run.execution.e2b-only now states the remote default for remote Projects. Approval is asked once after deployment.
+  packages:
+    - id: R1
+      outcome: One verification run on dev of today's remote flow (focus by inference, search, read, diff update, one approved command) with the existing npm connector, recording what fails. No product changes.
+      ownership: Read-only; uses the manual_validation_projects above. Output is a findings note in this plan.
+      depends_on: []
+    - id: R2
+      outcome: Rust source host. `openmates remote-access` in the Rust CLI registers sources, serves list, search, read, create and update over the encrypted relay with the same path policy, private paths and locks, and passes the existing connector conformance vectors.
+      ownership: packages/openmates-rust/src/client/source_host.rs, remote_access_crypto.rs, a new source-host module; frontend/packages/openmates-tui-native/src/cli (remote-access handler). Does not touch the TypeScript connector.
+      depends_on: []
+    - id: R3
+      outcome: Rust confined command runtime on the source host (argv runs, confinement through the sandbox tier interface of R9, command lists, output limits), reusing packages/openmates-rust/src/remote_command. Built against the R9 tier interface.
+      ownership: packages/openmates-rust/src/remote_command*, the source-host command path.
+      depends_on: [R2, R9 interface]
+    - id: R4
+      outcome: Chat worktrees. The source host creates and reuses the worktree per chat (detached HEAD from the source's target branch, hidden ref refs/openmates/chats/<chat-id>, location ~/.openmates/worktrees/<source>/<chat>), resolves every file operation and command inside it, lists and removes worktrees (after landing or 14 idle days, never with unlanded commits), and reports the worktree state to the chat. Includes the backend request fields that carry the chat's workspace identity.
+      ownership: New worktree module in the Rust source host; backend/core/api/app/services/project_remote_access_service.py and project_file_operation_service.py for the workspace identity; private-path and AppArmor profile generation for worktree paths.
+      depends_on: [R2]
+    - id: R5
+      outcome: Git operations as structured tools (status, diff, automatic commit in the chat worktree after green tests, rebase onto the target branch with assistant-resolved conflicts and tests rerun, automatic local landing after green tests, push behind exact approval, removal of worktree and hidden ref after landing), not free argv. Includes proving that git commit works inside the confinement with .git/config masked.
+      ownership: backend/apps/ai/processing (new project git tools beside project_file_tools.py), backend/apps/code/terminal_command_risk.py, Rust source host git module.
+      depends_on: [R3, R4]
+    - id: R6
+      outcome: Sub-chats inherit the parent chat's Project focus, client capabilities, grants and worktree, bounded by the parent's authority.
+      ownership: backend/apps/ai/sub_chat_orchestration.py (dispatch_sub_chat_task), project_write_authorization_service.py and their tests.
+      depends_on: []
+    - id: R7
+      outcome: Assistant file delete and rename tools with the same expected-base, approval and write-policy rules.
+      ownership: backend/apps/ai/processing/project_file_tools.py, the hosted and remote executors in the Rust core.
+      depends_on: [R2 for the remote side; the hosted side has no dependency]
+    - id: R8
+      outcome: The Project focus instructions re-read AGENTS.md or CLAUDE.md when the file changes instead of only at setup.
+      ownership: Rust source host (change notice), Project settings update path.
+      depends_on: [R2]
+    - id: R9
+      outcome: Command sandbox tiers. Linux uses rootless bubblewrap when the OS permits unprivileged user namespaces, with no setup. Where the OS blocks it (Ubuntu 24.04 and later) the existing one-time sudo AppArmor setup (scripts/setup_remote_command_apparmor.py) is offered only when the user enables commands, with a clear explanation of what it does and why. macOS must be supported (user, 2026-11-10, macOS support is also important and must be supported) through a Seatbelt (sandbox-exec) profile with no sudo. Sudo is never prompted when remote access starts, and file access keeps working without any setup. Windows stays out of scope (user decision 2026-11-10).
+      ownership: packages/openmates-rust/src/remote_command* (tier detection and one tier interface), a new Seatbelt profile generator, scripts/setup_remote_command_apparmor.py (offer flow only), Rust CLI enable-commands handler.
+      depends_on: []
+      note: This is a security-boundary change and needs its own Specification assertions before implementation; owning spec feature.app-skill.code-run (remote confinement). R3 is built against this tier interface.
+    - id: R10
+      outcome: Project creation on the user's machine. The Rust source host gains a create_source operation (new folder under the configured new-Projects folder, never outside it and never over an existing folder; Git repository on the default branch with a first commit; registered as a source), offered only when the machine owner configured that folder. The assistant proposes it when the user asks for a Project on their machine, the user confirms in the chat, and focus then starts on the new Project. Cloud creation stays the default.
+      ownership: Rust source host (new create_source module, host option for the new-Projects folder), backend/core/api/app/services/project_remote_access_service.py and the Project creation path of the preprocessor, the Rust core requester, the confirmation card in the clients.
+      depends_on: [R2, R4]
+  acceptance:
+    - Two chats on one connected repository edit and test in separate worktrees; the user's main checkout working tree is unchanged until a chat's commits land on the target branch.
+    - A feature request reaches commits under the chat's hidden ref with a passing test result recorded on the machine, lands automatically on the target branch locally after green tests, driven through the Rust CLI as both requester and source host.
+    - Push is never executed without approval of that exact action.
+  verification: Acceptance test A2 in docs/plans/agentic-tests-and-git-sync, run in isolated CI with a disposable repository; web proof of the same chat.
+  open_points:
+    - Whether git commit works under the current confinement is untested; R5 must settle it before auto-commit is enabled.
+    - Landing changes the user's checkout on the local machine; R5 must define what happens when the target branch is checked out with uncommitted changes (proposed: wait and tell the user rather than touch their working tree).

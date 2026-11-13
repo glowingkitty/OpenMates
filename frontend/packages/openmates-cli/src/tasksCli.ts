@@ -190,6 +190,8 @@ export interface TaskUpdateOptions {
   projectIds?: string[];
   planId?: string | null;
   priority?: TaskPriorityLevel | number | null;
+  /** New due date in epoch seconds; undefined or null leaves the stored due date unchanged. */
+  dueAt?: number | null;
   slug?: string;
 }
 
@@ -440,6 +442,7 @@ export async function buildUpdateUserTaskInput(task: DecryptedUserTask, masterKe
   if (input.planId !== undefined) patch.plan_id = input.planId;
   const priority = normalizeTaskPriority(input.priority);
   if (priority !== undefined) patch.priority = priority;
+  if (input.dueAt !== undefined && input.dueAt !== null) patch.due_at = input.dueAt;
   const replaceLabels = input.labels ?? input.tags;
   if (replaceLabels !== undefined || input.addLabels !== undefined || input.addTags !== undefined || input.removeLabels !== undefined || input.removeTags !== undefined) {
     const remove = new Set(normalizeLabels([...(input.removeLabels ?? []), ...(input.removeTags ?? [])]));

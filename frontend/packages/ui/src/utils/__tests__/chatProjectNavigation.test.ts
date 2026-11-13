@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { projectBreadcrumbs, projectFolderChatIds, locationHasRunningChats, type SidebarProject } from '../chatProjectNavigation';
+import { projectBreadcrumbs, projectFolderChatIds, locationHasRunningChats, projectHasChats, type SidebarProject } from '../chatProjectNavigation';
 const project: SidebarProject = { id: 'launch', name: 'Website launch', folders: [
   { id: 'marketing', hash: 'm', parentHash: null, name: 'Marketing' },
   { id: 'campaigns', hash: 'c', parentHash: 'm', name: 'Campaigns' },
@@ -22,5 +22,12 @@ describe('nested chat project navigation', () => {
   // contract-test: supporting surface=gui.web assertions=chat-navigation.projects.nested-readable
   it('does not treat an unavailable folder as the project root', () => {
     expect([...projectFolderChatIds(project, 'deleted')]).toEqual([]);
+  });
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.projects.only-with-chats
+  it('counts a project only when a chat sits at its root or in an existing folder', () => {
+    expect(projectHasChats(project)).toBe(true);
+    expect(projectHasChats({ ...project, chats: [] })).toBe(false);
+    expect(projectHasChats({ ...project, chats: [{ id: 'x', chatId: 'a', folderHash: 'gone' }] })).toBe(false);
+    expect(projectHasChats({ ...project, chats: [{ id: 'x', chatId: 'a', folderHash: 'd' }] })).toBe(true);
   });
 });

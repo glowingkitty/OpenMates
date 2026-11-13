@@ -45,7 +45,6 @@ embed_types:
     icon: weather
     gradient_var: "--color-app-weather"
     i18n_namespace: embeds.weather.rain_radar
-settings_and_memories: []
 instructions:
   - instruction: |
       When you use the weather-forecast tool, the tool returns compact daily summaries for inference and creates one detailed weather day embed per requested day. Use the summaries for normal answers. If the user asks for exact hourly details, refer to or inspect the relevant day embed instead of guessing.
@@ -66,6 +65,10 @@ skills:
       backend.apps.weather.skills.forecast_skill.ForecastSkill
     pricing:
       fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Open-Meteo and DWD open data
     providers:
       - name: deutscher_wetterdienst
         display_name: Deutscher Wetterdienst (DWD)

@@ -4,6 +4,7 @@ import {
   getWebSocketUrl,
   setChatMetadataRecoveryCapabilityEnabled,
   setProjectFileJobsCapabilityEnabled,
+  setMemoryWriteJobsCapabilityEnabled,
   setRemoteCommandJobsCapabilityEnabled,
 } from "../api";
 
@@ -12,6 +13,14 @@ describe("Project file WebSocket capability", () => {
     setProjectFileJobsCapabilityEnabled(false);
     setChatMetadataRecoveryCapabilityEnabled(false);
     setRemoteCommandJobsCapabilityEnabled(false);
+    setMemoryWriteJobsCapabilityEnabled(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.lifecycle.encrypted-crud
+  it("advertises assistant Memory write jobs only while the core job runner is installed", () => {
+    expect(getWebSocketUrl()).not.toContain("memory_write_jobs");
+    setMemoryWriteJobsCapabilityEnabled(true);
+    expect(getWebSocketUrl()).toContain("memory_write_jobs");
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery

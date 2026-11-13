@@ -364,6 +364,12 @@ class CliPeer(EssentialPeer):
 
             def do_GET(self):
                 route = urlsplit(self.path)
+                if route.path == f"/v1/chats/{peer.chat_id}/pending-embed-notices":
+                    # Chat open runs the embed-update notice reconcile
+                    # (feature.embed-user-edits); this saved chat has none.
+                    peer.headers(self)
+                    self.response(200, {"chat_id": peer.chat_id, "notices": []})
+                    return
                 if getattr(peer, "structured", False):
                     team = getattr(peer, "structured_team", None)
                     if route.path == f"/v1/teams/{team}" and team:

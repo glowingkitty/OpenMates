@@ -18,7 +18,9 @@ from .sdk import (
     OpenMatesSignupRequiredError,
     OpenMatesUnavailableError,
     OpenMatesProjectTaskWatchUnavailableError,
+    OpenMatesInvalidInputError,
 )
+from .root_client import OpenMatesClient, OpenMatesApiKeyRequiredError, SDK_API_KEY_REQUIRED_CODE
 from .task_order import TaskOrderRow, sort_tasks
 from .privacy import PreparedPrivacy, prepare_privacy, restore_privacy
 from .session_client import (
@@ -64,7 +66,11 @@ from .startup_sync import SessionInitialSyncOperation, SessionInitialSyncMetadat
 from .first_page_session import SessionFirstPageCapacity, SessionFirstPagePublication, SessionFirstPageStore, SessionFirstPageCallback
 from .project_task_watch import (SessionProjectTaskWatch,SessionProjectTaskWatchScope,SessionProjectTaskWatchReceipt,SessionProjectTaskWatchCheckpoint,SessionProjectTaskWatchEvent,SessionProjectTaskWatchSnapshot,SessionProjectTaskWatchState,SessionProjectTaskWatchTask)
 from .rust_api_key import RustApiKeyClient, RustApiKeyClientError
+from .key_management import KeyManagementError, random_key, encode_key, decode_key, key_fingerprint, hash_email, hash_key, encrypt_combined, decrypt_combined
+from .models import Workspace, Item, Message, Chat, StreamUpdate, Mutation
+from .public_utilities import (SUPPORT_URL, ASSISTANT_FEEDBACK_THANKS, ASSISTANT_FEEDBACK_REPORT_TITLE, render_support_info, default_clone_branch_for_version, derive_app_url, get_ext_for_lang, build_assistant_feedback_decision, classify_images_ai_detection, format_images_ai_detection_label, build_images_ai_detection_summary)
 from .calendar_event import CalendarEvent, CalendarEventDocument, build_calendar_event_file
+from .raw_download import RawDownload
 from .session_client import SessionAccount, SessionSettingsReadError
 from .remote_crypto import RemoteHandshake,RemoteSession,RemoteCryptoError,RemoteIdentity,RemoteRole,RemoteHandshakeWire,RemoteEnvelope
 from .metadata_ephemeral import MetadataAuthentication,EphemeralMetadataClient,EphemeralMetadataStartup,EphemeralMetadataSnapshot,MetadataEphemeralError,MetadataCookieCredentials,MetadataAuthenticationOptions
@@ -82,6 +88,10 @@ __all__ = [
     "OpenMatesUnavailableError",
     "OpenMatesProjectTaskWatchUnavailableError",
     "OpenMatesSignupRequiredError",
+    "OpenMatesInvalidInputError",
+    "OpenMatesClient",
+    "OpenMatesApiKeyRequiredError",
+    "SDK_API_KEY_REQUIRED_CODE",
     "SessionClient",
     "SessionClientError",
     "SessionDrafts",
@@ -145,6 +155,7 @@ __all__ = [
     "CalendarEvent",
     "CalendarEventDocument",
     "build_calendar_event_file",
+    "RawDownload",
     "SessionProjectSourcesDecodedNames",
     "SessionAccount",
     "SessionSettingsReadError",
@@ -162,4 +173,11 @@ __all__ = [
     "MetadataEphemeralError",
     "MetadataCookieCredentials",
     "MetadataAuthenticationOptions",
+    "KeyManagementError", "random_key", "encode_key", "decode_key", "key_fingerprint",
+    "hash_email", "hash_key", "encrypt_combined", "decrypt_combined",
+    "Workspace", "Item", "Message", "Chat", "StreamUpdate", "Mutation",
+    "SUPPORT_URL", "ASSISTANT_FEEDBACK_THANKS", "ASSISTANT_FEEDBACK_REPORT_TITLE",
+    "render_support_info", "default_clone_branch_for_version", "derive_app_url",
+    "get_ext_for_lang", "build_assistant_feedback_decision", "classify_images_ai_detection",
+    "format_images_ai_detection_label", "build_images_ai_detection_summary",
 ]

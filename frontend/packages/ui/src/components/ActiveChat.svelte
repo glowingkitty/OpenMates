@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { vibrateDevice } from '../services/eventSounds';
+    import { markFirstSendStopped, isDraftChatClaimedForSend } from "../services/drafts/draftSendClaims";
     import { authoredResultMetadata } from '../utils/authoredResultPresentation';
 import { storageArchiveFetch } from "../config/api";
 import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
@@ -41,10 +43,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
+    import { markChatRead, markReadIfLatestReplySeen, hasUnread, hasUnreadRust, RUST_READ_STATE } from '../services/chatReadState';
+    import { unreadMessagesStore } from '../stores/unreadMessagesStore';
+    import ContinueCardUnreadBadge from './workspace/ContinueCardUnreadBadge.svelte';
     import { isChatMetadataTurnCurrent, getChatMetadataTurnKey } from '../services/lateChatMetadataGuard';
     import { chatNavigationReader } from '../services/chatNavigationReader';
     import { initialChatHistoryGate } from '../services/initialChatHistoryGate';
     import { fetchAuthenticatedChatMessageWindow } from '../services/authenticatedChatMessageWindow';
+    import { readRustChatHistoryWindow } from '../services/rustCore/activeChatRustHistory';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { VisibleMessageReceipts } from '../services/visibleMessageReceipts';
     import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
@@ -71,13 +77,18 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import PdfSearchEmbedFullscreen from './embeds/pdf/PdfSearchEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
     import WorkflowRunEmbedFullscreen from './embeds/workflows/WorkflowRunEmbedFullscreen.svelte';
+    import WorkflowChatPane from './workflows/WorkflowChatPane.svelte';
+    import { createChatScrollKeeper } from './activeChatScrollKeeper';
+    import { installWorkflowSidePanelE2EHook } from './workflows/workflowSidePanelE2EHook';
+    import { workflowSidePanel, closeWorkflowSidePanel } from '../stores/workflowSidePanelStore';
     import type { AudioWaveformData } from '../utils/audioWaveform';
     import Model3DResultEmbedFullscreen from './embeds/models3d/Model3DResultEmbedFullscreen.svelte';
     import { resolveRegistryKey, hasFullscreenComponent, loadFullscreenComponent } from '../services/embedFullscreenResolver';
     import { CHUNK_ERROR_MESSAGE, forcePageReload, isChunkLoadError, logChunkLoadError } from '../utils/chunkErrorHandler';
     import { normalizeEmbedType as registryNormalizeEmbedType } from '../data/embedRegistry.generated';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
-    import { appSkillsStore, initializeUserAvailableSkills, initializeFeatureAvailability } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
+    import { appSkillsStore, initializeUserAvailableSkills, initializeFeatureAvailability, featureAvailabilityStore } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
+    import { isWorkspaceFeatureAvailable } from '../config/workspaceFeatureGates';
     import { userProfile } from '../stores/userProfile';
     import { 
         isInSignupProcess, 
@@ -111,6 +122,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { pruneDecryptedMessageWindow, shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
     import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
     import { getMatesById } from '../data/matesMetadata';
+    import { mateDisplayName } from '../utils/mateDisplayName';
     import { matchesProcessingFeedbackTerminal } from './activeChatProcessingFeedback';
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
@@ -151,7 +163,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { buildChatMenuItems, type ChatMenuAction } from './chats/chatMenuItems';
     import { chatMenuUsageStore, hydrateChatMenuUsage, rankChatMenuItems, recordChatMenuUsage } from '../services/chatMenuUsage';
     import { notificationStore } from '../stores/notificationStore'; // For context menu action feedback
-    import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
     import { findWikipediaStudyInterest, saveWikipediaStudyInterest } from '../services/wikipediaStudyInterest';
     import type { WikipediaArticleIdentity, WikipediaRelatedArticle } from '../utils/wikipediaLearning';
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
@@ -188,7 +199,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSurface } from '../stores/dailyInspirationStore'; // Type/store for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
-    import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
+    import { localizeIndicatorLine } from './chats/utils/chatIndicatorLines'; // Localises indicator lines decided by the Rust chatState unit when the flag is on
+    import type { IndicatorLine } from '../services/rustCore/chatState/transitionProtocol';
+    import { sortChatsForList } from './chats/utils/chatSortForList'; // Same order, via the Rust chatState unit when the flag is on
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
     import { activeTeam, activeTeamId, getActiveTeamContextSnapshot, isActiveTeamContext, TEAM_CONTEXT_CHANGED_EVENT } from '../stores/teamStore';
     import TeamWorkspaceIdentity from './teams/TeamWorkspaceIdentity.svelte';
@@ -220,13 +233,17 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { getApiEndpoint } from '../config/api';
     import {
         getReminderByTargetChatId,
-        getReminderByTargetEmbedId,
-        getSavedEmbedContinueCandidates,
+        getSavedFlagContinueCandidates,
         sortContinuePriorityItems,
         type ActiveReminderForContinue,
         type ContinuePriority,
         type SavedEmbedContinueCandidate,
     } from '../services/continueCarouselService';
+    import {
+        CONTINUE_RUST_CORE,
+        getReminderByTargetChatIdRust,
+        sortContinuePriorityItemsRust,
+    } from '../services/continueCarouselRust';
     import type {
         WebSearchSkillPreviewData,
         VideoTranscriptSkillPreviewData,
@@ -333,6 +350,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         revealSubmittedMessage: (messageId: string) => Promise<void>;
         restoreScrollPosition: (messageId: string) => void;
         scrollToLatestAssistantMessage: () => void;
+        isLatestMessageEndVisible: () => boolean;
     };
 
     type MessageInputFieldRef = {
@@ -1020,6 +1038,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // Image embed fullscreen — triggered by clicking an in-editor upload embed
     let showImageEmbedFullscreen = $state(false);
     let imageEmbedFullscreenData = $state<{
+        embedId?: string;
         src?: string;
         filename?: string;
         s3Files?: Record<string, { s3_key: string; width: number; height: number; size_bytes: number; format: string }>;
@@ -1047,7 +1066,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // This ensures signup state is preserved and login interface stays open
         try {
             if (inSignupFlow && user?.last_opened) {
-                const { currentSignupStep, isInSignupProcess, getStepFromPath } = await import('../stores/signupState');
+                const { currentSignupStep, isInSignupProcess, getStepFromPath, primeSignupLocation } = await import('../stores/signupState');
+                if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(user.last_opened);
                 const step = getStepFromPath(user.last_opened);
                 currentSignupStep.set(step);
                 isInSignupProcess.set(true);
@@ -1444,6 +1464,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     function handleImageFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received imagefullscreen event:', event.detail);
         imageEmbedFullscreenData = {
+            embedId: event.detail.embedId,
             src: event.detail.src,
             filename: event.detail.filename,
             s3Files: event.detail.s3Files,
@@ -1744,36 +1765,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         window.location.hash = buildAppsWorkspaceHash(`apps/${appId}/focus/${focusModeId}`, undefined, window.location.pathname + window.location.search + window.location.hash);
     }
 
-    async function handleQuickTipAction(event: CustomEvent) {
-        const tip = event.detail;
-        if (!tip?.ctaAction) return;
-
-        if (tip.ctaAction === 'new_chat') {
-            await handleNewChatClick();
-            return;
-        }
-
-        if (tip.ctaAction === 'open_app') {
-            try {
-                const { navigateToSettings } = await import('../stores/settingsNavigationStore');
-                const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
-                const { panelState } = await import('../stores/panelStateStore');
-                const settingsPath = tip.appId ? `apps/${tip.appId}` : 'apps';
-                navigateToSettings(settingsPath, 'Apps', 'app', '');
-                settingsDeepLink.set(settingsPath);
-                panelState.openSettings();
-            } catch (error) {
-                console.error('[ActiveChat] Error handling quick tip app navigation:', error);
-            }
-            return;
-        }
-
-        if (tip.ctaAction === 'send_prompt' && tip.prompt) {
-            messageInputFieldRef?.setSuggestionText(tip.prompt);
-            messageInputFieldRef?.focus();
-        }
-    }
-    
     // Handler for Wikipedia fullscreen events (from WikiInlineLink).
     // Only one fullscreen can be open at a time — close any regular embed fullscreen
     // before opening the wiki fullscreen. Updating wikiFullscreenData while wiki is
@@ -1826,7 +1817,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             || wikiFullscreenData !== openingArticle || currentChat?.chat_id !== openingChatId) return;
         showWikiFullscreen = false;
         wikiFullscreenData = null;
-        settingsDeepLink.set(`apps/study/settings_memories/learning_goals/entry/${id}/edit`);
+        settingsDeepLink.set(`memories/${encodeURIComponent(id.replace(/^account-memory-/, ''))}`);
         panelState.openSettings();
     }
 
@@ -2626,8 +2617,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         messageInputFieldRef?.focus();
     }
 
-    async function handleEmbedSuggestionClick(embedId: string, settingsPath?: string, embedChatId?: string): Promise<void> {
-        console.debug('[ActiveChat] Composer embed selected', JSON.stringify({ embedId, savedMemory: !!settingsPath }));
+    async function handleEmbedSuggestionClick(embedId: string, settingsPath?: string, embedChatId?: string, savedEmbed = false): Promise<void> {
+        console.debug('[ActiveChat] Composer embed selected', JSON.stringify({ embedId, savedMemory: !!settingsPath, savedEmbed }));
         const openingChatId = currentChat?.chat_id ?? null;
         const openingDraftChatId = get(draftEditorUIState).currentChatId ?? temporaryChatId;
         const openingLoadGeneration = loadChatGeneration;
@@ -2652,9 +2643,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const exampleChatId = embedChatId && isExampleChat(embedChatId) ? embedChatId : null;
         const { resolveEmbedForOpen } = await import('../services/embedResolver');
         const { resolveEmbedFullscreenTarget } = await import('../services/embedFullscreenController');
-        // A saved memory without an owner must not borrow the currently open
+        // A saved memory or saved-flag embed without an owner must not borrow the currently open
         // public example's namespace just because the user is composing there.
-        let lookupChatId = embedChatId ?? (settingsPath ? null : openingChatId);
+        let lookupChatId = embedChatId ?? (settingsPath || savedEmbed ? null : openingChatId);
         const readEmbed = async (id: string) => {
             try {
                 return await resolveEmbedForOpen(id, { chatId: lookupChatId });
@@ -2788,7 +2779,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const {
             chatId,
             followUpSuggestions: newSuggestions,
-            quickTipSlugs: newQuickTipSlugs,
             taskProposals = [],
             taskUpdateProposals = [],
         } = event.detail;
@@ -2876,22 +2866,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     } else {
                         followUpSuggestions = [];
                         console.debug('[ActiveChat] No follow-up suggestions found');
-                    }
-
-                    if (freshChat.encrypted_quick_tip_slugs) {
-                        const chatKey = chatKeyManager.getKeySync(chatId);
-                        if (chatKey) {
-                            const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                            const decryptedTips = await decryptArrayWithChatKey(freshChat.encrypted_quick_tip_slugs, chatKey) || [];
-                            if (!metadataIsCurrent()) return;
-                            quickTipSlugs = decryptedTips;
-                        } else if (newQuickTipSlugs && Array.isArray(newQuickTipSlugs)) {
-                            quickTipSlugs = newQuickTipSlugs;
-                        }
-                    } else if (newQuickTipSlugs && Array.isArray(newQuickTipSlugs)) {
-                        quickTipSlugs = newQuickTipSlugs;
-                    } else {
-                        quickTipSlugs = [];
                     }
 
                 } else {
@@ -3219,7 +3193,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             resumeCardContextMenuY = resumeCardTouchStartY;
             resumeCardContextMenuChat = chat;
             resumeCardContextMenuShow = true;
-            if (navigator.vibrate) navigator.vibrate(50);
+            vibrateDevice(50);
         }, 500);
     }
 
@@ -3487,7 +3461,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 !c.is_sub_chat &&
                 isChatInActiveTeamContext(c, contextTeamId)
             );
-            const sorted = sortChats(filteredChats, []);
+            const sorted = await sortChatsForList(filteredChats, []);
 
             // Exclude the primary resume chat (it's rendered separately)
             // and the currently active/open chat (avoid showing a draft that's
@@ -3537,8 +3511,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         try {
             const nowMs = Date.now();
             const reminders = await fetchContinueReminders();
-            const remindersByChatId = getReminderByTargetChatId(reminders, nowMs);
-            const remindersByEmbedId = getReminderByTargetEmbedId(reminders, nowMs);
+            // Flag-off keeps the synchronous TS rule (no new await window).
+            const remindersByChatId = CONTINUE_RUST_CORE
+                ? await getReminderByTargetChatIdRust(reminders, nowMs)
+                : getReminderByTargetChatId(reminders, nowMs);
 
             const chatItems: PriorityChatContinueItem[] = [];
             await chatDB.init();
@@ -3555,8 +3531,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
             const embedItems = contextTeamId
                 ? []
-                : getSavedEmbedContinueCandidates($appSettingsMemoriesStore, remindersByEmbedId, nowMs);
-            priorityContinueItems = sortContinuePriorityItems([...chatItems, ...embedItems], nowMs).slice(0, RECENT_CHATS_TOTAL);
+                : getSavedFlagContinueCandidates(await (await import('../services/savedEmbedService')).listSavedEmbeds(), nowMs);
+            const priorityItems: PriorityContinueItem[] = [...chatItems, ...embedItems];
+            priorityContinueItems = (CONTINUE_RUST_CORE
+                ? await sortContinuePriorityItemsRust(priorityItems, nowMs)
+                : sortContinuePriorityItems(priorityItems, nowMs)).slice(0, RECENT_CHATS_TOTAL);
         } catch (err) {
             console.warn('[ActiveChat] Failed to load priority continue items:', err);
         }
@@ -3599,10 +3578,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         try {
             await chatDB.init();
             const chats = await chatDB.getAllChats();
-            const sharedChats = sortChats(
+            const sharedChats = (await sortChatsForList(
                 chats.filter((chat) => chat.is_shared_by_others && !chat.parent_id && !chat.is_sub_chat),
                 []
-            ).slice(0, RECENT_CHATS_TOTAL);
+            )).slice(0, RECENT_CHATS_TOTAL);
 
             return Promise.all(sharedChats.map((chat) => buildRecentChatMeta(chat)));
         } catch (err) {
@@ -3625,7 +3604,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     ): Promise<RecentChatMeta[]> {
         let anonymousMetas: RecentChatMeta[] = [];
         try {
-            const anonymousChats = sortChats(await anonymousChatStorage.getAllChats(), []);
+            const anonymousChats = await sortChatsForList(await anonymousChatStorage.getAllChats(), []);
             anonymousMetas = await Promise.all(
                 anonymousChats.slice(0, RECENT_CHATS_TOTAL).map(buildRecentChatMeta)
             );
@@ -3710,7 +3689,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         void $phasedSyncState.initialSyncCompleted;
         void $userProfile.last_opened;
         void $userProfile.total_chat_count;
-        void $appSettingsMemoriesStore.entriesByApp;
         const guestTags = selectedGuestInterestTagIds;
         const guestTagsConfirmed = guestInterestContinueConfirmed;
         const preserveGuestInterestRanking = guestInterestRankingConfirmed;
@@ -4436,6 +4414,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         await tick();
         if (!currentChat || currentChat.chat_id !== chatId || !isPersistedDraftOnlyChat(currentChat)) return false;
         if (hasLiveDraftComposerTextAfterDraftDeleted(chatId)) return false;
+        // A send in progress stores its first message in this chat next; the composer was
+        // cleared by that send, so "no draft, no messages" is not an abandoned chat.
+        if (isDraftChatClaimedForSend(chatId)) return false;
 
         try {
             const messages = await chatDB.getMessagesForChat(chatId);
@@ -4446,7 +4427,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
 
         if (!currentChat || currentChat.chat_id !== chatId || !isPersistedDraftOnlyChat(currentChat)) return false;
-        if (hasLiveDraftComposerTextAfterDraftDeleted(chatId)) return false;
+        if (hasLiveDraftComposerTextAfterDraftDeleted(chatId) || isDraftChatClaimedForSend(chatId)) return false;
 
         console.info(`[ActiveChat] ${reason}: Active draft-only chat ${chatId} was cleared. Resetting to new chat.`);
         await resetChatWorkspace(messageInputFocused);
@@ -4660,7 +4641,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         resolvedServerRegion: string | undefined,
     ) {
         if (resolvedCategory) {
-            const mateName = $text('mates.' + resolvedCategory);
+            const mateName = mateDisplayName(resolvedCategory, $text);
             const displayModelName = resolvedModelName ? getModelDisplayName(resolvedModelName) : '';
             const displayProviderName = resolvedProviderName || '';
             const displayServerRegion = resolvedServerRegion || '';
@@ -4783,7 +4764,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             completedSteps.push({
                 step: 'mate_selected',
                 skipped: false,
-                data: { mate_name: $text('mates.' + category), mate_category: category },
+                data: { mate_name: mateDisplayName(category, $text), mate_category: category },
             });
         }
         if (modelName) {
@@ -5203,42 +5184,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
     }
 
-    let quickTipSlugs = $state<string[]>([]);
-
-    async function hydrateQuickTipSlugs(
-        chatId: string,
-        encryptedSlugs?: string | null,
-    ): Promise<void> {
-        if (isPublicChat(chatId) || isExampleChat(chatId)) {
-            if (currentChat?.chat_id === chatId) quickTipSlugs = [];
-            return;
-        }
-
-        try {
-            const storedChat = await chatDB.getChat(chatId);
-            const ciphertext = encryptedSlugs || storedChat?.encrypted_quick_tip_slugs;
-            if (!ciphertext) {
-                if (currentChat?.chat_id === chatId) quickTipSlugs = [];
-                return;
-            }
-
-            const chatKey = await chatKeyManager.getKey(chatId);
-            if (!chatKey) {
-                console.warn(`[ActiveChat] Quick tip hydration deferred because chat key is unavailable: ${chatId}`);
-                return;
-            }
-
-            const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-            const decryptedSlugs = await decryptArrayWithChatKey(ciphertext, chatKey) || [];
-            if (currentChat?.chat_id === chatId) {
-                quickTipSlugs = decryptedSlugs;
-                console.debug(`[ActiveChat] Hydrated ${decryptedSlugs.length} quick tip slug(s) for chat ${chatId}`);
-            }
-        } catch (error) {
-            console.error(`[ActiveChat] Failed to hydrate quick tip slugs for chat ${chatId}:`, error);
-        }
-    }
-
     // Track settings/memories suggestions for the current chat
     // These are suggested entries generated during AI post-processing Phase 2
     // Shown as horizontally scrollable cards below the last AI response
@@ -5282,12 +5227,27 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     
     // Keep split capability separate from pane visibility. Hiding the chat must
     // not become a full-chat -> split transition when it is shown again.
-    const hasSplitChatContext = $derived(Boolean(isUltraWide && (
+    const embedSplitChatContext = $derived(Boolean(isUltraWide && (
         (showEmbedFullscreen && embedFullscreenData && fullscreenHasChatContext) ||
         (showWikiFullscreen && wikiFullscreenData && wikiFullscreenHasChatContext)
     )));
-    const showSideBySideFullscreen = $derived(hasSplitChatContext && !forceOverlayMode);
-    const showChatButtonInFullscreen = $derived(hasSplitChatContext && forceOverlayMode);
+    // Workflow editor opened from chat Recommendations (WorkflowChatPane): right
+    // of the 400px chat at >= 1024px, covering the chat below. An embed or wiki
+    // fullscreen opened from the chat takes the pane; the editor stays mounted
+    // (hidden) so its unsaved draft survives. Minimize-chat stays embed-only.
+    const workflowPanelRequest = $derived($workflowSidePanel);
+    const workflowPanelVisible = $derived(Boolean(workflowPanelRequest && !showEmbedFullscreen && !showWikiFullscreen));
+    const workflowPaneCoversChat = $derived(workflowPanelVisible && !isUltraWide);
+    const hasSplitChatContext = $derived(embedSplitChatContext || (isUltraWide && workflowPanelVisible));
+    const showSideBySideFullscreen = $derived(embedSplitChatContext && !forceOverlayMode);
+    const showChatButtonInFullscreen = $derived(embedSplitChatContext && forceOverlayMode);
+
+    // The panel belongs to the chat that opened it: leaving that chat closes it.
+    $effect(() => {
+        const request = workflowPanelRequest;
+        if (request && (currentChat?.chat_id ?? '') !== request.chatId) untrack(() => closeWorkflowSidePanel());
+    });
+    onMount(() => installWorkflowSidePanelE2EHook());
     // Nested result overlays must restore the same workspace chat even when
     // their app-specific adapters do not forward the optional toolbar props.
     setContext<EmbedSourceChatContext>(EMBED_SOURCE_CHAT_CONTEXT, {
@@ -5555,6 +5515,15 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const prunedWindow = pruneDecryptedMessageWindow(messages, {
             compressionCheckpoints: currentCompressionCheckpoints,
         });
+        if (prunedWindow.prunedCount > 0) {
+            console.debug(`[ActiveChat] Pruned ${prunedWindow.prunedCount} decrypted normal message(s) from active window`);
+        }
+        return prunedWindow.messages;
+      }
+      // Flag on: the chatState unit prunes the window (no TypeScript fallback); the callers await it.
+      async function pruneCurrentDecryptedMessageWindowRust(messages: ChatMessageModel[]): Promise<ChatMessageModel[]> {
+        const rust = await import('../services/rustCore/chatState/rustTransitions');
+        const prunedWindow = await rust.rustPruneWindow(messages, { compressionCheckpoints: currentCompressionCheckpoints });
         if (prunedWindow.prunedCount > 0) {
             console.debug(`[ActiveChat] Pruned ${prunedWindow.prunedCount} decrypted normal message(s) from active window`);
         }
@@ -6529,10 +6498,39 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         ))
     );
 
+    // Flag on: the chatState unit decides the composer indicator; the page resolves its state into the
+    // request (buildComposerIndicatorInput) and localises the answer in the deriveds below.
+    const RUST_CHAT_TRANSITIONS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+        && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
+    let rustComposerIndicator = $state<{ lines: IndicatorLine[]; statusType: 'typing' | 'processing' | null }>({ lines: [], statusType: null });
+    if (RUST_CHAT_TRANSITIONS) $effect(() => {
+        void _aiTaskStateTrigger;
+        const typing = currentTypingStatus;
+        const state = {
+            projectKey: projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id) ? projectFileProgressKey(projectFileProgress) : null,
+            chatId: currentChat?.chat_id,
+            anonymous: !!currentChat?.is_anonymous,
+            typing,
+            turn: processingFeedbackTurn,
+            terminal: typingStatusIsTerminal,
+            activeTaskMatches: typing?.chatId != null && chatSyncService.getActiveAIUserMessageIdForChat(typing.chatId) === typing.userMessageId,
+            phase: processingPhase,
+            reasoning: !!typing?.modelName && modelsMetadata.find(m => m.name === typing.modelName || m.id === typing.modelName)?.reasoning === true,
+            displayModelName: typing?.modelName ? getModelDisplayName(typing.modelName) : null,
+        };
+        let stale = false;
+        void import('../services/rustCore/chatState/rustTransitions')
+            .then((rust) => rust.rustComposerIndicator(state))
+            .then((answer) => { if (!stale) rustComposerIndicator = answer; });
+        return () => { stale = true; };
+    });
+
     let typingIndicatorLines = $derived((() => {
         // _aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
+
+        if (RUST_CHAT_TRANSITIONS) return rustComposerIndicator.lines.map((line) => localizeIndicatorLine(line, $text));
 
         if (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id)) {
             return [$text(`embeds.projects.progress.${projectFileProgressKey(projectFileProgress)}`)];
@@ -6575,7 +6573,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             && currentTypingStatus.category
             && (!processingFeedbackTurn || typingStatusMatchesProcessingFeedback)
         ) {
-            const mateName = $text('mates.' + currentTypingStatus.category);
+            const mateName = mateDisplayName(currentTypingStatus.category, $text);
             const modelName = currentTypingStatus.modelName || ''; 
             const providerName = currentTypingStatus.providerName || '';
             const serverRegion = currentTypingStatus.serverRegion || '';
@@ -6632,6 +6630,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // 'sending', 'processing', and 'waiting_for_user' are no longer shown at the bottom.
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
+
+        if (RUST_CHAT_TRANSITIONS) return rustComposerIndicator.statusType;
 
         if (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id)) return 'processing';
 
@@ -7454,6 +7454,16 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             editCreatedAt?: number,
         };
 
+        // Answering a reply implies it was read, even if not scrolled to its end;
+        // the follow-up reply then counts as a single new unread message.
+        if (!newChat && currentChat?.chat_id === message.chat_id && $authStore.isAuthenticated
+            && !isPublicChat(message.chat_id)
+            && (RUST_READ_STATE ? await hasUnreadRust(message.chat_id, currentChat.unread_count) : hasUnread(message.chat_id, currentChat.unread_count))) {
+            currentChat = { ...currentChat, unread_count: 0 };
+            void markChatRead(message.chat_id, 'follow-up sent').catch((error) =>
+                console.error('[ActiveChat] Error marking chat read on send:', error));
+        }
+
         if ((newChat || !currentChat?.chat_id) && cancelledPendingNewChatDraftText && (!cancelledPendingNewChatId || cancelledPendingNewChatId === message.chat_id)) {
             const draftText = cancelledPendingNewChatDraftText;
             const preserveChatId = cancelledPendingNewChatPreserveId;
@@ -7475,6 +7485,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 console.warn('[ActiveChat] Failed to delete late cancelled new-chat message from server:', err);
             }
             if (preserveChatId) {
+                markFirstSendStopped(message.chat_id);
                 await restoreCancelledPersistedDraft(message.chat_id, draftText);
             } else {
                 await handleNewChatClick();
@@ -7494,7 +7505,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Hide follow-up suggestions until new ones are received
         dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
         followUpSuggestions = [];
-        quickTipSlugs = [];
         
         // Hide settings/memories suggestions when user sends a new message
         // New suggestions will be generated during post-processing
@@ -7860,6 +7870,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
 
         if (preserveChatId && cancelledChatId && text) {
+            markFirstSendStopped(cancelledChatId);
             await restoreCancelledPersistedDraft(cancelledChatId, text);
             if (sentMessageAlreadyApplied) {
                 try {
@@ -7972,6 +7983,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // Closing returns to the parent or workspace without starting a new input session.
     let closingChat = $state(false);
     let chatNavigationPane = $state<HTMLDivElement | null>(null);
+    // Workflow editor (WorkflowChatPane): closing it returns to the chat at the scroll position it had when the editor opened.
+    const workflowPaneScroll = createChatScrollKeeper();
+    // Pre-effect: record the offset before the DOM switches to the split layout.
+    $effect.pre(() => {
+        const paneChatId = workflowPanelRequest?.chatId ?? null;
+        untrack(() => workflowPaneScroll.update(paneChatId, currentChat?.chat_id ?? null, chatNavigationPane, () => chatHistoryRef?.scrollToBottom()));
+    });
     let previousNavigationChatId: string | null = null;
     $effect(() => {
         const chatId = !showWelcome ? (currentChat?.chat_id ?? 'new-chat') : null;
@@ -8000,6 +8018,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 shareAllowed: false,
                 isUnread: (currentChat.unread_count ?? 0) > 0,
                 debugActive: false,
+                projectsEnabled: isWorkspaceFeatureAvailable('platform:projects', $featureAvailabilityStore.disabledById),
                 hide: { select: true, share: true },
             }), $chatMenuUsageStore)
             : [],
@@ -9455,9 +9474,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         if (incomingChatMetadata && !incomingMetadataIsStale) {
             console.debug("[ActiveChat] handleChatUpdated: Updating currentChat with metadata from event:", incomingChatMetadata);
             currentChat = { ...currentChat, ...incomingChatMetadata }; // Merge, prioritizing incoming. This updates messages_v etc.
-            if (isHeaderMetadataUpdate) {
-                await hydrateQuickTipSlugs(incomingChatId, incomingChatMetadata.encrypted_quick_tip_slugs);
-            }
         } else if (incomingMetadataIsStale) {
             console.debug('[ActiveChat] handleChatUpdated: Ignoring stale encrypted metadata event:', {
                 incomingMetadataVersion,
@@ -9579,7 +9595,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
                 // Refresh same-ID edits/status changes as well as membership. A full
                 // latest window is authoritative; a partial page retains older rows.
-                const reconciledMessages = reconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore);
+                const reconciledMessages = RUST_CHAT_TRANSITIONS
+                    ? await (await import('../services/rustCore/chatState/rustTransitions')).rustReconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore)
+                    : reconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore);
                 if (JSON.stringify(currentMessages) !== JSON.stringify(reconciledMessages)) {
                     console.info(`[ActiveChat] handleChatUpdated: Message set changed after IndexedDB reload (${currentMessages.length} → ${freshMessages.length}). Updating display.`);
                     currentMessages = reconciledMessages;
@@ -10007,10 +10025,17 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 return;
             }
             const existingIds = new Set(currentMessages.map((message) => message.message_id));
-            currentMessages = pruneCurrentDecryptedMessageWindow([
+            const olderWindowRows = [
                 ...olderWindow.messages.filter((message) => !existingIds.has(message.message_id)),
                 ...currentMessages,
-            ]);
+            ];
+            if (RUST_CHAT_TRANSITIONS) {
+                const prunedRows = await pruneCurrentDecryptedMessageWindowRust(olderWindowRows);
+                if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch() || windowRevision !== getRecentChatRevision(openedChatId)) return;
+                currentMessages = prunedRows;
+            } else {
+                currentMessages = pruneCurrentDecryptedMessageWindow(olderWindowRows);
+            }
             currentMessageWindowHasMoreBefore = olderWindow.hasMoreBefore;
             chatHistoryRef?.updateMessages(currentMessages);
             cacheDisplayedChatWindow(openedChatId, openedEpoch, windowRevision);
@@ -10069,22 +10094,62 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
         void reportVisibleMessages(currentChat.chat_id);
-        
+        await markCurrentChatReadIfLatestReplySeen();
+    }
+
+    // A chat is read only once the last line of its newest reply has been visible.
+    // Opening a chat, or seeing only the first lines of a long reply, keeps it unread.
+    async function markCurrentChatReadIfLatestReplySeen(): Promise<void> {
+        const chat = currentChat;
+        if (!chat?.chat_id || !chatHistoryRef || isPublicChat(chat.chat_id) || !$authStore.isAuthenticated) return;
+        const historyRef = chatHistoryRef;
         try {
-            // Update unread count to 0 (mark as read)
-            await chatDB.updateChatReadStatus(currentChat.chat_id, 0);
-            
-            // Send to server
-            await chatSyncService.sendChatReadStatus(currentChat.chat_id, 0);
-            
-            // Update local state
-            currentChat = { ...currentChat, unread_count: 0 };
-            
-            console.debug(`[ActiveChat] Marked chat ${currentChat.chat_id} as read (unread_count = 0)`);
+            const marked = await markReadIfLatestReplySeen({
+                chatId: chat.chat_id,
+                persistedUnreadCount: chat.unread_count,
+                isLatestMessageEndVisible: () => historyRef.isLatestMessageEndVisible(),
+                isChatStillOpen: () => currentChat?.chat_id === chat.chat_id && chatHistoryRef === historyRef,
+            });
+            if (marked && currentChat?.chat_id === chat.chat_id) {
+                currentChat = { ...currentChat, unread_count: 0 };
+            }
         } catch (error) {
             console.error('[ActiveChat] Error marking chat as read:', error);
         }
     }
+
+    // Re-check when a new reply becomes unread for the visible chat (it may already
+    // be fully on screen), when the newest reply finishes rendering (the unread
+    // signal can arrive before it does) and when the tab becomes visible again.
+    let currentChatUnreadCount = $derived(
+        currentChat?.chat_id ? ($unreadMessagesStore.unreadCounts.get(currentChat.chat_id) ?? 0) : 0
+    );
+    let latestMessageRenderKey = $derived.by(() => {
+        const latest = currentMessages[currentMessages.length - 1];
+        return latest ? `${latest.message_id}:${latest.status}` : '';
+    });
+    $effect(() => {
+        void latestMessageRenderKey;
+        if (currentChatUnreadCount <= 0) return;
+        untrack(() => {
+            void tick().then(() => requestAnimationFrame(() => { void markCurrentChatReadIfLatestReplySeen(); }));
+        });
+    });
+    $effect(() => {
+        const onVisible = () => { if (document.visibilityState === 'visible') void markCurrentChatReadIfLatestReplySeen(); };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+    });
+
+    // A manual "mark as unread" lasts until the user leaves that chat.
+    let previousReadTrackedChatId: string | null = null;
+    $effect(() => {
+        const chatId = currentChat?.chat_id ?? null;
+        if (previousReadTrackedChatId && previousReadTrackedChatId !== chatId) {
+            unreadMessagesStore.releaseManualUnread(previousReadTrackedChatId);
+        }
+        previousReadTrackedChatId = chatId;
+    });
 
     /** The page recovery path must not reopen a surface this component already owns. */
     export function getCurrentChatId(): string | null {
@@ -10139,7 +10204,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         focusPillSetByEvent = false;
         activeFocusId = null;
         followUpSuggestions = [];
-        quickTipSlugs = [];
         currentChat = selected.chat;
         currentMessages = selected.window.messages;
         currentCompressionCheckpoints = selected.window.compressionCheckpoints;
@@ -10209,6 +10273,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
      // Update the loadChat function
      export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean; recentCacheRetries?: number }) {
+         // Fixed-name open-to-rendered breakdown mark (Rust-core builds only; no content).
+         if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') performance.mark('openmates:rust:load-chat');
          if (options?.preserveActiveComposer && isPersistedDraftOnlyChat(chat)) {
              // A late autosave can finish after dismissal. It may adopt the
              // current editor, but cannot reopen a draft the user just parked.
@@ -10827,10 +10893,23 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             } else {
                 // For authenticated users, load messages from IndexedDB
                 // Handle case where database might be unavailable (e.g., during logout/deletion)
+                // Opt-in Rust core (VITE_OPENMATES_RUST_CORE): Rust owns this read unless it refuses.
+                let rustOwnedHistory = false;
                 try {
+                    if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') performance.mark('openmates:rust:history-load');
                     currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(currentChat.chat_id);
                     const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
-                    let windowResult = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
+                    // Default builds fold this to null: no await, the TS path is unchanged.
+                    const rustRead = import.meta.env.VITE_OPENMATES_RUST_CORE !== '1' ? null : await readRustChatHistoryWindow(currentChat, { anchorMessageId: options?.messageId ?? null,
+                        activeTeamId: get(activeTeamId), localInitialPending: initialChatHistoryGate.pending(currentChat.chat_id) })
+                        .catch((rustError: unknown) => { rustOwnedHistory = true; messageLoadFailed = true; throw rustError; });
+                    rustOwnedHistory ||= !!rustRead;
+                    const rustWindow = rustRead?.window ?? null;
+                    // A Rust cache-first page reconciles exactly like the TS IndexedDB window,
+                    // with the Rust server read as the background repair.
+                    const rustReconcile = rustRead?.reconcile ?? null;
+                    const reconcilesLikeLocal = !rustOwnedHistory || !!rustReconcile;
+                    let windowResult = rustWindow ?? await chatDB.getMessageWindowForChat(currentChat.chat_id, {
                         direction: options?.messageId ? 'around' : 'latest',
                         anchorMessageId: options?.messageId ?? undefined,
                         compressedUpToTimestamp: latestCheckpoint && !options?.messageId
@@ -10846,14 +10925,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             MESSAGE_WINDOW_LIMIT,
                         )
                         : 0;
-                    const latestWindowIsShort = !options?.messageId &&
+                    const latestWindowIsShort = reconcilesLikeLocal && !options?.messageId &&
                         expectedLatestMessages > windowResult.messages.length;
-                    const latestWindowMayBePartial = !options?.messageId &&
+                    const latestWindowMayBePartial = reconcilesLikeLocal && !options?.messageId &&
                         windowResult.messages.length > 0 &&
                         !windowResult.hasMoreBefore &&
                         windowResult.messages.length < MESSAGE_WINDOW_LIMIT;
-                    const localWindowCannotRenderTarget = windowResult.messages.length === 0 ||
-                        (options?.messageId && !windowResult.anchorFound);
+                    const localWindowCannotRenderTarget = !rustOwnedHistory && (windowResult.messages.length === 0 ||
+                        (options?.messageId && !windowResult.anchorFound));
                     if (localWindowCannotRenderTarget) {
                         try {
                             windowResult = await fetchAuthenticatedMessageWindow(currentChat.chat_id, {
@@ -10870,13 +10949,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     } else if (latestWindowIsShort || latestWindowMayBePartial) {
                         const repairChatId = currentChat.chat_id;
                         const existingRepair = backgroundMessageWindowRepairs.get(repairChatId);
-                        const repairRequest = existingRepair ?? fetchAuthenticatedMessageWindow(repairChatId, {
+                        const repairRequest = existingRepair ?? (rustReconcile ? rustReconcile() : fetchAuthenticatedMessageWindow(repairChatId, {
                                 direction: options?.messageId ? 'around' : 'latest',
                                 anchorMessageId: options?.messageId ?? undefined,
                                 compressedUpToTimestamp: latestCheckpoint && !options?.messageId
                                     ? latestCheckpoint.compressed_up_to_timestamp
                                     : undefined,
-                            }).catch((windowError) => {
+                            })).catch((windowError) => {
                             console.warn(`[ActiveChat] Background bounded server message window failed for ${repairChatId}:`, windowError);
                             return null;
                         });
@@ -10905,7 +10984,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 // The server response (chat_content_batch_response) saves messages to IndexedDB
                 // and dispatches chatUpdated with messagesUpdated=true, which triggers
                 // handleChatUpdated to reload messages from IDB into the view.
-                if (newMessages.length === 0 && currentChat.chat_id && !isPublicChat(currentChat.chat_id)
+                if (!rustOwnedHistory && newMessages.length === 0 && currentChat.chat_id && !isPublicChat(currentChat.chat_id)
                     && !initialChatHistoryGate.pending(currentChat.chat_id)) {
                     const onDemandChatId = currentChat.chat_id;
                     const shouldAwaitOnDemandMessages =
@@ -10962,7 +11041,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
         if (backgroundMessageWindowRepair && currentChat?.chat_id) {
             const repairChatId = currentChat.chat_id;
-            void backgroundMessageWindowRepair.then((repairedWindow) => {
+            void backgroundMessageWindowRepair.then(async (repairedWindow) => {
                 if (!isCurrentLoadTarget() || currentChat?.chat_id !== repairChatId) {
                     return;
                 }
@@ -10989,7 +11068,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     left.created_at - right.created_at || left.message_id.localeCompare(right.message_id),
                 );
                 currentMessageWindowHasMoreBefore = repairedWindow.hasMoreBefore;
-                currentMessages = pruneCurrentDecryptedMessageWindow(mergedMessages);
+                const prunedMergedMessages = RUST_CHAT_TRANSITIONS ? await pruneCurrentDecryptedMessageWindowRust(mergedMessages) : pruneCurrentDecryptedMessageWindow(mergedMessages);
+                if (RUST_CHAT_TRANSITIONS && (!isCurrentLoadTarget() || currentChat?.chat_id !== repairChatId)) return;
+                currentMessages = prunedMergedMessages;
                 chatLoadState = 'ready';
                 chatHistoryRef?.updateMessages(currentMessages);
                 cacheDisplayedChatWindow(repairChatId, thisLoadEpoch, getRecentChatRevision(repairChatId), chat);
@@ -11173,6 +11254,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
 
+        // Flag on: prune with the chatState unit before the revision guard so nothing awaits between the guard and the commit.
+        let rustPrunedNewMessages: ChatMessageModel[] | null = null;
+        if (RUST_CHAT_TRANSITIONS && currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous) {
+            rustPrunedNewMessages = await pruneCurrentDecryptedMessageWindowRust(newMessages);
+        }
         if (thisLoadRevision !== getRecentChatRevision(chat.chat_id)) {
             // A canonical write landed during this read. Retry after the transaction
             // settles so an older window cannot revive edited or deleted content.
@@ -11185,7 +11271,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
 
-        currentMessages = currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous
+        currentMessages = RUST_CHAT_TRANSITIONS
+            ? (rustPrunedNewMessages ?? newMessages)
+            : currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous
             ? pruneCurrentDecryptedMessageWindow(newMessages)
             : newMessages;
         // Commit the canonical window to ChatHistory before the follow-up
@@ -11289,11 +11377,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         } else if (isCurrentLoadTarget() && composerGhostChatId !== currentChat.chat_id) {
             composerGhostSuggestion = null;
             composerGhostChatId = null;
-        }
-
-        quickTipSlugs = [];
-        if (!isProvidedDraftOnlyChat) {
-            await hydrateQuickTipSlugs(currentChat.chat_id, currentChat.encrypted_quick_tip_slugs);
         }
 
 
@@ -12877,7 +12960,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         ),
                     };
                     selectedPreprocessingMateName = processingFeedbackTurn.explicitMateCategory
-                        ? $text('mates.' + processingFeedbackTurn.explicitMateCategory) : null;
+                        ? mateDisplayName(processingFeedbackTurn.explicitMateCategory, $text) : null;
                     startProcessingStepProgression(isNewChatProcessing);
                 }
 
@@ -13209,7 +13292,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         await chatDB.init();
                         const chats = await chatDB.getAllChats();
                         const filtered = chats.filter(c => !isPublicChat(c.chat_id) && c.chat_id !== chat_id);
-                        const sorted = sortChats(filtered, []);
+                        const sorted = await sortChatsForList(filtered, []);
                         if (sorted.length > 0) {
                             const nextBest = sorted[0];
                             const found = await loadResumeChatFromDB(nextBest.chat_id);
@@ -13260,20 +13343,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }) as EventListenerCallback;
         chatSyncService.addEventListener('syncComplete', syncCompleteHandler);
 
-        const phase1bContentReadyHandler = ((event: CustomEvent<{
-            chat_id?: string;
-            chats?: Array<{ chat_id?: string }>;
-        }>) => {
-            const activeChatId = currentChat?.chat_id;
-            const activeChatWasSynced = activeChatId && (
-                event.detail?.chat_id === activeChatId ||
-                event.detail?.chats?.some(chat => chat.chat_id === activeChatId)
-            );
-            if (activeChatWasSynced) {
-                void hydrateQuickTipSlugs(activeChatId);
-            }
-        }) as EventListenerCallback;
-        chatSyncService.addEventListener('phase_1b_chat_content_ready', phase1bContentReadyHandler);
 
         // ─── Tab visibility: refresh stale carousel when tab returns from background ──
         // When a tab is backgrounded and later foregrounded, the carousel may show stale
@@ -13310,8 +13379,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 loadPriorityContinueItemsDebounced();
             }
         }) as EventListenerCallback;
-        window.addEventListener('savedEmbedMemorySaved', priorityCarouselInvalidatedHandler);
-        window.addEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
+        window.addEventListener('savedEmbedChanged', priorityCarouselInvalidatedHandler);
         chatSyncService.addEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);
 
         const teamContextChangedHandler = (() => {
@@ -13380,7 +13448,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     direction: 'latest',
                     compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
                 });
-                currentMessages = shouldPreserveExpandedMessageWindow(currentMessages, messageWindow.messages)
+                const preserveExpanded = RUST_CHAT_TRANSITIONS
+                    ? await (await import('../services/rustCore/chatState/rustTransitions')).rustPreserveExpandedWindow(currentMessages, messageWindow.messages)
+                    : shouldPreserveExpandedMessageWindow(currentMessages, messageWindow.messages);
+                currentMessages = preserveExpanded
                     ? currentMessages
                     : messageWindow.messages;
                 currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
@@ -13450,7 +13521,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     && (step.skip_reason === 'user_override' || step.skip_reason === 'predefined')
                     && step.data?.mate_category) {
                     selectedPreprocessingMateName = step.data.mate_name
-                        || $text('mates.' + step.data.mate_category);
+                        || mateDisplayName(step.data.mate_category, $text);
                     if (processingFeedbackTurn?.chatId === currentChat?.chat_id) {
                         processingFeedbackTurn = {
                             ...processingFeedbackTurn,
@@ -13488,7 +13559,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         // falling back to category-based mate name from the step data or
                         // "Analyzing your message..." if no mate info is available yet.
                         const mateName = selectedPreprocessingMateName
-                            || (step.data?.mate_category ? $text('mates.' + step.data.mate_category) : null);
+                            || (step.data?.mate_category ? mateDisplayName(step.data.mate_category, $text) : null);
                         if (mateName) {
                             return $text('enter_message.is_typing').replace('{mate}', mateName);
                         }
@@ -13573,6 +13644,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // During streaming, embed NodeViews are created with "processing" status before the
         // actual embed data arrives. When `send_embed_data` stores the embed and dispatches
         // `embedUpdated`, we need to force a re-render so the embed content is displayed.
+        // Code embeds whose card is already mounted in "processing" state. Their further
+        // processing updates (streamed code/SVG/HTML lines) reach the mounted card through
+        // its own embedUpdated subscription; re-rendering the message for each of them
+        // would remount the card and flash its loading placeholder several times a second.
+        const mountedProcessingEmbeds = new Set<string>();
         const embedUpdatedHandler = ((event: CustomEvent) => {
             const { chat_id, message_id, task_id, embed_id, type, status, isProcessing } = event.detail;
             if (typeof chat_id === 'string') invalidateRecentChatWindow(chat_id);
@@ -13595,6 +13671,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             if (chatHistoryRef && currentMessages.length > 0) {
                 const targetIds = embedUpdateTargetIds(currentMessages, { message_id, task_id, embed_id });
                 if (targetIds.size === 0) return;
+                if (type === 'code' && typeof embed_id === 'string') {
+                    if (status !== 'processing') mountedProcessingEmbeds.delete(embed_id);
+                    else if (mountedProcessingEmbeds.has(embed_id)) return;
+                    else mountedProcessingEmbeds.add(embed_id);
+                }
                 // CRITICAL: For error/cancelled embeds, check if the error is already tracked.
                 // If so, skip the re-render to prevent an infinite loop where:
                 //   error embed -> re-render -> resolveEmbed() -> request_embed -> send_embed_data(error)
@@ -13883,11 +13964,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('messageDeleted', messageDeletedHandler);
             chatSyncService.removeEventListener('syncComplete', syncCompleteHandler);
-            chatSyncService.removeEventListener('phase_1b_chat_content_ready', phase1bContentReadyHandler);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('focus', handleWindowFocus);
-            window.removeEventListener('savedEmbedMemorySaved', priorityCarouselInvalidatedHandler);
-            window.removeEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
+            window.removeEventListener('savedEmbedChanged', priorityCarouselInvalidatedHandler);
             chatSyncService.removeEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);
             window.removeEventListener(TEAM_CONTEXT_CHANGED_EVENT, teamContextChangedHandler);
             if (_visibilityTimer) clearTimeout(_visibilityTimer);
@@ -14021,13 +14100,15 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             <!-- Chat stays mounted at its split width while sliding out/in. -->
             <div 
                 class="chat-wrapper"
+                data-testid="chat-pane"
+                data-split-layout={showSideBySideLayout ? 'split' : 'full'}
                 bind:this={chatNavigationPane}
                 data-navigation-closing={closingChat}
                 class:fullscreen={isFullscreen} 
                 class:side-by-side-chat={showSideBySideLayout}
                 class:chat-pane-hidden={hasSplitChatContext && forceOverlayMode}
-                inert={hasSplitChatContext && forceOverlayMode}
-                aria-hidden={hasSplitChatContext && forceOverlayMode}
+                inert={(hasSplitChatContext && forceOverlayMode) || workflowPaneCoversChat}
+                aria-hidden={(hasSplitChatContext && forceOverlayMode) || workflowPaneCoversChat}
                 class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
                 class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
                 onanimationend={finishSplitAnimation}
@@ -14047,8 +14128,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 <div
                     class="chat-side"
                     class:composer-welcome-hidden={hideWelcomeForComposerOverlay && (showWelcome || isActiveDraftOnlyChat)}
-                    inert={showWelcome && messageInputFocused && !hasQueuedFollowUpActions && !voiceContextConsentVisible && !showVoiceCallBarHere
-                        && !(showWelcome && hideWelcomeForKeyboard && voiceCallLaunchEligible)}
+                    inert={showWelcome && messageInputFocused && !hasQueuedFollowUpActions && !voiceContextConsentVisible && !showVoiceCallBarHere}
                     class:welcome-chat-side={showWelcome}
                     data-testid="chat-side"
                     bind:this={chatSideEl}
@@ -14270,13 +14350,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         data-testid="chat-top-actions"
                         class:top-buttons-flow={showWelcome}
                         class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
-                        class:welcome-hiding={showWelcome && hideWelcomeForKeyboard && !voiceCallLaunchEligible}
+                        class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
                         class:call-strip-stuck={callControlsReplaceToolbar}
-                        inert={(showWelcome && hideWelcomeForKeyboard && !voiceCallLaunchEligible) || callControlsReplaceToolbar}
+                        inert={(showWelcome && hideWelcomeForKeyboard) || callControlsReplaceToolbar}
                     >
-                        {#if showWelcome && hideWelcomeForKeyboard && voiceCallLaunchEligible}
-                            <div class="welcome-focused-call-actions" data-composer-focus-control>{@render close()}</div>
-                        {:else}
                         <HeaderActionMenu
                             resetKey={currentChat?.chat_id}
                             hasShare={hasActiveShareableChatSurface}
@@ -14287,8 +14364,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             triggerTestId="chat-more-button"
                             menuTestId="chat-more-actions"
                         />
-
-                        {/if}
                         {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
                             <div class="guest-all-examples-toolbar" data-testid="guest-all-examples-toolbar">
                                 <button
@@ -14476,6 +14551,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <ContinueCardUnreadBadge chatId={priorityChat.chat_id} variant="large" />
                                                 <div class="continue-priority-pill" data-testid="continue-priority-pill">
                                                     <PriorityPillIcon size={12} color="white" />
                                                     <span>{item.priority.label}</span>
@@ -14533,6 +14609,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <ContinueCardUnreadBadge chatId={item.kind === 'chat' ? item.chat.chat_id : ''} variant="compact" />
                                                 <div class="resume-chat-compact-icon">
                                                     <PriorityIconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
@@ -14573,6 +14650,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 onmouseleave={handleResumeLargeCardMouseLeave}
                                                 type="button"
                                             >
+                                                <ContinueCardUnreadBadge chatId={resumeChatData.chat_id} variant="large" />
                                                 {#if resumeChatData.pinned}
                                                     {@const PinIcon = getLucideIcon('pin')}
                                                     <div class="resume-card-pin-badge" data-testid="resume-card-pin">
@@ -14634,6 +14712,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <ContinueCardUnreadBadge chatId={resumeChatData.chat_id} variant="compact" />
                                                 {#if resumeChatData.pinned}
                                                     {@const PinIconCompact = getLucideIcon('pin')}
                                                     <div class="resume-card-pin-badge compact" data-testid="resume-card-pin">
@@ -14687,6 +14766,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <ContinueCardUnreadBadge chatId={meta.chat.chat_id} variant="compact" />
                                                 <div class="resume-chat-content resume-chat-draft-content">
                                                     <span class="resume-chat-draft-label">{$text('enter_message.draft')}</span>
                                                     <span class="resume-chat-draft-preview">{meta.draftPreview.length > 80 ? meta.draftPreview.slice(0, 80) + '…' : meta.draftPreview}</span>
@@ -14714,6 +14794,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 onmousemove={(e) => tilt?.onMouseMove(e)}
                                                 onmouseleave={() => tilt?.onMouseLeave()}
                                             >
+                                                <ContinueCardUnreadBadge chatId={meta.chat.chat_id} variant="large" />
                                                 {#if meta.chat.pinned}
                                                     {@const PinIcon = getLucideIcon('pin')}
                                                     <div class="resume-card-pin-badge" data-testid="resume-card-pin">
@@ -14772,6 +14853,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 ontouchend={handleResumeCardTouchEnd}
                                                 type="button"
                                             >
+                                                <ContinueCardUnreadBadge chatId={meta.chat.chat_id} variant="compact" />
                                                 {#if meta.chat.pinned}
                                                     {@const PinIcon = getLucideIcon('pin')}
                                                     <div class="resume-card-pin-badge compact" data-testid="resume-card-pin">
@@ -15079,12 +15161,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             {queuedActionBusyMessageId}
                             {queuedActionErrors}
                            followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
-                           {quickTipSlugs}
+                           recommendationsAllowed={!currentChat?.is_sub_chat && !currentChat?.parent_id && $userProfile.recommendations_enabled !== false}
                            compressionCheckpoints={showWelcome ? [] : currentCompressionCheckpoints}
                            hasOlderMessages={showWelcome ? false : currentMessageWindowHasMoreBefore}
                            olderMessagesLoading={olderMessageWindowLoading}
                            onSuggestionClick={handleFollowUpSuggestionClick}
-                           on:quickTipAction={handleQuickTipAction}
                            on:messagesChange={handleMessagesChange}
                            on:chatUpdated={handleChatUpdated}
                           on:loadOlderMessages={handleLoadOlderMessages}
@@ -15470,6 +15551,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             ai_detection: imageEmbedFullscreenData.aiDetection,
                         },
                     }}
+                    embedId={imageEmbedFullscreenData.embedId}
                     onClose={handleCloseImageEmbedFullscreen}
                 />
             {/if}
@@ -15707,8 +15789,25 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 {/if}
                 </div>
             {/if}
-            
-            <!-- 
+
+            {#if workflowPanelRequest}
+                {@const panelRequest = workflowPanelRequest}
+                <div
+                    data-testid="workflow-chat-pane-container"
+                    class="fullscreen-embed-container workflow-chat-pane-container"
+                    class:side-panel={showSideBySideLayout}
+                    class:overlay-mode={!showSideBySideLayout}
+                    class:side-by-side-entering={sideBySideAnimating && sideBySideAnimationDirection === 'enter'}
+                    class:side-by-side-exiting={sideBySideAnimating && sideBySideAnimationDirection === 'exit'}
+                    hidden={!workflowPanelVisible}
+                >
+                    {#key panelRequest}
+                        <WorkflowChatPane request={panelRequest} fullscreen={!showSideBySideLayout} onClose={closeWorkflowSidePanel} />
+                    {/key}
+                </div>
+            {/if}
+
+            <!--
                 Standalone VideoIframe component - CSS-based PiP
                 
                 This component is ALWAYS rendered in the same DOM position within ActiveChat.
@@ -15986,6 +16085,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     .fullscreen-embed-container {
         position: relative;
         height: 100%;
+    }
+
+    /* The workflow editor stays mounted while an embed or wiki fullscreen takes the pane. */
+    .workflow-chat-pane-container[hidden] {
+        display: none;
     }
 
     /* Sample-data banner — only rendered for synthetic app-store example
@@ -17529,13 +17633,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         box-sizing: border-box;
     }
 
-    /* Preserve the handset's existing position while other welcome actions hide. */
-    .welcome-focused-call-actions {
-        display: flex;
-        justify-content: flex-end;
-        width: 100%;
-    }
-
     .top-buttons.call-strip-stuck {
         visibility: hidden;
         pointer-events: none;
@@ -17801,12 +17898,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         overflow: hidden;
         opacity: 0;
         pointer-events: none;
-        transition: width 0.25s ease-in-out, opacity 0.15s ease-in-out;
+        /* Fully collapsed: remove it from focus order and the accessibility tree too. */
+        visibility: hidden;
+        transition: width 0.25s ease-in-out, opacity 0.15s ease-in-out, visibility 0s linear 0.25s;
     }
 
     /* Default visible state needs explicit transition for smooth return */
     .input-new-chat-wrapper {
-        transition: width 0.25s ease-in-out, opacity 0.2s ease-in-out;
+        transition: width 0.25s ease-in-out, opacity 0.2s ease-in-out, visibility 0s;
     }
 
     /* Cancel / Save draft pill: rounded grey container below the input.

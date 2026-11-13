@@ -172,8 +172,53 @@ def remove_tests(source: str) -> str:
     return masked
 
 
+def path_attributed_modules(source_root: Path) -> dict[Path, str]:
+    """Map `#[path = "file.rs"] pub mod name;` targets to their public namespace.
+
+    Without this, such a file is namespaced by its own file name (for example
+    `web_connected_accounts_tokens`), whose root is not a public module, so its
+    public API silently disappears from the inventory. Only `pub mod` targets
+    are remapped; private path modules keep the default file-based treatment.
+    """
+    declaration = re.compile(
+        r'#\s*\[\s*path\s*=\s*"([^"]+)"\s*\]\s*pub\s+mod\s+(\w+)\s*;'
+    )
+
+    def default_namespace(relative: Path) -> str:
+        namespace = ".".join(relative.with_suffix("").parts)
+        return namespace[:-4] if namespace.endswith(".mod") else namespace
+
+    declared: list[tuple[Path, Path, str]] = []
+    for file in sorted(source_root.rglob("*.rs")):
+        relative = file.relative_to(source_root)
+        for match in declaration.finditer(file.read_text()):
+            target = (file.parent / match.group(1)).resolve()
+            if not target.is_file() or source_root.resolve() not in target.parents:
+                raise ValueError(
+                    f"Unresolvable #[path] module in Rust inventory: {relative}"
+                )
+            declared.append(
+                (relative, target.relative_to(source_root.resolve()), match.group(2))
+            )
+    mapped: dict[Path, str] = {}
+    # Resolve nested path modules until stable (a declaring file may itself be
+    # a path-attributed module).
+    for _ in range(len(declared) + 1):
+        changed = False
+        for parent, target, name in declared:
+            parent_namespace = mapped.get(parent, default_namespace(parent))
+            namespace = f"{parent_namespace}.{name}" if parent_namespace != "lib" else name
+            if mapped.get(target) != namespace:
+                mapped[target] = namespace
+                changed = True
+        if not changed:
+            return mapped
+    raise ValueError("Cyclic #[path] modules in Rust inventory")
+
+
 def discover(root: Path = ROOT) -> list[str]:
     source_root = root / "packages/openmates-rust/src"
+    path_modules = path_attributed_modules(source_root)
     library = remove_tests((source_root / "lib.rs").read_text())
     public_modules = set(re.findall(r"\bpub\s+mod\s+(\w+)\s*;", library))
     symbols = set(public_modules)
@@ -197,12 +242,22 @@ def discover(root: Path = ROOT) -> list[str]:
                 symbols.add(name)
     for file in sorted(source_root.rglob("*.rs")):
         relative = file.relative_to(source_root)
-        module = relative.parts[0].removesuffix(".rs")
+        mapped_namespace = path_modules.get(relative)
+        # Only recover path modules whose file-based root would otherwise be
+        # dropped; files already inventoried under a public root keep their
+        # established (classified) names.
+        if relative.parts[0].removesuffix(".rs") in public_modules | reexported_modules:
+            mapped_namespace = None
+        module = (
+            mapped_namespace.split(".", 1)[0]
+            if mapped_namespace
+            else relative.parts[0].removesuffix(".rs")
+        )
         only_client_extensions = (
             module not in public_modules | reexported_modules and module != "lib"
         )
         source = remove_tests(file.read_text())
-        namespace = ".".join(relative.with_suffix("").parts)
+        namespace = mapped_namespace or ".".join(relative.with_suffix("").parts)
         if module == "lib":
             namespace = ""
         if namespace.endswith(".mod"):
@@ -288,5 +343,29 @@ def discover(root: Path = ROOT) -> list[str]:
     return sorted(name.lstrip(".") for name in symbols)
 
 
+def matrix_drift(root: Path = ROOT) -> tuple[list[str], list[str]]:
+    """Return (unclassified, removed) Rust APIs versus config/sdk-capabilities.json.
+
+    Needs no cargo, node or built artifacts, so deploy can run it cheaply.
+    """
+    matrix = json.loads((root / "config/sdk-capabilities.json").read_text())
+    classified = {
+        api
+        for capability in matrix["capabilities"]
+        for api in capability["languages"]["rust"]["api"]
+    }
+    actual = set(discover(root))
+    return sorted(actual - classified), sorted(classified - actual)
+
+
 if __name__ == "__main__":
-    print(json.dumps(discover()))
+    import sys
+
+    if "--check-matrix" in sys.argv:
+        missing, stale = matrix_drift()
+        if missing or stale:
+            print(f"Rust public API inventory drift: unclassified={missing}, removed={stale}")
+            sys.exit(1)
+        print("Rust public API inventory matches config/sdk-capabilities.json")
+    else:
+        print(json.dumps(discover()))

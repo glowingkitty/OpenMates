@@ -45,4 +45,8 @@ rate_limits:
 # Users are always charged 20 credits per transcript request
 # If a user makes 5 parallel transcript requests, they are charged 100 credits total (5 * 20)
 pricing:
-  per_request_credits: 20 # Always 20 credits per transcript request for users (9 to creator, 1 to YouTube, 10 to OpenMates)
+  per_request_credits: 20
+supplier_costs:
+  per_request_credits:
+    policy_credits: 20
+    note: Revenue share (9 credits to the video creator, 1 to YouTube), not cost-plus

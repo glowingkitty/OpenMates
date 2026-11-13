@@ -26,6 +26,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSo
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.routes.auth_ws import get_current_user_ws
@@ -46,7 +47,8 @@ MAX_TOTAL_CHARS = 10_000_000
 MAX_ATTACHMENT_BYTES = 5_000_000
 MAX_TOTAL_ATTACHMENT_BYTES = 20_000_000
 EXECUTION_TTL_SECONDS = 3600
-RUN_CREDITS_PER_MINUTE = 5
+# Catalog price per started sandbox minute (code.run pricing.per_minute).
+RUN_CREDITS_PER_MINUTE = whole_credits(skill_price("code", "run", "per_minute"))
 ACTIVE_RUN_TTL_SECONDS = 600
 MAX_ACTIVE_RUNS_PER_USER = 5
 PROVIDER_ACTIVE_RUN_TTL_SECONDS = 600
@@ -1248,6 +1250,7 @@ async def start_code_run_execution(
     device_hash: str | None = None,
     assistant_async_task: bool = False,
     same_turn_batch_id: str | None = None,
+    test_run: dict[str, Any] | None = None,
 ) -> CodeRunStartResponse:
     if current_user.credits < RUN_CREDITS_PER_MINUTE:
         raise HTTPException(status_code=402, detail="Not enough credits to run code")
@@ -1309,6 +1312,7 @@ async def start_code_run_execution(
         "device_hash": device_hash,
         "assistant_async_task": assistant_async_task,
         "same_turn_batch_id": same_turn_batch_id,
+        "test_run": test_run,
         "active_run_key": active_key,
         "active_run_owner": execution_id,
         "provider_active_run_key": _provider_active_run_key(),

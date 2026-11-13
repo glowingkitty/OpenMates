@@ -38,6 +38,7 @@ import * as offlineOps from "./db/offlineChangesAndUpdates";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { notificationStore } from "../stores/notificationStore";
 import { writeWithQuotaRetry } from "./db/quotaRecovery";
+import { cacheDecisions } from "./db/cacheDecisions";
 
 // Import logout state to prevent database re-initialization during logout
 import { get } from "svelte/store";
@@ -2019,7 +2020,7 @@ class ChatDatabase {
 
   /** Cursor page for background, account-scoped catalog migration. */
   async getChatsPage(afterChatId: string | null, limit = 50): Promise<{ items: Chat[]; nextAfter: string | null }> {
-    const pageSize = Math.min(Math.max(limit, 1), 50);
+    const pageSize = await (await cacheDecisions()).chatsPageSize(limit);
     const transaction = await this.getTransaction([this.CHATS_STORE_NAME], "readonly");
     const store = transaction.objectStore(this.CHATS_STORE_NAME);
     return new Promise((resolve, reject) => {
@@ -2117,8 +2118,8 @@ class ChatDatabase {
     return chatCrudOps.deleteEmptyVoiceCallChat(this, chatId, guard);
   }
 
-  async deleteDraftOnlyChat(chatId: string): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
-    const result = await chatCrudOps.deleteDraftOnlyChat(this, chatId);
+  async deleteDraftOnlyChat(chatId: string, expectedDraftVersion?: number): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
+    const result = await chatCrudOps.deleteDraftOnlyChat(this, chatId, expectedDraftVersion);
     if (result.deleted && result.deletedEmbedIds.length > 0) {
       const { embedStore } = await import("./embedStore");
       for (const embedId of result.deletedEmbedIds) embedStore.removeFromMemoryCache(`embed:${embedId}`);

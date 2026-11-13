@@ -133,6 +133,10 @@ struct EmbedContentView: View {
                 CodeRepoEmbedRenderer(data: rawData, mode: mode)
             case .codeApplication:
                 ApplicationEmbedRenderer(data: rawData, mode: mode)
+            case .codeTestResult:
+                TestResultEmbedRenderer(data: rawData, mode: mode) { assetId in
+                    allEmbedRecords[assetId].flatMap { FileEmbedPayload($0.rawData).availableDownloadURL }
+                }
             case .codeCode:
                 CodeEmbedRenderer(
                     data: rawData,
@@ -216,7 +220,8 @@ struct EmbedContentView: View {
             case .imagesImageResult:
                 ImageResultEmbedRenderer(data: rawData, mode: mode)
             case .imagesGenerate, .imagesGenerateDraft:
-                ImageGenerateEmbedRenderer(data: rawData, mode: mode)
+                ImageGenerateEmbedRenderer(data: rawData, mode: mode, status: embed.status,
+                                           skillId: embedType == .imagesGenerateDraft ? "generate_draft" : "generate")
             case .image:
                 ImageEmbedRenderer(data: rawData, mode: mode)
 
@@ -331,6 +336,16 @@ struct EmbedContentView: View {
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "days")
             case .weatherDay:
                 WeatherDayEmbedRenderer(data: rawData, mode: mode)
+            case .weatherRainRadar:
+                // Rain radar renders through the app-skill renderer, which owns
+                // the radar preview/fullscreen views (same path as app_skill_use records).
+                AppSkillUseRenderer(embed: embed, allEmbedRecords: allEmbedRecords, mode: mode, onOpenEmbed: onOpenEmbed)
+
+            // Jobs
+            case .jobsSearch:
+                JobsSearchEmbedRenderer(embed: embed, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+            case .jobsResult:
+                JobsResultEmbedRenderer(data: rawData, mode: mode)
 
             // Workflows
             case .workflowsCreateOrModify, .workflowsSearch:

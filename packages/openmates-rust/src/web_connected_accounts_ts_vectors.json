@@ -1,0 +1,215 @@
+{
+  "_about": "TS parity vectors for web_connected_accounts.rs. Ciphertext convention: 'enc:<plaintext>' decrypts to <plaintext> (JSON when it parses, else the text); 'fail' does not decrypt. Outcomes are those of connectedAccountStorageService.ts / connectedAccountTokenBrokerService.ts, checked by connectedAccountsVectors.test.ts.",
+  "sendContext": [
+    {
+      "name": "legacy calendar row preauthorizes read only",
+      "params": {"appId": "calendar"},
+      "rows": [
+        {"id": "acct-1", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:google_calendar", "encrypted_account_label": "enc:Work calendar", "encrypted_refresh_token_bundle": "enc:{\"ref\":\"placeholder-envelope-1\"}", "encrypted_capabilities": "enc:[\"read\",\"write\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\",\"allowed_actions\":[\"read\",\"write\"],\"runtime_modes\":{\"read\":\"allow_automatically\",\"write\":\"always_ask\"}}"}
+      ],
+      "out": {"kind": "ok", "value": {
+        "directory": [{"connected_account_id": "acct-1", "app_id": "calendar", "provider_id": "google", "account_ref": "acct-1", "label": "Work calendar", "capabilities": ["read", "write"], "runtime_modes": {"read": "allow_automatically", "write": "always_ask"}}],
+        "tokenRefInputs": [{"connected_account_id": "acct-1", "app_id": "calendar", "provider_id": "google", "allowed_actions": ["read"], "refresh_token_envelope": {"ref": "placeholder-envelope-1"}}]
+      }}
+    },
+    {
+      "name": "multi-app envelope with directory hint and action overrides",
+      "params": {"appId": "mail", "allowedActionsOverride": ["send"], "actionScopesOverride": [{"folder": "inbox"}, {"folder": "sent"}]},
+      "rows": [
+        {"id": "acct-2", "encrypted_provider_type": "enc:protonmail", "provider_type_hash": "hash:protonmail", "encrypted_account_label": "enc:Personal", "encrypted_refresh_token_bundle": "enc:{\"ref\":\"placeholder-envelope-2\"}", "encrypted_capabilities": "enc:read-write", "encrypted_app_permissions": "enc:{\"apps\":{\"mail\":{\"allowed_actions\":[\"read\",\"send\"],\"runtime_modes\":{\"read\":\"allow_automatically\"},\"action_scope\":{\"folder\":\"all\"}},\"calendar\":{\"allowed_actions\":[\"read\"]}}}", "encrypted_account_directory_hint": "enc:{\"account_ref\":\"mail-ref-1\",\"label\":\"Hint label\",\"capabilities\":[\"read\",\"send\"],\"runtime_modes\":{\"read\":\"auto_decide\"}}", "execution_mode": "oauth"}
+      ],
+      "out": {"kind": "ok", "value": {
+        "directory": [{"connected_account_id": "acct-2", "app_id": "mail", "provider_id": "protonmail", "account_ref": "mail-ref-1", "label": "Hint label", "capabilities": ["read", "send"], "runtime_modes": {"read": "auto_decide"}}],
+        "tokenRefInputs": [
+          {"connected_account_id": "acct-2", "app_id": "mail", "provider_id": "protonmail", "allowed_actions": ["send"], "refresh_token_envelope": {"ref": "placeholder-envelope-2"}, "action_scope": {"folder": "inbox"}},
+          {"connected_account_id": "acct-2", "app_id": "mail", "provider_id": "protonmail", "allowed_actions": ["send"], "refresh_token_envelope": {"ref": "placeholder-envelope-2"}, "action_scope": {"folder": "sent"}}
+        ]
+      }}
+    },
+    {
+      "name": "account ids select rows; legacy defaults; local connector gets no token",
+      "params": {"appId": "calendar", "accountIds": ["acct-3", "acct-4"], "defaultAllowedActions": ["read"]},
+      "rows": [
+        {"id": "acct-x", "email": "user@example.invalid", "encrypted_provider_type": "fail", "provider_type_hash": "hash:x", "encrypted_account_label": "fail", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "fail", "encrypted_app_permissions": "fail"},
+        {"id": "acct-3", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:google_calendar", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:{\"app_id\":\"google_calendar\"}"},
+        {"id": "acct-4", "encrypted_provider_type": "enc:caldav", "provider_type_hash": "hash:caldav", "encrypted_account_label": "enc:Local", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[\"read\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\",\"allowed_actions\":[\"read\"],\"runtime_modes\":{\"read\":\"allow_automatically\"}}", "execution_mode": "local_connector"}
+      ],
+      "out": {"kind": "ok", "value": {
+        "directory": [
+          {"connected_account_id": "acct-3", "app_id": "calendar", "provider_id": "google", "account_ref": "acct-3", "label": "Cal", "capabilities": ["read"]},
+          {"connected_account_id": "acct-4", "app_id": "calendar", "provider_id": "caldav", "account_ref": "acct-4", "label": "Local", "capabilities": ["read"], "runtime_modes": {"read": "allow_automatically"}}
+        ],
+        "tokenRefInputs": []
+      }}
+    },
+    {
+      "name": "no selected rows is undefined",
+      "params": {"appId": "calendar", "accountIds": ["missing"]},
+      "rows": [
+        {"id": "acct-1", "encrypted_provider_type": "fail", "provider_type_hash": "hash:x", "encrypted_account_label": "fail", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "fail", "encrypted_app_permissions": "fail"}
+      ],
+      "out": {"kind": "ok", "value": null}
+    },
+    {
+      "name": "plaintext field in a selected row is refused",
+      "params": {"appId": "calendar"},
+      "rows": [
+        {"id": "acct-1", "refresh_token": "placeholder", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:{}"}
+      ],
+      "out": {"kind": "error", "code": "forbidden", "message": "Connected account storage payload contains forbidden field: refresh_token"}
+    },
+    {
+      "name": "null permissions envelope is malformed",
+      "params": {"appId": "calendar"},
+      "rows": [
+        {"id": "acct-1", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:null"}
+      ],
+      "out": {"kind": "error", "code": "malformed"}
+    },
+    {
+      "name": "revolut legacy envelope resolves the finance app",
+      "params": {"appId": "finance"},
+      "rows": [
+        {"id": "acct-7", "encrypted_provider_type": "enc:revolut_business", "provider_type_hash": "hash:rb", "encrypted_account_label": "enc:Business", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:read", "encrypted_app_permissions": "enc:{\"apps\":{\"calendar\":{\"allowed_actions\":[\"read\"]}}}"}
+      ],
+      "out": {"kind": "ok", "value": {
+        "directory": [{"connected_account_id": "acct-7", "app_id": "finance", "provider_id": "revolut_business", "account_ref": "acct-7", "label": "Business", "capabilities": ["read"]}],
+        "tokenRefInputs": []
+      }}
+    },
+    {
+      "name": "account for another app is skipped",
+      "params": {"appId": "mail"},
+      "rows": [
+        {"id": "acct-8", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[\"read\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\"}"}
+      ],
+      "out": {"kind": "ok", "value": {"directory": [], "tokenRefInputs": []}}
+    },
+    {
+      "name": "includeActionScope false drops the stored scope",
+      "params": {"appId": "calendar", "allowedActionsOverride": ["delete"], "includeActionScope": false},
+      "rows": [
+        {"id": "acct-9", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "enc:{\"ref\":\"placeholder-envelope-9\"}", "encrypted_capabilities": "enc:Read, Write", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\",\"allowed_actions\":[\"read\"],\"action_scope\":{\"calendar_id\":\"primary\"}}"}
+      ],
+      "out": {"kind": "ok", "value": {
+        "directory": [{"connected_account_id": "acct-9", "app_id": "calendar", "provider_id": "google", "account_ref": "acct-9", "label": "Cal", "capabilities": ["read", "write"]}],
+        "tokenRefInputs": [{"connected_account_id": "acct-9", "app_id": "calendar", "provider_id": "google", "allowed_actions": ["delete"], "refresh_token_envelope": {"ref": "placeholder-envelope-9"}}]
+      }}
+    },
+    {
+      "name": "non-iterable allowed actions are malformed",
+      "params": {"appId": "calendar"},
+      "rows": [
+        {"id": "acct-10", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[\"read\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\",\"allowed_actions\":5}"}
+      ],
+      "out": {"kind": "error", "code": "malformed"}
+    },
+    {
+      "name": "documented flag-on deviation: a later row's plaintext guard precedes an earlier row's decrypt error",
+      "note": "TypeScript guards and decrypts row by row, so row 0's decrypt failure surfaces first (out). The Rust selection guards every selected row before the page decrypts any (flagOnOut). Both refuse the send; only the error differs.",
+      "params": {"appId": "calendar"},
+      "rows": [
+        {"id": "acct-11", "encrypted_provider_type": "fail", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "enc:{\"ref\":\"placeholder-envelope-11\"}", "encrypted_capabilities": "enc:[\"read\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\"}"},
+        {"id": "acct-12", "email": "placeholder@example.invalid", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "enc:{\"ref\":\"placeholder-envelope-12\"}", "encrypted_capabilities": "enc:[\"read\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\"}"}
+      ],
+      "out": {"kind": "error", "code": "decrypt"},
+      "flagOnOut": {"kind": "error", "code": "forbidden", "message": "Connected account storage payload contains forbidden field: email"}
+    }
+  ],
+  "summaries": [
+    {
+      "name": "legacy and multi-app rows",
+      "rows": [
+        {"id": "acct-1", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:google_calendar", "encrypted_account_label": "enc:Work calendar", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[\"read\",\"write\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\",\"allowed_actions\":[\"read\",\"write\"]}", "updated_at": 1760000000},
+        {"id": "acct-2", "encrypted_provider_type": "enc:protonmail", "provider_type_hash": "hash:protonmail", "encrypted_account_label": "enc:Personal", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:read-write", "encrypted_app_permissions": "enc:{\"apps\":{\"mail\":{\"allowed_actions\":[\"read\",\"send\"]},\"calendar\":{\"allowed_actions\":[\"read\"]}}}", "encrypted_account_directory_hint": "enc:{\"account_ref\":\"mail-ref-1\",\"label\":\"Hint label\",\"capabilities\":[\"read\",\"send\"],\"runtime_modes\":{\"read\":\"auto_decide\"}}", "execution_mode": "oauth"}
+      ],
+      "out": {"kind": "ok", "value": [
+        {"id": "acct-1", "provider_id": "google_calendar", "app_id": "calendar", "account_ref": "acct-1", "label": "Work calendar", "capabilities": ["read", "write"], "runtime_modes": {}, "execution_mode": "oauth", "connector_provider_id": null, "connector_status": null, "updated_at": 1760000000},
+        {"id": "acct-2", "provider_id": "protonmail", "app_id": "calendar", "account_ref": "mail-ref-1", "label": "Hint label", "capabilities": ["read", "send"], "runtime_modes": {"read": "auto_decide"}, "execution_mode": "oauth", "connector_provider_id": null, "connector_status": null}
+      ]}
+    },
+    {
+      "name": "local connector metadata after a decrypt failure",
+      "rows": [
+        {"id": "acct-pm", "encrypted_provider_type": "fail", "provider_type_hash": "hash:pm", "encrypted_account_label": "fail", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "fail", "encrypted_app_permissions": "fail", "execution_mode": "local_connector", "connector_provider_id": "protonmail_bridge", "connector_status": "online", "connector_public_metadata": {"label": "Proton Bridge", "capabilities": ["read", "send"]}, "updated_at": 5}
+      ],
+      "out": {"kind": "ok", "value": [
+        {"id": "acct-pm", "provider_id": "protonmail_bridge", "app_id": "mail", "account_ref": "acct-pm", "label": "Proton Bridge", "capabilities": ["read", "send"], "runtime_modes": {}, "execution_mode": "local_connector", "connector_provider_id": "protonmail_bridge", "connector_status": "online", "updated_at": 5}
+      ]}
+    },
+    {
+      "name": "decrypt failure without a local connector rethrows",
+      "rows": [
+        {"id": "acct-3", "encrypted_provider_type": "fail", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:{}"}
+      ],
+      "out": {"kind": "error", "code": "decrypt"}
+    },
+    {
+      "name": "malformed permissions on a local connector use the default label",
+      "rows": [
+        {"id": "acct-pm2", "encrypted_provider_type": "enc:protonmail_bridge", "provider_type_hash": "hash:pm", "encrypted_account_label": "enc:PM", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:null", "execution_mode": "local_connector", "connector_provider_id": "protonmail_bridge"}
+      ],
+      "out": {"kind": "ok", "value": [
+        {"id": "acct-pm2", "provider_id": "protonmail_bridge", "app_id": "mail", "account_ref": "acct-pm2", "label": "Proton Mail", "capabilities": [], "runtime_modes": {}, "execution_mode": "local_connector", "connector_provider_id": "protonmail_bridge", "connector_status": null}
+      ]}
+    },
+    {
+      "name": "malformed permissions on an oauth row rethrow",
+      "rows": [
+        {"id": "acct-4", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:null"}
+      ],
+      "out": {"kind": "error", "code": "malformed"}
+    },
+    {
+      "name": "plaintext row field is refused",
+      "rows": [
+        {"id": "acct-5", "display_name": "Visible", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:Cal", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:{}"}
+      ],
+      "out": {"kind": "error", "code": "forbidden", "message": "Connected account storage payload contains forbidden field: display_name"}
+    },
+    {
+      "name": "summary leaking a forbidden name is refused",
+      "rows": [
+        {"id": "acct-6", "encrypted_provider_type": "enc:google_calendar", "provider_type_hash": "hash:x", "encrypted_account_label": "enc:email", "encrypted_refresh_token_bundle": "fail", "encrypted_capabilities": "enc:[]", "encrypted_app_permissions": "enc:{}"}
+      ],
+      "out": {"kind": "error", "code": "forbidden", "message": "Connected account payload contains forbidden field: email"}
+    }
+  ],
+  "tokenRefs": [
+    {
+      "name": "refs completed from matching inputs",
+      "inputs": [
+        {"connected_account_id": "acct-1", "app_id": "calendar", "provider_id": "google", "allowed_actions": ["read"], "refresh_token_envelope": {"ref": "placeholder-envelope-1"}, "action_scope": {"calendar_id": "primary"}},
+        {"connected_account_id": "acct-2", "app_id": "mail", "allowed_actions": ["send"], "refresh_token_envelope": {"ref": "placeholder-envelope-2"}}
+      ],
+      "payload": {"refs": [
+        {"connected_account_id": "acct-1", "app_id": "calendar", "turn_token_ref": "ttr-placeholder-1", "expires_at": 1760000300},
+        {"connected_account_id": "acct-2", "app_id": "mail", "provider_id": "protonmail", "turn_token_ref": "ttr-placeholder-2", "expires_at": 1760000301},
+        {"connected_account_id": "acct-9", "app_id": "mail", "turn_token_ref": "ttr-placeholder-3", "expires_at": 1}
+      ]},
+      "out": {"kind": "ok", "value": [
+        {"connected_account_id": "acct-1", "app_id": "calendar", "provider_id": "google", "turn_token_ref": "ttr-placeholder-1", "expires_at": 1760000300, "allowed_actions": ["read"], "action_scope": {"calendar_id": "primary"}},
+        {"connected_account_id": "acct-2", "app_id": "mail", "provider_id": "protonmail", "turn_token_ref": "ttr-placeholder-2", "expires_at": 1760000301, "allowed_actions": ["send"]},
+        {"connected_account_id": "acct-9", "app_id": "mail", "turn_token_ref": "ttr-placeholder-3", "expires_at": 1, "allowed_actions": []}
+      ]}
+    },
+    {
+      "name": "response without refs is refused",
+      "inputs": [{"connected_account_id": "acct-1", "app_id": "calendar", "allowed_actions": ["read"], "refresh_token_envelope": {"ref": "placeholder-envelope-1"}}],
+      "payload": {"detail": "unavailable"},
+      "out": {"kind": "error", "code": "missing_refs"}
+    },
+    {
+      "name": "null response body is malformed",
+      "inputs": [{"connected_account_id": "acct-1", "app_id": "calendar", "allowed_actions": ["read"], "refresh_token_envelope": {"ref": "placeholder-envelope-1"}}],
+      "payload": null,
+      "out": {"kind": "error", "code": "malformed"}
+    },
+    {
+      "name": "null ref is malformed",
+      "inputs": [{"connected_account_id": "acct-1", "app_id": "calendar", "allowed_actions": ["read"], "refresh_token_envelope": {"ref": "placeholder-envelope-1"}}],
+      "payload": {"refs": [null]},
+      "out": {"kind": "error", "code": "malformed"}
+    }
+  ]
+}

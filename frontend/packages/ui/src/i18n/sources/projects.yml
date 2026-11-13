@@ -426,3 +426,27 @@ workspace_entry_range:
 
 workspace_error_source_offline: { context: Remote Project source confirmed disconnected by presence or backend source_offline code, en: "Remote machine is offline", verified_by_human: [] }
 workspace_error_source_timeout: { context: Remote Project read timed out without confirmed offline presence, en: "The remote machine did not respond. Retry the Project read.", verified_by_human: [] }
+created_project_label:
+  context: Row in the assistant activity card saying the assistant created a Project; the Project name follows as a link
+  en: Created project
+  verified_by_human: []
+created_project_undo:
+  context: Button that undoes an assistant-created Project
+  en: Undo
+  verified_by_human: []
+created_project_undone:
+  context: Row text after the user undid an assistant-created Project
+  en: Project creation undone
+  verified_by_human: []
+created_project_undo_failed:
+  context: Error shown when undoing an assistant-created Project failed
+  en: Could not undo. Please try again.
+  verified_by_human: []
+work_on_label:
+  context: Row in the assistant activity card saying the chat works on a Project; the Project name follows
+  en: Work on
+  verified_by_human: []
+focus_not_active:
+  context: Status of the Project focus row after the Project creation was undone
+  en: Not active
+  verified_by_human: []

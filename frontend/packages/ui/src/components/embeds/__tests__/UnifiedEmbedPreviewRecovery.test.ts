@@ -17,11 +17,6 @@ vi.mock('../../../services/embedResolver', () => ({
 vi.mock('../../../services/chatSyncService', () => ({ chatSyncService: new EventTarget() }));
 vi.mock('../BasicInfosBar.svelte', () => ({ default: () => {} }));
 vi.mock('../../Icon.svelte', () => ({ default: () => {} }));
-vi.mock('../../../stores/appSettingsMemoriesStore', () => ({
-  appSettingsMemoriesStore: {
-    subscribe: (run: (value: unknown) => void) => { run({ entriesByApp: new Map() }); return () => {}; },
-  },
-}));
 
 import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
 import { chatSyncService } from '../../../services/chatSyncService';

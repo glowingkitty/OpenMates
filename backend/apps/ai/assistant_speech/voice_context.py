@@ -52,6 +52,7 @@ def build_voice_heard_context(boundary: VoiceHeardBoundary | None, history: Sequ
 
 
 VOICE_MAIN_INSTRUCTION_KEY = "base_voice_conversation_instruction"
+VOICE_LEARNING_FOCUS_INSTRUCTION_KEY = "base_voice_learning_focus_instruction"
 
 
 @lru_cache(maxsize=1)
@@ -62,6 +63,36 @@ def _canonical_voice_main_instruction() -> str:
     if not instruction.strip():
         raise RuntimeError("Voice conversation instruction source is empty")
     return instruction
+
+
+@lru_cache(maxsize=1)
+def _canonical_voice_learning_focus_instruction() -> str:
+    """Load the learning/focus voice source even while an older cache is live."""
+    path = Path(__file__).resolve().parents[1] / "instructions" / f"{VOICE_LEARNING_FOCUS_INSTRUCTION_KEY}.md"
+    instruction = path.read_text(encoding="utf-8")
+    if not instruction.strip():
+        raise RuntimeError("Voice learning and focus instruction source is empty")
+    return instruction
+
+
+def build_voice_learning_focus_instruction(
+    base_instructions: Mapping[str, Any],
+    *,
+    voice_mode: bool,
+    learning_mode_active: bool,
+    focus_active: bool,
+) -> str:
+    """Return the spoken-delivery rules for Learning Mode and focus modes.
+
+    Empty unless this is a voice turn with Learning Mode or a focus mode, so
+    ordinary voice and text turns keep their prompts byte-for-byte.
+    """
+    if not voice_mode or not (learning_mode_active or focus_active):
+        return ""
+    instruction = base_instructions.get(VOICE_LEARNING_FOCUS_INSTRUCTION_KEY)
+    if isinstance(instruction, str) and instruction.strip():
+        return instruction
+    return _canonical_voice_learning_focus_instruction()
 
 
 def build_voice_main_instruction(base_instructions: Mapping[str, Any], *, voice_mode: bool) -> str:

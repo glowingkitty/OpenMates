@@ -12,10 +12,7 @@ import {
   enforceOfflineCacheBudget,
   getMessageWindowPagesForChat,
   getMessageWindowForChat,
-  isContentDuplicate,
-  isSafeToEvictMessage,
   recordMessageWindowPage,
-  shouldUpdateMessage,
   type MessageWindowResult,
 } from "../messageOperations";
 
@@ -228,146 +225,6 @@ function makePageCacheDb(messages: Message[]) {
   };
 }
 
-describe("isContentDuplicate", () => {
-  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
-  it("does not treat two decrypted messages with missing encrypted content as duplicates", () => {
-    const existing = {
-      message_id: "message-1",
-      chat_id: "chat-1",
-      role: "user",
-      content: "First message",
-      created_at: 10,
-      status: "synced",
-      sender_name: "user",
-    } as Message;
-    const incoming = {
-      message_id: "message-2",
-      chat_id: "chat-1",
-      role: "user",
-      content: "Second message",
-      created_at: 11,
-      status: "sending",
-      sender_name: "user",
-    } as Message;
-
-    expect(isContentDuplicate(existing, incoming)).toBe(false);
-  });
-
-  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
-  it("matches decrypted duplicate content when encrypted content is unavailable", () => {
-    const existing = {
-      message_id: "message-1",
-      chat_id: "chat-1",
-      role: "assistant",
-      content: "Same response",
-      created_at: 10,
-      status: "synced",
-    } as Message;
-    const incoming = {
-      message_id: "message-2",
-      chat_id: "chat-1",
-      role: "assistant",
-      content: "Same response",
-      created_at: 11,
-      status: "synced",
-    } as Message;
-
-    expect(isContentDuplicate(existing, incoming)).toBe(true);
-  });
-});
-
-describe("shouldUpdateMessage", () => {
-  // contract-test: supporting surface=gui.web assertions=chats.local-state.precedence
-  it("updates an interrupted streaming assistant message when batch sync delivers it", () => {
-    const existing = {
-      message_id: "ai-task-1",
-      chat_id: "chat-1",
-      role: "assistant",
-      created_at: 10,
-      status: "streaming",
-      encrypted_content: "encrypted-partial",
-    } as Message;
-    const incoming = {
-      ...existing,
-      status: "delivered",
-      encrypted_content: "encrypted-complete",
-    } as Message;
-
-    expect(shouldUpdateMessage(existing, incoming)).toBe(true);
-  });
-
-  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
-  it("does not update a same-id synced assistant message just because plaintext differs", () => {
-    const existing = {
-      message_id: "ai-task-1",
-      chat_id: "chat-1",
-      role: "assistant",
-      content: "Partial response",
-      created_at: 10,
-      status: "synced",
-    } as Message;
-    const incoming = {
-      ...existing,
-      content: "Partial response with the final paragraph",
-      status: "synced",
-    } as Message;
-
-    expect(shouldUpdateMessage(existing, incoming)).toBe(false);
-  });
-
-  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
-  it("does not update a same-id user message just because plaintext differs", () => {
-    const existing = {
-      message_id: "user-message-1",
-      chat_id: "chat-1",
-      role: "user",
-      content: "Original user message",
-      created_at: 10,
-      status: "synced",
-    } as Message;
-    const incoming = {
-      ...existing,
-      content: "Different user message",
-    } as Message;
-
-    expect(shouldUpdateMessage(existing, incoming)).toBe(false);
-  });
-
-  // contract-test: supporting surface=gui.web assertions=chats.local-state.precedence
-  it("preserves waiting_for_user even when sync delivers completed content", () => {
-    const existing = {
-      message_id: "ai-task-1",
-      chat_id: "chat-1",
-      role: "assistant",
-      content: "Buy credits to continue",
-      created_at: 10,
-      status: "waiting_for_user",
-    } as Message;
-    const incoming = {
-      ...existing,
-      content: "Completed response",
-      status: "synced",
-    } as Message;
-
-    expect(shouldUpdateMessage(existing, incoming)).toBe(false);
-  });
-
-  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
-  it("does not update a completed duplicate when content already matches", () => {
-    const existing = {
-      message_id: "ai-task-1",
-      chat_id: "chat-1",
-      role: "assistant",
-      content: "Complete response",
-      created_at: 10,
-      status: "synced",
-    } as Message;
-    const incoming = { ...existing } as Message;
-
-    expect(shouldUpdateMessage(existing, incoming)).toBe(false);
-  });
-});
-
 describe("getMessageWindowForChat", () => {
   // contract-test: supporting surface=gui.web assertions=storage.cold.independent-message-pages
   it("uses the 30-message default for latest windows", async () => {
@@ -551,15 +408,6 @@ describe("message window page cache metadata", () => {
     expect(messagesById.has("msg-2")).toBe(true);
     expect(messagesById.has("msg-3")).toBe(true);
     expect(messagesById.has("msg-31")).toBe(false);
-  });
-
-  // contract-test: supporting surface=gui.web assertions=teams.cache.bounded-isolated
-  it("never treats pending journals or unconfirmed rows as safe eviction candidates", () => {
-    const synced = makeMessages(1)[0];
-    expect(isSafeToEvictMessage(synced)).toBe(true);
-    expect(isSafeToEvictMessage({ ...synced, status: "delivered" })).toBe(false);
-    expect(isSafeToEvictMessage({ ...synced, pending_encrypted_embed_bundle_v1: "sealed" } as Message)).toBe(false);
-    expect(isSafeToEvictMessage({ ...synced, pending_encrypted_turn_preflight_v1: "sealed" } as Message)).toBe(false);
   });
 
   // contract-test: supporting surface=gui.web assertions=teams.cache.bounded-isolated

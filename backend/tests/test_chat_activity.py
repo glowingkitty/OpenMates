@@ -185,7 +185,7 @@ async def test_selected_read_details_opt_in_keeps_default_wire_exact_and_allowli
     source = {
         'id': 'owned', 'created_at': 0, 'updated_at': 1700000000000,
         'last_edited_overall_timestamp': 1700000001,
-        'encrypted_follow_up_request_suggestions': 'authenticated-ciphertext',
+        'encrypted_follow_up_request_suggestions': 'authenticated-ciphertext', 'unread_count': 2,
         'unknown_private_field': 'never-project', 'messages': [{'content': 'never-project'}],
     }
     chat = SimpleNamespace(check_chat_ownership=AsyncMock(return_value=True),
@@ -203,8 +203,10 @@ async def test_selected_read_details_opt_in_keeps_default_wire_exact_and_allowli
     assert legacy['chats'][0]['updated_at'] == '1700000000000'
     assert details == {'created_at': 0, 'updated_at': 1700000000000,
         'last_edited_overall_timestamp': 1700000001,
-        'encrypted_follow_up_request_suggestions': 'authenticated-ciphertext'}
+        'encrypted_follow_up_request_suggestions': 'authenticated-ciphertext',
+        'unread_count': 2}
     assert 'encrypted_follow_up_request_suggestions' not in legacy['chats'][0]
+    assert 'unread_count' not in legacy['chats'][0]
     assert 'unknown_private_field' not in row and 'messages' not in row
     chat.check_chat_ownership.assert_awaited_with('owned', 'owner')
 

@@ -36,6 +36,9 @@ bold-text: { light: "#503ba0", dark: "#c9bbff" }
 
 semantic:
   success:      { light: "#009f00", dark: "#30d158" }
+  # Surface behind a complete (`contain`) image so letterbox bars never look like
+  # cropping: white in light mode, black in dark mode.
+  media-letterbox: { light: "#ffffff", dark: "#000000" }
   error:        { light: "#e74c3c", dark: "#ff6b6b" }
   error-light:  { light: "rgba(231, 76, 60, 0.1)", dark: "rgba(255, 107, 107, 0.15)" }
   warning:      { light: "#e67e22", dark: "#f0a050" }

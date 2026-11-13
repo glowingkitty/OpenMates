@@ -25,12 +25,12 @@
  * 8. The embedPIIStore merges embed-level mappings for display toggling
  */
 
+import { rustDetectLanguages } from "./rustComposerCode";
 import { embedStore } from "../../../services/embedStore";
 import { generateUUID } from "../../../message_parsing/utils";
 import { createEmbedReferenceBlock } from "./urlMetadataService";
 import { decode as toonDecode, encode as toonEncode } from "@toon-format/toon";
 import {
-  detectPII,
   replacePIIWithPlaceholders,
   createPIIMappingsForStorage,
   restorePIIInText,
@@ -38,6 +38,7 @@ import {
   type PIIDetectionOptions,
   type PersonalDataForDetection,
 } from "./piiDetectionService";
+import { createWebPIIDocumentScanContext, detectPIIForWeb, type WebPIIScanContext } from "./webPIIDetectionService";
 import {
   personalDataStore,
   type PIIDetectionSettings,
@@ -204,7 +205,15 @@ async function storeEmbedPIIMappings(
   }
 }
 
-export function redactEmbedContent(content: string): EmbedRedactionResult {
+/**
+ * Redact embed text with the basic detector plus the local model (windowed scan,
+ * document budget). Pass one scan context to share the time budget across the
+ * several fields of a single document.
+ */
+export async function redactEmbedContent(
+  content: string,
+  scanContext: WebPIIScanContext = createWebPIIDocumentScanContext(),
+): Promise<EmbedRedactionResult> {
   let redactedContent = content;
   let piiMappings: PIIMappingForStorage[] = [];
 
@@ -214,12 +223,14 @@ export function redactEmbedContent(content: string): EmbedRedactionResult {
   }
 
   try {
-    const piiMatches = detectPII(content, detectionOptions);
+    const piiMatches = await detectPIIForWeb(content, detectionOptions, scanContext);
     if (piiMatches.length === 0) {
       return { redactedContent, piiMappings };
     }
 
-    redactedContent = replacePIIWithPlaceholders(content, piiMatches);
+    redactedContent = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+      ? await (await import("./rustComposerPII")).rustReplacePIIWithPlaceholders(content, piiMatches)
+      : replacePIIWithPlaceholders(content, piiMatches);
     piiMappings = createPIIMappingsForStorage(piiMatches);
   } catch (error) {
     console.error("[codeEmbedService] PII detection failed for embed content:", error);
@@ -228,13 +239,13 @@ export function redactEmbedContent(content: string): EmbedRedactionResult {
   return { redactedContent, piiMappings };
 }
 
-function redactEmbedFields<T extends Record<string, string>>(
+async function redactEmbedFields<T extends Record<string, string>>(
   fields: T,
-): { redactedFields: T; piiMappings: PIIMappingForStorage[] } {
+): Promise<{ redactedFields: T; piiMappings: PIIMappingForStorage[] }> {
   const entries = Object.entries(fields) as Array<[keyof T, string]>;
   const separator = "\n\u0000OPENMATES_FIELD_SEPARATOR\u0000\n";
   const combined = entries.map(([, value]) => value).join(separator);
-  const { redactedContent, piiMappings } = redactEmbedContent(combined);
+  const { redactedContent, piiMappings } = await redactEmbedContent(combined);
   const parts = redactedContent.split(separator);
   const redactedFields = { ...fields };
 
@@ -390,7 +401,7 @@ export async function createCodeEmbed(
   const {
     redactedContent: codeContent,
     piiMappings: piiMappingsForStorage,
-  } = redactEmbedContent(content);
+  } = await redactEmbedContent(content);
 
   // ── Build TOON Content ───────────────────────────────────────────────────
   // The TOON content contains the REDACTED code (with placeholders).
@@ -566,147 +577,6 @@ export interface PastedTextOptions {
 }
 
 /**
- * Detects the programming language from VS Code clipboard data.
- * VS Code stores language info in the 'vscode-editor-data' MIME type as JSON with a 'mode' field.
- *
- * @param vsCodeEditorData The raw string from clipboardData.getData('vscode-editor-data')
- * @returns The detected language mode, or null if not available
- */
-export function detectLanguageFromVSCode(
-  vsCodeEditorData: string | null | undefined,
-): string | null {
-  if (!vsCodeEditorData) {
-    return null;
-  }
-
-  try {
-    const data = JSON.parse(vsCodeEditorData);
-    const mode = data?.mode;
-
-    if (mode && typeof mode === "string") {
-      console.debug("[codeEmbedService] Detected VS Code language:", mode);
-      return mode;
-    }
-  } catch (error) {
-    console.warn(
-      "[codeEmbedService] Failed to parse vscode-editor-data:",
-      error,
-    );
-  }
-
-  return null;
-}
-
-/**
- * Heuristic-based language detection from code content.
- * Analyzes the text for common patterns like shebangs, imports, and syntax.
- *
- * @param text The code/text content to analyze
- * @returns The detected language, or null if no confident match
- */
-export function detectLanguageFromContent(text: string): string | null {
-  const firstLine = text.split("\n")[0].trim();
-  const content = text.slice(0, 2000); // Analyze first 2000 chars for performance
-
-  // 1. Shebang detection (highest confidence)
-  if (firstLine.startsWith("#!")) {
-    const shebang = firstLine.toLowerCase();
-    if (shebang.includes("python")) return "python";
-    if (shebang.includes("node")) return "javascript";
-    if (shebang.includes("bash") || shebang.includes("/sh")) return "bash";
-    if (shebang.includes("zsh")) return "zsh";
-    if (shebang.includes("ruby")) return "ruby";
-    if (shebang.includes("perl")) return "perl";
-    if (shebang.includes("php")) return "php";
-  }
-
-  // 2. XML/HTML declaration
-  if (firstLine.startsWith("<?xml")) return "xml";
-  if (firstLine.startsWith("<!DOCTYPE html") || firstLine.startsWith("<html"))
-    return "html";
-
-  // 3. Language-specific imports/declarations (check multiple lines)
-  // Python
-  if (/^(from\s+\S+\s+import|import\s+\S+)/.test(firstLine)) return "python";
-  if (/^def\s+\w+\s*\(/.test(firstLine)) return "python";
-  if (/^class\s+\w+.*:/.test(firstLine)) return "python";
-
-  // JavaScript/TypeScript
-  if (/^import\s+.*\s+from\s+['"]/.test(firstLine)) return "typescript";
-  if (/^const\s+\w+\s*=\s*require\s*\(/.test(firstLine)) return "javascript";
-  if (
-    /^export\s+(default\s+)?(function|class|const|let|var|interface|type)/.test(
-      firstLine,
-    )
-  )
-    return "typescript";
-
-  // Go
-  if (/^package\s+\w+/.test(firstLine)) return "go";
-
-  // Rust
-  if (/^(use\s+\w+|fn\s+\w+|pub\s+fn|impl\s+)/.test(firstLine)) return "rust";
-  if (content.includes("fn main()") && content.includes("println!"))
-    return "rust";
-
-  // Java/Kotlin
-  if (/^package\s+[\w.]+;/.test(firstLine)) return "java";
-  if (/^public\s+class\s+\w+/.test(content)) return "java";
-
-  // C/C++
-  if (/^#include\s*[<"]/.test(firstLine)) return "cpp";
-  if (/^int\s+main\s*\(/.test(content)) return "c";
-
-  // Ruby
-  if (/^require\s+['"]/.test(firstLine)) return "ruby";
-  if (/^class\s+\w+\s*(<\s*\w+)?$/.test(firstLine)) return "ruby";
-
-  // PHP
-  if (firstLine.startsWith("<?php")) return "php";
-
-  // SQL
-  if (/^(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\s+/i.test(firstLine))
-    return "sql";
-
-  // YAML (common in configs)
-  if (/^\w+:\s*$/.test(firstLine) && content.includes("\n  ")) return "yaml";
-
-  // JSON (starts with { or [)
-  if (/^\s*[{[]/.test(firstLine)) {
-    try {
-      JSON.parse(text);
-      return "json";
-    } catch {
-      // Not valid JSON, might be JS object
-    }
-  }
-
-  // Shell commands (common patterns)
-  if (
-    /^(sudo\s+|apt\s+|npm\s+|yarn\s+|pip\s+|docker\s+|git\s+|curl\s+|wget\s+)/.test(
-      firstLine,
-    )
-  )
-    return "bash";
-  if (/^\$\s+\w+/.test(firstLine)) return "bash"; // $ command prompt
-
-  // CSS
-  if (/^[.#@][\w-]+\s*\{/.test(firstLine)) return "css";
-  if (/^:\s*root\s*\{/.test(firstLine)) return "css";
-
-  // Markdown (headers, lists)
-  if (/^#{1,6}\s+/.test(firstLine)) return "markdown";
-  if (
-    /^[-*+]\s+/.test(firstLine) &&
-    content.split("\n").filter((l) => /^[-*+]\s+/.test(l)).length > 2
-  )
-    return "markdown";
-
-  // No confident match
-  return null;
-}
-
-/**
  * Creates a code embed specifically for multi-line pasted text.
  * Automatically detects language using multiple strategies.
  *
@@ -724,8 +594,8 @@ export async function createCodeEmbedFromPastedText(
 ): Promise<CodeEmbedCreationResult> {
   // Support legacy string-only signature for backward compatibility
   if (typeof options === "string") {
-    const heuristicLanguage = detectLanguageFromContent(options);
-    return createCodeEmbed(options, heuristicLanguage || "text");
+    const { content } = await rustDetectLanguages(options, null);
+    return createCodeEmbed(options, content || "text");
   }
 
   const { text, vsCodeEditorData, language: explicitLanguage } = options;
@@ -734,18 +604,22 @@ export async function createCodeEmbedFromPastedText(
   let language: string;
   let detectionSource: string;
 
+  const detected = explicitLanguage
+    ? null
+    : await rustDetectLanguages(text, vsCodeEditorData ?? null);
+
   if (explicitLanguage) {
     language = explicitLanguage;
     detectionSource = "explicit";
   } else {
     // Try VS Code clipboard data first
-    const vsCodeLanguage = detectLanguageFromVSCode(vsCodeEditorData);
+    const vsCodeLanguage = detected?.vsCode ?? null;
     if (vsCodeLanguage) {
       language = vsCodeLanguage;
       detectionSource = "vscode";
     } else {
       // Fall back to content-based heuristics
-      const heuristicLanguage = detectLanguageFromContent(text);
+      const heuristicLanguage = detected?.content ?? null;
       if (heuristicLanguage) {
         language = heuristicLanguage;
         detectionSource = "heuristic";
@@ -814,7 +688,7 @@ export async function createDocEmbed(
     filename: filename || "none",
   });
 
-  const { redactedContent, piiMappings } = redactEmbedContent(content);
+  const { redactedContent, piiMappings } = await redactEmbedContent(content);
   const redactedWordCount = redactedContent.split(/\s+/).filter((w) => w.trim()).length;
 
   const embedContent = {
@@ -885,7 +759,7 @@ export async function createSheetEmbed(
   title?: string,
 ): Promise<SheetEmbedCreationResult> {
   const embed_id = generateUUID();
-  const { redactedContent, piiMappings } = redactEmbedContent(tableMarkdown);
+  const { redactedContent, piiMappings } = await redactEmbedContent(tableMarkdown);
   const rows = redactedContent
     .split("\n")
     .map((line) => line.trim())
@@ -954,7 +828,7 @@ export async function createMailEmbed(
   filename?: string,
 ): Promise<MailEmbedCreationResult> {
   const embed_id = generateUUID();
-  const { redactedFields, piiMappings } = redactEmbedFields({
+  const { redactedFields, piiMappings } = await redactEmbedFields({
     receiver: fields.receiver || "",
     subject: fields.subject || "",
     content: fields.content || "",

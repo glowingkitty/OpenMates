@@ -18,6 +18,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
+from project_names import natural_project_name
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -136,7 +137,7 @@ def scenario_unfinished_turn(args: argparse.Namespace) -> dict[str, Any]:
     task_id = None
     project_id = None
     try:
-        project = run_cli_json(["projects", "create", f"Task resume validation {int(time.time())}", "--personal", "--write-policy", "apply_and_show"])
+        project = run_cli_json(["projects", "create", natural_project_name("Kitchen renovation"), "--personal", "--write-policy", "apply_and_show"])
         project_id = (project.get("project") or project).get("project_id")
         require(isinstance(project_id, str) and bool(project_id), "test Project creation did not return project_id")
         chat = run_cli_json(["chats", "new", "Reply only: disposable Task validation chat. Do not create tasks.", "--no-pii-detection"], timeout=args.chat_timeout)

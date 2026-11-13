@@ -36,8 +36,7 @@
   import { travelConnectionEndpoints, travelLegPresentation } from './travelConnectionPoints';
   import TravelTimeBadge from './TravelTimeBadge.svelte';
   import { countryCodeToFlag } from '../../../utils/countryFlag';
-  import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
-  import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
+  import { savedEmbedIds, loadEmbedSaved, toggleEmbedSaved, getEmbedIdFromContentRef } from '../../../services/savedEmbedService';
   import { authStore } from '../../../stores/authStore';
   import { loginInterfaceOpen } from '../../../stores/uiStateStore';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -778,7 +777,6 @@
   function handleOpenGoogleFlights() {
     if (isAuthored) return;
     window.open(buildGoogleFlightsUrl(), '_blank', 'noopener,noreferrer');
-    promptToSaveEmbedMemory(buildSaveConfig());
   }
   
   /**
@@ -869,48 +867,21 @@
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
-    promptToSaveEmbedMemory(buildSaveConfig());
   }
 
-  function buildSaveConfig() {
-    const title = routeDisplay || routeHeaderWithFlags || 'Travel connection';
-    const bookingUrl = (isAuthored ? connection.booking_url || '' : resolvedBookingUrl || connection.booking_url || buildGoogleFlightsUrl());
-    return {
-      kind: 'travel_connection' as const,
-      appId: 'travel',
-      itemType: 'saved_connections',
-      itemKey: `saved_connections.${connection.hash || bookingUrl || title}`,
-      title,
-      reminderDateTime: connection.departure || connection.legs?.[0]?.departure || null,
-      reminderPromptTitle: title,
-      itemValue: {
-        embed_id: embedId || data.focusChildEmbedId || connection.embed_id || getEmbedIdFromContentRef(data.attrs?.contentRef),
-        title,
-        transport_method: connection.transport_method || '',
-        origin: connection.origin || connection.legs?.[0]?.origin || '',
-        destination: connection.destination || connection.legs?.at(-1)?.destination || '',
-        departure: connection.departure || connection.legs?.[0]?.departure || '',
-        arrival: connection.arrival || connection.legs?.at(-1)?.arrival || '',
-        booking_url: bookingUrl,
-        provider: resolvedBookingProvider || connection.booking_provider || primaryCarrier || '',
-        notes: [tripTypeLabel, formattedPrice, connection.duration].filter(Boolean).join(' · '),
-      },
-    };
-  }
-
-  let saveConfig = $derived(buildSaveConfig());
-  let savedMemoryEntry = $derived(findSavedEmbedMemoryEntry($appSettingsMemoriesStore, saveConfig));
 
   let calendarStart = $derived(connection.departure || (!isAuthored ? connection.legs?.[0]?.departure : undefined) || '');
   let calendarEnd = $derived(connection.arrival || (!isAuthored ? connection.legs?.at(-1)?.arrival : undefined) || '');
 
-  function handleToggleSavedConnection() {
-    if (savedMemoryEntry) {
-      forgetEmbedMemory(saveConfig);
-      return;
-    }
-    saveEmbedMemory(saveConfig);
+  // Save / Saved: encrypted `saved` flag on the embed itself (no memory entry).
+  const savedTargetId = $derived(embedId || data.focusChildEmbedId || getEmbedIdFromContentRef(data.attrs?.contentRef));
+  let isSaved = $derived($savedEmbedIds.has(savedTargetId));
+  $effect(() => { if (savedTargetId) void loadEmbedSaved(savedTargetId); });
+
+  function handleToggleSaved() {
+    if (savedTargetId) void toggleEmbedSaved(savedTargetId);
   }
+
 
   function buildCalendarDescription(): string {
     const lines: string[] = [];
@@ -1596,7 +1567,7 @@
     {/if}
     <div class="embed-header-cta-group">
       {#if $authStore.isAuthenticated}
-        <EmbedHeaderCtaButton testId="save-embed-cta" label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry} onclick={handleToggleSavedConnection} />
+        <EmbedHeaderCtaButton testId="save-embed-cta" label={$text(isSaved ? 'embeds.saved_item' : 'embeds.save_item')} variant="secondary" iconName="heart" iconOnly pressed={isSaved} onclick={handleToggleSaved} />
       {/if}
       {#if (isAuthored && connection.booking_url) || (!isAuthored && bookingState === 'loaded' && resolvedBookingUrl)}
         <EmbedHeaderCtaButton testId="booking-cta" label={isAuthored ? $text('embeds.authoring.open_source') : $text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />

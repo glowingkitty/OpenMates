@@ -52,7 +52,7 @@
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedZoomControls from '../shared/EmbedZoomControls.svelte';
   import { fetchAndDecryptDocArtifact } from './docsArtifactCrypto';
-  import { docsDownloadFilename, fetchDocxDownloadArtifact, prepareDocsDownload, triggerDocsDownload } from './docsDownload';
+  import { docsDownloadFilename, fetchDocxDownloadArtifact, prepareDocsDownload, prepareDocsPdfDownload, triggerDocsDownload } from './docsDownload';
 
   /**
    * Props for document embed fullscreen
@@ -148,6 +148,7 @@
         ? dc.screenshot_s3_keys as Record<string, string>
         : undefined
     );
+  let pdfS3Key = $derived(typeof dc.pdf_s3_key === 'string' && dc.pdf_s3_key ? dc.pdf_s3_key : undefined);
   let docxS3Key = $derived(typeof dc.docx_s3_key === 'string' ? dc.docx_s3_key : undefined);
   let aesKey = $derived(typeof dc.aes_key === 'string' ? dc.aes_key : undefined);
   let highlightQuoteText = $derived(data.highlightQuoteText ?? null);
@@ -674,6 +675,17 @@
     }
   }
 
+  async function handlePdfDownload() {
+    if (!pdfS3Key || !aesKey) return;
+    try {
+      triggerDocsDownload(await prepareDocsPdfDownload({ filename: displayFilename, pdfS3Key, aesKey }));
+      notificationStore.success('Document downloaded successfully');
+    } catch (error) {
+      console.error('[DocsEmbedFullscreen] Failed to download PDF:', error);
+      notificationStore.error('Failed to download document');
+    }
+  }
+
   async function handleDownload() {
     try {
       const download = await prepareDocsDownload({
@@ -722,6 +734,8 @@
   showPIIIncludeOriginal={canIncludeOriginalPII}
   onIncludeOriginalPII={includeOriginalPII}
   skipInitialScrollReset={!!highlightQuoteText}
+  downloadLabel={pdfS3Key && aesKey ? $text('common.download_word') : undefined}
+  onDownloadPdf={pdfS3Key && aesKey ? handlePdfDownload : undefined}
 >
   {#snippet content()}
     {#if Object.keys(displayedArtifactPageUrls).length > 0}

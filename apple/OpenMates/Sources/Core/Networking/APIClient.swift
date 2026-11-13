@@ -2,9 +2,10 @@
 // Assertions: billing.access.authenticated-first-party
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.pairing.explicit-entry-back
-// HTTP API client for the OpenMates backend.
-// Handles auth tokens, cookie-based sessions, and JSON encoding/decoding.
-// Supports both Encodable bodies and raw dictionary bodies.
+// HTTP API client for the OpenMates backend: JSON encoding/decoding with
+// Encodable or dictionary bodies. In the iOS/macOS app, REST and uploads go
+// through the Rust core (`APIClient+CoreTransport.swift`), which owns the
+// session and its cookies; the Watch keeps its own URLSession transport.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.embeds.gated-send
 // Specification: specifications/features/apple-notifications/specification.yml
@@ -55,11 +56,15 @@ actor APIClient {
     private let uploadSession: URLSession
     private let cookieStorage: HTTPCookieStorage
     private let encoder: JSONEncoder
-    private let decoder: JSONDecoder
+    let decoder: JSONDecoder
+    /// Requests made while the core holds no session (sign-in ceremonies,
+    /// public bootstrap): `CoreCeremonySession`'s in-memory cookie jar.
+    let preSessionSession: URLSession
 
     init(session: URLSession? = nil, uploadSession: URLSession? = nil, cookieStorage: HTTPCookieStorage = OpenMatesSharedEnvironment.cookieStorage) {
         self.cookieStorage = cookieStorage
         self.session = session ?? URLSession(configuration: Self.makeStandardSessionConfiguration())
+        self.preSessionSession = session ?? URLSession(configuration: Self.makePreSessionConfiguration())
         self.uploadSession = uploadSession ?? URLSession(configuration: Self.makeUploadSessionConfiguration())
 
         self.encoder = JSONEncoder()
@@ -230,6 +235,32 @@ actor APIClient {
                             expectedAccountID: String? = nil, expectedScope: UUID? = nil,
                             endpoint: String = "v1/upload/file", formFields: [String: String] = [:],
                             expectedTeamContext: APIRequestTeamContext? = nil) async throws -> Data {
+        #if (os(iOS) || os(macOS)) && !OPENMATES_SHARE_EXTENSION
+        // The core sends the file with its session; Swift strips image
+        // metadata first and keeps the account, scope and Team fences.
+        // No core is a typed failure before anything else is decided.
+        guard await MainActor.run(body: { CoreSession.shared != nil }) else {
+            throw CoreSessionAdoptionError.coreUnavailable
+        }
+        let accountID = await AuthManager.currentUserId()
+        let capturedAccountID = expectedAccountID ?? accountID
+        let scope = await MainActor.run { expectedScope ?? OfflineStore.shared.scopeGeneration }
+        let prepared = try NativeImageRaster.prepareUpload(data: data, filename: filename, contentType: contentType)
+        let profile = serverProfile ?? ServerProfile.current()
+        let fields: [HttpFieldRecord] = (optionalChatID.map { [HttpFieldRecord(name: "chat_id", value: $0)] } ?? [])
+            + formFields.sorted { $0.key < $1.key }.map { HttpFieldRecord(name: $0.key, value: $0.value) }
+        try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
+        try await checkTeamContext(expectedTeamContext)
+        try await MainActor.run { try AuthManager.requireProtectedRequestAuthority(profile: profile) }
+        try Task.checkCancellation()
+        let response = try await uploadThroughCore(
+            url: profile.uploadBaseURL.appendingPathComponent(endpoint), data: prepared.data,
+            filename: prepared.filename, contentType: prepared.contentType, fields: fields)
+        // A late answer must not reach another account, scope or Team.
+        try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
+        try await checkTeamContext(expectedTeamContext)
+        return response
+        #else
         #if os(watchOS)
         let capturedAccountID = expectedAccountID
         let scope = expectedScope ?? UUID()
@@ -272,7 +303,7 @@ actor APIClient {
         do {
             // A retry must use the credential produced by recovery, rather
             // than race the ordinary request's background validation.
-            return try await execute(request, using: uploadSession, awaitUnauthorizedRecovery: true)
+            return try await execute(request, using: uploadSession)
         } catch where Self.shouldRetryUpload(after: error) {
             try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
             try await checkTeamContext(expectedTeamContext)
@@ -289,6 +320,7 @@ actor APIClient {
             try Task.checkCancellation()
             return try await execute(retryRequest, using: uploadSession)
         }
+        #endif
     }
 
     private func checkUploadContext(accountID: String?, scope: UUID, profile: ServerProfile) async throws {
@@ -361,38 +393,6 @@ actor APIClient {
         return body
     }
 
-    #if os(iOS) || os(macOS)
-    /// Session rotation must publish cookies under the same authority fence as
-    /// the user/token response. URLSession's automatic cookie handling otherwise
-    /// installs a late old account response before AuthManager can reject it.
-    func validateNativeSession(serverProfile: ServerProfile, body: SessionRequest,
-                               expectedAccountID: String?,
-                               isCurrent: @escaping @MainActor () -> Bool) async throws -> SessionResponse {
-        var request = try buildRequest(.post, path: "/v1/auth/session", headers: nil,
-            baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
-        request.httpBody = try encoder.encode(body)
-        let prepared = request
-        request = try await MainActor.run {
-            guard isCurrent() else { throw CancellationError() }
-            var pinned = prepared
-            Self.pinAuthorizedCookies(in: &pinned, cookieStorage: cookieStorage)
-            return pinned
-        }
-        let data = try await execute(request, using: session, authorizeSessionResponse: { response, data in
-            guard isCurrent() else { return (false, false) }
-            guard (200...299).contains(response.statusCode) else {
-                return (true, response.statusCode == 401 || response.statusCode == 403)
-            }
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            guard let result = try? decoder.decode(SessionResponse.self, from: data) else { return (true, false) }
-            let publishCookies = expectedAccountID == nil || result.user == nil || result.user?.id == expectedAccountID
-            return (true, publishCookies)
-        })
-        return try decodeResponse(SessionResponse.self, from: data)
-    }
-    #endif
-
     // MARK: - Encodable body
 
     /// Watch services supply their verified account/session/deadline fence. Both
@@ -459,7 +459,7 @@ actor APIClient {
             }
         }
 
-        return try await execute(urlRequest)
+        return try await executeAPI(urlRequest)
     }
 
     func request(
@@ -490,14 +490,16 @@ actor APIClient {
         if let expectedAccountID, let expectedScope {
             try await checkUploadContext(accountID: expectedAccountID, scope: expectedScope, profile: serverProfile)
             try await checkTeamContext(expectedTeamContext)
+            #if os(watchOS)
             Self.pinAuthorizedCookies(in: &urlRequest)
+            #endif
             try await checkUploadContext(accountID: expectedAccountID, scope: expectedScope, profile: serverProfile)
             try await checkTeamContext(expectedTeamContext)
             try Task.checkCancellation()
         } else if expectedAccountID != nil || expectedScope != nil || expectedTeamContext != nil {
             throw APIError.invalidResponse
         }
-        return try await execute(urlRequest, expectedRecoveryAccountID: expectedAccountID)
+        return try await executeAPI(urlRequest, expectedAccountID: expectedAccountID)
     }
 
     func request<T: Decodable>(
@@ -555,7 +557,7 @@ actor APIClient {
     ) async throws -> Data {
         var urlRequest = try buildRequest(method, path: path, headers: headers)
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: dict)
-        return try await execute(urlRequest)
+        return try await executeAPI(urlRequest)
     }
 
     func request<T: Decodable>(
@@ -667,6 +669,21 @@ actor APIClient {
             forHTTPHeaderField: "Cookie")
     }
 
+    /// Ephemeral, with `CoreCeremonySession`'s jar: never the shared jar.
+    static func makePreSessionConfiguration() -> URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieAcceptPolicy = .always
+        configuration.httpShouldSetCookies = true
+        #if (os(iOS) || os(macOS)) && !OPENMATES_SHARE_EXTENSION
+        // The Watch target has no core bridge and no sign-in ceremony: it
+        // keeps the ephemeral configuration's own in-memory jar.
+        configuration.httpCookieStorage = CoreCeremonySession.cookieStorage
+        #endif
+        configuration.timeoutIntervalForRequest = 30
+        configuration.timeoutIntervalForResource = 60
+        return configuration
+    }
+
     private static func makeSessionConfiguration(
         requestTimeout: TimeInterval,
         resourceTimeout: TimeInterval
@@ -744,14 +761,25 @@ actor APIClient {
         #endif
     }
 
-    private func execute(_ request: URLRequest, expectedRecoveryAccountID: String? = nil) async throws -> Data {
-        try await execute(request, using: session, expectedRecoveryAccountID: expectedRecoveryAccountID)
+    /// One API request: through the core in the app, else the Watch transport.
+    private func executeAPI(_ request: URLRequest, expectedAccountID: String? = nil) async throws -> Data {
+        #if DEBUG
+        if let stubbedData = Self.uiTestIssueReportResponse(for: request) {
+            return stubbedData
+        }
+        #endif
+        #if os(iOS) || os(macOS)
+        return try await executeThroughCoreOrPreSession(request, expectedAccountID: expectedAccountID)
+        #else
+        return try await execute(request, using: session)
+        #endif
     }
 
-    private func execute(_ request: URLRequest, using transport: URLSession,
-                         expectedRecoveryAccountID: String? = nil,
-                         awaitUnauthorizedRecovery: Bool = false,
-                         authorizeSessionResponse: (@MainActor (HTTPURLResponse, Data) -> (isCurrent: Bool, publishCookies: Bool))? = nil,
+    /// URLSession transport of uploads and the Watch (cookie jar of the
+    /// shared app group). App REST does not come here. Internal (not private)
+    /// so the iOS test target can drive the Watch pair-completion cookie fence,
+    /// which no iOS entry point reaches since pair login moved into the core.
+    func execute(_ request: URLRequest, using transport: URLSession,
                          cookieAuthority: (@MainActor @Sendable () throws -> Void)? = nil,
                          authenticationURL: URL? = nil,
                          verifyCookieResponse: (@MainActor @Sendable (HTTPURLResponse, Data) throws -> Void)? = nil) async throws -> Data {
@@ -763,53 +791,27 @@ actor APIClient {
 
         var dispatchedRequest = request
         var responseCookieAuthority = cookieAuthority
-        var cookieAuthenticationURL = authenticationURL ?? request.url
+        let cookieAuthenticationURL = authenticationURL ?? request.url
         let explicitMutationProfile: ServerProfile?
         if request.url.map({ Self.isExplicitSessionMutation($0.path) }) == true {
             explicitMutationProfile = await MainActor.run { ServerProfile.current() }
         } else { explicitMutationProfile = nil }
-        #if os(iOS) || os(macOS)
-        var capturedContext: AuthSessionRecoveryContext?
-        #endif
-        // Auxiliary/public requests can carry a retained cookie during startup
-        // or device verification. Pin every ordinary request, including nil
-        // authenticated identity, so a late response cannot replace a login.
-        if cookieAuthority == nil, authorizeSessionResponse == nil,
-           let url = request.url, !Self.isExplicitSessionMutation(url.path) {
+        // Uploads and Watch requests carry the shared jar's cookie: pin it
+        // so a late response cannot replace another account's credential.
+        if cookieAuthority == nil, let url = request.url, !Self.isExplicitSessionMutation(url.path) {
             #if os(iOS) || os(macOS)
             let snapshot = try await MainActor.run {
                 if Self.requiresProtectedAuthority(path: url.path) {
-                    let profile = ServerProfile.current()
-                    try AuthManager.requireProtectedRequestAuthority(profile: profile)
-                    guard [profile.apiBaseURL, profile.uploadBaseURL].contains(where: {
-                        $0.scheme == url.scheme && $0.host == url.host && $0.port == url.port
-                    }) else { throw CancellationError() }
+                    try AuthManager.requireProtectedRequestAuthority(profile: ServerProfile.current())
                 }
-                let context = AuthManager.captureSessionRecoveryContext()
-                if let expectedRecoveryAccountID, context?.accountID != expectedRecoveryAccountID {
-                    throw CancellationError()
-                }
-                return (profile: ServerProfile.current(), accountID: AuthManager.notificationAccountId,
-                        sessionID: AuthManager.nativeSessionId, context: context,
-                        authority: AuthManager.captureNetworkAuthority())
-            }
-            if let context = snapshot.context,
-               context.profile.apiBaseURL.host == url.host || context.profile.uploadBaseURL.host == url.host {
-                capturedContext = context
-                cookieAuthenticationURL = context.profile.apiBaseURL
+                return (profile: ServerProfile.current(), accountID: AuthManager.notificationAccountId)
             }
             responseCookieAuthority = {
                 if Self.requiresProtectedAuthority(path: url.path) {
                     try AuthManager.requireProtectedRequestAuthority(profile: snapshot.profile)
-                    guard AuthManager.captureNetworkAuthority() == snapshot.authority else { throw CancellationError() }
                 }
-                let current = AuthManager.captureSessionRecoveryContext()
-                // Recovery generation may advance while the same logical
-                // session legitimately renews. Its identity must remain stable.
                 guard ServerProfile.current() == snapshot.profile,
-                      AuthManager.notificationAccountId == snapshot.accountID,
-                      AuthManager.nativeSessionId == snapshot.sessionID,
-                      current?.accountID == snapshot.context?.accountID else { throw CancellationError() }
+                      AuthManager.notificationAccountId == snapshot.accountID else { throw CancellationError() }
             }
             #else
             let profile = ServerProfile.current()
@@ -818,9 +820,6 @@ actor APIClient {
             }
             #endif
         }
-        #if os(iOS) || os(macOS)
-        let recoveryContext = request.url.map { Self.requiresProtectedAuthority(path: $0.path) } == true ? capturedContext : nil
-        #endif
         if let responseCookieAuthority {
             let prepared = dispatchedRequest
             let authenticationURL = cookieAuthenticationURL
@@ -846,43 +845,13 @@ actor APIClient {
             throw APIError.invalidResponse
         }
 
-        #if os(iOS) || os(macOS)
-        // Consume this definitive rejection before a competing recovery changes
-        // the dispatch grant. A stale /session success is fenced by the manager.
-        if (httpResponse.statusCode == 401 || httpResponse.statusCode == 403),
-           let capturedContext,
-           (try? decoder.decode(APIErrorResponse.self, from: data))?.detail == "Session verification required" {
-            await AuthManager.rejectVerificationRequired(capturedContext)
-            throw APIError.httpError(status: httpResponse.statusCode, message: "Session verification required")
-        }
-        #endif
-
-        if let authorizeSessionResponse {
-            try await MainActor.run {
-                let authorization = authorizeSessionResponse(httpResponse, data)
-                guard authorization.isCurrent, !Task.isCancelled else { throw CancellationError() }
-                if authorization.publishCookies {
-                    _ = Self.publishResponseCookies(httpResponse, request: sentRequest,
-                        authenticationURL: cookieURL, cookieStorage: cookieStorage)
-                }
-            }
-        } else if let responseCookieAuthority {
+        if let responseCookieAuthority {
             try await MainActor.run {
                 try responseCookieAuthority()
                 try Task.checkCancellation()
                 try verifyCookieResponse?(httpResponse, data)
-                let acceptedSuccessor = Self.publishResponseCookies(httpResponse, request: sentRequest,
+                _ = Self.publishResponseCookies(httpResponse, request: sentRequest,
                     authenticationURL: cookieURL, cookieStorage: cookieStorage)
-                #if os(iOS) || os(macOS)
-                // Ordinary REST can rotate the issuer credential while its old
-                // socket is still live. Validate the accepted successor once;
-                // the existing online transition reconnects with its ws_token.
-                // Session validation owns its own publication and must not recurse.
-                if acceptedSuccessor, (200...299).contains(httpResponse.statusCode),
-                   let context = recoveryContext {
-                    Task { @MainActor in await AuthManager.acceptRefreshSuccessor(context) }
-                }
-                #endif
             }
         } else if let explicitMutationProfile {
             await MainActor.run {
@@ -901,16 +870,6 @@ actor APIClient {
                 "API request failed method=\(request.httpMethod ?? "unknown") status=\(httpResponse.statusCode) \(NativeClientIdentity.current.diagnosticSummary)",
                 category: "network"
             )
-            #if os(iOS) || os(macOS)
-            if httpResponse.statusCode == 401, let recoveryContext {
-                if awaitUnauthorizedRecovery {
-                    await AuthManager.recoverRejectedRequest(recoveryContext)
-                    try Task.checkCancellation()
-                } else {
-                    Task { @MainActor in await AuthManager.recoverRejectedRequest(recoveryContext) }
-                }
-            }
-            #endif
             let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)
             throw APIError.httpError(
                 status: httpResponse.statusCode,

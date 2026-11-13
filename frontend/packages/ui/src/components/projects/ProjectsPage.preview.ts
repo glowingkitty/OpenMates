@@ -150,6 +150,36 @@ const mixedRemoteProps = { ...overviewProps, initialTab: 'folders' as const,
     remoteEntries: mixedRemoteEntries, chatPresentations: remoteChatPresentations } };
 const pagedChats = [remoteChat('first-chat', 'A chat'), remoteChat('boundary-chat', 'remote-file-047.ts'), remoteChat('last-chat', 'z chat')];
 
+function hostedItem(id: string, metadata: Record<string, unknown>, displayName: string, position: number): ProjectItemViewModel {
+  return {
+    project_item_id: `hosted-${id}`, item_type: 'embed', target_id: `hosted-${id}-embed`, displayName, metadata,
+    encrypted: { project_item_id: `hosted-${id}`, item_type: 'embed', target_id_hash: `hosted-${id}-hash`, target_id_encrypted: 'preview', created_at: now - position, updated_at: now - position, position },
+  };
+}
+const hostedFiles = [
+  { id: 'package', path: 'web-app/package.json', language: 'json', code: '{\n  "name": "recipe-manager",\n  "scripts": { "dev": "vite" }\n}' },
+  { id: 'app', path: 'web-app/src/App.jsx', language: 'jsx', code: 'export default function App() {\n  return <h1>Recipe Manager</h1>;\n}' },
+  { id: 'main', path: 'web-app/src/main.jsx', language: 'jsx', code: "import App from './App';\nrender(<App />);" },
+];
+const hostedItems: ProjectItemViewModel[] = [
+  hostedItem('application', { source: 'project_application', path: 'web-app', entry_path: 'src/App.jsx' }, 'Recipe Manager', 0),
+  ...hostedFiles.map((file, index) => hostedItem(file.id, { embed_type: 'code-code', source: 'hosted_project_file', path: file.path }, file.path, index + 1)),
+];
+const hostedEmbeds = Object.fromEntries([
+  ['hosted-application-embed', {
+    embedData: { embed_id: 'hosted-application-embed', type: 'application', status: 'finished' },
+    decodedContent: {
+      type: 'application', name: 'Recipe Manager', framework: 'React', runtime: 'Node',
+      file_refs: hostedFiles.map((file) => ({ path: file.path.replace('web-app/', ''), embed_id: `hosted-${file.id}-embed`, role: 'source' })),
+      entrypoints: [{ name: 'frontend', command: 'npm run dev', port: 5173 }],
+    },
+  }],
+  ...hostedFiles.map((file) => [`hosted-${file.id}-embed`, {
+    embedData: { embed_id: `hosted-${file.id}-embed`, type: 'code-code', status: 'finished' },
+    decodedContent: { type: 'code-code', language: file.language, filename: file.path.split('/').at(-1), line_count: file.code.split('\n').length, code: file.code },
+  }]),
+]);
+
 export default overviewProps;
 export const variants = {
   mixedRemoteChats: mixedRemoteProps,
@@ -161,6 +191,12 @@ export const variants = {
   chats: { ...overviewProps, previewState: { ...overviewProps.previewState, items: [...items, chatItem], chatPresentations: { [chatItem.target_id]: chatPresentation } } },
   landing: { ...overviewProps, previewState: { ...overviewProps.previewState, startAtHome: true } },
   folders: { ...overviewProps, initialTab: 'folders' as const },
+  // An adopted application lives in its hosted folder, not at the Project root.
+  hostedApplication: {
+    ...overviewProps,
+    initialTab: 'folders' as const,
+    previewState: { ...overviewProps.previewState, folders: [], items: hostedItems, embeds: hostedEmbeds },
+  },
   readme: {
     ...overviewProps,
     previewState: {

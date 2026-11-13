@@ -21,8 +21,7 @@
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { authStore } from '../../../stores/authStore';
-  import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
-  import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
+  import { savedEmbedIds, loadEmbedSaved, toggleEmbedSaved, getEmbedIdFromContentRef } from '../../../services/savedEmbedService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   const presentation = getContext<AuthoredResultPresentationContext | undefined>(AUTHORED_RESULT_PRESENTATION_CONTEXT);
@@ -178,42 +177,18 @@
 
   function handleOpenEvent() {
     if (sourceUrl) window.open(sourceUrl, '_blank', 'noopener,noreferrer');
-    if (!event.authoring) promptToSaveEmbedMemory(buildSaveConfig());
   }
 
-  function buildSaveConfig() {
-    const title = event.title || 'Event';
-    return {
-      kind: 'event' as const,
-      appId: 'events',
-      itemType: 'saved_events',
-      itemKey: `saved_events.${event.id || event.url || title}`,
-      title,
-      reminderDateTime: event.date_start || null,
-      reminderPromptTitle: title,
-      itemValue: {
-        embed_id: embedId || data.focusChildEmbedId || event.embed_id || getEmbedIdFromContentRef(data.attrs?.contentRef),
-        title,
-        provider: providerLabel || event.provider || '',
-        url: event.url || '',
-        date_start: event.date_start || '',
-        date_end: event.date_end || '',
-        location: isOnline ? 'Online event' : venueAddress,
-        notes: '',
-      },
-    };
+
+  // Save / Saved: encrypted `saved` flag on the embed itself (no memory entry).
+  const savedTargetId = $derived(embedId || data.focusChildEmbedId || getEmbedIdFromContentRef(data.attrs?.contentRef));
+  let isSaved = $derived($savedEmbedIds.has(savedTargetId));
+  $effect(() => { if (savedTargetId) void loadEmbedSaved(savedTargetId); });
+
+  function handleToggleSaved() {
+    if (savedTargetId) void toggleEmbedSaved(savedTargetId);
   }
 
-  let saveConfig = $derived(buildSaveConfig());
-  let savedMemoryEntry = $derived(findSavedEmbedMemoryEntry($appSettingsMemoriesStore, saveConfig));
-
-  function handleToggleSavedEvent() {
-    if (savedMemoryEntry) {
-      forgetEmbedMemory(saveConfig);
-      return;
-    }
-    saveEmbedMemory(saveConfig);
-  }
 
   function handleAddToCalendar() {
     if (calendarInput) downloadEventResultCalendarFile(event);
@@ -251,7 +226,7 @@
   {#snippet embedHeaderCta()}
     <div class="embed-header-cta-group">
       {#if $authStore.isAuthenticated}
-        <EmbedHeaderCtaButton label={$text(savedMemoryEntry ? 'embeds.forget_memory' : 'embeds.add_memory')} variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry} onclick={handleToggleSavedEvent} testId="save-embed-cta" />
+        <EmbedHeaderCtaButton label={$text(isSaved ? 'embeds.saved_item' : 'embeds.save_item')} variant="secondary" iconName="heart" iconOnly pressed={isSaved} onclick={handleToggleSaved} testId="save-embed-cta" />
       {/if}
       {#if sourceUrl && openButtonText}
         <EmbedHeaderCtaButton label={openButtonText} href={event.authoring ? sourceUrl : undefined} onclick={event.authoring ? undefined : handleOpenEvent} testId="external-provider-cta" />

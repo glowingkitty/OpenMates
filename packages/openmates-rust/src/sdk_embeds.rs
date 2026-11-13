@@ -233,8 +233,10 @@ impl<'a> Embeds<'a> {
         }
         self.client.verify_private_operation()?;
         segment(embed_id)?;
-        // UUID selectors need no key. Names/slugs reuse the shared personal resolver.
-        let id = if uuid::Uuid::parse_str(project).is_ok() {
+        // Canonical UUID selectors need no key or lookup. Every other form
+        // (including braced/URN UUID text, as in npm) is ranked by the shared
+        // personal resolver: exact id, id prefix, slug, then name.
+        let id = if crate::work::is_canonical_uuid(project) {
             project.to_owned()
         } else {
             self.client

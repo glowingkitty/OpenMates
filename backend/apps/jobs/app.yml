@@ -70,6 +70,14 @@ embed_types:
       - {name: salary_max, type: number}
       - {name: salary_currency, type: string}
       - {name: salary_period, type: string}
+      - {name: start_date, type: string}
+      - {name: contract_duration_months, type: number}
+      - {name: visa_sponsorship, type: boolean}
+      - {name: education_level, type: string}
+      - {name: experience_level, type: string}
+      - {name: experience_years_min, type: number}
+      - {name: impact_area, type: string}
+      - {name: languages, type: object}
       - {name: provider, type: string, required: true}
 skills:
   - id: search
@@ -85,12 +93,22 @@ skills:
       Search current Swedish job listings using JobTech. Germany is unavailable.
       Preserve country, remote, employment and age filters. Radius
       search is unavailable. Use relevance_criteria only for an explicit user goal.
+      Set listing filters (visa, experience, education, start, contract length,
+      deadline, salary, languages) only when the user asks; they drop listings
+      that do not state the value.
       Never invent listing facts or broaden filters after empty results.
     class_path: backend.apps.jobs.skills.search_skill.SearchSkill
+    # Operator-installed app package providers may serve searches next to the
+    # built-in source (docs/architecture/apps/instance-app-packages.md).
+    provider_contract: jobs.search@1
     pricing:
       per_unit:
         credits: 1
         unit_name: search
+    supplier_costs:
+      per_unit:
+        none: true
+        note: JobTech public API
     providers:
       - {name: JobTech, no_api_key: true}
     tool_schema:
@@ -99,12 +117,14 @@ skills:
         countries:
           type: array
           minItems: 1
-          maxItems: 2
+          maxItems: 10
           uniqueItems: true
           default: [DE]
-          items: {type: string, enum: [DE, SE]}
+          items: {type: string, pattern: '^[A-Z]{2}$'}
           x-ui: {basic: true}
-          description: Select SE for the available source. DE remains accepted but returns an explicit coverage gap.
+          description: >
+            ISO 3166-1 alpha-2 country codes. The built-in source covers SE; other countries
+            return an explicit coverage gap unless an installed provider answers them.
         requests:
           type: array
           minItems: 1
@@ -126,15 +146,15 @@ skills:
                 description: Job role or topic, such as "climate policy analyst".
               country:
                 type: string
-                enum: [DE, SE]
+                pattern: '^[A-Z]{2}$'
                 x-ui: {basic: false}
-                description: Legacy singleton country override; DE is unavailable. Do not combine with countries.
+                description: Legacy singleton ISO 3166-1 alpha-2 country override. Do not combine with countries.
               countries:
                 type: array
                 minItems: 1
-                maxItems: 2
+                maxItems: 10
                 uniqueItems: true
-                items: {type: string, enum: [DE, SE]}
+                items: {type: string, pattern: '^[A-Z]{2}$'}
                 x-ui: {basic: false}
                 description: Override top-level countries for this request; do not combine with country.
               location:
@@ -190,6 +210,88 @@ skills:
                 description: >
                   Optional user-stated career or impact goal that should change ranking.
                   Use only explicit listing evidence; omit for a neutral search.
+              visa_sponsorship:
+                type: boolean
+                x-ui: {basic: false}
+                description: >
+                  Keep only listings that state this visa sponsorship value. Listings that
+                  do not state it are excluded, as for every listing filter below.
+              experience_levels:
+                type: array
+                maxItems: 5
+                uniqueItems: true
+                items: {type: string, enum: [internship, entry, mid, senior, lead]}
+                x-ui: {basic: false}
+                description: Keep listings whose stated experience level is one of these; unstated levels are excluded.
+              education_levels:
+                type: array
+                maxItems: 5
+                uniqueItems: true
+                items: {type: string, enum: [none, vocational, bachelor, master, doctorate]}
+                x-ui: {basic: false}
+                description: >
+                  Keep listings whose required education level is one of these (include the
+                  user's level and every lower one); unstated levels are excluded.
+              start_after:
+                type: string
+                format: date
+                x-ui: {basic: false}
+                description: Keep listings whose stated start date is on or after this ISO date; unstated start dates are excluded.
+              start_before:
+                type: string
+                format: date
+                x-ui: {basic: false}
+                description: Keep listings whose stated start date is on or before this ISO date; unstated start dates are excluded.
+              min_contract_duration_months:
+                type: integer
+                minimum: 1
+                maximum: 600
+                x-ui: {basic: false}
+                description: >
+                  Minimum stated contract duration in months. Permanent or unstated
+                  durations are excluded.
+              max_contract_duration_months:
+                type: integer
+                minimum: 1
+                maximum: 600
+                x-ui: {basic: false}
+                description: >
+                  Maximum stated contract duration in months, for fixed-term roles.
+                  Permanent or unstated durations are excluded.
+              deadline_after:
+                type: string
+                format: date
+                x-ui: {basic: false}
+                description: >
+                  Keep listings whose application deadline is on or after this ISO date;
+                  listings without a stated deadline are excluded.
+              min_salary:
+                type: number
+                exclusiveMinimum: 0
+                x-ui: {basic: false}
+                description: >
+                  Minimum salary; requires salary_currency and salary_period. A listing passes
+                  when its highest stated salary in that currency reaches it (month and year
+                  convert, other periods must match). Listings without a comparable salary are excluded.
+              salary_currency:
+                type: string
+                pattern: '^[A-Z]{3}$'
+                x-ui: {basic: false}
+                description: ISO 4217 currency of min_salary, such as EUR. No conversion between currencies.
+              salary_period:
+                type: string
+                enum: [hour, day, week, month, year]
+                x-ui: {basic: false}
+                description: Period of min_salary.
+              languages:
+                type: array
+                maxItems: 10
+                uniqueItems: true
+                items: {type: string, pattern: '^[a-z]{2}$'}
+                x-ui: {basic: false}
+                description: >
+                  ISO 639-1 codes of languages the user can work in. Keep listings whose
+                  stated working languages include at least one; unstated languages are excluded.
             required: [query]
       required: [requests]
     workflow:
@@ -238,7 +340,10 @@ skills:
                 url: {type: string, format: uri, x-ui: {basic: true}}
                 apply_url: {type: [string, 'null'], format: uri, x-ui: {basic: false}}
                 location: {type: [string, 'null'], x-ui: {basic: true}}
-                country: {type: string, x-ui: {basic: false}}
+                country:
+                  type: [string, 'null']
+                  x-ui: {basic: false}
+                  description: ISO 3166-1 alpha-2 country of the listing; null for global or remote listings without one.
                 remote: {type: [boolean, 'null'], x-ui: {basic: true}}
                 employment_type: {type: [string, 'null'], x-ui: {basic: false}}
                 published_at: {type: [string, 'null'], x-ui: {basic: false}}
@@ -249,8 +354,31 @@ skills:
                 organization_type: {type: [string, 'null'], x-ui: {basic: false}}
                 work_arrangement: {type: [string, 'null'], x-ui: {basic: false}}
                 salary_text: {type: [string, 'null'], x-ui: {basic: false}}
-                valid_through: {type: [string, 'null'], x-ui: {basic: false}}
-                impact: {type: [string, 'null'], x-ui: {basic: false}}
+                valid_through:
+                  type: [string, 'null']
+                  x-ui: {basic: false}
+                  description: Application deadline (ISO 8601).
+                impact: {type: [string, 'null'], x-ui: {basic: false}, description: Why the work matters, in the source's words.}
+                impact_area: {type: [string, 'null'], x-ui: {basic: false}, description: Cause or problem area label, such as climate.}
+                start_date: {type: [string, 'null'], format: date, x-ui: {basic: false}}
+                contract_duration_months: {type: [integer, 'null'], x-ui: {basic: false}, description: Fixed-term length; null when permanent or unstated.}
+                visa_sponsorship: {type: [boolean, 'null'], x-ui: {basic: false}}
+                education_level:
+                  type: [string, 'null']
+                  enum: [none, vocational, bachelor, master, doctorate, null]
+                  x-ui: {basic: false}
+                  description: Minimum required education.
+                experience_level:
+                  type: [string, 'null']
+                  enum: [internship, entry, mid, senior, lead, null]
+                  x-ui: {basic: false}
+                  description: Normalized level; seniority keeps the source's wording.
+                experience_years_min: {type: [integer, 'null'], x-ui: {basic: false}}
+                languages:
+                  type: [array, 'null']
+                  items: {type: string}
+                  x-ui: {basic: false}
+                  description: ISO 639-1 working languages.
                 detail_status: {type: [string, 'null'], x-ui: {basic: false}}
                 salary_min: {type: [number, 'null'], x-ui: {basic: false}}
                 salary_max: {type: [number, 'null'], x-ui: {basic: false}}
@@ -321,3 +449,58 @@ focuses:
       result lookup, resume editing, workplace legal disputes, immigration
       advice, or financial planning unless the user is primarily asking for
       career direction.
+  - id: create_cv
+    auto_activate_when_relevant: true
+    icon_image: jobs.svg
+    name_translation_key: jobs.create_cv
+    description_translation_key: jobs.create_cv.description
+    process_translation_key: focus_modes.jobs_create_cv.process
+    systemprompt_translation_key: focus_modes.jobs_create_cv.systemprompt
+    how_to_use:
+      - Here is my current CV as a PDF. Update it for product manager roles in Germany
+      - I have no CV yet. Ask me what you need and create one
+      - Is my CV readable by applicant tracking systems? Check it and fix what is not
+    preprocessor_hint: >
+      Select when the user wants to create, write, update, improve, review,
+      translate or reformat a CV, resume or Lebenslauf, uploads a CV and
+      asks for feedback or a new version, or asks whether their CV is
+      readable by applicant tracking software. Do not select for writing a
+      cover letter or application for one specific job, interview
+      preparation, deciding on a career direction, or only searching for job
+      listings.
+  - id: write_application
+    auto_activate_when_relevant: true
+    icon_image: jobs.svg
+    name_translation_key: jobs.write_application
+    description_translation_key: jobs.write_application.description
+    process_translation_key: focus_modes.jobs_write_application.process
+    systemprompt_translation_key: focus_modes.jobs_write_application.systemprompt
+    how_to_use:
+      - 'Write a cover letter for this job posting: [link]'
+      - Help me apply for the data analyst role at this company. My CV is attached
+      - Tailor my CV to this job and tell me what is missing
+    preprocessor_hint: >
+      Select when the user wants to apply to one specific job or employer
+      and asks for a cover letter, application letter, Anschreiben,
+      motivation letter, personal letter, answers to application form
+      questions, or to tailor their CV to that job posting. Do not select
+      for creating a general CV without a target job, interview preparation,
+      choosing a career direction, or only searching for job listings.
+  - id: prepare_interview
+    auto_activate_when_relevant: true
+    icon_image: jobs.svg
+    name_translation_key: jobs.prepare_interview
+    description_translation_key: jobs.prepare_interview.description
+    process_translation_key: focus_modes.jobs_prepare_interview.process
+    systemprompt_translation_key: focus_modes.jobs_prepare_interview.systemprompt
+    how_to_use:
+      - I have an interview on Thursday for this role. Help me prepare
+      - Run a mock interview for a junior UX designer position and give me feedback
+      - How do I answer "what is your biggest weakness" with my background?
+    preprocessor_hint: >
+      Select when the user has or expects a job interview and wants to
+      prepare: likely questions, how to answer, a practice or mock
+      interview, feedback on answers, questions to ask the employer, or
+      preparing for a recorded or AI-assisted video interview. Do not select
+      for writing a CV or an application, choosing a career direction,
+      salary negotiation after an offer, or only searching for job listings.

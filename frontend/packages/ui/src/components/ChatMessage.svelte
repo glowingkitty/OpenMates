@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { vibrateDevice } from '../services/eventSounds';
   import type { SvelteComponent } from 'svelte';
   import { onMount } from 'svelte';
   // Removed afterUpdate import for runes mode compatibility
@@ -10,8 +11,13 @@
   import AssistantActivityGroup from './AssistantActivityGroup.svelte';
   import type { AppliedMemory } from '../utils/loadedMemoryReceipt';
   import { assistantActivityItems, splitAssistantActivityRuns } from '../message_parsing/assistantActivityRuns';
-  import { lostImageParents, recoverGeneratedImageDocument } from '../message_parsing/generatedImageRecovery';
+  import { lostImageParents } from '../message_parsing/generatedImageRecovery';
+  import { embedRefIndexVersion } from '../services/embedRefIndex';
+  import { resolveBodySkillChildren, type BodySkillChildren } from '../message_parsing/bodyEmbedLateResolution';
+  import { bodyEmbedRefResolver, bodyEmbedSyncChildLookup, enforceBodyEmbedPolicy, pendingBodySkillParents } from '../message_parsing/bodyEmbedPolicy';
+  import { recoverGeneratedImages } from '../services/rustCore/parse/imageRecoveryBranch';
   import type { AssistantDocument } from '../message_parsing/assistantActivityRuns';
+  import { shouldShowEmbedErrorBanner } from '../utils/embedErrorBanner';
   import { activeTeamId } from '../stores/teamStore';
   import { classifyAssistantSkillPhase } from '../message_parsing/assistantActivityStatus';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
@@ -42,6 +48,7 @@
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
   import { getMatesById } from '../data/matesMetadata';
+  import { knownMateCategory, mateDisplayName, OPENMATES_DISPLAY_NAME } from '../utils/mateDisplayName';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { startEdit } from '../stores/editMessageStore';
   import QueuedFollowupControls from './chats/QueuedFollowupControls.svelte';
@@ -54,9 +61,8 @@
   import { chatSyncService } from '../services/chatSyncService';
   import { clearSubChatsForParentCache, loadSubChatPreviews } from '../services/subChatPreviewService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
-  import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
-  import { appSkillsStore } from '../stores/appSkillsStore';
-  import { buildSavedEmbedConfigFromDecodedContent, findSavedEmbedMemoryEntry, forgetEmbedMemory, saveEmbedMemory } from '../services/savedEmbedMemoryService';
+  import { MEMORY_RESPONSE_APP_ID } from '../services/memoryDocumentRequest';
+      import { savedEmbedIds, toggleEmbedSaved, loadEmbedSaved } from '../services/savedEmbedService';
   import { tipTapToCanonicalMarkdown, writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
   import { copyImageEmbed, downloadImageEmbed } from './embeds/images/imageEmbedActions';
   import type { TipTapDoc, TipTapNode } from '../message_parsing/types';
@@ -249,9 +255,36 @@
   // Keep source identity intact when props contain a plain saved document.
   let recoveredImageSource = $state.raw<unknown>(null);
   let recoveredImageDocument = $state<AssistantDocument | null>(null);
-  const activityRuns = $derived(role === 'assistant' ? splitAssistantActivityRuns(
-    recoveredImageSource === content ? recoveredImageDocument ?? content : content,
-  ) : null);
+  // Late half of the answer-body rule (bodyEmbedPolicy.ts): re-applied when
+  // the ref index learns a type or an invocation's result children were read.
+  let bodySkillChildren = $state.raw<BodySkillChildren>({});
+  function bodyPolicyContext(chatId: string) {
+    const known = bodyEmbedSyncChildLookup(chatId);
+    const read = bodySkillChildren;
+    return { resolve: bodyEmbedRefResolver(chatId), childIds: (id: string) => known(id) ?? read[id] ?? null };
+  }
+  const assistantBodyContent = $derived.by(() => {
+    const source = recoveredImageSource === content ? recoveredImageDocument ?? content : content;
+    if (role !== 'assistant') return source;
+    void $embedRefIndexVersion;
+    return enforceBodyEmbedPolicy(source, bodyPolicyContext(currentChatId));
+  });
+  const activityRuns = $derived(role === 'assistant' ? splitAssistantActivityRuns(assistantBodyContent) : null);
+
+  $effect(() => {
+    const chatId = currentChatId;
+    void _embedUpdateTimestamp;
+    if (role !== 'assistant' || !chatId) return;
+    const pending = pendingBodySkillParents(assistantBodyContent, bodyPolicyContext(chatId));
+    if (!pending.length) return;
+    let cancelled = false;
+    resolveBodySkillChildren(pending, chatId)
+      .then((found) => {
+        if (!cancelled && Object.keys(found).length) bodySkillChildren = { ...bodySkillChildren, ...found };
+      })
+      .catch((error) => console.warn('[ChatMessage] App skill results unavailable for the answer body:', error));
+    return () => { cancelled = true; };
+  });
 
   $effect(() => {
     const source = content;
@@ -267,7 +300,7 @@
     async function recover() {
       const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
       if (cancelled) return;
-      const recovered = await recoverGeneratedImageDocument(source as AssistantDocument, async (id) => {
+      const recovered = await recoverGeneratedImages(source as AssistantDocument, async (id) => {
         if (cancelled) return null;
         const parent = await resolveEmbed(id, { chatId });
         return parent ? decodeToonContent(parent.content) : null;
@@ -285,6 +318,11 @@
   const legacySubChatActivityId = $derived(activityRuns?.find((run) => assistantActivityItems(run.document).some((item) => item.type === 'focus-mode-activation'))?.id ?? firstSkillActivityId);
   const legacySubChatsActive = $derived(subChatsOfThisMessage.some((chat) => ['thinking', 'waiting', 'queued'].includes(getSubChatCardStatus(chat).state)));
   const responseActive = $derived(role === 'assistant' && (assistantTurnActive ?? (status === 'processing' || status === 'streaming')));
+  // A failed skill shows on its own card; the message banner is only for a finished turn without an answer.
+  const showEmbedErrorBanner = $derived(shouldShowEmbedErrorBanner({
+    role, hasEmbedErrors, responseActive, status,
+    content: typeof original_message?.content === 'string' ? original_message.content : content,
+  }));
   // Typed call text is shown as Sending only until the live model accepts it.
   // Spoken transcript rows carry the same local outbox, without typed_pending.
   const callMessageOrigin = $derived((original_message as (Partial<Message> & {
@@ -928,22 +966,11 @@
   
   /**
    * Get display name for an app settings/memories category.
-   * Loads from app metadata using appId and itemType.
-   * Returns the translated name if available, otherwise a formatted fallback.
+   * Returns a readable name formatted from the category's itemType (typed app memories no longer exist).
    */
   function getCategoryDisplayName(cat: AppSettingsMemoriesResponseCategory): string {
-    const app = appSkillsStore.apps[cat.appId];
-    if (app?.settings_and_memories) {
-      const category = app.settings_and_memories.find(sm => sm.id === cat.itemType);
-      if (category?.name_translation_key) {
-        // Use the translation key to get localized name
-        // Guard: $text() returns the key itself when no translation is found
-        const translated = $text(category.name_translation_key);
-        if (translated && translated !== category.name_translation_key) {
-          return translated;
-        }
-      }
-    }
+    // A personal Memory is stored by id only (no title in the synced message).
+    if (cat.appId === MEMORY_RESPONSE_APP_ID) return $text('settings.settings_memories');
     // Fallback: format itemType as readable string (e.g., "preferred_technologies" -> "Preferred Technologies")
     return cat.itemType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   }
@@ -975,11 +1002,9 @@
     '[[app_store_group]]',
     '[[skills_group]]',
     '[[focus_modes_group]]',
-    '[[settings_memories_group]]',
     '[[dev_app_store_group]]',
     '[[dev_skills_group]]',
     '[[dev_focus_modes_group]]',
-    '[[dev_settings_memories_group]]',
     '[[for_developers_embed]]',
   ];
   let hasExampleChatsPlaceholder = $derived((() => {
@@ -1234,12 +1259,12 @@
   // Special handling for openmates_official category
   let displayName = $derived(role === 'user' ? '' : 
                     sender_name ? (sender_name.charAt(0).toUpperCase() + sender_name.slice(1)) : 
-                    category === 'openmates_official' ? 'OpenMates' :
-                    category ? $text(`mates.${category}`) :
-                    'OpenMates');
+                    category === 'openmates_official' ? OPENMATES_DISPLAY_NAME :
+                    mateDisplayName(category, $text));
   let importedProvider = $derived(role === 'assistant' ? getImportedAssistantProvider(category) : null);
   let assistantDisplayName = $derived(importedProvider?.displayName ?? displayName);
-  let isOpenMatesIdentity = $derived(role === 'assistant' && (!category || category === 'openmates_official'));
+  // A category that names no mate (missing, retired or unknown) is shown with the OpenMates identity.
+  let isOpenMatesIdentity = $derived(role === 'assistant' && !knownMateCategory(category));
   let remoteHumanName = $derived(sender_name?.trim() || $text('settings.teams_ui.team_member'));
   let isRemoteHuman = $derived(role === 'user' && !isOwnUserMessage);
   let hasRemoteHumanIdentity = $derived(isRemoteHuman && !!teamId && !!senderUserId);
@@ -1869,9 +1894,7 @@
       
       console.debug('[ChatMessage] Message long-pressed');
       
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
+      vibrateDevice(50);
       messageTouchTimer = null;
     }, LONG_PRESS_DURATION);
   }
@@ -2162,6 +2185,7 @@
       embedType = 'default';
     }
 
+    if (selectedDomEmbedId) void loadEmbedSaved(selectedDomEmbedId);
     showMenu = true;
   }
 
@@ -2191,53 +2215,16 @@
     );
   }
 
-  function isSelectedEmbedSavedToMemory(): boolean {
+  function isSelectedEmbedSaved(): boolean {
     if (!selectedDomEmbedId) return false;
-    for (const appGroups of $appSettingsMemoriesStore.entriesByApp.values()) {
-      for (const entries of Object.values(appGroups)) {
-        if (entries.some((entry) => entry.item_value?.embed_id === selectedDomEmbedId)) return true;
-      }
-    }
-    return false;
+    return $savedEmbedIds.has(selectedDomEmbedId);
   }
 
-  async function handleToggleSelectedEmbedMemory() {
+  async function handleToggleSelectedEmbedSaved() {
     const embedId = selectedDomEmbedId;
-    const appId = selectedAppId;
-    const skillId = selectedSkillId;
-    if (!embedId || !appId || !skillId) return;
-
+    if (!embedId) return;
     try {
-      const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-      const embedData = await resolveEmbed(embedId);
-      const decodedContent = embedData?.content
-        ? (typeof embedData.content === 'string'
-            ? await decodeToonContent(embedData.content)
-            : embedData.content as Record<string, unknown>)
-        : null;
-
-      if (!decodedContent) {
-        const { notificationStore } = await import('../stores/notificationStore');
-        notificationStore.error('Unable to save this embed. Missing embed content.');
-        return;
-      }
-
-      const config = buildSavedEmbedConfigFromDecodedContent({ appId, skillId, embedId, decodedContent });
-      if (!config) {
-        const { notificationStore } = await import('../stores/notificationStore');
-        notificationStore.error('This embed cannot be saved to memories.');
-        return;
-      }
-
-      if (findSavedEmbedMemoryEntry($appSettingsMemoriesStore, config)) {
-        await forgetEmbedMemory(config);
-      } else {
-        await saveEmbedMemory(config);
-      }
-    } catch (error) {
-      console.error('[ChatMessage] Error toggling saved embed memory:', error);
-      const { notificationStore } = await import('../stores/notificationStore');
-      notificationStore.error('Failed to update saved memory.');
+      await toggleEmbedSaved(embedId);
     } finally {
       showMenu = false;
       selectedNode = null;
@@ -3726,7 +3713,7 @@
           {:else}
             <ReadOnlyMessage
                 bind:this={readOnlyMessageComponent}
-                content={pendingUploadPreviewContent ?? content}
+                content={pendingUploadPreviewContent ?? assistantBodyContent}
                 chatId={currentChatId}
                 isStreaming={status === 'streaming'}
                 {_embedUpdateTimestamp}
@@ -3796,7 +3783,7 @@
           (selectedAppId === 'sheets')
         )}
         {@const showAddMemoryAction = !isFocusMode && $authStore.isAuthenticated && isSelectedEmbedMemorySupported()}
-        {@const addMemoryActionLabel = isSelectedEmbedSavedToMemory() ? 'Forget' : 'Add memory'}
+        {@const addMemoryActionLabel = isSelectedEmbedSaved() ? 'Saved' : 'Save'}
         <!-- 
           EmbedContextMenu uses callback props instead of Svelte events because
           the menu element is moved to document.body to escape stacking contexts,
@@ -3825,7 +3812,7 @@
           onShare={() => handleMenuAction('share')}
           onCopy={() => handleMenuAction('copy')}
           onDownload={() => handleMenuAction('download')}
-          onAddMemory={handleToggleSelectedEmbedMemory}
+          onAddMemory={handleToggleSelectedEmbedSaved}
           onDeactivate={() => handleMenuAction('deactivate')}
           onDetails={() => handleMenuAction('details')}
         />
@@ -3907,7 +3894,7 @@
         </button>
       </div>
     {/if}
-    {#if role === 'assistant' && hasEmbedErrors}
+    {#if showEmbedErrorBanner}
       <div class="embed-error-banner" data-testid="embed-error-banner">
         <span class="embed-error-text">
           {$text('chat.embed_error.message')}
@@ -3963,18 +3950,21 @@
                 class="category-badge"
                 data-testid="app-settings-memory-category-badge"
                 onclick={() => {
-                  // Navigate to app settings/memories category via deep link
-                  const path = `apps/${cat.appId}/settings_memories/${cat.itemType}`;
+                  // Personal memories open the Memories hub; other categories open their app.
+                  const path = cat.appId === 'openmates' || cat.appId === MEMORY_RESPONSE_APP_ID
+                    ? 'settings_memories' : `apps/${cat.appId}`;
                   settingsDeepLink.set(path);
                   panelState.openSettings();
                 }}
               >
+                {#if cat.appId !== MEMORY_RESPONSE_APP_ID}
                 <Icon 
                   name={cat.appId} 
                   type="app" 
                   size="18px"
                   noAnimation={true}
                 />
+                {/if}
                 <span class="badge-text">{getCategoryDisplayName(cat)} ({cat.entryCount})</span>
               </button>
             {/each}

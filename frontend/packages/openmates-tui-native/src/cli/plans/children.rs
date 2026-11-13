@@ -171,12 +171,22 @@ fn proof(i: &Invocation) -> Result<Option<String>, CliError> {
         ))
     }
 }
+/// Flags the server's assumption PATCH schema cannot change; they are refused
+/// instead of being reported as applied.
+const ASSUMPTION_CREATE_ONLY: &[&str] = &["category", "linked-criterion"];
 fn assumption(i: &Invocation, create: bool) -> Result<PlanAssumptionInput, CliError> {
     let map = &[
         ("assumption_id", &["id"][..]),
         ("status", &["status"]),
+        ("category", &["category"]),
+        ("required_before", &["required-before"]),
         ("linked_sub_chat_id", &["sub-chat"]),
+        ("linked_task_id", &["linked-task"]),
+        ("source_count", &["source-count"]),
         ("corrected_text", &["corrected"]),
+        ("evidence_summary", &["evidence-summary"]),
+        ("blocker_reason", &["blocker-reason"]),
+        ("waiver_reason", &["waiver-reason"]),
     ];
     let mut v = fields(
         i,
@@ -187,21 +197,60 @@ fn assumption(i: &Invocation, create: bool) -> Result<PlanAssumptionInput, CliEr
             "proof-embed",
             "proof-url",
             "proof-file",
+            "linked-criterion",
         ],
     )?;
     if create {
         v["text"] = json!(required_text(i, "text")?);
-    } else if i.has("text") || i.has("id") {
-        return Err(CliError::Unsupported {
-            command: i.command_path(),
-            reason: "The server does not support editing assumption text or identity.".into(),
-        });
+        list_field(
+            i,
+            &mut v,
+            "linked_criterion_ids",
+            &["linked-criterion"],
+            false,
+        );
+    } else {
+        if i.has("text") || i.has("id") {
+            return Err(CliError::Unsupported {
+                command: i.command_path(),
+                reason: "The server does not support editing assumption text or identity.".into(),
+            });
+        }
+        reject_patch(i, "assumption", ASSUMPTION_CREATE_ONLY)?;
     }
+    count_fields(&mut v, &["source_count"])?;
     if let Some(sources) = proof(i)? {
         v["sources"] = json!(sources)
     }
     typed(v)
 }
+/// Refuses a flag the server's PATCH schema does not accept.
+fn reject_patch(i: &Invocation, noun: &str, flags: &[&str]) -> Result<(), CliError> {
+    match flags.iter().find(|flag| i.has(flag)) {
+        Some(flag) => Err(CliError::Unsupported {
+            command: i.command_path(),
+            reason: format!("The server does not support {noun} PATCH --{flag}."),
+        }),
+        None => Ok(()),
+    }
+}
+/// Integer counters travel as JSON integers, never as strings or fractions.
+fn count_fields(v: &mut Value, fields: &[&str]) -> Result<(), CliError> {
+    for field in fields {
+        if let Some(value) = v.get(*field).filter(|value| !value.is_null()) {
+            let number = value
+                .as_str()
+                .and_then(|s| s.parse::<u32>().ok())
+                .ok_or_else(|| {
+                    CliError::Invalid(format!("--{} requires a non-negative integer.", field.replace('_', "-")))
+                })?;
+            v[*field] = json!(number);
+        }
+    }
+    Ok(())
+}
+/// Criterion fields the server accepts only on PATCH (no create column).
+const CRITERION_UPDATE_ONLY: &[&str] = &["evidence", "coverage-note", "waiver-reason"];
 fn criterion(i: &Invocation, create: bool) -> Result<PlanCriterionInput, CliError> {
     let mut v = fields(
         i,
@@ -209,6 +258,11 @@ fn criterion(i: &Invocation, create: bool) -> Result<PlanCriterionInput, CliErro
             ("criterion_id", &["id"]),
             ("type", &["type"]),
             ("status", &["status"]),
+            ("evidence", &["evidence"]),
+            ("coverage_note", &["coverage-note"]),
+            ("waiver_reason", &["waiver-reason"]),
+            ("coverage_status", &["coverage-status"]),
+            ("verification_scope", &["verification-scope"]),
         ],
         &[
             "criterion",
@@ -222,20 +276,27 @@ fn criterion(i: &Invocation, create: bool) -> Result<PlanCriterionInput, CliErro
         ],
     )?;
     if create {
+        for flag in CRITERION_UPDATE_ONLY {
+            if i.has(flag) {
+                return Err(CliError::Unsupported {
+                    command: i.command_path(),
+                    reason: format!(
+                        "The server does not support criterion create --{flag}; record it with an update."
+                    ),
+                });
+            }
+        }
         v["text"] = json!(required_text(i, "text")?);
         required_flag(i, &mut v, "required");
         list_field(i, &mut v, "linked_task_ids", &["task", "tasks"], true);
     } else {
-        for flag in [
-            "id", "type", "text", "required", "optional", "task", "tasks",
-        ] {
-            if i.has(flag) {
-                return Err(CliError::Unsupported {
-                    command: i.command_path(),
-                    reason: format!("The server does not support criterion PATCH --{flag}."),
-                });
-            }
-        }
+        reject_patch(
+            i,
+            "criterion",
+            &[
+                "id", "type", "text", "required", "optional", "task", "tasks",
+            ],
+        )?;
     }
     list_field(
         i,
@@ -439,7 +500,13 @@ pub(super) async fn execute(
             check(i, &["target", "project", "chat", "active"])?;
             match action {
                 "list" => service.list_dependencies(plan).await?,
-                "add" => service.add_dependency(plan, &dependency(i)?).await?,
+                // npm prints the created edge itself, not the server's {dependency, plan} envelope.
+                "add" => service
+                    .add_dependency(plan, &dependency(i)?)
+                    .await?
+                    .get("dependency")
+                    .cloned()
+                    .ok_or(CliError::Client(Error::Protocol))?,
                 _ => service.remove_dependency(plan, &dependency(i)?).await?,
             }
         }
@@ -537,8 +604,25 @@ pub(super) async fn execute(
             }
         }
     };
+    let value = npm_learning_shape(value);
     let text = render(i, &value);
     output(i, value, text)
+}
+/// npm `planLearningToJson` omits the server row id and parent Plan id.
+fn npm_learning_shape(mut value: Value) -> Value {
+    let strip = |learning: &mut Value| {
+        if let Some(fields) = learning.as_object_mut() {
+            fields.remove("id");
+            fields.remove("plan_id");
+        }
+    };
+    if let Some(learning) = value.get_mut("learning") {
+        strip(learning);
+    }
+    if let Some(learnings) = value.get_mut("learnings").and_then(Value::as_array_mut) {
+        learnings.iter_mut().for_each(strip);
+    }
+    value
 }
 fn render(i: &Invocation, value: &Value) -> String {
     if let Some(url) = value["review_url"].as_str() {
@@ -678,5 +762,142 @@ mod tests {
         .ok()
         .unwrap();
         assert_eq!(v.verification_ids.unwrap(), ["check-a", "check-b"]);
+    }
+    fn typed_flags(path: &[&str], flags: &[(&str, Value)]) -> Invocation {
+        Invocation {
+            path: path.iter().map(|part| (*part).to_owned()).collect(),
+            positionals: vec!["PLAN-42".into(), "child-a".into()],
+            flags: flags
+                .iter()
+                .map(|(key, value)| ((*key).to_owned(), value.clone()))
+                .collect(),
+        }
+    }
+    #[test]
+    fn criterion_patch_models_every_server_accepted_field() {
+        let patch = criterion(
+            &typed_flags(
+                &["plans", "criteria", "update"],
+                &[
+                    ("status", json!("satisfied")),
+                    ("evidence", json!("proof text")),
+                    ("coverage-note", json!("covered by check-a")),
+                    ("waiver-reason", json!("accepted risk")),
+                    ("coverage-status", json!("covered")),
+                    ("verification-scope", Value::Null),
+                ],
+            ),
+            false,
+        )
+        .ok()
+        .unwrap();
+        let wire = serde_json::to_value(&patch).unwrap();
+        assert_eq!(wire["evidence"], "proof text");
+        assert_eq!(wire["coverage_note"], "covered by check-a");
+        assert_eq!(wire["waiver_reason"], "accepted risk");
+        assert_eq!(wire["coverage_status"], "covered");
+        assert_eq!(wire["verification_scope"], Value::Null);
+        for flag in ["id", "type", "text", "required", "optional", "task", "tasks"] {
+            assert!(
+                criterion(
+                    &typed_flags(&["plans", "criteria", "update"], &[(flag, json!("x"))]),
+                    false
+                )
+                .is_err(),
+                "{flag} must stay refused: the server PATCH schema ignores it"
+            );
+        }
+    }
+    #[test]
+    fn criterion_create_refuses_update_only_columns() {
+        for flag in CRITERION_UPDATE_ONLY {
+            assert!(
+                criterion(
+                    &typed_flags(
+                        &["plans", "criteria", "create"],
+                        &[("text", json!("done")), (flag, json!("x"))],
+                    ),
+                    true,
+                )
+                .is_err()
+            );
+        }
+        let created = criterion(
+            &typed_flags(
+                &["plans", "criteria", "create"],
+                &[
+                    ("text", json!("done")),
+                    ("coverage-status", json!("uncovered")),
+                ],
+            ),
+            true,
+        )
+        .ok()
+        .unwrap();
+        assert_eq!(created.coverage_status.as_deref(), Some("uncovered"));
+    }
+    #[test]
+    fn assumption_patch_models_every_server_accepted_field() {
+        let patch = assumption(
+            &typed_flags(
+                &["plans", "assumptions", "update"],
+                &[
+                    ("status", json!("waived")),
+                    ("required-before", json!("approval")),
+                    ("linked-task", Value::Null),
+                    ("source-count", json!("3")),
+                    ("evidence-summary", json!("seen in logs")),
+                    ("blocker-reason", json!("needs access")),
+                    ("waiver-reason", json!("not material")),
+                ],
+            ),
+            false,
+        )
+        .ok()
+        .unwrap();
+        let wire = serde_json::to_value(&patch).unwrap();
+        assert_eq!(wire["required_before"], "approval");
+        assert_eq!(wire["linked_task_id"], Value::Null);
+        assert_eq!(wire["source_count"], 3);
+        assert_eq!(wire["evidence_summary"], "seen in logs");
+        assert_eq!(wire["blocker_reason"], "needs access");
+        assert_eq!(wire["waiver_reason"], "not material");
+        for flag in ["text", "id", "category", "linked-criterion"] {
+            assert!(
+                assumption(
+                    &typed_flags(&["plans", "assumptions", "update"], &[(flag, json!("x"))]),
+                    false
+                )
+                .is_err()
+            );
+        }
+        assert!(
+            assumption(
+                &typed_flags(
+                    &["plans", "assumptions", "update"],
+                    &[("source-count", json!("-1"))]
+                ),
+                false
+            )
+            .is_err()
+        );
+    }
+    #[test]
+    fn assumption_create_carries_category_and_linked_criteria() {
+        let created = assumption(
+            &typed_flags(
+                &["plans", "assumptions", "create"],
+                &[
+                    ("text", json!("the API is idempotent")),
+                    ("category", json!("technical")),
+                    ("linked-criterion", json!("c1,c2")),
+                ],
+            ),
+            true,
+        )
+        .ok()
+        .unwrap();
+        assert_eq!(created.category.as_deref(), Some("technical"));
+        assert_eq!(created.linked_criterion_ids.unwrap(), ["c1", "c2"]);
     }
 }

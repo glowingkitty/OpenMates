@@ -39,11 +39,14 @@ def test_focused_workspace_preserves_reachable_queued_controls() -> None:
     assert re.sub(r"\s+", "", inert.group(1)) == (
         "showWelcome&&messageInputFocused&&!hasQueuedFollowUpActions"
         "&&!voiceContextConsentVisible&&!showVoiceCallBarHere"
-        "&&!(showWelcome&&hideWelcomeForKeyboard&&voiceCallLaunchEligible)"
     ), (
         "Ordinary focus must disable only welcome content, keeping chat history scrollable "
-        "and queued controls, voice consent, focused call launch and bound-call controls reachable"
+        "and queued controls, voice consent and bound-call controls reachable"
     )
+    assert "welcome-focused-call-actions" not in source, (
+        "The start-call handset must fade out with the welcome content while the composer is focused"
+    )
+    assert "class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}" in source
     assert "let hideWelcomeForKeyboard = $derived(messageInputFocused && showWelcome);" in source, (
         "Ordinary focus must hide new-chat welcome content without affecting established chats"
     )

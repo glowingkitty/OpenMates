@@ -1,0 +1,225 @@
+schema_version: 1
+id: feature.instance-app-packages
+version: 1
+status: draft
+title: Instance App Packages
+summary: Operators of an OpenMates server install additional providers for existing app skills with
+  `openmates server apps install`. Installed providers are available to every user of that server, run in an
+  isolated runner container and never add credit charges.
+
+inherits:
+  - architecture.app-skill-execution@1
+
+scope:
+  includes:
+  - ZIP packages with a root manifest.yml that contribute providers for built-in app skills.
+  - Native CLI install, list, inspect, rollback and remove on a core server installation.
+  - Instance-wide discovery of installed providers across chat, direct skill calls, Apps settings and workflows.
+  - A dedicated runner container without OpenMates secrets, databases or internal service access.
+  - Operator-configured provider credentials using the existing server environment commands.
+  - Credit behavior for request groups served only by installed providers.
+  - Public web pages as an additional source of product search and event search on servers with installed providers.
+  excludes:
+  - Packages installed by ordinary users or teams, sandboxed per-user execution and Project imports.
+  - New standalone skills, focus modes or complete custom apps contributed by packages (reported as unsupported).
+  - A package marketplace, remote package download or automatic updates.
+  - Packages shipped with the OpenMates repository or the official cloud service.
+
+models:
+  AppPackageManifest:
+    format: {type: string, required: true, constraints: {equals: openmates-app-package}}
+    format_version: {type: integer, required: true, constraints: {supported_values: [1]}}
+    id: {type: string, required: true, constraints: {pattern: "lowercase dotted identifier", unique_per_server: true}}
+    version: {type: semantic_version, required: true}
+    name: {type: string, required: true}
+    description: {type: string, nullable: true}
+    contributes: {type: object, required: true, constraints: {providers_supported: true, other_kinds_rejected: true}}
+  ProviderContribution:
+    app: {type: built_in_app_id, required: true}
+    skill: {type: built_in_skill_id, required: true}
+    contract: {type: string, required: true, constraints: {declared_by_target_skill_or_generic_for_paused_skill: true}}
+    id: {type: string, required: true, constraints: {not_built_in_provider_id: true}}
+    name: {type: string, required: true}
+    runtime: {type: enum, required: true, values: [executable]}
+    entrypoint: {type: package_relative_path, required: true, constraints: {target_placeholder_allowed: true}}
+    secrets: {type: array, nullable: true, items: secret_name, constraints: {resolved_per_call: true}}
+    optional_secrets: {type: array, nullable: true, items: secret_name, constraints: {resolved_per_call: true,
+      passed_only_when_set: true, never_affect_availability: true, disjoint_from_secrets: true}}
+    skill_hint: {type: string, nullable: true, constraints: {max_length: 1000, replaces_target_preprocessor_hint: true}}
+  InstanceInstallation:
+    package_id: {type: string, required: true}
+    active_version: {type: semantic_version, required: true}
+    archive_sha256: {type: sha256, required: true}
+    file_digests: {type: map, required: true, constraints: {rechecked_before_each_run: true}}
+    previous_versions: {type: array, items: semantic_version, constraints: {retained_for_rollback: true}}
+  ProviderInvocation:
+    input: {type: contract_request_item, required: true}
+    secrets: {type: map, nullable: true, constraints: {declared_names_only: true, never_logged: true}}
+    output: {type: contract_result_list, required: true, constraints: {validated_before_use: true}}
+  GenericSkillRequestsContract:
+    name: {type: string, required: true, constraints: {equals: skill.requests@1}}
+    target: {type: built_in_skill, required: true, constraints: {provider_required: true, no_built_in_providers: true,
+      no_provider_contract: true, tool_schema_requests_array_or_flat: true}}
+    input: {type: skill_request_item, required: true, constraints: {validated_by_target_request_item_model: true}}
+    output: {type: array, items: json_object, required: true, constraints: {max_items: 50, max_depth: 6,
+      max_string_chars: 20000, max_result_bytes: 65536, max_call_bytes: 1048576, url_keys_http_only: true,
+      provider_fields_set_by_server: true}}
+
+assertions:
+- id: instance-app-packages.manifest-validation
+  type: security
+  must: A package is a ZIP archive with manifest.yml at its root. Installation validates the manifest, every
+    contribution and all archive paths before any package code runs, and rejects absolute or escaping paths,
+    symlinks, oversized archives, unknown formats, unsupported contribution kinds, unknown target skills or
+    contracts, provider IDs that collide with built-in providers and entrypoints missing for the server's CPU
+    architecture. Validation never executes, imports or installs dependencies from the package.
+  depends_on:
+  - models.AppPackageManifest
+  - models.ProviderContribution
+  - examples.manifest
+- id: instance-app-packages.server-install
+  type: behavior
+  must: "`openmates server apps install <zip>` runs on the host of a core server installation, shows that the code
+    runs on this server with the permissions of its runner container and that the operator should install only
+    trusted code, and requires interactive confirmation or the explicit `--accept-server-execution` flag. Each
+    installed version is stored immutably; activation switches versions atomically. `list`, `inspect`, `rollback`
+    and `remove` manage installations. Install, rollback and remove restart the affected server services unless
+    `--no-restart` is passed. Reinstalling an identical version is a no-op; a different archive with an already
+    installed version is rejected."
+  depends_on:
+  - models.InstanceInstallation
+  - examples.install
+- id: instance-app-packages.instance-availability
+  type: behavior
+  must: When app packages are enabled on the server, every active provider contribution is available to all users
+    of that server exactly like a built-in provider. A built-in skill that is paused because it has no usable
+    provider becomes available in Apps settings, chat skill selection, tool definitions, direct skill calls and
+    workflows once an installed provider targets it, and uses the provider's skill_hint for routing when one is
+    given; a paused skill's "unavailable" hint is dropped when no skill_hint is given. Removing the package or disabling app packages restores the previous availability. App packages are
+    disabled by default; while disabled no package metadata is loaded or executed.
+  depends_on:
+  - models.ProviderContribution
+  - examples.availability
+- id: instance-app-packages.provider-contract
+  type: behavior
+  must: An installed provider implements a versioned contract declared by its target built-in skill, namely events.search@1, whose input is one EventsSearchRequestItem
+    and whose output is a list of EventResult entries, and jobs.search@1, whose input is one jobs search request
+    item with its resolved countries (any ISO 3166-1 alpha-2 codes) and listing filters and whose output is a list
+    of job_result entries with normalized listing facts (start date, contract duration in months, visa
+    sponsorship, education and experience level, minimum years of experience, impact area, working languages
+    and the listing's own country, absent for global listings); installed jobs providers receive every selected
+    request regardless of the built-in source's country coverage. Every listing filter excludes listings that
+    do not state the filtered value. The skill merges, deduplicates, filters and renders installed-provider results with the
+    same rules and cards as built-in provider results and labels each result with the installed provider name.
+    Results violating the contract are discarded, and a failing provider yields a safe per-request error without
+    affecting other providers in the same request. A provider contribution may declare the regions it covers
+    (1-60 unique ISO 3166-1 alpha-2 codes; absent means worldwide); a generic-contract request that names regions
+    through country, countries, region or regions runs such a provider only when one of its regions is named or
+    WORLDWIDE is requested, lists every skipped provider in its warnings, and when no provider is left starts no
+    provider process and reports that no installed provider covers the requested regions. Every built-in skill
+    that is paused because it has no provider
+    (provider_required with no built-in providers and no declared contract) also accepts the generic contract
+    skill.requests@1 without any per-skill contract or code. Its input is one request item validated by the
+    skill's own request model; for a skill with a flat tool schema the whole validated tool input is that one
+    item and the results are returned in the skill's original response shape. Its output is a list of JSON objects that the server bounds structurally (count,
+    depth, string and total size, http(s)-only URL fields) and attributes to the provider. A request item may
+    select installed providers by id or name through a provider filter that the public request schema of such a
+    skill always declares; otherwise all of them run, and their results are interleaved
+    round-robin in a stable provider order. Duplicate installed-provider results of one request (identical
+    apart from provider attribution, or carrying the same provider-chosen dedupe_key) are returned once, keeping
+    the result with the highest dedupe_priority. The provider receives the caller's provider selection. For
+    product search and stay search, a request item with relevance criteria has its installed-provider results
+    scored by the decision model on their photos and a bounded projection of their facts without links,
+    identifiers or attribution; results are ordered by score, clear conflicts are dropped and the requested
+    limit is applied afterwards, and any failure of that ranking keeps the provider order.
+  depends_on:
+  - models.ProviderInvocation
+  - examples.contract
+  - models.GenericSkillRequestsContract
+- id: instance-app-packages.web-source
+  type: behavior
+  must: On a server with installed providers for product search or event search, a request item that does not
+    name providers is also answered from public web pages. A web search finds candidate pages, the robots-aware
+    public reader fetches a bounded number of them and a small model extracts results of the skill's result
+    shape from each page; only the item's search facts (query, place, dates, criteria, country) leave the
+    server. Page text and model output are untrusted. A web result is kept only when its title is written on
+    its page (and, for an event, the year and day of its date); a price or fee only when that text appears
+    verbatim on the page; a link or picture only when that URL appears on the page, otherwise the result links
+    to the page it was found on. Pages of sites whose terms of use forbid automated collection are never
+    fetched, whatever their robots rules say (a built-in list of large social, video and ticketing platforms plus the
+    hosts the operator lists in WEB_SOURCE_EXCLUDED_HOSTS, each with its subdomains); such pages do not count
+    against the page budget. Every web result names its source page and carries the provider id web, and
+    passes through the same merge, ranking, limit and progress reporting as provider results. Event search
+    uses the web only for general discovery, never for a known conference schedule, and drops past events
+    unless they were requested. A denied, unreadable or slow page, an invalid model answer or an unavailable
+    web search only reduces the web results or adds a warning; it never fails the request or other sources.
+    A request item that names providers is answered by those providers only.
+  depends_on:
+  - models.ProviderInvocation
+  - examples.contract
+- id: instance-app-packages.isolated-runner
+  type: security
+  must: Installed package code executes only inside the dedicated app-packages-runner container. That container
+    receives no server environment file, database, cache or Vault access and cannot reach internal OpenMates
+    services; it mounts installed packages read-only, runs without root or Linux capabilities, has a read-only
+    filesystem apart from temporary scratch space and has internet access for the provider's upstream requests.
+    Before every run the runner confirms that the requested version is still active and that every file matches
+    its recorded digest. Each run receives only that call's contract input and the package's declared secrets, and
+    is bounded by a timeout and output size limit.
+  depends_on:
+  - models.InstanceInstallation
+  - models.ProviderInvocation
+  - examples.runner
+- id: instance-app-packages.operator-secrets
+  type: security
+  must: A provider declares the secret names it needs. The operator sets them with the existing server environment
+    commands using the SECRET__<PROVIDER>__<KEY> convention used by built-in providers. The worker resolves only
+    the declared secrets for the provider being invoked and passes them with that call. `openmates server apps
+    inspect` reports missing secrets without showing values, and a provider with a missing required secret is
+    unavailable. A provider may also declare optional secrets, resolved the same way, passed only when set and
+    never affecting availability. Secret values never appear in logs, results or package metadata.
+  depends_on:
+  - models.ProviderContribution.secrets
+  - examples.secrets
+- id: instance-app-packages.no-installed-provider-charges
+  type: invariant
+  must: Credit charging for built-in skills and built-in providers is unchanged. A successful request group whose
+    results come only from installed providers is not charged; a request group that also contains built-in provider
+    results is charged as usual. A paused skill served only through skill.requests@1 providers is never charged,
+    also when every provider fails. The server determines this from its own installation registry, never from
+    values returned by package code, and a package cannot declare prices.
+  depends_on:
+  - examples.billing
+
+applies_to:
+  rest_api:
+    required: true
+    role: Existing app metadata and skill routes expose installed providers; no new public routes are added.
+  cli:
+    required: true
+    role: "`openmates server apps` commands on core server installations."
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: true
+      apple:
+        required: false
+
+examples:
+  file: examples.yml
+  required_groups:
+  - manifest
+  - install
+  - availability
+  - contract
+  - runner
+  - secrets
+  - billing

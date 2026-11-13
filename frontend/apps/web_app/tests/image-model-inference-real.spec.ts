@@ -85,9 +85,9 @@ const MODELS: ModelCase[] = [
 	},
 	{
 		provider: 'anthropic',
-		model: 'claude-fable-5-1',
+		model: 'claude-fable-5-2',
 		label: 'claude-fable',
-		expectedGeneratedBy: /Claude Fable 5\.1|claude-fable-5-1/i
+		expectedGeneratedBy: /Claude Fable 5\.2|claude-fable-5-2/i
 	},
 	{
 		provider: 'openai',

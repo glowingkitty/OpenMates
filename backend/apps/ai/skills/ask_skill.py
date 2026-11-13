@@ -17,6 +17,7 @@ from backend.apps.base_skill import BaseSkill # Adjusted import path
 from backend.core.api.app.schemas.chat import AIHistoryMessage # Import the message model
 from backend.shared.python_utils.chat_failure_notifications import EXPECTED_REJECTIONS, notify_chat_failure
 from backend.shared.python_utils.voice_playback_boundary import VoiceHeardBoundary
+from backend.shared.python_utils.memory_loader import MemoryCatalogEntry, parse_memory_catalog
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +135,12 @@ class AskSkillRequest(BaseModel):
     project_routing_focus_id: Optional[str] = Field(default=None, description="Server-only Project identity retained across the selected catalog handoff; not an access grant.")
     accepted_plan_context: Optional[Dict[str, Any]] = Field(default=None, repr=False, exclude=True, description="Bounded client-decrypted accepted existing Plan snapshot; fresh server approval/version/linkage required.")
     custom_rule_documents: List[Dict[str, Any]] = Field(validation_alias=AliasChoices("custom_memory_documents", "custom_rule_documents"), default_factory=list, exclude=True, repr=False, max_length=24, description="Transient client-decrypted Project Memory Markdown (legacy Rule alias accepted); fresh first-party and Project authority required before selection.")
+    memory_catalog: List[MemoryCatalogEntry] = Field(default_factory=list, exclude=True, repr=False, max_length=24, description="Metadata-only (title, when-to-use, load mode) private Memory catalog built by the client after removing Mention only and out-of-window Memories; bodies never travel with a chat request; the server requests a selected body through the app-settings-memories flow.")
+    @field_validator("memory_catalog", mode="after")
+    @classmethod
+    def _unique_memory_catalog(cls, value: List[MemoryCatalogEntry]) -> List[MemoryCatalogEntry]:
+        return list(parse_memory_catalog(value))
+
     project_focus_catalog: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=20, description="Private Project Focus metadata only; full definitions are loaded separately after selection.")
     project_focus_documents: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=8, description="Selected client-decrypted Project Focus documents with fresh item revisions; never Project consent.")
     project_context_documents: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=20, description="Transient authorized Project Specification, fact and folder context; data never grants access.")
@@ -178,11 +185,13 @@ class AskSkillRequest(BaseModel):
     is_async_skill_continuation: bool = Field(default=False, description="True when a client-executed async skill result is re-entering inference.")
     original_user_message_id: Optional[str] = Field(default=None, description="Original user turn that created the async skill job.")
     async_skill_task_id: Optional[str] = Field(default=None, description="Stable async operation or execution id completed by this continuation.")
+    completed_result_embed_ids: List[str] = Field(default_factory=list, description="Result embeds (such as test results) created by the completed async skill; the continuation reply always shows them.")
     same_turn_batch_id: Optional[str] = Field(default=None, description="Opaque internal completion barrier identity; checked against the original turn before resume.")
     same_turn_slots: List[Dict[str, Any]] = Field(default_factory=list, description="Ordered opaque terminal job references for the internal same-turn resume.")
     same_turn_checkpoint: Optional[Dict[str, Any]] = Field(default=None, exclude=True, repr=False, description="API-memory-only provider-loop checkpoint; never written to a queue or durable cache.")
     preprocessing_resume_ref: Optional[str] = Field(default=None, max_length=128, description="Opaque server-created routing snapshot reference for an internal continuation; never itself grants authority.")
     awaiting_async_skill_continuation: bool = Field(default=False, description="True when this response dispatched a client job and must not seal the interim assistant output as terminal recovery.")
+    turn_written_entries: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, description="Process-memory only: memories/workflows written by this turn ({kind, target_id, title}) so post-processing does not recommend them again; never serialized.")
     is_sub_chat_continuation: bool = Field(default=False, description="True if this task is a continuation after waited sub-chats completed. The user message was already persisted before the sub-chat pause.")
     recovery_consumed_child_ids: List[str] = Field(default_factory=list, description="Internal child identities whose sealed synthesis inputs are carried by this continuation.")
     is_anonymous: bool = Field(default=False, description="True for official-cloud anonymous free usage. Skips user-vault lookup and user-balance charging.")
@@ -443,6 +452,13 @@ class AskSkill(BaseSkill):
         # Prepare task arguments matching the expected signature:
         # process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict)
         request_data_dict = request.model_dump(exclude_none=True)
+        # `memory_catalog` is excluded from dumps (it never reaches logs or caches),
+        # but the task needs it to select personal Memories. Forward the body-free
+        # metadata snapshot, as the app-settings-memories continuation already does;
+        # without it a first-turn request silently loses every personal Memory.
+        if request.memory_catalog:
+            from backend.apps.ai.processing.rule_context import memory_catalog_snapshot
+            request_data_dict["memory_catalog"] = memory_catalog_snapshot(request.memory_catalog)
         skill_config_dict = self.parsed_default_config.model_dump() if self.parsed_default_config else {}
 
         if not self.celery_producer:
@@ -1440,6 +1456,8 @@ class AskSkill(BaseSkill):
                     }}
                     carrier["embed_ids"] = [child_id for child_id in carrier.get("embed_ids", [])
                                             if child_id in accepted]
+                    if isinstance(carrier.get("member_ids"), list):
+                        carrier["member_ids"] = [m for m in carrier["member_ids"] if m in accepted]
                     carrier["items"] = [item for item in carrier.get("items", [])
                                         if isinstance(item, dict) and item.get("embed_id") in accepted]
                     if isinstance(carrier.get("view"), dict):

@@ -7,6 +7,8 @@
  */
 
 import type { Chat, Message } from "../types/chat";
+import { decideShareState, directShareState, shareStateClient } from "./shareState/decide";
+import { incognitoMetadata } from "./shareState/incognitoChatPolicy";
 
 class IncognitoChatService {
   private chats: Map<string, Chat> = new Map(); // In-memory cache
@@ -14,6 +16,10 @@ class IncognitoChatService {
   private readonly STORAGE_KEY = "incognito_chats";
   private readonly MESSAGES_STORAGE_KEY = "incognito_chat_messages";
   private initialized = false;
+  /** Bumped by every persist and by deleteAllChats so a slower Worker answer never overwrites newer state. */
+  private persistGeneration = 0;
+  /** Flag on only: the in-flight init shared by concurrent callers. */
+  private loading: Promise<void> | null = null;
 
   /**
    * Initialize the service by loading chats from sessionStorage
@@ -23,16 +29,26 @@ class IncognitoChatService {
     if (this.initialized || typeof window === "undefined") {
       return;
     }
+    // Flag on: concurrent callers share one load (the Worker answer is awaited).
+    // Flag off: the load below has no await, so it stays atomic exactly as before.
+    if (!shareStateClient()) return this.load();
+    this.loading ??= this.load().finally(() => {
+      this.loading = null;
+    });
+    return this.loading;
+  }
 
+  private async load(): Promise<void> {
     try {
       // Load chat metadata from sessionStorage
       const stored = sessionStorage.getItem(this.STORAGE_KEY);
       if (stored) {
-        const chatsArray = JSON.parse(stored) as Chat[];
+        // Ensure group_key is always set to 'incognito' even for chats stored before this field was added
+        const normalizeInput = { chats: JSON.parse(stored) as Record<string, unknown>[] };
+        const chatsArray = (shareStateClient()
+          ? await decideShareState("incognitoNormalize", normalizeInput)
+          : directShareState("incognitoNormalize", normalizeInput)) as unknown as Chat[];
         chatsArray.forEach((chat: Chat) => {
-          // Ensure group_key is always set to 'incognito' even for chats stored before this field was added
-          chat.is_incognito = true;
-          chat.group_key = "incognito";
           this.chats.set(chat.chat_id, chat);
         });
         console.debug(
@@ -147,8 +163,21 @@ class IncognitoChatService {
     const index = messages?.findIndex((message) => message.message_id === messageId) ?? -1;
     if (!messages || index < 0) return false;
     const next = update(messages[index]);
-    if (!next || next.message_id !== messageId || next.chat_id !== chatId) return false;
-    messages[index] = next;
+    const acceptInput = {
+      message_id: messageId,
+      chat_id: chatId,
+      next: next ? { message_id: next.message_id, chat_id: next.chat_id } : null,
+    };
+    // Flag off: no await, so the row is replaced in the same tick as it was read (as before).
+    const accepted = shareStateClient()
+      ? await decideShareState("incognitoUpdateAccepted", acceptInput)
+      : directShareState("incognitoUpdateAccepted", acceptInput);
+    if (!accepted || !next) return false;
+    // After the Worker answer another update may have moved or removed the row: find it again.
+    const target = this.messages.get(chatId);
+    const targetIndex = target?.findIndex((message) => message.message_id === messageId) ?? -1;
+    if (!target || targetIndex < 0) return false;
+    target[targetIndex] = next;
     this.persistMessagesToSessionStorage();
     return true;
   }
@@ -190,6 +219,7 @@ class IncognitoChatService {
    * double-firing the event.
    */
   async deleteAllChats(): Promise<void> {
+    this.persistGeneration += 1;
     this.chats.clear();
     this.messages.clear();
     this.clearStorage();
@@ -207,35 +237,31 @@ class IncognitoChatService {
       return;
     }
 
-    try {
-      const chatsArray = Array.from(this.chats.values());
-      // Only store essential metadata, not full message content
-      const metadata = chatsArray.map((chat) => ({
-        chat_id: chat.chat_id,
-        is_incognito: true,
-        group_key: "incognito",
-        encrypted_title: chat.encrypted_title,
-        title: chat.title,
-        // Plaintext category and icon: set from the ai_typing_started payload once
-        // the server returns metadata for the new chat. Stored here so the sidebar
-        // and chat header can show the correct icon/category on page reload within
-        // the same session.
-        category: chat.category,
-        icon: chat.icon,
-        created_at: chat.created_at,
-        updated_at: chat.updated_at,
-        last_edited_overall_timestamp: chat.last_edited_overall_timestamp,
-        unread_count: chat.unread_count,
-        messages_v: chat.messages_v,
-        title_v: chat.title_v,
-        draft_v: chat.draft_v,
-        encrypted_draft_md: chat.encrypted_draft_md,
-        encrypted_draft_preview: chat.encrypted_draft_preview,
-        waiting_for_metadata: chat.waiting_for_metadata,
-        // Don't store encrypted fields that are generated server-side
-        // as incognito chats don't go through post-processing
-      }));
+    const chats = Array.from(this.chats.values()) as unknown as Record<string, unknown>[];
+    if (shareStateClient()) {
+      void this.persistThroughWorker(chats);
+      return;
+    }
+    this.writeChatMetadata(incognitoMetadata({ chats }));
+  }
 
+  /** Rust core (flag on) projects the metadata in the Worker; a stale answer is dropped. */
+  private async persistThroughWorker(chats: Record<string, unknown>[]): Promise<void> {
+    this.persistGeneration += 1;
+    const generation = this.persistGeneration;
+    let metadata: Record<string, unknown>[];
+    try {
+      metadata = await decideShareState("incognitoMetadata", { chats });
+    } catch (error) {
+      console.error("[IncognitoChatService] Error persisting chats to sessionStorage:", error);
+      return;
+    }
+    if (generation !== this.persistGeneration) return;
+    this.writeChatMetadata(metadata);
+  }
+
+  private writeChatMetadata(metadata: Record<string, unknown>[]): void {
+    try {
       sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(metadata));
 
       // Notify Chats.svelte that incognito chats changed so the sidebar

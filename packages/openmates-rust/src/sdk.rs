@@ -16,6 +16,8 @@ use zeroize::Zeroizing;
 
 #[path="sdk_skill_release.rs"]
 mod skill_release;
+#[path="sdk_raw.rs"]
+mod raw;
 use skill_release::{SkillRelease,SkillValue,SkillValues};
 const MAX_BODY: usize = 16 * 1024 * 1024;
 
@@ -26,7 +28,17 @@ pub struct ApiKey {
     decryption_secret: Option<Zeroizing<String>>,
 }
 impl ApiKey {
+    /// Parse an explicit `sk-api-<bearer>[.<decryption secret>]` setup credential.
+    ///
+    /// # Errors
+    /// An empty or whitespace-only value is the typed missing-key refusal whose
+    /// [`Error::sdk_code`] is [`crate::error::SDK_API_KEY_REQUIRED_CODE`] (npm and
+    /// Python `OpenMatesApiKeyRequiredError.code`); any other malformed value is
+    /// `Error::Invalid` without that code.
     pub fn new(value: &str) -> Result<Self> {
+        if value.trim().is_empty() {
+            return Err(Error::Invalid(crate::error::SDK_API_KEY_REQUIRED_MESSAGE));
+        }
         let mut parts = value.split('.');
         let bearer = parts.next().ok_or(Error::Authentication)?;
         let secret = parts.next();
@@ -46,6 +58,22 @@ impl ApiKey {
             decryption_secret: secret.map(|s| Zeroizing::new(s.into())),
         })
     }
+    /// Opt-in equivalent of the npm/Python base `OpenMates` convenience: parse
+    /// the caller-configured `OPENMATES_API_KEY` environment variable. Never reads
+    /// CLI state, session files, profiles or keychains, and never falls back to
+    /// anonymous use (that stays the explicit `SdkCredentials::Anonymous`).
+    ///
+    /// # Errors
+    /// A missing, non-UTF-8, empty or whitespace-only variable is the typed
+    /// missing-key refusal ([`crate::error::SDK_API_KEY_REQUIRED_CODE`]); a
+    /// malformed key is `Error::Invalid` as in [`ApiKey::new`].
+    pub fn from_env() -> Result<Self> {
+        match std::env::var("OPENMATES_API_KEY") {
+            Ok(value) => Self::new(&value),
+            Err(_) => Err(Error::Invalid(crate::error::SDK_API_KEY_REQUIRED_MESSAGE)),
+        }
+    }
+    /// Whether the setup credential carries the local decryption suffix.
     pub fn has_decryption_secret(&self) -> bool {
         self.decryption_secret.is_some()
     }
@@ -108,10 +136,34 @@ impl OpenMates {
             operation_cancel: CancellationToken::new(),
         })
     }
+    /// Same-origin GET builder for `sdk_transport`: confined `/v1/` path, SDK identity
+    /// headers and, only when `authenticated`, the explicit API-key bearer.
+    pub(crate) fn get_request(&self, path: &str, authenticated: bool) -> Result<crate::platform::http::RequestBuilder> {
+        if self.operation_cancel.is_cancelled() { return Err(Error::Cancelled); }
+        if !path.starts_with("/v1/") || path.contains(['\\', '#']) || path.contains("//") { return Err(Error::Forbidden); }
+        let url = self.base.join(path).map_err(|_| Error::Protocol)?;
+        if url.origin() != self.base.origin() { return Err(Error::Forbidden); }
+        let mut request = self.http.request(Method::GET, url)
+            .header("X-OpenMates-SDK", self.options.identity.header())
+            .header("X-OpenMates-Device-Identity", &self.device_id)
+            .header("Origin", &self.origin);
+        if authenticated {
+            let SdkCredentials::ApiKey(key) = &self.credentials else { return Err(Error::Authentication); };
+            request = request.bearer_auth(key.bearer.as_str());
+        }
+        Ok(request)
+    }
+    pub(crate) fn origin_str(&self) -> &str { &self.origin }
     pub(crate) fn operation_cancel_token(&self) -> CancellationToken { self.operation_cancel.clone() }
     /// Authenticated API-key documentation; the public Client facade stays independent.
     pub fn docs(&self) -> crate::sdk_docs::Docs<'_> { crate::sdk_docs::Docs::new(self) }
     pub fn wikipedia(&self) -> crate::sdk_wikipedia::Wikipedia<'_> { crate::sdk_wikipedia::Wikipedia::new(self) }
+    pub fn billing(&self) -> crate::sdk_billing::Billing<'_> { crate::sdk_billing::Billing::new(self) }
+    pub fn settings(&self) -> crate::sdk_settings::Settings<'_> { crate::sdk_settings::Settings::new(self) }
+    pub fn reminders(&self) -> crate::sdk_reminders::Reminders<'_> { crate::sdk_reminders::Reminders::new(self) }
+    pub fn notifications(&self) -> crate::sdk_notifications::Notifications<'_> { crate::sdk_notifications::Notifications::new(self) }
+    pub fn finance(&self) -> crate::sdk_finance::Finance<'_> { crate::sdk_finance::Finance::new(self) }
+    pub fn connected_accounts(&mut self) -> crate::sdk_connected_accounts::ConnectedAccounts<'_> { crate::sdk_connected_accounts::ConnectedAccounts::new(self) }
     pub fn embeds(&mut self) -> crate::sdk_embeds::Embeds<'_> { crate::sdk_embeds::Embeds::new(self) }
     pub fn set_operation_cancel(&mut self, cancel: CancellationToken) {
         self.operation_cancel.cancel();

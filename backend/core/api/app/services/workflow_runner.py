@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+from datetime import datetime, timezone
 import os
 import re
 import time
@@ -21,6 +22,7 @@ from starlette.concurrency import run_in_threadpool
 
 from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter, WorkflowActionExecutionError
 from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter, WorkflowSkillBillingError
+from backend.core.api.app.services.workflow_memory_snapshots import MemorySnapshotError, revision_records, usable_snapshots
 from backend.core.api.app.services.workflow_ai_service import WorkflowAiService, render_bounded_ask_ai_prompt, is_website_diff_reference, _bounded_runtime_inputs, _bounded_value
 from backend.core.api.app.services.workflow_result_selection import prepare_ask_destinations, prepare_ask_preview, sanitize_workflow_ai_answer, selected_context
 from backend.core.api.app.services.workflow_models import (
@@ -908,6 +910,11 @@ class WorkflowRunner:
             prompt = authored_input.get("prompt") if isinstance(authored_input, dict) else None
             if not isinstance(prompt, str):
                 raise WorkflowActionExecutionError("WORKFLOW_AI_ASK_INVALID", "Ask AI requires an instruction")
+            try:
+                memory_snapshots = usable_snapshots(prompt, authored_input.get("memory_snapshots"), datetime.now(timezone.utc))
+            except MemorySnapshotError as error:
+                raise WorkflowActionExecutionError(error.code, str(error)) from error
+            memory_revisions = revision_records(memory_snapshots)
             referenced_nodes = set(re.findall(r"\{\{\s*(?:steps\.|\$nodes\.)([A-Za-z0-9_-]+)\.", prompt))
             presentation_sources = sorted({
                 f"{source['app_id']}-{source['skill_id']}"
@@ -928,7 +935,7 @@ class WorkflowRunner:
                         projected = selected_context(context, selection["ai_lists"])
                         result = await self.app_skill_adapter.execute(
                             app_id, skill_id,
-                            {"prompt": render_bounded_ask_ai_prompt(prompt, projected),
+                            {"prompt": render_bounded_ask_ai_prompt(prompt, projected, memory_snapshots),
                              "model": authored_input.get("model", "auto"),
                              "workflow_presentation_sources": presentation_sources},
                             user_id=user_id,
@@ -953,12 +960,13 @@ class WorkflowRunner:
                     raise
                 return {"app_id": "ai", "skill_id": "ask", "answer": next(iter(answers.values()), ""),
                         "answers_by_destination": answers, "prepared": prepared,
-                        "skipped": not answers, "_workflow_credit_cost": total_credit_cost}
+                        "skipped": not answers, "_workflow_credit_cost": total_credit_cost,
+                        "memory_snapshot_revisions": memory_revisions}
             prompt_context = context
             if context.get("workflow", {}).get("step_test"):
                 embed_type = getattr(self.app_skill_adapter, "result_embed_type", lambda app, skill: None)
                 prompt_context, preview_embeds = prepare_ask_preview(prompt, context, embed_type)
-            request = {"prompt": render_bounded_ask_ai_prompt(prompt, prompt_context),
+            request = {"prompt": render_bounded_ask_ai_prompt(prompt, prompt_context, memory_snapshots),
                        "model": authored_input.get("model", "auto"),
                        "workflow_presentation_sources": presentation_sources}
         else:
@@ -1022,6 +1030,8 @@ class WorkflowRunner:
         if execution.get("step_test") and app_id == "ai" and skill_id == "ask":
             output["answer"] = sanitize_workflow_ai_answer(str(output.get("answer") or ""), {embed["embed_id"] for embed in preview_embeds})
             output["preview_embeds"] = preview_embeds
+        if app_id == "ai" and skill_id == "ask" and memory_revisions:
+            output["memory_snapshot_revisions"] = memory_revisions
         if output.get("error"):
             raise WorkflowActionExecutionError("WORKFLOW_SKILL_FAILED", "The selected app skill could not complete this step")
         return output

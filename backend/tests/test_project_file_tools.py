@@ -55,3 +55,5 @@ def test_project_source_routing_context_is_safe_current_and_deterministic() -> N
     assert "ciphertext-name" not in prompt
     assert "source-revoked" not in prompt
     assert "authorized again at dispatch time" in prompt
+    # A new web app goes through one application block, not parallel file-tool writes.
+    assert "application_preview" in prompt and "web-app/" in prompt

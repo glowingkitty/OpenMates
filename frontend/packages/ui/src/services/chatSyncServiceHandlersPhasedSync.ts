@@ -19,7 +19,12 @@ import type {
 import type { EmbedKeyEntry } from "./embedStore";
 import type { EmbedType } from "../message_parsing/types";
 import { chatDB } from "./db";
-import { clearQueuedProcessingForMessage, hasQueuedProcessing } from "./queuedMessageLifecycle";
+import {
+  MESSAGE_PREP_IN_RUST,
+  messagePrepOps,
+  prepareBackgroundMessages,
+  prepareMessagesForStorage,
+} from "./chatSyncMessagePrep";
 import { userDB } from "./userDB";
 import { chatListCache } from "./chatListCache";
 import { chatMetadataCache } from "./chatMetadataCache";
@@ -46,6 +51,13 @@ async function unwrapTeamOrDirectChatKey(teamId: string, chatId: string, encrypt
   return directChats.unwrapTeamOrDirectChatKey(teamId, chatId, encryptedKey, visibility);
 }
 import { isActiveTeamContext } from "../stores/teamStore";
+/** Opt-in shared Rust core build: sync decisions run in the shared Worker `sync` unit. */
+// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+function rustSyncPolicy() {
+  return import("./rustCore/sync/rustChatSyncPolicy");
+}
 
 /**
  * Tracks chat IDs fully processed in Phase 2 so Phase 3 can skip them.
@@ -78,7 +90,8 @@ function isKeyOptionalSyncedChat(
   );
 }
 
-function shouldSkipSyncedChatWithoutKey(
+/** @internal Exported for the Rust parity vectors (web_sync/ts_vectors.json). */
+export function shouldSkipSyncedChatWithoutKey(
   phase: string,
   chatId: string,
   serverChat: Partial<Chat>,
@@ -99,7 +112,8 @@ function shouldSkipSyncedChatWithoutKey(
   return true;
 }
 
-function buildMetadataOnlyChatFromDetails(
+/** @internal Exported for the Rust parity vectors (web_sync/ts_vectors.json). */
+export function buildMetadataOnlyChatFromDetails(
   details: Partial<Chat> & { id: string },
   existingChat: Chat | null,
 ): Chat {
@@ -243,11 +257,13 @@ function yieldToMainThread(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-async function applyAuthoritativeDeletedChats(
+/** @internal Exported for the Rust parity vectors (web_sync/ts_vectors.json). */
+export async function applyAuthoritativeDeletedChats(
   serviceInstance: ChatSynchronizationService,
   deletedChatIds: string[] | undefined,
   explicitDeletedChatIds: string[] | undefined,
 ): Promise<void> {
+  if (RUST_SYNC_BUILD) return (await rustSyncPolicy()).applyAuthoritativeDeletedChats(serviceInstance, deletedChatIds, explicitDeletedChatIds);
   const uniqueDeletedChatIds = Array.from(new Set(deletedChatIds ?? [])).filter(
     Boolean,
   );
@@ -326,6 +342,9 @@ export async function handlePhase2RecentChatsImpl(
     }
     const { chats, chat_count, total_chat_count, deleted_chat_ids, explicit_deleted_chat_ids } = payload;
     await applyAuthoritativeDeletedChats(serviceInstance, deleted_chat_ids, explicit_deleted_chat_ids);
+    if (RUST_SYNC_BUILD && payload.phase === "phase2") {
+      await (await import("./rustCore/sync/rustStaleDraftReconcile")).applyStaleDraftProbeResult(serviceInstance, payload);
+    }
 
     // Cache warming notification (no actual chats) — ignore
     if (!chats || !Array.isArray(chats)) {
@@ -592,26 +611,9 @@ export async function handleBackgroundMessageSyncImpl(
       if (!chatData.messages || chatData.messages.length === 0) continue;
 
       // Parse JSON strings and normalize message_id
-      const preparedMessages: Message[] = [];
-      for (const msgData of chatData.messages) {
-        let msg = msgData;
-        if (typeof msgData === "string") {
-          try {
-            msg = JSON.parse(msgData);
-          } catch {
-            continue;
-          }
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const msgObj = msg as any;
-        if (!msgObj.message_id && msgObj.id) {
-          msgObj.message_id = msgObj.id;
-        }
-        if (!msgObj.message_id) continue;
-        if (!msgObj.chat_id) msgObj.chat_id = chatData.chat_id;
-        if (!msgObj.status) msgObj.status = "delivered";
-        preparedMessages.push(msgObj as Message);
-      }
+      const preparedMessages: Message[] = MESSAGE_PREP_IN_RUST
+        ? await (await messagePrepOps()).prepareBackgroundMessages(chatData.messages, chatData.chat_id)
+        : prepareBackgroundMessages(chatData.messages, chatData.chat_id);
 
       if (preparedMessages.length > 0) {
         const messageFilter = await filterPersistableSyncedMessagesWithSkipped(
@@ -870,14 +872,9 @@ async function storeRecentChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
-      if (
-        shouldSkipSyncedChatWithoutKey(
-          "Phase 2",
-          chatId,
-          chat_details,
-          existingChat,
-        )
-      ) {
+      if (RUST_SYNC_BUILD
+        ? await (await rustSyncPolicy()).shouldSkipSyncedChatWithoutKey("Phase 2", chatId, chat_details, existingChat)
+        : shouldSkipSyncedChatWithoutKey("Phase 2", chatId, chat_details, existingChat)) {
         continue;
       }
       const keyMismatch = await hasEncryptedChatKeyMismatch(
@@ -988,7 +985,9 @@ async function storeRecentChats(
       }
 
       // Prepare all messages before saving
-      const preparedMessages = prepareMessagesForStorage(
+      const preparedMessages = MESSAGE_PREP_IN_RUST
+        ? await (await messagePrepOps()).prepareMessagesForStorage(messages, chatId, "Phase 2")
+        : prepareMessagesForStorage(
         messages,
         chatId,
         "Phase 2",
@@ -1106,14 +1105,9 @@ async function storeAllChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
-      if (
-        shouldSkipSyncedChatWithoutKey(
-          "Phase 3",
-          chatId,
-          chat_details,
-          existingChat,
-        )
-      ) {
+      if (RUST_SYNC_BUILD
+        ? await (await rustSyncPolicy()).shouldSkipSyncedChatWithoutKey("Phase 3", chatId, chat_details, existingChat)
+        : shouldSkipSyncedChatWithoutKey("Phase 3", chatId, chat_details, existingChat)) {
         continue;
       }
       const keyMismatch = await hasEncryptedChatKeyMismatch(
@@ -1259,7 +1253,9 @@ async function storeAllChats(
 
       let persistableMessages: Message[] = [];
       if (shouldSyncMessages && messages && messages.length > 0) {
-        const preparedMessages = prepareMessagesForStorage(
+        const preparedMessages = MESSAGE_PREP_IN_RUST
+          ? await (await messagePrepOps()).prepareMessagesForStorage(messages, chatId, "Phase 3")
+          : prepareMessagesForStorage(
           messages,
           chatId,
           "Phase 3",
@@ -1303,83 +1299,8 @@ async function storeAllChats(
   }
 }
 
-/**
- * Prepare messages for storage - parses JSON strings and validates required fields
- */
-export function prepareMessagesForStorage(
-  messages: Message[],
-  chatId: string,
-  phaseName: string,
-): Message[] {
-  const preparedMessages: Message[] = [];
-
-  if (!messages || !Array.isArray(messages)) {
-    return preparedMessages;
-  }
-
-  for (const messageData of messages) {
-    let message = messageData;
-
-    // Parse JSON string if needed
-    if (typeof messageData === "string") {
-      try {
-        message = JSON.parse(messageData);
-        const messageId =
-          message.message_id || (message as Message & { id?: string }).id;
-        console.debug(
-          `[ChatSyncService] ${phaseName} - Parsed message JSON string for message: ${messageId}`,
-        );
-      } catch (e) {
-        console.error(
-          `[ChatSyncService] ${phaseName} - Failed to parse message JSON for chat ${chatId}:`,
-          e,
-        );
-        continue;
-      }
-    }
-
-    // Use 'id' field as message_id if message_id is missing
-    if (!message.message_id && (message as Message & { id?: string }).id) {
-      message.message_id = (message as Message & { id?: string }).id;
-    }
-
-    // Skip messages without message_id
-    if (!message.message_id) {
-      console.error(
-        `[ChatSyncService] ${phaseName} - Message missing message_id after parsing, skipping:`,
-        message,
-      );
-      continue;
-    }
-
-    // Ensure chat_id is set
-    if (!message.chat_id) {
-      message.chat_id = chatId;
-    }
-
-    // Directus queue receipt is authoritative after reconnect or Redis loss.
-    if (message.queue_dispatch_status === "paused") {
-      clearQueuedProcessingForMessage(message.chat_id, message.message_id);
-      message.status = "delivered";
-      message.queue_mode = undefined;
-    } else if (hasQueuedProcessing(message.chat_id, message.message_id) ||
-        message.queue_dispatch_status === "processing") {
-      message.status = "delivered";
-      message.queue_mode = undefined;
-      message.queue_dispatch_status = "processing";
-    } else if (message.queue_dispatch_status === "queued" &&
-        (message.queue_dispatch_mode === "follow_up" || message.queue_dispatch_mode === "steer")) {
-      message.status = "queued";
-      message.queue_mode = message.queue_dispatch_mode;
-    } else if (!message.status) {
-      message.status = "delivered";
-    }
-
-    preparedMessages.push(message);
-  }
-
-  return preparedMessages;
-}
+/** Moved to chatSyncMessagePrep.ts (Rust twin web_sync/message_prep.rs); kept exported here for callers. */
+export { prepareMessagesForStorage };
 
 /**
  * Store embeds from a flat array (new format from backend with cross-phase deduplication)
@@ -1545,16 +1466,12 @@ export async function handleLoadMoreChatsResponseImpl(
       }
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       const existingChat = await chatDB.getChat(details.id);
-      if (
-        shouldSkipSyncedChatWithoutKey(
-          "Load more",
-          details.id,
-          details,
-          existingChat,
-        )
-      ) {
+      if (RUST_SYNC_BUILD) {
+        const chat = await (await rustSyncPolicy()).metadataOnlyChat("Load more", details, existingChat);
+        if (chat) chats.push(chat);
         continue;
       }
+      if (shouldSkipSyncedChatWithoutKey("Load more", details.id, details, existingChat)) continue;
       chats.push(buildMetadataOnlyChatFromDetails(details, existingChat));
     }
 
@@ -1615,16 +1532,12 @@ export async function handleSyncMetadataChatsResponseImpl(
       }
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       const existingChat = await chatDB.getChat(details.id);
-      if (
-        shouldSkipSyncedChatWithoutKey(
-          "Metadata sync",
-          details.id,
-          details,
-          existingChat,
-        )
-      ) {
+      if (RUST_SYNC_BUILD) {
+        const chat = await (await rustSyncPolicy()).metadataOnlyChat("Metadata sync", details, existingChat);
+        if (chat) chats.push(chat);
         continue;
       }
+      if (shouldSkipSyncedChatWithoutKey("Metadata sync", details.id, details, existingChat)) continue;
       chats.push(buildMetadataOnlyChatFromDetails(details, existingChat));
     }
 

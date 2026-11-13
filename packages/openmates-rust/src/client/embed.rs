@@ -34,7 +34,7 @@ impl Client {
             } else {
                 sha256(chat)
             };
-            let encrypted = json!({"embed_id":wanted,"encrypted_type":row["type"],"encrypted_content":row["content"],"encrypted_text_preview":row["encrypted_text_preview"],"hashed_chat_id":chat_hash,"parent_embed_id":row["parent_embed_id"],"status":row["status"]});
+            let encrypted = json!({"embed_id":wanted,"encrypted_type":row["type"],"encrypted_content":row["content"],"encrypted_text_preview":row["encrypted_text_preview"],"hashed_chat_id":chat_hash,"parent_embed_id":row["parent_embed_id"],"status":row["status"],"version_number":row["version_number"],"updated_at":row["updatedAt"]});
             self.embeds.insert(wanted.clone(), encrypted);
             for wrapper in row["embed_keys"].as_array().ok_or(Error::Protocol)? {
                 if text(wrapper, "hashed_embed_id") != sha256(&wanted) {
@@ -57,6 +57,11 @@ impl Client {
     }
     pub(super) fn decrypt_embed_item(&self, id: &str, wrapping: &[u8; 32]) -> Result<Item> {
         let key = self.embed_key(id, wrapping, &mut std::collections::HashSet::new())?;
+        self.decrypt_embed_row(id, &key)
+    }
+    /// Decrypt cached embed row `id` with its already-resolved embed key; the
+    /// key source (raw master or opaque browser capability) is the caller's.
+    pub(super) fn decrypt_embed_row(&self, id: &str, key: &[u8; 32]) -> Result<Item> {
         let row = self.embeds.get(id).ok_or(Error::Protocol)?;
         let kind = decrypt_optional(row, "encrypted_type", &key)?;
         let preview = decrypt_optional(row, "encrypted_text_preview", &key)?;
@@ -78,7 +83,8 @@ impl Client {
             fields: json!({"type":kind,"content":content}),
         })
     }
-    fn embed_key(
+    /// Embed key from the cached wrappers (master, owning chat, then parent).
+    pub(super) fn embed_key(
         &self,
         id: &str,
         wrapping: &[u8; 32],

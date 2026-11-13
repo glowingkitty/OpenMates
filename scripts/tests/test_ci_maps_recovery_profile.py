@@ -338,6 +338,7 @@ def _runner_profile(tmp_path, monkeypatch, **options):
     "cli-authored-results.spec.ts",
     "stop-new-chat-draft.spec.ts",
     "cli-rust-core-essential.spec.ts",
+    "cli-native-project-application-files.spec.ts",
     "cli-rust-chat-sync-feed.spec.ts",
     "cli-rust-tui-unread.spec.ts",
     "chat-unread-read-position.spec.ts",

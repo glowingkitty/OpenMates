@@ -87,10 +87,14 @@ c=Coordinator(sys.argv[1]); print(c.request(sys.argv[2],70,operation='build',thr
     )
     first = child.stdout.strip()
     with c.leadership():
+        # The exited tool's ticket stays waiting; it is never granted to a dead pid.
         c.tick(recovery_margin=0)
-        assert c.get(first)["state"] == "granted"
+        assert c.get(first)["state"] == "waiting"
         retried = request(c, root, thread=thread)
         assert retried["id"] == first
+        c.tick(recovery_margin=0)
+        assert c.get(first)["state"] == "granted"
+        retried = c.get(first)
         claim = c.claim(first, retried["grant_id"])
         assert claim["state"] == "claimed"
         c.release(first)
@@ -468,3 +472,120 @@ def test_proactive_cleanup_runs_all_kinds_on_cadence_without_waiting_requests(tm
 
 def test_host_cleanup_kind_is_registered():
     assert 'host' in disk.KINDS
+
+
+def _committed(c):
+    with c.db() as db:
+        return db.execute(
+            "SELECT COALESCE(SUM(outstanding),0) FROM requests WHERE state IN ('granted','claimed')"
+        ).fetchone()[0]
+
+
+def test_dead_owner_with_thread_releases_commitment_and_is_not_regranted(tmp_path):
+    c, root, now, _ = fixture(tmp_path)
+    row = request(c, root)
+    with c.leadership():
+        c.tick(recovery_margin=0)
+        assert c.get(row["id"])["state"] == "granted"
+        assert _committed(c) == 70
+        with c.db(write=True) as db:
+            db.execute("UPDATE requests SET pid=2147483000 WHERE id=?", (row["id"],))
+        c.tick(recovery_margin=0)
+        after = c.get(row["id"])
+        assert after["state"] == "waiting" and after["grant_id"] == ""
+        assert _committed(c) == 0
+        now[0] += 10000
+        c.tick(recovery_margin=0)
+        assert c.get(row["id"])["state"] == "waiting"
+        assert _committed(c) == 0
+
+
+def test_reattached_live_owner_of_released_request_is_granted_again(tmp_path):
+    c, root, now, _ = fixture(tmp_path)
+    thread = str(uuid.uuid4())
+    row = request(c, root, thread=thread)
+    with c.leadership():
+        c.tick(recovery_margin=0)
+        with c.db(write=True) as db:
+            db.execute("UPDATE requests SET pid=2147483000 WHERE id=?", (row["id"],))
+        c.tick(recovery_margin=0)
+        assert c.get(row["id"])["state"] == "waiting"
+        again = request(c, root, thread=thread)
+        assert again["id"] == row["id"]
+        c.tick(recovery_margin=0)
+        assert c.get(row["id"])["state"] == "granted"
+        assert _committed(c) == 70
+
+
+def test_dead_owner_without_thread_is_still_cancelled(tmp_path):
+    c, root, _, _ = fixture(tmp_path)
+    row = c.request(root, 70, operation="build", min_free=50, max_used_percent=99, min_inodes=10)
+    with c.leadership():
+        c.tick(recovery_margin=0)
+        with c.db(write=True) as db:
+            db.execute("UPDATE requests SET pid=2147483000 WHERE id=?", (row["id"],))
+        c.tick(recovery_margin=0)
+        assert c.get(row["id"])["state"] == "cancelled"
+        assert _committed(c) == 0
+
+
+def test_serve_refuses_outside_the_service_unit(tmp_path):
+    # Chats ran `serve` in their own shell; that stole the lock from the
+    # systemd unit (crash loop for days) and cleanup stopped with the chat.
+    env = {k: v for k, v in os.environ.items() if k != disk.FOREGROUND_ENV}
+    result = subprocess.run(
+        [sys.executable, str(disk.Path(disk.__file__)), "serve",
+         "--state-root", str(tmp_path / "host")],
+        capture_output=True, text=True, env=env, timeout=30,
+    )
+    assert result.returncode == 2
+    assert disk.SERVICE_UNIT in result.stderr
+    assert not (tmp_path / "host" / "leader.json").exists()
+
+
+def test_leadership_waits_for_a_held_lock_instead_of_failing(tmp_path):
+    c, _root, _now, _usage = fixture(tmp_path)
+    other = disk.Coordinator(tmp_path / "host")
+    stop = threading.Event()
+    with c.leadership() as elected:
+        assert elected is True
+        with pytest.raises(BlockingIOError):
+            with other.leadership():
+                pass
+        outcome = []
+        waiter = threading.Thread(target=lambda: outcome.append(
+            _enter(other, stop)))
+        waiter.start()
+        waiter.join(0.5)
+        assert waiter.is_alive()  # waits while the lock is held
+    waiter.join(10)
+    assert outcome == [True]  # takes over once the holder releases
+    stop.set()
+    other.__dict__.pop("_leader", None)
+    # A stop request while waiting returns without leadership.
+    with c.leadership():
+        with other.leadership(wait_until=lambda: True) as elected:
+            assert elected is False
+
+
+def _enter(coordinator, stop):
+    with coordinator.leadership(wait_until=stop.is_set) as elected:
+        return elected
+
+
+def test_worktree_expiry_runs_with_the_24_hour_inactivity_window(tmp_path, monkeypatch):
+    c, root, _now, _usage = fixture(tmp_path, kinds=("worktrees",))
+    seen = []
+
+    def fake_run(command, **_kwargs):
+        seen.append(command)
+        payload = ('{"inspected": 0, "deleted": []}' if "expire" in command
+                   else '{"deleted": []}')
+        return subprocess.CompletedProcess(command, 0, payload, "")
+
+    monkeypatch.setattr(disk.subprocess, "run", fake_run)
+    with c.leadership():
+        report = c._cleanup(str(root), "worktrees")
+    expire = next(cmd for cmd in seen if "expire" in cmd)
+    assert expire[expire.index("--max-age-hours") + 1] == "24"
+    assert "error" not in report and "reconcile_error" not in report

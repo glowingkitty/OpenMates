@@ -1,5 +1,7 @@
 <!--
   frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedPreview.svelte
+
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Renderers/ImageGenerateEmbedRenderer.swift
   
   Preview component for Image Generate embeds (images/generate and images/generate_draft).
   Uses UnifiedEmbedPreview as base and provides image-specific details content.
@@ -15,7 +17,7 @@
 -->
 
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { getContext, onDestroy, untrack } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { text } from '@repo/ui';
@@ -26,6 +28,16 @@
   import { imageGenerationAttribution } from './imageGenerationMetadata';
   import { getProviderIconUrl } from '../../../data/providerIcons';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
+  import SvgEmbedImage from '../code/SvgEmbedImage.svelte';
+  import { cardImageFile } from './cardImageFile';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
+  import { EMBED_VERSIONS_ENABLED, embedVersionGeneration } from '../../../services/rustCore/embeds/messageEmbedVersion';
+  import { findMessageId, rememberFullscreenVersion, resolveImageVersionView, versionBadgeLabel } from './imageVersionScope';
+  import { EMPTY_SVG_DRAFT, mergeSvgDraft, readSvgDraft, shouldShowDraftStatusOnly, shouldShowSvgDraft, svgDraftStageLabelKey, type SvgDraftStage, type SvgDraftState } from './svgDraft';
+  import AiGeneratedBadge from '../AiGeneratedBadge.svelte';
+  import { trackContainedInset, type ContainedInset } from '../containedMedia';
+  import ImageModifyProgress from './ImageModifyProgress.svelte';
+  import { EMPTY_IMAGE_MODIFY, isModifySkill, mergeImageModify, readImageModify, type ImageModifyState } from './imageDraft';
   
   /**
    * Image embed content structure from the backend
@@ -60,7 +72,7 @@
     /** Unique embed ID */
     id: string;
     /** Skill identifier ('generate' or 'generate_draft') - determines display title */
-    skillId?: 'generate' | 'generate_draft';
+    skillId?: 'generate' | 'generate_draft' | 'modify';
     /** Image prompt */
     prompt?: string;
     /** Model ID used for generation (e.g., "flux-schnell", "gemini-3-pro-image-preview") */
@@ -88,6 +100,16 @@
     inputEmbedIds?: string[];
     /** Direct preview image URL — bypasses S3 decrypt for store examples */
     previewImageUrl?: string;
+    /** Initial partial/complete SVG source while a vector image is being drawn */
+    svgDraft?: string;
+    /** images.modify progress while processing (step, attempt, draft picture) */
+    modifyProgress?: ImageModifyState;
+    /** Initial drawing stage */
+    draftStage?: SvgDraftStage;
+    /** Version this card shows (previews; in a chat message the Rust core decides it) */
+    version?: number;
+    /** Number of versions of the image (previews; badge only when above one) */
+    versionCount?: number;
   }
 
   let {
@@ -105,9 +127,16 @@
     taskId: taskIdProp,
     isMobile = false,
     onFullscreen,
+    modifyProgress: modifyProgressProp,
     inputEmbedIds: inputEmbedIdsProp,
     previewImageUrl: previewImageUrlProp,
+    svgDraft: svgDraftProp,
+    draftStage: draftStageProp,
+    version: versionProp,
+    versionCount: versionCountProp,
   }: Props = $props();
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   
   // Local reactive state — updated via handleEmbedDataUpdated callback
   let localPrompt = $state<string | undefined>(undefined);
@@ -122,6 +151,24 @@
   let localError = $state<string | undefined>(undefined);
   let localTaskId = $state<string | undefined>(undefined);
   let localInputEmbedIds = $state<string[] | undefined>(undefined);
+  let svgDraftState = $state<SvgDraftState>(EMPTY_SVG_DRAFT);
+  let modifyState = $state<ImageModifyState>(EMPTY_IMAGE_MODIFY);
+
+  // Message-scoped version (images-generate.revision.message-shows-its-version):
+  // a card in a chat message shows the version valid at that message, which the
+  // Rust core resolves. Outside a message (or without the core) it shows the head.
+  // The card's version is fixed when it mounts (props are read once on purpose).
+  const initialVersion = untrack(() => ({ version: versionProp, count: versionCountProp ?? versionProp }));
+  const explicitVersion = initialVersion.version !== undefined;
+  let shownVersion = $state<number | undefined>(initialVersion.version);
+  let headVersion = $state<number | undefined>(initialVersion.count);
+  let messageId = $state<string | null>(null);
+  let versionReady = $state(!EMBED_VERSIONS_ENABLED || explicitVersion);
+  let latestHeadContent: Record<string, unknown> | null = null;
+  let versionRun = 0;
+  // The card showed a pinned version newer than the head: its mount data is an older version's.
+  let waitedForHead = false;
+  let versionBadge = $derived(versionBadgeLabel(shownVersion, headVersion));
 
   // Decrypted thumbnail URLs for input (reference) images — keyed by embed ID
   // S3 keys retained from the cache so we can release on unmount
@@ -137,6 +184,7 @@
   // Lazy loading: only fetch when the embed scrolls into view
   let isInView = $state(false);
   let containerRef: HTMLElement | undefined = $state(undefined);
+  let pictureInset = $state<ContainedInset | null>(null);
   let observer: IntersectionObserver | undefined = undefined;
   
   // Set up IntersectionObserver for lazy loading
@@ -180,6 +228,8 @@
       localError = errorProp;
       localTaskId = taskIdProp;
       localInputEmbedIds = inputEmbedIdsProp;
+      svgDraftState = { draft: svgDraftProp ?? '', stage: draftStageProp, attempt: undefined };
+      modifyState = modifyProgressProp ?? EMPTY_IMAGE_MODIFY;
       // Direct image URL for store examples — bypasses S3 decrypt
       if (previewImageUrlProp && !imageUrl) imageUrl = previewImageUrlProp;
     }
@@ -191,11 +241,17 @@
   let status = $derived(localStatus);
   let error = $derived(localError);
   let taskId = $derived(localTaskId);
-  let files = $derived(localFiles);
+  // The whole picture: the preview, or the uncropped source of an older cropped preview.
+  let cardFile = $derived(cardImageFile(localFiles));
   let s3BaseUrl = $derived(localS3BaseUrl);
   let aesKey = $derived(localAesKey);
   let aesNonce = $derived(localAesNonce);
   let inputEmbedIds = $derived(localInputEmbedIds);
+  let isModify = $derived(isModifySkill(skillIdProp));
+  let showModifyProgress = $derived(isModify && status === 'processing' && (!!modifyState.stage || !!modifyState.draft));
+  let showSvgDraft = $derived(shouldShowSvgDraft(status, svgDraftState.draft));
+  let showDraftStatusOnly = $derived(shouldShowDraftStatusOnly(status, svgDraftState.draft, svgDraftState.stage));
+  let draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
   
   // Human-readable model name resolved from model ID via frontend metadata
   let modelDisplayName = $derived(imageGenerationAttribution(model, localProvider));
@@ -210,7 +266,7 @@
   let skillName = $derived(
     skillIdProp === 'generate_draft'
       ? $text('embeds.image_generate_draft')
-      : $text('common.generate')
+      : isModify ? $text('embeds.image_modify.title') : $text('common.generate')
   );
   
   
@@ -219,7 +275,7 @@
    * Uses the shared in-memory cache to avoid redundant fetch+decrypt cycles.
    */
   async function loadPreviewImage() {
-    const previewFile = files?.preview;
+    const previewFile = cardFile;
     const s3Key = previewFile?.s3_key;
     if (!s3Key || !s3BaseUrl || !aesKey || !hasMediaEncryptionMetadata(previewFile, aesNonce)) {
       console.debug('[ImageGenerateEmbedPreview] Missing data for image load:', {
@@ -277,7 +333,7 @@
   // The IntersectionObserver sets isInView=true when the embed is within 200px of the viewport,
   // preventing all images in a long chat from loading simultaneously.
   $effect(() => {
-    if (isInView && status === 'finished' && files?.preview?.s3_key && s3BaseUrl && aesKey && hasMediaEncryptionMetadata(files.preview, aesNonce) && !imageUrl && !isLoadingImage) {
+    if (isInView && versionReady && status === 'finished' && cardFile?.s3_key && s3BaseUrl && aesKey && hasMediaEncryptionMetadata(cardFile, aesNonce) && !imageUrl && !isLoadingImage) {
       loadPreviewImage();
     }
   });
@@ -292,28 +348,117 @@
       hasContent: !!data.decodedContent
     });
     
+    // images.modify: step and draft picture while running, dropped once it ends
+    if (data.status !== 'processing') modifyState = EMPTY_IMAGE_MODIFY;
+    else if (data.decodedContent) modifyState = mergeImageModify(modifyState, readImageModify(data.decodedContent));
     // Update status
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
       localStatus = data.status;
     }
     if (data.status !== 'processing') {
       storeResolved = true;
+      // Finished/error/cancelled: drop the live drawing so the final rendering shows
+      svgDraftState = EMPTY_SVG_DRAFT;
+    } else if (data.decodedContent) {
+      // A shorter draft replaces the old one (correction round restarted the drawing)
+      const next = readSvgDraft(data.decodedContent);
+      svgDraftState = mergeSvgDraft(svgDraftState, next);
     }
 
-    // Update content from decoded data
+    // Update content from decoded data. In a chat message the head may be a
+    // later version than this message shows, so the core decides first.
     if (data.decodedContent) {
-      const content = data.decodedContent as unknown as ImageEmbedData;
-      
-      if (content.prompt) localPrompt = content.prompt;
-      if (content.model) localModel = content.model;
-      if (content.provider) localProvider = content.provider;
-      if (content.s3_base_url) localS3BaseUrl = content.s3_base_url;
-      if (content.files) localFiles = content.files;
-      if (content.aes_key) localAesKey = content.aes_key;
-      if (content.aes_nonce) localAesNonce = content.aes_nonce;
-      if (content.error) localError = content.error;
-      if (Array.isArray(content.input_embed_ids)) localInputEmbedIds = content.input_embed_ids;
+      if (messageId && !explicitVersion) {
+        latestHeadContent = data.decodedContent;
+        void refreshVersion();
+      } else {
+        applyContent(data.decodedContent);
+      }
     }
+  }
+
+  function applyContent(decoded: Record<string, unknown>) {
+    const content = decoded as unknown as ImageEmbedData;
+    // Another version has other files: drop the picture of the previous one.
+    const nextKey = cardImageFile(content.files)?.s3_key;
+    if (content.files && nextKey !== cardImageFile(localFiles)?.s3_key) {
+      if (retainedS3Key) releaseCachedImage(retainedS3Key);
+      retainedS3Key = undefined;
+      imageUrl = undefined;
+    }
+    if (content.prompt) localPrompt = content.prompt;
+    if (content.model) localModel = content.model;
+    if (content.provider) localProvider = content.provider;
+    if (content.s3_base_url) localS3BaseUrl = content.s3_base_url;
+    if (content.files) localFiles = content.files;
+    if (content.aes_key) localAesKey = content.aes_key;
+    if (content.aes_nonce) localAesNonce = content.aes_nonce;
+    if (content.error) localError = content.error;
+    if (Array.isArray(content.input_embed_ids)) localInputEmbedIds = content.input_embed_ids;
+  }
+
+  /** Ask the core which version this card's message shows and apply its content. */
+  async function refreshVersion() {
+    if (!messageId || explicitVersion) return;
+    const run = ++versionRun;
+    try {
+      const view = await resolveImageVersionView(messageId, id, sourceChatId, { headContent: waitedForHead && !latestHeadContent });
+      if (run !== versionRun) return;
+      if (!view) {
+        shownVersion = undefined;
+        headVersion = undefined;
+        if (latestHeadContent) applyContent(latestHeadContent);
+        versionReady = true;
+        return;
+      }
+      shownVersion = view.version;
+      headVersion = view.headVersion;
+      if (view.waitingForHead) {
+        // The message pins a version this device stores with the next head update;
+        // messageEmbedVersion re-resolves the card once the head reached it.
+        waitedForHead = true;
+        latestHeadContent = null;
+        versionReady = false;
+        return;
+      }
+      waitedForHead = false;
+      if (view.content) {
+        storeResolved = true;
+        localStatus = 'finished';
+        applyContent(view.content);
+      } else if (latestHeadContent) {
+        applyContent(latestHeadContent);
+      }
+      versionReady = true;
+    } catch (versionError) {
+      if (run !== versionRun) return;
+      const code = (versionError as { code?: unknown })?.code;
+      console.error('[ImageGenerateEmbedPreview] Version of this message unavailable:', code ?? versionError);
+      imageError = typeof code === 'string' ? code : 'embed_version_unavailable';
+      versionReady = true;
+    }
+  }
+
+  // Find the card's message once it is attached, then follow pins and head updates.
+  $effect(() => {
+    if (!EMBED_VERSIONS_ENABLED || explicitVersion || !containerRef) return;
+    const element = containerRef;
+    let cancelled = false;
+    void findMessageId(element).then((found) => {
+      if (cancelled) return;
+      messageId = found;
+      if (!found) versionReady = true;
+    });
+    return () => { cancelled = true; };
+  });
+  $effect(() => {
+    void $embedVersionGeneration;
+    if (messageId) void refreshVersion();
+  });
+
+  function openFullscreen() {
+    rememberFullscreenVersion(id, shownVersion);
+    onFullscreen();
   }
 </script>
 
@@ -328,21 +473,28 @@
   {skillName}
   {taskId}
   {isMobile}
-  {onFullscreen}
+  onFullscreen={openFullscreen}
   showStatus={true}
   showSkillIcon={true}
   hasFullWidthImage={status === 'finished' && !!imageUrl && !error}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
-    <ResultEmbedCard title={prompt || skillName} sourceLabel={modelDisplayName} faviconUrl={modelIconUrl} mediaOnly={status === 'finished' && !!imageUrl && !error} mediaFit="contain">
+    <ResultEmbedCard title={prompt || skillName} sourceLabel={isModify ? $text('embeds.image_modify.title') : modelDisplayName} faviconUrl={isModify ? undefined : modelIconUrl} mediaOnly={status === 'finished' && !!imageUrl && !error} mediaFit="contain">
       {#snippet media()}
-    <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
+    <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef} data-embed-version={shownVersion ?? 1}>
       {#if status === 'finished' && !error && imageUrl}
         <!-- Finished state with loaded image: show decrypted image with model info overlay -->
         <div class="image-content">
           <div class="image-container">
-            <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" />
+            <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" data-testid="image-generate-preview-image" data-embed-version={shownVersion ?? 1} use:trackContainedInset={(inset) => (pictureInset = inset)} />
+            {#if versionBadge}
+              <span class="version-badge" data-testid="image-generate-version-badge">{versionBadge}</span>
+            {/if}
+            <!-- The picture is letterboxed (object-fit: contain); the frame matches the visible picture so the badge sits on it. -->
+            <div class="picture-frame" style:inset={pictureInset ? `${pictureInset.y}px ${pictureInset.x}px` : '0'}>
+              <AiGeneratedBadge corner="bottom-left" detail={isModify ? undefined : modelDisplayName} />
+            </div>
           </div>
 
         </div>
@@ -352,6 +504,21 @@
           <span class="error-icon-small">!</span>
           <span>{imageError}</span>
         </div>
+      {:else if showModifyProgress}
+        <ImageModifyProgress state={modifyState} title={prompt || skillName} card />
+      {:else if showSvgDraft}
+        <!-- Vector author is still drawing: render the partial SVG progressively -->
+        <div
+          class="svg-draft"
+          data-testid="image-generate-svg-draft"
+          data-stage={svgDraftState.stage}
+          data-attempt={svgDraftState.attempt}
+        >
+          <SvgEmbedImage code={svgDraftState.draft} title={prompt || skillName} streaming={true} />
+          {#if draftStageLabelKey}
+            <span class="svg-draft-stage" data-testid="image-generate-svg-draft-stage">{$text(draftStageLabelKey)}</span>
+          {/if}
+        </div>
       {:else if status !== 'error'}
         <!-- Processing state OR finished-but-still-loading-image: show the prompt text -->
         <div class="prompt-content">
@@ -359,6 +526,11 @@
             <div class="skeleton-line long"></div>
             <div class="skeleton-line short"></div>
           </div>
+          {#if showDraftStatusOnly && draftStageLabelKey}
+            <div class="draft-status" data-testid="image-generate-draft-status" data-stage={svgDraftState.stage}>
+              <span class="draft-status-label" data-testid="image-generate-svg-draft-stage">{$text(draftStageLabelKey)}</span>
+            </div>
+          {/if}
         </div>
       {:else}
         <!-- Error state -->
@@ -403,6 +575,51 @@
   
   
   
+  /* Live SVG drawing: contained and centered on a letterbox surface like the finished image */
+  .svg-draft {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-media-letterbox);
+  }
+
+  .svg-draft :global(.svg-embed-image) {
+    width: 100%;
+    height: 100%;
+  }
+
+  .svg-draft-stage {
+    position: absolute;
+    left: var(--spacing-4);
+    bottom: var(--spacing-4);
+    padding: var(--spacing-1) var(--spacing-4);
+    border-radius: var(--radius-2);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: var(--font-size-tiny);
+    line-height: 1.3;
+    pointer-events: none;
+  }
+
+  .draft-status {
+    margin-top: var(--spacing-4);
+  }
+
+  .draft-status-label {
+    display: inline-block;
+    padding: var(--spacing-1) var(--spacing-4);
+    border-radius: var(--radius-2);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: var(--font-size-tiny);
+    line-height: 1.3;
+  }
+
   /* Skeleton lines fallback when prompt is not yet available */
   .skeleton-lines {
     display: flex;
@@ -440,6 +657,7 @@
   }
   
   .image-container {
+    position: relative;
     width: 100%;
     flex: 1;
     min-height: 0;
@@ -447,10 +665,35 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-grey-10, #f5f5f5);
+    /* Complete image; letterbox surface is white (light) / black (dark). */
+    background: var(--color-media-letterbox);
   }
   
+  /* Which version of the image this message shows (only when there are several). */
+  .picture-frame {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  .version-badge {
+    position: absolute;
+    top: var(--spacing-4);
+    right: var(--spacing-4);
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-2);
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: var(--font-size-tiny);
+    font-weight: 600;
+    line-height: 1.3;
+    pointer-events: none;
+  }
+
   .preview-image {
+    /* Pinned to the box (not height: 100%): Safari cannot resolve a percentage
+       height inside a flex item, which cropped square images top and bottom. */
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: contain;
@@ -531,9 +774,6 @@
     background: var(--color-grey-80, #333);
   }
   
-  :global(.dark) .image-container {
-    background: var(--color-grey-90, #1a1a1a);
-  }
 
 
 

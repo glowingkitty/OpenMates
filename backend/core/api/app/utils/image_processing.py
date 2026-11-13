@@ -183,9 +183,26 @@ def _apply_c2pa_signing(image_bytes: bytes, metadata: Dict[str, Any], img_format
         logger.error(f"C2PA signing failed: {e}", exc_info=True)
         return image_bytes
 
+# Largest preview box (width, height): twice the 600x400 card media area for sharp displays.
+PREVIEW_MAX_SIZE: Tuple[int, int] = (1200, 800)
+
+
+def contained_preview(img: Image.Image, max_size: Tuple[int, int] = PREVIEW_MAX_SIZE) -> Image.Image:
+    """Scale the whole picture into ``max_size`` keeping its aspect ratio.
+
+    The preview is never cropped (cards letterbox it) and never enlarged.
+    """
+    width, height = img.size
+    scale = min(max_size[0] / width, max_size[1] / height, 1.0)
+    if scale >= 1.0:
+        return img.copy()
+    size = (max(1, round(width * scale)), max(1, round(height * scale)))
+    return img.resize(size, Image.Resampling.LANCZOS)
+
+
 def process_image_for_storage(
     image_bytes: bytes,
-    thumbnail_size: Tuple[int, int] = (600, 400),
+    thumbnail_size: Tuple[int, int] = PREVIEW_MAX_SIZE,
     webp_quality: int = 80,
     metadata: Optional[Dict[str, Any]] = None
 ) -> Dict[str, bytes]:
@@ -254,37 +271,9 @@ def process_image_for_storage(
             full_webp_bytes = _apply_c2pa_signing(full_webp_bytes, metadata, "webp")
         results['full_webp'] = full_webp_bytes
         
-        # 2. Generate Preview WEBP
-        # Logic: 
-        # - Horizontal/Square: 600x400 (crop to fit)
-        # - Vertical: 400px height, keep aspect ratio
-        
-        width, height = img.size
-        is_vertical = height > width
-        
-        if is_vertical:
-            # Vertical: fixed height 400, proportional width
-            new_height = 400
-            new_width = int(width * (new_height / height))
-            preview_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        else:
-            # Horizontal/Square: 600x400
-            target_ratio = 600 / 400
-            current_ratio = width / height
-            
-            if current_ratio > target_ratio:
-                # Wider than target: crop sides
-                new_width = int(height * target_ratio)
-                left = (width - new_width) / 2
-                img_cropped = img.crop((left, 0, left + new_width, height))
-            else:
-                # Taller than target: crop top/bottom
-                new_height = int(width / target_ratio)
-                top = (height - new_height) / 2
-                img_cropped = img.crop((0, top, width, top + new_height))
-                
-            preview_img = img_cropped.resize((600, 400), Image.Resampling.LANCZOS)
-            
+        # 2. Generate Preview WEBP: the whole picture, never cropped.
+        preview_img = contained_preview(img, thumbnail_size)
+
         preview_webp_io = io.BytesIO()
         # Preview also gets metadata but can use lower quality
         preview_img.save(preview_webp_io, format="WEBP", quality=webp_quality, xmp=xmp_data)
@@ -352,30 +341,7 @@ def process_svg_for_storage(
 
         # Convert the rasterized PNG to WEBP via PIL for consistent format and quality.
         img = Image.open(io.BytesIO(png_bytes))
-        width, height = img.size
-
-        # Apply the same vertical / horizontal preview sizing logic as raster images:
-        # - Vertical (height > width): fixed 400px height, proportional width
-        # - Horizontal / Square: crop to 600x400
-        is_vertical = height > width
-        if is_vertical:
-            new_height = 400
-            new_width = int(width * (new_height / height))
-            preview_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        else:
-            target_ratio = 600 / 400
-            current_ratio = width / height
-            if current_ratio > target_ratio:
-                # Wider than target: crop sides
-                new_width = int(height * target_ratio)
-                left = (width - new_width) / 2
-                img_cropped = img.crop((left, 0, left + new_width, height))
-            else:
-                # Taller than target: crop top/bottom
-                new_height = int(width / target_ratio)
-                top = (height - new_height) / 2
-                img_cropped = img.crop((0, top, width, top + new_height))
-            preview_img = img_cropped.resize((600, 400), Image.Resampling.LANCZOS)
+        preview_img = contained_preview(img)
 
         preview_io = io.BytesIO()
         xmp_data = _generate_ai_xmp(metadata) if metadata else None

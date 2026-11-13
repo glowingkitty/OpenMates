@@ -11,6 +11,7 @@ import { validateUserFlows, type UserPlanViewModel, type EncryptedUserPlanRecord
 import type { UserTaskViewModel, EncryptedUserTaskRecord, UserTaskKeyWrapperRecord } from "./userTaskService";
 import { decryptWithEmbedKey, unwrapEmbedKeyWithChatKey } from "./cryptoService";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { decideShareState } from "./shareState/decide";
 
 interface SharedChatManifestPayload {
   plans?: EncryptedUserPlanRecord[];
@@ -45,7 +46,6 @@ export interface SharedChatDetails {
 }
 
 const EMPTY_WINDOW: SharedChatPageWindow = { hasMoreBefore: false, startCursor: null };
-const MAX_WRAPPER_PAGES = 20;
 
 function sharedAuxiliaryUrl(chatId: string, kind: "plans" | "tasks", cursor?: SharedChatCursor | null): string {
   const path = `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}`;
@@ -55,40 +55,30 @@ function sharedAuxiliaryUrl(chatId: string, kind: "plans" | "tasks", cursor?: Sh
 }
 
 async function fetchEncryptedPage(chatId: string, kind: "plans" | "tasks", cursor?: SharedChatCursor | null): Promise<SharedChatEncryptedPage> {
-  if (cursor && (!Number.isSafeInteger(cursor.timestamp) || cursor.timestamp < 0 || !cursor.id)) {
-    throw new Error(`Shared ${kind} cursor was invalid`);
-  }
+  await decideShareState("detailsCursorCheck", { kind, cursor });
   const response = await storageArchiveFetch(sharedAuxiliaryUrl(chatId, kind, cursor));
   if (!response.ok) throw new Error(`Shared ${kind} page failed (${response.status})`);
   const page = await response.json() as SharedChatEncryptedPage;
-  if (!Array.isArray(page.items) || page.items.length > 20 || !Array.isArray(page.key_wrappers)
-    || typeof page.has_more_before !== "boolean" || !Number.isSafeInteger(page.payload_bytes)
-    || Number(page.payload_bytes) < 0 || Number(page.payload_bytes) > 131_072) {
-    throw new Error(`Shared ${kind} page was invalid`);
-  }
   const idField = kind === "plans" ? "plan_id" : "task_id";
-  const positions = page.items.map((item) => ({
-    timestamp: item.updated_at,
-    id: (item as unknown as Record<string, unknown>)[idField] as string,
-    primaryChatId: item.primary_chat_id,
-  }));
-  if (positions.some((position, index) => !Number.isSafeInteger(position.timestamp)
-    || typeof position.id !== "string" || !position.id
-    || (position.primaryChatId != null && position.primaryChatId !== chatId)
-    || (index > 0 && (position.timestamp < positions[index - 1].timestamp
-      || (position.timestamp === positions[index - 1].timestamp && position.id <= positions[index - 1].id))))) {
-    throw new Error(`Shared ${kind} page identities or order were invalid`);
-  }
-  const oldest = positions[0];
-  if (page.items.length && (!page.start_cursor || page.start_cursor.timestamp !== oldest.timestamp
-    || page.start_cursor.id !== oldest.id)) throw new Error(`Shared ${kind} page cursor was invalid`);
-  if (page.has_more_before && !page.start_cursor && !page.oversized_id) {
-    throw new Error(`Shared ${kind} page cannot advance`);
-  }
-  if (cursor && page.start_cursor && (page.start_cursor.timestamp > cursor.timestamp
-    || (page.start_cursor.timestamp === cursor.timestamp && page.start_cursor.id >= cursor.id))) {
-    throw new Error(`Shared ${kind} cursor did not advance`);
-  }
+  // Rust (flag on) or the TS rule validates shape, identities, order and cursor movement.
+  await decideShareState("detailsPageCheck", {
+    kind,
+    chat_id: chatId,
+    cursor,
+    page: {
+      items_is_array: Array.isArray(page.items),
+      items: Array.isArray(page.items) ? page.items.map((item) => ({
+        updated_at: item.updated_at,
+        id: (item as unknown as Record<string, unknown>)[idField],
+        primary_chat_id: item.primary_chat_id,
+      })) : undefined,
+      key_wrappers_is_array: Array.isArray(page.key_wrappers),
+      has_more_before: page.has_more_before,
+      payload_bytes: page.payload_bytes,
+      start_cursor: page.start_cursor,
+      oversized_id: page.oversized_id,
+    },
+  });
   return page;
 }
 
@@ -102,55 +92,57 @@ async function fetchExactOversizedItem(chatId: string, kind: "plans" | "tasks", 
     key_wrappers?: SharedChatEncryptedPage["key_wrappers"];
     key_wrapper_window?: SharedChatEncryptedPage["key_wrapper_window"];
   };
-  if (!exact.item || !Array.isArray(exact.key_wrappers)) throw new Error(`Shared ${kind} item was invalid`);
-  const itemId = kind === "plans" ? (exact.item as EncryptedUserPlanRecord).plan_id
-    : (exact.item as EncryptedUserTaskRecord).task_id;
-  if (itemId !== id || !Number.isSafeInteger(exact.item.updated_at)
-    || (exact.item.primary_chat_id != null && exact.item.primary_chat_id !== chatId)) {
-    throw new Error(`Shared ${kind} item identity changed`);
-  }
-  return { items: [exact.item], key_wrappers: exact.key_wrappers,
+  const record = exact.item;
+  await decideShareState("detailsExactCheck", {
+    kind,
+    chat_id: chatId,
+    id,
+    exact: {
+      has_item: !!record,
+      key_wrappers_is_array: Array.isArray(exact.key_wrappers),
+      item_id: record ? (kind === "plans" ? (record as EncryptedUserPlanRecord).plan_id
+        : (record as EncryptedUserTaskRecord).task_id) : undefined,
+      updated_at: record?.updated_at,
+      primary_chat_id: record?.primary_chat_id,
+    },
+  });
+  const item = record as EncryptedUserPlanRecord | EncryptedUserTaskRecord;
+  return { items: [item], key_wrappers: exact.key_wrappers as SharedChatEncryptedPage["key_wrappers"],
     key_wrapper_window: exact.key_wrapper_window,
-    has_more_before: true, start_cursor: { timestamp: exact.item.updated_at, id }, payload_bytes: 0 };
+    has_more_before: true, start_cursor: { timestamp: item.updated_at, id }, payload_bytes: 0 };
 }
 
 async function completeWrapperWindow(chatId: string, kind: "plans" | "tasks", page: SharedChatEncryptedPage): Promise<void> {
   const itemIds = page.items.map((item) => kind === "plans"
     ? (item as EncryptedUserPlanRecord).plan_id : (item as EncryptedUserTaskRecord).task_id);
   if (!itemIds.length) return;
-  const seen = new Set(page.key_wrappers.map((wrapper) => wrapper.id).filter((id): id is string => !!id));
+  const seen = page.key_wrappers.map((wrapper) => wrapper.id).filter((id): id is string => !!id);
   let window = page.key_wrapper_window;
-  for (let count = 0; window?.has_more_after && count < MAX_WRAPPER_PAGES; count += 1) {
+  for (let count = 0; await decideShareState("detailsWrapperContinue", { window, count }); count += 1) {
+    const step = await decideShareState("detailsWrapperStep", { kind, window: window as NonNullable<typeof window> });
     const query = new URLSearchParams({ item_ids: itemIds.join(",") });
-    if (window.oversized_key_id) query.set("key_id", window.oversized_key_id);
-    else if (window.end_cursor) query.set("after_key_id", window.end_cursor);
-    else throw new Error(`Shared ${kind} key cursor did not advance`);
+    query.set(step.param, step.value);
     const response = await storageArchiveFetch(getApiEndpoint(
       `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}/keys/window?${query}`,
     ));
     if (!response.ok) throw new Error(`Shared ${kind} keys failed (${response.status})`);
     const continuation = await response.json() as Pick<SharedChatEncryptedPage, "key_wrappers" | "key_wrapper_window">;
-    if (!Array.isArray(continuation.key_wrappers) || !continuation.key_wrapper_window) {
-      throw new Error(`Shared ${kind} key window was invalid`);
+    const next = await decideShareState("detailsWrapperAdvance", {
+      kind,
+      window: window as NonNullable<typeof window>,
+      continuation: { key_wrappers_is_array: Array.isArray(continuation.key_wrappers), window: continuation.key_wrapper_window },
+    });
+    const add = await decideShareState("detailsWrapperDedup", {
+      seen,
+      wrappers: continuation.key_wrappers.map((wrapper) => ({ id: wrapper.id })),
+    });
+    for (const index of add) {
+      seen.push(continuation.key_wrappers[index].id as string);
+      page.key_wrappers.push(continuation.key_wrappers[index]);
     }
-    for (const wrapper of continuation.key_wrappers) {
-      if (!wrapper.id || seen.has(wrapper.id)) continue;
-      seen.add(wrapper.id);
-      page.key_wrappers.push(wrapper);
-    }
-    if (window.oversized_key_id) {
-      window = { ...continuation.key_wrapper_window, has_more_after: true,
-        end_cursor: window.oversized_key_id, oversized_key_id: null };
-    } else {
-      if (continuation.key_wrapper_window.has_more_after
-        && continuation.key_wrapper_window.end_cursor === window.end_cursor
-        && !continuation.key_wrapper_window.oversized_key_id) {
-        throw new Error(`Shared ${kind} key cursor did not advance`);
-      }
-      window = continuation.key_wrapper_window;
-    }
+    window = next.window;
   }
-  if (window?.has_more_after) throw new Error(`Shared ${kind} key window exceeded the bounded retry limit`);
+  await decideShareState("detailsWrapperDone", { kind, window });
 }
 
 async function decryptOptional(value: string | null | undefined, key: Uint8Array, context: { chatId: string; fieldName: string }): Promise<string> {
@@ -269,10 +261,7 @@ export async function loadSharedChatDetailsPage(
   let page = await fetchEncryptedPage(chatId, kind, cursor);
   if (page.oversized_id && page.items.length === 0) {
     page = await fetchExactOversizedItem(chatId, kind, page.oversized_id);
-    if (cursor && page.start_cursor && (page.start_cursor.timestamp > cursor.timestamp
-      || (page.start_cursor.timestamp === cursor.timestamp && page.start_cursor.id >= cursor.id))) {
-      throw new Error(`Shared ${kind} oversized cursor did not advance`);
-    }
+    await decideShareState("detailsOversizedAdvance", { kind, cursor, start_cursor: page.start_cursor });
   }
   await completeWrapperWindow(chatId, kind, page);
   const window: SharedChatPageWindow = {
@@ -327,19 +316,16 @@ export interface SharedSubChatPage {
   nextCursor: SharedChatCursor | null;
 }
 
-function validSharedSubChat(row: unknown, parentId: string): row is SharedSubChatRow {
-  if (!row || typeof row !== "object" || Array.isArray(row)) return false;
+/** Fields the page check reads from one raw row (non-objects become null, which is never valid). */
+function subChatRowFields(row: unknown) {
+  if (!row || typeof row !== "object" || Array.isArray(row)) return null;
   const item = row as Record<string, unknown>;
-  return typeof item.id === "string" && item.id.length > 0
-    && item.parent_id === parentId && item.is_sub_chat === true
-    && Number.isSafeInteger(item.created_at) && Number(item.created_at) > 0;
+  return { id: item.id, parent_id: item.parent_id, is_sub_chat: item.is_sub_chat, created_at: item.created_at };
 }
 
 /** Read one requested public ciphertext page; large first rows use the selected-row endpoint. */
 export async function loadSharedSubChatPage(chatId: string, before?: SharedChatCursor | null): Promise<SharedSubChatPage> {
-  if (!chatId || (before && (!Number.isSafeInteger(before.timestamp) || before.timestamp <= 0 || !before.id))) {
-    throw new Error("Invalid shared subchat cursor.");
-  }
+  await decideShareState("subChatCursorCheck", { chat_id: chatId, before });
   const base = `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/sub_chats`;
   const query = before ? `?${new URLSearchParams({ before_timestamp: String(before.timestamp), before_id: before.id })}` : "";
   const response = await storageArchiveFetch(getApiEndpoint(`${base}${query}`));
@@ -348,43 +334,36 @@ export async function loadSharedSubChatPage(chatId: string, before?: SharedChatC
     items?: unknown; has_more_before?: unknown; start_cursor?: unknown;
     oversized_id?: unknown; payload_bytes?: unknown;
   };
-  if (!Array.isArray(page.items) || page.items.length > 20
-    || typeof page.has_more_before !== "boolean"
-    || !Number.isSafeInteger(page.payload_bytes) || Number(page.payload_bytes) < 0
-    || Number(page.payload_bytes) > 131_072
-    || page.items.some((item) => !validSharedSubChat(item, chatId))) {
-    throw new Error("Shared subchat page had invalid bounded metadata.");
-  }
+  const checked = await decideShareState("subChatPageCheck", {
+    chat_id: chatId,
+    page: {
+      items_is_array: Array.isArray(page.items),
+      rows: Array.isArray(page.items) ? page.items.map(subChatRowFields) : undefined,
+      has_more_before: page.has_more_before,
+      payload_bytes: page.payload_bytes,
+      start_cursor: page.start_cursor,
+      oversized_id: page.oversized_id,
+    },
+  });
   let items = page.items as SharedSubChatRow[];
   let cursor: SharedChatCursor | null = null;
-  if (page.oversized_id != null) {
-    if (items.length !== 0 || typeof page.oversized_id !== "string" || !page.oversized_id || !page.has_more_before) {
-      throw new Error("Shared subchat oversized cursor was invalid.");
-    }
-    const selected = await storageArchiveFetch(getApiEndpoint(`${base}/${encodeURIComponent(page.oversized_id)}`));
+  if (checked.mode === "fetch_oversized") {
+    const selected = await storageArchiveFetch(getApiEndpoint(`${base}/${encodeURIComponent(checked.id)}`));
     if (!selected.ok) throw new Error(`Shared oversized subchat failed (${selected.status}).`);
     const body = await selected.json() as { item?: unknown };
-    if (!validSharedSubChat(body.item, chatId) || body.item.id !== page.oversized_id) {
-      throw new Error("Shared oversized subchat identity did not match its cursor.");
-    }
-    items = [body.item];
-    cursor = { timestamp: body.item.created_at, id: body.item.id };
-  } else if (page.start_cursor != null) {
-    const start = page.start_cursor as Record<string, unknown>;
-    if (!Number.isSafeInteger(start.timestamp) || Number(start.timestamp) <= 0 || typeof start.id !== "string" || !start.id) {
-      throw new Error("Shared subchat page cursor was invalid.");
-    }
-    cursor = { timestamp: start.timestamp as number, id: start.id };
+    const identity = await decideShareState("subChatOversizedCheck", {
+      chat_id: chatId, oversized_id: checked.id, item: subChatRowFields(body.item),
+    });
+    items = [body.item as SharedSubChatRow];
+    cursor = identity.cursor;
+  } else {
+    cursor = checked.cursor;
   }
-  if (items.length && (!cursor || cursor.timestamp !== items[0].created_at || cursor.id !== items[0].id
-    || items.some((item, index) => index > 0 && (item.created_at < items[index - 1].created_at
-      || (item.created_at === items[index - 1].created_at && item.id <= items[index - 1].id))))) {
-    throw new Error("Shared subchat page was not a contiguous chronological window.");
-  }
-  if (page.has_more_before && !cursor) throw new Error("Shared subchat page did not provide its next cursor.");
-  if (before && cursor && (cursor.timestamp > before.timestamp
-    || (cursor.timestamp === before.timestamp && cursor.id >= before.id))) {
-    throw new Error("Shared subchat cursor did not advance.");
-  }
-  return { items, hasMoreBefore: page.has_more_before, nextCursor: cursor };
+  await decideShareState("subChatFinalCheck", {
+    rows: items.map((item) => ({ id: item.id, created_at: item.created_at })),
+    cursor,
+    has_more_before: page.has_more_before as boolean,
+    before,
+  });
+  return { items, hasMoreBefore: page.has_more_before as boolean, nextCursor: cursor };
 }

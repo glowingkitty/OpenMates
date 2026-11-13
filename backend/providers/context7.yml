@@ -66,12 +66,12 @@ rate_limits:
 # Additional costs:
 # - LLM library selection: ~100-500 tokens via Groq/Cerebras (minimal, ~1-2 credits)
 #
-# Converting to OpenMates credits (1 credit ≈ €0.001 ≈ $0.001):
-# - Base cost: $0.02 / $0.001 = 20 credits
-# - LLM library selection overhead: absorbed by OpenMates
-#
-# Final pricing:
-# - Users are charged 20 credits per get_docs request
-# - This covers Context7 API costs (we absorb the LLM selection overhead)
+# Cost-plus: $0.02 x 1.5 = 30 credits per get_docs request (LLM library selection absorbed).
 pricing:
-  per_request_credits: 20 # 20 credits per get_docs request
+  per_request_credits: 30
+supplier_costs:
+  per_request_credits:
+    price: 0.02
+    currency: USD
+    source_url: https://context7.com/plans
+    note: 2 API calls per request at $10 per 1,000 calls

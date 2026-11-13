@@ -359,6 +359,8 @@ class UsageMethods:
             # Save token fields for skills whose billing directly depends on provider token usage.
             should_save_tokens = (app_id, skill_id) in {
                 ("ai", "ask"), ("code", "image_to_html"), ("workflows", "create-or-modify"),
+                # Memory suggestion drafts are token-billed post-processor calls.
+                ("ai", "memory_update_preview"), ("ai", "memory_create_draft"),
             }
             
             if actual_input_tokens is not None or actual_output_tokens is not None:

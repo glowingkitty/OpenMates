@@ -487,7 +487,7 @@ enum WatchEmbedPreviewMapper {
             return .image
         case .recording:
             return .audioRecording
-        case .codeCode, .codeGetDocs, .codeRepo, .codeNotebook, .codeApplication:
+        case .codeCode, .codeGetDocs, .codeRepo, .codeNotebook, .codeApplication, .codeTestResult:
             return .code
         case .pdf:
             return .pdf
@@ -970,7 +970,7 @@ enum WatchMessageContentSanitizer {
         case "ice": return "ICE"
         case "ic": return "IC"
         case "ec": return "EC"
-        case "ExampleCoach", "ExampleCoachzug": return "ExampleCoach"
+        case "examplecoach", "examplecoachzug": return "ExampleCoach"
         default:
             return raw.count <= 4 ? raw.uppercased() : raw.capitalized
         }

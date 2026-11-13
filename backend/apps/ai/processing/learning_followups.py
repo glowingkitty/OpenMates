@@ -8,7 +8,10 @@ from backend.apps.ai.processing.jev_decisions import (
     evaluate_jev_decisions,
     choice_value,
 )
-from backend.shared.python_utils.learning_mode import filter_learning_mode_suggestions
+from backend.shared.python_utils.learning_mode import (
+    filter_learning_mode_suggestions,
+    is_collaborative_build_enabled,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +38,10 @@ async def filter_learning_followups(
     model_id: Optional[str],
 ) -> List[str]:
     """Check each chip against the pending exercise instead of a word blacklist alone."""
-    suggestions = filter_learning_mode_suggestions(suggestions)
+    suggestions = filter_learning_mode_suggestions(
+        suggestions,
+        collaborative_build=is_collaborative_build_enabled(teaching_context.get("learning_mode")),
+    )
     pending_numerical_question = (
         "interactive_question" in assistant_response or "?" in assistant_response
     ) and (

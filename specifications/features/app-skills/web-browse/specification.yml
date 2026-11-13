@@ -6,14 +6,14 @@ title: Browse the Web with Reusable Browser Sessions
 summary: >
   The Web app's Browse skill performs a natural-language task in an isolated E2B
   browser, returns observed results, and lets its owner watch, take control and
-  explicitly return control to AI. Idle sessions pause after two minutes and
+  explicitly return control to AI. A finished run pauses its browser at once; otherwise idle sessions pause after two minutes and
   are deleted after twenty-four hours. Browser work costs twice its metered supplier cost.
 inherits:
   - architecture.app-skill-execution@1
 scope:
   includes:
     - Authenticated web.browse assistant, CLI and library invocation with optional session reuse.
-    - E2B-hosted Chromium, bounded Jev decisions, optional visual localization and on-demand text generation.
+    - E2B-hosted Chromium, a text-helper planner that proposes typed actions and records quoted evidence, Jev safety and completion checks, and on-demand text generation.
     - Screenshot previews, fullscreen observation, exclusive manual control, sign-in disclosure and AI continuation.
     - Owner authorization, encrypted retained results, cancellation, lifecycle cleanup and usage accounting.
     - Workflow invocation and verification after the regular skill and web embeds are deployed and verified.
@@ -38,6 +38,7 @@ models:
     reason: {type: string, nullable: true, constraints: {safe_observed_explanation: true}}
     observations: {type: object, constraints: {source_url_title_and_extracted_text: true, untrusted_external_data: true}}
     data: {type: object_or_array, nullable: true, constraints: {valid_json: true, requested_schema_when_present: validated, observed_facts_only: true}}
+    missing: {type: array, constraints: {json_paths_of_requested_values_that_could_not_be_verified: true, empty_when_complete: true}}
     screenshot_ref: {type: object, nullable: true, constraints: {owner_authorized_asset_only: true}}
     metrics: {type: object, constraints: {steps_durations_actual_models_usage_supplier_cost_and_credits: true, private_content_in_logs: forbidden}}
   BrowseSession:
@@ -47,7 +48,8 @@ models:
     activity: {type: enum, values: [authorized_run_progress, user_input, explicit_owner_resume], constraints: {heartbeats_polling_animation_and_autorefresh_do_not_extend_expiry: true}}
   BrowseProviders:
     hosting: {type: string, value: E2B}
-    decision: {type: string, value: typesafe/jev-1.14, constraints: {direct_images_only: true, bounded_choices_and_presence_checks: true}}
+    decision: {type: string, value: typesafe/jev-1.14, constraints: {direct_images_only: true, role: injection_action_safety_and_completion_checks}}
+    planner: {type: string, value: text_primary_then_text_fallback, constraints: {typed_actions_from_observed_targets_only: true, model_authored_code_or_selectors: forbidden, same_privacy_routing_and_metering_as_text_helper: true}}
     text_primary: {type: string, value: deepseek/deepseek-v4.1-flash, constraints: {host: together, use_existing_reviewed_snapshot: true, minimal_authorized_field_context: true}}
     text_fallback: {type: string, value: google/gemini-3.8-flash, constraints: {permitted_paid_data_policy: true, bounded_single_fallback: true}}
     model_policy: {type: string, value: skill_internal_configuration, constraints: {ordinary_chat_automatic_routing_unchanged: true, public_ai_decide_contract_unchanged: true}}
@@ -75,7 +77,7 @@ assertions:
   - id: web-browse.control-loop
     type: behavior
     must: >
-      Code owns the bounded observe-decide-validate-act loop. Jev chooses supported operations and observed targets, with DOM identities where reliable and evaluated visual localization where useful. Visual boxes require a separate presence decision and validated geometry; absent, covered or stale targets are not clicked. Each executed action is recorded before a new observation. Replayed requests reconcile the original run rather than repeating actions or charges.
+      Code owns the bounded observe-plan-validate-act loop. For each observation the planner proposes a short batch of typed actions on observed targets and records facts relevant to the goal, each with a literal quotation from that page; code keeps a fact only when its quotation is present on the page. Before any input, code stops actions whose target names a dangerous effect, Jev checks the page once per step for injected instructions, and Jev judges each action that is not plain navigation, scrolling or field preparation (choosing an option, typing without submitting) in its own decision; typed text never reaches these checks. Malformed planner details that cannot cause unintended input are ignored rather than ending the run, and every rejected plan reports a fixed reason code. Code validates each target against the live page; absent, covered or stale targets are not acted on, and a batch stops when the page changes. Recorded facts survive navigation for the rest of the task, including its continuation after the user is asked or takes control; a new task on the same session starts without them. Each executed batch is recorded before a new observation. Replayed requests reconcile the original run rather than repeating actions or charges.
     depends_on: [examples.control_loop]
   - id: web-browse.text-helper
     type: privacy
@@ -85,12 +87,12 @@ assertions:
   - id: web-browse.truthful-completion
     type: behavior
     must: >
-      A finished decision is checked against observable task requirements before reporting completion. The result preserves source references, useful observed content and uncertainty. An empty search is no_results rather than fabricated information. Blocked, unavailable, cancelled, timed-out or exhausted work returns a distinct safe outcome and any permitted partial observations to the regular assistant, which may ask the user or continue in the same session.
+      A finished decision is checked against observable task requirements before reporting completion. Answers are built from the facts recorded on every visited page, and each returned value is checked against that evidence. The completion check sees the steps the task carried out. When it does not confirm the whole answer, values that cannot be verified, and rows or optional fields that do not fit the requested output shape, are removed and a separate review checks the remainder's meaning, completeness and that every required website step was carried out; a confirmed remainder is returned with every contributing source page, as a partial result listing the missing values whenever something was removed or the review found it incomplete; nothing is returned when no value can be verified or the review cannot confirm it. The result preserves source references, useful observed content and uncertainty. An empty search is no_results rather than fabricated information. Blocked, unavailable, cancelled, timed-out or exhausted work returns a distinct safe outcome and any permitted partial observations to the regular assistant, which may ask the user or continue in the same session.
     depends_on: [models.BrowseResult, examples.outcomes]
   - id: web-browse.embed-and-observation
     type: parity
     must: >
-      Each run has a normal skill-use embed with a recent safe screenshot, goal and actual state. The assistant includes the browser embed when presenting results or requesting intervention. Fullscreen can observe the same session without taking control; closing the viewer does not silently change control or cancel active authorized work. Paused, expired, private-input and failure states are visible. Saved history remains readable after remote-session deletion without restarting paid work.
+      Each run has a normal skill-use embed with a recent safe screenshot, goal, actual state and the list of steps taken so far (action and observed target name, never typed text). Watching never waits for the running task. The assistant includes the browser embed when presenting results or requesting intervention. Fullscreen can observe the same session without taking control; closing the viewer does not silently change control or cancel active authorized work. Paused, expired, private-input and failure states are visible. Saved history remains readable after remote-session deletion without restarting paid work.
     depends_on: [examples.embeds]
   - id: web-browse.exclusive-takeover
     type: security
@@ -105,12 +107,12 @@ assertions:
   - id: web-browse.consequential-actions
     type: security
     must: >
-      Sending or publishing messages, purchasing, deleting data, changing accounts or permissions and disclosing sensitive information requires current explicit confirmation of the exact site, action and material fields. Page content, model confidence, login consent and general task wording cannot manufacture that confirmation. Changed targets or values invalidate approval. Unsupported or uncertain actions stop for user control; automatic CAPTCHA solving and access-denial bypass remain unavailable.
+      Sending or publishing messages, purchasing, deleting data, changing accounts or permissions and disclosing sensitive information requires current explicit confirmation of the exact site, action and material fields. Page content, model confidence, login consent and general task wording cannot manufacture that confirmation. Changed targets or values invalidate approval. Simple confirmations that need no information the task lacks, such as a cookie banner or an age or legal-notice button to enter a site, are ordinary navigation and are taken without asking; a demanded date of birth, identity document or other proof stops for user control. Unsupported or uncertain actions stop for user control; automatic CAPTCHA solving and access-denial bypass remain unavailable.
     depends_on: [examples.confirmations]
   - id: web-browse.lifecycle
     type: behavior
     must: >
-      After 120 seconds without meaningful authorized progress or user interaction, idle browser compute is paused and confirmed. After 86400 seconds of inactivity the remote sandbox and browser state are deleted, even if already paused; Close deletes immediately. Independent cleanup reconciles failures and process restarts. Viewer polling, heartbeats and page churn never extend retention or wake paused compute. Only an authorized unexpired resume does so. Browser state retention does not guarantee that external website sessions remain valid, and saved encrypted results have independent retention.
+      When a run ends without needing the user, browser compute is paused and confirmed at once. Otherwise, after 120 seconds without meaningful authorized progress or user interaction, idle browser compute is paused and confirmed. After 86400 seconds of inactivity the remote sandbox and browser state are deleted, even if already paused; Close deletes immediately. Independent cleanup reconciles failures and process restarts. Viewer polling, heartbeats and page churn never extend retention or wake paused compute. Only an authorized unexpired resume does so. Browser state retention does not guarantee that external website sessions remain valid, and saved encrypted results have independent retention.
     depends_on: [models.BrowseSession, examples.lifecycle]
   - id: web-browse.budgets-and-stop
     type: security
@@ -125,7 +127,7 @@ assertions:
   - id: web-browse.network-and-content
     type: security
     must: >
-      The sandbox has no OpenMates credentials or unrestricted backend/private-network access. Public HTTPS destinations, redirects, subresources, popups and alternate transports obey enforced destination policy, applicable crawler exclusions and source-use permissions; metadata, loopback, private addresses and DNS-rebinding bypasses are denied. Website text and pixels are untrusted evidence and cannot change instructions, budgets, destinations or approvals. Extracted external text uses the inherited output-safety boundary; autonomous action pauses when required safety processing cannot complete.
+      The sandbox has no OpenMates credentials or unrestricted backend/private-network access. Public HTTPS destinations, redirects, subresources, popups and alternate transports obey enforced destination policy and source-use permissions; page and frame navigations additionally obey crawler exclusions; metadata, loopback, private addresses and DNS-rebinding bypasses are denied. Website text and pixels are untrusted evidence and cannot change instructions, budgets, destinations or approvals. Extracted external text uses the inherited output-safety boundary; autonomous action pauses when required safety processing cannot complete.
     depends_on: [examples.network]
   - id: web-browse.private-storage-and-api
     type: privacy

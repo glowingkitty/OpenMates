@@ -8,6 +8,8 @@ const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { stringify } = require('yaml');
 const { randomUUID } = require('node:crypto');
+const { naturalProjectName } = require('./helpers/project-names');
+const { workflowErrorNotifications } = require('./helpers/workflow-notifications');
 
 function apiUrl(): string {
   const url = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org');
@@ -51,7 +53,7 @@ test.describe('Portable Workflow files', () => {
     expect(created.ok()).toBe(true);
     const { workflow } = await created.json();
     try {
-      await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+      await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
       await page.getByTestId('workflow-landing-card').filter({ hasText: title }).first().click();
       await expect(page.getByTestId('workspace-detail-title')).toHaveText(title);
       await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More', exact: true }).click();
@@ -74,7 +76,7 @@ test.describe('Portable Workflow files', () => {
   // contract-test: supporting surface=gui.web assertions=workflows-ui.files.composer-drop-import,workflows.portability.disabled-validated-import
   test('composer file button opens the picker, rejects other extensions and imports a Workflow YAML', async ({ page }: { page: Page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+    await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
     const composer = page.getByTestId('workflow-input-composer');
     const input = page.getByTestId('workflow-input-textarea');
     const button = composer.getByTestId('workflow-import-button');
@@ -94,7 +96,7 @@ test.describe('Portable Workflow files', () => {
       if (request.url().endsWith('/v1/workflows/file-import') && request.method() === 'POST') importRequests += 1;
     });
     await chooser.setFiles({ name: 'portable.yaml', mimeType: 'application/yaml', buffer: content });
-    await expect(page.getByTestId('workflows-error')).toContainText('Choose an OpenMates .workflow.yml file.');
+    await expect(workflowErrorNotifications(page, 'Choose an OpenMates .workflow.yml file.').first()).toBeVisible();
     await expect(input).toHaveValue('Keep this unsent workflow description');
     expect(importRequests).toBe(0);
     const imported = page.waitForResponse((response: Response) => response.url().endsWith('/v1/workflows/file-import') && response.request().method() === 'POST');
@@ -115,14 +117,14 @@ test.describe('Portable Workflow files', () => {
 
   // contract-test: supporting surface=gui.web assertions=workflows-ui.files.composer-drop-import,workflows.portability.disabled-validated-import
   test('dropping a Workflow YAML opens disabled Template with persisted binding review and preserves typed text on failed import', async ({ page }: { page: Page }) => {
-    await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+    await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
     await page.getByTestId('workflow-input-textarea').fill('Keep this unsent title');
     await page.getByTestId('workflow-import-dropzone').dispatchEvent('drop', { dataTransfer: await page.evaluateHandle(() => {
       const transfer = new DataTransfer();
       transfer.items.add(new File(['format: openmates-workflow\nformat_version: 900\n'], 'bad.workflow.yml', { type: 'application/yaml' }));
       return transfer;
     }) });
-    await expect(page.getByTestId('workflows-error')).toContainText('not supported');
+    await expect(workflowErrorNotifications(page, 'not supported').first()).toBeVisible();
     await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('Keep this unsent title');
     const title = `Dropped portable ${Date.now()}`;
     const document = portableWorkflow(title);
@@ -161,7 +163,7 @@ test.describe('Portable Workflow files', () => {
   test('Project upload imports a marked YAML and links the new Workflow to its Project', async ({ page }: { page: Page }) => {
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
     await page.goto(getE2EDebugUrl('/projects'), { waitUntil: 'domcontentloaded' });
-    const projectName = `Portable project ${Date.now()}`;
+    const projectName = naturalProjectName('Portable workflows');
     const createdProject = page.waitForResponse((response: Response) => response.url().endsWith('/v1/projects') && response.request().method() === 'POST');
     await page.getByTestId('project-input-textarea').fill(projectName);
     await page.getByTestId('project-input-submit').click();

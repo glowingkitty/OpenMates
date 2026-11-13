@@ -348,10 +348,15 @@ def test_finance_connected_account_skill_uses_sdk_only_endpoint(monkeypatch):
     assert result == {"account_count": 1, "transaction_count": 2}
     assert requests[0]["url"] == "https://api.openmates.org/v1/sdk/connected-account-skills/finance/check_accounts"
     assert requests[0]["json"]["input"]["period"] == "monthly"
-    assert requests[0]["json"]["input"]["security"]["prompt_injection_protection"] == "disabled"
+    # Behaviour change: the default leaves prompt-injection protection untouched
+    # (npm/Rust parity); only an explicit False disables it.
+    assert "security" not in requests[0]["json"]["input"]
     refs = requests[0]["json"]["connected_account_token_ref_inputs"]
     assert refs[0]["provider_id"] == "revolut_business"
     assert "access_token" not in json_module.dumps(requests[0]["json"])
+
+    client.finance.check_accounts({"period": "monthly"}, prompt_injection_protection=False)
+    assert requests[1]["json"]["input"]["security"]["prompt_injection_protection"] == "disabled"
 
 
 def test_native_app_skill_method_maps_prompt_injection_opt_out(monkeypatch):
@@ -2016,6 +2021,7 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
     client.learning_mode.status()
     client.learning_mode.enable(age_group="16_18", passcode="teach-1234")
     client.learning_mode.disable("teach-1234")
+    client.learning_mode.collaborative(True, passcode="teach-1234")
     client.inspirations.list(language="de")
     client.new_chat_suggestions.list(limit=4)
 
@@ -2034,8 +2040,38 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/learning-mode"},
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/learning-mode/enable"},
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/learning-mode/disable"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/sdk/learning-mode/collaborative"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/inspirations?lang=de"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/new-chat-suggestions?limit=4"},
+    ]
+
+
+def test_learning_mode_collaborative_build_bodies(monkeypatch):
+    bodies = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"enabled": True}
+
+    def fake_post(url, *, json, headers, timeout):
+        bodies.append((url.rsplit("/", 1)[-1], json))
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    client = OpenMates(api_key="sk-api-test")
+
+    client.learning_mode.enable(age_group="16_18", passcode="teach-1234")
+    client.learning_mode.enable(age_group="16_18", passcode="teach-1234", collaborative_build=False)
+    client.learning_mode.collaborative(True, passcode="teach-1234")
+    client.learning_mode.collaborative(False)
+
+    assert bodies == [
+        ("enable", {"age_group": "16_18", "passcode": "teach-1234"}),
+        ("enable", {"age_group": "16_18", "passcode": "teach-1234", "collaborative_build": False}),
+        ("collaborative", {"enabled": True, "passcode": "teach-1234"}),
+        ("collaborative", {"enabled": False}),
     ]
 
 
@@ -2070,7 +2106,6 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
     client.chats.follow_ups(CHAT_ID)
     client.chats.export(CHAT_ID)
     client.account.list_interests()
-    client.memories.types(app_id="code")
     client.billing.usage_overview(granularity="monthly", months=2)
     client.billing.usage_details(type="chat", identifier="chat-1", year_month="2026-08")
     client.billing.chat_total("chat-1")
@@ -2089,7 +2124,6 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
         {"method": "GET", "url": f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"},
         {"method": "POST", "url": f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}/export"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/account/topic-preferences"},
-        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/memories/types?app_id=code"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/overview?granularity=monthly&months=2"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/details?type=chat&identifier=chat-1&year_month=2026-08"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/chat-total?chat_id=chat-1"},

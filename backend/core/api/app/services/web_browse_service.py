@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from decimal import Decimal
-import hashlib
 import json
 import logging
 import os
@@ -14,7 +13,6 @@ from typing import Any, AsyncIterator, Awaitable, Callable
 import uuid
 
 from fastapi import HTTPException
-from jsonschema import Draft202012Validator
 
 from backend.shared.providers.browser_models import BrowserModels, BrowserModelError
 from backend.shared.providers.e2b_browser import (
@@ -23,7 +21,13 @@ from backend.shared.providers.e2b_browser import (
     BrowserAdmissionRejected,
 )
 from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async
-from backend.core.api.app.services.web_browse_pool import BrowsePool, pool_size
+from backend.core.api.app.services.web_browse_pool import BrowsePool
+from backend.core.api.app.services.web_browse_run import (
+    BrowseBudgetExceeded,
+    BrowseControlChanged,
+    BrowseRun,
+    BrowserRuntimeOutdated,
+)
 from backend.shared.python_schemas.web_browse import (
     BrowseRequest,
     BrowseResult,
@@ -46,19 +50,13 @@ COLLECTION = "browser_sessions"
 logger = logging.getLogger(__name__)
 
 
-class BrowseBudgetExceeded(RuntimeError):
-    pass
-
-
-class BrowseControlChanged(RuntimeError):
-    pass
-
-
 class BrowseStore:
     def __init__(self, directus: Any, encryption: Any, cache: Any) -> None:
         self.db = directus
         self.encryption = encryption
         self.cache = cache
+        # Seconds spent in record load/save; runs report their share as store_seconds.
+        self.elapsed = 0.0
 
     async def load_result(self, run_id: str, user_id: str) -> BrowseResult:
         rows = await self.db.get_items(
@@ -138,6 +136,15 @@ class BrowseStore:
     async def load(
         self, session_id: str, user_id: str | None, chat_id: str | None = None
     ) -> dict[str, Any]:
+        started = time.monotonic()
+        try:
+            return await self._load(session_id, user_id, chat_id)
+        finally:
+            self.elapsed += time.monotonic() - started
+
+    async def _load(
+        self, session_id: str, user_id: str | None, chat_id: str | None
+    ) -> dict[str, Any]:
         params = {"filter[id][_eq]": session_id, "limit": 1, "fields": "*"}
         if user_id:
             params["filter[owner_hash][_eq]"] = owner_hash(user_id)
@@ -165,6 +172,13 @@ class BrowseStore:
         return record
 
     async def save(self, record: dict[str, Any], *, create: bool = False) -> None:
+        started = time.monotonic()
+        try:
+            await self._save(record, create=create)
+        finally:
+            self.elapsed += time.monotonic() - started
+
+    async def _save(self, record: dict[str, Any], *, create: bool) -> None:
         version = record.get("_version", 0)
         plain = {k: v for k, v in record.items() if not k.startswith("_")}
         ciphertext, _ = await self.encryption.encrypt_with_user_key(
@@ -231,27 +245,60 @@ class BrowseService:
         return self.driver
 
     async def claim_slot(self, record: dict[str, Any]) -> None:
+        """Hold one of the owner's three running browsers.
+
+        When all three are taken, the least recently used browser that the AI
+        holds idle (no active run, not under the user's control) is paused to
+        make room; it resumes on its next use. Only when none is idle is the
+        new browser refused.
+        """
         async with self.store.lease("owner:" + owner_hash(record["user_id"])):
-            rows = await self.store.db.get_items(
-                COLLECTION,
-                params={
-                    "filter[owner_hash][_eq]": owner_hash(record["user_id"]),
-                    "filter[status][_in]": "ai,user",
-                    "filter[id][_neq]": record["session_id"],
-                    "fields": "id",
-                    "limit": 3,
-                },
-                no_cache=True,
-                admin_required=True,
-                raise_on_error=True,
-            )
+            rows = await self.active_rows(record)
             if len(rows) >= 3:
-                raise HTTPException(
-                    409, "Three browsers are already active; pause or close one first."
-                )
+                for row in rows:
+                    if await self.pause_idle(row["id"], record["user_id"]):
+                        break
+                else:
+                    raise HTTPException(
+                        409,
+                        "Three browsers are already active; pause or close one first.",
+                    )
             record["status"] = "ai"
             record["last_activity"] = time.time()
             await self.store.save(record)
+
+    async def active_rows(self, record: dict[str, Any]) -> list[dict[str, Any]]:
+        """The owner's other running browsers, least recently used first."""
+        return await self.store.db.get_items(
+            COLLECTION,
+            params={
+                "filter[owner_hash][_eq]": owner_hash(record["user_id"]),
+                "filter[status][_in]": "ai,user",
+                "filter[id][_neq]": record["session_id"],
+                "fields": "id",
+                "sort": "last_activity",
+                "limit": 3,
+            },
+            no_cache=True,
+            admin_required=True,
+            raise_on_error=True,
+        )
+
+    async def pause_idle(self, session_id: str, user_id: str) -> bool:
+        """Pause one idle AI-held browser of the same owner; False when it is not idle."""
+        try:
+            # A short wait: a browser busy with another operation is not idle, and
+            # two starts must never wait on each other's session lease.
+            async with self.store.lease(session_id, wait_seconds=2):
+                other = await self.store.load(session_id, user_id)
+                if other["status"] != "ai" or other.get("active_run"):
+                    return False
+                await self.pause(other)
+                return True
+        except HTTPException as exc:
+            if exc.status_code in (404, 409):
+                return False
+            raise
 
     async def reserve(self, record: dict[str, Any]) -> None:
         if record.get("settlement"):
@@ -475,6 +522,9 @@ class BrowseService:
         # Browser credentials and private live state are removed. Saved chat results have independent retention.
         record.pop("latest_observation", None)
         record.pop("last_result", None)
+        record.pop("evidence", None)
+        record.pop("evidence_task", None)
+        record.pop("steps", None)
         await self.store.save(record)
 
     async def ensure_live(self, record: dict[str, Any]) -> None:
@@ -502,11 +552,6 @@ class BrowseService:
         run_id, session_id = job.run_id, job.session_id
         prepared = False
         started = time.monotonic()
-        stage_times = {
-            "startup_seconds": 0.0,
-            "observation_seconds": 0.0,
-            "action_seconds": 0.0,
-        }
         async with self.store.lease(session_id):
             try:
                 record = await self.store.load(session_id, user_id, chat_id)
@@ -625,6 +670,7 @@ class BrowseService:
                 task=request.task,
                 request=request.model_dump(),
                 status="ai",
+                phase="starting",
             )
             if prepare_only:
                 record["queued_run"] = run_id
@@ -686,474 +732,174 @@ class BrowseService:
             before_attempt=before_attempt,
             after_attempt=after_attempt,
         )
-        history = []
-        observation = {}
-        status, reason = "budget_exceeded", "The browser action limit was reached."
-        data = None
-        checked_observations = {}
-        no_progress = 0
-        prior = None
-        phase = "startup"
+        loop = BrowseRun(
+            self,
+            request,
+            run_id=run_id,
+            session_id=session_id,
+            user_id=user_id,
+            chat_id=chat_id,
+            models=models,
+            private_account=record["private_account"],
+        )
         failure = {}
         try:
-            startup_started = time.monotonic()
-            initial_control_established = False
-            driver = await self.browser()
-            async with asyncio.timeout(90):
-                async with self.store.lease(session_id):
-                    record = await self.store.load(session_id, user_id, chat_id)
-                    if not record.get("provider"):
-                        # The first desktop allocation is bounded to 2 CPU / 4 GiB / 120s.
-                        if self.remaining_usd(record) < Decimal("0.0056"):
-                            raise BrowseBudgetExceeded(
-                                "The spending limit cannot cover browser startup."
-                            )
-
-                        validator = getattr(driver, "validate_creation", None)
-                        if validator:
-                            validator()
-
-                        async def created(provider: dict[str, Any]) -> None:
-                            record["provider"] = provider
-                            record.pop("startup_intent", None)
-                            await self.store.save(record)
-
-                        try:
-                            provisioning_started = time.monotonic()
-                            if pool_size():
-                                async with asyncio.timeout(5):
-                                    claim_started = time.monotonic()
-                                    claimed = await BrowsePool(
-                                        self.store, driver
-                                    ).claim(session_id, created)
-                                    stage_times["pool_claim_seconds"] = (
-                                        time.monotonic() - claim_started
-                                    )
-                                    if claimed is None:
-                                        raise BrowserAdmissionRejected(
-                                            "Prepared browser capacity is temporarily unavailable. Please try again shortly."
-                                        )
-                                    resume_started = time.monotonic()
-                                    await self.resume_compute(record)
-                                    stage_times["resume_seconds"] = (
-                                        time.monotonic() - resume_started
-                                    )
-                                    readiness_started = time.monotonic()
-                                    checked = await driver.rpc(
-                                        record["provider"],
-                                        {
-                                            "operation": "control",
-                                            "mode": "ai",
-                                            "check_ready": True,
-                                            "require_pristine": True,
-                                        },
-                                    )
-                                    if checked.get("pristine") is not True:
-                                        raise BrowserUnavailable(
-                                            "The blank browser could not be verified."
-                                        )
-                                    stage_times["pristine_check_seconds"] = (
-                                        time.monotonic() - readiness_started
-                                    )
-                                    initial_control_established = True
-                                    record["provider"]["pool_verified"] = True
-                                    await self.store.save(record)
-                            else:
-                                record["startup_intent"] = {"at": time.time()}
-                                await self.store.save(record)
-                                await driver.create(
-                                    session_id=session_id,
-                                    owner=owner_hash(user_id),
-                                    on_created=created,
-                                )
-                            stage_times["provisioning_seconds"] = round(
-                                time.monotonic() - provisioning_started, 3
-                            )
-                        except BrowserAdmissionRejected:
-                            record.pop("startup_intent", None)
-                            await self.store.save(record)
-                            raise
-                        navigation_started = time.monotonic()
-                        navigation = await driver.rpc(
-                            record["provider"],
-                            {"operation": "navigate", "url": request.start_url},
-                        )
-                        for key, value in navigation.get("_rpc_timings", {}).items():
-                            stage_times["navigation_" + key] = value
-                        stage_times["initial_navigation_seconds"] = round(
-                            time.monotonic() - navigation_started, 3
-                        )
-                    elif record["provider"].get("deleted"):
-                        raise BrowserUnavailable(
-                            "The browser was closed during startup."
-                        )
-                    elif record["provider"].get("running_since") is None:
-                        # Admission is checked before E2B's explicit, paid resume.
-                        if self.remaining_usd(record) < Decimal("0.0056"):
-                            raise BrowseBudgetExceeded(
-                                "The spending limit cannot cover a resumed browser."
-                            )
-                        await self.resume_compute(record)
-                    await self.keep_running(record)
-                    control_started = time.monotonic()
-                    # The fresh pool handoff already established AI control
-                    # under this same exclusive session lease. Navigation does
-                    # not change it; avoid repeating that ingress round trip.
-                    if not initial_control_established:
-                        await driver.rpc(
-                            record["provider"], {"operation": "control", "mode": "ai"}
-                        )
-                    stage_times["initial_control_seconds"] = (
-                        time.monotonic() - control_started
-                    )
-                    await self.store.save(record)
-
-            stage_times["startup_seconds"] = round(
-                time.monotonic() - startup_started, 3
-            )
-
-            async with asyncio.timeout(request.timeout_seconds):
-                for _ in range(request.max_steps):
-                    async with self.store.lease(session_id):
-                        record = await self.store.load(session_id, user_id, chat_id)
-                        if (
-                            record["status"] != "ai"
-                            or record.get("active_run") != run_id
-                        ):
-                            raise BrowseControlChanged()
-                        await self.keep_running(record)
-                        with private_inference_logging():
-                            phase = "observe"
-                            observation_started = time.monotonic()
-                            observation = await driver.rpc(
-                                record["provider"], {"operation": "observe"}
-                            )
-                            if "first_observation_seconds" not in stage_times:
-                                stage_times["first_observation_seconds"] = (
-                                    time.monotonic() - startup_started
-                                )
-                                for key, value in observation.get(
-                                    "_rpc_timings", {}
-                                ).items():
-                                    stage_times["first_observation_" + key] = value
-                            stage_times["observation_seconds"] += (
-                                time.monotonic() - observation_started
-                            )
-                        from backend.core.api.app.utils.text_sanitization import (
-                            sanitize_text_payload_for_ascii_smuggling,
-                        )
-
-                        observation, _ = sanitize_text_payload_for_ascii_smuggling(
-                            observation, include_stats=True
-                        )
-                        record["latest_observation"] = observation
-                        await self.store.save(record)
-                    if observation.get("blocked_reason"):
-                        status, reason = "blocked", observation["blocked_reason"]
-                        break
-                    if observation.get("has_private_input"):
-                        status, reason = (
-                            "needs_user",
-                            "Review the sign-in notice and sign in privately using the browser controls.",
-                        )
-                        break
-                    fingerprint = hashlib.sha256(
-                        json.dumps(
-                            {
-                                k: observation.get(k)
-                                for k in ("url", "controls", "tables")
-                            },
-                            sort_keys=True,
-                        ).encode()
-                    ).hexdigest()
-                    no_progress = no_progress + 1 if fingerprint == prior else 0
-                    prior = fingerprint
-                    if no_progress >= 3:
-                        status, reason = (
-                            "needs_user",
-                            "Repeated actions made no observable progress.",
-                        )
-                        break
-                    # No execution lease is held during inference. Take control can invalidate
-                    # the observation immediately; stale decisions are checked again before input.
-                    with private_inference_logging():
-                        phase = "decide"
-                        action = await models.choose(observation, request.task, history)
-                    if action["kind"] == "blocked":
-                        status, reason = (
-                            "needs_user",
-                            action.get(
-                                "reason", "The browser needs your help to continue."
-                            ),
-                        )
-                        break
-                    if action["kind"] == "done":
-                        with private_inference_logging():
-                            effective_schema = request.output_schema or {
-                                "type": "object"
-                            }
-                            extraction_context = {
-                                "purpose": "extract",
-                                "goal": request.task,
-                                "output_schema": effective_schema,
-                                "private_account": record["private_account"],
-                                "observed_page": {
-                                    **{
-                                        k: observation.get(k)
-                                        for k in (
-                                            "url",
-                                            "title",
-                                            "tables",
-                                            "links",
-                                        )
-                                    },
-                                    "text": observation.get(
-                                        "document_text",
-                                        observation.get("text", ""),
-                                    ),
-                                },
-                            }
-                            # One repair can recover an incomplete answer from
-                            # already observed evidence. It never navigates,
-                            # relaxes verification or invents missing facts.
-                            for extraction_attempt in range(2):
-                                phase = "extract"
-                                extracted = await models.generate(extraction_context)
-                                data = (
-                                    extracted.get("data")
-                                    if isinstance(extracted, dict)
-                                    else None
-                                )
-                                if (
-                                    extraction_attempt
-                                    and data
-                                    == extraction_context["correction"][
-                                        "previous_candidate"
-                                    ]
-                                ):
-                                    # An unchanged answer cannot seek a
-                                    # different stochastic verifier verdict.
-                                    break
-                                phase = "verify"
-                                verified = await models.verify(
-                                    request.task, observation, data
-                                )
-                                if (
-                                    verified
-                                    or data is None
-                                    or extracted.get("needs_user")
-                                    or extraction_attempt == 1
-                                ):
-                                    break
-                                extraction_context["correction"] = {
-                                    "previous_candidate": data,
-                                    "verification": dict(
-                                        getattr(models, "verification", {})
-                                    ),
-                                    "instruction": "The previous candidate failed independent completion checks. Compare every part of the goal with the observed page and correct omissions or unsupported claims using only that evidence. Preserve relevant qualifications and caveats. If the requested facts are unavailable, return needs_user rather than guessing.",
-                                }
-                        if verified:
-                            status, reason = (
-                                ("no_results", "The page reported no matching results.")
-                                if getattr(models, "no_results", False)
-                                else ("completed", None)
-                            )
-                            validator = Draft202012Validator(effective_schema)
-                            if status == "no_results" and not validator.is_valid(data):
-                                data = None  # An empty search cannot satisfy a schema demanding records.
-                            elif status == "completed":
-                                validator.validate(data)
-                        else:
-                            status, reason = (
-                                "needs_user",
-                                "The observed page does not establish every requested result.",
-                            )
-                        break
-                    async with self.store.lease(session_id):
-                        record = await self.store.load(session_id, user_id, chat_id)
-                        if (
-                            record["status"] != "ai"
-                            or record.get("active_run") != run_id
-                        ):
-                            raise BrowseControlChanged()
-                        # Journal the intention before crossing the irreversible input boundary.
-                        action_id = str(uuid.uuid4())
-                        record["pending_action"] = {
-                            "id": action_id,
-                            "run_id": run_id,
-                            "kind": action["kind"],
-                            "observation_id": observation["observation_id"],
-                        }
-                        await self.store.save(record)
-                        with private_inference_logging():
-                            phase = "act"
-                            action_started = time.monotonic()
-                            await driver.rpc(
-                                record["provider"],
-                                {
-                                    "operation": "act",
-                                    "observation_id": observation["observation_id"],
-                                    **action,
-                                },
-                            )
-                            stage_times["action_seconds"] += (
-                                time.monotonic() - action_started
-                            )
-                        history.append(
-                            {"kind": action["kind"], "target": action.get("target")}
-                        )
-                        record["last_action"] = {
-                            **record.pop("pending_action"),
-                            "outcome": "executed",
-                        }
-                        if action["kind"] != "wait" and fingerprint != record.get(
-                            "last_progress_fingerprint"
-                        ):
-                            record["last_activity"] = time.time()
-                            record["last_progress_fingerprint"] = fingerprint
-                        await self.store.save(record)
-                if status in ("completed", "no_results"):
-                    with private_inference_logging():
-                        phase = "scan"
-                        checked = await models.sanitize_external(
-                            {
-                                "data": data,
-                                "observations": {
-                                    **{
-                                        k: observation.get(k)
-                                        for k in ("url", "title", "tables", "links")
-                                    },
-                                    "text": observation.get(
-                                        "document_text", observation.get("text", "")
-                                    ),
-                                },
-                            },
-                            self.store.cache,
-                        )
-                    data = checked["data"]
-                    checked_observations = checked["observations"]
-                    if request.output_schema and data is not None:
-                        Draft202012Validator(request.output_schema).validate(data)
+            await loop.execute()
         except BrowseControlChanged:
-            status, reason = (
+            loop.finish(
                 "needs_user",
                 "Browser control changed; pending AI input was discarded.",
             )
         except BrowseBudgetExceeded as exc:
-            status, reason = "budget_exceeded", str(exc)
+            loop.finish("budget_exceeded", str(exc))
         except TimeoutError:
-            status, reason = "budget_exceeded", "The browser time limit was reached."
+            loop.finish("budget_exceeded", "The browser time limit was reached.")
         except asyncio.CancelledError:
-            status, reason = "cancelled", "The browser request was cancelled."
+            loop.finish("cancelled", "The browser request was cancelled.")
             raise
         except StrictSafetyUnavailable:
-            status, reason = (
+            loop.finish(
                 "needs_user",
                 "The page could not be safely checked. Take control to continue.",
             )
         except (BrowserModelError, BrowserUnavailable) as exc:
-            failure = {"error_kind": type(exc).__name__, "error_phase": phase}
+            failure = {"error_kind": type(exc).__name__, "error_phase": loop.phase}
             if isinstance(exc, BrowserModelError):
                 failure.update(exc.safe_details)
             if isinstance(getattr(exc, "status_code", None), int):
                 failure["rpc_status_code"] = exc.status_code
-            status, reason = (
+            loop.finish(
                 "failed",
                 str(exc)
-                if isinstance(exc, BrowserAdmissionRejected)
+                if isinstance(exc, (BrowserAdmissionRejected, BrowserRuntimeOutdated))
                 else "The browser or decision provider could not complete this task.",
             )
         except Exception:
-            status, reason = (
+            loop.finish(
                 "failed",
                 "The browser could not produce a verified result matching the requested data.",
             )
         finally:
-            async with self.store.lease(session_id):
-                record = await self.store.load(session_id, user_id, chat_id)
-                if record.get("active_run") == run_id:
-                    record["active_run"] = None
-                if record.get("pending_action"):
-                    status, reason = (
-                        "needs_user",
-                        "An action outcome is uncertain; review the page before continuing.",
-                    )
-                if (
-                    record.get("pending_calls")
-                    or record.get("startup_intent")
-                    or record.get("runtime_intent")
-                ):
-                    record["accounting_pending"] = True
-                    status, reason = (
-                        "failed",
-                        "Browser usage is awaiting reconciliation.",
-                    )
-                if (record.get("provider") or {}).get("pool_assigned") and not record[
-                    "provider"
-                ].get("pool_verified"):
-                    # No model, viewer or manual input may see a failed initial
-                    # pristine-state check. This VM is destroyed, never recycled.
-                    await self.expire(record, "closed")
-                if record["status"] == "user":
-                    status, reason = "needs_user", "You have control of this browser."
-                if record["status"] in ("closed", "expired"):
-                    status, reason = "cancelled", "This browser session is closed."
-                if status in ("completed", "no_results"):
-                    record["last_activity"] = time.time()
-                else:
-                    data = None  # Rejected extraction cannot expose proposed facts as observed data.
-                if status in ("budget_exceeded", "failed", "cancelled") and record[
-                    "status"
-                ] not in ("user", "closed", "expired"):
-                    await self.pause(record)
-                record["completed_runs"].append(run_id)
-                metrics = {
-                    "total_seconds": round(time.monotonic() - started, 3),
-                    "steps": len(history),
-                    "model_calls": models.attempts,
-                    "supplier_cost_usd": str(self.total_cost(record)),
-                    "accrued_credits": charged_credits(self.total_cost(record)),
-                    "charged_credits": record["charged_credits"],
-                    "accounting_pending": bool(record.get("accounting_pending")),
-                    "runtime_cost_usd": str(self.runtime_cost(record)),
-                    "inference_cost_usd": record["inference_cost_usd"],
-                    "verification": getattr(models, "verification", {}),
-                    **failure,
-                    **{k: round(v, 3) for k, v in stage_times.items()},
-                }
-                result = BrowseResult(
-                    session_id=session_id,
-                    run_id=run_id,
-                    status=status,
-                    reason=reason,
-                    url=observation.get("url", ""),
-                    title=checked_observations.get("title", "Browse"),
-                    data=data,
-                    sources=[
-                        {
-                            "url": observation["url"],
-                            "title": checked_observations.get("title", ""),
-                        }
-                    ]
-                    if observation.get("url")
-                    else [],
-                    screenshot_base64=observation.get("screenshot"),
-                    observations=checked_observations
-                    if status in ("completed", "no_results")
-                    else {},
-                    screenshot_ref={
-                        "storage": "encrypted_result",
-                        "field": "screenshot_base64",
-                        "run_id": run_id,
-                    }
-                    if observation.get("screenshot")
-                    else None,
-                    metrics=metrics,
-                )
-                result = await self.store.save_result(result, record)
-                record["last_result"] = result.model_dump()
-                await self.store.save(record)
+            result = await self.finish_run(loop, models, failure, started)
         return result
+
+    async def finish_run(
+        self,
+        loop: BrowseRun,
+        models: Any,
+        failure: dict[str, Any],
+        started: float,
+    ) -> BrowseResult:
+        """Terminalize the run: uncertainty and accounting checks, pause, saved result."""
+        session_id, run_id = loop.session_id, loop.run_id
+        status, reason = loop.status, loop.reason
+        observation = loop.observation
+        async with self.store.lease(session_id):
+            record = await self.store.load(session_id, loop.user_id, loop.chat_id)
+            if record.get("active_run") == run_id:
+                record["active_run"] = None
+            record["phase"] = "idle"
+            if record.get("pending_action"):
+                status, reason = (
+                    "needs_user",
+                    "An action outcome is uncertain; review the page before continuing.",
+                )
+            if (
+                record.get("pending_calls")
+                or record.get("startup_intent")
+                or record.get("runtime_intent")
+            ):
+                record["accounting_pending"] = True
+                status, reason = "failed", "Browser usage is awaiting reconciliation."
+            if (record.get("provider") or {}).get("pool_assigned") and not record[
+                "provider"
+            ].get("pool_verified"):
+                # No model, viewer or manual input may see a failed initial
+                # pristine-state check. This VM is destroyed, never recycled.
+                await self.expire(record, "closed")
+            if record["status"] == "user":
+                status, reason = "needs_user", "You have control of this browser."
+            if record["status"] in ("closed", "expired"):
+                status, reason = "cancelled", "This browser session is closed."
+            completed = status in ("completed", "no_results")
+            if completed:
+                record["last_activity"] = time.time()
+            data = loop.data if completed else None
+            # Rejected extraction cannot expose proposed facts as observed data.
+            missing = loop.missing if completed else []
+            checked = loop.checked_observations if completed else {}
+            if loop.ledger and record["status"] not in ("closed", "expired"):
+                record["evidence"] = loop.ledger
+            if status != "needs_user" and record["status"] not in (
+                "user",
+                "closed",
+                "expired",
+            ):
+                # Compute stops as soon as the run ends; only a run that asks
+                # for the owner keeps its idle window for an immediate takeover.
+                await self.pause_after_run(record)
+            record["completed_runs"].append(run_id)
+            metrics = {
+                "total_seconds": round(time.monotonic() - started, 3),
+                "model_calls": models.attempts,
+                "supplier_cost_usd": str(self.total_cost(record)),
+                "accrued_credits": charged_credits(self.total_cost(record)),
+                "charged_credits": record["charged_credits"],
+                "accounting_pending": bool(record.get("accounting_pending")),
+                "runtime_cost_usd": str(self.runtime_cost(record)),
+                "inference_cost_usd": record["inference_cost_usd"],
+                "verification": getattr(models, "verification", {}),
+                **failure,
+                **{
+                    k: round(v, 3) if isinstance(v, float) else v
+                    for k, v in loop.metrics().items()
+                },
+            }
+            current = (
+                {"url": observation["url"], "title": checked.get("title", "")}
+                if observation.get("url")
+                else None
+            )
+            sources = (loop.sources if completed else []) or (
+                [current] if current else []
+            )
+            result = BrowseResult(
+                session_id=session_id,
+                run_id=run_id,
+                status=status,
+                reason=reason,
+                url=observation.get("url", ""),
+                title=checked.get("title", "Browse"),
+                data=data,
+                missing=missing,
+                sources=sources,
+                screenshot_base64=observation.get("screenshot"),
+                observations=checked,
+                screenshot_ref={
+                    "storage": "encrypted_result",
+                    "field": "screenshot_base64",
+                    "run_id": run_id,
+                }
+                if observation.get("screenshot")
+                else None,
+                metrics=metrics,
+            )
+            result = await self.store.save_result(result, record)
+            record["last_result"] = result.model_dump()
+            await self.store.save(record)
+        return result
+
+    async def pause_after_run(self, record: dict[str, Any]) -> None:
+        """Pause a finished run; a pending charge receipt is retried by the sweeper."""
+        try:
+            await self.pause(record)
+        except HTTPException as exc:
+            if exc.status_code != 503:
+                raise
+            # The settlement intent and reservation are retained in the record;
+            # sweep() settles paused records that still need reconciliation.
+            logger.warning("Browser settlement after a run is pending; retrying later.")
+            await self.store.save(record)
 
     async def finish_failed_job(
         self, session_id: str, run_id: str, user_id: str, chat_id: str
@@ -1301,6 +1047,10 @@ class BrowseService:
             "chat_id": record["chat_id"],
             "task": record.get("task", ""),
             "url": (record.get("latest_observation") or {}).get("url", ""),
+            "phase": record.get("phase", "idle")
+            if record.get("active_run")
+            else "idle",
+            "steps": record.get("steps", []),
             "sign_in_notice": SIGN_IN_NOTICE,
             "sign_in_origins": record.get("sign_in_origins", []),
             "accounting_pending": bool(record.get("accounting_pending")),
@@ -1310,7 +1060,25 @@ class BrowseService:
             "charged_credits": record.get("charged_credits", 0),
         }
 
+    async def active_snapshot(
+        self, session_id: str, user_id: str
+    ) -> dict[str, Any] | None:
+        """Owner-checked read without the lease, only while an AI run is active.
+
+        The run holds the lease around browser input; the live view must not
+        queue behind it. Mutating lifecycle work stays on the leased path.
+        """
+        record = await self.store.load(session_id, user_id)
+        if not record.get("active_run"):
+            return None
+        if session_lifecycle(record, time.time()) in ("closed", "expired"):
+            raise HTTPException(410, "This browser session has expired.")
+        return record
+
     async def state(self, session_id: str, user_id: str) -> dict[str, Any]:
+        record = await self.active_snapshot(session_id, user_id)
+        if record is not None:
+            return self.public_state(record)
         async with self.store.lease(session_id):
             record = await self.store.load(session_id, user_id)
             await self.ensure_live(record)
@@ -1325,8 +1093,10 @@ class BrowseService:
     async def frame(self, session_id: str, user_id: str) -> bytes:
         import base64
 
-        await self.state(session_id, user_id)
-        record = await self.store.load(session_id, user_id)
+        record = await self.active_snapshot(session_id, user_id)
+        if record is None:
+            await self.state(session_id, user_id)
+            record = await self.store.load(session_id, user_id)
         if not record.get("provider"):
             raise HTTPException(
                 404, "The browser has not produced its first frame yet."
@@ -1337,15 +1107,17 @@ class BrowseService:
             raise HTTPException(
                 409, "The browser is still completing its ownership checks."
             )
-        if record["status"] == "paused":
-            image = (record.get("latest_observation") or {}).get("screenshot")
-        else:
+        if record["status"] == "user":
+            # Only manual control reads live pixels; they are never persisted.
             with private_inference_logging():
                 image = (
                     await (await self.browser()).rpc(
                         record["provider"], {"operation": "frame"}
                     )
                 ).get("image")
+        else:
+            # AI runs and paused sessions show the newest observation screenshot.
+            image = (record.get("latest_observation") or {}).get("screenshot")
         if not image:
             raise HTTPException(404, "No browser frame is available.")
         return base64.b64decode(image, validate=True)

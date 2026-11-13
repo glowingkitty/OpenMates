@@ -552,12 +552,11 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	const responseLower = stableText.toLowerCase();
 	const mentionsAlpha = responseLower.includes('alpha');
 	const mentionsBeta = responseLower.includes('beta');
-	if (!mentionsAlpha || !mentionsBeta) {
-		log(
-			`WARNING: AI response may not contain both secret words. ALPHA=${mentionsAlpha}, BETA=${mentionsBeta}`
-		);
-		log(`Full response: "${stableText}"`);
-	}
+	// The assistant must answer from the finished document, never from general knowledge or
+	// with "still processing" (spec: pdf-processing.readiness.complete-before-answer).
+	expect(mentionsAlpha, `Answer should contain the page 1 secret word: ${stableText}`).toBe(true);
+	expect(mentionsBeta, `Answer should contain the page 2 secret word: ${stableText}`).toBe(true);
+	expect(responseLower).not.toMatch(/still (being )?(processed|processing)|not (yet )?(finished|ready)/);
 	log(`AI response contains: ALPHA=${mentionsAlpha}, BETA=${mentionsBeta}`);
 	await screenshot(page, '06-ai-response-received');
 	saveWarnErrorLogs('pdf', 'after_ai_response');
@@ -803,4 +802,68 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 	log(`Final console warn/error count: ${warnErrorLogs.length}`);
 	saveWarnErrorLogs('pdf', 'final');
 	log('PDF flow test completed successfully.');
+});
+
+
+// contract-test: supporting surface=gui.web assertions=pdf-processing.readiness.complete-before-answer
+test('pdf: a question sent right after attaching is held until processing finished, then answered from the document', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(300000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	test.skip(!fs.existsSync(SAMPLE_PDF), `PDF fixture not found: ${SAMPLE_PDF}`);
+
+	const log = createSignupLogger('PDF_HOLD');
+	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'pdf-hold' });
+	await archiveExistingScreenshots(log);
+
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(3000);
+	await openNewChat(page, log);
+	await waitForChatReady(page, log);
+
+	// Attach and send immediately, without waiting for the embed to finish.
+	await attachFiles(page, [SAMPLE_PDF], log);
+	await page.keyboard.press('Escape');
+	const editor = page.getByTestId('message-editor');
+	await editor.evaluate((container: HTMLElement) => {
+		const editable = (container.querySelector('.ProseMirror') as HTMLElement | null) ?? container;
+		editable.focus();
+		const range = document.createRange();
+		range.selectNodeContents(editable);
+		range.collapse(false);
+		const selection = window.getSelection();
+		selection?.removeAllRanges();
+		selection?.addRange(range);
+	});
+	await page.keyboard.type(PDF_QUESTION);
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeEnabled({ timeout: 15000 });
+	await sendButton.click();
+	await screenshot(page, '01-sent-while-processing');
+
+	const assistantMessage = await waitForAssistantMessage(page, {
+		which: 'last',
+		timeout: 180000,
+		logCheckpoint: log
+	});
+	let stableText = '';
+	await expect(async () => {
+		const text = await assistantMessage.textContent();
+		if (!text || text.trim().length < 10) throw new Error('Response too short');
+		if (text === stableText) return;
+		stableText = text ?? '';
+		throw new Error('Still streaming');
+	}).toPass({ timeout: 180000, intervals: [2000] });
+	await screenshot(page, '02-answered-from-document');
+
+	const lower = stableText.toLowerCase();
+	expect(lower, `Answer should contain the page 1 secret word: ${stableText}`).toContain('alpha');
+	expect(lower, `Answer should contain the page 2 secret word: ${stableText}`).toContain('beta');
+	expect(lower).not.toMatch(/still (being )?(processed|processing)|not (yet )?(finished|ready)/);
+
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });

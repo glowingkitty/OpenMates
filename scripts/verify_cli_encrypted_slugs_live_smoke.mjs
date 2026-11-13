@@ -141,7 +141,7 @@ async function runCliSurface() {
   const evidence = {};
   try {
     const projectSlug = `cli-slug-project-${SUFFIX}`;
-    const projectName = `CLI Slug Project ${SUFFIX}`;
+    const projectName = 'Neighborhood book swap';
     const projectCreate = parseJson(cli(["projects", "create", projectName, "--slug", projectSlug, "--description", "Disposable live slug verification project", "--personal", "--json"], { label: "CLI project create" }));
     const project = requireObject(projectCreate.project, "project create result");
     const projectId = requireString(project.project_id, "project_id");

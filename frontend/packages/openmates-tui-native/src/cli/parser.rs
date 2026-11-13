@@ -21,6 +21,11 @@ const GLOBALS: &[&str] = &[
     "encrypted-vault",
     "demo",
 ];
+/// Commands whose `--text` value may start with `-` (file bodies and diffs).
+const HYPHEN_TEXT_COMMANDS: &[&[&str]] = &[
+    &["projects", "hosted", "create"],
+    &["projects", "hosted", "update"],
+];
 fn switch(name: &str, family: &str) -> bool {
     catalog()
         .flags
@@ -29,7 +34,10 @@ fn switch(name: &str, family: &str) -> bool {
         .is_some_and(|flag| flag.arity_overrides.get(family).unwrap_or(&flag.arity) == "switch")
 }
 fn presence_value(name: &str, family: &str) -> bool {
-    catalog().flags.iter().find(|flag| flag.long == name)
+    catalog()
+        .flags
+        .iter()
+        .find(|flag| flag.long == name)
         .and_then(|flag| flag.arity_overrides.get(family))
         .is_some_and(|arity| arity == "optional_value_presence")
 }
@@ -37,10 +45,14 @@ const PRESENT: &str = "\0openmates_presence";
 fn presence_scalar(values: &[String]) -> Value {
     let mut current = Value::Null;
     for value in values {
-        if value == PRESENT { current = Value::Bool(true); }
-        else {
-            let text = current.as_str().filter(|text| !text.is_empty())
-                .map(|previous| format!("{previous}\n{value}")).unwrap_or_else(|| value.clone());
+        if value == PRESENT {
+            current = Value::Bool(true);
+        } else {
+            let text = current
+                .as_str()
+                .filter(|text| !text.is_empty())
+                .map(|previous| format!("{previous}\n{value}"))
+                .unwrap_or_else(|| value.clone());
             current = Value::String(text);
         }
     }
@@ -68,7 +80,10 @@ fn flag(name: &str, family: &str, global: bool) -> Arg {
     } else if presence_value(name, family) {
         // Bare presence is distinct from every explicit scalar, including
         // "true". The scoped adapter normalizes separated values to equals.
-        arg = arg.num_args(0..=1).require_equals(true).default_missing_value(PRESENT);
+        arg = arg
+            .num_args(0..=1)
+            .require_equals(true)
+            .default_missing_value(PRESENT);
     } else if boolean {
         arg = arg
             .num_args(0..=1)
@@ -158,8 +173,19 @@ fn build(node: &Node, family: &str, inherited: &BTreeSet<String>) -> Command {
             record.implementation.status
         ));
     }
+    // A hosted file body or unified diff (`--- a/x`) legitimately starts with a
+    // dash. These leaves own a local `text` that Clap prefers over the
+    // family-global one, so only these two commands accept dash-leading values.
+    let hyphen_text = node.records.iter().any(|i| {
+        HYPHEN_TEXT_COMMANDS
+            .iter()
+            .any(|path| catalog().commands[*i].path == *path)
+    });
+    if hyphen_text {
+        command = command.arg(flag("text", family, false).allow_hyphen_values(true));
+    }
     for name in &node.flags {
-        if !inherited.contains(name) {
+        if !inherited.contains(name) && !(hyphen_text && name == "text") {
             command = command.arg(flag(name, family, true));
             inherited.insert(name.clone());
         }
@@ -295,7 +321,10 @@ where
     // Real exec argv cannot contain NUL. Enforce that same boundary for public
     // parse_from callers before private capture/default markers are introduced;
     // never echo a rejected argument, which may contain a credential.
-    if arguments.iter().any(|argument| argument.as_encoded_bytes().contains(&0)) {
+    if arguments
+        .iter()
+        .any(|argument| argument.as_encoded_bytes().contains(&0))
+    {
         return Err(parse_error("Command arguments must not contain NUL bytes."));
     }
     for argument in &mut arguments {
@@ -423,21 +452,37 @@ where
         // The preserved TypeScript sources-list handler owns its first selector:
         // absent/blank values produce command_failed + exit1; later positional
         // values are ignored. Keep other commands' parser arity unchanged.
-        let project_source_selector = path.as_slice() == ["projects", "sources", "list"];
+        let project_source_selector = path.as_slice() == ["projects", "sources", "list"]
+            // npm `projects ask` reports its own "Missing ask instruction" (exit 1).
+            || path.as_slice() == ["projects", "ask"];
         if positionals.len() < minimum
             && !flags.contains_key("followup")
             && !project_source_selector
         {
-            return Err(parse_error(format!(
-                "Missing positional argument for '{}'. Run 'openmates {} --help'.",
-                path.join(" "),
-                path.join(" ")
-            )));
+            // Distinct kind so main.rs can exit 1 like the npm CLI (clap would use 2).
+            // npm spells out the usage line for these two commands only.
+            let message = match path.as_slice() {
+                [a, b] if a == "chats" && b == "search" => {
+                    "Missing search query. Usage: openmates chats search <query>".to_string()
+                }
+                [a, b] if a == "chats" && b == "delete" => {
+                    "Missing chat IDs. Usage: openmates chats delete <id1> [id2] [id3] ...".to_string()
+                }
+                _ => format!(
+                    "Missing positional argument for '{}'. Run 'openmates {} --help'.",
+                    path.join(" "),
+                    path.join(" ")
+                ),
+            };
+            return Err(clap::Error::raw(ErrorKind::MissingRequiredArgument, message));
         }
         // A bare `...` usage token repeats the preceding positional, as in
         // `chats delete <id1> [id2] [id3] ... [--yes]` (TS accepts any count).
         let open_text = record.skill_schema.is_some()
-            || record.usages.iter().any(|usage| usage.split_whitespace().any(|token| token == "..."))
+            || record
+                .usages
+                .iter()
+                .any(|usage| usage.split_whitespace().any(|token| token == "..."))
             || record.positionals.iter().any(|p| {
                 p.variadic || ["message", "text", "query", "prompt"].contains(&p.name.as_str())
             });
@@ -483,6 +528,9 @@ where
     })
 }
 
+#[cfg(test)]
+#[path = "parser_hyphen_text_tests.rs"]
+mod hyphen_text_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -560,6 +608,65 @@ mod tests {
         }
     }
     #[test]
+    fn server_apps_subcommands_parse_with_switches_and_values() {
+        let parsed = parse_from([
+            "openmates",
+            "server",
+            "apps",
+            "install",
+            "./my-events-1.0.0.zip",
+            "--accept-server-execution",
+            "--no-restart",
+            "--json",
+        ])
+        .unwrap();
+        let invocation = parsed.invocation.unwrap();
+        assert_eq!(invocation.command_path(), "server apps install");
+        assert_eq!(invocation.positionals, ["./my-events-1.0.0.zip"]);
+        assert!(invocation.boolean("accept-server-execution"));
+        assert!(invocation.boolean("no-restart"));
+        let parsed = parse_from([
+            "openmates",
+            "server",
+            "apps",
+            "rollback",
+            "my.events",
+            "--to",
+            "1.0.0",
+        ])
+        .unwrap();
+        let invocation = parsed.invocation.unwrap();
+        assert_eq!(invocation.command_path(), "server apps rollback");
+        assert_eq!(invocation.positionals, ["my.events"]);
+        assert_eq!(invocation.text("to"), Some("1.0.0"));
+        for args in [
+            vec!["openmates", "server", "apps"],
+            vec!["openmates", "server", "apps", "list", "--json"],
+            vec!["openmates", "server", "apps", "inspect", "my.events"],
+            vec![
+                "openmates",
+                "server",
+                "apps",
+                "remove",
+                "my.events",
+                "--yes",
+            ],
+        ] {
+            assert!(parse_from(args).is_ok());
+        }
+        assert!(parse_from(["openmates", "server", "apps", "inspect", "a.b", "c.d"]).is_err());
+        assert!(
+            parse_from([
+                "openmates",
+                "server",
+                "apps",
+                "list",
+                "--definitely-unknown"
+            ])
+            .is_err()
+        );
+    }
+    #[test]
     fn help_is_local_and_unknown_commands_and_flags_fail() {
         let error = parse_from(["openmates", "server", "env", "--help"])
             .err()
@@ -571,7 +678,13 @@ mod tests {
     #[test]
     fn chats_delete_accepts_any_number_of_ids_like_typescript() {
         let ids = ["a1", "b2", "c3", "d4", "e5"];
-        let parsed = parse_from(["openmates", "chats", "delete"].into_iter().chain(ids).chain(["--yes"])).unwrap();
+        let parsed = parse_from(
+            ["openmates", "chats", "delete"]
+                .into_iter()
+                .chain(ids)
+                .chain(["--yes"]),
+        )
+        .unwrap();
         assert_eq!(parsed.invocation.unwrap().positionals, ids);
         // Fixed-arity commands still refuse extra positionals.
         assert!(parse_from(["openmates", "chats", "show", "a1", "b2"]).is_err());
@@ -742,6 +855,11 @@ mod tests {
     fn task_ask_accepts_flag_and_positional_instructions() {
         assert!(parse_from(["openmates", "tasks", "ask", "--text", "Prepare launch copy"]).is_ok());
         assert!(parse_from(["openmates", "tasks", "ask", "Prepare", "launch", "copy"]).is_ok());
+    }
+    #[test]
+    fn project_ask_without_instruction_reaches_the_npm_style_handler_error() {
+        // The handler, not the arity check, owns npm's exit-1 "Missing ask instruction".
+        assert!(parse_from(["openmates", "projects", "ask"]).is_ok());
     }
     #[test]
     fn plan_confirm_and_nullable_link_flags_keep_command_specific_arity() {

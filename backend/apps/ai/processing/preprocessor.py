@@ -29,6 +29,8 @@ from backend.apps.ai.skills.ask_skill import AskSkillRequest, AskSkillDefaultCon
 from pydantic import BaseModel, Field # For PreprocessingResult model
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # For type hinting
 from backend.shared.python_utils.provider_health import is_provider_healthy, map_provider_name_to_id
+from backend.shared.app_packages.loader import is_installed_provider
+from backend.shared.app_packages.secrets import installed_provider_ready
 from backend.shared.python_utils.model_availability import is_model_available
 
 # Import UserOverrides for @ mentioning syntax support
@@ -56,10 +58,14 @@ from backend.apps.ai.utils.authored_result_instructions import admitted_authorin
 from backend.apps.ai.testing.voice_pipeline_fixture import voice_preprocessing_scope
 from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
 from backend.apps.ai.utils.model_reasoning import normalize_reasoning_level as _canonical_requested_reasoning_level
+from backend.apps.ai.processing.use_case_routing import (
+    normalize_use_case, use_case_model_candidates, use_case_thinking_level,
+)
 from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_topics
 from backend.apps.ai.processing.model_routing import (
     HIGH_TIER,
     MERCURY_MODEL,
+    selects_media_generation,
     history_requires_non_text,
     automatic_model_candidates,
     automatic_model_allowed_servers,
@@ -1427,6 +1433,7 @@ class PreprocessingResult(BaseModel):
     pending_project_focus_id: Optional[str] = Field(None, exclude=True, description="Routing-only consent proposal; no main inference or Project authority.")
     pending_project_catalog_id: Optional[str] = Field(None, exclude=True, description="Selected Project needs minimal owner-client Focus metadata before consent.")
     pending_project_specialist: Optional[Dict[str, str]] = Field(None, exclude=True, repr=False, description="Validated specialist selection metadata; its body remains hidden until consent.")
+    pending_project_create: Optional[Dict[str, Any]] = Field(None, exclude=True, repr=False, description="Routing-only create_project outcome (ProjectCreateProposal); a client must create the encrypted Project before main inference.")
     routing_only: bool = Field(False, exclude=True, description="Consent-only routing must run complete preprocessing before later inference, including after rejection.")
 
     harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
@@ -1459,6 +1466,10 @@ class PreprocessingResult(BaseModel):
     )
     selected_main_llm_thinking_level: Optional[Literal["LOW", "MEDIUM", "HIGH"]] = Field(
         None, description="Server-selected reasoning level for the automatic default model profile.",
+    )
+
+    use_case: Optional[str] = Field(
+        None, description="Recognised specialised use case that selected the automatic answer model, if any.",
     )
 
     # Model selection with fallbacks (from intelligent model selector)
@@ -1870,7 +1881,7 @@ async def _recover_jev_preprocessing(
 async def _select_main_model(
     llm_analysis_args: Dict[str, Any], request_data: AskSkillRequest,
     skill_config: AskSkillDefaultConfig, user_overrides: Optional[UserOverrides],
-    log_prefix: str,
+    log_prefix: str, selected_app_ids: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Resolve the answer model once from the public first-stage decisions."""
     raw_complexity = llm_analysis_args.get("complexity")
@@ -1886,6 +1897,8 @@ async def _select_main_model(
     # Extract task_area and user_unhappy from LLM analysis for model selection
     task_area_val = llm_analysis_args.get("task_area", "general")
     user_unhappy_val = llm_analysis_args.get("user_unhappy", False)
+    use_case_val = normalize_use_case(llm_analysis_args.get("use_case"))
+    use_case_applied = False
 
     # Validate task_area (enum: code, math, creative, instruction, general)
     valid_task_areas = ["code", "math", "creative", "instruction", "general"]
@@ -2175,7 +2188,11 @@ async def _select_main_model(
     # Explicit chat and saved-tier choices retain their existing precedence.
     if not model_override_applied:
         candidates = []
-        configured_candidates = automatic_model_candidates(complexity_val)
+        tier_candidates = automatic_model_candidates(complexity_val)
+        # A recognised use case leads with its own models; the tier chain
+        # stays behind them as recovery.
+        use_case_candidates = use_case_model_candidates(use_case_val)
+        configured_candidates = list(dict.fromkeys([*use_case_candidates, *tier_candidates]))
         if not enable_auto_select and selected_llm_for_main_id:
             # Disabling automatic selection preserves the operator's configured
             # primary; recovery still uses the current affordable policy.
@@ -2191,6 +2208,8 @@ async def _select_main_model(
             if model_id == MERCURY_MODEL:
                 if has_image_upload_embed or history_requires_non_text(request_data.message_history):
                     continue
+                if selects_media_generation(selected_app_ids, llm_analysis_args.get("relevant_app_skills")):
+                    continue
                 # Avoid a known unavailable primary without a provider call.
                 # Recovery attempts recheck health at the dispatch boundary.
                 if not candidates and not await is_provider_healthy("inception", CacheService()):
@@ -2199,20 +2218,30 @@ async def _select_main_model(
         selected_llm_for_main_id = candidates[0] if candidates else None
         selected_secondary_model_id = candidates[1] if len(candidates) > 1 else None
         selected_fallback_model_id = candidates[-1] if len(candidates) > 1 else None
+        use_case_applied = bool(candidates) and candidates[0] in use_case_candidates
+        if use_case_applied and len(candidates) > 2:
+            # Three attempts are dispatched; keep the third one a capable
+            # model instead of the tier's last-resort text route.
+            selected_fallback_model_id = candidates[2]
         selected_llm_for_main_name = None
         if selected_llm_for_main_id:
             provider, model = selected_llm_for_main_id.split("/", 1)
             selected_llm_for_main_name = config_manager.get_model_display_name(model, provider) or model
+        if use_case_applied:
+            model_selection_reason = f"Use case '{use_case_val}': {selected_llm_for_main_id}; {model_selection_reason}"
         model_selection_reason = f"{model_selection_reason}; Permitted automatic chain: {candidates}"
 
-    selected_llm_thinking_level = (
-        automatic_profile_thinking_level(complexity_val, selected_llm_for_main_id)
-        if not model_override_applied else None
-    )
+    selected_llm_thinking_level = None
+    if not model_override_applied:
+        selected_llm_thinking_level = (
+            use_case_thinking_level(use_case_val, selected_llm_for_main_id) if use_case_applied
+            else automatic_profile_thinking_level(complexity_val, selected_llm_for_main_id)
+        )
 
     return {
         "complexity_val": complexity_val,
         "task_area_val": task_area_val,
+        "use_case_val": use_case_val if use_case_applied else None,
         "user_unhappy_val": user_unhappy_val,
         "enable_subchats_val": enable_subchats_val,
         "china_related": china_related,
@@ -2256,7 +2285,7 @@ def _simple_context_fast_path(request_data: AskSkillRequest, early_routing: Dict
         return False
     if any(getattr(request_data, key, None) for key in (
         "active_project_focus", "current_project", "active_focus_id", "accepted_plan_context",
-        "custom_rule_documents", "project_focus_documents", "project_context_documents",
+        "custom_rule_documents", "memory_catalog", "project_focus_documents", "project_context_documents",
         "mentioned_settings_memories_cleartext", "project_routing_focus_id",
     )):
         return False
@@ -2648,7 +2677,10 @@ async def handle_preprocessing(
                         available_category_ids=[mate.category for mate in mates],
                     ) or "general_knowledge"
                     selected_mate = selected_mate or next((mate for mate in mates if mate.category == category), None)
-                    model = await _select_main_model(decisions, request_data, skill_config, user_overrides, log_prefix)
+                    model = await _select_main_model(
+                        decisions, request_data, skill_config, user_overrides, log_prefix,
+                        selected_app_ids=routing_result.get("selected_app_ids"),
+                    )
                     project_early_feedback.update(
                         category=category, mate_id=selected_mate.id if selected_mate else None,
                         model_id=model["selected_llm_for_main_id"], model_name=model["selected_llm_for_main_name"],
@@ -3006,6 +3038,12 @@ async def handle_preprocessing(
                         any_healthy = False
                         for provider_ref in skill.providers:
                             provider_id = map_provider_name_to_id(provider_ref.name, app_id)
+                            # Installed app package providers count only when
+                            # their declared secrets resolve on this server.
+                            if is_installed_provider(app_id, skill.id, provider_ref.name) and not await installed_provider_ready(
+                                app_id, skill.id, provider_ref.name, secrets_manager,
+                            ):
+                                continue
                             if await is_provider_healthy(provider_id, cache_service):
                                 any_healthy = True
                                 break
@@ -3194,6 +3232,7 @@ async def handle_preprocessing(
             early_decisions = early_routing["early_decisions"]
             early_model_selection = await _select_main_model(
                 early_decisions, request_data, skill_config, user_overrides, log_prefix,
+                selected_app_ids=selected_app_ids,
             )
             if explicit_mate:
                 early_category = explicit_mate.category
@@ -3250,6 +3289,30 @@ async def handle_preprocessing(
     if stage_one_only:
         request_data._stage_one_routing = early_routing
         return PreprocessingResult(can_proceed=True, routing_only=True)
+    from backend.apps.ai.processing.project_creation_routing import (
+        decide_project_creation, project_creation_skip_reason,
+    )
+    if early_model_selection is not None and project_creation_skip_reason(request_data, user_overrides) is None:
+        # Assistant-inferred Project creation (projects.creation.assistant-inferred).
+        project_create = await decide_project_creation(
+            request_data=request_data, user_overrides=user_overrides, cache_service=cache_service,
+            secrets_manager=secrets_manager, model_id=decision_model,
+            message_history=sanitized_message_history,
+            telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}", log_prefix=log_prefix,
+            early_decisions=(early_routing or {}).get("early_decisions"),
+            harm_threshold=float(skill_config.preprocessing_thresholds.harmful_content_score),
+            misuse_threshold=float(skill_config.preprocessing_thresholds.misuse_risk_score),
+        )
+        if project_create is not None:
+            return PreprocessingResult(
+                can_proceed=True, routing_only=True, category=early_category,
+                output_language=user_system_language, selected_mate_id=early_mate_id,
+                selected_app_ids=selected_app_ids,
+                selected_main_llm_model_id=early_model_selection["selected_llm_for_main_id"],
+                selected_main_llm_model_name=early_model_selection["selected_llm_for_main_name"],
+                relevant_app_skills=[], load_app_settings_and_memories=[], relevant_focus_modes=[],
+                pending_project_create=project_create.as_dict(),
+            )
 
     # Private details can arrive while Stage one resolves and publishes the Mate.
     # Missing details must never be silently reinterpreted as an empty context.
@@ -3508,6 +3571,15 @@ async def handle_preprocessing(
     # Live inference snapshots must not enter durable summaries, recorder dumps,
     # logs or raw preprocessing receipts.
     preselected_rule_snapshots = llm_analysis_args.pop("relevant_rules", None)
+    # Selected personal Memories (Auto include and Ask first alike) carry no body:
+    # they become requests for the existing conversation flow (key "memory:<id>"),
+    # answered by the client per its LOCAL load mode. Ids must be in the catalog.
+    memory_request_keys: List[str] = []
+    if isinstance(preselected_rule_snapshots, list):
+        from backend.apps.ai.processing.rule_context import request_memory_catalog, split_selected_rule_snapshots
+        memory_request_keys, preselected_rule_snapshots = split_selected_rule_snapshots(
+            preselected_rule_snapshots, request_memory_catalog(request_data),
+        )
     preselected_workflow_snapshots = llm_analysis_args.pop("relevant_workflows", None)
     preselected_diagram_types = llm_analysis_args.pop("relevant_diagram_types", None)
     preselected_diagram_variant = llm_analysis_args.pop("relevant_diagram_variant", None)
@@ -3757,6 +3829,13 @@ async def handle_preprocessing(
         load_app_settings_and_memories_val = []
         llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
     else:
+        # Personal Memory keys come only from validated catalog selections below,
+        # never from free-form model output.
+        load_app_settings_and_memories_val = [
+            key for key in load_app_settings_and_memories_val
+            if not (isinstance(key, str) and key.strip().lower().startswith(("memory:", "memory-", "memory ")))
+        ]
+        llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
         # Validate each key against available metadata
         if user_app_settings_and_memories_metadata:
             # Build a set of all available keys (format: "app_id:item_key" using colon for cache mixin compatibility)
@@ -3820,6 +3899,14 @@ async def handle_preprocessing(
             llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
         # If user_app_settings_and_memories_metadata is None/empty, we can't validate, so keep as-is
         # (The system will handle missing keys gracefully)
+
+    # Personal Memories selected by relevance (ids validated against the client catalog).
+    for memory_key in memory_request_keys:
+        if memory_key not in load_app_settings_and_memories_val:
+            load_app_settings_and_memories_val.append(memory_key)
+    if memory_request_keys:
+        llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
+        logger.info("%s Memory request issued for %d selection(s)", log_prefix, len(memory_request_keys))
 
     # --- Force-include @memory / @memory-entry mentioned keys ---
     # When the user explicitly mentions a settings/memory category or entry via @memory or
@@ -4548,6 +4635,7 @@ async def handle_preprocessing(
         selected_main_llm_model_name=selected_llm_for_main_name,
         requested_reasoning_level=_canonical_requested_reasoning_level(llm_analysis_args.get("reasoning_level")),
         selected_main_llm_thinking_level=selected_llm_thinking_level,
+        use_case=model_selection.get("use_case_val"),
         selected_secondary_model_id=selected_secondary_model_id,  # Secondary fallback model from leaderboard selection
         selected_fallback_model_id=selected_fallback_model_id,  # Final fallback model (hardcoded reliable default)
         model_selection_reason=model_selection_reason,  # Explanation of model selection for debugging

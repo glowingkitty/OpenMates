@@ -6,6 +6,7 @@ import { replaceEmbedRefsWithUrlsInHtml } from '../../../utils/embedLinkUtils';
 import type { PIIMapping } from '../../../types/chat';
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const PDF_MIME = 'application/pdf';
 const DOWNLOAD_URL_REVOKE_DELAY_MS = 60_000;
 export interface DocsDownloadOptions {
   filename?: string;
@@ -22,6 +23,16 @@ export type PreparedDocsDownload = { filename: string } & ({ url: string } | { b
 
 export function docsDownloadFilename(filename?: string): string {
   return (filename || 'document').replace(/\.docx$/i, '') + '.docx';
+}
+export function docsPdfDownloadFilename(filename?: string): string {
+  return (filename || 'document').replace(/\.(docx|pdf)$/i, '') + '.pdf';
+}
+/** PDF twin of the generated DOCX; only exists for documents whose conversion succeeded. */
+export async function prepareDocsPdfDownload(options: { filename?: string; pdfS3Key: string; aesKey: string }): Promise<PreparedDocsDownload> {
+  return {
+    filename: docsPdfDownloadFilename(options.filename),
+    blob: await fetchAndDecryptDocArtifact(options.pdfS3Key, options.aesKey, PDF_MIME),
+  };
 }
 export function fetchDocxDownloadArtifact(s3Key: string, aesKey: string): Promise<Blob> {
   return fetchAndDecryptDocArtifact(s3Key, aesKey, DOCX_MIME);

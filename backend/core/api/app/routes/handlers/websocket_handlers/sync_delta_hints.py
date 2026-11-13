@@ -97,6 +97,11 @@ def phase2_delta_reason(
         return "sent_refresh"
     if not on_client:
         return "sent_new"
+    # Unread counter changes do not bump chat versions, so an unread chat is
+    # always sent: the server count is the only source a reloaded client has
+    # (feature.chat-unread@1).
+    if int(chat_details.get("unread_count") or 0) > 0:
+        return "sent_unread"
     source = "redis" if redis_versions else "directus"
     server_versions = redis_versions or directus_chat_versions(chat_details)
     if is_current(client_versions, server_versions, chat_details):

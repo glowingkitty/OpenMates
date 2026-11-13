@@ -118,9 +118,14 @@ class _MetadataDirectus:
     def __init__(self) -> None:
         self.chat = self
         self.updates: list[dict] = []
+        self.read_status_updates: list[tuple[str, int]] = []
 
     async def get_chat_metadata(self, _chat_id: str) -> dict:
-        return {"messages_v": 12}
+        return {"messages_v": 12, "unread_count": 2}
+
+    async def update_chat_read_status(self, chat_id: str, unread_count: int) -> bool:
+        self.read_status_updates.append((chat_id, unread_count))
+        return True
 
     async def update_chat_fields_in_directus(self, _chat_id: str, fields: dict) -> bool:
         self.updates.append(fields)
@@ -163,6 +168,14 @@ class _PersistCache:
     def __init__(self) -> None:
         self.saved_messages: list[dict] = []
         self.events: list[tuple[str, dict]] = []
+        self.read_status_updates: list[tuple[str, str, int]] = []
+
+    async def get_chat_list_item_data(self, _user_id: str, _chat_id: str, refresh_ttl: bool = False):
+        return None  # cache miss: unread counter falls back to Directus
+
+    async def update_chat_read_status(self, user_id: str, chat_id: str, unread_count: int) -> bool:
+        self.read_status_updates.append((user_id, chat_id, unread_count))
+        return True
 
     async def save_chat_message_and_update_versions(self, **kwargs) -> dict:
         self.saved_messages.append(kwargs)
@@ -382,7 +395,7 @@ def test_persisted_ai_message_broadcast_preserves_parent_user_message_id_and_cre
     assert event["message"]["user_message_id"] == request_data.message_id
 
 
-# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chat-unread.persistence.cross-device
 def test_non_recovery_metadata_update_publishes_through_cache_once() -> None:
     request_data = _ask_request()
     directus = _MetadataDirectus()
@@ -413,6 +426,10 @@ def test_non_recovery_metadata_update_publishes_through_cache_once() -> None:
     assert len(cache.saved_messages) == 1
     assert cache.saved_messages[0]["explicit_messages_v"] == 13
     assert len(cache.events) == 1
+    # A finished top-level reply is unread until a client reports its last line seen.
+    assert cache.read_status_updates == [(request_data.user_id, request_data.chat_id, 3)]
+    assert directus.read_status_updates == [(request_data.chat_id, 3)]
+    assert cache.events[0][1]["unread_count"] == 3
 
 
 # contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
@@ -2029,3 +2046,44 @@ def test_generated_finished_refs_survive_cache_miss_while_invented_refs_are_stri
         known_valid_refs=set(authenticated_generated_outputs(outputs)),
     ))
     assert result == f"[!](embed:{ref}) and Invented"
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.answer.only-result-embeds-in-body
+@pytest.mark.parametrize("app_id,skill_id,parent_ref,child_type,child_ref", [
+    ("web", "search", "web-search-k8D", "website", "example.org-a1B"),
+    ("images", "generate", "generated-media-images-018f11111111", "generated_image",
+     "generated-images-018f22222222"),
+])
+def test_final_validator_removes_skill_use_refs_and_shows_their_results(
+    app_id, skill_id, parent_ref, child_type, child_ref,
+):
+    parent_id = "018f1111-1111-7111-8111-111111111111"
+    child_id = "018f2222-2222-7222-8222-222222222222"
+    nodes = {
+        parent_id: SimpleNamespace(decoded={
+            "app_id": app_id, "skill_id": skill_id, "result_count": 1,
+            "embed_ids": [child_id], "embed_ref": parent_ref, "status": "finished",
+        }),
+        child_id: SimpleNamespace(decoded={"type": child_type, "embed_ref": child_ref}),
+    }
+
+    async def get_node(embed_id):
+        return nodes.get(embed_id)
+
+    answer = f"Done, see [the {skill_id}](embed:{parent_ref}).\n\n[!](embed:{parent_ref})"
+    validated: set[str] = set()
+    result = asyncio.run(stream_consumer._strip_invalid_inline_embed_links(
+        aggregated_response=answer,
+        tool_calls_info=[{"app_id": app_id, "skill_id": skill_id, "embed_id": parent_id}],
+        cache_service=SimpleNamespace(), directus_service=None, encryption_service=SimpleNamespace(),
+        user_vault_key_id="owner-key", embed_graph=SimpleNamespace(get=get_node),
+        validated_refs_out=validated,
+    ))
+    assert result == f"Done, see the {skill_id}.\n\n[!](embed:{child_ref})"
+    assert parent_ref not in validated and child_ref in validated
+    # Without graph authority a generated-media parent is still recognised by its form.
+    if app_id == "images":
+        assert parent_ref not in asyncio.run(stream_consumer._strip_invalid_inline_embed_links(
+            aggregated_response=answer, tool_calls_info=None, cache_service=None,
+            directus_service=None, encryption_service=None, user_vault_key_id=None,
+        ))

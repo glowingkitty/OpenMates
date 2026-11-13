@@ -1,7 +1,7 @@
 // "Ask OpenMates" Shortcut — sends a message to a new chat and returns the AI response.
 // This is the primary Siri / Shortcuts integration: "Hey Siri, ask OpenMates..."
-// Creates a new chat, sends the user's question, waits for the streaming response
-// to complete, and returns the full answer as a string result.
+// The send runs through the shared client core (`CoreChatActions`), which streams,
+// persists and post-processes the chat; the intent returns the core's reply text.
 
 import AppIntents
 import Foundation
@@ -28,156 +28,88 @@ struct AskOpenMatesIntent: AppIntent {
         return .result(value: response)
     }
 
+    /// User-facing results. The turn itself (send, stream, persistence and
+    /// post-processing) runs in the client core; the intent only reads its end.
+    enum Message {
+        static let signIn = "Open OpenMates and sign in before using this shortcut."
+        static let notConnected = "OpenMates could not connect. Open the app and try again."
+        static let stillProcessing = "Response is still processing. Open the app to see the full answer."
+        static func failed(_ reason: String) -> String { "OpenMates could not finish the response: \(reason)" }
+    }
+
+    /// Seconds the shortcut waits for the core's reply before pointing to the app.
+    static let replyTimeoutSeconds = 180
+
+    /// The shortcut result for how the core ended the turn (`nil`: no end arrived in time).
     @MainActor
-    private func performChatRequest() async throws -> String {
-        let authManager = AuthManager()
-        await authManager.checkSession()
-        guard authManager.state == .authenticated else {
-            return "Open OpenMates and sign in before using this shortcut."
+    static func result(forEnd end: CoreTurnEnd?) -> String {
+        guard let end else { return Message.stillProcessing }
+        switch end.outcome {
+        case .completed:
+            guard let reply = end.replyText, !reply.isEmpty else { return Message.stillProcessing }
+            return reply
+        case .failed(let error):
+            return Message.failed(CoreSession.errorClass(error))
+        case .cancelled:
+            return Message.stillProcessing
         }
+    }
 
-        let chatId = UUID().uuidString.lowercased()
-        let now = ChatSendPipeline.isoString(from: Date())
-        let chatStore = ChatStore()
-        let wsManager = WebSocketManager()
-        let syncBridge = OfflineSyncBridge(chatStore: chatStore, wsManager: wsManager)
-        chatStore.setBridge(syncBridge)
-
-        let chat = Chat(
-            id: chatId,
-            title: nil,
-            lastMessageAt: now,
-            createdAt: now,
-            updatedAt: now,
-            isArchived: false,
-            isPinned: false,
-            appId: appId.isEmpty ? nil : appId,
-            category: appId.isEmpty ? nil : appId,
-            icon: nil,
-            chatSummary: nil,
-            encryptedTitle: nil,
-            encryptedCategory: nil,
-            encryptedIcon: nil,
-            encryptedChatSummary: nil,
-            encryptedChatKey: nil,
-            messagesV: 0,
-            titleV: 0
-        )
-        chatStore.upsertChat(chat)
-
-        wsManager.connect(sessionId: AuthManager.nativeSessionId, token: authManager.webSocketToken)
-        guard await waitUntilConnected(wsManager) else {
-            return "OpenMates could not connect. Open the app and try again."
+    /// The shortcut result for a turn the core did not admit (`.accepted` has none).
+    @MainActor
+    static func result(forRefusal acceptance: CoreTurnAcceptance) -> String? {
+        switch acceptance {
+        case .accepted: return nil
+        case .rejected(let error): return Message.failed(CoreSession.errorClass(error))
+        case .cancelled, .noCore: return Message.notConnected
         }
-        defer { wsManager.disconnect() }
+    }
 
-        let pipeline = ChatSendPipeline()
-        let stream = await StreamingClient.shared.streamForChat(chatId)
-        let sent = try await pipeline.sendUserMessage(
-            content: question,
-            in: chat,
-            existingMessages: [],
-            wsManager: wsManager,
-            chatStore: chatStore
-        )
-        var currentChat = sent.chat
-        let pendingUserMessagesById: [String: Message] = [sent.message.id: sent.message]
-        var userMessageIdByAssistantId: [String: String] = [:]
-        var completedAnswer: String?
-        var postProcessingCompleted = false
-        var postProcessingTimeout: Task<Void, Never>?
-        defer { postProcessingTimeout?.cancel() }
-
-        for await event in stream {
-            switch event {
-            case .typingStarted(_, let assistantMessageId, let metadata):
-                if let userMessageId = metadata?.userMessageId {
-                    userMessageIdByAssistantId[assistantMessageId] = userMessageId
-                }
-                if let metadata,
-                   let userMessageId = metadata.userMessageId ?? userMessageIdByAssistantId[assistantMessageId],
-                   let userMessage = pendingUserMessagesById[userMessageId] {
-                    currentChat = try await pipeline.sendEncryptedUserStoragePackage(
-                        chat: currentChat,
-                        userMessage: userMessage,
-                        assistantTaskId: assistantMessageId,
-                        metadata: metadata,
-                        wsManager: wsManager,
-                        chatStore: chatStore
-                    )
-                }
-
-            case .chunk(let eventChatId, let messageId, _, let content, let isFinal, let userMessageId, let category, let modelName, let rejectionReason):
-                if let userMessageId {
-                    userMessageIdByAssistantId[messageId] = userMessageId
-                }
-                guard eventChatId == chatId, isFinal else { continue }
-                let assistantMessage = Message(
-                    id: messageId,
-                    chatId: chatId,
-                    role: rejectionReason == nil ? .assistant : .system,
-                    content: content,
-                    encryptedContent: nil,
-                    createdAt: ChatSendPipeline.isoString(from: Date()),
-                    updatedAt: nil,
-                    appId: category ?? currentChat.category ?? currentChat.appId,
-                    isStreaming: false,
-                    embedRefs: nil,
-                    modelName: modelName
-                )
-                let persisted = try await pipeline.persistCompletedAssistantMessage(
-                    assistantMessage,
-                    userMessageId: userMessageIdByAssistantId[messageId],
-                    wsManager: wsManager,
-                    chatStore: chatStore
-                )
-                completedAnswer = persisted.content ?? content
-                if postProcessingCompleted { return completedAnswer ?? content }
-                // Shortcuts should wait for the durable generated header while
-                // still returning the answer if post-processing is unavailable.
-                postProcessingTimeout?.cancel()
-                postProcessingTimeout = Task {
-                    try? await Task.sleep(for: .seconds(15))
-                    guard !Task.isCancelled else { return }
-                    await stream.finish()
-                }
-
-            case .postProcessingCompleted(let eventChatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle, let sourceTitleVersion, let sourceMetadataVersion):
-                guard eventChatId == chatId else { continue }
-                await pipeline.sendPostProcessingMetadata(
-                    chatId: chatId,
-                    followUpSuggestions: followUps,
-                    newChatSuggestions: newSuggestions,
-                    chatSummary: summary,
-                    chatTags: tags,
-                    updatedTitle: updatedTitle,
-                    sourceTitleVersion: sourceTitleVersion,
-                    sourceMetadataVersion: sourceMetadataVersion,
-                    wsManager: wsManager,
-                    chatStore: chatStore
-                )
-                postProcessingCompleted = true
-                if let completedAnswer { return completedAnswer }
-
-            case .error(let message):
-                return completedAnswer ?? "OpenMates could not finish the response: \(message)"
-
-            default:
-                continue
-            }
+    /// The core exists from app start (`OpenMatesApp.init`); this repeats the same
+    /// launch calls when the intent runs before them (each is a no-op once done).
+    @MainActor
+    private func readyCore() async -> CoreSession? {
+        CoreSession.launch()
+        if !CoreChatWindow.shared.isAttached { CoreChatWindow.launch() }
+        if !CoreChatActions.shared.isAttached { CoreChatActions.launch() }
+        guard let session = CoreSession.shared else { return nil }
+        if session.state == .notStarted {
+            try? await session.start()
+        } else {
+            await session.settled()
         }
-
-        return completedAnswer ?? "Response is still processing. Open the app to see the full answer."
+        return session
     }
 
     @MainActor
-    private func waitUntilConnected(_ wsManager: WebSocketManager) async -> Bool {
-        for _ in 0..<50 {
-            if wsManager.connectionState == .connected {
-                return true
-            }
-            try? await Task.sleep(for: .milliseconds(100))
+    private func performChatRequest() async throws -> String {
+        guard let session = await readyCore() else { return Message.notConnected }
+        switch session.state {
+        case .admitted, .restored: break
+        case .notStarted, .starting, .failed: return Message.notConnected
+        case .signedOut, .expired, .accessDenied, .verificationRequired: return Message.signIn
         }
-        return false
+
+        let chatId = UUID().uuidString.lowercased()
+        let options = CoreSendMapping.options(reservedChatId: chatId)
+        let (ends, endContinuation) = AsyncStream.makeStream(of: CoreTurnEnd.self)
+        let acceptance = await CoreChatActions.shared.startTurn(
+            .send(text: question, options: options), chatId: nil
+        ) { end in
+            endContinuation.yield(end)
+            endContinuation.finish()
+        }
+        if let refusal = Self.result(forRefusal: acceptance) {
+            endContinuation.finish()
+            return refusal
+        }
+        let timeout = Task {
+            try? await Task.sleep(for: .seconds(Self.replyTimeoutSeconds))
+            endContinuation.finish()
+        }
+        defer { timeout.cancel() }
+        var end: CoreTurnEnd?
+        for await value in ends { end = value }
+        return Self.result(forEnd: end)
     }
 }

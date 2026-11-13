@@ -121,7 +121,7 @@ final class SettingsModesParityTests: XCTestCase {
         XCTAssertEqual(SettingsTeamMenuBounds.height(teamCount: 1, expanded: false, viewportHeight: 900), 106)
         XCTAssertEqual(SettingsTeamMenuBounds.height(teamCount: 2, expanded: false, viewportHeight: 900), 157)
         XCTAssertEqual(SettingsTeamMenuBounds.height(teamCount: 8, expanded: false, viewportHeight: 900), 361)
-        XCTAssertEqual(SettingsTeamMenuBounds.height(teamCount: 8, expanded: true, viewportHeight: 900), 480)
+        XCTAssertEqual(SettingsTeamMenuBounds.height(teamCount: 8, expanded: true, viewportHeight: 900), 463)
         XCTAssertEqual(SettingsTeamMenuBounds.height(teamCount: 8, expanded: true, viewportHeight: 320), 304)
     }
 

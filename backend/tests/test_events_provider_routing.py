@@ -56,3 +56,24 @@ async def test_invalid_date_range_does_not_contact_schedule(monkeypatch):
 def test_conference_only_auto_routing():
     assert deterministic_auto_providers(query="concerts in Berlin", eligible_ids=["pretalx"]) == ([], [])
     assert deterministic_auto_providers(query="39C3 security", eligible_ids=["pretalx"]) == (["pretalx"], [])
+
+# contract-test: direct surface=rest_api assertions=events-search.request.validated
+@pytest.mark.anyio
+async def test_missing_query_without_conference_returns_actionable_request_error(monkeypatch):
+    skill = object.__new__(SearchSkill)
+    source = AsyncMock(side_effect=AssertionError("must not contact a source"))
+    monkeypatch.setattr(skill, "_search_pretalx", source)
+    response = await skill.execute(SearchRequest(requests=[{"id": "berlin-tech-events", "location": "Berlin"}]))
+    assert "'query'" in response.results[0]["error"]
+    assert "Retry" in response.results[0]["error"]
+    assert response.results[0]["results"] == []
+    source.assert_not_awaited()
+
+# contract-test: supporting surface=rest_api assertions=events-search.request.validated
+def test_tool_schema_describes_query_requirement():
+    import yaml
+    from pathlib import Path
+    app = yaml.safe_load(Path("backend/apps/events/app.yml").read_text())
+    skill = next(s for s in app["skills"] if s["id"] == "search")
+    query = skill["tool_schema"]["properties"]["requests"]["items"]["properties"]["query"]
+    assert "Required" in query["description"] and "conference" in query["description"]

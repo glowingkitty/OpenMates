@@ -17,9 +17,11 @@ extension AppStrings {
         case .startupTimedOut: key = "connection_failed"
         case .connectionLost: key = "connection_lost"
         case .textRejected: key = "unsupported_content"
+        case .endedInBackground: key = "ended_in_background"
         default: key = "call_unavailable"
         }
         return nativeCall(key)
     }
+    static func nativeCallCameraNotice(_ notice: NativeVoiceCallCameraNotice) -> String { nativeCall(notice.rawValue) }
 }
 #endif

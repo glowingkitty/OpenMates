@@ -24,6 +24,22 @@ const RETRY_DEDUPE_KEY = "phased-sync-degraded";
 
 let attempt = 0;
 let timer: ReturnType<typeof setTimeout> | null = null;
+/** Opt-in shared Rust core build: the decision runs in the shared Worker `sync` unit. */
+// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+function rustSyncPolicy() {
+  return import("./rustCore/sync/rustChatSyncPolicy");
+}
+let retryGeneration = 0;
+/** Live view of this module's retry state for the flag-on adapter. */
+const rustRetryState = {
+  get attempt() { return attempt; },
+  set attempt(value: number) { attempt = value; },
+  get timer() { return timer; },
+  set timer(value: ReturnType<typeof setTimeout> | null) { timer = value; },
+  get generation() { return retryGeneration; },
+};
 
 export function computePhasedSyncRetryDelayMs(attemptNumber: number, retryAfterMs?: number): number {
   const base = Number.isFinite(retryAfterMs) && (retryAfterMs as number) > 0
@@ -33,6 +49,7 @@ export function computePhasedSyncRetryDelayMs(attemptNumber: number, retryAfterM
 }
 
 export function resetPhasedSyncRetry(): void {
+  if (RUST_SYNC_BUILD) retryGeneration += 1;
   attempt = 0;
   if (timer) clearTimeout(timer);
   timer = null;
@@ -42,6 +59,15 @@ export function handlePhasedSyncRetryableErrorImpl(
   service: ChatSynchronizationService,
   payload: PhasedSyncRetryablePayload,
 ): void {
+  if (RUST_SYNC_BUILD) {
+    void rustSyncPolicy().then((policy) => policy.handlePhasedSyncRetryableError(service, payload, rustRetryState, {
+      markSyncCompleted: () => phasedSyncState.markSyncCompleted(),
+      notifyDegraded: () => notificationStore.info(
+        "Some chats may be out of date. We'll keep trying in the background.", 6000, true, RETRY_DEDUPE_KEY,
+      ),
+    }));
+    return;
+  }
   if (payload.retryable !== true) return;
   service.clearPhasedSyncTimeout();
   if (timer) return;

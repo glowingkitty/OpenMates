@@ -33,6 +33,9 @@ pub use settlement::{CacheSettlementCandidate, CacheSettlementPublication};
 mod first_page;
 pub use first_page::{ChatFirstPageCandidate, ChatFirstPagePublication, ChatFirstPageSink};
 pub(in crate::client) use first_page::FirstPageRead;
+#[path = "cached_view_open.rs"]
+mod open;
+pub use open::ChatOwnerLease;
 
 const MAX_CACHED_CHATS: usize = 20;
 const MAX_CACHED_MESSAGES: usize = 30;
@@ -737,6 +740,7 @@ impl Client {
                     mappings.extend(serde_json::from_str::<Vec<Value>>(&mapping)?);
                 }
             }
+            mappings.extend(crate::client::memory_privacy::response_mappings(&message)?);
             messages.push(message.into_inner());
         }
         // Same explicit page-local policy as bounded saved reads: mappings from

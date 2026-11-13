@@ -3,6 +3,55 @@
 Only SDK-relevant compatibility notes are recorded here. Release versions follow
 the product line (`0.29.x` alpha prereleases from `dev`, stable from `main`).
 
+## Unreleased
+
+### Breaking
+
+- Rust SDK: `Memories::create`, `update` and `types`, `MemoryInput`,
+  `hash_item_key` and `memory_plaintext` are removed, matching npm and Python
+  (removed 2026-11-07; the backend answers 410). `IdeaBucket::save_settings` now
+  returns the same refusal as npm/Python. `sdk.memories` is implemented in all
+  three SDKs.
+
+### Changed
+
+- `billing.downloadInvoice`, `billing.downloadCreditNote` and
+  `billing.usageExport` now declare the exported `RawDownload` type
+  (`contentType`, optional `filename`, `data: ArrayBuffer`); the runtime shape is
+  unchanged. `filename` is now always the last path component of the
+  `Content-Disposition` name, and is omitted for `.`/`..` names or a malformed
+  `filename*` encoding (previously such a header threw a `URIError`). Rust and
+  Python follow the same filename contract.
+
+Cross-language SDK alignment (npm, Python and Rust now behave the same; each case
+is a shared conformance vector):
+
+- **Malformed document slugs are refused locally.** `docs.show()` and
+  `docs.download()` throw the new `OpenMatesInvalidInputError`
+  (code `OPENMATES_SDK_INVALID_INPUT`) before any request for an empty slug,
+  `..`, a leading or trailing `/`, an empty or `.` segment, `\`, `:`, NUL or other
+  control characters, or a slug over 4096 bytes. Previously these reached the
+  server. Python raises the same error class, which is a `ValueError`.
+- **An empty Wikipedia `language` means English.** `wikipedia.search()`,
+  `summary()`, `learning()` and `article()` send `language=en` for `""`, the same
+  as an omitted language. Previously npm sent `language=` and the backend
+  rejected the request.
+- **Draft preview fallback counts Unicode characters.** When a draft has no saved
+  preview, `drafts.get()`/`list()` use the first 160 Unicode characters of the
+  markdown instead of 160 UTF-16 code units, so the preview never ends in half an
+  emoji. A saved but empty or undecryptable `encryptedDraftPreview` now gives
+  `preview: null` instead of falling back to the markdown.
+
+### Added (Python)
+
+- `OpenMatesClient(api_key=...)` mirrors the npm root client: a missing or blank
+  key raises `OpenMatesApiKeyRequiredError` (code `OPENMATES_SDK_API_KEY_REQUIRED`,
+  a subclass of `OpenMatesConfigError`) at construction, it never reads
+  `OPENMATES_API_KEY`, and it refuses the legacy `session`/`load_stored_session`
+  options. `OpenMates()` is unchanged.
+- Python `embeds.add_to_project()`/`remove_from_project()` resolve a Project
+  slug, name or id prefix before routing, as npm does.
+
 ## 0.30.0
 
 ### Breaking

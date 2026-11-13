@@ -41,17 +41,18 @@ def test_catalog_routes_preview_with_regular_costs_and_customer_rates():
     assert model["input_types"] == ["text", "image"]
     assert model["default_server"] == "mistral"
     assert model["servers"] == [{"id": "mistral", "name": "Mistral", "model_id": "mistral-large-4", "region": "EU",
-        "reasoning_control": {"parameter": "reasoning_effort", "levels": {"HIGH": "high"},
+        "country": "FR", "reasoning_control": {"parameter": "reasoning_effort", "levels": {"HIGH": "high"},
             "source_url": "https://docs.mistral.ai/studio/conversations/reasoning"}}]
-    for direction, expected, units in [("input", 1.36, 245), ("output", 4.18, 79)]:
+    for direction, expected, units in [("input", 0.70, 955), ("output", 2.10, 320)]:
         cost = model["costs"][f"{direction}_per_million_token"]
         assert cost["price"] == expected
         assert cost["max_context"] == 1000000
         assert model["pricing"]["tokens"][direction]["per_credit_unit"] == units
-        charged = 1000 / model["pricing"]["tokens"][direction]["per_credit_unit"]
-        assert 3 <= charged / expected <= 3.1
-    assert model["costs"]["cached_input_per_million_token"]["price"] == 0.14
-    assert model["pricing"]["tokens"]["cache_read"]["per_credit_unit"] == 2380
+        unit = model["pricing"]["tokens"][direction]["per_credit_unit"]
+        exact = 1000 / (expected * 1.5)
+        assert unit % 5 == 0 and exact <= unit < exact + 5
+    assert model["costs"]["cached_input_per_million_token"]["price"] == 0.07
+    assert model["pricing"]["tokens"]["cache_read"]["per_credit_unit"] == 9525
 
 
 def test_reasoning_setting_preserves_legacy_models_and_rejects_invalid_values(monkeypatch):
@@ -62,6 +63,64 @@ def test_reasoning_setting_preserves_legacy_models_and_rejects_invalid_values(mo
     monkeypatch.setattr(mistral_client.config_manager, "get_model_pricing", lambda *_: {"reasoning_effort": "max"})
     with pytest.raises(ValueError, match="Invalid Mistral reasoning_effort"):
         mistral_client._get_mistral_reasoning_effort("mistral-large-4")
+
+
+@pytest.mark.parametrize("requested,expected", [
+    ("none", "none"), ("low", "none"), ("medium", "high"),
+    ("high", "high"), ("xhigh", "high"), ("max", "high"),
+])
+def test_requested_effort_is_adapted_to_mistral_none_or_high(requested, expected):
+    assert mistral_client._adapt_reasoning_effort("deepseek-v4-1-flash-1017", requested) == expected
+    assert expected in mistral_client.MISTRAL_REASONING_EFFORTS
+
+
+@pytest.mark.parametrize("requested,expected", [
+    ("low", "low"), ("medium", "high"), ("high", "high"), ("xhigh", "max"), ("max", "max"),
+])
+def test_requested_effort_is_adapted_to_glm_low_high_max(requested, expected):
+    assert mistral_client._adapt_reasoning_effort("zai-glm-5-3", requested) == expected
+    assert expected in mistral_client.GLM_REASONING_EFFORTS
+
+
+def test_unknown_effort_vocabulary_is_still_rejected():
+    with pytest.raises(ValueError, match="Invalid Mistral reasoning effort override"):
+        mistral_client._adapt_reasoning_effort("mistral-large-4", "turbo")
+
+
+@pytest.mark.parametrize("requested,expected", [("low", "none"), ("xhigh", "high")])
+def test_low_and_xhigh_overrides_reach_payload_as_supported_values(monkeypatch, requested, expected):
+    """Regression: prod provider_exhausted from 'Invalid Mistral reasoning effort override: low'."""
+    payloads = []
+
+    def handle(request):
+        payloads.append(json.loads(request.content))
+        return httpx.Response(200, json={
+            "id": "test-completion", "object": "chat.completion", "created": 1, "model": "deepseek-v4-1-flash-1017",
+            "choices": [{"index": 0, "message": {"role": "assistant", "content": "391"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 2, "total_tokens": 12},
+        })
+
+    _mock_client(monkeypatch, handle)
+    result = asyncio.run(mistral_client.invoke_mistral_chat_completions(
+        "test", "deepseek-v4-1-flash-1017", [{"role": "user", "content": "hi"}],
+        reasoning_effort=requested,
+    ))
+    assert result.success
+    assert payloads[0]["reasoning_effort"] == expected
+
+
+def test_catalog_mistral_reasoning_levels_use_values_the_provider_accepts():
+    providers = Path(__file__).parents[1] / "providers"
+    for path in providers.glob("*.yml"):
+        for model in yaml.safe_load(path.read_text()).get("models", []):
+            for server in model.get("servers", []):
+                control = server.get("reasoning_control") or {}
+                if server.get("id") != "mistral" or control.get("parameter") != "reasoning_effort":
+                    continue
+                supported = (mistral_client.GLM_REASONING_EFFORTS
+                             if server["model_id"].startswith("zai-glm-")
+                             else mistral_client.MISTRAL_REASONING_EFFORTS)
+                assert set(control["levels"].values()) <= supported, (path.name, model["id"])
 
 
 def test_non_stream_response_keeps_answer_separate_from_thinking(monkeypatch):

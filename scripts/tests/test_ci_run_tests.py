@@ -340,6 +340,8 @@ def test_component_browser_uses_vite_dev_without_backend_or_accounts(tmp_path, m
 
     monkeypatch.setattr(runner.subprocess, "Popen", popen)
     monkeypatch.setattr(runner, "wait_component_web", lambda child: None)
+    warmed = []
+    monkeypatch.setattr(runner, "warm_component_preview", warmed.append)
 
     def browser(command, **kwargs):
         assert command[:3] == ["/synthetic/node", "/synthetic/playwright/cli.js", "test"]
@@ -353,6 +355,47 @@ def test_component_browser_uses_vite_dev_without_backend_or_accounts(tmp_path, m
     assert result[0]["exit_code"] == 0
     assert len(launched) == 1
     assert launched[0][:4] == ["pnpm", "exec", "vite", "dev"]
+    assert warmed == [[spec]]
+
+
+# contract-test: infrastructure
+def test_component_warmup_visits_the_spec_preview_and_fails_loudly(tmp_path, monkeypatch):
+    import pytest
+    from types import SimpleNamespace
+
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    web = tmp_path / "web"
+    (web / "tests/components").mkdir(parents=True)
+    (web / "tests/components/a.spec.ts").write_text(
+        "const preview = '/dev/preview/embeds/slides/SlidesEditor';\n"
+    )
+    (web / "tests/components/b.spec.ts").write_text("const preview = (c) => `/dev/preview/${c}`;\n")
+    monkeypatch.setattr(runner, "WEB", web)
+    monkeypatch.setattr(runner, "pinned_node", lambda: "/synthetic/node")
+    assert runner.component_warmup_route(["components/a.spec.ts"]) == "/dev/preview/embeds/slides/SlidesEditor"
+    assert runner.component_warmup_route(["components/b.spec.ts"]) == runner.COMPONENT_WARMUP_DEFAULT_ROUTE
+
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=calls[0][0] and len(calls) - 1, stdout="", stderr="")
+
+    monkeypatch.setattr(runner.subprocess, "run", run)
+    monkeypatch.setenv("CI_LANE_WEB_RUST_CORE", "true")
+    runner.warm_component_preview(["components/a.spec.ts"])
+    command, kwargs = calls[0]
+    assert command[0] == "/synthetic/node" and command[1] == "-e"
+    assert "data-preview-ready=true" in command[2]
+    assert command[3] == f"{runner.APP}/dev/preview/embeds/slides/SlidesEditor?chrome=0"
+    assert command[4] == "180000" and command[5] == "1"
+    assert kwargs["cwd"] == web
+    monkeypatch.delenv("CI_LANE_WEB_RUST_CORE")
+    with pytest.raises(RuntimeError, match="did not reach data-preview-ready=true"):
+        runner.warm_component_preview(["components/a.spec.ts"])
+    assert calls[1][0][5] == "0"
 
 
 def test_reserved_account_policy_is_read_from_candidate_without_import(tmp_path, monkeypatch):

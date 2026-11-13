@@ -44,8 +44,8 @@ client.listProjects=async()=>[{project_id:'22222222-2222-4222-8222-222222222222'
  encrypted_name:encrypt('Synthetic Project'),encrypted_description:encrypt('Synthetic project mention context')}];
 client.getProjectSettings=async()=>({write_mode:'always_ask'});
 client.getAppsWorkspaceCatalog=async()=>({apps:[{id:'web',name:'Web',skills:[{id:'search',name:'Search'}],
- focus_modes:[{id:'research',name:'Research'}],settings_and_memories:[{id:'preferences',name:'Preferences'}]}]});
-client.listMemories=async()=>[{id:'synthetic-memory',app_id:'web',item_type:'preferences',data:{title:'Synthetic research preference'}}];
+ focus_modes:[{id:'research',name:'Research'}]}]});
+client.listMemories=async()=>[{id:'synthetic-memory',app_id:'openmates',item_type:'memories',data:{title:'Synthetic research preference'}}];
 client.searchWikipediaTitles=async()=>[{page_id:1,key:'Comet',title:'Comet',description:'Synthetic Wikipedia suggestion',language:'en',disambiguation:false}];
 client.listWorkflows=async()=>[];client.listUserTasks=async()=>[];
 const {createTuiWorkspaceCache}=await import('../../src/tuiWorkspaceCache.ts');

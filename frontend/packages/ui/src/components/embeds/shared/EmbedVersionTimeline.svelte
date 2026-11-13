@@ -7,6 +7,8 @@
 
   Used in: CodeEmbedFullscreen, DocsEmbedFullscreen, SheetEmbedFullscreen.
   Architecture: docs/architecture/messaging/embed-diff-editing.md
+  Native Swift counterparts: apple/OpenMates/Sources/Features/Embeds/Views/EmbedVersionHistoryView.swift,
+    apple/OpenMates/Sources/Features/Embeds/Views/EmbedVersionEditControls.swift (core version list and restore)
 -->
 <script lang="ts">
 	import { text } from '../../../i18n/translations';
@@ -31,9 +33,15 @@
 		onVersionError?: (version: number) => void;
 		/** Embed-specific atomic restore writer, used instead of legacy store_embed transport. */
 		onRestoreVersion?: (restoredContent: string, selectedVersion: number) => Promise<{ version: number; content: string }>;
+		/** Embed-specific reader of a version's plaintext (e.g. the Rust core for images), used instead of the legacy fetch. */
+		loadVersionContent?: (version: number) => Promise<string>;
+		/** Version selected when the timeline opens (defaults to the current version). */
+		initialVersion?: number;
+		/** Text diff toggle; off for embeds whose content is not readable text (images). */
+		showChangesToggle?: boolean;
 	}
 
-	let { embedId, chatId, projectId, teamId, currentVersion, currentContent, buildRestoredContent, onVersionSelect, onVersionPending, onVersionError, onRestoreVersion }: Props = $props();
+	let { embedId, chatId, projectId, teamId, currentVersion, currentContent, buildRestoredContent, onVersionSelect, onVersionPending, onVersionError, onRestoreVersion, loadVersionContent, initialVersion, showChangesToggle = true }: Props = $props();
 
 	let versions: EmbedVersionMeta[] = $state([]);
 	let nextCursor: number | null = $state(null);
@@ -58,7 +66,7 @@
 	});
 
 	$effect(() => {
-		selectedVersion = currentVersion;
+		selectedVersion = initialVersion ?? currentVersion;
 		activeCurrentVersion = currentVersion;
 	});
 
@@ -120,7 +128,9 @@
 		selectedContent = null;
 		loadingContent = true;
 		try {
-			const response = await fetchEmbedVersionContent(embedId, version, { chatId, projectId, teamId });
+			const response = loadVersionContent
+				? { content: await loadVersionContent(version) }
+				: await fetchEmbedVersionContent(embedId, version, { chatId, projectId, teamId });
 			if (requestId !== contentRequestId) return;
 			selectedContent = response.content;
 			onVersionSelect(version, response.content);
@@ -250,7 +260,7 @@
 					 · Loading content...
 				{/if}
 			</span>
-			{#if selectedVersion !== activeCurrentVersion && selectedContent !== null}
+			{#if showChangesToggle && selectedVersion !== activeCurrentVersion && selectedContent !== null}
 				<button
 					class="changes-btn"
 					data-testid="embed-version-changes-toggle"
@@ -275,7 +285,7 @@
 			{/if}
 		</div>
 
-		{#if showChanges && changeLines.length > 0}
+		{#if showChangesToggle && showChanges && changeLines.length > 0}
 			<pre class="changes-view" data-testid="embed-version-changes-view">{#each changeLines as line}<span class:added={line.type === 'added'} class:removed={line.type === 'removed'}>{line.type === 'added' ? '+ ' : line.type === 'removed' ? '- ' : '  '}{line.text}</span>{/each}</pre>
 		{/if}
 

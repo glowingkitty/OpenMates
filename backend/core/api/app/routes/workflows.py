@@ -250,10 +250,18 @@ class WorkflowInputStartRequest(BaseModel):
     selected_project_id: str | None = Field(default=None, min_length=1, max_length=200)
     timezone: str | None = Field(default=None, min_length=1, max_length=100)
     optimistic_save: bool = False
+    # First-party draft preview: validate and return status "draft" with preview_workflow; persist no Workflow.
+    draft_only: bool = False
     idempotency_key: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
+    # Authoring started from a chat Recommendation: its charges are attributed
+    # to this owner-checked chat (and the turn's user message id) in usage.
+    source_chat_id: str | None = Field(default=None, min_length=1, max_length=64)
+    source_message_id: str | None = Field(default=None, min_length=1, max_length=128)
 
     @model_validator(mode="after")
     def validate_input_source(self) -> WorkflowInputStartRequest:
+        if self.source_message_id is not None and self.source_chat_id is None:
+            raise ValueError("source_message_id requires source_chat_id")
         if self.input_type == "text" and (self.text is None or not self.text.strip() or self.audio_ref is not None):
             raise ValueError("text workflow input requires non-empty text and no audio_ref")
         if self.input_type == "audio" and (self.text is not None or not self.audio_ref or not isinstance(self.audio_ref.get("id"), str)):
@@ -843,6 +851,24 @@ async def _require_team_read_role(directus_service: Any, team_id: str | None, cu
         await directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
 
 
+async def _workflow_input_source_chat(
+    request: Request, body: WorkflowInputStartRequest, current_user: User, team_id: str | None,
+) -> tuple[str | None, str | None]:
+    """Owner-check the optional source chat before any paid authoring starts.
+
+    A foreign or missing chat is answered 404 (no existence oracle). Team-scoped
+    authoring keeps its unlinked behaviour: a member's personal chat is never
+    attached to a team session.
+    """
+    if body.source_chat_id is None:
+        return None, None
+    if not await get_directus_service(request).chat.check_chat_ownership(body.source_chat_id, current_user.id):
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if team_id:
+        return None, None
+    return body.source_chat_id, body.source_message_id
+
+
 def _handle_workflow_input_error(exc: Exception) -> None:
     if isinstance(exc, TeamPermissionError):
         _handle_workflow_error(exc)
@@ -1319,6 +1345,7 @@ async def start_workflow_input(
         team_id = team_id if isinstance(team_id, str) else None
         if team_id:
             await get_directus_service(request).team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
+        source_chat_id, source_message_id = await _workflow_input_source_chat(request, body, current_user, team_id)
         result = await run_in_threadpool(
             service.start,
             user_id=current_user.id,
@@ -1329,9 +1356,10 @@ async def start_workflow_input(
             selected_project_id=body.selected_project_id,
             timezone=body.timezone,
             vault_key_id=current_user.vault_key_id,
-            optimistic_save=body.optimistic_save,
+            optimistic_save=body.optimistic_save, draft_only=body.draft_only,
             idempotency_key=body.idempotency_key,
             team_id=team_id,
+            source_chat_id=source_chat_id, source_message_id=source_message_id,
         )
         result = await _dispatch_queued_workflow_input(request, service, current_user, result)
         return {"session": result.model_dump(mode="json", by_alias=True)}
@@ -1384,6 +1412,7 @@ async def stream_workflow_input(
             await get_directus_service(request).team.require_team_role(team_id, current_user.id, {"owner", "admin", "member"})
         except Exception as exc:
             _handle_workflow_error(exc)
+    source_chat_id, source_message_id = await _workflow_input_source_chat(request, body, current_user, team_id)
     async def events():
         queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
         loop = asyncio.get_running_loop()
@@ -1399,8 +1428,10 @@ async def stream_workflow_input(
                     audio_ref=body.audio_ref, selected_workflow_id=body.selected_workflow_id,
                     selected_project_id=body.selected_project_id, timezone=body.timezone,
                     vault_key_id=current_user.vault_key_id, optimistic_save=body.optimistic_save,
+                    draft_only=body.draft_only,
                     idempotency_key=body.idempotency_key,
                     team_id=team_id,
+                    source_chat_id=source_chat_id, source_message_id=source_message_id,
                     on_event=emit,
                 )
                 result = await _dispatch_queued_workflow_input(request, service, current_user, result)

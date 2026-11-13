@@ -166,6 +166,31 @@ impl Presentation {
                 text.push_str(&format!("  • {suggestion}\n"));
             }
         }
+        if !outcome.recommendations.is_empty() {
+            text.push_str("Recommendations:\n");
+            for item in &outcome.recommendations {
+                let field = |name: &str| terminal_text(item[name].as_str().unwrap_or(""));
+                text.push_str(&format!(
+                    "  - [{}] {} - {}\n",
+                    field("kind"),
+                    field("title"),
+                    field("summary")
+                ));
+            }
+        }
+        for card in &outcome.project_creations {
+            text.push_str(&super::projects::card_text(card));
+        }
+        if outcome
+            .memory_writes
+            .iter()
+            .any(|w| w["undoAvailable"] == true)
+        {
+            text.push_str(&format!(
+                "Undo a Memory change: openmates settings memories undo --chat {}\n",
+                outcome.chat_id
+            ));
+        }
         if !outcome.task_events.is_empty() {
             text.push_str("Task updates:\n");
             for event in &outcome.task_events {
@@ -206,6 +231,9 @@ impl Presentation {
             SendStatus::Queued => output.stderr = "Message queued for this chat. It will run after the active response finishes.\n".into(),
             SendStatus::WaitingForUser => output.stderr = "OpenMates needs more input to continue. Rerun with --json to inspect the structured waiting state.\n".into(),
             SendStatus::Completed=>{},
+        }
+        if outcome.project_creations.iter().any(|card| card["status"] == "confirmation_required") {
+            output.stderr.push_str(super::send_machine::HINT);
         }
         Ok(output)
     }
@@ -265,7 +293,13 @@ fn options(invocation: &Invocation, interactive: bool) -> Result<SendOptions, Cl
         "slug",
         "response-timeout-seconds",
         "no-pii-detection",
+        // Full Project UUID; the core stores a new chat, then activates the
+        // Project's default focus before this turn's context is collected.
+        "project",
     ];
+    if invocation.command_path() == "chats send" {
+        allowed.extend(super::send_machine::FLAGS);
+    }
     if interactive {
         allowed.extend(["question-json", "answer-json"]);
     }
@@ -299,7 +333,21 @@ fn options(invocation: &Invocation, interactive: bool) -> Result<SendOptions, Cl
         .transpose()?;
     let options = SendOptions {
         slug: super::task_input::text(invocation, "slug")?.map(str::to_owned),
+        project_id: super::task_input::text(invocation, "project")?
+            .map(|project| project.trim().to_ascii_lowercase()),
         task_update_jobs: !invocation.boolean("no-task-update-jobs"),
+        // The CLI renders the created-Project card and offers `projects undo-create`.
+        project_create_requests: true,
+        // Without --confirm-machine-project / --machine-project-host / --decline-machine-project
+        // a one-shot send cannot ask, so the request is answered as unavailable.
+        machine_project: Some(super::send_machine::decision(invocation)?),
+        // Assistant Project file tool calls run in this chat; `--auto-approve` also
+        // approves always-ask file writes, otherwise they are declined with a notice.
+        project_file_jobs: true,
+        // Assistant Memory writes run on this device; each prints a stderr notice
+        // and `settings memories undo --chat <id>` reverts it.
+        memory_write_jobs: true,
+        approve_project_file_writes: invocation.boolean("auto-approve"),
         pii_detection: !invocation.boolean("no-pii-detection"),
         incognito: invocation.command_path() == "chats incognito"
             || invocation.boolean("incognito"),
@@ -330,7 +378,7 @@ fn options(invocation: &Invocation, interactive: bool) -> Result<SendOptions, Cl
     Ok(options)
 }
 fn volatile_options(invocation: &Invocation, options: &SendOptions) -> Result<(), CliError> {
-    if invocation.has("personal") || invocation.has("team") {
+    if invocation.has("personal") || invocation.has("team") || invocation.has("project") {
         return Err(CliError::Unsupported {
             command: invocation.command_path(),
             reason:
@@ -446,26 +494,33 @@ async fn observe_with_writers_mode(
         options.task_update_jobs = false;
     }
     let text = if interactive {
-        if !invocation.positionals.is_empty()
-            || invocation
-                .text("chat")
-                .is_none_or(|value| value.trim().is_empty())
-        {
-            return Err(CliError::Invalid(
-                "Interactive answers require --chat and no positional message.".into(),
-            ));
-        }
-        let parse = |key: &str| -> Result<serde_json::Value, CliError> {
-            let value = invocation
-                .text(key)
-                .ok_or_else(|| CliError::Invalid(format!("Missing --{key}.")))?;
-            if value.len() > 1_000_000 {
-                return Err(CliError::Invalid(format!("--{key} exceeds 1 MB.")));
+        // npm exits 1 for every invalid interactive answer (not the usage exit code).
+        let answered = (|| -> Result<Zeroizing<String>, CliError> {
+            if !invocation.positionals.is_empty()
+                || invocation
+                    .text("chat")
+                    .is_none_or(|value| value.trim().is_empty())
+            {
+                return Err(CliError::Invalid(
+                    "Interactive answers require --chat and no positional message.".into(),
+                ));
             }
-            serde_json::from_str(value)
-                .map_err(|_| CliError::Invalid(format!("--{key} must be valid JSON.")))
-        };
-        questions::answer(&parse("question-json")?, &parse("answer-json")?)?
+            let parse = |key: &str| -> Result<serde_json::Value, CliError> {
+                let value = invocation
+                    .text(key)
+                    .ok_or_else(|| CliError::Invalid(format!("Missing --{key}.")))?;
+                if value.len() > 1_000_000 {
+                    return Err(CliError::Invalid(format!("--{key} exceeds 1 MB.")));
+                }
+                serde_json::from_str(value)
+                    .map_err(|_| CliError::Invalid(format!("--{key} must be valid JSON.")))
+            };
+            questions::answer(&parse("question-json")?, &parse("answer-json")?)
+        })();
+        answered.map_err(|error| match error {
+            CliError::Invalid(message) => CliError::Contract { code: "invalid_argument", message },
+            other => other,
+        })?
     } else {
         Zeroizing::new(invocation.positionals.join(" ").trim().to_owned())
     };
@@ -491,6 +546,14 @@ async fn observe_with_writers_mode(
     } else {
         invocation.text("chat")
     };
+    // Answering implies the previous reply was read (feature.chat-unread@1):
+    // clear the counter before dispatch so only the new reply counts.
+    if anonymous_id.is_none()
+        && !ephemeral
+        && let Some(id) = chat_id.filter(|id| uuid::Uuid::parse_str(id).is_ok())
+    {
+        client.mark_chat_read(id).await?;
+    }
     let (tx, mut updates) = mpsc::channel(64);
     let (consent, receiver) = mpsc::unbounded_channel();
     client.set_consent_receiver(receiver);
@@ -629,15 +692,22 @@ mod tests {
                         Err(CliError::Invalid(_))
                     ));
                 }
-                for unported in [
-                    vec!["--project", "synthetic"],
-                    vec!["--accept-task-proposals"],
-                ] {
-                    assert!(matches!(
-                        options(&parse(&unported), false),
-                        Err(CliError::Unsupported { .. })
-                    ));
-                }
+                assert!(matches!(
+                    options(&parse(&["--accept-task-proposals"]), false),
+                    Err(CliError::Unsupported { .. })
+                ));
+                // A Project is bound by its full UUID only.
+                assert!(matches!(
+                    options(&parse(&["--project", "synthetic"]), false),
+                    Err(CliError::Invalid(_))
+                ));
+                assert_eq!(
+                    options(&parse(&["--project", "11111111-1111-4111-8111-11111111111A"]), false)
+                        .unwrap_or_else(|e| panic!("{e}"))
+                        .project_id
+                        .as_deref(),
+                    Some("11111111-1111-4111-8111-11111111111a")
+                );
                 // Anonymous new/send share options(), but cannot silently
                 // ignore a selected scope once volatile admission is chosen.
                 assert!(matches!(
@@ -861,12 +931,11 @@ mod tests {
                 .unwrap_or_else(|e| panic!("{e}"))
                 .incognito
         );
-        for flag in ["project", "accept-task-proposals"] {
-            assert!(matches!(
-                options(&invocation(&[(flag, json!(true))]), false),
-                Err(CliError::Unsupported { .. })
-            ));
-        }
+        assert!(matches!(
+            options(&invocation(&[("accept-task-proposals", json!(true))]), false),
+            Err(CliError::Unsupported { .. })
+        ));
+        assert!(options(&invocation(&[("project", json!(true))]), false).is_err());
         assert!(
             options(&invocation(&[("slug", json!("chat"))]), false)
                 .unwrap_or_else(|e| panic!("{e}"))
@@ -1041,7 +1110,10 @@ mod tests {
             &mut err,
         )
         .await;
-        assert!(matches!(result, Err(CliError::Invalid(_))));
+        assert!(matches!(
+            result,
+            Err(CliError::Contract { code: "invalid_argument", .. })
+        ));
         assert!(out.bytes.is_empty() && err.bytes.is_empty());
     }
     #[test]

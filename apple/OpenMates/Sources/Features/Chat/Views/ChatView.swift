@@ -15,7 +15,7 @@
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.layout.responsive-parity, message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context, message-input.suggestions.contextual
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.layout.responsive-history, chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence, chats.surface.semantic-parity
+// Assertions: chats.layout.responsive-history, chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence, chats.surface.semantic-parity, chats.send.immediate-admission
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.delivery.idempotent-visible, apple-notifications.action.routing-coherent
 
@@ -565,6 +565,9 @@ struct ChatView: View {
     @State private var scrollPositionDebounceTask: Task<Void, Never>?
     @State private var streamingScrollTask: Task<Void, Never>?
     @State private var draftSaveTask: Task<Void, Never>?
+    /// The composer revision typed but not yet saved to the draft copy; a
+    /// remote draft never replaces the composer while it equals the live revision.
+    @State private var unsavedDraftRevision: Int?
     #if DEBUG
     @State private var attachmentDraftSavedRevision = -1
     #endif
@@ -719,6 +722,11 @@ struct ChatView: View {
                         AssistantSpeechPlayerHostView(chatID: chatId, viewportWidth: chatContainerWidth)
 
                         messageList
+                            .overlay(alignment: .bottom) {
+                                if authManager.state == .authenticated, !IncognitoChatSession.isIncognitoChatId(chatId) {
+                                    CoreConsentRequestOverlay(chatId: chatId)
+                                }
+                            }
                             .simultaneousGesture(
                                 TapGesture().onEnded {
                                     dismissInputIfNeeded()
@@ -839,6 +847,12 @@ struct ChatView: View {
                 title: AppStrings.localized("chats.fork.title.text")) {
                 if let context = messageForkContext { NativeMessageForkPanel(context: context, onClose: { messageForkContext = nil }) }
             }
+        }
+        .onChange(of: EmbedUpdatedPlacement.candidateKey(displayedChatMessages), initial: true) { _, _ in
+            embedUpdates = EmbedUpdatedPlacement(messages: displayedChatMessages)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .embedVersionHeadChanged)) { _ in
+            Task { await viewModel.refreshEmbedsAfterVersionChange() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .wsSyncEvent)) { note in
             receiveCompressionCheckpoint(note)
@@ -1239,6 +1253,7 @@ struct ChatView: View {
         modelHost.deactivate()
         scrollPositionDebounceTask?.cancel()
         handoffManager.stopAdvertising()
+        viewModel.closeCoreWindow()
         Task { await invalidateDeferredComposerSends() }
     }
 
@@ -1323,6 +1338,9 @@ struct ChatView: View {
     private var effectiveBannerCreatedAt: Date? {
         bannerCreatedAt ?? presentedChat?.createdDate ?? presentedChat?.updatedDate
     }
+
+    /// Folded "embed updated" runs (core fold, recomputed only when a candidate row changes).
+    @State private var embedUpdates = EmbedUpdatedPlacement.empty
 
     private var displayedChatMessages: [Message] {
         #if DEBUG
@@ -1664,6 +1682,14 @@ struct ChatView: View {
                                 #endif
 
                                 ForEach(displayedChatMessages) { message in
+                                    if let updatedGroup = embedUpdates.shown[message.id] {
+                                        EmbedUpdatedNoticeView(group: updatedGroup) {
+                                            if let embed = viewModel.embedRecords[updatedGroup.embedId] {
+                                                openEmbedFullscreen(embed)
+                                            }
+                                        }
+                                        .id(message.id)
+                                    } else if !embedUpdates.hidden.contains(message.id) {
                                     VStack(alignment: .trailing, spacing: 0) {
                                     MessageBubble(
                                         message: message,
@@ -1722,6 +1748,7 @@ struct ChatView: View {
                                             onSteer: { Task { await viewModel.steerQueuedFollowup(messageID: message.id) } })
                                     }
                                     }.id(message.id)
+                                    }
                                 }
 
                                 if let transient = viewModel.transientAssistantResponse,
@@ -4909,6 +4936,25 @@ struct ChatView: View {
 
         Task { @MainActor in
             do {
+                if CoreChatActions.shared.isAttached {
+                    let options = CoreSendMapping.options(reservedChatId: chat.id)
+                    chatStore.performWithoutPersistence { chatStore.upsertChat(chat) }
+                    let acceptance = await CoreChatActions.shared.startTurn(
+                        .send(text: content, options: options), chatId: nil
+                    ) { _ in }
+                    switch acceptance {
+                    case .accepted:
+                        onOpenChat?(chat.id)
+                        return
+                    case .rejected(let failure):
+                        viewModel.error = CoreChatActions.userMessage(for: failure)
+                        return
+                    case .cancelled:
+                        return
+                    case .noCore:
+                        break
+                    }
+                }
                 let result = try await ChatSendPipeline().sendUserMessage(
                     content: content,
                     in: chat,
@@ -4930,6 +4976,8 @@ struct ChatView: View {
         let requestedChatID = chatId
         let scope = OfflineStore.shared.scopeGeneration
         let revision = composerSession.revision
+        // Local copy first, then the core's draft (adopted through a composer reload).
+        defer { Task { await DraftService.shared.refreshFromCore(chatId: requestedChatID) } }
         do {
             if let draft = try await DraftService.shared.loadDraft(chatId: requestedChatID),
                requestedChatID == chatId, loadedRouteID == requestedChatID,
@@ -4966,6 +5014,8 @@ struct ChatView: View {
         let revision = composerSession.revision
         let scopeGeneration = OfflineStore.shared.scopeGeneration
         let queuedMessageID = viewModel.queuedEditSession?.state.messageID
+        // Unsaved typing wins over a draft from another device; its save follows.
+        guard unsavedDraftRevision != revision else { return }
         do {
             let draft = try await DraftService.shared.loadDraft(chatId: requestedChatID)
             let markdown = draft?.canonicalMarkdown ?? ""
@@ -5049,6 +5099,7 @@ struct ChatView: View {
         let markdown = composerSession.canonicalMarkdown
         let revision = composerSession.revision
         let draftVersion = viewModel.chat?.draftV ?? 0
+        unsavedDraftRevision = revision
         draftSaveTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
@@ -5079,6 +5130,7 @@ struct ChatView: View {
                 attachments: Self.draftAttachmentSnapshot(document: composerSession.controller.document,
                     resolved: resolvedComposerEmbeds)
             )
+            if unsavedDraftRevision == revision { unsavedDraftRevision = nil }
             #if DEBUG
             attachmentDraftSavedRevision = revision
             #endif

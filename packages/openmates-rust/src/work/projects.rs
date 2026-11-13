@@ -65,12 +65,45 @@ pub struct ProjectSettingsPatch {
 }
 mod ask;
 pub use ask::*;
+mod assistant_request;
+pub use assistant_request::*;
+#[cfg(test)]
+mod assistant_request_tests;
+#[cfg(test)]
+pub(crate) use assistant_request_tests::{
+    CHAT as FIXTURE_CHAT, REQUEST as FIXTURE_REQUEST, request_event, rest_fixture, rest_handler,
+};
+mod commits;
+pub use commits::*;
 mod focus;
+#[cfg(all(feature = "workflow-yaml", unix))]
+mod hosted;
+/// The adoption-relevant record of one turn embed (client turn hook, P11).
+#[cfg(all(feature = "workflow-yaml", unix))]
+pub(crate) use hosted::TurnEmbed;
+/// Hosted Project file writer (native only: it shares the `source_host` path matcher).
+#[cfg(all(feature = "workflow-yaml", unix))]
+pub use hosted::{
+    AdoptEmbedKind, HostedApproval, HostedFile, HostedFileError, HostedFileJob, HostedFileMutation,
+    HostedFileOperation, HostedIdentityKind, HostedProposal, HostedResult,
+    ProjectCommitRestoreResult, ProjectEmbedAdoptError, apply_exact_patch, content_hash,
+    hosted_file_identity, replacement_patch,
+};
 mod remote_command_stop;
 pub use remote_command_stop::REMOTE_COMMAND_FOCUS_INACTIVE;
 mod remote_files;
-pub use remote_files::{ProjectFileOperation, ProjectRequesterError, remote_error_message, safe_relative_path, select_source};
+pub use remote_files::{
+    ProjectFileOperation, ProjectRequesterError, remote_error_message, safe_relative_path,
+    select_source,
+};
+mod remote_ops;
+pub use remote_ops::{
+    GitChangedFile, GitCommitResult, GitLandOutcome, GitStatusResult, RemoteCommand,
+    RemoteCommandResult, RemoteOpCode, RemoteOpError,
+};
 mod items;
+mod selector;
+pub(crate) use selector::is_canonical_uuid;
 mod workflow_files;
 pub use workflow_files::{
     WorkflowAttachOptions, WorkflowAttachResult, WorkflowFileSaveStatus, WorkflowRemoteFileResult,
@@ -225,8 +258,9 @@ impl<'a> Projects<'a> {
             .map(|p| p.public)
             .collect())
     }
+    /// Project id and key for a public SDK embed add/unlink selector, ranked like npm.
     pub(crate) async fn sdk_embed_link_context(&mut self, selector: &str) -> Result<(String, Key)> {
-        let project = self.resolve(selector).await?;
+        let project = self.resolve_sdk_selector(selector).await?;
         Ok((string(&project.raw, "project_id")?.to_owned(), project.key))
     }
     pub async fn show(&mut self, id: &str) -> Result<Value> {
@@ -290,7 +324,13 @@ impl<'a> Projects<'a> {
         if data["project"]["project_id"] != project.raw["project_id"] {
             return Err(Error::Forbidden);
         }
-        let mut public = decode(data["project"].clone(), project.key)?.public;
+        // Like npm (`{...project.encrypted, ...updated}`), fields the PATCH
+        // response omits (for example mutation_permissions) keep the read value.
+        let mut merged = project.raw.clone();
+        if let (Some(row), Some(updated)) = (merged.as_object_mut(), data["project"].as_object()) {
+            row.extend(updated.iter().map(|(k, v)| (k.clone(), v.clone())));
+        }
+        let mut public = decode(merged, project.key)?.public;
         if let Some(history) = data.get("history") {
             public["history"] = history.clone();
         }
@@ -299,15 +339,20 @@ impl<'a> Projects<'a> {
     pub async fn edit(&mut self, id: &str, input: ProjectPatch) -> Result<Value> {
         self.update(id, input).await
     }
+    /// Mark the Project opened and return it as it was read before the
+    /// `last_opened_at` write (npm `projects open` prints the resolved Project).
     pub async fn open(&mut self, id: &str) -> Result<Value> {
+        let project = self.resolve(id).await?;
+        let project_id = string(&project.raw, "project_id")?.to_owned();
         self.update(
-            id,
+            &project_id,
             ProjectPatch {
                 last_opened_at: Some(now()),
                 ..Default::default()
             },
         )
-        .await
+        .await?;
+        Ok(project.public)
     }
     pub async fn archive(&mut self, id: &str) -> Result<Value> {
         self.update(
@@ -436,8 +481,9 @@ impl<'a> Projects<'a> {
             payload["default_focus_id"] = json!(focus.focus_id);
             payload["encrypted_settings"] = json!(crypto::server_fields::encrypt_text(
                 &serde_json::to_string(&settings)?,
-                &project.key
-            , &[])?);
+                &project.key,
+                &[]
+            )?);
         }
         if payload.as_object().ok_or(Error::Protocol)?.len() == 1 {
             return Err(Error::Invalid("Choose at least one Project setting."));
@@ -578,13 +624,20 @@ fn encode_patch(
                     "Invalid Project name or private text length.",
                 ));
             }
-            payload[format!("encrypted_{field}")] =
-                json!(crypto::server_fields::encrypt_text(text, &project.key, &[])?);
+            payload[format!("encrypted_{field}")] = json!(crypto::server_fields::encrypt_text(
+                text,
+                &project.key,
+                &[]
+            )?);
         }
     }
     if let Some(slug) = &input.slug {
         let slug = crypto::normalize_object_slug(slug)?;
-        payload["encrypted_slug"] = json!(crypto::server_fields::encrypt_text(&slug, &project.key, &[])?);
+        payload["encrypted_slug"] = json!(crypto::server_fields::encrypt_text(
+            &slug,
+            &project.key,
+            &[]
+        )?);
         payload["slug_lookup_hash"] = json!(crypto::object_slug_lookup_hash(
             &slug,
             wrapping.ok_or(Error::Crypto)?
@@ -642,19 +695,87 @@ fn segment(id: &str) -> Result<String> {
 #[cfg(test)]
 mod tests;
 
-#[cfg(all(test,not(target_arch="wasm32")))]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod field_interop_tests {
+    use super::super::task_crypto::field_interop_support::{assert_web, case};
     use super::*;
-    use super::super::task_crypto::field_interop_support::{case,assert_web};
     #[test]
-    fn actual_project_create_patch_and_team_wrapper_read_in_web_legacy_decoders(){
-        let master=[7;32];let key=[9;32];
-        let input=ProjectCreate{name:"Synthetic Project ✓".into(),description:"Private project".into(),write_mode:Some(ProjectWriteMode::AlwaysAsk),..Default::default()};
-        let created=encode_create(&input,&key,&master,None).unwrap();
-        let project=ResolvedProject{raw:created.clone(),public:json!({}),key:zeroize::Zeroizing::new(key)};
-        let patch=encode_patch(&project,&ProjectPatch{name:Some("Updated Project 界".into()),description:Some("".into()),..Default::default()},Some(&master)).unwrap();
-        let team=encode_create(&input,&key,&master,Some("11111111-1111-4111-8111-111111111111")).unwrap();
+    fn actual_project_create_patch_and_team_wrapper_read_in_web_legacy_decoders() {
+        let master = [7; 32];
+        let key = [9; 32];
+        let input = ProjectCreate {
+            name: "Synthetic Project ✓".into(),
+            description: "Private project".into(),
+            write_mode: Some(ProjectWriteMode::AlwaysAsk),
+            ..Default::default()
+        };
+        let created = encode_create(&input, &key, &master, None).unwrap();
+        let project = ResolvedProject {
+            raw: created.clone(),
+            public: json!({}),
+            key: zeroize::Zeroizing::new(key),
+        };
+        let patch = encode_patch(
+            &project,
+            &ProjectPatch {
+                name: Some("Updated Project 界".into()),
+                description: Some("".into()),
+                ..Default::default()
+            },
+            Some(&master),
+        )
+        .unwrap();
+        let team = encode_create(
+            &input,
+            &key,
+            &master,
+            Some("11111111-1111-4111-8111-111111111111"),
+        )
+        .unwrap();
         assert!(team["encrypted_project_key"].is_null());
-        assert_web(vec![case("project-key","master-binary",created["encrypted_project_key"].as_str().unwrap(),&master,&key,""),case("project-team-key","object-binary",team["key_wrappers"][0]["encrypted_project_key"].as_str().unwrap(),&master,&key,""),case("project-name","object-text",created["encrypted_name"].as_str().unwrap(),&key,input.name.as_bytes(),""),case("project-patch-name","object-text",patch["encrypted_name"].as_str().unwrap(),&key,"Updated Project 界".as_bytes(),""),case("project-empty-description","object-text",patch["encrypted_description"].as_str().unwrap(),&key,b"","")]);
+        assert_web(vec![
+            case(
+                "project-key",
+                "master-binary",
+                created["encrypted_project_key"].as_str().unwrap(),
+                &master,
+                &key,
+                "",
+            ),
+            case(
+                "project-team-key",
+                "object-binary",
+                team["key_wrappers"][0]["encrypted_project_key"]
+                    .as_str()
+                    .unwrap(),
+                &master,
+                &key,
+                "",
+            ),
+            case(
+                "project-name",
+                "object-text",
+                created["encrypted_name"].as_str().unwrap(),
+                &key,
+                input.name.as_bytes(),
+                "",
+            ),
+            case(
+                "project-patch-name",
+                "object-text",
+                patch["encrypted_name"].as_str().unwrap(),
+                &key,
+                "Updated Project 界".as_bytes(),
+                "",
+            ),
+            case(
+                "project-empty-description",
+                "object-text",
+                patch["encrypted_description"].as_str().unwrap(),
+                &key,
+                b"",
+                "",
+            ),
+        ]);
     }
 }

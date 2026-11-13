@@ -375,6 +375,123 @@
           },
           "expected_request_count": 0,
           "expected_error": "authentication"
+        },
+        {
+          "id": "slug-empty-refused-locally",
+          "operation": "show",
+          "query": null,
+          "slug": "",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "slug-traversal-refused-locally",
+          "operation": "show",
+          "query": null,
+          "slug": "a/../b",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "slug-absolute-refused-locally",
+          "operation": "download",
+          "query": null,
+          "slug": "/absolute",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "slug-trailing-slash-refused-locally",
+          "operation": "show",
+          "query": null,
+          "slug": "guide/",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "slug-empty-segment-refused-locally",
+          "operation": "show",
+          "query": null,
+          "slug": "a//b",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "slug-backslash-refused-locally",
+          "operation": "download",
+          "query": null,
+          "slug": "a\\b",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "slug-colon-refused-locally",
+          "operation": "show",
+          "query": null,
+          "slug": "x:y",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "slug-control-refused-locally",
+          "operation": "show",
+          "query": null,
+          "slug": "a\n",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "invalid"
+        },
+        {
+          "id": "slug-oversize-utf8-bytes-refused-locally",
+          "operation": "download",
+          "query": null,
+          "slug": "界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界ab",
+          "anonymous": false,
+          "http_status": 200,
+          "response": {
+            "detail": "synthetic docs response"
+          },
+          "expected_request_count": 0,
+          "expected_error": "invalid"
         }
       ]
     }

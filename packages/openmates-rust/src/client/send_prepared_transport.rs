@@ -23,11 +23,9 @@ impl Client {
         let generation = self.generation;
         let wrapping = self.wrapping_capability().await?;
         Self::require_turn_slug_index(&wrapping,options.slug.is_some())?;
-        let id = chat_id
-            .map(str::to_owned)
-            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        // Caller-reserved ids (a new chat's id, the user message id) or fresh ones.
+        let (id, message) = self.turn_identity(chat_id, options.reserved_ids.as_ref())?;
         let turn = uuid::Uuid::new_v4().to_string();
-        let message = uuid::Uuid::new_v4().to_string();
         if let Some(observation) = &self.scoped_send_observation {
             let mut observation = observation.lock().map_err(|_| Error::Cancelled)?;
             observation.identity = Some(SavedSendRecoveryIdentity { chat: id.clone(), turn: turn.clone(), message: message.clone() });
@@ -66,7 +64,21 @@ impl Client {
         }
         // Session refresh can rotate a credential. Let it finish and preserve
         // the new token before honoring cancellation of the socket operation.
-        let mut ws = self.socket_with_task_jobs(options.task_update_jobs).await?;
+        // The capability is per socket: only a shell that renders the created
+        // Project card opts in, so other clients keep today's behaviour.
+        self.extra_socket_capabilities = Vec::new();
+        if options.project_create_requests {
+            self.extra_socket_capabilities.push(PROJECT_CREATE_CAPABILITY);
+        }
+        if options.project_file_jobs && PROJECT_FILE_JOBS_AVAILABLE {
+            self.extra_socket_capabilities.push(PROJECT_FILE_JOBS_CAPABILITY);
+        }
+        if options.memory_write_jobs {
+            self.extra_socket_capabilities.push(MEMORY_WRITE_JOBS_CAPABILITY);
+        }
+        let socket = self.socket_with_task_jobs(options.task_update_jobs).await;
+        self.extra_socket_capabilities.clear();
+        let mut ws = socket?;
         if cancel.is_cancelled() {
             let _ = ws.close(None).await;
             return Err(Error::Cancelled);

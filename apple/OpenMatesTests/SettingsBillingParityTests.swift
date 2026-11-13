@@ -519,6 +519,34 @@ final class SettingsBillingParityTests: XCTestCase {
         }, validate: { _ in }, draftAudioRegistry: draftAudioRegistry)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=billing.surface.semantic-parity
+    func testBillingAddressFormMatchesWebValidationAndNormalisation() throws {
+        XCTAssertEqual(BillingAddressForm().resolve(), .clear)
+
+        var form = BillingAddressForm()
+        form.name = "Example Co"
+        XCTAssertEqual(form.resolve(), .invalid)
+
+        form.streetLine1 = " 1 Example Road "
+        form.postalCode = "12345"
+        form.city = "Exampleton"
+        form.country = "de"
+        guard case .address(let address) = form.resolve() else { return XCTFail("Expected a valid address") }
+        XCTAssertEqual(address.streetLine1, "1 Example Road")
+        XCTAssertEqual(address.country, "DE")
+        XCTAssertNil(address.streetLine2)
+        XCTAssertNil(address.vatId)
+
+        form.country = "DEU"
+        XCTAssertEqual(form.resolve(), .invalid)
+
+        let envelope: BillingBuyerAddressEnvelope = try decode(
+            #"{"buyer_address":{"name":"A","street_line_1":"S","street_line_2":null,"postal_code":"1","city":"C","region":null,"country":"DE","vat_id":"DE1"}}"#)
+        XCTAssertEqual(envelope.buyerAddress?.streetLine1, "S")
+        XCTAssertEqual(envelope.buyerAddress?.vatId, "DE1")
+        XCTAssertEqual(envelope.buyerAddress?.wireBody["street_line_1"] as? String, "S")
+    }
+
     private func decode<T: Decodable>(_ json: String) throws -> T {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@12
+specification: feature.video-call@16
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
@@ -311,6 +311,14 @@ interruption_intent:
   when: Maya briefly says hmm and okay, then later says wait, use Berlin instead.
   then: The brief cues leave the response speaking; the deliberate correction interrupts, cancels stale speech and enters
     one normal revised request.
+- id: stretched-cue
+  given: The assistant is explaining three hotel options.
+  when: Maya murmurs mhmm, then mm-hmm, then yeahhh.
+  then: Speech and generation continue uninterrupted; mhmm but show Berlin instead takes the floor at its first words.
+- id: first-words-barge-in
+  given: The assistant is speaking.
+  when: Maya starts a real sentence, what about prices.
+  then: Playback stops at the first recognized words, before the endpoint or any model verdict.
 - id: stop-during-tool
   given: A call has an unfinished tool-assisted answer and queued speech.
   when: Maya clearly asks it to stop.
@@ -333,11 +341,54 @@ spoken_rich_response:
     audio is rejected. Only the cleanly completed response marks all its sealed clauses heard; validated conservative
     timing may establish partial heard clauses when available.
 localized_waiting:
-- id: slow-german-mercury
-  given: Maya asks a German question routed to Mercury with a slow search skill.
-  when: The answer has not produced useful speech after the waiting threshold.
-  then: One brief German acknowledgement in the Mate voice plays; it is cancelled if the answer is already ready and
-    never talks over the useful response.
+- id: instant-german-acknowledgement
+  given: Maya asks a German question during a call whose previous turn was also German.
+  when: The server starts processing her audio turn.
+  then: One randomly chosen pre-recorded German acknowledgement plays in the Mate voice at once, never English, and is
+    cancelled if useful speech is already ready.
+- id: new-chat-neutral-start
+  given: Maya starts a call on the new chat screen, so the chat is still being created and has no Mate yet.
+  when: The server starts processing her first German audio turn.
+  then: A short sound and a neutral system voice saying "Dein Chat startet…" play at once, never a guessed Mate voice;
+    no Mate acknowledgement follows, and the answer is spoken in the routed Mate's own voice.
+waiting_language:
+- id: unknown-language-stays-silent
+  given: The turn language is unknown and the interface language has no recorded clips.
+  when: Processing starts.
+  then: No acknowledgement plays and the answer simply follows.
+skills_announcement:
+- id: skills-announced-and-recapped
+  given: A call turn needs web search and news search.
+  when: The skills start and later finish.
+  then: A pre-recorded apps announcement plays at the start, a short recap naming web search and news search plays before
+    the regular answer, and none of these clips appears in the transcript.
+background_resume:
+- id: safari-in-background
+  given: Maya is in a live call on an iPhone in Safari and switches to another app or locks the screen.
+  when: iOS mutes the microphone because the page is no longer in front.
+  then: The call ends cleanly with a disconnect sound where audio is allowed, her transcript is kept and billing stops;
+    when she comes back a notice says the call ended because OpenMates left the screen and she can call again in the
+    same chat.
+- id: desktop-tab-in-background
+  given: Maya is in a live call in a desktop browser and switches to another tab or window.
+  when: The browser keeps microphone capture running.
+  then: The call is not interrupted; if the connection drops it reconnects to the same chat when she returns, or shows
+    a retryable message.
+- id: apple-app-in-background
+  given: Maya is in a live call in the OpenMates iPhone app and switches to another app or locks the screen.
+  when: She keeps talking and later comes back.
+  then: The call never stopped; she heard the answers off screen, the transcript and timer kept going and no notice
+    appears.
+- id: apple-interruption-resumes
+  given: Maya is in a live call in the OpenMates iPhone app when a short system interruption such as Siri takes the
+    audio.
+  when: The interruption ends and the system allows the app to resume.
+  then: The same call continues listening and speaking; it is not ended or restarted.
+- id: apple-microphone-taken
+  given: Maya is in a live call in the OpenMates iPhone app and answers a phone call that keeps the microphone.
+  when: The system ends the interruption without allowing the app to resume.
+  then: The call ends cleanly, her transcript is kept, billing stops and a notice says the call ended so she can call
+    again in the same chat.
 complete_turn:
 - id: trailing-negation
   given: Voxtral signals a likely end while Maya is saying book the expensive option, actually do not book it.

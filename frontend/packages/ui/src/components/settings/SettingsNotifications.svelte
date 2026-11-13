@@ -3,6 +3,7 @@
   preferences in one place.
 
   Currently contains:
+  - Silent mode (device-local quick toggle for event sounds and vibrations)
   - Chat Notifications (push + email for AI responses)
   - Backup Reminders (periodic data export reminder emails)
 
@@ -16,6 +17,7 @@
     import SettingsItem from '../SettingsItem.svelte';
     import { pushNotificationStore } from '../../stores/pushNotificationStore';
     import { userProfile } from '../../stores/userProfile';
+    import { silentMode, setSilentMode } from '../../services/eventSounds';
 
     const dispatch = createEventDispatcher();
 
@@ -67,6 +69,18 @@
 </script>
 
 <div class="notifications-settings-container">
+    <!-- Quick toggle: device-local, turns off event sounds and vibrations -->
+    <SettingsItem
+        type="submenu"
+        icon="subsetting_icon mute"
+        title={$text('settings.notifications.sounds.silent_mode')}
+        subtitleTop={$text('settings.notifications.sounds.silent_mode_info')}
+        data-testid="silent-mode"
+        hasToggle={true}
+        checked={$silentMode}
+        onClick={() => setSilentMode(!$silentMode)}
+    />
+
     <SettingsItem
         type="submenu"
         icon="subsetting_icon announcement"

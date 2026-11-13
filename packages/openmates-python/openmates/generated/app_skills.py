@@ -178,7 +178,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Generate short, non-speech sound effects from text prompts, such as UI '
                  'confirmation ticks, gentle alerts, transitions, and product sounds. Do not use '
                  'this for spoken words, narration, vocals, voice cloning, scams, public figures, '
-                 'or deceptive media; use audio.speak for explicit speech generation.',
+                 'or deceptive media; use audio.speak for explicit speech generation. Not for the '
+                 "sound of a video: videos.generate makes a video's voice-over, sound effects and "
+                 'music itself.',
   'description_key': 'app_skills.audio.generate.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of short sound-effect '
                                                         'generation request objects.',
@@ -261,7 +263,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Convert explicit user-provided text into short speech audio using an OpenMates '
                  'voice preset after a required GPT OSS safeguard approval. Do not use this for '
                  'automatic assistant voice replies, long narration, voice cloning, raw provider '
-                 'voice IDs, impersonation, scams, or deceptive speech.',
+                 'voice IDs, impersonation, scams, or deceptive speech. Not for the sound of a '
+                 "video: videos.generate makes a video's voice-over, sound effects and music "
+                 'itself.',
   'description_key': 'app_skills.audio.speak.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of explicit '
                                                         'text-to-speech request objects.',
@@ -505,6 +509,227 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'search_trademarks',
   'skill_method_py': 'search_trademarks',
   'skill_method_ts': 'searchTrademarks'},
+ {'app_id': 'business',
+  'app_namespace_py': 'business',
+  'app_namespace_ts': 'business',
+  'description': 'This capability is currently unavailable because no permitted provider is '
+                 'configured.',
+  'description_key': 'app_skills.business.search_investors.description',
+  'output_schema': {'properties': {'error': {'type': 'string', 'x-ui': {'basic': False}},
+                                   'investors': {'items': {'type': 'object'},
+                                                 'type': 'array',
+                                                 'x-ui': {'basic': True}},
+                                   'limitation': {'type': 'string', 'x-ui': {'basic': True}},
+                                   'partial': {'type': 'boolean', 'x-ui': {'basic': True}},
+                                   'provider': {'type': 'string', 'x-ui': {'basic': False}},
+                                   'regions': {'items': {'type': 'string'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': True}},
+                                   'result_count': {'type': 'integer', 'x-ui': {'basic': True}},
+                                   'warnings': {'items': {'type': 'string'},
+                                                'type': 'array',
+                                                'x-ui': {'basic': True}}},
+                    'type': 'object'},
+  'schema': {'additionalProperties': False,
+             'properties': {'currency': {'default': 'EUR',
+                                         'description': 'ISO 4217 currency of ticket_min and '
+                                                        'ticket_max.',
+                                         'pattern': '^[A-Z]{3}$',
+                                         'type': 'string',
+                                         'x-ui': {'basic': False}},
+                            'investor_types': {'description': 'Optional investor kinds; omit to '
+                                                              'search all kinds.',
+                                               'items': {'enum': ['angel',
+                                                                  'angel_network',
+                                                                  'vc',
+                                                                  'family_office',
+                                                                  'accelerator',
+                                                                  'public_funding'],
+                                                         'type': 'string'},
+                                               'maxItems': 6,
+                                               'type': 'array',
+                                               'uniqueItems': True,
+                                               'x-ui': {'basic': False}},
+                            'max_results': {'default': 15,
+                                            'maximum': 30,
+                                            'minimum': 1,
+                                            'type': 'integer',
+                                            'x-ui': {'basic': False}},
+                            'query': {'description': 'Topic, sector or investment thesis keywords '
+                                                     'describing the company, for example "climate '
+                                                     'software seed". Do not include confidential '
+                                                     'company details.',
+                                      'maxLength': 200,
+                                      'minLength': 1,
+                                      'type': 'string',
+                                      'x-ui': {'basic': True}},
+                            'regions': {'description': 'Countries the user wants investors from, '
+                                                       'as upper-case ISO 3166-1 alpha-2 codes. '
+                                                       'Pass exactly the countries the user named; '
+                                                       'never widen silently to other countries. '
+                                                       'Use WORLDWIDE only when the user asks for '
+                                                       'it.',
+                                        'items': {'pattern': '^([A-Z]{2}|WORLDWIDE)$',
+                                                  'type': 'string'},
+                                        'maxItems': 10,
+                                        'minItems': 1,
+                                        'type': 'array',
+                                        'uniqueItems': True,
+                                        'x-ui': {'basic': True}},
+                            'stages': {'description': 'Optional financing stages the company is '
+                                                      'at; omit when unknown.',
+                                       'items': {'enum': ['pre_seed', 'seed', 'series_a', 'later'],
+                                                 'type': 'string'},
+                                       'maxItems': 4,
+                                       'type': 'array',
+                                       'uniqueItems': True,
+                                       'x-ui': {'basic': False}},
+                            'ticket_max': {'description': 'Optional maximum investment size per '
+                                                          'investor, in the given currency.',
+                                           'minimum': 0,
+                                           'type': 'number',
+                                           'x-ui': {'basic': False}},
+                            'ticket_min': {'description': 'Optional minimum investment size per '
+                                                          'investor, in the given currency.',
+                                           'minimum': 0,
+                                           'type': 'number',
+                                           'x-ui': {'basic': False}}},
+             'required': ['query', 'regions'],
+             'type': 'object'},
+  'skill_id': 'search_investors',
+  'skill_method_py': 'search_investors',
+  'skill_method_ts': 'searchInvestors'},
+ {'app_id': 'business',
+  'app_namespace_py': 'business',
+  'app_namespace_ts': 'business',
+  'description': 'Look up who owns or runs a named company, or which companies a named person '
+                 'holds or directs, in the official company register of Germany (DE), the United '
+                 'Kingdom (GB) or France (FR). Use to research investors, shareholders and '
+                 'directors; not for other countries, credit checks, private contact details or '
+                 'legal advice.',
+  'description_key': 'app_skills.business.company_ownership.description',
+  'output_schema': {'properties': {'errors': {'items': {'type': 'object'},
+                                              'type': 'array',
+                                              'x-ui': {'basic': False}},
+                                   'providers': {'items': {'type': 'string'},
+                                                 'type': 'array',
+                                                 'x-ui': {'basic': False}},
+                                   'records': {'items': {'type': 'object'},
+                                               'type': 'array',
+                                               'x-ui': {'basic': True}},
+                                   'result_count': {'type': 'integer', 'x-ui': {'basic': True}},
+                                   'warnings': {'items': {'type': 'string'},
+                                                'type': 'array',
+                                                'x-ui': {'basic': True}}},
+                    'type': 'object'},
+  'schema': {'additionalProperties': False,
+             'properties': {'requests': {'description': 'One entry per company or person to look '
+                                                        'up. Each runs only in the register of its '
+                                                        'own country.',
+                                         'items': {'additionalProperties': False,
+                                                   'properties': {'country': {'description': 'Upper-case '
+                                                                                             'ISO '
+                                                                                             '3166-1 '
+                                                                                             'alpha-2 '
+                                                                                             'code '
+                                                                                             'of '
+                                                                                             'the '
+                                                                                             'register '
+                                                                                             'to '
+                                                                                             'search '
+                                                                                             '(DE, '
+                                                                                             'GB '
+                                                                                             'or '
+                                                                                             'FR). '
+                                                                                             'Never '
+                                                                                             'guess '
+                                                                                             'a '
+                                                                                             'different '
+                                                                                             'country.',
+                                                                              'pattern': '^[A-Z]{2}$',
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': True}},
+                                                                  'include': {'default': ['owners'],
+                                                                              'description': 'Which '
+                                                                                             'facts '
+                                                                                             'to '
+                                                                                             'fetch. '
+                                                                                             'Ask '
+                                                                                             'only '
+                                                                                             'for '
+                                                                                             'what '
+                                                                                             'the '
+                                                                                             'user '
+                                                                                             'needs; '
+                                                                                             'each '
+                                                                                             'extra '
+                                                                                             'value '
+                                                                                             'costs '
+                                                                                             'a '
+                                                                                             'separate '
+                                                                                             'register '
+                                                                                             'call.',
+                                                                              'items': {'enum': ['owners',
+                                                                                                 'holdings',
+                                                                                                 'officers'],
+                                                                                        'type': 'string'},
+                                                                              'maxItems': 3,
+                                                                              'type': 'array',
+                                                                              'uniqueItems': True,
+                                                                              'x-ui': {'basic': False}},
+                                                                  'query': {'description': 'Exact '
+                                                                                           'company '
+                                                                                           'name '
+                                                                                           'or '
+                                                                                           'register '
+                                                                                           'number '
+                                                                                           '(for '
+                                                                                           'example '
+                                                                                           '"Example '
+                                                                                           'GmbH", '
+                                                                                           '"12345678", '
+                                                                                           'a '
+                                                                                           '9-digit '
+                                                                                           'SIREN), '
+                                                                                           'or a '
+                                                                                           "person's "
+                                                                                           'full '
+                                                                                           'name.',
+                                                                            'maxLength': 160,
+                                                                            'minLength': 1,
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
+                                                                  'subject': {'default': 'company',
+                                                                              'description': 'company '
+                                                                                             'to '
+                                                                                             'see '
+                                                                                             'owners '
+                                                                                             'and '
+                                                                                             'officers; '
+                                                                                             'person '
+                                                                                             'to '
+                                                                                             'see '
+                                                                                             'which '
+                                                                                             'companies '
+                                                                                             'they '
+                                                                                             'hold '
+                                                                                             'or '
+                                                                                             'direct.',
+                                                                              'enum': ['company',
+                                                                                       'person'],
+                                                                              'type': 'string',
+                                                                              'x-ui': {'basic': True}}},
+                                                   'required': ['query', 'country'],
+                                                   'type': 'object'},
+                                         'maxItems': 5,
+                                         'minItems': 1,
+                                         'type': 'array',
+                                         'x-ui': {'basic': True}}},
+             'required': ['requests'],
+             'type': 'object'},
+  'skill_id': 'company_ownership',
+  'skill_method_py': 'company_ownership',
+  'skill_method_ts': 'companyOwnership'},
  {'app_id': 'business',
   'app_namespace_py': 'business',
   'app_namespace_ts': 'business',
@@ -1726,19 +1951,37 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                           'type': 'string'},
                                                                                 'type': 'array',
                                                                                 'x-ui': {'basic': False}},
-                                                                  'query': {'description': 'Optional '
-                                                                                           'session '
+                                                                  'query': {'description': 'Event '
                                                                                            'topic '
-                                                                                           'within '
-                                                                                           'the '
-                                                                                           'requested '
-                                                                                           'known '
-                                                                                           'conference. '
-                                                                                           'Omit '
+                                                                                           'to '
+                                                                                           'search '
                                                                                            'for '
+                                                                                           '(e.g. '
+                                                                                           "'AI', "
+                                                                                           "'security'). "
+                                                                                           'Required '
+                                                                                           'for '
+                                                                                           'every '
+                                                                                           'request '
+                                                                                           'unless '
+                                                                                           'conference '
+                                                                                           'is set '
+                                                                                           'to a '
+                                                                                           'known '
+                                                                                           'conference; '
+                                                                                           'then '
+                                                                                           'omit '
+                                                                                           'it for '
                                                                                            'the '
                                                                                            'full '
-                                                                                           'schedule.',
+                                                                                           'schedule. '
+                                                                                           'Location '
+                                                                                           'or '
+                                                                                           'dates '
+                                                                                           'alone '
+                                                                                           'are '
+                                                                                           'not a '
+                                                                                           'query.',
                                                                             'type': 'string',
                                                                             'x-ui': {'basic': True}},
                                                                   'radius_miles': {'default': 25,
@@ -3571,13 +3814,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'images',
   'app_namespace_py': 'images',
   'app_namespace_ts': 'images',
-  'description': 'Generate high-quality images from text prompts and/or reference images '
-                 '(image-to-image editing). Also use for: mockups, design concepts, visual mockup '
-                 'creation, logo mockups, product mockups, illustration requests, visual design, '
-                 'concept art, posters, banners, thumbnails, or any request that implies creating '
-                 'a visual output. Use output_filetype="svg" for logos, icons, illustrations, and '
-                 'any other vector graphics that need to be scalable or editable. When the user '
-                 'provides uploaded images as refe',
+  'description': 'Generate images or SVG vector graphics (logos, icons, patterns, drawings), new '
+                 'or modified. Works from text prompts and/or reference images (image-to-image '
+                 'editing). Also use for: mockups, design concepts, visual mockup creation, logo '
+                 'mockups, product mockups, illustration requests, visual design, concept art, '
+                 'posters, banners, thumbnails, or any request that implies creating a visual '
+                 'output. Also the way to create or modify ANY vector graphic (SVG): logos, icons, '
+                 'illustrations, infographics, la',
   'description_key': 'images.generate.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of image generation '
                                                         'request objects for parallel processing '
@@ -3590,8 +3833,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         "Each object must contain 'prompt' "
                                                         '(detailed description), and can include '
                                                         'optional\n'
-                                                        "'aspect_ratio', 'output_filetype', and "
-                                                        "'quality'.\n",
+                                                        "'aspect_ratio', 'output_filetype', "
+                                                        "'vector_engine', 'requirements', "
+                                                        "'quality' and 'reference_images'.\n",
                                          'items': {'properties': {'aspect_ratio': {'default': '1:1',
                                                                                    'description': 'Aspect '
                                                                                                   'ratio '
@@ -3613,42 +3857,38 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                      'format. '
                                                                                                      'Use '
                                                                                                      '"svg" '
-                                                                                                     'to '
-                                                                                                     'generate '
-                                                                                                     'a '
-                                                                                                     'scalable '
-                                                                                                     'vector '
-                                                                                                     'graphic '
-                                                                                                     '(SVG) '
-                                                                                                     'via\n'
-                                                                                                     'Recraft '
-                                                                                                     'V4.1 '
-                                                                                                     '— '
-                                                                                                     'ideal '
                                                                                                      'for '
+                                                                                                     'every '
+                                                                                                     'vector '
+                                                                                                     'graphic: '
                                                                                                      'logos, '
                                                                                                      'icons, '
-                                                                                                     'illustrations, '
-                                                                                                     'and '
-                                                                                                     'any '
-                                                                                                     'graphic '
-                                                                                                     'that '
-                                                                                                     'needs\n'
-                                                                                                     'to '
-                                                                                                     'be '
-                                                                                                     'scalable, '
-                                                                                                     'editable '
-                                                                                                     'in '
-                                                                                                     'design '
-                                                                                                     'tools, '
+                                                                                                     'illustrations,\n'
+                                                                                                     'infographics, '
+                                                                                                     'labelled '
                                                                                                      'or '
-                                                                                                     'used '
-                                                                                                     'at '
-                                                                                                     'any '
-                                                                                                     'size '
-                                                                                                     'without '
-                                                                                                     'quality '
-                                                                                                     'loss.\n'
+                                                                                                     'technical '
+                                                                                                     'drawings, '
+                                                                                                     'patterns, '
+                                                                                                     'and '
+                                                                                                     'for '
+                                                                                                     'changing '
+                                                                                                     'an '
+                                                                                                     'existing\n'
+                                                                                                     'SVG '
+                                                                                                     'or '
+                                                                                                     'redrawing '
+                                                                                                     'a '
+                                                                                                     'pixel '
+                                                                                                     'image '
+                                                                                                     'as '
+                                                                                                     'vector. '
+                                                                                                     'See '
+                                                                                                     'vector_engine '
+                                                                                                     'for '
+                                                                                                     'who '
+                                                                                                     'draws '
+                                                                                                     'it.\n'
                                                                                                      'Use '
                                                                                                      '"png" '
                                                                                                      'or '
@@ -3692,22 +3932,35 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                              'x-ui': {'basic': True}},
                                                                   'quality': {'default': 'default',
                                                                               'description': 'Generation '
-                                                                                             'quality. '
-                                                                                             'Controls '
-                                                                                             'which '
-                                                                                             'model '
-                                                                                             'tier '
-                                                                                             'is '
-                                                                                             'used '
-                                                                                             'when '
-                                                                                             'Recraft '
-                                                                                             'is '
-                                                                                             'the '
-                                                                                             'provider.\n'
+                                                                                             'quality.\n'
                                                                                              'For '
                                                                                              'SVG '
                                                                                              'output '
-                                                                                             '(output_filetype="svg"):\n'
+                                                                                             'with '
+                                                                                             'vector_engine '
+                                                                                             '"llm" '
+                                                                                             'or '
+                                                                                             '"script": '
+                                                                                             '"max" '
+                                                                                             'lets '
+                                                                                             'the '
+                                                                                             'vector '
+                                                                                             'author '
+                                                                                             'reason '
+                                                                                             'longer\n'
+                                                                                             '(for '
+                                                                                             'complex, '
+                                                                                             'multi-part '
+                                                                                             'drawings; '
+                                                                                             'costs '
+                                                                                             'more '
+                                                                                             'tokens).\n'
+                                                                                             'For '
+                                                                                             'SVG '
+                                                                                             'output '
+                                                                                             'with '
+                                                                                             'vector_engine '
+                                                                                             '"recraft":\n'
                                                                                              '  '
                                                                                              '"default" '
                                                                                              'uses '
@@ -3854,10 +4107,41 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       '4B '
                                                                                                       'edit '
                                                                                                       'model). '
+                                                                                                      'With '
+                                                                                                      'output_filetype="svg" '
+                                                                                                      'and '
+                                                                                                      'vector_engine '
+                                                                                                      '"llm" '
+                                                                                                      'or '
+                                                                                                      '"script": '
+                                                                                                      'an '
+                                                                                                      'SVG\n'
+                                                                                                      'reference '
+                                                                                                      'is '
+                                                                                                      'modified '
+                                                                                                      'from '
+                                                                                                      'its '
+                                                                                                      'source '
+                                                                                                      'code '
+                                                                                                      '(a '
+                                                                                                      'script-made '
+                                                                                                      'one '
+                                                                                                      'always '
+                                                                                                      'through '
+                                                                                                      'its\n'
+                                                                                                      'generator '
+                                                                                                      'script), '
+                                                                                                      'a '
+                                                                                                      'pixel '
+                                                                                                      'reference '
+                                                                                                      'is '
+                                                                                                      'redrawn '
+                                                                                                      'as '
+                                                                                                      'vector.\n'
                                                                                                       'Ignored '
-                                                                                                      'for '
-                                                                                                      'SVG/Recraft '
-                                                                                                      'output.\n',
+                                                                                                      'by '
+                                                                                                      'vector_engine '
+                                                                                                      '"recraft".\n',
                                                                                        'items': {'description': 'Original '
                                                                                                                 'filename '
                                                                                                                 '(embed_ref) '
@@ -3867,7 +4151,257 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                                 'image',
                                                                                                  'type': 'string'},
                                                                                        'type': 'array',
-                                                                                       'x-ui': {'basic': False}}},
+                                                                                       'x-ui': {'basic': False}},
+                                                                  'requirements': {'description': 'Only '
+                                                                                                  'for '
+                                                                                                  'output_filetype="svg". '
+                                                                                                  'Optional '
+                                                                                                  'list '
+                                                                                                  'of '
+                                                                                                  'short '
+                                                                                                  'natural-language '
+                                                                                                  'requirements\n'
+                                                                                                  'the '
+                                                                                                  'finished '
+                                                                                                  'graphic '
+                                                                                                  'must '
+                                                                                                  'meet, '
+                                                                                                  'each '
+                                                                                                  'one '
+                                                                                                  'checkable '
+                                                                                                  'by '
+                                                                                                  'looking '
+                                                                                                  'at '
+                                                                                                  'the '
+                                                                                                  'picture\n'
+                                                                                                  '(e.g. '
+                                                                                                  '"exactly '
+                                                                                                  'two '
+                                                                                                  'variations '
+                                                                                                  'side '
+                                                                                                  'by '
+                                                                                                  'side", '
+                                                                                                  '"only '
+                                                                                                  'solid '
+                                                                                                  'closed '
+                                                                                                  'fills, '
+                                                                                                  'no\n'
+                                                                                                  'gradients", '
+                                                                                                  '"the '
+                                                                                                  'name '
+                                                                                                  'is '
+                                                                                                  'written '
+                                                                                                  'in '
+                                                                                                  'uppercase", '
+                                                                                                  '"nothing '
+                                                                                                  'is '
+                                                                                                  'cut '
+                                                                                                  'off").\n'
+                                                                                                  'When '
+                                                                                                  'given, '
+                                                                                                  'the '
+                                                                                                  'rendered '
+                                                                                                  'result '
+                                                                                                  'is '
+                                                                                                  'checked '
+                                                                                                  'against '
+                                                                                                  'each '
+                                                                                                  'requirement '
+                                                                                                  'and '
+                                                                                                  'a '
+                                                                                                  'clearly\n'
+                                                                                                  'unmet '
+                                                                                                  'one '
+                                                                                                  'triggers '
+                                                                                                  'an '
+                                                                                                  'automatic '
+                                                                                                  'correction '
+                                                                                                  '(at '
+                                                                                                  'most '
+                                                                                                  '2 '
+                                                                                                  'rounds); '
+                                                                                                  'each '
+                                                                                                  'check '
+                                                                                                  'and\n'
+                                                                                                  'correction '
+                                                                                                  'is '
+                                                                                                  'billed '
+                                                                                                  'by '
+                                                                                                  'its '
+                                                                                                  'tokens. '
+                                                                                                  'Omit '
+                                                                                                  'it '
+                                                                                                  'for '
+                                                                                                  'simple '
+                                                                                                  'requests: '
+                                                                                                  'then '
+                                                                                                  'no '
+                                                                                                  'check\n'
+                                                                                                  'runs. '
+                                                                                                  'Include '
+                                                                                                  'the '
+                                                                                                  "user's "
+                                                                                                  'hard '
+                                                                                                  'constraints '
+                                                                                                  'here, '
+                                                                                                  'not '
+                                                                                                  'style '
+                                                                                                  'wishes.\n',
+                                                                                   'items': {'type': 'string'},
+                                                                                   'type': 'array',
+                                                                                   'x-ui': {'basic': False}},
+                                                                  'vector_engine': {'default': 'llm',
+                                                                                    'description': 'Only '
+                                                                                                   'for '
+                                                                                                   'output_filetype="svg": '
+                                                                                                   'how '
+                                                                                                   'the '
+                                                                                                   'vector '
+                                                                                                   'graphic '
+                                                                                                   'is '
+                                                                                                   'made.\n'
+                                                                                                   '"llm" '
+                                                                                                   '(default): '
+                                                                                                   'a '
+                                                                                                   'vector '
+                                                                                                   'author '
+                                                                                                   'model '
+                                                                                                   'writes '
+                                                                                                   'clean, '
+                                                                                                   'editable '
+                                                                                                   'SVG '
+                                                                                                   'code '
+                                                                                                   'directly.\n'
+                                                                                                   'Best '
+                                                                                                   'for '
+                                                                                                   'logos, '
+                                                                                                   'icons, '
+                                                                                                   'flat '
+                                                                                                   'illustrations, '
+                                                                                                   'diagrams, '
+                                                                                                   'text '
+                                                                                                   'and '
+                                                                                                   'organic '
+                                                                                                   'hand-drawn\n'
+                                                                                                   'shapes. '
+                                                                                                   'Billed '
+                                                                                                   'by '
+                                                                                                   'the '
+                                                                                                   'tokens '
+                                                                                                   'used '
+                                                                                                   '(typically '
+                                                                                                   '10-80 '
+                                                                                                   'credits).\n'
+                                                                                                   '"script": '
+                                                                                                   'the '
+                                                                                                   'author '
+                                                                                                   'model '
+                                                                                                   'writes '
+                                                                                                   'a '
+                                                                                                   'small '
+                                                                                                   'deterministic '
+                                                                                                   'program '
+                                                                                                   'that '
+                                                                                                   'computes '
+                                                                                                   'the\n'
+                                                                                                   'SVG '
+                                                                                                   'and '
+                                                                                                   'runs '
+                                                                                                   'in '
+                                                                                                   'a '
+                                                                                                   'sandbox. '
+                                                                                                   'Recommended '
+                                                                                                   'whenever '
+                                                                                                   'geometry '
+                                                                                                   'should '
+                                                                                                   'be '
+                                                                                                   'calculated\n'
+                                                                                                   'rather '
+                                                                                                   'than '
+                                                                                                   'drawn '
+                                                                                                   'by '
+                                                                                                   'hand: '
+                                                                                                   'mathematical '
+                                                                                                   'or '
+                                                                                                   'parametric '
+                                                                                                   'shapes, '
+                                                                                                   'spirals, '
+                                                                                                   'fractals,\n'
+                                                                                                   'mandalas, '
+                                                                                                   'exact '
+                                                                                                   'symmetry, '
+                                                                                                   'repeated '
+                                                                                                   'or '
+                                                                                                   'tiled '
+                                                                                                   'patterns, '
+                                                                                                   'many '
+                                                                                                   'similar '
+                                                                                                   'elements,\n'
+                                                                                                   'smooth '
+                                                                                                   'curve '
+                                                                                                   'or '
+                                                                                                   'colour '
+                                                                                                   'transitions, '
+                                                                                                   'charts '
+                                                                                                   'from '
+                                                                                                   'numbers. '
+                                                                                                   'Billed '
+                                                                                                   'by '
+                                                                                                   'the '
+                                                                                                   'tokens '
+                                                                                                   'used\n'
+                                                                                                   'plus '
+                                                                                                   '5 '
+                                                                                                   'credits '
+                                                                                                   'per '
+                                                                                                   'started '
+                                                                                                   'minute '
+                                                                                                   'of '
+                                                                                                   'sandbox '
+                                                                                                   'time.\n'
+                                                                                                   '"recraft": '
+                                                                                                   'Recraft '
+                                                                                                   'V4.1 '
+                                                                                                   'Vector, '
+                                                                                                   'for '
+                                                                                                   'richly '
+                                                                                                   'detailed, '
+                                                                                                   'painterly '
+                                                                                                   'or '
+                                                                                                   'decorative\n'
+                                                                                                   'illustrations '
+                                                                                                   'where '
+                                                                                                   'a '
+                                                                                                   'traced '
+                                                                                                   'look '
+                                                                                                   'is '
+                                                                                                   'fine '
+                                                                                                   '(100 '
+                                                                                                   'credits, '
+                                                                                                   'or '
+                                                                                                   '300 '
+                                                                                                   'with '
+                                                                                                   'quality '
+                                                                                                   '"max").\n'
+                                                                                                   'Cannot '
+                                                                                                   'use '
+                                                                                                   'reference_images.\n'
+                                                                                                   '"llm" '
+                                                                                                   'and '
+                                                                                                   '"script" '
+                                                                                                   'can '
+                                                                                                   'modify '
+                                                                                                   'an '
+                                                                                                   'existing '
+                                                                                                   'graphic '
+                                                                                                   'passed '
+                                                                                                   'in '
+                                                                                                   'reference_images.\n',
+                                                                                    'enum': ['llm',
+                                                                                             'script',
+                                                                                             'recraft'],
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': False}}},
                                                    'required': ['prompt'],
                                                    'type': 'object'},
                                          'type': 'array',
@@ -3963,9 +4497,15 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                       '4B '
                                                                                                       'edit '
                                                                                                       'model '
-                                                                                                      '(image-to-image, '
-                                                                                                      '27 '
-                                                                                                      'credits).\n',
+                                                                                                      '(image-to-image) '
+                                                                                                      'instead '
+                                                                                                      'of '
+                                                                                                      'the '
+                                                                                                      'text-only '
+                                                                                                      'Recraft '
+                                                                                                      'V4.1 '
+                                                                                                      'Flash '
+                                                                                                      'model.\n',
                                                                                        'items': {'description': 'Original '
                                                                                                                 'filename '
                                                                                                                 '(embed_ref) '
@@ -3990,8 +4530,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_ts': 'jobs',
   'description': 'Search current Swedish job listings using JobTech. Germany is unavailable. '
                  'Preserve country, remote, employment and age filters. Radius search is '
-                 'unavailable. Use relevance_criteria only for an explicit user goal. Never invent '
-                 'listing facts or broaden filters after empty results.',
+                 'unavailable. Use relevance_criteria only for an explicit user goal. Set listing '
+                 'filters (visa, experience, education, start, contract length, deadline, salary, '
+                 'languages) only when the user asks; they drop listings that do not state the '
+                 'value. Never invent listing facts or broaden filters after empty results.',
   'description_key': 'app_skills.jobs.search.description',
   'output_schema': {'description': 'Jobs search response with one result group per input request.',
                     'properties': {'app_id': {'type': 'string'},
@@ -4020,7 +4562,33 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                              'company': {'type': ['string',
                                                                                                                                   'null'],
                                                                                                                          'x-ui': {'basic': True}},
-                                                                                                             'country': {'type': 'string',
+                                                                                                             'contract_duration_months': {'description': 'Fixed-term '
+                                                                                                                                                         'length; '
+                                                                                                                                                         'null '
+                                                                                                                                                         'when '
+                                                                                                                                                         'permanent '
+                                                                                                                                                         'or '
+                                                                                                                                                         'unstated.',
+                                                                                                                                          'type': ['integer',
+                                                                                                                                                   'null'],
+                                                                                                                                          'x-ui': {'basic': False}},
+                                                                                                             'country': {'description': 'ISO '
+                                                                                                                                        '3166-1 '
+                                                                                                                                        'alpha-2 '
+                                                                                                                                        'country '
+                                                                                                                                        'of '
+                                                                                                                                        'the '
+                                                                                                                                        'listing; '
+                                                                                                                                        'null '
+                                                                                                                                        'for '
+                                                                                                                                        'global '
+                                                                                                                                        'or '
+                                                                                                                                        'remote '
+                                                                                                                                        'listings '
+                                                                                                                                        'without '
+                                                                                                                                        'one.',
+                                                                                                                         'type': ['string',
+                                                                                                                                  'null'],
                                                                                                                          'x-ui': {'basic': False}},
                                                                                                              'description': {'type': ['string',
                                                                                                                                       'null'],
@@ -4028,14 +4596,67 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                              'detail_status': {'type': ['string',
                                                                                                                                         'null'],
                                                                                                                                'x-ui': {'basic': False}},
+                                                                                                             'education_level': {'description': 'Minimum '
+                                                                                                                                                'required '
+                                                                                                                                                'education.',
+                                                                                                                                 'enum': ['none',
+                                                                                                                                          'vocational',
+                                                                                                                                          'bachelor',
+                                                                                                                                          'master',
+                                                                                                                                          'doctorate',
+                                                                                                                                          None],
+                                                                                                                                 'type': ['string',
+                                                                                                                                          'null'],
+                                                                                                                                 'x-ui': {'basic': False}},
                                                                                                              'employment_type': {'type': ['string',
                                                                                                                                           'null'],
                                                                                                                                  'x-ui': {'basic': False}},
+                                                                                                             'experience_level': {'description': 'Normalized '
+                                                                                                                                                 'level; '
+                                                                                                                                                 'seniority '
+                                                                                                                                                 'keeps '
+                                                                                                                                                 'the '
+                                                                                                                                                 "source's "
+                                                                                                                                                 'wording.',
+                                                                                                                                  'enum': ['internship',
+                                                                                                                                           'entry',
+                                                                                                                                           'mid',
+                                                                                                                                           'senior',
+                                                                                                                                           'lead',
+                                                                                                                                           None],
+                                                                                                                                  'type': ['string',
+                                                                                                                                           'null'],
+                                                                                                                                  'x-ui': {'basic': False}},
+                                                                                                             'experience_years_min': {'type': ['integer',
+                                                                                                                                               'null'],
+                                                                                                                                      'x-ui': {'basic': False}},
                                                                                                              'id': {'type': 'string',
                                                                                                                     'x-ui': {'basic': False}},
-                                                                                                             'impact': {'type': ['string',
+                                                                                                             'impact': {'description': 'Why '
+                                                                                                                                       'the '
+                                                                                                                                       'work '
+                                                                                                                                       'matters',
+                                                                                                                        "in the source's words.": None,
+                                                                                                                        'type': ['string',
                                                                                                                                  'null'],
                                                                                                                         'x-ui': {'basic': False}},
+                                                                                                             'impact_area': {'description': 'Cause '
+                                                                                                                                            'or '
+                                                                                                                                            'problem '
+                                                                                                                                            'area '
+                                                                                                                                            'label',
+                                                                                                                             'such as climate.': None,
+                                                                                                                             'type': ['string',
+                                                                                                                                      'null'],
+                                                                                                                             'x-ui': {'basic': False}},
+                                                                                                             'languages': {'description': 'ISO '
+                                                                                                                                          '639-1 '
+                                                                                                                                          'working '
+                                                                                                                                          'languages.',
+                                                                                                                           'items': {'type': 'string'},
+                                                                                                                           'type': ['array',
+                                                                                                                                    'null'],
+                                                                                                                           'x-ui': {'basic': False}},
                                                                                                              'location': {'type': ['string',
                                                                                                                                    'null'],
                                                                                                                           'x-ui': {'basic': True}},
@@ -4074,14 +4695,25 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                              'seniority': {'type': ['string',
                                                                                                                                     'null'],
                                                                                                                            'x-ui': {'basic': False}},
+                                                                                                             'start_date': {'format': 'date',
+                                                                                                                            'type': ['string',
+                                                                                                                                     'null'],
+                                                                                                                            'x-ui': {'basic': False}},
                                                                                                              'title': {'type': 'string',
                                                                                                                        'x-ui': {'basic': True}},
                                                                                                              'url': {'format': 'uri',
                                                                                                                      'type': 'string',
                                                                                                                      'x-ui': {'basic': True}},
-                                                                                                             'valid_through': {'type': ['string',
+                                                                                                             'valid_through': {'description': 'Application '
+                                                                                                                                              'deadline '
+                                                                                                                                              '(ISO '
+                                                                                                                                              '8601).',
+                                                                                                                               'type': ['string',
                                                                                                                                         'null'],
                                                                                                                                'x-ui': {'basic': False}},
+                                                                                                             'visa_sponsorship': {'type': ['boolean',
+                                                                                                                                           'null'],
+                                                                                                                                  'x-ui': {'basic': False}},
                                                                                                              'work_arrangement': {'type': ['string',
                                                                                                                                            'null'],
                                                                                                                                   'x-ui': {'basic': False}}},
@@ -4108,11 +4740,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                 'type': 'array'}},
                     'type': 'object'},
   'schema': {'properties': {'countries': {'default': ['DE'],
-                                          'description': 'Select SE for the available source. DE '
-                                                         'remains accepted but returns an explicit '
-                                                         'coverage gap.',
-                                          'items': {'enum': ['DE', 'SE'], 'type': 'string'},
-                                          'maxItems': 2,
+                                          'description': 'ISO 3166-1 alpha-2 country codes. The '
+                                                         'built-in source covers SE; other '
+                                                         'countries return an explicit coverage '
+                                                         'gap unless an installed provider answers '
+                                                         'them.\n',
+                                          'items': {'pattern': '^[A-Z]{2}$', 'type': 'string'},
+                                          'maxItems': 10,
                                           'minItems': 1,
                                           'type': 'array',
                                           'uniqueItems': True,
@@ -4130,29 +4764,82 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'combine '
                                                                                                'with '
                                                                                                'country.',
-                                                                                'items': {'enum': ['DE',
-                                                                                                   'SE'],
+                                                                                'items': {'pattern': '^[A-Z]{2}$',
                                                                                           'type': 'string'},
-                                                                                'maxItems': 2,
+                                                                                'maxItems': 10,
                                                                                 'minItems': 1,
                                                                                 'type': 'array',
                                                                                 'uniqueItems': True,
                                                                                 'x-ui': {'basic': False}},
                                                                   'country': {'description': 'Legacy '
                                                                                              'singleton '
+                                                                                             'ISO '
+                                                                                             '3166-1 '
+                                                                                             'alpha-2 '
                                                                                              'country '
-                                                                                             'override; '
-                                                                                             'DE '
-                                                                                             'is '
-                                                                                             'unavailable. '
+                                                                                             'override. '
                                                                                              'Do '
                                                                                              'not '
                                                                                              'combine '
                                                                                              'with '
                                                                                              'countries.',
-                                                                              'enum': ['DE', 'SE'],
+                                                                              'pattern': '^[A-Z]{2}$',
                                                                               'type': 'string',
                                                                               'x-ui': {'basic': False}},
+                                                                  'deadline_after': {'description': 'Keep '
+                                                                                                    'listings '
+                                                                                                    'whose '
+                                                                                                    'application '
+                                                                                                    'deadline '
+                                                                                                    'is '
+                                                                                                    'on '
+                                                                                                    'or '
+                                                                                                    'after '
+                                                                                                    'this '
+                                                                                                    'ISO '
+                                                                                                    'date; '
+                                                                                                    'listings '
+                                                                                                    'without '
+                                                                                                    'a '
+                                                                                                    'stated '
+                                                                                                    'deadline '
+                                                                                                    'are '
+                                                                                                    'excluded.\n',
+                                                                                     'format': 'date',
+                                                                                     'type': 'string',
+                                                                                     'x-ui': {'basic': False}},
+                                                                  'education_levels': {'description': 'Keep '
+                                                                                                      'listings '
+                                                                                                      'whose '
+                                                                                                      'required '
+                                                                                                      'education '
+                                                                                                      'level '
+                                                                                                      'is '
+                                                                                                      'one '
+                                                                                                      'of '
+                                                                                                      'these '
+                                                                                                      '(include '
+                                                                                                      'the '
+                                                                                                      "user's "
+                                                                                                      'level '
+                                                                                                      'and '
+                                                                                                      'every '
+                                                                                                      'lower '
+                                                                                                      'one); '
+                                                                                                      'unstated '
+                                                                                                      'levels '
+                                                                                                      'are '
+                                                                                                      'excluded.\n',
+                                                                                       'items': {'enum': ['none',
+                                                                                                          'vocational',
+                                                                                                          'bachelor',
+                                                                                                          'master',
+                                                                                                          'doctorate'],
+                                                                                                 'type': 'string'},
+                                                                                       'maxItems': 5,
+                                                                                       'type': 'array',
+                                                                                       'uniqueItems': True,
+                                                                                       'x-ui': {'basic': False}},
                                                                   'employment_type': {'description': 'Optional '
                                                                                                      'employment '
                                                                                                      'type '
@@ -4168,6 +4855,30 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'apprenticeship'],
                                                                                       'type': 'string',
                                                                                       'x-ui': {'basic': False}},
+                                                                  'experience_levels': {'description': 'Keep '
+                                                                                                       'listings '
+                                                                                                       'whose '
+                                                                                                       'stated '
+                                                                                                       'experience '
+                                                                                                       'level '
+                                                                                                       'is '
+                                                                                                       'one '
+                                                                                                       'of '
+                                                                                                       'these; '
+                                                                                                       'unstated '
+                                                                                                       'levels '
+                                                                                                       'are '
+                                                                                                       'excluded.',
+                                                                                        'items': {'enum': ['internship',
+                                                                                                           'entry',
+                                                                                                           'mid',
+                                                                                                           'senior',
+                                                                                                           'lead'],
+                                                                                                  'type': 'string'},
+                                                                                        'maxItems': 5,
+                                                                                        'type': 'array',
+                                                                                        'uniqueItems': True,
+                                                                                        'x-ui': {'basic': False}},
                                                                   'id': {'description': 'Optional '
                                                                                         'request '
                                                                                         'ID for '
@@ -4176,6 +4887,36 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'results.',
                                                                          'type': 'string',
                                                                          'x-ui': {'basic': False}},
+                                                                  'languages': {'description': 'ISO '
+                                                                                               '639-1 '
+                                                                                               'codes '
+                                                                                               'of '
+                                                                                               'languages '
+                                                                                               'the '
+                                                                                               'user '
+                                                                                               'can '
+                                                                                               'work '
+                                                                                               'in. '
+                                                                                               'Keep '
+                                                                                               'listings '
+                                                                                               'whose '
+                                                                                               'stated '
+                                                                                               'working '
+                                                                                               'languages '
+                                                                                               'include '
+                                                                                               'at '
+                                                                                               'least '
+                                                                                               'one; '
+                                                                                               'unstated '
+                                                                                               'languages '
+                                                                                               'are '
+                                                                                               'excluded.\n',
+                                                                                'items': {'pattern': '^[a-z]{2}$',
+                                                                                          'type': 'string'},
+                                                                                'maxItems': 10,
+                                                                                'type': 'array',
+                                                                                'uniqueItems': True,
+                                                                                'x-ui': {'basic': False}},
                                                                   'limit': {'default': 10,
                                                                             'description': 'Maximum '
                                                                                            'final '
@@ -4198,6 +4939,25 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                'type': 'string',
                                                                                'x-ui': {'basic': True,
                                                                                         'control': 'location'}},
+                                                                  'max_contract_duration_months': {'description': 'Maximum '
+                                                                                                                  'stated '
+                                                                                                                  'contract '
+                                                                                                                  'duration '
+                                                                                                                  'in '
+                                                                                                                  'months, '
+                                                                                                                  'for '
+                                                                                                                  'fixed-term '
+                                                                                                                  'roles. '
+                                                                                                                  'Permanent '
+                                                                                                                  'or '
+                                                                                                                  'unstated '
+                                                                                                                  'durations '
+                                                                                                                  'are '
+                                                                                                                  'excluded.\n',
+                                                                                                   'maximum': 600,
+                                                                                                   'minimum': 1,
+                                                                                                   'type': 'integer',
+                                                                                                   'x-ui': {'basic': False}},
                                                                   'max_days_old': {'description': 'Maximum '
                                                                                                   'age '
                                                                                                   'in '
@@ -4210,6 +4970,59 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                    'minimum': 1,
                                                                                    'type': 'integer',
                                                                                    'x-ui': {'basic': False}},
+                                                                  'min_contract_duration_months': {'description': 'Minimum '
+                                                                                                                  'stated '
+                                                                                                                  'contract '
+                                                                                                                  'duration '
+                                                                                                                  'in '
+                                                                                                                  'months. '
+                                                                                                                  'Permanent '
+                                                                                                                  'or '
+                                                                                                                  'unstated '
+                                                                                                                  'durations '
+                                                                                                                  'are '
+                                                                                                                  'excluded.\n',
+                                                                                                   'maximum': 600,
+                                                                                                   'minimum': 1,
+                                                                                                   'type': 'integer',
+                                                                                                   'x-ui': {'basic': False}},
+                                                                  'min_salary': {'description': 'Minimum '
+                                                                                                'salary; '
+                                                                                                'requires '
+                                                                                                'salary_currency '
+                                                                                                'and '
+                                                                                                'salary_period. '
+                                                                                                'A '
+                                                                                                'listing '
+                                                                                                'passes '
+                                                                                                'when '
+                                                                                                'its '
+                                                                                                'highest '
+                                                                                                'stated '
+                                                                                                'salary '
+                                                                                                'in '
+                                                                                                'that '
+                                                                                                'currency '
+                                                                                                'reaches '
+                                                                                                'it '
+                                                                                                '(month '
+                                                                                                'and '
+                                                                                                'year '
+                                                                                                'convert, '
+                                                                                                'other '
+                                                                                                'periods '
+                                                                                                'must '
+                                                                                                'match). '
+                                                                                                'Listings '
+                                                                                                'without '
+                                                                                                'a '
+                                                                                                'comparable '
+                                                                                                'salary '
+                                                                                                'are '
+                                                                                                'excluded.\n',
+                                                                                 'exclusiveMinimum': 0,
+                                                                                 'type': 'number',
+                                                                                 'x-ui': {'basic': False}},
                                                                   'provider': {'description': 'One '
                                                                                               'explicit '
                                                                                               'source, '
@@ -4313,7 +5126,99 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'home '
                                                                                             'office.\n',
                                                                              'type': 'boolean',
-                                                                             'x-ui': {'basic': True}}},
+                                                                             'x-ui': {'basic': True}},
+                                                                  'salary_currency': {'description': 'ISO '
+                                                                                                     '4217 '
+                                                                                                     'currency '
+                                                                                                     'of '
+                                                                                                     'min_salary, '
+                                                                                                     'such '
+                                                                                                     'as '
+                                                                                                     'EUR. '
+                                                                                                     'No '
+                                                                                                     'conversion '
+                                                                                                     'between '
+                                                                                                     'currencies.',
+                                                                                      'pattern': '^[A-Z]{3}$',
+                                                                                      'type': 'string',
+                                                                                      'x-ui': {'basic': False}},
+                                                                  'salary_period': {'description': 'Period '
+                                                                                                   'of '
+                                                                                                   'min_salary.',
+                                                                                    'enum': ['hour',
+                                                                                             'day',
+                                                                                             'week',
+                                                                                             'month',
+                                                                                             'year'],
+                                                                                    'type': 'string',
+                                                                                    'x-ui': {'basic': False}},
+                                                                  'start_after': {'description': 'Keep '
+                                                                                                 'listings '
+                                                                                                 'whose '
+                                                                                                 'stated '
+                                                                                                 'start '
+                                                                                                 'date '
+                                                                                                 'is '
+                                                                                                 'on '
+                                                                                                 'or '
+                                                                                                 'after '
+                                                                                                 'this '
+                                                                                                 'ISO '
+                                                                                                 'date; '
+                                                                                                 'unstated '
+                                                                                                 'start '
+                                                                                                 'dates '
+                                                                                                 'are '
+                                                                                                 'excluded.',
+                                                                                  'format': 'date',
+                                                                                  'type': 'string',
+                                                                                  'x-ui': {'basic': False}},
+                                                                  'start_before': {'description': 'Keep '
+                                                                                                  'listings '
+                                                                                                  'whose '
+                                                                                                  'stated '
+                                                                                                  'start '
+                                                                                                  'date '
+                                                                                                  'is '
+                                                                                                  'on '
+                                                                                                  'or '
+                                                                                                  'before '
+                                                                                                  'this '
+                                                                                                  'ISO '
+                                                                                                  'date; '
+                                                                                                  'unstated '
+                                                                                                  'start '
+                                                                                                  'dates '
+                                                                                                  'are '
+                                                                                                  'excluded.',
+                                                                                   'format': 'date',
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': False}},
+                                                                  'visa_sponsorship': {'description': 'Keep '
+                                                                                                      'only '
+                                                                                                      'listings '
+                                                                                                      'that '
+                                                                                                      'state '
+                                                                                                      'this '
+                                                                                                      'visa '
+                                                                                                      'sponsorship '
+                                                                                                      'value. '
+                                                                                                      'Listings '
+                                                                                                      'that '
+                                                                                                      'do '
+                                                                                                      'not '
+                                                                                                      'state '
+                                                                                                      'it '
+                                                                                                      'are '
+                                                                                                      'excluded, '
+                                                                                                      'as '
+                                                                                                      'for '
+                                                                                                      'every '
+                                                                                                      'listing '
+                                                                                                      'filter '
+                                                                                                      'below.\n',
+                                                                                       'type': 'boolean',
+                                                                                       'x-ui': {'basic': False}}},
                                                    'required': ['query'],
                                                    'type': 'object'},
                                          'maxItems': 5,
@@ -5110,7 +6015,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'this when the user asks to create music or background music. Do not use this to '
                  'imitate the voice, vocals, cadence, or persona of a real public figure, living '
                  'artist, famous educator, or recognizable person. Use original voices and styles '
-                 'only, and reject scams, spam, or detection evasion.',
+                 'only, and reject scams, spam, or detection evasion. Not for the music of a '
+                 'video: videos.generate makes a',
   'description_key': 'app_skills.music.generate.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of music generation '
                                                         'request objects. Each object must\n'
@@ -5944,9 +6850,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'PDF document. Use when the user asks what a PDF says, wants you to summarise '
                  'sections, or requests information that is likely textual (paragraphs, tables, '
                  'headings). The embed TOON content includes a TOC and per-page token estimates — '
-                 'use them to select the most relevant pages. Limits output to 50 000 tokens; call '
-                 'again for remaining pages if needed. Pass the exact embed_ref (original '
-                 'filename) from the toon block —',
+                 'use them to select the most relevant pages. When the embed says '
+                 'whole_document_readable, call without pages to read the whole small document '
+                 '(about 30 000 tokens or less) in one result',
   'description_key': 'pdf.read.description',
   'schema': {'properties': {'file_path': {'description': 'The original filename of the PDF (e.g. '
                                                          '"report.pdf"). Use the exact embed_ref '
@@ -5957,7 +6863,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                           'type': 'string'},
                             'pages': {'description': '1-indexed page numbers to read (e.g. [1, 2, '
                                                      '3]). If omitted, reads from page 1 onwards '
-                                                     'up to the token budget.',
+                                                     'up to the token budget; a small document '
+                                                     '(whole_document_readable) is returned whole.',
                                       'items': {'type': 'integer'},
                                       'type': 'array'}},
              'required': ['file_path'],
@@ -5969,11 +6876,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_py': 'pdf',
   'app_namespace_ts': 'pdf',
   'description': 'Search for specific text, keywords, or phrases across all pages of an uploaded '
-                 'PDF. Returns matching text blocks with surrounding context and page numbers. Use '
+                 'PDF. Pages are ranked by BM25 keyword relevance (best first, top pages may be '
+                 're-ranked by a decision model); each result has the page number, rank, score and '
+                 'a context snippet. Exact short strings such as part numbers still match. Use '
                  'when the user asks to find where something is mentioned in the document, or when '
-                 'a targeted keyword search is faster than reading entire sections. No LLM call '
-                 'required — pure text search over the OCR data. Pass the exact embed_ref '
-                 '(original filename) from the toon block as file_path.',
+                 'a targeted keyword search is faster than reading entire sections. Pass the exact '
+                 'embed_ref (original fil',
   'description_key': 'pdf.search.description',
   'schema': {'properties': {'context_chars': {'description': 'Number of characters of surrounding '
                                                              'context to include per match '
@@ -5984,8 +6892,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                          'The server resolves all cryptographic '
                                                          'and storage details automatically.\n',
                                           'type': 'string'},
-                            'query': {'description': 'The search query string (case-insensitive '
-                                                     'substring match).',
+                            'query': {'description': 'The search query (keywords or a phrase). '
+                                                     'Pages are ranked by BM25 keyword relevance, '
+                                                     'best first.',
                                       'type': 'string'}},
              'required': ['file_path', 'query'],
              'type': 'object'},
@@ -7783,99 +8692,387 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'videos',
   'app_namespace_py': 'videos',
   'app_namespace_ts': 'videos',
-  'description': 'Generate short photorealistic or generative footage from text prompts using '
-                 'Google Veo. Use this when the user asks for cinematic footage, realistic scenes, '
-                 'camera movement, stylized animation, or non-deterministic video generation. Do '
-                 'not use this for exact text slides, product announcements, diagrams, charts, '
-                 'UI-like motion graphics, or branded videos where exact text and layout matter; '
-                 'those requests should use videos.create with an explicit ```remotion:Name.tsx '
-                 'fence instead. Do not use this',
+  'description': 'Make any short video from a natural-language instruction, optionally with up to '
+                 '12 references from this chat (uploads, generated images, vector graphics, '
+                 'image/web/news/video search results with or without a picture, or a whole '
+                 'search). Each request is made either as a generative clip (invented realistic or '
+                 'stylized footage, camera movement, animating one picture) or as a composed, '
+                 'code-rendered video (exact texts and titles, lists, numbers, charts, diagrams, '
+                 'slideshows or recaps of the given pi',
   'description_key': 'app_skills.videos.generate.description',
-  'schema': {'properties': {'requests': {'description': 'REQUIRED array of video generation '
-                                                        'request objects.',
+  'schema': {'properties': {'requests': {'description': 'REQUIRED array of video request objects, '
+                                                        'one per video.',
                                          'items': {'properties': {'aspect_ratio': {'default': '16:9',
+                                                                                   'description': '1:1 '
+                                                                                                  'is '
+                                                                                                  'available '
+                                                                                                  'for '
+                                                                                                  'composed '
+                                                                                                  'videos '
+                                                                                                  'only.',
                                                                                    'enum': ['16:9',
-                                                                                            '9:16'],
+                                                                                            '9:16',
+                                                                                            '1:1'],
                                                                                    'type': 'string',
                                                                                    'x-ui': {'basic': True}},
-                                                                  'duration_seconds': {'default': 8,
-                                                                                       'enum': [4,
-                                                                                                5,
-                                                                                                6,
-                                                                                                8],
+                                                                  'change': {'description': 'How '
+                                                                                            'source_video '
+                                                                                            'changes '
+                                                                                            '(it '
+                                                                                            'becomes '
+                                                                                            'the '
+                                                                                            'next '
+                                                                                            'version '
+                                                                                            'of '
+                                                                                            'the '
+                                                                                            'same '
+                                                                                            'video): '
+                                                                                            'edit '
+                                                                                            'applies '
+                                                                                            'the '
+                                                                                            'instructions '
+                                                                                            'to '
+                                                                                            'it, '
+                                                                                            'extend_start '
+                                                                                            'adds '
+                                                                                            'a new '
+                                                                                            'generated '
+                                                                                            'clip '
+                                                                                            'before '
+                                                                                            'it, '
+                                                                                            'extend_end '
+                                                                                            'adds '
+                                                                                            'one '
+                                                                                            'after '
+                                                                                            'it '
+                                                                                            '(only '
+                                                                                            'for '
+                                                                                            'videos '
+                                                                                            'made '
+                                                                                            'of '
+                                                                                            'generated '
+                                                                                            'clips).\n',
+                                                                             'enum': ['edit',
+                                                                                      'extend_start',
+                                                                                      'extend_end'],
+                                                                             'type': 'string',
+                                                                             'x-ui': {'basic': False}},
+                                                                  'duration_seconds': {'description': 'Optional '
+                                                                                                      'length. '
+                                                                                                      'Generative '
+                                                                                                      'clips '
+                                                                                                      'last '
+                                                                                                      '3 '
+                                                                                                      'to '
+                                                                                                      '15 '
+                                                                                                      'seconds '
+                                                                                                      '(default '
+                                                                                                      '8); '
+                                                                                                      'composed '
+                                                                                                      'videos '
+                                                                                                      '2 '
+                                                                                                      'to '
+                                                                                                      '60; '
+                                                                                                      'a '
+                                                                                                      'clip '
+                                                                                                      'added '
+                                                                                                      'by '
+                                                                                                      'extend_start '
+                                                                                                      'or '
+                                                                                                      'extend_end '
+                                                                                                      '3 '
+                                                                                                      'to '
+                                                                                                      '10.',
+                                                                                       'maximum': 60,
+                                                                                       'minimum': 2,
                                                                                        'type': 'integer',
                                                                                        'x-ui': {'basic': True}},
-                                                                  'input_embed_ids': {'description': 'Optional '
+                                                                  'images': {'description': 'Exact '
+                                                                                            'embed_refs '
+                                                                                            'of '
+                                                                                            'what '
+                                                                                            'the '
+                                                                                            'video '
+                                                                                            'shows '
+                                                                                            'or is '
+                                                                                            'about, '
+                                                                                            'in '
+                                                                                            'the '
+                                                                                            'order '
+                                                                                            'they '
+                                                                                            'should '
+                                                                                            'appear: '
+                                                                                            'uploads, '
+                                                                                            'generated '
+                                                                                            'images, '
+                                                                                            'vector '
+                                                                                            'graphics, '
+                                                                                            'and '
+                                                                                            'search '
+                                                                                            'results '
+                                                                                            'of '
+                                                                                            'image, '
+                                                                                            'web, '
+                                                                                            'news '
+                                                                                            'or '
+                                                                                            'video '
+                                                                                            'search. '
+                                                                                            'Pass '
+                                                                                            'every '
+                                                                                            'search '
+                                                                                            'result '
+                                                                                            'the '
+                                                                                            'video '
+                                                                                            'is '
+                                                                                            'based '
+                                                                                            'on, '
+                                                                                            'also '
+                                                                                            'when '
+                                                                                            'you '
+                                                                                            'see '
+                                                                                            'no '
+                                                                                            'picture '
+                                                                                            'for '
+                                                                                            'it: '
+                                                                                            'the '
+                                                                                            'skill '
+                                                                                            'reads '
+                                                                                            'each '
+                                                                                            "result's "
+                                                                                            'picture '
+                                                                                            '(when '
+                                                                                            'it '
+                                                                                            'has '
+                                                                                            'one) '
+                                                                                            'together '
+                                                                                            'with '
+                                                                                            'its '
+                                                                                            'title, '
+                                                                                            'description, '
+                                                                                            'source '
+                                                                                            'and '
+                                                                                            'date. '
+                                                                                            'The '
+                                                                                            'embed_ref '
+                                                                                            'of a '
+                                                                                            'whole '
+                                                                                            'search '
+                                                                                            '(e.g. '
+                                                                                            'a '
+                                                                                            'news '
+                                                                                            'search '
+                                                                                            'shown '
+                                                                                            'earlier) '
+                                                                                            'stands '
+                                                                                            'for '
+                                                                                            'all '
+                                                                                            'of '
+                                                                                            'its '
+                                                                                            'results. '
+                                                                                            'A '
+                                                                                            'generative '
+                                                                                            'clip '
+                                                                                            'can '
+                                                                                            'start '
+                                                                                            'from '
+                                                                                            'one '
+                                                                                            'picture '
+                                                                                            'only.\n',
+                                                                             'items': {'type': 'string'},
+                                                                             'maxItems': 12,
+                                                                             'type': 'array',
+                                                                             'x-ui': {'basic': True}},
+                                                                  'input_embed_ids': {'description': 'Former '
                                                                                                      'first-frame '
+                                                                                                     'field '
+                                                                                                     '(one '
                                                                                                      'image '
                                                                                                      'embed '
                                                                                                      'UUID, '
-                                                                                                     'owned '
-                                                                                                     'by '
-                                                                                                     'the '
-                                                                                                     'authenticated '
-                                                                                                     'caller. '
                                                                                                      'H3 '
-                                                                                                     'only; '
-                                                                                                     'the '
-                                                                                                     'output '
-                                                                                                     'follows '
-                                                                                                     'this '
-                                                                                                     'image '
-                                                                                                     'canvas.',
+                                                                                                     'only). '
+                                                                                                     'Prefer '
+                                                                                                     'images.',
                                                                                       'items': {'format': 'uuid',
                                                                                                 'type': 'string'},
                                                                                       'maxItems': 1,
-                                                                                      'type': 'array'},
-                                                                  'model': {'default': 'veo-3.1-generate-preview',
-                                                                            'description': 'H3 is '
+                                                                                      'type': 'array',
+                                                                                      'x-assistant': False,
+                                                                                      'x-ui': {'basic': False}},
+                                                                  'instructions': {'description': 'What '
+                                                                                                  'the '
+                                                                                                  'user '
+                                                                                                  'asked '
+                                                                                                  'for, '
+                                                                                                  'kept '
+                                                                                                  'close '
+                                                                                                  'to '
+                                                                                                  'their '
+                                                                                                  'own '
+                                                                                                  'words: '
+                                                                                                  'what '
+                                                                                                  'the '
+                                                                                                  'video '
+                                                                                                  'shows, '
+                                                                                                  'order, '
+                                                                                                  'style, '
+                                                                                                  'mood '
+                                                                                                  'and '
+                                                                                                  'pacing. '
+                                                                                                  'Say '
+                                                                                                  'so '
+                                                                                                  'when '
+                                                                                                  'it '
+                                                                                                  'is '
+                                                                                                  'based '
+                                                                                                  'on '
+                                                                                                  'search '
+                                                                                                  'results '
+                                                                                                  'or '
+                                                                                                  'given '
+                                                                                                  'pictures, '
+                                                                                                  'and '
+                                                                                                  'include '
+                                                                                                  'the '
+                                                                                                  'exact '
+                                                                                                  'texts '
+                                                                                                  'to '
+                                                                                                  'show '
+                                                                                                  '(headlines, '
+                                                                                                  'titles, '
+                                                                                                  'numbers) '
+                                                                                                  'word '
+                                                                                                  'for '
+                                                                                                  'word.\n',
+                                                                                   'maxLength': 4000,
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': True}},
+                                                                  'mode': {'default': 'auto',
+                                                                           'description': 'auto '
+                                                                                          'decides '
+                                                                                          'per '
+                                                                                          'request. '
+                                                                                          'generative '
+                                                                                          '= '
+                                                                                          'invented '
+                                                                                          'footage '
+                                                                                          'from a '
+                                                                                          'video '
+                                                                                          'model. '
+                                                                                          'composed '
+                                                                                          '= '
+                                                                                          'exact, '
+                                                                                          'code-rendered '
+                                                                                          'video '
+                                                                                          '(texts, '
+                                                                                          'charts, '
+                                                                                          'slideshows, '
+                                                                                          'several '
+                                                                                          'pictures).\n',
+                                                                           'enum': ['auto',
+                                                                                    'generative',
+                                                                                    'composed'],
+                                                                           'type': 'string',
+                                                                           'x-assistant': False,
+                                                                           'x-ui': {'basic': True}},
+                                                                  'model': {'description': 'Only '
+                                                                                           'for '
+                                                                                           'generative '
+                                                                                           'clips; '
+                                                                                           'naming '
+                                                                                           'a '
+                                                                                           'model '
+                                                                                           'makes '
+                                                                                           'the '
+                                                                                           'request '
+                                                                                           'generative. '
+                                                                                           'H3 '
+                                                                                           '(fixed '
+                                                                                           '5-second '
+                                                                                           '480p '
+                                                                                           'clips '
+                                                                                           'from '
+                                                                                           'one '
+                                                                                           'picture) '
+                                                                                           'is '
                                                                                            'available '
                                                                                            'in '
                                                                                            'authenticated '
-                                                                                           'chats/calls '
-                                                                                           'with '
-                                                                                           'fixed '
-                                                                                           '5-second '
-                                                                                           '480p '
-                                                                                           'clips. '
+                                                                                           'chats; '
                                                                                            'REST '
                                                                                            'supports '
-                                                                                           'Veo '
-                                                                                           'only.',
-                                                                            'enum': ['veo-3.1-generate-preview',
-                                                                                     'veo-3.1-fast-generate-preview',
-                                                                                     'veo-3.0-generate-001',
+                                                                                           'Gemini '
+                                                                                           'Omni '
+                                                                                           'only.\n',
+                                                                            'enum': ['gemini-omni-1.2-flash',
                                                                                      'minimax/h3-max-turbo/image-to-video'],
                                                                             'type': 'string',
+                                                                            'x-assistant': False,
                                                                             'x-ui': {'basic': False}},
-                                                                  'prompt': {'description': 'Detailed '
-                                                                                            'text '
-                                                                                            'description '
-                                                                                            'of '
-                                                                                            'the '
-                                                                                            'video '
-                                                                                            'to '
-                                                                                            'generate.',
-                                                                             'type': 'string',
-                                                                             'x-ui': {'basic': True}},
-                                                                  'resolution': {'default': '720p',
-                                                                                 'enum': ['480p',
+                                                                  'resolution': {'description': 'Generative '
+                                                                                                'Gemini '
+                                                                                                'Omni '
+                                                                                                'clips '
+                                                                                                '360p, '
+                                                                                                '720p, '
+                                                                                                '1080p '
+                                                                                                'or '
+                                                                                                '4k '
+                                                                                                '(default '
+                                                                                                '720p); '
+                                                                                                'H3 '
+                                                                                                'is '
+                                                                                                'fixed '
+                                                                                                '480p.',
+                                                                                 'enum': ['360p',
+                                                                                          '480p',
                                                                                           '720p',
                                                                                           '1080p',
                                                                                           '4k'],
                                                                                  'type': 'string',
-                                                                                 'x-ui': {'basic': True}},
+                                                                                 'x-ui': {'basic': False}},
                                                                   'seed': {'description': 'Optional '
                                                                                           'seed '
                                                                                           'for '
                                                                                           'more '
                                                                                           'reproducible '
+                                                                                          'generative '
                                                                                           'output '
                                                                                           'when '
                                                                                           'supported.',
                                                                            'type': 'integer',
-                                                                           'x-ui': {'basic': False}}},
-                                                   'required': ['prompt'],
+                                                                           'x-ui': {'basic': False}},
+                                                                  'source_video': {'description': 'Exact '
+                                                                                                  'embed_ref '
+                                                                                                  'of '
+                                                                                                  'an '
+                                                                                                  'earlier '
+                                                                                                  'videos-generate '
+                                                                                                  'result '
+                                                                                                  'to '
+                                                                                                  'change. '
+                                                                                                  'Use '
+                                                                                                  'with '
+                                                                                                  'change.\n',
+                                                                                   'type': 'string',
+                                                                                   'x-ui': {'basic': False}},
+                                                                  'user_request': {'description': 'The '
+                                                                                                  "user's "
+                                                                                                  'latest '
+                                                                                                  'message '
+                                                                                                  'about '
+                                                                                                  'this '
+                                                                                                  'video, '
+                                                                                                  'copied '
+                                                                                                  'word '
+                                                                                                  'for '
+                                                                                                  'word. '
+                                                                                                  'Always '
+                                                                                                  'pass '
+                                                                                                  'it.\n',
+                                                                                   'maxLength': 2000,
+                                                                                   'type': 'string'}},
+                                                   'required': ['instructions'],
                                                    'type': 'object'},
                                          'type': 'array',
                                          'x-ui': {'basic': True}}},
@@ -7884,27 +9081,6 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'generate',
   'skill_method_py': 'generate',
   'skill_method_ts': 'generate'},
- {'app_id': 'videos',
-  'app_namespace_py': 'videos',
-  'app_namespace_ts': 'videos',
-  'description': 'Create deterministic code-backed videos with Remotion. Use this for text slides, '
-                 'product announcements, diagrams, charts, UI-like motion graphics, or branded '
-                 'videos where exact text and layout matter. The assistant must write an explicit '
-                 '```remotion:Name.tsx fence; do not use this for photorealistic footage or '
-                 'generic TSX components.',
-  'description_key': 'app_skills.videos.create.description',
-  'schema': {'properties': {'filename': {'description': 'Source filename, for example '
-                                                        'ProductAnnouncement.tsx.',
-                                         'type': 'string',
-                                         'x-ui': {'basic': True}},
-                            'source': {'description': 'Remotion TSX source code to render.',
-                                       'type': 'string',
-                                       'x-ui': {'basic': True}}},
-             'required': ['source'],
-             'type': 'object'},
-  'skill_id': 'create',
-  'skill_method_py': 'create',
-  'skill_method_ts': 'create'},
  {'app_id': 'videos',
   'app_namespace_py': 'videos',
   'app_namespace_ts': 'videos',
@@ -9309,7 +10485,7 @@ class AudioAppSkills:
         self._run_skill = run_skill
 
     def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation.
+        """Generate short, non-speech sound effects from text prompts, such as UI confirmation ticks, gentle alerts, transitions, and product sounds. Do not use this for spoken words, narration, vocals, voice cloning, scams, public figures, or deceptive media; use audio.speak for explicit speech generation. Not for the sound of a video: videos.generate makes a video's voice-over, sound effects and music itself.
 
         Description key: app_skills.audio.generate.description
         Skill: audio/generate
@@ -9317,7 +10493,7 @@ class AudioAppSkills:
         return self._run_skill("audio", "generate", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def speak(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech.
+        """Convert explicit user-provided text into short speech audio using an OpenMates voice preset after a required GPT OSS safeguard approval. Do not use this for automatic assistant voice replies, long narration, voice cloning, raw provider voice IDs, impersonation, scams, or deceptive speech. Not for the sound of a video: videos.generate makes a video's voice-over, sound effects and music itself.
 
         Description key: app_skills.audio.speak.description
         Skill: audio/speak
@@ -9347,6 +10523,22 @@ class BusinessAppSkills:
         Skill: business/company_financials
         """
         return self._run_skill("business", "company_financials", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def company_ownership(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Look up who owns or runs a named company, or which companies a named person holds or directs, in the official company register of Germany (DE), the United Kingdom (GB) or France (FR). Use to research investors, shareholders and directors; not for other countries, credit checks, private contact details or legal advice.
+
+        Description key: app_skills.business.company_ownership.description
+        Skill: business/company_ownership
+        """
+        return self._run_skill("business", "company_ownership", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def search_investors(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """This capability is currently unavailable because no permitted provider is configured.
+
+        Description key: app_skills.business.search_investors.description
+        Skill: business/search_investors
+        """
+        return self._run_skill("business", "search_investors", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search_trademarks(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """This capability is currently unavailable because no permitted provider is configured.
@@ -9529,7 +10721,7 @@ class ImagesAppSkills:
         self._run_skill = run_skill
 
     def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Generate high-quality images from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Use output_filetype="svg" for logos, icons, illustrations, and any other vector graphics that need to be scalable or editable. When the user provides uploaded images as refe
+        """Generate images or SVG vector graphics (logos, icons, patterns, drawings), new or modified. Works from text prompts and/or reference images (image-to-image editing). Also use for: mockups, design concepts, visual mockup creation, logo mockups, product mockups, illustration requests, visual design, concept art, posters, banners, thumbnails, or any request that implies creating a visual output. Also the way to create or modify ANY vector graphic (SVG): logos, icons, illustrations, infographics, la
 
         Description key: images.generate.description
         Skill: images/generate
@@ -9549,7 +10741,7 @@ class JobsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Never invent listing facts or broaden filters after empty results.
+        """Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty results.
 
         Description key: app_skills.jobs.search.description
         Skill: jobs/search
@@ -9609,7 +10801,7 @@ class MusicAppSkills:
         self._run_skill = run_skill
 
     def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Generate music from a text prompt, including full songs, instrumental tracks, background music, loops, jingles, lyric-based songs, and soundtrack cues. Use this when the user asks to create music or background music. Do not use this to imitate the voice, vocals, cadence, or persona of a real public figure, living artist, famous educator, or recognizable person. Use original voices and styles only, and reject scams, spam, or detection evasion.
+        """Generate music from a text prompt, including full songs, instrumental tracks, background music, loops, jingles, lyric-based songs, and soundtrack cues. Use this when the user asks to create music or background music. Do not use this to imitate the voice, vocals, cadence, or persona of a real public figure, living artist, famous educator, or recognizable person. Use original voices and styles only, and reject scams, spam, or detection evasion. Not for the music of a video: videos.generate makes a
 
         Description key: app_skills.music.generate.description
         Skill: music/generate
@@ -9665,7 +10857,7 @@ class PdfAppSkills:
         self._run_skill = run_skill
 
     def read(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates — use them to select the most relevant pages. Limits output to 50 000 tokens; call again for remaining pages if needed. Pass the exact embed_ref (original filename) from the toon block —
+        """Load and read the raw text content (markdown) of specific pages from an uploaded PDF document. Use when the user asks what a PDF says, wants you to summarise sections, or requests information that is likely textual (paragraphs, tables, headings). The embed TOON content includes a TOC and per-page token estimates — use them to select the most relevant pages. When the embed says whole_document_readable, call without pages to read the whole small document (about 30 000 tokens or less) in one result
 
         Description key: pdf.read.description
         Skill: pdf/read
@@ -9673,7 +10865,7 @@ class PdfAppSkills:
         return self._run_skill("pdf", "read", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Returns matching text blocks with surrounding context and page numbers. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. No LLM call required — pure text search over the OCR data. Pass the exact embed_ref (original filename) from the toon block as file_path.
+        """Search for specific text, keywords, or phrases across all pages of an uploaded PDF. Pages are ranked by BM25 keyword relevance (best first, top pages may be re-ranked by a decision model); each result has the page number, rank, score and a context snippet. Exact short strings such as part numbers still match. Use when the user asks to find where something is mentioned in the document, or when a targeted keyword search is faster than reading entire sections. Pass the exact embed_ref (original fil
 
         Description key: pdf.search.description
         Skill: pdf/search
@@ -9832,16 +11024,8 @@ class VideosAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def create(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Create deterministic code-backed videos with Remotion. Use this for text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter. The assistant must write an explicit ```remotion:Name.tsx fence; do not use this for photorealistic footage or generic TSX components.
-
-        Description key: app_skills.videos.create.description
-        Skill: videos/create
-        """
-        return self._run_skill("videos", "create", input_data, prompt_injection_protection=prompt_injection_protection)
-
     def generate(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Generate short photorealistic or generative footage from text prompts using Google Veo. Use this when the user asks for cinematic footage, realistic scenes, camera movement, stylized animation, or non-deterministic video generation. Do not use this for exact text slides, product announcements, diagrams, charts, UI-like motion graphics, or branded videos where exact text and layout matter; those requests should use videos.create with an explicit ```remotion:Name.tsx fence instead. Do not use this
+        """Make any short video from a natural-language instruction, optionally with up to 12 references from this chat (uploads, generated images, vector graphics, image/web/news/video search results with or without a picture, or a whole search). Each request is made either as a generative clip (invented realistic or stylized footage, camera movement, animating one picture) or as a composed, code-rendered video (exact texts and titles, lists, numbers, charts, diagrams, slideshows or recaps of the given pi
 
         Description key: app_skills.videos.generate.description
         Skill: videos/generate

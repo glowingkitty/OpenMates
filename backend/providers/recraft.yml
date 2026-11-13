@@ -13,6 +13,7 @@
 # Raster models (PNG/JPG output, output_filetype != "svg"):
 #   recraftv4_1:     $0.04/image →  50 credits [25% margin above break-even]
 #   recraftv4_1_pro: $0.25/image → 250 credits [break-even]
+#   recraftv4_1_flash: $0.007/image → 9 credits [~25% margin; text-only drafts]
 #
 # Vector models (SVG output, output_filetype == "svg"):
 #   recraftv4_1_vector:     $0.08/image → 100 credits [25% margin above break-even]
@@ -51,7 +52,7 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 50 # $0.04 / $0.001 = 40 break-even; 50 credits = $0.05 charged (~25% margin)
+        credits: 60
         unit_name: "image"
     costs:
       output_per_image:
@@ -77,11 +78,37 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 250 # $0.25 / $0.001 = 250 credits (exact break-even, no markup)
+        credits: 375
         unit_name: "image"
     costs:
       output_per_image:
         price: 0.25
+        currency: USD
+
+  - id: "recraftv4_1_flash"
+    name: "Recraft V4.1 Flash"
+    description: "Fast, low-cost Recraft raster draft from a text prompt (about 1 megapixel). Text only: no styles and no reference images."
+    country_origin: "US"
+    for_app_skill: "images.generate_draft" # Text-only drafts; drafts with reference images use bfl/flux-2-klein-edit
+    release_date: "2026-09-01" # docs state "September 2026" only
+    input_types:
+      - text
+    output_types:
+      - image # Returns PNG
+    default_server: "recraft"
+    servers:
+      - id: "recraft"
+        name: "Recraft API"
+        model_id: "recraftv4_1_flash"
+        region: "US"
+        country: "US"
+    pricing:
+      per_unit:
+        credits: 15
+        unit_name: "image"
+    costs:
+      output_per_image:
+        price: 0.007
         currency: USD
 
   - id: "recraftv4_1_vector"
@@ -103,7 +130,7 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 100 # $0.08 / $0.001 = 80 break-even; 100 credits = $0.10 charged (~25% margin)
+        credits: 120
         unit_name: "image"
     costs:
       output_per_image:
@@ -129,7 +156,7 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 300 # $0.30 / $0.001 = 300 credits (exact break-even, no markup)
+        credits: 450
         unit_name: "image"
     costs:
       output_per_image:
@@ -155,7 +182,7 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 15 # $0.01 / $0.001 = 10 break-even; 15 credits = $0.015 charged (~50% margin)
+        credits: 15
         unit_name: "image"
     costs:
       output_per_image:

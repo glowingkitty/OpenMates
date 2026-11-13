@@ -30,6 +30,8 @@
     compactMoreOnly = false,
     reportInMenu = false,
     leadingAction,
+    responsiveAction,
+    responsiveActionMinWidth = 560,
   }: {
     report: Snippet;
     share: Snippet;
@@ -50,6 +52,10 @@
     reportInMenu?: boolean;
     /** Opt-in: an always-visible action rendered directly before Share/More. */
     leadingAction?: Snippet;
+    /** Opt-in action shown as a round button when the container is wide enough
+     *  (like Share) and listed under More otherwise. */
+    responsiveAction?: Snippet;
+    responsiveActionMinWidth?: number;
   } = $props();
   const SHARE_MIN_WIDTH = 460;
   const REPORT_LABEL_MIN_WIDTH = 640;
@@ -68,7 +74,9 @@
   let compactMenuLeft = $state(0);
   let compactMenuPositioned = $state(false);
   const menuId = $props.id();
-  const overflowCount = $derived(actionCount + Number(hasShare && (hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)));
+  const responsiveInline = $derived(Boolean(responsiveAction) && containerWidth >= responsiveActionMinWidth);
+  const responsiveInMenu = $derived(Boolean(responsiveAction) && !responsiveInline);
+  const overflowCount = $derived(actionCount + Number(hasShare && (hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)) + Number(responsiveInMenu));
   // Keep Share in More whenever sensitive-data controls occupy the primary slot.
   const hasOverflowActions = $derived(compactMoreOnly || forceOverflow || reportInMenu || overflowCount >= 2 || (hasPriorityAction && overflowCount > 0));
 
@@ -211,6 +219,7 @@
     </div>
     {/if}
     {#if leadingAction}<div class="leading-action">{@render leadingAction()}</div>{/if}
+    {#if responsiveInline && responsiveAction}<div class="responsive-action">{@render responsiveAction()}</div>{/if}
     {#if hasPriorityAction && priorityAction}
       <div class="priority-action">{@render priorityAction()}</div>
     {:else if hasShare && containerWidth >= SHARE_MIN_WIDTH}<div class="share-action">
@@ -221,6 +230,7 @@
     {#if !compactMoreOnly && overflowCount === 1 && !hasPriorityAction && !forceOverflow && !reportInMenu}
       <div class="direct-action">
         {#if hasShare && containerWidth < SHARE_MIN_WIDTH}{@render share()}{/if}
+        {#if responsiveInMenu && responsiveAction}{@render responsiveAction()}{/if}
         {#if actionCount === 1}{@render actions()}{/if}
       </div>
     {:else if hasOverflowActions}
@@ -278,6 +288,7 @@
             {#if compactMoreOnly || reportInMenu}{@render report()}{/if}
             {#if hasShare && (compactMoreOnly || hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)}{@render share()}{/if}
             {#if compactMoreOnly && hasPriorityAction && priorityAction}{@render priorityAction()}{/if}
+            {#if responsiveInMenu && responsiveAction}{@render responsiveAction()}{/if}
             {@render actions()}
           </div>
           {#if page < pageCount - 1}

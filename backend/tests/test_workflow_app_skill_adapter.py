@@ -506,7 +506,6 @@ def test_failed_document_and_flight_responses_have_no_results(
 @pytest.mark.anyio
 @pytest.mark.parametrize(("app_id", "skill_id"), [
     ("images", "generate"),
-    ("videos", "create"),
     ("openmates", "share-usecase"),
 ])
 # contract-test: direct surface=rest_api assertions=workflows.actions.skill-contract

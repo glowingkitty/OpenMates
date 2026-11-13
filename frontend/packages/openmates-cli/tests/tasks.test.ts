@@ -29,6 +29,7 @@ import {
   externalChatLookupHash,
   findTask,
   normalizeBlockedReasonCode,
+  parseDueAt,
   parseExternalChatRef,
   parseAssignee,
   renderTaskActivityList,
@@ -386,6 +387,23 @@ describe("OpenMatesClient user tasks", () => {
       encrypted_external_chat_id: null,
       encrypted_external_chat_title: null,
     });
+  });
+
+  // contract-test: supporting surface=cli assertions=tasks.surface.semantic-parity
+  it("changes the due date of an existing task and leaves it alone when none is given", async () => {
+    const masterKey = Buffer.alloc(32, 7);
+    const task = await decryptUserTask(await buildCreateUserTaskInput(masterKey, { title: "Send the press release" }), masterKey);
+    assert.equal(task.dueAt, null);
+
+    const due = parseDueAt("2026-11-17T11:00:00+01:00");
+    assert.equal(due, 1794909600);
+    const patch = await buildUpdateUserTaskInput(task, masterKey, { dueAt: due });
+    assert.deepEqual(patch, { version: task.version, updated_at: patch.updated_at, due_at: 1794909600 });
+    assert.equal((await decryptUserTask({ ...task.encrypted, ...patch }, masterKey)).dueAt, 1794909600);
+
+    const untouched = await buildUpdateUserTaskInput(task, masterKey, { priority: "high", dueAt: parseDueAt(undefined) });
+    assert.equal("due_at" in untouched, false);
+    assert.throws(() => parseDueAt("someday"), /Invalid --due value/);
   });
 
   // contract-test: direct surface=cli assertions=tasks.external-chat.encrypted-context,tasks.surface.semantic-parity

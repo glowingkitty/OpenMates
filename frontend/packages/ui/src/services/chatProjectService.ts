@@ -6,7 +6,8 @@
 import type { Chat } from '../types/chat';
 import { isDemoChat, isLegalChat, isPublicChat } from '../demo_chats';
 import type { ChatProjectLocation, SidebarProject } from '../utils/chatProjectNavigation';
-import { projectFolderChatIds } from '../utils/chatProjectNavigation';
+import { chatsOrganizable, planPlacement, type OrganizableInput, type PlacementInput } from '../utils/chatProjectPlacement';
+import { RUST_CHAT_VIEW } from '../components/chats/utils/chatViewForList';
 import { computeSHA256 } from '../message_parsing/utils';
 import { getApiEndpoint } from '../config/api';
 import { getActiveTeamContextSnapshot } from '../stores/teamStore';
@@ -64,41 +65,43 @@ export async function suggestChatProjectName(chats: Chat[]): Promise<string> {
   return name;
 }
 
+function organizableInput(chats: Chat[]): OrganizableInput {
+  return { teamId: getActiveTeamContextSnapshot().teamId, chats: chats.map(chat => ({
+    incognito: !!chat.is_incognito, sharedByOthers: !!chat.is_shared_by_others, demo: isDemoChat(chat.chat_id),
+    legal: isLegalChat(chat.chat_id), public: isPublicChat(chat.chat_id), teamId: chat.team_id ?? null })) };
+}
+
+const NOT_ORGANIZABLE = 'These chats cannot be organized in this workspace';
+
 export function assertOrganizableChats(chats: Chat[]): void {
-  const teamId = getActiveTeamContextSnapshot().teamId;
-  if (!chats.length || chats.some(chat => chat.is_incognito || chat.is_shared_by_others ||
-    isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id) || isPublicChat(chat.chat_id) || (chat.team_id ?? null) !== teamId)) {
-    throw new Error('These chats cannot be organized in this workspace');
-  }
+  if (!chatsOrganizable(organizableInput(chats)).ok) throw new Error(NOT_ORGANIZABLE);
+}
+
+/** Flag on: the chatState unit decides; flag off: the synchronous TypeScript reference. */
+async function guardOrganizable(chats: Chat[]): Promise<void> {
+  const { rustChatsOrganizable } = await import('./rustCore/chatState/rustPlacement');
+  if (!await rustChatsOrganizable(organizableInput(chats))) throw new Error(NOT_ORGANIZABLE);
 }
 
 export async function placeChatsInProject(chats: Chat[], location: ChatProjectLocation, mode: 'add' | 'move' = 'add'): Promise<void> {
-  assertOrganizableChats(chats);
+  if (RUST_CHAT_VIEW) await guardOrganizable(chats); else assertOrganizableChats(chats);
   const identity = getWorkspaceCacheIdentity();
   const context = { teamId: getActiveTeamContextSnapshot().teamId };
   const index = await loadChatProjectIndex(true);
   const project = await getProject(location.projectId, context);
-  const destination = index.find(project => project.id === location.projectId);
-  if (!destination) throw new Error('Project is unavailable');
-  if (location.folderId && !destination.folders.some(folder => folder.id === location.folderId)) throw new Error('Folder is unavailable');
+  const request: PlacementInput = { chatIds: chats.map(chat => chat.chat_id), location, mode, index };
+  const plan = RUST_CHAT_VIEW ? await (await import('./rustCore/chatState/rustPlacement')).rustPlacementPlan(request) : planPlacement(request);
+  if ('error' in plan) throw new Error(plan.error === 'project_unavailable' ? 'Project is unavailable' : 'Folder is unavailable');
   try {
-  // Persist all destination associations before removing any source association.
-  for (const chat of chats) {
+  for (const step of plan.steps) {
     if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
-    if (projectFolderChatIds(destination, location.folderId).has(chat.chat_id)) continue;
-    const existing = destination.chats.find(item => item.chatId === chat.chat_id);
-    if (existing) await moveProjectItemToFolder(project, existing.id, location.folderId, context);
-    else {
+    if (step.kind === 'move') await moveProjectItemToFolder(project, step.itemId, location.folderId, context);
+    else if (step.kind === 'add') {
+      const chat = chats.find(candidate => candidate.chat_id === step.chatId)!;
       const name = await chatName(chat);
       if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
-      await addExistingTargetToProject(project, chat.chat_id, 'chat', name, location.folderId ?? undefined, {}, context);
-    }
-  }
-  if (mode === 'move') for (const source of index.filter(candidate => candidate.id !== project.project_id)) {
-    for (const chat of chats.filter(chat => source.chats.some(item => item.chatId === chat.chat_id))) {
-      if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
-      await removeChatFromProject(source.id, chat.chat_id, context);
-    }
+      await addExistingTargetToProject(project, step.chatId, 'chat', name, location.folderId ?? undefined, {}, context);
+    } else await removeChatFromProject(step.sourceId, step.chatId, context);
   }
   } finally {
   invalidateChatProjectIndex();
@@ -107,7 +110,7 @@ export async function placeChatsInProject(chats: Chat[], location: ChatProjectLo
 }
 
 export async function createChatProject(chats: Chat[]): Promise<ProjectViewModel> {
-  assertOrganizableChats(chats);
+  if (RUST_CHAT_VIEW) await guardOrganizable(chats); else assertOrganizableChats(chats);
   const identity = getWorkspaceCacheIdentity();
   const context = { teamId: getActiveTeamContextSnapshot().teamId };
   const name = await suggestChatProjectName(chats);

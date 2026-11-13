@@ -151,6 +151,15 @@ result = om.apps.web.search({
 })
 ```
 
+For an account client that must never run without a key, use `OpenMatesClient`. Like the npm `OpenMatesClient`, it requires an explicit key and does not read `OPENMATES_API_KEY`. A missing key raises `OpenMatesApiKeyRequiredError` (code `OPENMATES_SDK_API_KEY_REQUIRED`) at once:
+
+```python
+import os
+from openmates import OpenMatesClient
+
+om = OpenMatesClient(api_key=os.environ["OPENMATES_API_KEY"])
+```
+
 List latest account chats. The default limit is 10 for fast loading; pass `limit=0` only when you intentionally want all account chats:
 
 ```python
@@ -260,10 +269,15 @@ Memory access requires `memory:read`. SDK callers must explicitly load and selec
 
 SDKs return typed errors for:
 
-- Missing `OPENMATES_API_KEY`.
+- Missing `OPENMATES_API_KEY`. `OpenMatesClient` (npm and Python) raises `OpenMatesApiKeyRequiredError` (code `OPENMATES_SDK_API_KEY_REQUIRED`) at construction.
+- Invalid local input, such as a malformed document slug. npm and Python raise `OpenMatesInvalidInputError` (code `OPENMATES_SDK_INVALID_INPUT`) and Rust returns `Error::Invalid`, all before any request is sent.
 - Expired or revoked API keys.
 - New or unapproved SDK devices.
 - Missing scopes.
 - Credit limits that would be exceeded.
 
 Credit limits can use exactly one period: daily, weekly, monthly, or lifetime.
+
+## Field names
+
+Each SDK uses its language's naming style for decoded output fields. The values are the same. For example, a loaded chat message has `senderName` and `modelName` in JavaScript, and `sender_name` and `model_name` in Python and Rust. Embeds have `textPreview` and `text_preview`.

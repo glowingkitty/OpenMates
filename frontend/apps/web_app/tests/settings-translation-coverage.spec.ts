@@ -54,7 +54,7 @@ const SETTINGS_EVENT_LINKS = {
 	meetup: 'https://www.meetup.com/openmates-meetup-group/'
 };
 const REQUIRED_NON_EMPTY_TRANSLATION_KEYS = [
-	'app_settings_memories.mail.writing_styles.example_2.footer'
+	'memories.manage'
 ];
 
 function repoPath(...segments: string[]): string {
@@ -161,9 +161,21 @@ async function openSettingsMenu(page: any): Promise<any> {
 	return settingsMenu;
 }
 
+async function isSelfHostedServer(page: any): Promise<boolean> {
+	// The Rust core may fetch the status outside page resource timing, so ask the API directly.
+	const apiBase = process.env.PLAYWRIGHT_TEST_API_URL;
+	if (!apiBase) throw new Error('PLAYWRIGHT_TEST_API_URL is required to read the server status');
+	const response = await page.request.get(`${apiBase.replace(/\/$/, '')}/v1/settings/server-status`);
+	expect(response.ok()).toBe(true);
+	return (await response.json()).is_self_hosted === true;
+}
+
 async function expectSettingsFooterContract(settingsMenu: any): Promise<void> {
 	const footer = settingsMenu.getByTestId('settings-footer');
 	await expect(footer).toBeAttached();
+	// The footer mounts before the page content (settingsContentReady); wait for both.
+	await expect(settingsMenu.getByTestId('settings-content-slider')).toBeAttached({ timeout: 15000 });
+	await expect(settingsMenu.getByTestId('settings-page-content').first()).toBeVisible({ timeout: 15000 });
 
 	const geometry = await settingsMenu.evaluate((menu: HTMLElement) => {
 		const slider = menu.querySelector<HTMLElement>('[data-testid="settings-content-slider"]');
@@ -186,7 +198,14 @@ async function expectSettingsFooterContract(settingsMenu: any): Promise<void> {
 	await expect(footer).toContainText('For all of us');
 	await expect(footer).toContainText('For developers');
 	await expect(footer).toContainText('Contact');
-	await expect(footer).toContainText('Legal');
+	// Legal links are hidden on self-hosted servers (SettingsFooter `isSelfHosted`), as in isolated CI.
+	const selfHosted = await isSelfHostedServer(settingsMenu.page());
+	if (selfHosted) {
+		await expect(footer).not.toContainText('Legal');
+		await expect(footer.getByTestId('settings-legal-imprint')).toHaveCount(0);
+	} else {
+		await expect(footer).toContainText('Legal');
+	}
 	await expect(footer).not.toContainText(/web app version/i);
 
 	for (const [event, href] of Object.entries(SETTINGS_EVENT_LINKS)) {

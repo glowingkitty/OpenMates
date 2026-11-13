@@ -80,14 +80,14 @@ NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS = {"google", "google_ai_studio"}
 def _google_profile_thinking_level(
     logical_model_id: str, server_model_id: str, requested_level: str | None,
 ) -> str | None:
-    """Forward approved profiles or Argon levels to the same native Google model."""
+    """Forward approved profiles or Gemini 4 levels to the same native Google model."""
 
-    is_argon_level = (
-        logical_model_id == "google/gemini-4-argon"
+    is_gemini_4_level = (
+        logical_model_id in {"google/gemini-4-argon", "google/gemini-4-carbon"}
         and requested_level in {"LOW", "MEDIUM", "HIGH"}
     )
     is_low_fallback = logical_model_id == LOW_FALLBACK_MODEL and requested_level == "LOW"
-    if not is_argon_level and not is_low_fallback and not any(
+    if not is_gemini_4_level and not is_low_fallback and not any(
         profile["model"] == logical_model_id and profile["thinking_level"] == requested_level
         for profile in DEFAULT_TIER_MODEL_PROFILES.values()
     ):

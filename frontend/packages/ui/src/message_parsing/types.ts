@@ -100,6 +100,8 @@ export interface EmbedNodeAttributes {
   // Used by FocusModeActivationRenderer to display the focus mode name and manage state
   focus_id?: string; // Full focus mode ID (e.g., 'web-research')
   focus_mode_name?: string; // Translated display name of the focus mode
+  project_created?: boolean; // Activation follows an assistant-created Project
+  project_name?: string; // Name of that created Project
 
   // PDF-specific metadata — serialized in the embed JSON reference so the filename
   // and page count survive reload without needing immediate TOON resolution.

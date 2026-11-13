@@ -30,8 +30,11 @@ impl<'a> Wikipedia<'a>{
   crate::client::compose_wikipedia_article(summary,guide.as_ref())
  }
 }
+/// Builds the proxy path. An omitted or empty language is sent as `en` in every
+/// SDK (npm/Python match): the backend proxy rejects an empty language.
 fn query_path(operation:&str,key:&str,topic:&str,language:Option<&str>,limit:Option<i64>)->String{
- let mut query=url::form_urlencoded::Serializer::new(String::new());query.append_pair(key,topic).append_pair("language",language.unwrap_or("en"));
+ let language=language.filter(|code|!code.is_empty()).unwrap_or("en");
+ let mut query=url::form_urlencoded::Serializer::new(String::new());query.append_pair(key,topic).append_pair("language",language);
  if let Some(limit)=limit{query.append_pair("limit",&limit.to_string());}
  format!("/v1/wikipedia/{operation}?{}",query.finish())
 }
@@ -41,7 +44,7 @@ mod tests{
  #[test]fn exact_facade_query_and_server_owned_limit(){
   assert_eq!(query_path("search","query","A & 界",None,None),"/v1/wikipedia/search?query=A+%26+%E7%95%8C&language=en");
   for limit in [0,-2,11,i64::MAX]{assert_eq!(query_path("search","query","",Some("en_US"),Some(limit)),format!("/v1/wikipedia/search?query=&language=en_US&limit={limit}"));}
-  assert!(query_path("summary","title","Topic",Some(""),None).ends_with("language="));
+  assert_eq!(query_path("summary","title","Topic",Some(""),None),"/v1/wikipedia/summary?title=Topic&language=en");
  }
  fn client(credentials:SdkCredentials,options:ClientOptions)->OpenMates{OpenMates::new(SdkOptions{api_url:"http://127.0.0.1:1".into(),credentials,device_id:"synthetic-wikipedia-device".into(),client_options:options}).unwrap()}
  #[test]fn shared_article_projection_keeps_opaque_fields_and_never_calls_io(){

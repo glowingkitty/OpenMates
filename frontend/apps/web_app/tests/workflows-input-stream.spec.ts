@@ -6,6 +6,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { waitForWorkflowWorkspaceReady } = require('./helpers/workspace-navigation');
+const { workflowErrorNotifications } = require('./helpers/workflow-notifications');
 
 function apiUrl(): string {
   const url = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org');
@@ -112,7 +113,7 @@ test.describe('streamed workflow authoring', () => {
         stream.close();
       });
       await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveCount(0);
-      await expect(page.getByTestId('workflows-error')).toContainText('clearer trigger');
+      await expect(workflowErrorNotifications(page, 'clearer trigger').first()).toBeVisible();
       await expect(page.getByText('Confirm', { exact: true })).toHaveCount(0);
 
       let statusReads = 0;
@@ -448,7 +449,7 @@ test.describe('streamed workflow authoring', () => {
       expect(manualResponse.ok(), await manualResponse.text()).toBe(true);
       const manualVersion = (await manualResponse.json()).workflow;
       await page.getByTestId('workflow-ai-undo').click();
-      await expect(page.getByTestId('workflows-error')).toContainText('A newer change prevents Undo.');
+      await expect(workflowErrorNotifications(page, 'A newer change prevents Undo.').first()).toBeVisible();
       expect(undoCalls).toBe(2);
       expect((await readWorkflow()).current_version_id).toBe(manualVersion.current_version_id);
       expect((await readWorkflow()).description).toBe('Later manual version');

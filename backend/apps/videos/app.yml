@@ -78,6 +78,21 @@ embed_types:
       - {name: files, type: object, required: true}
       - {name: s3_base_url, type: string, required: true}
       - {name: aes_key, type: string, required: true}
+      - {name: made_by, type: string}
+      - {name: routing_decided_by, type: string}
+      - {name: timeline, type: object}
+      - {name: fps, type: number}
+      - {name: width, type: number}
+      - {name: height, type: number}
+      - {name: duration_seconds, type: number}
+      - {name: version, type: number}
+      - {name: source_titles, type: array}
+      - {name: remotion_source, type: string}
+      - {name: filename, type: string}
+      - {name: attempts, type: number}
+      - {name: author_model, type: string}
+      - {name: can_extend_end, type: boolean}
+      - {name: can_extend_start, type: boolean}
   - id: generated_video
     category: direct
     frontend_type: videos-generated-video
@@ -111,64 +126,6 @@ embed_types:
       icon: videos
       example_key: videos.rendered_video
       order: 20
-settings_and_memories:
-  - id: to_watch_list
-    name_translation_key: videos.to_watch_list
-    description_translation_key: videos.to_watch_list.description
-    icon_image: task.svg
-    type: list
-    example_translation_keys:
-      - "videos.to_watch_list.example_1"
-      - "videos.to_watch_list.example_2"
-      - "videos.to_watch_list.example_3"
-    example_entries:
-      - name: "videos.to_watch_list.example_1.name"
-        url: "https://youtube.com/watch?v=example1"
-        channel: "Computerphile"
-      - name: "videos.to_watch_list.example_2.name"
-        url: "https://youtube.com/watch?v=example2"
-        channel: "Matt Pocock"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Video name or title (user-defined, can be auto-generated later)
-          is_title: true
-        url:
-          type: string
-          description: Video URL
-        channel:
-          type: string
-          description: Channel name (can be auto-filled later)
-      required:
-        - name
-        - url
-  - id: subscribed_channels
-    name_translation_key: videos.subscribed_channels
-    description_translation_key: videos.subscribed_channels.description
-    type: list
-    example_translation_keys:
-      - "videos.subscribed_channels.example_1"
-      - "videos.subscribed_channels.example_2"
-      - "videos.subscribed_channels.example_3"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Channel name
-        url:
-          type: string
-          description: YouTube Channel URL
-        subscribed_date:
-          type: integer
-          description: Unix timestamp when subscribed
-        category:
-          type: string
-          description: Content category (e.g., tech, music, education)
-      required:
-        - url
 focuses:
   - id: analyze_video
     name_translation_key: videos.analyze_video
@@ -183,10 +140,28 @@ focuses:
       broad web research that is not centered on a specific video.
 instructions:
   - instruction: |
-      After video generation or Remotion video creation finishes, include every
-      successful generated video with its inline child embed_ref in the final
-      answer. Preserve grouping for multiple outputs and describe failed outputs
-      honestly.
+      After videos-generate finishes, include every successful video with its
+      inline child embed_ref in the final answer, in request order. Say whether
+      it is a generative clip or a composed video (made_by). Describe failed
+      outputs honestly with their reason; nothing was charged for them.
+  - instruction: |
+      When the user asks to change an earlier video, call videos-generate with
+      that video's embed_ref as source_video. "Extend this video at the end: …"
+      maps to change extend_end, "Extend this video at the start: …" to change
+      extend_start, and "Apply these edits to this video: …" to change edit;
+      the text after the colon is the instructions.
+      A video is changed only by that call, also when it is a composed,
+      code-rendered video: never answer with a code diff, code snippet or file
+      edit of its composition instead.
+  - instruction: |
+      When a video is about search results (web, news, image or video search),
+      pass in images the exact embed_ref of every result it is about, in the
+      order they should appear, also for results where you see no picture:
+      the skill gives the video author each result's picture (when it has one)
+      together with its title, description, source and date. When the user
+      means a whole earlier search ("from these news", "make a video of these
+      results"), pass that search's own embed_ref (for example news-search-…)
+      instead of listing every result. At most 12 references per video.
 skills:
   - id: generate
     anonymous_access: authenticated
@@ -194,26 +169,49 @@ skills:
     description_translation_key: app_skills.videos.generate.description
     icon_image: ai.svg
     api_config:
+      # REST offers text-only generative clips; pictures, composed videos and changes need the chat's embed context.
       expose_get: true
       expose_post: true
     preprocessor_hint: >
-      Generate short photorealistic or generative footage from text prompts using
-      Google Veo. Use this when the user asks for cinematic footage, realistic
-      scenes, camera movement, stylized animation, or non-deterministic video
-      generation.
-      Do not use this for exact text slides, product announcements, diagrams,
-      charts, UI-like motion graphics, or branded videos where exact text and
-      layout matter; those requests should use videos.create with an explicit
-      ```remotion:Name.tsx fence instead.
+      Make any short video from a natural-language instruction, optionally with up to 12 references from
+      this chat (uploads, generated images, vector graphics, image/web/news/video search results with or
+      without a picture, or a whole search). Each request is made either as a generative clip (invented realistic or stylized footage,
+      camera movement, animating one picture) or as a composed, code-rendered video (exact texts and
+      titles, lists, numbers, charts, diagrams, slideshows or recaps of the given pictures, anything
+      based on search results, two or more pictures, any voice-over, sound effects or music). The skill decides the kind itself from
+      the instructions and pictures. Pass the user's request in instructions without turning it into
+      a cinematic prompt, and name the exact texts to show. When the video is based on search
+      results or other pictures in this chat, pass each one's exact embed_ref in images (results
+      without a visible picture too; the skill reads their pictures and texts itself). To change an earlier result pass
+      its embed_ref as source_video with change edit, extend_start or extend_end.
+      The skill makes the video's sound itself: put a wanted voice-over (with its exact words), sound
+      effects and music in instructions and do not call audio or music skills for the same video.
       Do not use this for fake real-world footage, fake endorsements, public-figure
       likeness/persona/voice imitation, scams, spam, or watermark/detection evasion.
     class_path: backend.apps.videos.skills.generate_skill.GenerateSkill
     providers:
       - Google
       - fal.ai
-    full_model_reference: google/veo-3.1-generate-preview
+      - E2B
+      - OpenAI
+      - Anthropic
+    full_model_reference: google/gemini-omni-1.2-flash
+    # Generative clips: per measured second of the delivered clip at the model's per-resolution price
+    # (Gemini Omni 720p: 105 credits; 360p 35, 1080p 156, 4k 314).
+    # A change is charged once for what it used (added clip seconds, opening still, author tokens, render).
+    # Composed videos: author model tokens at the model's price plus the per_minute price per started render minute.
+    # A request without a delivered video is never charged.
     pricing:
-      per_second: 600
+      per_second: 105
+      per_minute: 10
+    supplier_costs:
+      per_second:
+        model: google/gemini-omni-1.2-flash
+      per_minute:
+        price: 0.00444
+        currency: USD
+        source_url: https://e2b.dev/pricing
+        note: E2B 4 vCPU, 4 GiB composed render
     tool_schema:
       type: object
       properties:
@@ -221,54 +219,112 @@ skills:
           x-ui:
             basic: true
           type: array
-          description: REQUIRED array of video generation request objects.
+          description: REQUIRED array of video request objects, one per video.
           items:
             type: object
             properties:
-              prompt:
+              instructions:
                 x-ui:
                   basic: true
                 type: string
-                description: Detailed text description of the video to generate.
+                maxLength: 4000
+                description: >
+                  What the user asked for, kept close to their own words: what the video shows, order,
+                  style, mood and pacing. Say so when it is based on search results or given pictures,
+                  and include the exact texts to show (headlines, titles, numbers) word for word.
+              user_request:
+                type: string
+                maxLength: 2000
+                description: >
+                  The user's latest message about this video, copied word for word. Always pass it.
+              images:
+                x-ui:
+                  basic: true
+                type: array
+                maxItems: 12
+                items:
+                  type: string
+                description: >
+                  Exact embed_refs of what the video shows or is about, in the order they should appear:
+                  uploads, generated images, vector graphics, and search results of image, web, news or
+                  video search. Pass every search result the video is based on, also when you see no
+                  picture for it: the skill reads each result's picture (when it has one) together with its
+                  title, description, source and date. The embed_ref of a whole search (e.g. a news search
+                  shown earlier) stands for all of its results. A generative clip can start from one picture only.
+              mode:
+                # Not offered to the assistant: the routing model decides from the request itself.
+                x-assistant: false
+                x-ui:
+                  basic: true
+                type: string
+                enum: ["auto", "generative", "composed"]
+                default: "auto"
+                description: >
+                  auto decides per request. generative = invented footage from a video model.
+                  composed = exact, code-rendered video (texts, charts, slideshows, several pictures).
               aspect_ratio:
                 x-ui:
                   basic: true
                 type: string
-                enum: ["16:9", "9:16"]
+                enum: ["16:9", "9:16", "1:1"]
                 default: "16:9"
+                description: 1:1 is available for composed videos only.
               duration_seconds:
                 x-ui:
                   basic: true
                 type: integer
-                enum: [4, 5, 6, 8]
-                default: 8
+                minimum: 2
+                maximum: 60
+                description: Optional length. Generative clips last 3 to 15 seconds (default 8); composed videos 2 to 60; a clip added by extend_start or extend_end 3 to 10.
               resolution:
                 x-ui:
-                  basic: true
+                  basic: false
                 type: string
-                enum: ["480p", "720p", "1080p", "4k"]
-                default: "720p"
+                enum: ["360p", "480p", "720p", "1080p", "4k"]
+                description: Generative Gemini Omni clips 360p, 720p, 1080p or 4k (default 720p); H3 is fixed 480p.
+              model:
+                # Not offered to the assistant: naming it would skip the routing model.
+                x-assistant: false
+                x-ui:
+                  basic: false
+                type: string
+                enum: ["gemini-omni-1.2-flash", "minimax/h3-max-turbo/image-to-video"]
+                description: >
+                  Only for generative clips; naming a model makes the request generative. H3 (fixed
+                  5-second 480p clips from one picture) is available in authenticated chats; REST supports Gemini Omni only.
+              seed:
+                x-ui:
+                  basic: false
+                type: integer
+                description: Optional seed for more reproducible generative output when supported.
+              source_video:
+                x-ui:
+                  basic: false
+                type: string
+                description: >
+                  Exact embed_ref of an earlier videos-generate result to change. Use with change.
+              change:
+                x-ui:
+                  basic: false
+                type: string
+                enum: ["edit", "extend_start", "extend_end"]
+                description: >
+                  How source_video changes (it becomes the next version of the same video): edit applies
+                  the instructions to it, extend_start adds a new generated clip before it, extend_end
+                  adds one after it (only for videos made of generated clips).
               input_embed_ids:
+                # Not offered to the assistant: naming it would skip the routing model.
+                x-assistant: false
+                x-ui:
+                  basic: false
                 type: array
                 maxItems: 1
                 items:
                   type: string
                   format: uuid
-                description: Optional first-frame image embed UUID, owned by the authenticated caller. H3 only; the output follows this image canvas.
-              seed:
-                x-ui:
-                  basic: false
-                type: integer
-                description: Optional seed for more reproducible output when supported.
-              model:
-                x-ui:
-                  basic: false
-                type: string
-                enum: ["veo-3.1-generate-preview", "veo-3.1-fast-generate-preview", "veo-3.0-generate-001", "minimax/h3-max-turbo/image-to-video"]
-                description: H3 is available in authenticated chats/calls with fixed 5-second 480p clips. REST supports Veo only.
-                default: "veo-3.1-generate-preview"
+                description: Former first-frame field (one image embed UUID, H3 only). Prefer images.
             required:
-              - prompt
+              - instructions
       required:
         - requests
     exclude_fields_for_llm:
@@ -277,46 +333,10 @@ skills:
       - aes_key
       - aes_nonce
       - vault_wrapped_aes_key
-  - id: create
-    anonymous_access: authenticated
-    name_translation_key: app_skills.videos.create
-    description_translation_key: app_skills.videos.create.description
-    icon_image: videos.svg
-    preprocessor_hint: >
-      Create deterministic code-backed videos with Remotion. Use this for text
-      slides, product announcements, diagrams, charts, UI-like motion graphics,
-      or branded videos where exact text and layout matter. The assistant must
-      write an explicit ```remotion:Name.tsx fence; do not use this for
-      photorealistic footage or generic TSX components.
-    class_path: backend.apps.videos.skills.create_skill.CreateSkill
-    providers:
-      - E2B
-      - Remotion
-    pricing:
-      per_started_minute: 5
-      auto_start_first_minute_free: true
-    tool_schema:
-      type: object
-      properties:
-        source:
-          x-ui:
-            basic: true
-          type: string
-          description: Remotion TSX source code to render.
-        filename:
-          x-ui:
-            basic: true
-          type: string
-          description: Source filename, for example ProductAnnouncement.tsx.
-      required:
-        - source
-    exclude_fields_for_llm:
-      - s3_base_url
-      - files
-      - aes_key
-      - aes_nonce
-      - vault_wrapped_aes_key
-      - sandbox_id
+      - timeline
+      - remotion_source
+      - filename
+      - attempts
   - id: get_transcript
     anonymous_access: authenticated
     name_translation_key: videos.get_transcript
@@ -560,6 +580,7 @@ marketing_discovery:
         - generate short AI video
         - AI video generation workflow
         - make video clip from prompt
+        - make a video from search results and photos
       pain_points:
         - video generation tools are separate from workflows
       demo_angles:

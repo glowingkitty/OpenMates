@@ -153,7 +153,8 @@ def test_selected_schema_context_excludes_unrelated_kinds_and_deduplicates_share
     Draft202012Validator.check_schema(get_authored_results_schema())
     schema = get_authored_results_schema(["web.website", "news.website", "web.website"])
     Draft202012Validator.check_schema(schema)
-    assert len(schema["properties"]["items"]["items"]["oneOf"]) == 2
+    assert len(schema["properties"]["items"]["items"]["oneOf"]) == 3
+    assert schema["properties"]["items"]["items"]["oneOf"][-1] == {"$ref": "#/$defs/existing_card_item"}
     assert "website" in schema["$defs"] and "event" not in schema["$defs"]
     assert Draft202012Validator(schema).is_valid({"schemaVersion": 1, "items": [valid_authored_item("web.website")]})
     assert not Draft202012Validator(schema).is_valid({"schemaVersion": 1, "items": [valid_authored_item()]})
@@ -225,6 +226,42 @@ def test_duplicate_labels_are_never_rebound_and_view_keeps_valid_order():
     assert {"code": "unresolved_view_label", "path": "view.items"} in result.warnings
     assert "duplicate" not in result.source_json
     assert normalize(entries, view={"mode": "cards", "items": ["duplicate"]}).view is None
+
+
+# contract-test: supporting surface=rest_api assertions=authored-results.followups.reuse-or-version,authored-results.groups.same-response-and-reuse
+def test_existing_card_reference_keeps_order_beside_new_items_and_schema_admits_it():
+    reference = {"id": "again", "existing": "Open source summit (2)"}
+    result = normalize([valid_authored_item(local_id="new"), reference],
+                       view={"mode": "cards", "items": ["again", "new"]})
+    assert result.status == "valid" and result.warnings == []
+    assert [item.local_id for item in result.items] == ["new"]
+    assert [(ref.local_id, ref.embed_ref, ref.index) for ref in result.references] == [
+        ("again", "Open source summit (2)", 1)]
+    assert result.order == ["new", "again"]
+    assert result.view == {"mode": "cards", "items": ["again", "new"]}
+    assert json.loads(result.source_json)["items"][1] == reference
+    only = normalize([reference])
+    assert only.status == "valid" and only.items == [] and [r.local_id for r in only.references] == ["again"]
+    schema = get_authored_results_schema(["events.event"])
+    assert Draft202012Validator(schema).is_valid({"schemaVersion": 1, "items": [reference]})
+    assert not Draft202012Validator(schema).is_valid(
+        {"schemaVersion": 1, "items": [{**valid_authored_item(), "existing": "Open source summit"}]})
+
+
+@pytest.mark.parametrize("entry,code", [
+    ({**valid_authored_item(local_id="again"), "existing": "Open source summit"}, "existing_card_revision_unsupported"),
+    ({"id": "again", "existing": "Open source summit", "title": "Corrected title"}, "existing_card_revision_unsupported"),
+    ({"id": "again", "existing": ""}, "invalid_item"),
+    ({"id": "again", "existing": "bad\u0007ref"}, "invalid_item"),
+    ({"id": "9bad", "existing": "Open source summit"}, "invalid_item"),
+])
+# contract-test: supporting surface=rest_api assertions=authored-results.followups.reuse-or-version
+def test_reference_with_changed_facts_or_invalid_ref_is_rejected_per_item(entry, code):
+    result = normalize([entry, valid_authored_item(local_id="kept")])
+    assert result.references == [] and [item.local_id for item in result.items] == ["kept"]
+    assert result.order == ["kept"]
+    assert {"code": code, "path": "items[0]"} in result.warnings
+    assert result.status == "partial"
 
 
 @pytest.mark.parametrize("kind", ["ai.app_skill_use", "tasks.task", "workflows.workflow", "images.generated_image", "images.image", "calendar.event", "event", "not-an-app.result"])
@@ -442,7 +479,7 @@ def test_tv_registrations_are_direct_admissions_without_discovery_or_memory_acti
     app = yaml.safe_load((root / "backend/apps/tv/app.yml").read_text())
     from backend.shared.python_schemas.app_metadata_schemas import EmbedTypeDefinition
     assert app["skills"] == [] and "providers" not in app
-    assert [memory["id"] for memory in app["settings_and_memories"]] == ["watched_movies", "watched_tv_shows", "to_watch_list"]
+    assert "settings_and_memories" not in app
     assert [entry["id"] for entry in app["embed_types"]] == ["movie", "series"]
     for entry in app["embed_types"]:
         validated = EmbedTypeDefinition.model_validate(entry)

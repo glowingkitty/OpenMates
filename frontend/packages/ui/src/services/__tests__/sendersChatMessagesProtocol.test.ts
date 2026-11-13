@@ -65,7 +65,7 @@ import {
 	isSendContextCurrent,
 	sendNewMessageImpl,
 } from "../sendersChatMessages";
-import { shouldUpdateMessage } from "../db/messageOperations";
+import { shouldUpdateMessage } from "../rustCore/__tests__/reference/messageRowPolicy";
 import { modelRoutingRestrictionsForTurn } from "../modelRoutingRestrictions";
 
 beforeAll(async () => {

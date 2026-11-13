@@ -13,7 +13,7 @@ name_translation_key: design
 description_translation_key: design.description
 icon_image: design.svg
 category: creative
-last_updated: "2026-07-18"
+last_updated: "2026-11-10"
 expose_in_api: true
 embed_types:
   - id: search_icons
@@ -96,6 +96,73 @@ embed_types:
         required: true
       - name: tags
         type: object
+  - id: embroidery
+    category: app-skill-use
+    skill_id: embroidery
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: embroidery_design
+    child_frontend_type: design-embroidery
+    preview_component: GeneratedMediaGroupEmbedPreview.svelte
+    fullscreen_component: GeneratedMediaGroupEmbedFullscreen.svelte
+    child_preview_component: design/DesignEmbroideryEmbedPreview.svelte
+    child_fullscreen_component: design/DesignEmbroideryEmbedFullscreen.svelte
+    icon: embroidery
+    gradient_var: "--color-app-design"
+    i18n_namespace: embeds.design.embroidery
+    content_fields:
+      - name: status
+        type: string
+        required: true
+      - {name: embed_ref, type: string}
+      - {name: result_count, type: number, required: true}
+      - {name: embed_ids, type: array, required: true}
+      - {name: output_embed_refs, type: array}
+      - {name: failed_results, type: array}
+    child_content_fields:
+      - {name: status, type: string, required: true}
+      - {name: title, type: string, required: true}
+      - {name: files, type: object, required: true}
+      - {name: threads, type: array, required: true}
+      - {name: notes, type: array, required: true}
+  - id: embroidery_design
+    category: direct
+    frontend_type: design-embroidery
+    backend_type: embroidery_design
+    has_children: false
+    preview_component: design/DesignEmbroideryEmbedPreview.svelte
+    fullscreen_component: design/DesignEmbroideryEmbedFullscreen.svelte
+    icon: embroidery
+    gradient_var: "--color-app-design"
+    i18n_namespace: embeds.design.embroidery
+    content_fields:
+      - {name: status, type: string, required: true}
+      - {name: title, type: string, required: true}
+      - {name: width_mm, type: number}
+      - {name: height_mm, type: number}
+      - {name: stitch_count, type: number}
+      - {name: thread_changes, type: number}
+      - {name: estimated_minutes, type: number}
+      - {name: thread_length_m, type: number}
+      - {name: hoop, type: string}
+      - {name: fits_hoop, type: string}
+      - {name: fabric, type: string}
+      - {name: reworked, type: boolean}
+      - {name: border_mm, type: number}
+      - {name: threads, type: array, required: true}
+      - {name: notes, type: array, required: true}
+      - {name: files, type: object, required: true}
+      - {name: s3_base_url, type: string}
+      - {name: aes_key, type: string}
+      - {name: aes_nonce, type: string}
+      - {name: vault_wrapped_aes_key, type: string}
+      - {name: generated_at, type: string}
+      - {name: source_embed_ref, type: string}
+      - {name: input_embed_ids, type: array}
+      - {name: billing_status, type: string}
+      - {name: error, type: string}
+      - {name: error_code, type: string}
 instructions:
   - instruction: |
       When recommending selected icons from design.search_icons, show each icon
@@ -108,6 +175,16 @@ instructions:
       use that result's exact name; do not rename a bold icon as regular or
       imply that a different variant was selected.
       Do not force every fetched candidate into the answer or expose raw embed IDs.
+  - instruction: |
+      design.embroidery needs a vector graphic that already exists in the chat:
+      one made by images.generate with output_filetype svg, one made by
+      images.vectorize, or an SVG code block. For a photo or other pixel image,
+      create the vector graphic first, then call design.embroidery with its exact
+      embed_ref. When the conversion finishes, report its real size, stitch count,
+      thread changes, sewing time, hoop fit and every note (what was changed in
+      the design and what it still needs), include the returned embed_ref inline,
+      and report a failed conversion with its reason. Never expose file keys,
+      storage details or raw embed IDs.
 skills:
   - id: search_icons
     anonymous_access: inline
@@ -126,7 +203,11 @@ skills:
       - name: Iconify
         no_api_key: true
     pricing:
-      fixed: 5
+      fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Iconify public API
     exclude_fields_for_llm:
       - svg_path
       - license_url
@@ -180,3 +261,112 @@ skills:
               - query
       required:
         - requests
+  - id: embroidery
+    anonymous_access: authenticated
+    name_translation_key: app_skills.design.embroidery
+    description_translation_key: app_skills.design.embroidery.description
+    icon_image: embroidery.svg
+    api_config:
+      expose_get: false # Hidden: needs the chat's embed context to read the source graphic server-side.
+      expose_post: false # First-party chat only; not a standalone REST skill.
+    preprocessor_hint: >
+      Turn a vector graphic from this chat into embroidery machine files (DST,
+      PES, EXP, JEF, VP3) with a stitch preview, thread list, size, stitch count
+      and sewing time. Use this when the user wants to embroider or stitch a
+      design, make a logo ready for an embroidery machine, or needs a machine
+      file such as DST or PES. The source must be a vector graphic: an SVG made
+      by images.generate (output_filetype svg) or images.vectorize, or an SVG
+      code block. For a photo or pixel image create the vector graphic first.
+      Pass the exact embed_ref of that graphic as source.
+    class_path: backend.apps.design.skills.embroidery_skill.EmbroiderySkill
+    providers:
+      - name: E2B
+    pricing:
+      per_minute: 4
+    supplier_costs:
+      per_minute:
+        price: 0.00222
+        currency: USD
+        source_url: https://e2b.dev/pricing
+        note: E2B 2 vCPU, 2 GiB
+    exclude_fields_for_llm:
+      - files
+      - s3_base_url
+      - aes_key
+      - aes_nonce
+      - vault_wrapped_aes_key
+    tool_schema:
+      type: object
+      properties:
+        source:
+          x-ui:
+            basic: true
+          type: string
+          description: >
+            Exact embed_ref of the vector graphic in this chat (an SVG from
+            images.generate or images.vectorize, or an SVG code block).
+        width_mm:
+          x-ui:
+            basic: true
+          type: number
+          minimum: 20
+          maximum: 400
+          default: 100
+          description: >
+            Sewn width of the design in millimetres, without a sew-on border;
+            the height follows the graphic's proportions.
+        hoop:
+          x-ui:
+            basic: false
+          type: string
+          enum: ["100x100", "130x180", "160x260", "200x300", "none"]
+          default: none
+          description: Embroidery hoop in millimetres to check the fit against, or none.
+        fit_hoop:
+          x-ui:
+            basic: false
+          type: boolean
+          default: false
+          description: >
+            Set true when the user wants the design as large as their hoop
+            allows ("fill the hoop", "use the full size"). The design, including
+            a sew-on border, is then sized to fill the chosen hoop (turned by 90
+            degrees when that is larger) and width_mm is ignored. Needs hoop.
+        fabric:
+          x-ui:
+            basic: false
+          type: string
+          enum: [light, normal, stretchy]
+          default: normal
+          description: Fabric the design is sewn on; sets stitch density, underlay and pull compensation. Choose it from what the user says they sew on - stretchy for knits (T-shirt, sweatshirt, hoodie, jersey, beanie), light for thin woven fabric (blouse, thin cotton, silk), normal for firm woven fabric (denim, canvas, twill, patches) or when nothing is said.
+        border_mm:
+          x-ui:
+            basic: false
+          type: number
+          minimum: 1
+          maximum: 8
+          description: >
+            Optional sew-on border in millimetres: a filled band around the whole
+            design, sewn first. Set it (typically 3) when the user wants a patch or
+            wants to sew the piece onto a garment; leave it out otherwise. width_mm
+            stays the design width without the border, so the result is wider by
+            twice this value.
+        border_colour:
+          x-ui:
+            basic: false
+          type: string
+          pattern: "^#[0-9a-fA-F]{6}$"
+          default: "#000000"
+          description: >
+            Thread colour of the sew-on border as #rrggbb (black when not given).
+            Only used together with border_mm.
+        instructions:
+          x-ui:
+            basic: false
+          type: string
+          maxLength: 500
+          description: >
+            Optional design wishes from the user for this conversion, e.g. "sew
+            the outline as a thick satin border". Leave empty when there are none.
+      required:
+        - source

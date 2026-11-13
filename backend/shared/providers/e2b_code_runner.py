@@ -51,6 +51,16 @@ ALLOWED_ARTIFACT_EXTENSIONS = {
     ".webp": ("image/webp", "image"),
     ".zip": ("application/zip", "archive"),
 }
+# Only test runs may return these; per-extension size caps live in
+# backend.shared.python_schemas.code_test_run.EVIDENCE_MAX_BYTES.
+TEST_EVIDENCE_ARTIFACT_EXTENSIONS = {
+    ".webm": ("video/webm", "video"),
+    ".mp4": ("video/mp4", "video"),
+    ".cast": ("application/x-asciicast", "data"),
+}
+TEST_EVIDENCE_EXTENSION_MAX_BYTES = {".webm": 15_000_000, ".mp4": 15_000_000, ".cast": 2_000_000}
+TEST_RUN_MAX_ARTIFACTS = 12
+TEST_RUN_MAX_TOTAL_ARTIFACT_BYTES = 40_000_000
 DENIED_ARTIFACT_SEGMENTS = {
     "__pycache__",
     ".cache",
@@ -266,10 +276,19 @@ def _exit_code_from_result(value: object) -> int | None:
     return getattr(value, "exit_code", None)
 
 
-def _artifact_discovery_command() -> str:
+def _artifact_discovery_command(test_run: bool = False) -> str:
+    extensions = dict(ALLOWED_ARTIFACT_EXTENSIONS)
+    max_artifacts = MAX_ARTIFACTS
+    max_total = MAX_TOTAL_ARTIFACT_BYTES
+    extension_caps: dict[str, int] = {}
+    if test_run:
+        extensions.update(TEST_EVIDENCE_ARTIFACT_EXTENSIONS)
+        extension_caps = dict(TEST_EVIDENCE_EXTENSION_MAX_BYTES)
+        max_artifacts = TEST_RUN_MAX_ARTIFACTS
+        max_total = TEST_RUN_MAX_TOTAL_ARTIFACT_BYTES
     allowed = {
         extension: {"mime_type": mime_type, "kind": kind}
-        for extension, (mime_type, kind) in ALLOWED_ARTIFACT_EXTENSIONS.items()
+        for extension, (mime_type, kind) in extensions.items()
     }
     script = f"""
 import base64
@@ -280,9 +299,11 @@ import posixpath
 WORKSPACE = {WORKSPACE_DIR!r}
 OUTPUTS_DIR = {OUTPUTS_DIR!r}
 OUTPUT_MANIFEST = {OUTPUT_MANIFEST!r}
-MAX_ARTIFACTS = {MAX_ARTIFACTS}
+MAX_ARTIFACTS = {max_artifacts}
 MAX_ARTIFACT_BYTES = {MAX_ARTIFACT_BYTES}
-MAX_TOTAL_ARTIFACT_BYTES = {MAX_TOTAL_ARTIFACT_BYTES}
+MAX_TOTAL_ARTIFACT_BYTES = {max_total}
+EXTENSION_CAPS = {json.dumps(extension_caps, sort_keys=True)!r}
+EXTENSION_CAPS = json.loads(EXTENSION_CAPS)
 ALLOWED = {json.dumps(allowed, sort_keys=True)!r}
 DENIED_SEGMENTS = {json.dumps(sorted(DENIED_ARTIFACT_SEGMENTS))!r}
 ALLOWED = json.loads(ALLOWED)
@@ -333,7 +354,7 @@ def add_candidate(raw_path):
     if size <= 0:
         skip(normalized, "empty_file")
         return
-    if size > MAX_ARTIFACT_BYTES:
+    if size > EXTENSION_CAPS.get(extension, MAX_ARTIFACT_BYTES):
         skip(normalized, "file_too_large")
         return
     if len(artifacts) >= MAX_ARTIFACTS:
@@ -386,14 +407,16 @@ print(json.dumps({{"artifacts": artifacts, "skipped": skipped}}, separators=(","
     return "OPENMATES_CODE_RUN_DISCOVER_OUTPUTS=1 python - <<'PY'\n" + script + "\nPY"
 
 
-def _parse_artifact_discovery(stdout: str) -> tuple[list[dict[str, object]], list[dict[str, str]]]:
+def _parse_artifact_discovery(
+    stdout: str, *, max_artifacts: int = MAX_ARTIFACTS, max_artifact_bytes: int = MAX_ARTIFACT_BYTES,
+) -> tuple[list[dict[str, object]], list[dict[str, str]]]:
     payload = json.loads(stdout.strip() or "{}")
     raw_artifacts = payload.get("artifacts") if isinstance(payload, dict) else None
     raw_skipped = payload.get("skipped") if isinstance(payload, dict) else None
     artifacts: list[dict[str, object]] = []
     skipped: list[dict[str, str]] = []
     if isinstance(raw_artifacts, list):
-        for item in raw_artifacts[:MAX_ARTIFACTS]:
+        for item in raw_artifacts[:max_artifacts]:
             if not isinstance(item, dict):
                 continue
             path = item.get("path")
@@ -411,7 +434,7 @@ def _parse_artifact_discovery(stdout: str) -> tuple[list[dict[str, object]], lis
                 or isinstance(size_bytes, bool)
                 or not isinstance(size_bytes, int)
                 or size_bytes <= 0
-                or size_bytes > MAX_ARTIFACT_BYTES
+                or size_bytes > max_artifact_bytes
             ):
                 continue
             artifacts.append({
@@ -423,7 +446,7 @@ def _parse_artifact_discovery(stdout: str) -> tuple[list[dict[str, object]], lis
                 "content_base64": content_base64,
             })
     if isinstance(raw_skipped, list):
-        for item in raw_skipped[:MAX_ARTIFACTS * 5]:
+        for item in raw_skipped[:max_artifacts * 5]:
             if not isinstance(item, dict):
                 continue
             path = item.get("path")
@@ -433,10 +456,19 @@ def _parse_artifact_discovery(stdout: str) -> tuple[list[dict[str, object]], lis
     return artifacts, skipped
 
 
-def _discover_output_artifacts(sandbox: object) -> tuple[list[dict[str, object]], list[dict[str, str]]]:
+def _discover_output_artifacts(
+    sandbox: object, *, test_run: bool = False,
+) -> tuple[list[dict[str, object]], list[dict[str, str]]]:
     try:
-        result = sandbox.commands.run(_shell(_artifact_discovery_command(), ARTIFACT_DISCOVERY_TIMEOUT_SECONDS))
-        return _parse_artifact_discovery(str(getattr(result, "stdout", "") or ""))
+        result = sandbox.commands.run(_shell(_artifact_discovery_command(test_run), ARTIFACT_DISCOVERY_TIMEOUT_SECONDS))
+        stdout = str(getattr(result, "stdout", "") or "")
+        if test_run:
+            return _parse_artifact_discovery(
+                stdout,
+                max_artifacts=TEST_RUN_MAX_ARTIFACTS,
+                max_artifact_bytes=max(TEST_EVIDENCE_EXTENSION_MAX_BYTES.values()),
+            )
+        return _parse_artifact_discovery(stdout)
     except Exception as exc:
         return [], [{"path": OUTPUTS_DIR, "reason": f"artifact_discovery_failed: {redact_execution_output(str(exc))}"}]
 

@@ -1,0 +1,60 @@
+schema_version: 1
+specification: feature.learning-mode@1
+age_rubric:
+- id: eight-year-old
+  given: A learner has Learning Mode on with age group under 10 and asks why the sky is blue.
+  action: The assistant answers.
+  expect: It uses short sentences, everyday words and a familiar comparison, asks one question and does not include jargon.
+- id: sixteen-year-old
+  given: A learner aged 16-18 asks about recursion.
+  action: The assistant explains.
+  expect: It uses precise technical vocabulary, a compact explanation and a check-in question after a few steps.
+term_definitions:
+- id: first-mention-linked
+  given: A 13-15 learner's chat has not yet mentioned variables.
+  action: The assistant explains a loop that uses a variable.
+  expect: The first mention reads like "a variable (a named box for a value)" with an encyclopedia link; later turns use the
+    word plainly without another definition or link.
+- id: under-ten-no-links
+  given: A learner under 10 asks how a website works.
+  action: The assistant answers.
+  expect: The answer avoids jargon and contains no encyclopedia links.
+collaborative_toggle:
+- id: default-on
+  given: A parent sets up Learning Mode for a 13-15 learner.
+  action: They open the setup page.
+  expect: Allow collaborative building is on; for age under 10 the toggle is hidden and building stays off.
+- id: enable-needs-passcode
+  given: Collaborative building is off and the learner does not know the passcode.
+  action: Someone tries to turn it on with a wrong passcode five times.
+  expect: Each attempt is refused, and the fifth blocks further attempts for 24 hours; turning it off at any time needs no
+    passcode.
+collaborative_building:
+- id: build-a-quiz-page
+  given: Collaborative building is on for a 13-15 learner.
+  action: The learner says "Help me build a quiz page".
+  expect: The assistant asks up to three questions, summarizes the plan, shows a diagram, builds the first small step and
+    tells the learner to try it in the chat preview.
+- id: strict-mode-keeps-cap
+  given: Collaborative building is off.
+  action: The learner asks for a full program.
+  expect: Code stays within 40 lines and application artifacts are not created.
+anonymous_client_side:
+- id: guest-setup
+  given: A visitor without an account opens Learning Mode settings in a browser.
+  action: They pick age 10-12, set a passcode and keep the collaborative toggle on.
+  expect: Reloading the app keeps Learning Mode on; the notice says clearing data or a private window removes the lock; the
+    passcode is not sent to the server.
+- id: guest-lockout
+  given: A guest has Learning Mode on with a passcode.
+  action: They enter a wrong passcode five times.
+  expect: Further attempts are blocked on that device for 24 hours.
+voice_delivery:
+- id: spoken-teaching
+  given: A learner in a voice call has Learning Mode on.
+  action: The assistant explains a term and asks a practice question.
+  expect: It speaks the definition plainly, asks one question, waits for the spoken answer and does not read any link or code.
+- id: focus-in-voice
+  given: Learn topic is active in a voice call.
+  action: The learner answers a question in unclear speech.
+  expect: The assistant says what it understood and confirms before judging the answer or moving to the next phase.

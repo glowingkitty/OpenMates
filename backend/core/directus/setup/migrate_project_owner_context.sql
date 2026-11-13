@@ -149,4 +149,42 @@ CREATE INDEX IF NOT EXISTS project_items_team_project_idx
 CREATE INDEX IF NOT EXISTS project_settings_team_project_idx
     ON public.project_settings (hashed_team_id, hashed_project_id);
 
+-- Native Project commits (append-only snapshot rows) carry the same exact
+-- Personal/Team ownership. The table is new, so no rows need a team backfill;
+-- Personal rows are backfilled defensively from the owner hash.
+ALTER TABLE public.project_commits
+    ADD COLUMN IF NOT EXISTS hashed_team_id varchar(255),
+    ADD COLUMN IF NOT EXISTS created_by_user_hash varchar(255);
+ALTER TABLE public.project_commits ALTER COLUMN hashed_user_id DROP NOT NULL;
+
+UPDATE public.project_commits
+SET created_by_user_hash = hashed_user_id
+WHERE created_by_user_hash IS NULL
+  AND hashed_team_id IS NULL
+  AND hashed_user_id IS NOT NULL;
+UPDATE public.project_commits SET hashed_user_id = NULL WHERE hashed_team_id IS NOT NULL;
+
+ALTER TABLE public.project_commits ALTER COLUMN created_by_user_hash SET NOT NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_constraint AS constraint_record
+        JOIN pg_catalog.pg_class AS relation ON relation.oid = constraint_record.conrelid
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+        WHERE namespace.nspname = 'public'
+          AND relation.relname = 'project_commits'
+          AND constraint_record.conname = 'project_commits_owner_context_check'
+    ) THEN
+        ALTER TABLE public.project_commits
+            ADD CONSTRAINT project_commits_owner_context_check
+            CHECK (num_nonnulls(hashed_user_id, hashed_team_id) = 1) NOT VALID;
+    END IF;
+END $$;
+ALTER TABLE public.project_commits VALIDATE CONSTRAINT project_commits_owner_context_check;
+
+CREATE INDEX IF NOT EXISTS project_commits_team_project_idx
+    ON public.project_commits (hashed_team_id, hashed_project_id, created_at);
+
 COMMIT;

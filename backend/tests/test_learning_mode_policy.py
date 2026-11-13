@@ -26,6 +26,7 @@ from backend.shared.python_utils.learning_mode import (
 )
 
 
+# contract-test: supporting surface=rest_api assertions=learning-mode.collaborative-toggle
 def test_activation_hashes_passcode_and_returns_safe_context() -> None:
     now = int(time.time())
 
@@ -43,9 +44,10 @@ def test_activation_hashes_passcode_and_returns_safe_context() -> None:
     assert verify_learning_mode_passcode("teacher-pin-123", policy["learning_mode_passcode_hash"])
 
     context = build_learning_mode_context(policy)
-    assert context == {"enabled": True, "age_group": AGE_GROUP_13_15}
+    assert context == {"enabled": True, "age_group": AGE_GROUP_13_15, "collaborative_build": True}
 
 
+# contract-test: supporting surface=rest_api assertions=learning-mode.collaborative-toggle
 def test_deactivation_blocks_after_five_failed_attempts() -> None:
     now = int(time.time())
     policy = activate_learning_mode_policy(
@@ -71,6 +73,7 @@ def test_deactivation_blocks_after_five_failed_attempts() -> None:
     assert exc_info.value.updated_policy["learning_mode_enabled"] is True
 
 
+# contract-test: supporting surface=rest_api assertions=learning-mode.collaborative-toggle
 def test_deactivation_with_correct_passcode_resets_policy() -> None:
     now = int(time.time())
     policy = activate_learning_mode_policy(
@@ -87,19 +90,27 @@ def test_deactivation_with_correct_passcode_resets_policy() -> None:
     assert build_learning_mode_context(updated) == {"enabled": False}
 
 
+# contract-test: supporting surface=rest_api assertions=learning-mode.collaborative-toggle
 def test_invalid_age_group_is_rejected() -> None:
     with pytest.raises(ValueError):
         activate_learning_mode_policy(passcode="teacher-pin-123", age_group="exact_age_9", now=1)
 
 
+# contract-test: supporting surface=rest_api assertions=learning-mode.anonymous-client-side
 def test_anonymous_request_context_enables_learning_mode_with_age_group() -> None:
     context = build_anonymous_request_learning_mode_context(
         {"enabled": True, "age_group": AGE_GROUP_10_12}
     )
 
-    assert context == {"enabled": True, "age_group": AGE_GROUP_10_12, "source": "anonymous_session"}
+    assert context == {
+        "enabled": True,
+        "age_group": AGE_GROUP_10_12,
+        "collaborative_build": False,
+        "source": "anonymous_session",
+    }
 
 
+# contract-test: supporting surface=rest_api assertions=learning-mode.anonymous-client-side
 def test_anonymous_request_context_rejects_invalid_age_group() -> None:
     with pytest.raises(ValueError):
         build_anonymous_request_learning_mode_context(
@@ -107,6 +118,7 @@ def test_anonymous_request_context_rejects_invalid_age_group() -> None:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=learning-mode.anonymous-client-side
 def test_anonymous_request_context_disabled_when_flag_missing_or_false() -> None:
     assert build_anonymous_request_learning_mode_context(None) == {"enabled": False}
     assert build_anonymous_request_learning_mode_context({"enabled": False, "age_group": AGE_GROUP_13_15}) == {"enabled": False}

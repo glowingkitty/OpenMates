@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-04'
-generated_at: '2026-11-05T00:20:40+00:00'
+generated_at: '2026-11-09T00:46:34+00:00'
 range:
   since: '2026-11-04T00:00:00+00:00'
   until: '2026-11-05T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 1
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 15
   user_facing_items: 15
-  dev_only_items: 30
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -67,34 +67,6 @@ feature_availability:
     override: disabled
     parent_id: app:web
     source: backend/apps/web/app.yml
-  - id: memory:health:appointments
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
-  - id: memory:health:medical_history
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
-  - id: memory:health:sleep_diary
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
-  - id: memory:health:symptoms_log
-    kind: memory
-    default_enabled: false
-    effective_enabled: false
-    override: null
-    parent_id: app:health
-    source: backend/apps/health/app.yml
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
@@ -232,9 +204,9 @@ sections:
     - frontend/packages/ui/src/i18n/locales/zh.json
     - frontend/packages/ui/src/i18n/sources/embeds.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -256,7 +228,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, embed:events:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: simplified Report Issue form and automatic dev Claude-chat dispatch for admin reports'
     section: features
     commits:
@@ -325,16 +297,16 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: server region preference (EU default / Fastest, global); remove Qwen3 235B; @fast -> Mercury 3'
     section: features
     commits:
@@ -403,9 +375,9 @@ sections:
     - frontend/packages/ui/src/utils/aiModelDisplay.ts
     - packages/openmates-rust/src/mentions.rs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -420,7 +392,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: usage guard emergency-reserve stop at 3% weekly left (>10h to reset)'
     section: features
     commits:
@@ -429,7 +401,7 @@ sections:
     changed_paths:
     - scripts/claude_usage_guard.py
     - scripts/test_claude_usage_guard.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -437,7 +409,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(security): release-age policy, SHA-pinned actions, server CLI host-reporter and DOMPurify 3.4.17'
     section: features
     commits:
@@ -497,16 +469,16 @@ sections:
     - scripts/security_monitoring/release_age_routine.py
     - scripts/sync_rust_cli_assets.py
     - scripts/tests/test_security_monitoring_release_age.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: server region flags in model selector; EU-first/no-CN hosting policy; DeepSeek V4.1 Flash on Mistral'
     section: features
     commits:
@@ -539,9 +511,9 @@ sections:
     - frontend/packages/ui/src/utils/__tests__/aiModelDisplay.test.ts
     - frontend/packages/ui/src/utils/aiModelDisplay.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -556,7 +528,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(security): automated security monitoring with read-only triage and guarded dev auto-fix'
     section: features
     commits:
@@ -602,7 +574,7 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -610,7 +582,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: model server region flags; hosting policy (EU first, no CN hosts); DeepSeek V4.1 Flash on Mistral'
     section: features
     commits:
@@ -618,7 +590,7 @@ sections:
     authored_at: '2026-11-04T13:51:15+00:00'
     changed_paths:
     - backend/shared/python_utils/server_policy.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -626,7 +598,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: focus modes plan_conference_talk and price_products, live editable sheet formulas'
     section: features
     commits:
@@ -647,9 +619,9 @@ sections:
     - frontend/packages/ui/src/i18n/sources/focus_modes/business_price_products.yml
     - frontend/packages/ui/src/i18n/sources/focus_modes/events_plan_conference_talk.yml
     - frontend/packages/ui/src/services/embedDiffStore.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -678,7 +650,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:business, app:events'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: daily meeting also cleans up the backlog (Tasks, GitHub, Linear)'
     section: features
     commits:
@@ -691,7 +663,7 @@ sections:
     - scripts/daily_meeting_context.py
     - scripts/daily_meeting_issues.py
     - scripts/tests/test_daily_meeting_issues.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -699,7 +671,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: daily meeting briefing lists open GitHub and Linear issues'
     section: features
     commits:
@@ -711,7 +683,7 @@ sections:
     - scripts/daily_meeting_context.py
     - scripts/daily_meeting_issues.py
     - scripts/tests/test_daily_meeting_issues.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -719,7 +691,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: usage guard resend command for a one-time orderly follow-up'
     section: features
     commits:
@@ -728,7 +700,7 @@ sections:
     changed_paths:
     - scripts/claude_usage_guard.py
     - scripts/test_claude_usage_guard.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -736,7 +708,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   bug_fixes:
   - title: 'fix: converge focus activation + continuation merge in streaming render plan'
     section: bug_fixes
@@ -746,7 +718,7 @@ sections:
     changed_paths:
     - frontend/packages/ui/src/message_parsing/__tests__/focusContinuationMerge.test.ts
     - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -754,7 +726,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: focus continuation resolves attached embed cards so the talk focus targets the card the user opened'
     section: bug_fixes
     commits:
@@ -766,9 +738,9 @@ sections:
     - backend/shared/python_utils/focus_continuation_history.py
     - backend/tests/test_focus_continuation_history.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -783,7 +755,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: upcoming-event lists search the next edition of major recurring events (FOSDEM) before demoting them to prose'
     section: bug_fixes
     commits:
@@ -792,9 +764,9 @@ sections:
     changed_paths:
     - backend/apps/ai/utils/authored_result_instructions.py
     - backend/tests/test_authored_result_instructions.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -809,7 +781,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: talk focus targets the attached event card and states CFP limits; authored event maps never use model coordinates'
     section: bug_fixes
     commits:
@@ -844,9 +816,9 @@ sections:
     - frontend/packages/ui/src/i18n/locales/vi.json
     - frontend/packages/ui/src/i18n/locales/zh.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:events
@@ -861,7 +833,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:events'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: focus activation shows parent app icon; translate new focus modes; deploy gate for missing translation keys'
     section: bug_fixes
     commits:
@@ -889,16 +861,16 @@ sections:
     - scripts/tests/test_product_runtime_translations.py
     - scripts/tests/test_validate_app_translation_keys.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: sheet fullscreen round Edit pen in header, pinned header row, orange formula cells'
     section: bug_fixes
     commits:
@@ -915,16 +887,16 @@ sections:
     - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
     - frontend/packages/ui/src/tokens/sources/colors.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: voice call composer shows transcript-only active state without New chat or Cancel'
     section: bug_fixes
     commits:
@@ -935,16 +907,16 @@ sections:
     - frontend/packages/ui/src/components/ActiveChat.svelte
     - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: workflow NL generation always delivers, Ask AI knows current date, unsure follows else'
     section: bug_fixes
     commits:
@@ -958,7 +930,7 @@ sections:
     - backend/tests/test_workflow_ai_check_and_ask.py
     - backend/tests/test_workflow_authoring_compiler.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -974,7 +946,7 @@ sections:
     rationale:
     - classified as bug fixes from commit subject/path rules
     - 'matches feature availability gates: platform:workflows'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(security): triage keeps the batch when a host-only fix has no repo files'
     section: bug_fixes
     commits:
@@ -984,7 +956,7 @@ sections:
     - .claude/skills/security-triage/SKILL.md
     - scripts/security_monitoring/triage.py
     - scripts/tests/test_security_monitoring_dispatch.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -992,7 +964,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(security): give security monitor cron lines a PATH for claude, gh and openmates'
     section: bug_fixes
     commits:
@@ -1000,7 +972,7 @@ sections:
     authored_at: '2026-11-04T14:19:56+00:00'
     changed_paths:
     - scripts/security_monitor.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1008,7 +980,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: price_products asks first and quotes sheet numbers; science questions get videos'
     section: bug_fixes
     commits:
@@ -1020,9 +992,9 @@ sections:
     - backend/apps/business/app.yml
     - backend/apps/business/focus_modes/price-products/SKILL.md
     - backend/tests/test_ai_instruction_contracts.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1044,7 +1016,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:business'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: conference lists render as event cards; talk-submission follow-up auto-proposes plan_conference_talk'
     section: bug_fixes
     commits:
@@ -1057,9 +1029,9 @@ sections:
     - backend/tests/test_authored_result_instructions.py
     - backend/tests/test_focus_mode_routing.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1081,7 +1053,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:events'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: daily meeting overview keeps chats steered by other sessions'
     section: bug_fixes
     commits:
@@ -1091,7 +1063,7 @@ sections:
     - scripts/daily_meeting_briefing.py
     - scripts/daily_meeting_context.py
     - scripts/tests/test_daily_meeting_context.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1099,7 +1071,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: usage guard re-sent the wrap-up when the reset time wobbled across the hour'
     section: bug_fixes
     commits:
@@ -1108,7 +1080,7 @@ sections:
     changed_paths:
     - scripts/claude_usage_guard.py
     - scripts/test_claude_usage_guard.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1116,7 +1088,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: usage guard asks chats for an orderly wind-down with a full Task handover'
     section: bug_fixes
     commits:
@@ -1125,7 +1097,7 @@ sections:
     changed_paths:
     - scripts/claude_usage_guard.py
     - scripts/test_claude_usage_guard.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1133,7 +1105,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web): follow-up sent right after a reload is no longer dropped as a queued edit'
     section: bug_fixes
     commits:
@@ -1145,16 +1117,16 @@ sections:
     - scripts/ci_coverage_manifest.json
     - scripts/ci_run_tests.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements: []
   docs:
   - title: 'docs: focus for 2026-11-04 + meeting asks one question at a time'
@@ -1166,7 +1138,7 @@ sections:
     - docs/contributing/guides/daily-meeting.md
     - scripts/daily_meeting_briefing.py
     - scripts/tests/test_daily_meeting_briefing.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1174,7 +1146,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests: []
   infrastructure:
   - title: 'chore: remove FOCUS.md from the public repository and gitignore it'
@@ -1186,7 +1158,7 @@ sections:
     - .gitignore
     - CLAUDE.md
     - docs/contributing/guides/daily-meeting.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1194,341 +1166,26 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'fix: converge focus activation + continuation merge in streaming render plan'
-    commits:
-    - 6ed15c9e80
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: focus continuation resolves attached embed cards so the talk focus targets the card the user opened'
-    commits:
-    - 7dc9020adc
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: upcoming-event lists search the next edition of major recurring events (FOSDEM) before demoting them to prose'
-    commits:
-    - 47ddd574d9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: talk focus targets the attached event card and states CFP limits; authored event maps never use model coordinates'
-    commits:
-    - fc7634b845
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:events
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/events/app.yml
-  - title: 'fix: focus activation shows parent app icon; translate new focus modes; deploy gate for missing translation keys'
-    commits:
-    - a7a9a0748a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: sheet fullscreen round Edit pen in header, pinned header row, orange formula cells'
-    commits:
-    - 652a9efb8b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: event cards geocoded server-side, map only with valid coords, ''Open {domain}'' link, fuller grounded descriptions'
-    commits:
-    - 257681f667
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: embed:events:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:events
-      source: backend/apps/events/app.yml
-  - title: 'fix: voice call composer shows transcript-only active state without New chat or Cancel'
-    commits:
-    - 8bd9ef3657
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: simplified Report Issue form and automatic dev Claude-chat dispatch for admin reports'
-    commits:
-    - af17bcec16
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: server region preference (EU default / Fastest, global); remove Qwen3 235B; @fast -> Mercury 3'
-    commits:
-    - 2d89714338
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: workflow NL generation always delivers, Ask AI knows current date, unsure follows else'
-    commits:
-    - 1b32821bf0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features:
-    - id: platform:workflows
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(security): triage keeps the batch when a host-only fix has no repo files'
-    commits:
-    - 14a6192800
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(security): give security monitor cron lines a PATH for claude, gh and openmates'
-    commits:
-    - b121d0a121
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: usage guard emergency-reserve stop at 3% weekly left (>10h to reset)'
-    commits:
-    - 6668aae37b
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(security): release-age policy, SHA-pinned actions, server CLI host-reporter and DOMPurify 3.4.17'
-    commits:
-    - 2faaa7b30b
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: price_products asks first and quotes sheet numbers; science questions get videos'
-    commits:
-    - 0b1b540ab7
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:business
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/business/app.yml
-  - title: 'fix: conference lists render as event cards; talk-submission follow-up auto-proposes plan_conference_talk'
-    commits:
-    - c44ba67643
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:events
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/events/app.yml
-  - title: 'feat: server region flags in model selector; EU-first/no-CN hosting policy; DeepSeek V4.1 Flash on Mistral'
-    commits:
-    - 445a598812
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'feat(security): automated security monitoring with read-only triage and guarded dev auto-fix'
-    commits:
-    - 386015de1d
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: model server region flags; hosting policy (EU first, no CN hosts); DeepSeek V4.1 Flash on Mistral'
-    commits:
-    - 2d4f9b6d36
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: focus modes plan_conference_talk and price_products, live editable sheet formulas'
-    commits:
-    - e536c40901
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:business
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/business/app.yml
-    - id: app:events
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/events/app.yml
-  - title: 'fix: daily meeting overview keeps chats steered by other sessions'
-    commits:
-    - 570772ab1c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: daily meeting also cleans up the backlog (Tasks, GitHub, Linear)'
-    commits:
-    - b0305a9d09
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore: remove FOCUS.md from the public repository and gitignore it'
-    commits:
-    - cff3feee26
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: daily meeting briefing lists open GitHub and Linear issues'
-    commits:
-    - ae77ea8732
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: focus for 2026-11-04 + meeting asks one question at a time'
-    commits:
-    - eb2967ddb6
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: usage guard re-sent the wrap-up when the reset time wobbled across the hour'
-    commits:
-    - d470c19593
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: usage guard resend command for a one-time orderly follow-up'
-    commits:
-    - 0b25d5058f
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: usage guard asks chats for an orderly wind-down with a full Task handover'
-    commits:
-    - 6ba3126aa4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(web): follow-up sent right after a reload is no longer dropped as a queued edit'
-    commits:
-    - 74162d4ebb
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'fix: focus activation shows parent app icon; translate new focus modes; deploy gate for missing translation keys'
     commits:
     - a7a9a0748a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'feat: server region preference (EU default / Fastest, global); remove Qwen3 235B; @fast -> Mercury 3'
     commits:
     - 2d89714338
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1541,8 +1198,8 @@ unreleased_progress:
     commits:
     - 0b1b540ab7
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1562,8 +1219,8 @@ unreleased_progress:
     commits:
     - c44ba67643
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1583,8 +1240,8 @@ unreleased_progress:
     commits:
     - 445a598812
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1597,8 +1254,8 @@ unreleased_progress:
     commits:
     - e536c40901
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1622,14 +1279,13 @@ unreleased_progress:
       parent_id: null
       source: backend/apps/events/app.yml
 marketing_candidates:
-  newsletter: []
-  social_or_video:
+  newsletter:
   - title: 'fix: focus continuation resolves attached embed cards so the talk focus targets the card the user opened'
     commits:
     - 7dc9020adc
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1638,13 +1294,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: upcoming-event lists search the next edition of major recurring events (FOSDEM) before demoting them to prose'
     commits:
     - 47ddd574d9
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1653,13 +1308,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: talk focus targets the attached event card and states CFP limits; authored event maps never use model coordinates'
     commits:
     - fc7634b845
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:events
       kind: app
@@ -1668,29 +1322,26 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/events/app.yml
-    newsletter_ready: false
   - title: 'fix: focus activation shows parent app icon; translate new focus modes; deploy gate for missing translation keys'
     commits:
     - a7a9a0748a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: sheet fullscreen round Edit pen in header, pinned header row, orange formula cells'
     commits:
     - 652a9efb8b
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat: event cards geocoded server-side, map only with valid coords, ''Open {domain}'' link, fuller grounded descriptions'
     commits:
     - 257681f667
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1706,29 +1357,26 @@ marketing_candidates:
       override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
-    newsletter_ready: false
   - title: 'fix: voice call composer shows transcript-only active state without New chat or Cancel'
     commits:
     - 8bd9ef3657
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat: simplified Report Issue form and automatic dev Claude-chat dispatch for admin reports'
     commits:
     - af17bcec16
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat: server region preference (EU default / Fastest, global); remove Qwen3 235B; @fast -> Mercury 3'
     commits:
     - 2d89714338
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1737,21 +1385,19 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'feat(security): release-age policy, SHA-pinned actions, server CLI host-reporter and DOMPurify 3.4.17'
     commits:
     - 2faaa7b30b
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: price_products asks first and quotes sheet numbers; science questions get videos'
     commits:
     - 0b1b540ab7
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1767,13 +1413,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/business/app.yml
-    newsletter_ready: false
   - title: 'fix: conference lists render as event cards; talk-submission follow-up auto-proposes plan_conference_talk'
     commits:
     - c44ba67643
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1789,13 +1434,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/events/app.yml
-    newsletter_ready: false
   - title: 'feat: server region flags in model selector; EU-first/no-CN hosting policy; DeepSeek V4.1 Flash on Mistral'
     commits:
     - 445a598812
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1804,13 +1448,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'feat: focus modes plan_conference_talk and price_products, live editable sheet formulas'
     commits:
     - e536c40901
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1833,15 +1476,232 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/events/app.yml
-    newsletter_ready: false
   - title: 'fix(web): follow-up sent right after a reload is no longer dropped as a queued edit'
     commits:
     - 74162d4ebb
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+  social_or_video:
+  - title: 'fix: focus continuation resolves attached embed cards so the talk focus targets the card the user opened'
+    commits:
+    - 7dc9020adc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: upcoming-event lists search the next edition of major recurring events (FOSDEM) before demoting them to prose'
+    commits:
+    - 47ddd574d9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: talk focus targets the attached event card and states CFP limits; authored event maps never use model coordinates'
+    commits:
+    - fc7634b845
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    newsletter_ready: true
+  - title: 'fix: focus activation shows parent app icon; translate new focus modes; deploy gate for missing translation keys'
+    commits:
+    - a7a9a0748a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: sheet fullscreen round Edit pen in header, pinned header row, orange formula cells'
+    commits:
+    - 652a9efb8b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: event cards geocoded server-side, map only with valid coords, ''Open {domain}'' link, fuller grounded descriptions'
+    commits:
+    - 257681f667
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: true
+  - title: 'fix: voice call composer shows transcript-only active state without New chat or Cancel'
+    commits:
+    - 8bd9ef3657
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: simplified Report Issue form and automatic dev Claude-chat dispatch for admin reports'
+    commits:
+    - af17bcec16
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: server region preference (EU default / Fastest, global); remove Qwen3 235B; @fast -> Mercury 3'
+    commits:
+    - 2d89714338
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'feat(security): release-age policy, SHA-pinned actions, server CLI host-reporter and DOMPurify 3.4.17'
+    commits:
+    - 2faaa7b30b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: price_products asks first and quotes sheet numbers; science questions get videos'
+    commits:
+    - 0b1b540ab7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    newsletter_ready: true
+  - title: 'fix: conference lists render as event cards; talk-submission follow-up auto-proposes plan_conference_talk'
+    commits:
+    - c44ba67643
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    newsletter_ready: true
+  - title: 'feat: server region flags in model selector; EU-first/no-CN hosting policy; DeepSeek V4.1 Flash on Mistral'
+    commits:
+    - 445a598812
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'feat: focus modes plan_conference_talk and price_products, live editable sheet formulas'
+    commits:
+    - e536c40901
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    newsletter_ready: true
+  - title: 'fix(web): follow-up sent right after a reload is no longer dropped as a queued edit'
+    commits:
+    - 74162d4ebb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -1853,7 +1713,7 @@ sources:
     short_sha: 6ed15c9e80
     authored_at: '2026-11-04T17:14:42+00:00'
     subject: 'fix: converge focus activation + continuation merge in streaming render plan'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/message_parsing/__tests__/focusContinuationMerge.test.ts
@@ -1863,7 +1723,7 @@ sources:
     short_sha: 7dc9020adc
     authored_at: '2026-11-04T15:41:11+00:00'
     subject: 'fix: focus continuation resolves attached embed cards so the talk focus targets the card the user opened'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
@@ -1878,7 +1738,7 @@ sources:
     authored_at: '2026-11-04T15:25:12+00:00'
     subject: 'fix: upcoming-event lists search the next edition of major recurring events (FOSDEM) before demoting them to
       prose'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/utils/authored_result_instructions.py
@@ -1889,7 +1749,7 @@ sources:
     short_sha: fc7634b845
     authored_at: '2026-11-04T15:15:16+00:00'
     subject: 'fix: talk focus targets the attached event card and states CFP limits; authored event maps never use model coordinates'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/events/focus_modes/plan-conference-talk/SKILL.md
@@ -1927,7 +1787,7 @@ sources:
     authored_at: '2026-11-04T15:08:50+00:00'
     subject: 'fix: focus activation shows parent app icon; translate new focus modes; deploy gate for missing translation
       keys'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/data/translations.md
@@ -1956,7 +1816,7 @@ sources:
     short_sha: 652a9efb8b
     authored_at: '2026-11-04T15:03:58+00:00'
     subject: 'fix: sheet fullscreen round Edit pen in header, pinned header row, orange formula cells'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/sheet-fullscreen.spec.ts
@@ -1975,7 +1835,7 @@ sources:
     authored_at: '2026-11-04T14:51:49+00:00'
     subject: 'feat: event cards geocoded server-side, map only with valid coords, ''Open {domain}'' link, fuller grounded
       descriptions'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/utils/authored_result_instructions.py
@@ -2021,7 +1881,7 @@ sources:
     short_sha: 8bd9ef3657
     authored_at: '2026-11-04T14:43:59+00:00'
     subject: 'fix: voice call composer shows transcript-only active state without New chat or Cancel'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/voice-call.spec.ts
@@ -2033,7 +1893,7 @@ sources:
     short_sha: af17bcec16
     authored_at: '2026-11-04T14:40:08+00:00'
     subject: 'feat: simplified Report Issue form and automatic dev Claude-chat dispatch for admin reports'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/audio_realtime.py
@@ -2103,7 +1963,7 @@ sources:
     short_sha: 2d89714338
     authored_at: '2026-11-04T14:34:59+00:00'
     subject: 'feat: server region preference (EU default / Fastest, global); remove Qwen3 235B; @fast -> Mercury 3'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/app.yml
@@ -2174,7 +2034,7 @@ sources:
     short_sha: 1b32821bf0
     authored_at: '2026-11-04T14:28:37+00:00'
     subject: 'fix: workflow NL generation always delivers, Ask AI knows current date, unsure follows else'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/workflow_ai_service.py
@@ -2190,7 +2050,7 @@ sources:
     short_sha: 14a6192800
     authored_at: '2026-11-04T14:24:58+00:00'
     subject: 'fix(security): triage keeps the batch when a host-only fix has no repo files'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/security-triage/SKILL.md
@@ -2201,7 +2061,7 @@ sources:
     short_sha: b121d0a121
     authored_at: '2026-11-04T14:19:56+00:00'
     subject: 'fix(security): give security monitor cron lines a PATH for claude, gh and openmates'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/security_monitor.py
@@ -2210,7 +2070,7 @@ sources:
     short_sha: 6668aae37b
     authored_at: '2026-11-04T14:15:03+00:00'
     subject: 'feat: usage guard emergency-reserve stop at 3% weekly left (>10h to reset)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/claude_usage_guard.py
@@ -2220,7 +2080,7 @@ sources:
     short_sha: 2faaa7b30b
     authored_at: '2026-11-04T14:13:35+00:00'
     subject: 'feat(security): release-age policy, SHA-pinned actions, server CLI host-reporter and DOMPurify 3.4.17'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/dependabot.yml
@@ -2281,7 +2141,7 @@ sources:
     short_sha: 0b1b540ab7
     authored_at: '2026-11-04T14:11:38+00:00'
     subject: 'fix: price_products asks first and quotes sheet numbers; science questions get videos'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/instructions/base_proactive_skill_usage_instruction.md
@@ -2296,7 +2156,7 @@ sources:
     short_sha: c44ba67643
     authored_at: '2026-11-04T14:09:36+00:00'
     subject: 'fix: conference lists render as event cards; talk-submission follow-up auto-proposes plan_conference_talk'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/utils/authored_result_instructions.py
@@ -2312,7 +2172,7 @@ sources:
     short_sha: 445a598812
     authored_at: '2026-11-04T14:07:53+00:00'
     subject: 'feat: server region flags in model selector; EU-first/no-CN hosting policy; DeepSeek V4.1 Flash on Mistral'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/openrouter_client.py
@@ -2347,7 +2207,7 @@ sources:
     short_sha: 386015de1d
     authored_at: '2026-11-04T14:04:10+00:00'
     subject: 'feat(security): automated security monitoring with read-only triage and guarded dev auto-fix'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/security-fix/SKILL.md
@@ -2394,7 +2254,7 @@ sources:
     short_sha: 2d4f9b6d36
     authored_at: '2026-11-04T13:51:15+00:00'
     subject: 'feat: model server region flags; hosting policy (EU first, no CN hosts); DeepSeek V4.1 Flash on Mistral'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/shared/python_utils/server_policy.py
@@ -2403,7 +2263,7 @@ sources:
     short_sha: e536c40901
     authored_at: '2026-11-04T13:44:58+00:00'
     subject: 'feat: focus modes plan_conference_talk and price_products, live editable sheet formulas'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/instructions/base_sheet_formulas_instruction.md
@@ -2428,7 +2288,7 @@ sources:
     short_sha: 570772ab1c
     authored_at: '2026-11-04T13:28:13+00:00'
     subject: 'fix: daily meeting overview keeps chats steered by other sessions'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/daily_meeting_briefing.py
@@ -2439,7 +2299,7 @@ sources:
     short_sha: b0305a9d09
     authored_at: '2026-11-04T13:11:07+00:00'
     subject: 'feat: daily meeting also cleans up the backlog (Tasks, GitHub, Linear)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
@@ -2453,7 +2313,7 @@ sources:
     short_sha: cff3feee26
     authored_at: '2026-11-04T12:17:51+00:00'
     subject: 'chore: remove FOCUS.md from the public repository and gitignore it'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .gitignore
@@ -2464,7 +2324,7 @@ sources:
     short_sha: ae77ea8732
     authored_at: '2026-11-04T11:12:32+00:00'
     subject: 'feat: daily meeting briefing lists open GitHub and Linear issues'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/contributing/guides/daily-meeting.md
@@ -2477,7 +2337,7 @@ sources:
     short_sha: eb2967ddb6
     authored_at: '2026-11-04T11:06:33+00:00'
     subject: 'docs: focus for 2026-11-04 + meeting asks one question at a time'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/contributing/guides/daily-meeting.md
@@ -2488,7 +2348,7 @@ sources:
     short_sha: d470c19593
     authored_at: '2026-11-04T01:20:44+00:00'
     subject: 'fix: usage guard re-sent the wrap-up when the reset time wobbled across the hour'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/claude_usage_guard.py
@@ -2498,7 +2358,7 @@ sources:
     short_sha: 0b25d5058f
     authored_at: '2026-11-04T01:08:13+00:00'
     subject: 'feat: usage guard resend command for a one-time orderly follow-up'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/claude_usage_guard.py
@@ -2508,7 +2368,7 @@ sources:
     short_sha: 6ba3126aa4
     authored_at: '2026-11-04T01:06:09+00:00'
     subject: 'fix: usage guard asks chats for an orderly wind-down with a full Task handover'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/claude_usage_guard.py
@@ -2518,7 +2378,7 @@ sources:
     short_sha: 74162d4ebb
     authored_at: '2026-11-04T00:21:02+00:00'
     subject: 'fix(web): follow-up sent right after a reload is no longer dropped as a queued edit'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/chat-reload-followup-send.spec.ts
@@ -2528,142 +2388,176 @@ sources:
     - specifications/generated/assertion-index.yml
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on AI model routing enhancements, new focus modes for conference planning and business pricing,
-    and significant automation of security monitoring infrastructure. Improvements were also made to event visualization and
-    sheet embed interactivity.
-  released_changes: []
-  bug_fixes:
-  - text: Event search now prioritizes upcoming editions of major recurring events before falling back to prose descriptions.
-    evidence:
-      commits:
-      - 47ddd574d9
-    release_status: dev_only
-  - text: Focus mode activation and continuation were improved to correctly display parent app icons and resolve targets for
-      attached embed cards.
-    evidence:
-      commits:
-      - a7a9a0748a
-      - 7dc9020adc
-    release_status: dev_only
-  - text: Sheet embeds received UI refinements including pinned header rows, a rounded edit action, and distinct styling for
-      formula cells.
-    evidence:
-      commits:
-      - 652a9efb8b
-    release_status: dev_only
-  - text: The web app resolved an issue where follow-up messages sent immediately after a page reload could be dropped.
-    evidence:
-      commits:
-      - 74162d4ebb
-    release_status: dev_only
-  - text: The voice call composer was updated to show a transcript-only active state without redundant navigation options.
-    evidence:
-      commits:
-      - 8bd9ef3657
-    release_status: dev_only
-  unreleased_progress:
-  - text: AI model selection now supports server region preferences, defaulting to EU hosting or the fastest available global
-      provider.
+  overview: OpenMates introduced server region preferences for AI models, allowing users to prioritize EU-based or fastest-available
+    hosting. The update also debuted new focus modes for conference planning and product pricing, enhanced event cards with
+    server-side geocoding, and added live editable formulas to the sheet embed. Security was strengthened through automated
+    monitoring and updated release policies.
+  released_changes:
+  - text: AI model selection now includes server region flags, supporting an EU-first hosting policy and the removal of legacy
+      models in favor of Mercury 3 and DeepSeek V4.1 Flash.
     evidence:
       commits:
       - 2d89714338
       - 445a598812
-      - 2d4f9b6d36
-    release_status: dev_only
-  - text: New focus modes for conference talk planning and product pricing were introduced, alongside support for live editable
-      formulas in sheet embeds.
+    release_status: released_main
+  - text: New focus modes for 'Plan Conference Talk' and 'Price Products' were added, enabling specialized AI assistance for
+      these workflows.
     evidence:
       commits:
       - e536c40901
-      - 0b1b540ab7
-    release_status: dev_only
-  - text: Event cards now feature server-side geocoding and improved map views with grounded descriptions.
+    release_status: released_main
+  - text: Event cards were upgraded with server-side geocoding and richer descriptions grounded in search results.
     evidence:
       commits:
       - 257681f667
-      - fc7634b845
-    release_status: dev_only
-  - text: A simplified issue reporting form was added, featuring automated dispatching for administrative review.
+    release_status: released_main
+  - text: Sheet embeds now support live editable formulas, allowing for real-time calculations within the chat interface.
     evidence:
       commits:
-      - af17bcec16
-    release_status: dev_only
-  - text: Security monitoring was automated with new release-age policies, SHA-pinned actions, and host-reporting capabilities.
+      - e536c40901
+    release_status: released_main
+  - text: Security enhancements include a new release-age policy, SHA-pinned GitHub Actions, and an update to DOMPurify 3.4.17.
     evidence:
       commits:
       - 2faaa7b30b
-      - 386015de1d
-      - 14a6192800
-      - b121d0a121
-    release_status: dev_only
-  - text: Internal daily meeting automation was expanded to include backlog cleanup and issue tracking for GitHub and Linear.
+    release_status: released_main
+  - text: The issue reporting flow was simplified, featuring a more concise form and improved dispatch for administrative
+      reports.
     evidence:
       commits:
-      - b0305a9d09
-      - ae77ea8732
-      - eb2967ddb6
-      - 570772ab1c
-    release_status: dev_only
-  - text: Workflow generation and runner logic received reliability fixes while the feature remains disabled.
+      - af17bcec16
+    release_status: released_main
+  bug_fixes:
+  - text: Focus continuation now correctly resolves attached embed cards, ensuring the AI targets the specific card opened
+      by the user.
+    evidence:
+      commits:
+      - 7dc9020adc
+    release_status: released_main
+  - text: Event search logic was improved to prioritize the next edition of major recurring events, such as FOSDEM, before
+      falling back to prose descriptions.
+    evidence:
+      commits:
+      - 47ddd574d9
+    release_status: released_main
+  - text: Conference lists now render as event cards, and talk-submission follow-ups automatically propose the conference
+      planning focus mode.
+    evidence:
+      commits:
+      - fc7634b845
+      - c44ba67643
+    release_status: released_main
+  - text: The sheet fullscreen view received UI polish, including a rounded edit icon, pinned header rows, and distinct coloring
+      for formula cells.
+    evidence:
+      commits:
+      - 652a9efb8b
+    release_status: released_main
+  - text: The voice call composer now correctly displays a transcript-only active state, removing unnecessary 'New chat' or
+      'Cancel' options during calls.
+    evidence:
+      commits:
+      - 8bd9ef3657
+    release_status: released_main
+  - text: Resolved an issue where follow-up messages sent immediately after a page reload were occasionally dropped.
+    evidence:
+      commits:
+      - 74162d4ebb
+    release_status: released_main
+  unreleased_progress:
+  - text: Work continued on workflow natural language generation and date-aware processing.
     evidence:
       commits:
       - 1b32821bf0
-    release_status: dev_only
+    release_status: released_main
+  - text: Backlog cleanup logic for Tasks and external issue trackers was integrated into the daily meeting orchestration.
+    evidence:
+      commits:
+      - b0305a9d09
+    release_status: released_main
   internal_progress:
-  - text: AI usage guards were refined to manage emergency reserves and ensure orderly task handovers during usage resets.
+  - text: Automated security monitoring was implemented, featuring read-only triage and guarded developer auto-fix capabilities.
+    evidence:
+      commits:
+      - 386015de1d
+      - 14a6192800
+      - b121d0a121
+    release_status: released_main
+  - text: The AI usage guard was refined with emergency reserve thresholds and improved handover logic for session wind-downs.
     evidence:
       commits:
       - 6668aae37b
       - 0b25d5058f
       - d470c19593
       - 6ba3126aa4
-    release_status: dev_only
-  - text: A new deployment gate validates translation keys to prevent missing strings in focus mode interfaces.
+    release_status: released_main
+  - text: Internal daily meeting scripts were updated to improve context gathering and briefing clarity.
     evidence:
       commits:
-      - a7a9a0748a
-    release_status: dev_only
-  - text: Internal project tracking files were removed from the public repository in favor of local gitignore rules.
-    evidence:
-      commits:
-      - cff3feee26
-    release_status: dev_only
+      - ae77ea8732
+      - eb2967ddb6
+      - 570772ab1c
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: All 2026-11-04 updates.
+    include:
+    - text: New AI server region preferences allow users to choose between EU-default, Fastest, or Global hosting.
       evidence:
         commits:
         - 2d89714338
         - 445a598812
+      reason: Significant update to AI model selection and data residency controls.
+    - text: Introduced new focus modes for conference planning and product pricing, alongside live editable sheet formulas.
+      evidence:
+        commits:
         - e536c40901
+      reason: New user-facing focus modes and interactive sheet features.
+    - text: Event cards now feature server-side geocoding, improved map views, and direct links to source domains.
+      evidence:
+        commits:
         - 257681f667
+      reason: Major improvement to the event discovery experience.
+    - text: The 'Report Issue' form has been simplified for a more streamlined feedback experience.
+      evidence:
+        commits:
         - af17bcec16
-        - 2faaa7b30b
-        - 386015de1d
-        - b0305a9d09
-        - ae77ea8732
+      reason: Improves the user support and feedback loop.
+    exclude:
+    - text: Workflow generation improvements and date awareness.
+      evidence:
+        commits:
         - 1b32821bf0
-      reason: All changes are currently in development and have not been merged to the main branch for public release.
-    rationale: No items are marked as released to main or ready for public communication.
+      reason: Workflows are currently a disabled feature.
+    - text: Daily meeting backlog cleanup for Tasks, GitHub, and Linear.
+      evidence:
+        commits:
+        - b0305a9d09
+      reason: Tasks are currently a disabled feature.
+    - text: Automated security monitoring and host reporting.
+      evidence:
+        commits:
+        - 386015de1d
+      reason: Internal infrastructure and security monitoring.
+    rationale: The update focuses on giving users more control over AI data residency and expanding the utility of focus modes
+      for specific professional tasks. Improvements to event discovery and sheet interactivity provide immediate value to
+      the core web experience.
   social_video_recommendations:
-  - idea: Demonstrate the new 'Plan Conference Talk' focus mode, showing how it interacts with event cards to help users draft
-      submissions.
-    priority: medium
-    reason: Concrete product story involving new focus modes and event integration.
+  - idea: Demonstrate the 'Price Products' focus mode.
+    priority: high
+    reason: Showing live editable sheet formulas and AI quoting specific numbers from a sheet provides a strong visual product
+      story.
     evidence:
       commits:
       - e536c40901
+      - 0b1b540ab7
+  - idea: Showcase the new geocoded event cards and maps.
+    priority: medium
+    reason: The transition from a search result to a rich, interactive map card is a compelling UI improvement.
+    evidence:
+      commits:
+      - 257681f667
       - fc7634b845
-  - idea: Showcase the live editable sheet formulas and UI refinements for data tables.
-    priority: medium
-    reason: Visual improvement to a core interactive component.
-    evidence:
-      commits:
-      - e536c40901
-      - 652a9efb8b
   quality_notes:
-  - Significant emphasis on geocoding accuracy and map reliability for event-based results.
-  - Heavy investment in security automation, including release-age policies and SHA-pinned actions.
-  - Expansion of internal daily meeting automation to handle backlog cleanup across GitHub and Linear.
+  - Focus mode activation now includes parent app icons for better visual context.
+  - Translation coverage was expanded for new focus modes with added deployment gates for missing keys.
+  - Event maps now strictly use validated coordinates rather than model-generated guesses.
   validation_warnings: []

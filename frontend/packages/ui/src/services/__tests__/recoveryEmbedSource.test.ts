@@ -20,6 +20,8 @@ describe("historical sealed embed source", () => {
     await expect(catalogContextFromSealedEmbed("{}", "code", undefined))
       .rejects.toThrow(/catalog identity/);
     expect(await catalogContextFromSealedEmbed("{}", undefined, undefined)).toBeNull();
+    const focusMode = encode({ type: "focus_mode_activation", app_id: "events", status: "activated" });
+    expect(await catalogContextFromSealedEmbed(focusMode, undefined, undefined)).toBeNull();
   });
 
   // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery
@@ -35,6 +37,8 @@ describe("historical sealed embed source", () => {
   it("compares immutable version rows with code, mail, and document source inside sealed TOON", async () => {
     expect(await historySourceFromSealedEmbed(encode({ type: "code", code: "const value = 7;" }), "code"))
       .toBe("const value = 7;");
+    expect(await historySourceFromSealedEmbed(encode({ type: "deck", slides_markup: "# One" }), "deck"))
+      .toBe("# One");
     expect(await historySourceFromSealedEmbed(encode({
       type: "mail", receiver: "a@example.test", subject: "Hello", content: "Body", footer: "Bye",
     }), "mail")).toBe("to: a@example.test\nsubject: Hello\ncontent:\nBody\nfooter:\nBye");

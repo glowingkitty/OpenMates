@@ -6,6 +6,8 @@
 //          frontend/packages/ui/src/components/embeds/code/CodeGetDocsEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/code/CodeGetDocsEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/code/CodePreviewPane.svelte
+//          frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedPreview.svelte
@@ -229,19 +231,33 @@ struct ApplicationEmbedRenderer: View {
     private var fileRefs: [[String: Any]] { data?["file_refs"]?.value as? [[String: Any]] ?? [] }
     private var entrypoints: [Any] { data?["entrypoints"]?.value as? [Any] ?? [] }
     private var fileCount: Int { fileRefs.count }
+    private var framework: String { data?["framework"]?.value as? String ?? "" }
+    private var runtime: String { data?["runtime"]?.value as? String ?? "" }
+    private var screenshotURL: URL? {
+        (data?["latest_screenshot_url"]?.value as? String).flatMap { $0.isEmpty ? nil : URL(string: $0) }
+    }
+
+    /// Framework, runtime and file count joined as on the web card; "ready" when none are known.
+    static func facts(framework: String, runtime: String, fileCount: Int) -> String {
+        let count = fileCount > 0
+            ? AppStrings.localized("embeds.application_file_count").replacingOccurrences(of: "{count}", with: String(fileCount))
+            : ""
+        let joined = [framework, runtime, count].filter { !$0.isEmpty }.joined(separator: " · ")
+        return joined.isEmpty ? AppStrings.localized("embeds.application_ready") : joined
+    }
 
     var body: some View {
         switch mode {
         case .preview:
             VStack(alignment: .leading, spacing: .spacing2) {
-                placeholder
+                previewImage
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius3))
                     .overlay(RoundedRectangle(cornerRadius: .radius3).stroke(Color.grey20))
                 HStack(spacing: .spacing2) {
-                    Text("\(fileCount) \(fileCount == 1 ? "file" : "files")")
+                    Text(Self.facts(framework: framework, runtime: runtime, fileCount: fileCount))
                     if !entrypoints.isEmpty {
-                        Text("\(entrypoints.count) \(entrypoints.count == 1 ? "entrypoint" : "entrypoints")")
+                        Text("\(entrypoints.count) \(AppStrings.localized(entrypoints.count == 1 ? "embeds.application_entrypoint_singular" : "embeds.application_entrypoint_plural"))")
                     }
                 }
                 .font(.omXs)
@@ -256,10 +272,10 @@ struct ApplicationEmbedRenderer: View {
                     RoundedRectangle(cornerRadius: .radius3)
                         .fill(Color.grey10)
                         .frame(width: 180, height: 110)
-                    Text("Preview not started")
+                    Text(AppStrings.localized("embeds.application_preview_not_started"))
                         .font(.omH4).fontWeight(.semibold)
                         .foregroundStyle(Color.fontPrimary)
-                    Text("Start the preview to run this generated app in an isolated sandbox.")
+                    Text(AppStrings.localized("embeds.application_preview_not_started_description"))
                         .font(.omSmall)
                         .foregroundStyle(Color.fontSecondary)
                         .multilineTextAlignment(.center)
@@ -269,17 +285,18 @@ struct ApplicationEmbedRenderer: View {
 
                 VStack(alignment: .leading, spacing: .spacing4) {
                     VStack(alignment: .leading, spacing: .spacing1) {
-                        Text("Preview not started").font(.omSmall).fontWeight(.semibold)
-                        Text("IDLE").font(.omXs).foregroundStyle(Color.fontSecondary)
+                        Text(AppStrings.localized("embeds.application_preview_not_started")).font(.omSmall).fontWeight(.semibold)
+                        Text(Self.facts(framework: framework, runtime: runtime, fileCount: fileCount))
+                            .font(.omXs).foregroundStyle(Color.fontSecondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.spacing3)
                     .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius3))
 
-                    Text("Logs").font(.omH4).fontWeight(.semibold)
-                    Text("Start the preview to run this generated app in an isolated sandbox.")
+                    Text(AppStrings.localized("embeds.application_logs")).font(.omH4).fontWeight(.semibold)
+                    Text(AppStrings.localized("embeds.application_preview_not_started_description"))
                         .font(.omXs).foregroundStyle(Color.fontSecondary)
-                    Text("Files").font(.omH4).fontWeight(.semibold)
+                    Text(AppStrings.localized("embeds.application_files")).font(.omH4).fontWeight(.semibold)
                     ForEach(Array(fileRefs.enumerated()), id: \.offset) { _, file in
                         VStack(alignment: .leading, spacing: .spacing1) {
                             Text(file["path"] as? String ?? "File")
@@ -296,6 +313,20 @@ struct ApplicationEmbedRenderer: View {
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .accessibilityIdentifier("application-fullscreen-workspace")
+        }
+    }
+
+    /// Latest screenshot from the embed content when present, else the placeholder.
+    @ViewBuilder
+    private var previewImage: some View {
+        if let screenshotURL {
+            AsyncImage(url: screenshotURL) { phase in
+                if let image = phase.image { image.resizable().scaledToFill() } else { placeholder }
+            }
+            .clipped()
+            .accessibilityIdentifier("application-preview-screenshot")
+        } else {
+            placeholder
         }
     }
 

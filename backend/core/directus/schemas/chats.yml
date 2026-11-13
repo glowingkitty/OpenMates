@@ -139,9 +139,9 @@ chats:
       type: text
       note: "[Client-encrypted permanent storage] Array of up to 5 recommended app IDs for this specific chat, encrypted with the chat-specific key. Generated during post-processing. Format: ['app1', 'app2', ...]. Must be TEXT not JSON since it's encrypted."
 
-    encrypted_quick_tip_slugs:
+    encrypted_recommendations:
       type: text
-      note: "[Client-encrypted permanent storage] Array of selected product quick tip slugs for this chat, encrypted with the chat-specific key. UI copy is loaded client-side from translations. Must be TEXT not JSON since it's encrypted."
+      note: "[Client-encrypted permanent storage] Chat Recommendations state (memory and workflow recommendations, dismissed and resolved titles) for this chat, encrypted with the chat-specific key. Must be TEXT not JSON since it's encrypted."
 
     encrypted_chat_key:
       type: string

@@ -79,12 +79,15 @@ async fn run_with_list_stages(
             .filter(|s| !s.trim().is_empty())
             .map(Zeroizing::new)
     });
+    if cli::embed_user_edit_supported(&invocation) && api_key.is_some() {
+        return Err(CliError::Unsupported{command:invocation.command_path(),reason:"Embed versions made by the user (Enhance, restore) need a signed-in Personal session; API keys cannot save them.".into()});
+    }
     if invocation.command_path()=="embeds share" && api_key.is_some() {
         return Err(CliError::Unsupported{command:invocation.command_path(),reason:"Personal Cookie embed sharing never substitutes an API key or opens a Cookie profile for it.".into()});
     }
     // Explicit key-only embed slice: reject before resolving/opening any Cookie
     // or Team profile. SDK coverage does not establish Cookie auth parity.
-    if cli::sdk_embeds_supported(&invocation) && invocation.command_path() != "embeds versions show" && api_key.is_none() {
+    if cli::sdk_embeds_supported(&invocation) && !matches!(invocation.command_path().as_str(), "embeds versions show" | "embeds test-result") && api_key.is_none() {
         return Err(CliError::Unsupported { command: invocation.command_path(), reason: "This native embed slice requires an explicit API key; Cookie and Team embed parity remain required and no profile was loaded.".into() });
     }
     let cancel = CancellationToken::new();
@@ -162,7 +165,9 @@ async fn run_with_list_stages(
         // any Cookie profile or granting an additional SDK capability.
         let normalized = cli::normalize_chat_work(&invocation)?;
         let invocation = normalized.as_ref().unwrap_or(&invocation);
-        if invocation.command_path() != "apps code get_docs" && invocation.path.first().is_none_or(|name| {
+        let key_account = cli::sdk_key_account_supported(invocation);
+        let key_command = cli::sdk_key_command_supported(invocation);
+        if !key_account && !key_command && invocation.command_path() != "apps code get_docs" && invocation.path.first().is_none_or(|name| {
             !matches!(
                 name.as_str(),
                 "tasks" | "plans" | "projects" | "workflows" | "history" | "drafts" | "embeds"
@@ -207,6 +212,12 @@ async fn run_with_list_stages(
         }
         let result = cancellable(
             async {
+                if key_account {
+                    return cli::execute_sdk_account(invocation, &mut sdk, cancel.clone()).await;
+                }
+                if key_command {
+                    return cli::execute_sdk_key_command(invocation, &mut sdk).await;
+                }
                 match invocation.path.first().map(String::as_str) {
                     Some("apps") => {
                         cli::execute_sdk_apps(invocation, &mut sdk, cancel.clone()).await
@@ -279,7 +290,8 @@ async fn run_with_list_stages(
     if login && store.storage_mode().await?.is_some() {
         return Err(CliError::Invalid("Log out of this native profile before pairing another session; existing credentials were preserved.".into()));
     }
-    let signup = invocation.command_path() == "signup";
+    let provisioning = cli::is_e2e_provisioning(&invocation);
+    let signup = invocation.command_path() == "signup" || provisioning;
     if signup && store.storage_mode().await?.is_some() {
         return Err(CliError::Invalid("Log out of this native profile before creating another account; existing credentials were preserved.".into()));
     }
@@ -360,7 +372,11 @@ async fn run_with_list_stages(
         if globals.encrypted_vault {
             passphrase = Some(prompt("New credential vault passphrase: ", cancel.clone()).await?);
         }
-        cli::signup::execute(&invocation, &mut client, &store, passphrase.clone(), &cancel).await
+        if provisioning {
+            cli::execute_e2e_provisioning(&invocation, &mut client, &store, passphrase.clone(), &api, &cancel).await
+        } else {
+            cli::signup::execute(&invocation, &mut client, &store, passphrase.clone(), &cancel).await
+        }
     } else if login {
         login_pair(
             &mut client,
@@ -857,8 +873,17 @@ async fn run_server(
     context: ServerContext,
     cancel: &CancellationToken,
 ) -> Result<CliOutput, CliError> {
-    if server_action(invocation) != "update" || !invocation.boolean("continuous") {
+    let action = server_action(invocation);
+    if let Some(output) = server_group_usage(&action) {
+        return output;
+    }
+    if action != "update" || !invocation.boolean("continuous") {
         let value = server_once(invocation, &context, cancel).await?;
+        if !context.json_output
+            && let Some(text) = server::human_text(&action, &value)
+        {
+            return Ok(CliOutput::text(text));
+        }
         return server_output(&value, context.json_output);
     }
     let interval = continuous_interval(&invocation.flags)?;
@@ -1078,6 +1103,27 @@ fn server_account_profile(context: &ServerContext) -> Result<profile::ResolvedPr
         &context.home,
     )
     .map_err(CliError::from)
+}
+
+/// npm behavior for the bare `server` group (help, exit 0) and for the `ai` and
+/// `notifications` groups without a subcommand (usage error, exit 1).
+fn server_group_usage(action: &str) -> Option<Result<CliOutput, CliError>> {
+    let usage = match action {
+        "" => {
+            let mut help = cli::command();
+            let server = help.find_subcommand_mut("server")?;
+            return Some(Ok(CliOutput::text(server.render_long_help().to_string())));
+        }
+        "ai" => "Usage: openmates server ai models <add|list|test|remove>",
+        "notifications" => {
+            "Usage: openmates server notifications test --channel email|discord|webhook|all [--json]"
+        }
+        _ => return None,
+    };
+    Some(Err(CliError::Contract {
+        code: "command_failed",
+        message: usage.into(),
+    }))
 }
 
 fn server_output(value: &serde_json::Value, json_output: bool) -> Result<CliOutput, CliError> {

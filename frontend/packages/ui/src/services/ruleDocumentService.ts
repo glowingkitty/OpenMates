@@ -10,7 +10,7 @@ import { decryptWithEmbedKey, encryptWithEmbedKey, wrapEmbedKeyWithChatKey } fro
 import { chatKeyManager } from './encryption/ChatKeyManager';
 import {
   approveProjectWrite, getActiveProjectFocus, getProject, getProjectContents,
-  getProjectSettings, getProjectFileRevisionReceipt, readEncryptedProjectFile,
+  getProjectSettings, getProjectFileRevisionReceipt, readEncryptedProjectFile, removeEmbedFromProject,
   type ActiveProjectFocus, type ProjectItemViewModel,
 } from './projectService';
 import {
@@ -18,9 +18,13 @@ import {
 } from './hostedProjectFileExecutor';
 import { projectFileMutationDigest, type ProjectFileMutation } from '../utils/projectFileMutationProtocol';
 import type { ProjectFileJob } from './projectFileJobExecutor';
+import { PROJECT_RUST_CORE } from './projectState/decide';
+import { decideProjectFile } from './projectState/projectFileDecide';
 import {
-  buildWholeDocumentPatch, parseRuleDocument, serializeRuleDocument, validateRuleCatalog, type CustomRuleDocument,
+  buildWholeDocumentPatch, isMemoryExpired, parseRuleDocument, serializeRuleDocument, validateRuleCatalog,
+  type CustomRuleDocument,
 } from '../utils/ruleDocuments';
+import { buildMemoryCatalog, type MemoryCatalogEntry } from '../utils/memoryCatalog';
 import { broadcastProjectFilesChanged } from './projectBrowserEvents';
 import { projectRecordRevision } from '../utils/projectContextRevision';
 
@@ -113,6 +117,94 @@ async function persistPersonalSettings(snapshot: Awaited<ReturnType<typeof accou
   updateProfile({ encrypted_settings: encrypted });
 }
 
+/**
+ * Applies one atomic read-modify-write to the encrypted account settings and waits
+ * for the server to acknowledge the synced ciphertext. The mutator may return false
+ * to skip the write. Used by the legacy typed-memory migration.
+ */
+export async function updateAccountSettings(
+  mutate: (settings: Record<string, unknown>, documents: CustomRuleDocument[]) => boolean | Promise<boolean>,
+): Promise<boolean> {
+  const snapshot = await accountSettings();
+  const documents = personalDocuments(snapshot.settings);
+  if (!(await mutate(snapshot.settings, documents))) return false;
+  validateRuleCatalog(documents);
+  snapshot.settings[PERSONAL_SETTINGS_KEY] = documents.map(({ id, document }) => ({ id, document }));
+  await persistPersonalSettings(snapshot);
+  return true;
+}
+
+/** Removes one personal memory by its document id (e.g. `personal:<uuid>`). */
+export async function deletePersonalRuleDocument(id: string): Promise<void> {
+  const snapshot = await accountSettings();
+  if (!personalDocuments(snapshot.settings).some((item) => item.id === id)) throw new Error('rule_not_found');
+  for (const key of [PERSONAL_SETTINGS_KEY, LEGACY_PERSONAL_SETTINGS_KEY]) {
+    const values = snapshot.settings[key];
+    if (Array.isArray(values)) snapshot.settings[key] = values.filter((value) => value.id !== id);
+  }
+  await persistPersonalSettings(snapshot);
+}
+
+/**
+ * Client-side expiry: deletes personal memories as soon as they are expired.
+ * Returns the number of deleted memories. Project memories are excluded from
+ * catalogs by buildMemoryCatalog while expired; deleteExpiredProjectMemories removes them while their Project is active.
+ */
+export async function deleteExpiredPersonalMemories(now: Date | number = Date.now()): Promise<number> {
+  const snapshot = await accountSettings();
+  const expired = new Set(personalDocuments(snapshot.settings)
+    .filter((item) => isMemoryExpired(parseRuleDocument(item.document), now)).map((item) => item.id));
+  if (!expired.size) return 0;
+  for (const key of [PERSONAL_SETTINGS_KEY, LEGACY_PERSONAL_SETTINGS_KEY]) {
+    const values = snapshot.settings[key];
+    if (Array.isArray(values)) snapshot.settings[key] = values.filter((value) => !expired.has(value.id));
+  }
+  await persistPersonalSettings(snapshot);
+  return expired.size;
+}
+
+/**
+ * Deletes expired Project memories immediately, same rule as personal memories.
+ * Needs the active Project's authoritative documents (callers pass the freshly listed set),
+ * so it can only run while that Project is active. Returns the number deleted.
+ */
+export async function deleteExpiredProjectMemories(
+  input: { projectId: string; teamId?: string | null; documents: readonly EditableRuleDocument[] },
+  now: Date | number = Date.now(),
+): Promise<number> {
+  const expired = input.documents.filter((item) => item.source === 'project' && item.id
+    && isMemoryExpired(parseRuleDocument(item.document), now));
+  if (!expired.length) return 0;
+  const context = { teamId: input.teamId ?? undefined };
+  const contents = await getProjectContents(await getProject(input.projectId, context), context);
+  let deleted = 0;
+  for (const memory of expired) {
+    const item = contents.items.find((candidate) => candidate.project_item_id === memory.id);
+    if (!item?.target_id) continue;
+    await removeEmbedFromProject(input.projectId, item.target_id, context);
+    deleted += 1;
+  }
+  if (deleted) broadcastProjectFilesChanged(input.projectId);
+  return deleted;
+}
+
+let expirySweepStarted = false;
+/** Sweeps expired personal memories once the account settings are available and when the tab returns to foreground. */
+export function startMemoryExpirySweep(): void {
+  if (expirySweepStarted || typeof document === 'undefined') return;
+  expirySweepStarted = true;
+  let running = false;
+  const sweep = async () => {
+    if (running || !get(authStore).isAuthenticated || !get(userProfile).user_id || !get(userProfile).encrypted_settings) return;
+    running = true;
+    try { await deleteExpiredPersonalMemories(); }
+    catch (error) { console.warn('[ruleDocumentService] Memory expiry sweep skipped', error); }
+    finally { running = false; }
+  };
+  userProfile.subscribe(() => { void sweep(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void sweep(); });
+}
+
 export async function savePersonalDocumentMemoryEntry(entryId: string, value: { title: string; document: string }) {
   const original = (await listPersonalRuleDocuments()).find(document => `account-memory-${document.id.replace(/^personal:/, '')}` === entryId);
   if (!original) throw new Error('rule_not_found');
@@ -172,6 +264,7 @@ async function activeProjectAdapter(chatId: string, projectId: string): Promise<
   return {
     projectId, projectKey: project.projectKey, chatKey, teamId: focus.team_id,
     privatePaths: privatePaths as string[] | undefined,
+    decidePolicy: PROJECT_RUST_CORE ? decideProjectFile : undefined,
     writeMode: settings.writeMode ?? null,
     itemIdsByPath: new Map(contents.items.map((item) => [String(item.metadata.path ?? item.metadata.display_path ?? item.metadata.file_path ?? item.metadata.filename ?? item.displayName), item.project_item_id])),
     itemsByPath: new Map(contents.items.map((item) => [String(item.metadata.path ?? item.metadata.display_path ?? item.metadata.file_path ?? item.metadata.filename ?? item.displayName), item])),
@@ -334,11 +427,25 @@ export async function collectCustomRuleDocuments(input: {
   const personal: CustomRuleDocument[] = [];
   const focus = await (input.initialFocus ? input.initialFocus() : getActiveProjectFocus(input.chatId));
   if (!get(authStore).isAuthenticated || get(userProfile).user_id !== owner) return [];
-  if (!focus || input.projectId && focus.project_id !== input.projectId) return personal;
-  const project = await listProjectRuleDocuments({ chatId: input.chatId, projectId: focus.project_id });
+  if (!focus || input.projectId && focus.project_id !== input.projectId) {
+    console.info('[ruleDocumentService] Project memories skipped', { focus: Boolean(focus) });
+    return personal;
+  }
+  const project = await listProjectRuleDocuments({ chatId: input.chatId, projectId: focus.project_id }).catch((error: unknown) => {
+    // Rethrown: the caller decides; logged so a failed Project Memory read is visible.
+    console.warn('[ruleDocumentService] Project memories could not be listed', error instanceof Error ? error.message : error);
+    throw error;
+  });
+  try { await deleteExpiredProjectMemories({ projectId: focus.project_id, teamId: focus.team_id, documents: project }); }
+  catch (error) { console.warn('[ruleDocumentService] Project memory expiry sweep skipped', error); }
   const fresh = await getActiveProjectFocus(input.chatId);
   if (requireOwner() !== owner) return [];
-  const documents = fresh?.project_id === focus.project_id && fresh?.team_id === focus.team_id ? [...personal, ...project] : personal;
+  const current = fresh?.project_id === focus.project_id && fresh?.team_id === focus.team_id;
+  // Only Auto include Project bodies travel with the request; Ask first ones are catalogued
+  // and Mention only ones are neither sent nor catalogued.
+  const documents = current
+    ? [...personal, ...project.filter((item) => (parseRuleDocument(item.document).load_mode ?? 'auto_include') === 'auto_include')]
+    : personal;
   const bounded: CustomRuleDocument[] = [];
   let chars = 0;
   for (const { id, source, project_id, document, item_revision } of documents) {
@@ -346,7 +453,32 @@ export async function collectCustomRuleDocuments(input: {
     bounded.push({ id, source, ...(project_id ? { project_id } : {}), document, item_revision });
     chars += document.length;
   }
-  return validateRuleCatalog(bounded);
+  const validated = validateRuleCatalog(bounded);
+  // Counts only: which Project Memories this send carries as bodies or catalog rows.
+  console.info('[ruleDocumentService] Project memories', {
+    listed: project.length, current, bodies: bounded.length,
+    askFirst: project.filter((item) => item.id && parseRuleDocument(item.document).load_mode === 'ask_first').length,
+  });
+  if (current) askFirstProjectDocuments.set(validated, project.filter((item) => item.id
+    && parseRuleDocument(item.document).load_mode === 'ask_first'));
+  return validated;
+}
+
+/** Ask first Project documents of the collection that produced a given (body) result array. */
+const askFirstProjectDocuments = new WeakMap<readonly CustomRuleDocument[], CustomRuleDocument[]>();
+
+/**
+ * Metadata-only catalog of personal and (already collected) Project memories for a send.
+ * Sent as `memory_catalog`; mention_only and out-of-window memories are never included.
+ */
+export async function collectMemoryCatalog(projectDocuments: readonly CustomRuleDocument[]): Promise<MemoryCatalogEntry[]> {
+  if (!get(authStore).isAuthenticated || !get(userProfile).user_id) return [];
+  const owner = requireOwner();
+  const personal = await listPersonalRuleDocuments();
+  if (requireOwner() !== owner) return [];
+  // Personal first, then the active Project's Ask first Memories (same bounds together).
+  const project = askFirstProjectDocuments.get(projectDocuments) ?? [];
+  return buildMemoryCatalog([...personal, ...project]).catalog;
 }
 
 export function activeRuleChatId(): string | null { return activeChatStore.get(); }
@@ -360,7 +492,7 @@ export async function personalDocumentMemoryEntries() {
     const fields = parseRuleDocument(document.document);
     return { id: `account-memory-${document.id.replace(/^personal:/, '')}`, app_id: 'openmates', item_key: fields.title,
       item_value: { title: fields.title, document: document.document } as Record<string, unknown>, settings_group: 'memories',
-      created_at: 0, updated_at: 0, item_version: 1 };
+      created_at: fields.created_at ?? 0, updated_at: fields.updated_at ?? fields.created_at ?? 0, item_version: 1 };
   });
   publishPersonalDocumentMemories(owner, revision, entries);
   return entries;

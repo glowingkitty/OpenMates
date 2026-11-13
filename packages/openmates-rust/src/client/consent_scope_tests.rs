@@ -239,6 +239,7 @@ async fn caller_approval_cannot_outlive_original_subchat_or_memory_authority() {
                             "message",
                             &[9; 32],
                             &memories,
+                            &[],
                             &updates,
                             &cancel,
                             SendConsentPolicy::Caller,
@@ -315,12 +316,12 @@ async fn native_and_opaque_memory_policies_preserve_ids_dedup_and_system_metadat
             };
             let (result, _) = tokio::join!(
                 client.memory_consent(
-                    &mut ws, &event, CHAT, "message", &[9; 32], &memories, &updates, &cancel,
+                    &mut ws, &event, CHAT, "message", &[9; 32], &memories, &[], &updates, &cancel,
                     policy
                 ),
                 decide
             );
-            let (deferred, record) = result.unwrap();
+            let (deferred, record, _) = result.unwrap();
             assert!(deferred.is_empty());
             let approved = policy != SendConsentPolicy::Reject;
             assert_eq!(record.requested_keys, ["notes-private"]);
@@ -388,6 +389,7 @@ async fn deferred_frame_limit_still_refuses_without_confirmation_or_response_met
             "message",
             &[9; 32],
             &memories,
+            &[],
             &updates,
             &CancellationToken::new(),
             SendConsentPolicy::Caller,
@@ -418,6 +420,7 @@ async fn closed_consent_consumer_preserves_cancellation_instead_of_silent_delive
                     "message",
                     &[9; 32],
                     &memories,
+                    &[],
                     &updates,
                     &cancel,
                     SendConsentPolicy::Caller,

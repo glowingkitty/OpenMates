@@ -125,7 +125,14 @@ async function openFullscreen(page: any, embedLocator: any): Promise<any> {
 		if (await visibleOverlayCount() > visibleOverlayCountBeforeOpen) return;
 		await dismissVisibleNotifications(page);
 		await embedLocator.scrollIntoViewIfNeeded();
-		await embedLocator.click();
+		// Assistant-message result previews (UnifiedEmbedPreview `isChatResult`)
+		// ignore body clicks by design; their Details button opens fullscreen.
+		const expandButton = embedLocator.getByTestId('result-preview-expand').first();
+		if (await expandButton.isVisible({ timeout: 250 }).catch(() => false)) {
+			await expandButton.click();
+		} else {
+			await embedLocator.click();
+		}
 		await expect(async () => {
 			expect(await visibleOverlayCount()).toBeGreaterThan(visibleOverlayCountBeforeOpen);
 		}).toPass({ timeout: 1000 });

@@ -1,7 +1,14 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+import { messagePreview, RUST_UPDATES_POLICY, rustUpdatesPolicy } from "./chatSyncUpdatesPolicy";
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
-import { clearQueuedProcessingForMessage, hasQueuedProcessing } from "./queuedMessageLifecycle";
+import {
+  MESSAGE_PREP_IN_RUST,
+  messagePrepOps,
+  prepareBatchMessagesForStorage,
+  preparePhase1bMessages,
+} from "./chatSyncMessagePrep";
+import { messagesVersionRust, messagesVersionTs, VERSION_PLANS_IN_RUST } from "./chatSyncVersionPlans";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey } from "./encryption/MessageEncryptor";
 
@@ -41,7 +48,6 @@ import type {
   OfflineSyncCompletePayload,
   Chat,
   Message,
-  MessageStatus,
 } from "../types/chat";
 import type { EmbedType } from "../message_parsing/types";
 
@@ -54,23 +60,6 @@ const RECENT_ASSISTANT_BATCH_NOTIFICATION_WINDOW_SECONDS = 5 * 60;
  */
 function yieldToMainThread(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-function buildBatchAssistantMessagePreview(message: Message): string {
-  const plainText = (message.content || "")
-    .replace(/#{1,6}\s+/g, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
-    .replace(/`{1,3}[^`]*`{1,3}/g, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
-    .replace(/>\s+/g, "")
-    .replace(/[-*+]\s+/g, "")
-    .replace(/\n+/g, " ")
-    .trim();
-
-  if (!plainText) return "New AI response ready";
-  return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText;
 }
 
 async function notifyBackgroundAssistantBatchMessage(
@@ -88,7 +77,7 @@ async function notifyBackgroundAssistantBatchMessage(
   );
   if (!assistantMessage) return;
 
-  unreadMessagesStore.incrementUnread(chatId);
+  unreadMessagesStore.incrementUnread(chatId, assistantMessage.message_id);
 
   let chatTitle = chat.title || "New message";
   if (!chat.title && chat.encrypted_title) {
@@ -112,7 +101,9 @@ async function notifyBackgroundAssistantBatchMessage(
   notificationStore.chatMessage(
     chatId,
     chatTitle,
-    buildBatchAssistantMessagePreview(assistantMessage),
+    RUST_UPDATES_POLICY
+      ? await (await rustUpdatesPolicy()).messagePreview(assistantMessage.content)
+      : messagePreview(assistantMessage.content),
     undefined,
     assistantMessage.category || chat.category || undefined,
   );
@@ -201,7 +192,7 @@ export async function handleInitialSyncResponseImpl(
           encrypted_chat_key: serverChat.encrypted_chat_key, // Add encrypted chat key for decryption
           encrypted_icon: serverChat.encrypted_icon, // Add encrypted icon for decryption
           encrypted_category: serverChat.encrypted_category, // Add encrypted category for decryption
-          encrypted_quick_tip_slugs: serverChat.encrypted_quick_tip_slugs,
+          encrypted_recommendations: serverChat.encrypted_recommendations,
           encrypted_auto_speak_response: serverChat.encrypted_auto_speak_response,
           encrypted_focus_phase_state: serverChat.encrypted_focus_phase_state,
           encrypted_shared_short_url: serverChat.encrypted_shared_short_url,
@@ -736,39 +727,9 @@ export async function handlePhase1bChatContentImpl(
 
       if (!chatData.messages || chatData.messages.length === 0) continue;
 
-      const preparedMessages: Message[] = [];
-      for (const msgData of chatData.messages) {
-        let msg = msgData;
-        if (typeof msgData === "string") {
-          try {
-            msg = JSON.parse(msgData);
-          } catch {
-            continue;
-          }
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const msgObj = msg as any;
-        if (!msgObj.message_id && msgObj.id) {
-          msgObj.message_id = msgObj.id;
-        }
-        if (!msgObj.message_id) continue;
-        if (!msgObj.chat_id) msgObj.chat_id = chatData.chat_id;
-        if (msgObj.queue_dispatch_status === "paused") {
-          clearQueuedProcessingForMessage(chatData.chat_id, msgObj.message_id);
-          msgObj.status = "delivered";
-          msgObj.queue_mode = undefined;
-        } else if (hasQueuedProcessing(chatData.chat_id, msgObj.message_id) ||
-            msgObj.queue_dispatch_status === "processing") {
-          msgObj.status = "delivered";
-          msgObj.queue_mode = undefined;
-          msgObj.queue_dispatch_status = "processing";
-        } else if (msgObj.queue_dispatch_status === "queued" &&
-            (msgObj.queue_dispatch_mode === "follow_up" || msgObj.queue_dispatch_mode === "steer")) {
-          msgObj.status = "queued";
-          msgObj.queue_mode = msgObj.queue_dispatch_mode;
-        } else if (!msgObj.status) msgObj.status = "delivered";
-        preparedMessages.push(msgObj as Message);
-      }
+      const preparedMessages: Message[] = MESSAGE_PREP_IN_RUST
+        ? await (await messagePrepOps()).preparePhase1bMessages(chatData.messages, chatData.chat_id)
+        : preparePhase1bMessages(chatData.messages, chatData.chat_id);
 
       if (preparedMessages.length > 0) {
         const messageFilter = await filterPersistableSyncedMessagesWithSkipped(
@@ -791,12 +752,11 @@ export async function handlePhase1bChatContentImpl(
       if (chatData.server_message_count > 0) {
         const existingChat = await chatDB.getChat(chatData.chat_id);
         if (existingChat) {
-          const updatedV = Math.max(
-            existingChat.messages_v || 0,
-            chatData.server_message_count,
-          );
-          if (updatedV > (existingChat.messages_v || 0)) {
-            await chatDB.addChat({ ...existingChat, messages_v: updatedV }, undefined, { isFromSync: true });
+          const advance = VERSION_PLANS_IN_RUST
+            ? await messagesVersionRust(existingChat.messages_v, [chatData.server_message_count])
+            : messagesVersionTs(existingChat.messages_v, [chatData.server_message_count]);
+          if (advance.advanced) {
+            await chatDB.addChat({ ...existingChat, messages_v: advance.messagesV }, undefined, { isFromSync: true });
           }
         }
       }
@@ -1110,93 +1070,9 @@ export async function handleChatContentBatchResponseImpl(
 
     try {
       // Parse messages — server sends JSON-serialized strings from sync cache/Directus
-      // Same pattern as prepareMessagesForStorage in phased sync
-      const preparedMessages: Message[] = [];
-      for (const messageData of rawMessages) {
-        let message: Record<string, unknown>;
-
-        // Parse JSON string if needed (server sends JSON strings from sync cache)
-        if (typeof messageData === "string") {
-          try {
-            message = JSON.parse(messageData);
-          } catch (e) {
-            console.error(
-              `[ChatSyncService:CoreSync] Failed to parse message JSON for chat ${chatId}:`,
-              e,
-            );
-            continue;
-          }
-        } else {
-          message = messageData as unknown as Record<string, unknown>;
-        }
-
-        // Normalize message_id: use 'id' field as fallback (Directus UUID)
-        const messageId = (message.message_id ||
-          message.client_message_id ||
-          message.id) as string | undefined;
-        if (!messageId) {
-          console.error(
-            `[ChatSyncService:CoreSync] Message missing message_id after parsing, skipping:`,
-            message,
-          );
-          continue;
-        }
-
-        if (message.queue_dispatch_status === "paused") {
-          clearQueuedProcessingForMessage(chatId, messageId);
-        }
-        const hasProcessingFence = message.queue_dispatch_status !== "paused" &&
-          hasQueuedProcessing(chatId, messageId);
-
-        const messageToSave: Message = {
-          message_id: messageId,
-          chat_id: (message.chat_id as string) || chatId,
-          role: (message.role as Message["role"]) || "user",
-          hashed_user_id: message.hashed_user_id as string | undefined,
-          created_at: message.created_at as number,
-          status: hasProcessingFence ||
-            message.queue_dispatch_status === "processing" || message.queue_dispatch_status === "paused"
-            ? "delivered"
-            : message.queue_dispatch_status === "queued" &&
-            (message.queue_dispatch_mode === "follow_up" || message.queue_dispatch_mode === "steer")
-              ? "queued"
-                : (message.status as MessageStatus) || "delivered",
-          client_message_id: message.client_message_id as string | undefined,
-          user_message_id: message.user_message_id as string | undefined,
-          queue_revision: message.queue_revision as number | undefined,
-          queue_mode: !hasProcessingFence && message.queue_dispatch_status === "queued" &&
-            (message.queue_dispatch_mode === "follow_up" || message.queue_dispatch_mode === "steer")
-              ? message.queue_dispatch_mode : undefined,
-          queue_dispatch_status: hasProcessingFence
-            ? "processing" : message.queue_dispatch_status as "queued" | "processing" | "paused" | null | undefined,
-          queue_dispatch_mode: message.queue_dispatch_mode as "follow_up" | "steer" | null | undefined,
-          queue_dispatch_task_id: message.queue_dispatch_task_id as string | null | undefined,
-          // Encrypted fields (zero-knowledge architecture)
-          encrypted_content: message.encrypted_content as string,
-          encrypted_sender_name: message.encrypted_sender_name as
-            | string
-            | undefined,
-          encrypted_category: message.encrypted_category as string | undefined,
-          encrypted_model_name: message.encrypted_model_name as
-            | string
-            | undefined,
-          encrypted_thinking_content: message.encrypted_thinking_content as
-            | string
-            | undefined,
-          encrypted_thinking_signature: message.encrypted_thinking_signature as
-            | string
-            | undefined,
-          has_thinking: message.has_thinking as boolean | undefined,
-          thinking_token_count: message.thinking_token_count as
-            | number
-            | undefined,
-          // PII mappings for client-side restoration of anonymized data
-          encrypted_pii_mappings: message.encrypted_pii_mappings as
-            | string
-            | undefined,
-        };
-        preparedMessages.push(messageToSave);
-      }
+      const preparedMessages: Message[] = MESSAGE_PREP_IN_RUST
+        ? await (await messagePrepOps()).prepareBatchMessagesForStorage(rawMessages, chatId)
+        : prepareBatchMessagesForStorage(rawMessages, chatId);
 
       if (preparedMessages.length === 0) {
         console.debug(
@@ -1230,11 +1106,9 @@ export async function handleChatContentBatchResponseImpl(
         const versionInfo = payload.versions_by_chat_id?.[chatId];
         if (versionInfo && versionInfo.messages_v !== undefined) {
           const localMessageCount = await chatDB.getMessageCountForChat(chatId);
-          const updatedMessagesV = Math.max(
-            chat.messages_v || 0,
-            versionInfo.messages_v,
-            localMessageCount,
-          );
+          const updatedMessagesV = (VERSION_PLANS_IN_RUST
+            ? await messagesVersionRust(chat.messages_v, [versionInfo.messages_v, localMessageCount])
+            : messagesVersionTs(chat.messages_v, [versionInfo.messages_v, localMessageCount])).messagesV;
           console.info(
             `[ChatSyncService:CoreSync] Batch response: Updating messages_v for chat ${chatId}: ` +
               `${chat.messages_v} → ${updatedMessagesV} (server_message_count: ${versionInfo.server_message_count})`,
@@ -1352,9 +1226,12 @@ export async function handleOfflineSyncCompleteImpl(
   console.info(
     "[ChatSyncService:CoreSync] Received offline_sync_complete",
   );
-  const result = consumeOfflineSyncBatch(payload.batch_id, payload.successful_change_ids ?? [], {
-    processed: payload.processed, errors: payload.errors, conflicts: payload.conflicts,
-  }, true);
+  const receiptCounts = { processed: payload.processed, errors: payload.errors, conflicts: payload.conflicts };
+  // Opt-in shared Rust core build: the receipt is decided in the Worker `sendPrep` unit.
+  const result = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+    ? await (await import("./rustCore/send/rustOutbox")).rustConsumeOfflineSyncBatch(
+      payload.batch_id, payload.successful_change_ids ?? [], receiptCounts)
+    : consumeOfflineSyncBatch(payload.batch_id, payload.successful_change_ids ?? [], receiptCounts, true);
   if (!result) return;
   chatSyncActivity.completeOffline();
   const finish = (allowReplay: boolean) => {

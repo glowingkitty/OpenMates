@@ -20,9 +20,6 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("../../../../data/modelsMetadata", () => ({ modelsMetadata: [] }));
 vi.mock("../../../../data/matesMetadata", () => ({ matesMetadata: {} }));
 vi.mock("../../../../data/providersMetadata", () => ({ providersMetadata: {} }));
-vi.mock("../../../../stores/appSettingsMemoriesStore", () => ({
-  appSettingsMemoriesStore: { subscribe: () => () => {} },
-}));
 vi.mock("../../../../stores/personalDocumentMemories", () => ({
   currentPersonalDocumentMemories: () => [],
 }));
@@ -34,23 +31,12 @@ vi.mock("../../../../stores/appSkillsStore", () => ({
         openmates: {
           id: "openmates",
           skills: [{ id: "share-usecase" }],
-          focus_modes: [],
-          settings_and_memories: [],
+          focus_modes: []
         },
         maps: {
           id: "maps",
           skills: [],
           focus_modes: [],
-          settings_and_memories: [
-            {
-              id: "favorite_places",
-              schema_definition: {
-                properties: {
-                  name: { type: "string" },
-                },
-              },
-            },
-          ],
         },
       },
     }),
@@ -373,7 +359,7 @@ describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
     expect(billingText?.marks?.[0]?.attrs?.href).toBe("#message=billing%20settings");
   });
 
-  it("normalizes valid raw settings memory links before markdown parsing", () => {
+  it("falls back for raw links to removed typed memory create routes", () => {
     const doc = parseMarkdownToTiptap(
       '[Save Kottbusser Tor](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor"})',
     );
@@ -382,9 +368,7 @@ describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
       (node: { text?: string }) => node.text === "Save Kottbusser Tor",
     );
 
-    expect(linkText?.marks?.[0]?.attrs?.href).toBe(
-      "#settings/apps/maps/memories/favorite_places/create?prefill=%7B%22name%22%3A%22Kottbusser%20Tor%22%7D",
-    );
+    expect(linkText?.marks?.[0]?.attrs?.href).toBe("#message=Save%20Kottbusser%20Tor");
   });
 
   it("falls back when raw settings memory links include unsupported prefill fields", () => {

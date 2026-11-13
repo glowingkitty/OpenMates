@@ -110,9 +110,13 @@ def test_selected_schema_exactness_aliases_and_legacy_artifact_separation():
     prompt = build_authored_result_instructions(["hotel", "events.event"], apps)
     assert prompt is not None
     schema = json.loads(prompt.split("Selected result schema:\n", 1)[1])
-    assert {row["properties"]["kind"]["const"] for row in schema["properties"]["items"]["items"]["oneOf"]} == {
+    variants = schema["properties"]["items"]["items"]["oneOf"]
+    assert {row["properties"]["kind"]["const"] for row in variants[:-1]} == {
         "travel.stay", "events.event",
     }
+    # The reuse form for an existing card of this chat is always the last variant.
+    assert variants[-1] == {"$ref": "#/$defs/existing_card_item"}
+    assert schema["$defs"]["existing_card_item"]["required"] == ["id", "existing"]
     assert "maps.place" not in prompt and "news.website" not in prompt
     assert prompt.count("Selected result schema:") == 1
     assert "Never invent embed refs" in prompt and "draft only" in prompt
@@ -129,8 +133,11 @@ def test_selected_card_corrections_preserve_attribution_without_edit_or_tool_aut
     assert guidance is not None
     schema = json.loads(guidance.split("Selected result schema:\n", 1)[1])
     assert [variant["properties"]["kind"]["const"]
-            for variant in schema["properties"]["items"]["items"]["oneOf"]] == ["events.event"]
-    assert "create an updated card using this same selected openmates_embeds envelope" in guidance
+            for variant in schema["properties"]["items"]["items"]["oneOf"][:-1]] == ["events.event"]
+    assert "Never create a second card for an item that already has a card in this chat" in guidance
+    assert '{"id": "<local id>", "existing": "<its embed_ref>"}' in guidance
+    assert "Changing an existing card's facts is not supported yet" in guidance
+    assert "create an updated card" not in guidance
     assert "reference data only" in guidance and "never copy internal app_id/skill_id envelopes" in guidance
     assert "simulate a skill result" in guidance
     assert "does not edit or replace the stored original" in guidance
@@ -203,16 +210,20 @@ def test_invent_a_recipe_request_is_an_explicit_draft_card_request():
     assert "never only a prose copy" in prompt
 
 
-# contract-test: supporting surface=rest_api assertions=authored-results.creation.relevant-and-independent
+# contract-test: supporting surface=rest_api assertions=authored-results.creation.relevant-and-independent,authored-results.streaming.progressive-cards
 def test_researched_event_lists_are_answered_with_one_card_per_item_and_a_plain_intro():
     prompt = build_authored_result_instructions(["events.event"], _apps("events.event"))
     assert prompt is not None
     assert "the cards are the answer: create one card per item" in prompt
     assert "never only a prose or bullet list" in prompt
-    assert "plain-language sentence saying what the cards show" in prompt
+    assert "plain-language sentences of intro saying what the cards show" in prompt
     assert "Do not invent facts" in prompt
-    # Cards first; the later per-item list must not link the source page's website embed.
-    assert "Then add the openmates_embeds block first" in prompt
+    # Intro prose before the block, then cards before the later per-item list,
+    # which must not link the source page's website embed.
+    assert "Before the block, write one or two short" in prompt
+    assert "never start the answer with the block" in prompt
+    assert "add the openmates_embeds block before any per-item text" in prompt
+    assert "each item on its own line" in prompt
     assert "later per-item text names carded items in plain words" in prompt
     assert "link a website embed only for a page without a card" in prompt
 
@@ -220,13 +231,15 @@ def test_researched_event_lists_are_answered_with_one_card_per_item_and_a_plain_
 def test_event_cards_get_grounded_paragraph_image_and_venue_guidance_only_for_events():
     prompt = build_authored_result_instructions(["events.event"], _apps("events.event"))
     assert prompt is not None
-    assert "4-6 sentences, about 60-120 words" in prompt
+    assert "two or three sentences (about 30-60 words)" in prompt
+    assert "4-6 sentences" not in prompt and "60-120 words" not in prompt
     assert "image search to find an official logo" in prompt
-    assert "omit image_url when no search result supplies one" in prompt
+    assert "Use a search image only when it clearly depicts that event" in prompt
+    assert "otherwise omit image_url, as also when no search result supplies one" in prompt
     assert "never write lat/lon yourself" in prompt
     assert "run one more targeted web search for its next edition" in prompt
     recipe = build_authored_result_instructions(["nutrition.recipe"], _apps("nutrition.recipe"))
-    assert recipe is not None and "60-120 words" not in recipe
+    assert recipe is not None and "30-60 words" not in recipe
 
 
 def test_public_criteria_and_catalogue_remain_compact_without_detail_schemas():
@@ -291,7 +304,7 @@ async def test_tv_relevance_selects_only_matching_movie_and_series_schemas_witho
     if selected_kinds:
         schema = json.loads(guidance.split("Selected result schema:\n", 1)[1])
         assert {variant["properties"]["kind"]["const"]
-                for variant in schema["properties"]["items"]["items"]["oneOf"]} == set(selected_kinds)
+                for variant in schema["properties"]["items"]["items"]["oneOf"][:-1]} == set(selected_kinds)
         assert "travel.stay" not in guidance
         assert len(calls) == 2
         assert {question["instructions"]["candidate_id"] for key, question in calls[1]["questions"].items()

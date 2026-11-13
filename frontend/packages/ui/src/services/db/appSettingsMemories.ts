@@ -13,6 +13,15 @@
 interface ChatDatabaseInstance {
   db: IDBDatabase | null;
   APP_SETTINGS_MEMORIES_STORE_NAME: string;
+  /**
+   * Opens a transaction through the database's own gate. While a schema repair is
+   * running, `db` is the old handle without all stores; the gate waits for the
+   * repaired one. Never call `db.transaction` directly in this module.
+   */
+  getTransaction(
+    storeNames: string | string[],
+    mode: IDBTransactionMode,
+  ): Promise<IDBTransaction>;
 }
 
 /**
@@ -91,7 +100,7 @@ export async function storeAppSettingsMemoriesEntries(
   }
 
   try {
-    const transaction = dbInstance.db.transaction(
+    const transaction = await dbInstance.getTransaction(
       [dbInstance.APP_SETTINGS_MEMORIES_STORE_NAME],
       "readwrite",
     );
@@ -254,7 +263,7 @@ export async function getAppSettingsMemoriesEntry(
     throw new Error("[ChatDatabase] Database not initialized");
 
   try {
-    const transaction = dbInstance.db.transaction(
+    const transaction = await dbInstance.getTransaction(
       [dbInstance.APP_SETTINGS_MEMORIES_STORE_NAME],
       "readonly",
     );
@@ -291,7 +300,7 @@ export async function getAllAppSettingsMemoriesEntries(
     throw new Error("[ChatDatabase] Database not initialized");
 
   try {
-    const transaction = dbInstance.db.transaction(
+    const transaction = await dbInstance.getTransaction(
       [dbInstance.APP_SETTINGS_MEMORIES_STORE_NAME],
       "readonly",
     );
@@ -329,7 +338,7 @@ export async function getAppSettingsMemoriesEntriesByApp(
     throw new Error("[ChatDatabase] Database not initialized");
 
   try {
-    const transaction = dbInstance.db.transaction(
+    const transaction = await dbInstance.getTransaction(
       [dbInstance.APP_SETTINGS_MEMORIES_STORE_NAME],
       "readonly",
     );
@@ -367,7 +376,7 @@ export async function deleteAppSettingsMemoriesEntry(
     throw new Error("[ChatDatabase] Database not initialized");
 
   try {
-    const transaction = dbInstance.db.transaction(
+    const transaction = await dbInstance.getTransaction(
       [dbInstance.APP_SETTINGS_MEMORIES_STORE_NAME],
       "readwrite",
     );
@@ -420,7 +429,7 @@ export async function deleteAppSettingsMemoriesEntriesByApp(
       return 0;
     }
 
-    const transaction = dbInstance.db.transaction(
+    const transaction = await dbInstance.getTransaction(
       [dbInstance.APP_SETTINGS_MEMORIES_STORE_NAME],
       "readwrite",
     );
@@ -471,7 +480,7 @@ export async function getAppSettingsMemoriesMetadataKeys(
     throw new Error("[ChatDatabase] Database not initialized");
 
   try {
-    const transaction = dbInstance.db.transaction(
+    const transaction = await dbInstance.getTransaction(
       [dbInstance.APP_SETTINGS_MEMORIES_STORE_NAME],
       "readonly",
     );
@@ -526,7 +535,7 @@ export async function getAppSettingsMemoriesEntryCounts(
     throw new Error("[ChatDatabase] Database not initialized");
 
   try {
-    const transaction = dbInstance.db.transaction(
+    const transaction = await dbInstance.getTransaction(
       [dbInstance.APP_SETTINGS_MEMORIES_STORE_NAME],
       "readonly",
     );

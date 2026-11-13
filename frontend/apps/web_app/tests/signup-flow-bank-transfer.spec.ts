@@ -52,6 +52,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { mockCloudServerStatus, mockEmptyBuyerAddress } = require('./helpers/cloud-server-status');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const consoleLogs: string[] = [];
@@ -113,6 +114,8 @@ test('signup flow: bank transfer option available at payment step, Continue to a
 
 	// Force bank_transfer_available=true with Stripe provider (hardcoded to avoid
 	// route.fetch HTML errors from GHA's outbound IP being rate-limited).
+	await mockCloudServerStatus(page);
+	await mockEmptyBuyerAddress(page);
 	await page.route('**/v1/payments/config**', async (route: any) => {
 		await route.fulfill({
 			status: 200,
@@ -278,6 +281,8 @@ test('signup flow: bank transfer switch button appears in Stripe payment form an
 	await archiveExistingScreenshots(log);
 
 	// Mock /config with bank_transfer_available=true and stripe provider
+	await mockCloudServerStatus(page);
+	await mockEmptyBuyerAddress(page);
 	await page.route('**/v1/payments/config**', async (route: any) => {
 		await route.fulfill({
 			status: 200,

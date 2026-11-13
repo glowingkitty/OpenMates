@@ -43,7 +43,8 @@ for (const { name, width, height } of [
     await scroller.hover();
     await page.mouse.wheel(0, height);
     await expect.poll(() => scroller.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
-    await expect.poll(() => composer.evaluate(element => element.getBoundingClientRect().top)).toBeCloseTo(composerBeforeScroll.y, 0);
+    // The composer must not scroll with the page; allow under 2px for layout settling (a scrolled composer would move by hundreds of pixels).
+    await expect.poll(() => composer.evaluate((element, before) => Math.abs(element.getBoundingClientRect().top - before), composerBeforeScroll.y)).toBeLessThan(2);
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
     await page.getByTestId('landing-compose').click();
     const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();

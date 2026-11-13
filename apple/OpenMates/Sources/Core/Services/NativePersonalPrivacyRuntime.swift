@@ -244,20 +244,6 @@ final class NativePersonalPrivacyRuntime {
         return result
     }
 
-    func verifyQueuedRevision(_ request: ChatQueuedRevisionRequest, fallbackContent: String,
-                              mappings: [PIIMapping], socket: WebSocketManager) async throws {
-        var receipt = receipts[request.clientRequestID]
-        if receipt?.scope != Self.scope(socket: socket) || receipt?.mutation != PIIPrivacySettingsStore.shared.privacyMutationRevision
-            || Date().timeIntervalSince(receipt?.checkedAt ?? .distantPast) >= 25 {
-            receipt = try await freshForQueuedRevision(requestID: request.clientRequestID, socket: socket)
-        }
-        guard let receipt else { throw NativePersonalPrivacyError.staleScope }
-        let payload = try request.payload(), content = payload["content"] as? String ?? fallbackContent
-        let checked = try filter(content, receipt: receipt, socket: socket, existingMappings: mappings,
-            excludedOriginals: exclusionsByTurn[request.clientRequestID]?.values(for: receipt.scope, now: Date()) ?? [])
-        guard checked.content == content else { throw NativePersonalPrivacyError.changedAfterPreparation }
-    }
-
     func requireReceiptCurrent(turnID: String, socket: WebSocketManager) throws {
         guard let receipt = receipts[turnID] else { throw NativePersonalPrivacyError.staleScope }
         try Self.require(receipt.scope, socket: socket)

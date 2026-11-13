@@ -883,6 +883,7 @@ enum EmbedType: String, CaseIterable {
     case codeCode = "code-code"
     case codeNotebook = "code-notebook"
     case codeApplication = "code-application"
+    case codeTestResult = "code-test-result"
     case designIconResult = "design-icon-result"
     case docsDoc = "docs-doc"
     case diagramsMermaid = "diagrams-mermaid"
@@ -922,6 +923,8 @@ enum EmbedType: String, CaseIterable {
     case healthAppointment = "health-appointment"
     case homeSearch = "app:home:search"
     case homeListing = "home-listing"
+    case jobsSearch = "app:jobs:search"
+    case jobsResult = "jobs-job-result"
     case hostingSearch = "app:hosting:search_domains"
     case hostingDomain = "hosting-domain"
     case imagesSearch = "app:images:search"
@@ -990,6 +993,7 @@ enum EmbedType: String, CaseIterable {
         case "repo": return .codeRepo
         case "notebook": return .codeNotebook
         case "application": return .codeApplication
+        case "test_result": return .codeTestResult
         case "code-block", "code_embed": return .codeCode
         case "icon_result": return .designIconResult
         case "document": return .docsDoc
@@ -1041,7 +1045,7 @@ enum EmbedType: String, CaseIterable {
     var isComposite: Bool {
         switch self {
         case .codeRepoSearch, .designSearchIcons, .electronicsSearch,
-              .businessCompanyFinancials, .eventsSearch, .healthSearch, .homeSearch, .hostingSearch, .imagesSearch,
+              .businessCompanyFinancials, .eventsSearch, .healthSearch, .homeSearch, .hostingSearch, .imagesSearch, .jobsSearch,
               .fitnessSearchLocations, .fitnessSearchClasses,
               .models3dSearch,
               .mailSearch, .mapsSearch, .newsSearch, .nutritionSearch,
@@ -1066,6 +1070,7 @@ enum EmbedType: String, CaseIterable {
         case .fitnessSearchClasses: return .fitnessClass
         case .healthSearch: return .healthAppointment
         case .homeSearch: return .homeListing
+        case .jobsSearch: return .jobsResult
         case .hostingSearch: return .hostingDomain
         case .imagesSearch: return .imagesImageResult
         case .mapsSearch: return .mapsPlace
@@ -1089,7 +1094,7 @@ enum EmbedType: String, CaseIterable {
         let raw = rawValue
         guard raw.hasPrefix("app:") else {
             switch self {
-            case .codeRepo, .codeCode, .codeNotebook, .codeApplication: return "code"
+            case .codeRepo, .codeCode, .codeNotebook, .codeApplication, .codeTestResult: return "code"
             case .designIconResult: return "design"
             case .docsDoc: return "docs"
             case .diagramsMermaid: return "diagrams"
@@ -1112,6 +1117,7 @@ enum EmbedType: String, CaseIterable {
             case .eventsEvent: return "events"
             case .healthAppointment: return "health"
             case .homeListing: return "home"
+            case .jobsResult: return "jobs"
             case .hostingDomain: return "hosting"
             case .nutritionRecipe: return "nutrition"
             case .shoppingProduct: return "shopping"
@@ -1140,6 +1146,7 @@ enum EmbedType: String, CaseIterable {
         case .codeCode: return "Code"
         case .codeNotebook: return "Notebook"
         case .codeApplication: return "Application"
+        case .codeTestResult: return "Test result"
         case .codeGetDocs: return "Docs"
         case .designSearchIcons: return "Icon Search"
         case .designIconResult: return "Icon"
@@ -1185,6 +1192,8 @@ enum EmbedType: String, CaseIterable {
         case .healthAppointment: return "Appointment"
         case .homeSearch: return "Listings"
         case .homeListing: return "Listing"
+        case .jobsSearch: return "Search jobs"
+        case .jobsResult: return "Job listing"
         case .hostingSearch: return "Search domains"
         case .hostingDomain: return "Domain"
         case .nutritionSearch: return "Recipes"

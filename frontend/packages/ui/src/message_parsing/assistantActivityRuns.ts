@@ -52,6 +52,9 @@ export function splitAssistantActivityRuns(value: unknown): AssistantActivityRun
     nodes = [];
   };
   for (const original of doc.content) {
+    // Hidden answer-body placeholders (bodyEmbedPolicy.ts) render nothing and
+    // must not split a run or open an empty content run.
+    if (original.type === 'embedPreviewLarge' && (original.attrs as Record<string, unknown> | undefined)?.bodyHidden === true) continue;
     let node = original;
     const items = activityItems(node);
     if (items) {

@@ -5,6 +5,7 @@
     Design reference: Figma node 5816:61037.
 -->
 <script lang="ts">
+    import { formatTokensPerCredit } from '../../utils/tokenRateFormat';
     import { onMount } from 'svelte';
     import { resolveTemporaryModelPrice } from '../../utils/temporaryModelPricing';
     import { text } from '@repo/ui';
@@ -120,7 +121,7 @@
     }
 
     function priceValue(tokensPerCredit: number): string {
-        return `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${tokensPerCredit} ${$text('settings.ai_ask.ai_ask_settings.tokens')}`;
+        return `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${formatTokensPerCredit(tokensPerCredit)} ${$text('settings.ai_ask.ai_ask_settings.tokens')}`;
     }
 </script>
 

@@ -494,7 +494,17 @@ pub fn workflow_file_name(title: &str) -> String {
 #[cfg(feature="workflow-yaml")]
 pub fn serialize_workflow_file(document:&WorkflowFileDocument)->Result<(String,String)>{
     validate_workflow_file(document)?;
-    let source=serde_yaml::to_string(document).map_err(|_|Error::Protocol)?;
+    // npm exports omit an unset node title; drop `title: null` here (not in the typed
+    // struct, whose JSON wire form must keep it) so exported files match byte-for-key.
+    let mut tree=serde_yaml::to_value(document).map_err(|_|Error::Protocol)?;
+    if let Some(nodes)=tree.get_mut("workflow").and_then(|w|w.get_mut("graph")).and_then(|g|g.get_mut("nodes")).and_then(|n|n.as_sequence_mut()){
+        for node in nodes{
+            if let Some(map)=node.as_mapping_mut(){
+                if map.get("title").is_some_and(serde_yaml::Value::is_null){map.remove("title");}
+            }
+        }
+    }
+    let source=serde_yaml::to_string(&tree).map_err(|_|Error::Protocol)?;
     if source.len()>WORKFLOW_FILE_MAX_BYTES{return Err(Error::Invalid("Workflow export exceeds the file size limit."))}
     Ok((workflow_file_name(&document.workflow.title),source))
 }

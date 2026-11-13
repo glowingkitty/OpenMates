@@ -25,6 +25,13 @@ import {
   computeKeyFingerprint4Bytes,
 } from "../cryptoService";
 import { unwrapAnonymousChatKey } from "../anonymousChatKeyWrapping";
+import {
+  mirrorKeyOffer,
+  mirrorKeyPersisted,
+  mirrorKeyRemove,
+  mirrorKeyReset,
+  mirrorKeysClear,
+} from "./chatKeyStateMirror";
 import { clearDecryptionFailureCache } from "../db/decryptionFailureCache";
 import { invalidateRecentChatWindow } from "../recentChatWindowCache";
 
@@ -720,6 +727,7 @@ export class ChatKeyManager {
     // Step 3: Persist to IndexedDB (if persister is registered)
     if (this.persistEncryptedChatKeyFn) {
       await this.persistEncryptedChatKeyFn(chatId, encryptedChatKey);
+      if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") mirrorKeyPersisted(chatId);
       console.info(
         `[ChatKeyManager] ✅ Created and persisted key for chat ${chatId}`,
       );
@@ -921,6 +929,7 @@ export class ChatKeyManager {
     this.states.set(chatId, "unloaded");
     this.keys.delete(chatId);
     this.provenances.delete(chatId);
+    if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") mirrorKeyReset(chatId);
     this.loadingPromises.delete(chatId);
     return this.loadKeyFromDB(chatId);
   }
@@ -1084,6 +1093,9 @@ export class ChatKeyManager {
             timestamp: Date.now(),
             keyFingerprint: computeKeyFingerprint(chatKey),
           });
+          if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+            mirrorKeyOffer(chatId, chatKey, source, false);
+          }
         }
         return true; // Same key, no-op
       }
@@ -1145,6 +1157,9 @@ export class ChatKeyManager {
     const wasReady = this.states.get(chatId) === "ready";
     this.keys.set(chatId, chatKey);
     this.states.set(chatId, "ready");
+    if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
+      mirrorKeyOffer(chatId, chatKey, source, true);
+    }
     this.provenances.set(chatId, {
       source,
       timestamp: Date.now(),
@@ -1386,6 +1401,7 @@ export class ChatKeyManager {
     this.states.delete(chatId);
     this.provenances.delete(chatId);
     this.loadingPromises.delete(chatId);
+    if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") mirrorKeyRemove(chatId);
     // Reject any pending operations
     const queue = this.pendingOps.get(chatId);
     if (queue) {
@@ -1474,6 +1490,7 @@ export class ChatKeyManager {
       }
     }
 
+    if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") mirrorKeysClear();
     this.keys.clear();
     this.states.clear();
     this.provenances.clear();

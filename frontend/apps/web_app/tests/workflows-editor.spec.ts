@@ -21,7 +21,7 @@ test.describe('Workflows editor', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page, () => {}, async () => {});
 		await page.setViewportSize({ width: 390, height: 844 });
-		await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
 		const title = `Workflow input regression ${Date.now()}`;
 		let workflow: { id: string; title: string } | undefined;
 		// Authoring inference is deterministic here; the created definition still
@@ -125,7 +125,8 @@ test.describe('Workflows editor', () => {
 		const { workflow } = await response.json();
 		try {
 			await page.setViewportSize({ width: 390, height: 844 });
-			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+			await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
+			await page.reload({ waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('create-blank-workflow')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-input-textarea')).toHaveAttribute(
 				'placeholder',
@@ -324,10 +325,10 @@ test.describe('Workflows editor', () => {
 			version: 2, trigger_node_id: null,
 			nodes: [
 				{ id: 'weather', type: 'app_skill_action', config: { app_id: 'weather', skill_id: 'forecast', input: { location: 'Berlin', latitude: 52.52, longitude: 13.405, days: 1 } } },
-				{ id: 'events', type: 'app_skill_action', config: { app_id: 'events', skill_id: 'search', input: { requests: [{ query: 'Design events in Berlin' }] } } },
-				{ id: 'message', type: 'send_chat_message', config: { title: 'Events report', message: 'Events: {{steps.events.results}}' } }
+				{ id: 'search', type: 'app_skill_action', config: { app_id: 'web', skill_id: 'search', input: { requests: [{ query: 'Design events in Berlin' }] } } },
+				{ id: 'message', type: 'send_chat_message', config: { title: 'Events report', message: 'Events: {{steps.search.results}}' } }
 			],
-			edges: [{ from: 'weather', to: 'events' }, { from: 'events', to: 'message' }]
+			edges: [{ from: 'weather', to: 'search' }, { from: 'search', to: 'message' }]
 		};
 		const response = await page.request.post(`${apiUrl()}/v1/workflows`, { data: { title: `Send picker regression ${Date.now()}`, graph, enabled: false } });
 		expect(response.ok()).toBe(true);
@@ -335,6 +336,7 @@ test.describe('Workflows editor', () => {
 		try {
 			await page.setViewportSize({ width: 390, height: 844 });
 			await page.goto(getE2EDebugUrl(`/#workflow-id=${workflow.id}&workflow-tab=details`), { waitUntil: 'domcontentloaded' });
+			await page.reload({ waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workspace-detail-title')).toHaveText(workflow.title);
 			const node = page.locator('[data-node-id="message"]');
 			await node.getByTestId('workflow-node-summary').click();
@@ -342,12 +344,12 @@ test.describe('Workflows editor', () => {
 			const sources = node.getByTestId('workflow-variable-sources');
 			await expect(node.getByRole('heading', { name: 'What should the message be?', exact: true })).toHaveCount(0);
 			await expect(sources.locator('[data-source-node-id]')).toHaveCount(2);
-			await body.fill('Here are the events: @events.search.results');
-			await expect(body.locator('.workflow-mention-query')).toHaveText('@events.search.results');
+			await body.fill('Here are the events: @web.search.results');
+			await expect(body.locator('.workflow-mention-query')).toHaveText('@web.search.results');
 			await expect(sources.locator('[data-source-node-id]')).toHaveCount(1);
-			await sources.locator('[data-source-node-id="events"]').click();
-			await node.getByTestId('workflow-ai-suggestions').locator('[data-variable-reference="$nodes.events.output.results"]').click();
-			await expect(body.locator('.generic-mention')).toHaveText('@events.search.results');
+			await sources.locator('[data-source-node-id="search"]').click();
+			await node.getByTestId('workflow-ai-suggestions').locator('[data-variable-reference="$nodes.search.output.results"]').click();
+			await expect(body.locator('.generic-mention')).toHaveText('@web.search.results');
 			await expect(body.locator('.workflow-mention-icon')).toBeVisible();
 			await expect(body.locator('.workflow-mention-query')).toHaveCount(0);
 			const savedResponse = page.waitForResponse(response => response.url().endsWith(`/v1/workflows/${workflow.id}`) && response.request().method() === 'PATCH');
@@ -357,10 +359,10 @@ test.describe('Workflows editor', () => {
 			const persisted = await page.request.get(`${apiUrl()}/v1/workflows/${workflow.id}`);
 			expect(persisted.ok()).toBe(true);
 			const saved = (await persisted.json()).workflow.graph.nodes.find((item: { id: string }) => item.id === 'message');
-			expect(saved.config.message.trim()).toBe('Here are the events: {{steps.events.results}}');
+			expect(saved.config.message.trim()).toBe('Here are the events: {{steps.search.results}}');
 			await page.reload({ waitUntil: 'domcontentloaded' });
 			await node.getByTestId('workflow-node-summary').click();
-			await expect(body.locator('.generic-mention')).toHaveText('@events.search.results');
+			await expect(body.locator('.generic-mention')).toHaveText('@web.search.results');
 			await expect(body.locator('.workflow-mention-icon')).toBeVisible();
 		} finally {
 			await page.request.delete(`${apiUrl()}/v1/workflows/${workflow.id}`);

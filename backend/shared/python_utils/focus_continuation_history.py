@@ -202,6 +202,12 @@ def _decode_focus_authority_mapping(raw) -> dict:
     return mapped
 
 
+class FocusContinuationAuthorityError(RuntimeError):
+    """A focus continuation no longer holds the authority it was admitted under."""
+
+    terminal_failure_code = "focus_continuation_unavailable"
+
+
 async def bind_focus_execution(cache, request, execution_id: str) -> None:
     if request.is_focus_mode_continuation:
         raw = await cache.get(f"focus_execution_root:{request.user_id}:{request.chat_id}:{execution_id}")
@@ -210,13 +216,13 @@ async def bind_focus_execution(cache, request, execution_id: str) -> None:
             if (mapped.get('request', {}).get('user_id') != request.user_id
                     or mapped.get('request', {}).get('chat_id') != request.chat_id
                     or mapped.get('request', {}).get('message_id') != request.message_id):
-                raise RuntimeError("Focus continuation authority scope changed")
+                raise FocusContinuationAuthorityError("Focus continuation authority scope changed")
             object.__setattr__(request, '_focus_authority_task_id', mapped['root_id'])
     root_id = focus_authority_root(request, execution_id)
     if root_id == execution_id:
         return
     if await cache.get_active_ai_task(request.chat_id) != root_id:
-        raise RuntimeError("Focus continuation no longer owns admitted authority")
+        raise FocusContinuationAuthorityError("Focus continuation no longer owns admitted authority")
     client = await cache.client
     key = focus_authority_phase_key(request.user_id, request.chat_id, root_id)
     changed = await client.eval(
@@ -226,7 +232,7 @@ async def bind_focus_execution(cache, request, execution_id: str) -> None:
         f"running:{execution_id}",
     )
     if not changed:
-        raise RuntimeError("Focus continuation authority expired")
+        raise FocusContinuationAuthorityError("Focus continuation authority expired")
     envelope = focus_cleanup_envelope(request)
     await cache.set(f"focus_execution_root:{request.user_id}:{request.chat_id}:{execution_id}",
                     json.dumps({"root_id": root_id, "request": envelope}), ttl=FOCUS_AUTHORITY_TTL)

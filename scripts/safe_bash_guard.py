@@ -306,7 +306,11 @@ def check_invocation(command: str, args: list[str], *, cwd: Path = REPO_ROOT) ->
     if subcommand == "push":
         return "BLOCKED: Use sessions.py deploy instead of raw git push. It handles session tracking and deploy coordination."
     if subcommand == "stash":
-        return "BLOCKED: git stash is forbidden. Commit your work via sessions.py deploy instead."
+        return (
+            "BLOCKED: git stash is forbidden. Commit your work via sessions.py deploy instead. "
+            "Leave the changes in your worktree; to publish only part of them use "
+            "sessions.py deploy --only <path>."
+        )
     if subcommand == "reset" and "--hard" in subcommand_args:
         return "BLOCKED: git reset --hard can destroy uncommitted work and is forbidden."
     if subcommand == "clean" and any(
@@ -494,29 +498,51 @@ def check_static_binary(command: str, args: list[str]) -> str | None:
     return _unsafe_local_check_reason(f"unsupported check binary {command}")
 
 
+def _canonical_root() -> Path:
+    """Checkout that owns this worktree, or REPO_ROOT itself outside a worktree.
+
+    A session worktree has a ``.git`` file pointing at ``<root>/.git/worktrees/<name>``.
+    Commands in a worktree routinely ``cd`` to the canonical checkout (for
+    ``scripts/sessions.py``) or to a sibling worktree; those are inside the
+    OpenMates repository, not outside it.
+    """
+    git_entry = REPO_ROOT / ".git"
+    if git_entry.is_file():
+        gitdir = Path(git_entry.read_text(encoding="utf-8").strip().removeprefix("gitdir:").strip())
+        if gitdir.parent.name == "worktrees" and gitdir.parent.parent.name == ".git":
+            return gitdir.parents[2].resolve()
+    return REPO_ROOT
+
+
+def _owning_root(path: Path) -> Path | None:
+    """Return the repository root (this tree or its canonical checkout) containing ``path``."""
+    for root in (REPO_ROOT, _canonical_root()):
+        try:
+            path.relative_to(root)
+        except ValueError:
+            continue
+        return root
+    return None
+
+
 def _resolved_repo_path(cwd: Path, value: str) -> Path | None:
     candidate = Path(value)
     if not candidate.is_absolute():
         candidate = cwd / candidate
     candidate = candidate.resolve()
-    try:
-        candidate.relative_to(REPO_ROOT)
-    except ValueError:
-        return None
-    return candidate
+    return candidate if _owning_root(candidate) is not None else None
 
 
 def _nearest_package_json(cwd: Path) -> Path | None:
     current = cwd.resolve()
+    root = _owning_root(current)
+    if root is None:
+        return None
     while True:
-        try:
-            current.relative_to(REPO_ROOT)
-        except ValueError:
-            return None
         candidate = current / "package.json"
         if candidate.is_file():
             return candidate
-        if current == REPO_ROOT:
+        if current == root:
             return None
         current = current.parent
 
@@ -528,7 +554,7 @@ def check_package_script(cwd: Path, script: str, *, visited: set[tuple[Path, str
     try:
         scripts = json.loads(package_json.read_text(encoding="utf-8")).get("scripts", {})
     except (OSError, json.JSONDecodeError):
-        return _unsafe_local_check_reason(f"cannot inspect {package_json.relative_to(REPO_ROOT)}")
+        return _unsafe_local_check_reason(f"cannot inspect {package_json}")
     body = scripts.get(script) if isinstance(scripts, dict) else None
     if not isinstance(body, str) or not body.strip():
         return _unsafe_local_check_reason(f"unknown package script {script!r}")
@@ -551,7 +577,7 @@ def check_package_script(cwd: Path, script: str, *, visited: set[tuple[Path, str
         heavy = heavy_local_guard.heavy_reason(executable, command_args)
         if heavy and not _heavy_override:
             return heavy_local_guard.block_message(
-                f"script {package_json.relative_to(REPO_ROOT)}:{script} runs heavy work ({heavy})"
+                f"script {package_json.relative_to(_owning_root(package_json) or package_json.parent)}:{script} runs heavy work ({heavy})"
             )
         if executable == "node" and "--test" in command_args:
             continue
@@ -563,7 +589,7 @@ def check_package_script(cwd: Path, script: str, *, visited: set[tuple[Path, str
         failure = check_static_binary(executable, command_args)
         if failure:
             return _unsafe_local_check_reason(
-                f"script {package_json.relative_to(REPO_ROOT)}:{script} contains unapproved command {executable}"
+                f"script {package_json.relative_to(_owning_root(package_json) or package_json.parent)}:{script} contains unapproved command {executable}"
             )
     return None
 
@@ -662,9 +688,7 @@ def main(argv: list[str]) -> int:
     command = argv[1] if len(argv) > 1 else ""
     _heavy_override = heavy_local_guard.override_requested(tokenize(command))
     cwd = Path.cwd().resolve()
-    try:
-        cwd.relative_to(REPO_ROOT)
-    except ValueError:
+    if _owning_root(cwd) is None:
         cwd = REPO_ROOT
     pending = [(command, cwd)]
     while pending:
@@ -676,14 +700,19 @@ def main(argv: list[str]) -> int:
                 destination = next_non_option(args)
                 resolved = _resolved_repo_path(candidate_cwd, destination) if destination else None
                 if resolved is None:
-                    return block("BLOCKED: local command changes directory outside the OpenMates repository.")
+                    return block(
+                        "BLOCKED: local command changes directory outside the OpenMates repository. "
+                        "Use absolute paths instead of cd (for git: git -C <path>)."
+                    )
                 candidate_cwd = resolved
                 continue
             if executable in SHELL_EXECUTABLES:
                 payload = shell_command_payload(args)
                 if payload is None:
                     return block(
-                        "BLOCKED: nested shell execution must use an inspectable shell -c payload."
+                        "BLOCKED: nested shell execution must use an inspectable shell -c payload. "
+                        "Run the script file directly (./scripts/name.sh; it must be executable) "
+                        "or pass the code inline with bash -c '<commands>'."
                     )
                 pending.append((payload, candidate_cwd))
                 continue

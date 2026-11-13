@@ -5,6 +5,7 @@ import type { Page } from '@playwright/test';
 const { test, expect } = require('./helpers/cookie-audit');
 const { getTestAccount } = require('./signup-flow-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { naturalProjectName } = require('./helpers/project-names');
 const { createWorkflowCliHome, removeWorkflowCliHome, loginWorkflowCliViaPair,
   runWorkflowCliJson, workflowApiUrl } = require('./helpers/workflow-cli-e2e-helpers');
 const { email, password, otpKey } = getTestAccount();
@@ -19,7 +20,7 @@ test.describe('CLI Project focus preference', () => {
     let projectId = '';
     try {
       await loginWorkflowCliViaPair(page, apiUrl, cliHome, 'CLI_PROJECT_FOCUS_SETTINGS');
-      const created = await runWorkflowCliJson(apiUrl, cliHome, ['projects', 'create', `Focus preference ${Date.now()}`,
+      const created = await runWorkflowCliJson(apiUrl, cliHome, ['projects', 'create', naturalProjectName('Thesis writing'),
         '--write-policy', 'apply_and_show', '--personal'], 'create disposable Project');
       projectId = created.project.project_id;
       const settings = async (...flags: string[]) => runWorkflowCliJson(apiUrl, cliHome,

@@ -1,0 +1,196 @@
+schema_version: 1
+id: feature.app-skill.design-embroidery
+version: 1
+status: draft
+title: Design Embroidery Skill
+summary: >
+  Design Embroidery turns a vector graphic that already exists in the chat into
+  files an embroidery machine can sew. The graphic is first prepared for thread,
+  then converted to stitches by Ink/Stitch in an isolated sandbox, and delivered
+  as one result with a stitch preview, the thread list, the key numbers and a
+  download for every machine format.
+
+inherits:
+  - architecture.app-skill-execution@1
+
+scope:
+  includes:
+    - design.embroidery calls made by the assistant in first-party chats originating from CLI, npm SDK, pip SDK, web, or Apple clients.
+    - Vector sources the server can read; a vector graphic made by images.generate or images.vectorize and an SVG code embed written in the chat.
+    - Preparation of the graphic for embroidery, by fixed rules and, only when those cannot solve a finding, by one model rework.
+    - Stitch generation and export to DST, PES, EXP, JEF and VP3 by Ink/Stitch inside a sandbox without internet access.
+    - The result embed; stitch preview, thread list, size, stitch count, thread changes, estimated sewing time, notes and per-format downloads.
+    - Billing of sandbox time and model rework.
+  excludes:
+    - Pixel images and uploaded SVG files as a direct source; a pixel image is first turned into a vector graphic by images.vectorize or images.generate.
+    - Editing single shapes, stitch types, stitch angles or thread order by direct manipulation in the result view.
+    - Sending the file to a machine, machine-specific hoop detection, and any guarantee of sewing quality on a particular fabric.
+    - Standalone public or developer REST access; the skill needs the chat's embed context.
+
+models:
+  EmbroideryRequest:
+    source:
+      type: embed_ref
+      required: true
+      constraints: {exact_conversation_reference: true, vector_graphic_only: true}
+    width_mm:
+      type: number
+      required: false
+      constraints: {min: 20, max: 400, default: 100, aspect_ratio_preserved: true}
+    hoop:
+      type: enum
+      required: false
+      values: ["100x100", "130x180", "160x260", "200x300", none]
+      default: none
+    fabric:
+      type: enum
+      required: false
+      values: [light, normal, stretchy]
+      default: normal
+    border_mm:
+      type: number
+      required: false
+      constraints: {min: 1, max: 8, default: no_border, counted_at_sewn_size: true}
+    border_colour:
+      type: colour_hex
+      required: false
+      constraints: {default: "#000000", used_only_with_border_mm: true}
+    fit_hoop:
+      type: boolean
+      required: false
+      constraints: {default: false, needs_a_hoop: true, replaces_width_mm: true}
+    instructions:
+      type: string
+      required: false
+      constraints: {max_chars: 500, natural_language_design_wishes: true}
+
+  Preparation:
+    fixed_rules:
+      type: ordered_rule_list
+      required: true
+      values: [scale_to_width, drop_full_canvas_background, remove_hidden_overlap, sew_on_border, group_same_thread_colour, drawn_line_outline_to_satin, wide_line_to_satin, thin_line_to_running_stitch, fabric_preset]
+    rework_findings:
+      type: finding_list
+      required: true
+      values: [gradient_or_filter, live_text, embedded_pixel_image, detail_below_1mm, more_than_12_colours]
+    max_rework_rounds:
+      type: integer
+      required: true
+      constraints: {value: 1}
+
+  EmbroideryResult:
+    files:
+      type: stored_file_set
+      required: true
+      values: [dst, pes, exp, jef, vp3, preview, preview_transparent, prepared_svg, stitches]
+    threads:
+      type: ordered_list
+      required: true
+      constraints: {sewing_order: true, each: [colour_hex, name, stitch_count, estimated_minutes, thread_length_m]}
+    width_mm: {type: number, required: true}
+    height_mm: {type: number, required: true}
+    border_mm: {type: number, required: false}
+    stitch_count: {type: integer, required: true}
+    thread_changes: {type: integer, required: true}
+    estimated_minutes: {type: integer, required: true}
+    thread_length_m: {type: number, required: false}
+    fits_hoop:
+      type: enum
+      required: true
+      values: ["yes", "no", not_checked]
+    notes:
+      type: list
+      required: true
+      constraints: {plain_language: true, names_every_change_made_to_the_design: true}
+
+  Sandbox:
+    runtime:
+      type: isolated_runtime
+      required: true
+      constraints: {internet: false, run_limit_seconds: 600, credits_per_started_minute: 5}
+    limits:
+      type: design_limits
+      required: true
+      constraints: {max_stitches: 150000, max_source_svg_chars: 400000}
+
+assertions:
+  - id: design-embroidery.request.vector-source
+    type: behavior
+    must: design.embroidery accepts the exact reference of a vector graphic visible in the conversation, a generated or vectorized SVG image, an SVG code embed or an SVG file the user uploaded (its original vector is kept beside the picture shown in the chat and is sewn unchanged and never redrawn; no model adjusts it, and what may not sew cleanly is only named in the result), and resolves it server-side. A pixel image, an upload without a kept vector source, or an unknown reference fails explicitly and tells the assistant to create a vector graphic first; nothing is converted and nothing is charged.
+    depends_on: [models.EmbroideryRequest.source, examples.convert, examples.uploaded_svg, examples.invalid_source]
+  - id: design-embroidery.prepare.fixed-rules
+    type: behavior
+    must: Before stitches are generated the graphic is prepared by fixed rules, always in the same order and with the same result for the same input. It is scaled to the requested width keeping its proportions; a shape that only fills the whole canvas as background is left out; parts of a shape hidden under another shape are cut away so no area is sewn twice; shapes of the same thread colour are sewn together wherever the stacking of the design allows it, so the number of thread changes is as low as the design permits; lines 1 mm and wider become satin bands and thinner lines become running stitches; the fabric preset sets stitch density, underlay and pull compensation. Every change that alters what the user will see is named in the notes.
+    depends_on: [models.Preparation.fixed_rules, models.EmbroideryRequest, examples.prepare]
+  - id: design-embroidery.prepare.sewn-width-as-requested
+    type: behavior
+    must: The requested width is the width of the sewn design, not only of the drawing. Lines sewn as satin bands lose their rounded ends and thin shapes pull in, so the stitches can come out narrower or wider than drawn. When the sewn width differs from the requested one by more than half a millimetre and the first conversion took at most 45 seconds, the graphic is prepared once more at a corrected size and converted again, and only that second result is delivered. A longer conversion keeps its first result; the result always states the real sewn width.
+    depends_on: [models.EmbroideryRequest, examples.sewn_width]
+  - id: design-embroidery.prepare.separate-shapes-not-joined
+    type: behavior
+    must: Shapes of the same thread colour that lie more than 1 mm apart are not joined by a sewn connecting stitch. Each separate part is sewn on its own, also when the graphic holds several parts in one element, and the thread is trimmed before the machine moves to the next part.
+    depends_on: [models.Preparation.fixed_rules, examples.separate_shapes]
+  - id: design-embroidery.prepare.drawn-lines-as-satin
+    type: behavior
+    must: A drawn line that arrives as a filled outline (a whisker, a mouth curve, a letter stroke) is sewn as a satin band and not as a filled area. This holds for a filled shape without holes that is 1 to 6 mm wide, at least two and a half times as long as wide and of even width. Its stitches lie straight across the line and turn with it along a curve, and it gets the underlay of a satin band of that width. Where such lines meet or hang on a wider area (a mouth on a nose), each line is sewn this way and the area between them stays a fill that reaches slightly under the line ends, so no fabric shows. A ring around another shape, a wedge that narrows all the way along, and any shape a satin band would not cover completely stay filled areas. The rule is fixed and gives the same result for the same input; no model chooses stitch types.
+    depends_on: [models.Preparation.fixed_rules, examples.drawn_lines]
+  - id: design-embroidery.prepare.sew-on-border
+    type: behavior
+    must: When the request carries border_mm, the design gets a border for sewing it onto a garment. The border is the outline of the whole design grown outward by exactly that many millimetres at the sewn size, in border_colour (black when none is given), sewn before everything else as one filled area that the design slightly overlaps, so no fabric shows between border and design. Openings and gaps of the design narrower than twice the border width are filled by the border; wider ones stay open. The requested width_mm is the width of the design without the border, so the sewn size, the hoop check and every number of the result include the border. The notes name the border and its width. Without border_mm nothing is added.
+    depends_on: [models.EmbroideryRequest.border_mm, models.EmbroideryRequest.border_colour, models.Preparation.fixed_rules, examples.border]
+  - id: design-embroidery.prepare.fill-the-hoop
+    type: behavior
+    must: When the request carries fit_hoop together with a hoop, the design is made as large as that hoop allows instead of using width_mm. It keeps its proportions; when it gets larger turned by 90 degrees it is sized for that and the notes advise turning it. A sew-on border keeps its requested width in millimetres and counts as part of the size. One millimetre stays free on every side of the hoop, so the sewn result fits the hoop. The notes say that the design was sized to fill the hoop. fit_hoop without a hoop is rejected before anything runs, with the reason.
+    depends_on: [models.EmbroideryRequest.fit_hoop, models.EmbroideryRequest.hoop, models.EmbroideryRequest.border_mm, examples.fit_hoop]
+  - id: design-embroidery.prepare.model-rework-only-when-needed
+    type: behavior
+    must: A model reworks the graphic only when the fixed check finds something the rules cannot solve (a gradient or filter, live text, an embedded pixel image, details smaller than 1 mm, more than 12 thread colours) or when the request carries instructions. The rework returns a complete SVG that is validated and prepared by the same fixed rules; there is at most one rework round. When the reworked graphic still has such a finding, the conversion continues with the best valid graphic and the notes name what could not be solved. A graphic without findings and without instructions is converted without any model call.
+    depends_on: [models.Preparation.rework_findings, models.Preparation.max_rework_rounds, examples.rework]
+  - id: design-embroidery.convert.sandbox-inkstitch
+    type: invariant
+    must: Stitch generation and export run only inside an isolated sandbox without internet access, never in an API or worker process, and are stopped after 600 seconds (10 minutes). One conversion always produces all five machine formats (DST, PES, EXP, JEF, VP3) from the same stitch plan. A design that exceeds 150000 stitches, cannot be read, or contains nothing to sew fails explicitly instead of delivering partial files.
+    depends_on: [models.Sandbox, models.EmbroideryResult.files, examples.convert, examples.failure]
+  - id: design-embroidery.result.complete-and-truthful
+    type: invariant
+    must: A finished result carries the five machine files, a stitch preview rendered from the generated stitches (once on fabric colour for viewing and once with a transparent background for placing it on other pictures), the prepared graphic, the threads in sewing order with colour, name, stitch count, estimated sewing minutes and estimated thread length, the real sewn width and height in millimetres, the stitch count, the number of thread changes, an estimated sewing time, the estimated length of upper thread, whether it fits the chosen hoop, and the notes. Every number describes the delivered files, never the source graphic or the request. Sewing times and thread lengths are rough general estimates from the delivered stitches (480 stitches per minute and one minute per thread change; the sewn path plus one millimetre per stitch, bobbin thread not included), not tuned to a machine model. A result is never shown as finished while any of the five files is missing.
+    depends_on: [models.EmbroideryResult, examples.convert]
+  - id: design-embroidery.result.view-and-download
+    type: behavior
+    must: The result card shows the stitch preview, the size, the estimated sewing time and the estimated thread length; while converting it shows that the conversion is running. Opened, the result shows the large stitch preview with a switch to the prepared graphic, the thread list in sewing order with the estimated thread length and minutes of each thread, the numbers including the stitch count, the hoop fit and the notes, a short remark that sewing time and thread length are estimates which vary with the machine and its settings, one clearly visible download that saves all five machine files together as one ZIP file, and one download per machine format whose saved file carries the matching file extension. A failed conversion shows the reason in plain words and offers no downloads. The size, hoop, fabric and border shown can be changed there; applying a change asks the assistant for a new conversion of the same graphic and leaves the existing result untouched.
+    depends_on: [models.EmbroideryResult, models.EmbroideryRequest, examples.view]
+  - id: design-embroidery.privacy.stored-like-generated-media
+    type: privacy
+    must: The source graphic leaves the platform only to the sandbox and, when a rework is needed, to the authoring model; every sandbox is destroyed when the conversion ends. Result files are stored encrypted like other generated media, belong to the requesting user, and are downloadable only by a signed-in owner or through the chat's existing sharing rules.
+    depends_on: [models.Sandbox.runtime, models.EmbroideryResult.files, examples.convert]
+  - id: design-embroidery.billing.metered
+    type: invariant
+    must: A conversion is charged 5 credits per started minute of sandbox time plus, when a model reworked the graphic, that call's reported tokens at that model's price. Before a conversion starts, the balance must cover three sandbox minutes (plus the possible model rework); a conversion that runs longer is still charged in full and may take the balance slightly below zero. A conversion that fails before any file is delivered is not charged. The platform minimum charge applies.
+    depends_on: [models.Sandbox.runtime, examples.billing]
+  - id: design-embroidery.surface.semantic-parity
+    type: parity
+    must: First-party chats originating from CLI, npm SDK, pip SDK, web, or Apple trigger the same preparation, conversion, result content and billing; a client without a dedicated result view still lists the files, numbers and notes.
+    depends_on: [models.EmbroideryRequest, models.EmbroideryResult, examples.convert]
+
+applies_to:
+  rest_api:
+    required: false
+    role: design.embroidery is not a standalone public or developer API because it needs the chat's embed context to read the source graphic.
+  cli:
+    required: true
+    role: CLI chats trigger the skill through the chat pipeline and list the result files, numbers and notes.
+  sdks:
+    required: true
+    role: SDK chats trigger the skill through the chat pipeline and receive the same result content.
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [convert, invalid_source, prepare, border, fit_hoop, rework, failure, view, billing]

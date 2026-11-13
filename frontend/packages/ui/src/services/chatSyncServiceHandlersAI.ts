@@ -1,4 +1,12 @@
+import { messageAccepted, replyFinished } from "./eventSounds";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import { isFirstSendStopped } from "./drafts/draftSendClaims";
+import {
+  RECOMMENDATIONS_IN_BUILD, decryptRecommendationsState, encryptRecommendationsState,
+  reconcileIncomingRecommendations,
+} from "./chatRecommendationsPersistence";
+import { setChatRecommendations } from "../stores/chatRecommendationsStore";
+import type { ChatRecommendation, ChatRecommendationsState } from "../types/recommendations";
 import { persistGeneratedChatMetadata } from "./generatedChatMetadataPersistence";
 import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
 import { noteChatMetadataTurn, completeChatMetadataTurn, isChatMetadataTurnCurrent } from "./lateChatMetadataGuard";
@@ -48,6 +56,13 @@ import {
 import { completePersonalChatMessage } from "./personalChatTurnBarrier";
 import { refreshPersistedAssistantVersion } from "./chatRecoveryVersionRefresh";
 import { chatAfterRecoveredReply } from "./chatRecoveryVersionApply";
+/** Opt-in shared Rust core build: the decision runs in the shared Worker `sync` unit. */
+// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+function rustRecoveryPolicy() {
+  return import("./rustCore/sync/rustRecoveryPolicy");
+}
 import { getConnectedAccountMutationEpoch } from "./connectedAccountStorageService";
 
 const storageFailureImmediateRetryIds = new Set<string>();
@@ -610,6 +625,7 @@ export function handleAITaskInitiatedImpl(
   serviceInstance.dispatchEvent(
     new CustomEvent("aiTaskInitiated", { detail: payload }),
   );
+  messageAccepted(payload.user_message_id);
 }
 
 // --- Thinking/Reasoning Event Handlers ---
@@ -807,6 +823,7 @@ export function handleAIMessageUpdateImpl(
       console.info(
         `[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${payload.chat_id} considered ended due to final chunk marker.`,
       );
+      if (!payload.interrupted_by_revocation) replyFinished();
     } else {
       // Task info missing or mismatched - still dispatch event but log warning
       console.warn(
@@ -957,6 +974,22 @@ export async function handleAIBackgroundResponseCompletedImpl(
       recordRecoveryFinalTimestamp({ ...payload, is_final_chunk: true });
       console.info(
         `[ChatSyncService:AI] Deferring epoch-1 background completion ${payload.message_id} to sealed recovery job ${payload.recovery_job_id}`,
+      );
+      return;
+    }
+
+    // In a sealed-recovery turn (recovery_turn_id set) the server seals every
+    // terminal reply into a recovery record and marks it with a recovery
+    // protocol version. A completion without one is an interim agent step
+    // (awaiting an async skill or child chats): the server keeps it out of
+    // storage and rejects a client write for it. The continuation reuses the
+    // same assistant message id, and a local "synced" interim copy would
+    // outrank the real final in the message policy, so this device waits for
+    // the sealed final. Task and typing state stay as they are. Legacy turns
+    // keep the client-persisted interim below.
+    if (payload.recovery_turn_id && payload.recovery_protocol_version == null) {
+      console.info(
+        `[ChatSyncService:AI] Skipping interim background completion ${payload.message_id}: no sealed recovery record yet`,
       );
       return;
     }
@@ -1181,7 +1214,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
       );
 
       // Increment unread count for this chat
-      unreadMessagesStore.incrementUnread(payload.chat_id);
+      unreadMessagesStore.incrementUnread(payload.chat_id, payload.message_id);
 
       // Extract a preview from the AI response content (first ~120 chars, strip markdown)
       let messagePreview = "New AI response ready";
@@ -1418,7 +1451,10 @@ export async function handleAITypingStartedImpl( // Changed to async
       return;
     }
 
-    const isNewChat = payload.icon_names && payload.icon_names.length > 0;
+    // A stopped first send restored its text as a draft: the late generated
+    // title/category/icon of that turn must not land on the message-less chat.
+    const isNewChat = payload.icon_names && payload.icon_names.length > 0 &&
+      !isFirstSendStopped(payload.chat_id);
 
     if (isNewChat) {
       console.info(
@@ -1998,6 +2034,16 @@ export async function handleAITypingStartedImpl( // Changed to async
   );
 }
 
+function endsTurnAsFailed(payload: {
+  message_id: string;
+  task_id?: string;
+  terminal_failure_code?: string;
+}): boolean {
+  if (payload.terminal_failure_code === "focus_continuation_unavailable") return true;
+  return payload.terminal_failure_code === "client_context_unavailable" &&
+    payload.task_id === payload.message_id;
+}
+
 export function handleAITypingEndedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: {
@@ -2009,15 +2055,20 @@ export function handleAITypingEndedImpl(
 ): void {
   console.debug("[ChatSyncService:AI] Received 'ai_typing_ended':", payload);
   aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
-  if (payload.terminal_failure_code === "client_context_unavailable" &&
-      payload.task_id === payload.message_id) {
+  if (endsTurnAsFailed(payload)) {
     const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
-    if (taskInfo?.taskId === payload.task_id) {
+    // A focus-mode continuation runs as its own task, so its id differs from
+    // the user message id and may differ from the tracked task id; match the
+    // tracked task by either id for that code.
+    const matchesTask = payload.terminal_failure_code === "focus_continuation_unavailable"
+      ? taskInfo?.taskId === payload.task_id || taskInfo?.userMessageId === payload.message_id
+      : taskInfo?.taskId === payload.task_id;
+    if (taskInfo && matchesTask) {
       serviceInstance.activeAITasks.delete(payload.chat_id);
       serviceInstance.dispatchEvent(new CustomEvent("aiTaskEnded", {
         detail: {
           chatId: payload.chat_id,
-          taskId: payload.task_id,
+          taskId: taskInfo.taskId,
           userMessageId: taskInfo.userMessageId,
           status: "failed",
         },
@@ -2446,12 +2497,16 @@ export async function handleAIResponseStorageConfirmedImpl(
         if (!isCurrent()) return;
         if (!current) return;
         const now = Math.floor(Date.now() / 1000);
-        const updated = chatAfterRecoveredReply(current, chat, version, now);
+        const updated = RUST_SYNC_BUILD
+          ? await (await rustRecoveryPolicy()).chatAfterRecoveredReply(current, chat, version, now)
+          : chatAfterRecoveredReply(current, chat, version, now);
         await chatDB.updateChat(updated);
         if (!isCurrent()) return;
         // A later call may already have advanced the in-memory projection.
         const cached = chatListCache.getCache()?.find((row) => row.chat_id === payload.chat_id) ?? null;
-        chatListCache.upsertChat(chatAfterRecoveredReply(cached, updated, updated.messages_v, now));
+        chatListCache.upsertChat(RUST_SYNC_BUILD
+          ? await (await rustRecoveryPolicy()).chatAfterRecoveredReply(cached, updated, updated.messages_v, now)
+          : chatAfterRecoveredReply(cached, updated, updated.messages_v, now));
         completePersonalChatMessage(payload.chat_id, assistant.user_message_id, version);
         removePendingAIResponse(payload.message_id);
       } else {
@@ -2597,7 +2652,7 @@ export async function handlePostProcessingCompletedImpl(
     chat_tags: string[];
     harmful_response: number;
     top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
-    quick_tip_slugs?: string[]; // Optional: Product quick tip slugs selected during post-processing
+    recommendations?: ChatRecommendation[]; // Optional: memory/workflow recommendations (plan chat-recommendations)
     updated_chat_title?: string; // OPE-265: New title if conversation drifted from original topic
     source_title_v?: number | null;
     source_metadata_v?: number | null;
@@ -2643,7 +2698,8 @@ export async function handlePostProcessingCompletedImpl(
     let encryptedShareCtaText: string | null = null;
     let encryptedChatTags: string | null = null;
     let encryptedTopRecommendedApps: string | null = null;
-    let encryptedQuickTipSlugs: string | null = null;
+    let encryptedRecommendations: string | null = null;
+    let recommendationsState: ChatRecommendationsState | null = null;
     let encryptedUpdatedTitle: string | null = null;
 
     const storedChat = await chatDB.getChat(payload.chat_id);
@@ -2815,15 +2871,26 @@ export async function handlePostProcessingCompletedImpl(
       );
     }
 
-    if (turnIsCurrent() && payload.quick_tip_slugs && payload.quick_tip_slugs.length > 0) {
-      encryptedQuickTipSlugs = await encryptArrayWithChatKey(
-        payload.quick_tip_slugs.slice(0, 2),
-        chatKey,
-      );
-      chat.encrypted_quick_tip_slugs = encryptedQuickTipSlugs;
-      console.debug(
-        `[ChatSyncService:AI] Saved ${payload.quick_tip_slugs.length} quick tip slug(s) for chat ${payload.chat_id}`,
-      );
+    // Recommendations exist only in Rust core builds (reconcile runs in the core);
+    // flag-off builds ignore payload.recommendations.
+    if (RECOMMENDATIONS_IN_BUILD && turnIsCurrent()) {
+      try {
+        recommendationsState = await nextRecommendationsState(
+          payload.chat_id, payload.recommendations ?? [], chat.encrypted_recommendations ?? null, chatKey,
+        );
+        if (recommendationsState) {
+          encryptedRecommendations = await encryptRecommendationsState(recommendationsState, chatKey);
+          chat.encrypted_recommendations = encryptedRecommendations;
+        }
+      } catch (error) {
+        // Recommendations are optional output; they must not block follow-ups, title or summary.
+        console.error(
+          `[ChatSyncService:AI] Could not reconcile recommendations for chat ${payload.chat_id}`,
+          error,
+        );
+        recommendationsState = null;
+        encryptedRecommendations = null;
+      }
     }
 
     // OPE-265: Encrypt and save updated chat title if the postprocessor determined a title change is needed.
@@ -2863,7 +2930,7 @@ export async function handlePostProcessingCompletedImpl(
       payload.share_cta_text ||
       payload.chat_tags?.length > 0 ||
       encryptedTopRecommendedApps ||
-      encryptedQuickTipSlugs ||
+      encryptedRecommendations ||
       encryptedUpdatedTitle
     ) {
       const persisted = await persistGeneratedChatMetadata(chatDB, storedChat!, {
@@ -2872,7 +2939,7 @@ export async function handlePostProcessingCompletedImpl(
         ...(encryptedShareCtaText ? { encrypted_share_cta_text: encryptedShareCtaText } : {}),
         ...(encryptedChatTags ? { encrypted_chat_tags: encryptedChatTags } : {}),
         ...(encryptedTopRecommendedApps ? { encrypted_top_recommended_apps_for_chat: encryptedTopRecommendedApps } : {}),
-        ...(encryptedQuickTipSlugs ? { encrypted_quick_tip_slugs: encryptedQuickTipSlugs } : {}),
+        ...(encryptedRecommendations ? { encrypted_recommendations: encryptedRecommendations } : {}),
         ...(encryptedUpdatedTitle ? { encrypted_title: encryptedUpdatedTitle, title_v: (storedChat!.title_v ?? 0) + 1 } : {}),
       }, isCurrent, (patch) => {
         if (turnIsCurrent()) return patch;
@@ -2888,7 +2955,8 @@ export async function handlePostProcessingCompletedImpl(
         encryptedShareCtaText = null;
         encryptedChatTags = null;
         encryptedTopRecommendedApps = null;
-        encryptedQuickTipSlugs = null;
+        encryptedRecommendations = null;
+        recommendationsState = null;
       }
       if (persisted.encrypted_title !== encryptedUpdatedTitle) encryptedUpdatedTitle = null;
       if (persisted.encrypted_chat_summary !== encryptedChatSummary) encryptedChatSummary = null;
@@ -2921,7 +2989,7 @@ export async function handlePostProcessingCompletedImpl(
       encryptedShareCtaText ||
       encryptedChatTags ||
       encryptedTopRecommendedApps ||
-      encryptedQuickTipSlugs ||
+      encryptedRecommendations ||
       encryptedUpdatedTitle
     ) {
       const { sendPostProcessingMetadataImpl } =
@@ -2938,7 +3006,8 @@ export async function handlePostProcessingCompletedImpl(
         encryptedShareCtaText = null;
         encryptedChatTags = null;
         encryptedTopRecommendedApps = null;
-        encryptedQuickTipSlugs = null;
+        encryptedRecommendations = null;
+        recommendationsState = null;
       }
       await sendPostProcessingMetadataImpl(
         serviceInstance,
@@ -2948,7 +3017,7 @@ export async function handlePostProcessingCompletedImpl(
         encryptedChatSummary || "",
         encryptedChatTags || "",
         encryptedTopRecommendedApps || "",
-        encryptedQuickTipSlugs || "",
+        encryptedRecommendations || "",
         encryptedUpdatedTitle || "",
         encryptedShareCtaText || "",
         encryptedChatKeyForValidation,
@@ -2970,6 +3039,7 @@ export async function handlePostProcessingCompletedImpl(
 
     // Dispatch event to notify components (e.g., to update UI with new suggestions)
     if (!ownerIsCurrent() || !turnIsCurrent()) return;
+    if (recommendationsState) setChatRecommendations(payload.chat_id, recommendationsState);
     const event = new CustomEvent("postProcessingCompleted", {
       detail: {
         chatId: payload.chat_id,
@@ -2977,7 +3047,7 @@ export async function handlePostProcessingCompletedImpl(
         turnId: payload.turn_id,
         userMessageId: payload.user_message_id,
         followUpSuggestions: payload.follow_up_request_suggestions,
-        quickTipSlugs: payload.quick_tip_slugs || [],
+        recommendations: recommendationsState?.items ?? [],
         taskProposals: payload.task_proposals || [],
         taskUpdateProposals: payload.task_update_proposals || [],
         harmfulResponse: payload.harmful_response,
@@ -2994,6 +3064,26 @@ export async function handlePostProcessingCompletedImpl(
       error,
     );
   }
+}
+
+/**
+ * State after a completed current turn, or null when nothing changes. Items are the
+ * Rust-reconciled recommendations of this turn; a turn without any clears the open items.
+ */
+async function nextRecommendationsState(
+  chatId: string,
+  incoming: ChatRecommendation[],
+  storedCiphertext: string | null,
+  chatKey: Uint8Array,
+): Promise<ChatRecommendationsState | null> {
+  const previous = storedCiphertext
+    ? await decryptRecommendationsState(storedCiphertext, chatKey, chatId)
+    : null;
+  if (incoming.length === 0) {
+    if (!previous || previous.items.length === 0) return null;
+    return { ...previous, items: [], updated_at: Math.floor(Date.now() / 1000) };
+  }
+  return reconcileIncomingRecommendations(incoming, previous);
 }
 
 /**
@@ -3413,11 +3503,28 @@ export async function handleEmbedUpdateImpl(
             normalizeEmbedStatus: normalizeStatus,
           } = await import("./embedStateMachine");
           const incomingStatus = normalizeStatus(payload.status);
+          // Flag on: the Rust admission decision (TS only when the Rust crypto arm is inactive).
+          const rustAdmitted =
+            import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+              ? await (
+                  await import("./rustCore/embeds/embedDataClient")
+                ).admitEmbedEventInRust({
+                  currentStatus: existingEmbed.status,
+                  incomingStatus:
+                    typeof payload.status === "string" ? payload.status : null,
+                  currentVersion: null,
+                  incomingVersion: null,
+                  versionExempt: false,
+                })
+              : null;
           if (
-            !validateEmbedTransition(
-              existingEmbed.status,
-              incomingStatus,
-              payload.embed_id,
+            !(
+              rustAdmitted ??
+              validateEmbedTransition(
+                existingEmbed.status,
+                incomingStatus,
+                payload.embed_id,
+              )
             )
           ) {
             console.warn(
@@ -3935,18 +4042,38 @@ export async function handleSendEmbedDataImpl(
         typeof existingEntry.version_number === "number"
           ? existingEntry.version_number
           : undefined;
+      // Flag on: the Rust admission decision (TS only when the Rust crypto arm is inactive).
+      const rustAdmitted =
+        import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+          ? await (
+              await import("./rustCore/embeds/embedDataClient")
+            ).admitEmbedEventInRust({
+              currentStatus,
+              incomingStatus:
+                typeof embedData.status === "string" ? embedData.status : null,
+              currentVersion: existingVersion ?? null,
+              incomingVersion:
+                typeof embedData.version_number === "number"
+                  ? embedData.version_number
+                  : null,
+              versionExempt: true,
+            })
+          : null;
       const isNewerEmbedVersion =
         typeof embedData.version_number === "number" &&
         embedData.version_number > (existingVersion ?? 0);
       const isFinalizedContentRefresh =
         currentStatus === incomingStatus && incomingStatus === EmbedStatus.FINISHED;
       if (
-        !isNewerEmbedVersion &&
-        !isFinalizedContentRefresh &&
-        !validateEmbedTransition(
-          currentStatus,
-          incomingStatus,
-          embedData.embed_id,
+        !(
+          rustAdmitted ??
+          (isNewerEmbedVersion ||
+            isFinalizedContentRefresh ||
+            validateEmbedTransition(
+              currentStatus,
+              incomingStatus,
+              embedData.embed_id,
+            ))
         )
       ) {
         console.warn(
@@ -4489,6 +4616,11 @@ export async function handleSendEmbedDataImpl(
       console.info(
         `[ChatSyncService:AI] Embed ${embedData.embed_id} is finalized (status=${embedData.status}) - encrypting and persisting`,
       );
+      // Compile-time flag: the shared Worker's Rust unit chooses the key, encrypts and persists.
+      if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && !persistenceIndexes &&
+        await (await import("./rustCore/embeds/rustStreamedEmbedWrite")).writeStreamedEmbedInRust(serviceInstance, embedData, canonicalLease, options?.localOnly === true)) return;
+      // A new version of an existing image is persisted only by the Rust core; this branch would re-hash and overwrite its head.
+      if ((embedData as { revision?: unknown }).revision != null) throw new Error("embed_revision_requires_rust_core");
 
       // Import dependencies
       const embedStoreModule = await import("./embedStore");
@@ -4496,12 +4628,9 @@ export async function handleSendEmbedDataImpl(
       const { computeSHA256 } = await import("../message_parsing/utils");
 
       // 0. Hash IDs first (needed for parent key lookup if this is a child embed)
-      const hashedChatId = persistenceIndexes?.hashed_chat_id
-        ?? await computeSHA256(embedData.chat_id);
-      const hashedMessageId = persistenceIndexes?.hashed_message_id
-        ?? await computeSHA256(embedData.message_id);
-      const hashedUserId = persistenceIndexes?.hashed_user_id
-        ?? await computeSHA256(embedData.user_id);
+      const hashedChatId = persistenceIndexes?.hashed_chat_id ?? await computeSHA256(embedData.chat_id);
+      const hashedMessageId = persistenceIndexes?.hashed_message_id ?? await computeSHA256(embedData.message_id);
+      const hashedUserId = persistenceIndexes?.hashed_user_id ?? await computeSHA256(embedData.user_id);
       const hashedEmbedId = await computeSHA256(embedData.embed_id);
       const isLocalOnlyEmbed = options?.localOnly === true;
 
@@ -6214,7 +6343,7 @@ export async function handleAwaitingUserInputImpl(
     );
 
     if (!isChatVisiblyActive(payload.chat_id)) {
-      unreadMessagesStore.incrementUnread(payload.chat_id);
+      unreadMessagesStore.incrementUnread(payload.chat_id, questionMessage.message_id);
       notificationStore.chatMessage(
         payload.chat_id,
         chat.title || "Sub-chat needs input",

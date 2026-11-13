@@ -488,6 +488,24 @@ describe("historical parent wrappers and child queue replay", () => {
     expect(state.localWrites[0].encrypted_content).toBe("cipher:body:old");
   });
 
+  // contract-test: supporting surface=gui.web assertions=embed-user-edits.edit.next-version,chats.persistence.client-encrypted
+  it.each([["matching-source", true], ["different-source", false]])(
+    "settles a queued child v1 superseded by a user-made v2 only against its stored v1 (%s)", async (source, settles) => {
+      // A finished child reports no canonical revision; Enhance committed v2 while v1 stayed queued.
+      state.descriptor = false;
+      state.canonicalParent = "parent-1";
+      state.canonicalVersion = 2;
+      state.canonicalWrappers = [{ ...keys.keys[0], hashed_embed_id: "hash:parent-1", encrypted_embed_key: "wrapper" }];
+      state.historicalSource = source;
+      const child = { ...payload, parent_embed_id: "parent-1" };
+      expect(await sendStoreEmbedImpl(service, child)).toBe(settles);
+      expect(state.sent).toEqual([]);
+      expect(state.queued.size).toBe(settles ? 0 : 1);
+      if (!settles) expect(state.queued.values().next().value).toMatchObject({
+        state: "conflict", failure_code: "embed_identity_or_version_conflict",
+      });
+    });
+
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it.each([false, true])("preserves initial mutable writes before a recovery ACK (child=%s)", async (child) => {
     state.acknowledged = false;

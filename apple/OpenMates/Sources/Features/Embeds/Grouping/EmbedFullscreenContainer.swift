@@ -12,6 +12,9 @@
 //          frontend/packages/ui/src/components/embeds/images/ImageResultEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/file/FileEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+//          frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte (Enhance button)
+//          frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -27,6 +30,8 @@
 
 // Specification: specifications/architecture/storage-lifecycle/specification.yml
 // Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction
+// Specification: specifications/features/embed-user-edits/specification.yml
+// Assertions: embed-user-edits.enhance.button, embed-user-edits.restore.creates-version
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -105,6 +110,7 @@ struct EmbedFullscreenContainer: View {
     @State private var moreActionsOpen = false
     @State private var hostingViews: [String: HostingDomainView] = [:]
     @StateObject private var versionHistory = EmbedVersionHistoryController()
+    @StateObject private var versionEdits = EmbedVersionEditModel(client: CoreEmbedVersions.live())
     @ObservedObject private var historyWorkspace = TeamWorkspaceContext.shared
     @StateObject private var codeRunViewModel = CodeRunViewModel()
     @StateObject private var imageDownloadController = ImageOriginalDownloadController()
@@ -248,15 +254,22 @@ struct EmbedFullscreenContainer: View {
                 .coordinateSpace(name: "embed-fullscreen-coordinate")
         }
         .modifier(HostingFullscreenAccessibility(embed: currentEmbed))
+        .modifier(EmbedEditMessageNotifier(model: versionEdits))
         .onAppear {
             selection.reconcile(in: navigationEmbeds, initialID: initialEmbedId)
             presentFullscreen()
         }
         .task(id: "\(currentEmbed?.id ?? ""):\(historyWorkspace.contextEpoch):\(currentEmbed.map { currentVersionNumber(for: $0) } ?? 1)") {
-            guard let embed = currentEmbed, currentVersionNumber(for: embed) > 1 else { versionHistory.reset(); return }
+            // Image versions are listed by the core (`versionEdits`); the REST
+            // timeline would show an older image version as text.
+            guard let embed = currentEmbed, currentVersionNumber(for: embed) > 1, !isEnhanceType(embed) else { versionHistory.reset(); return }
             await openVersionHistory(for: embed)
         }
-        .onDisappear { versionHistory.reset() }
+        .task(id: "edits:\(currentEmbed?.id ?? ""):\(historyWorkspace.contextEpoch)") {
+            guard let embed = currentEmbed else { versionEdits.close(); return }
+            await openVersionEdits(for: embed)
+        }
+        .onDisappear { versionHistory.reset(); versionEdits.close() }
         .task(id: currentEmbed?.id) {
             guard let chatId, !chatId.isEmpty,
                   let embed = currentEmbed else { return }
@@ -445,7 +458,8 @@ struct EmbedFullscreenContainer: View {
                         downloadLabel: originalFileActions?.downloadLabel ?? AppStrings.download,
                         downloadDisabled: originalFileActions?.isDownloading ?? (nativeActionController.isDownloading || imageDownloadController.isDownloading),
                         downloadIdentifier: originalFileActions == nil ? "embed-download-button" : "project-remote-download",
-                        hostingActions: hostingHeaderActions(for: embed)
+                        hostingActions: hostingHeaderActions(for: embed),
+                        enhance: enhanceAction(for: embed)
                     )
                     .padding(.top, safeAreaInsets.top)
                     .padding(.leading, safeAreaInsets.leading)
@@ -483,7 +497,7 @@ struct EmbedFullscreenContainer: View {
             onNavigatePrevious: { withAnimation { navigateFullscreen(by: -1) } },
             onNavigateNext: { withAnimation { navigateFullscreen(by: 1) } },
             headerCTA: headerCTA(for: embed),
-            secondaryHeaderCTA: memoryHeaderCTA(for: embed),
+            secondaryHeaderCTA: nil,
             topContentInset: topInset,
             viewportWidth: viewportWidth,
             responsiveViewportWidth: responsiveViewportWidth,
@@ -532,11 +546,6 @@ struct EmbedFullscreenContainer: View {
             }
             return HostingHeaderAction(view: view, label: label, active: hostingViewBinding.wrappedValue == view) { hostingViewBinding.wrappedValue = view }
         }
-    }
-
-    private func memoryHeaderCTA(for embed: EmbedRecord) -> AnyView? {
-        guard let config = NativeEmbedMemoryConfig.config(for: embed) else { return nil }
-        return AnyView(NativeEmbedMemoryButton(config: config).id(embed.id))
     }
 
     private func fullscreenEmbedContent(for embed: EmbedRecord) -> some View {
@@ -716,7 +725,50 @@ struct EmbedFullscreenContainer: View {
     }
 
     private func shouldShowVersionTimeline(for embed: EmbedRecord) -> Bool {
-        currentVersionNumber(for: embed) > 1
+        currentVersionNumber(for: embed) > 1 || (isEnhanceType(embed) && versionEdits.showsVersionList)
+    }
+
+    /// The web shows Enhance and the core version list in `ImageGenerateEmbedFullscreen`.
+    private func isEnhanceType(_ embed: EmbedRecord) -> Bool {
+        EmbedType.normalized(rawValue: embed.type) == .imagesGenerate
+    }
+
+    /// Web `coreEditable`: a finished generated image with files.
+    private func isEnhanceable(_ embed: EmbedRecord) -> Bool {
+        isEnhanceType(embed) && embed.status == .finished && rawData(for: embed)?["files"] != nil
+    }
+
+    private func enhanceAction(for embed: EmbedRecord) -> EmbedEnhanceHeaderAction? {
+        isEnhanceable(embed) ? EmbedEnhanceHeaderAction(model: versionEdits) : nil
+    }
+
+    /// Where the fullscreen was opened: the Projects workspace (its history
+    /// session names the Project) or a chat; shared recipient views are read-only.
+    private func versionEditPlace(for embed: EmbedRecord) async -> EmbedEditPlace {
+        let recipientView = recipientMediaContext != nil
+        if let loadVersionHistory {
+            let context = await loadVersionHistory(embed)?.context
+            return EmbedEditPlace(projectId: context?.projectID, projectTeamId: context?.teamID,
+                                  readOnly: context == nil || recipientView)
+        }
+        guard let chatId, !chatId.isEmpty else { return EmbedEditPlace(readOnly: true) }
+        #if DEBUG
+        if chatId == "dev-embed-preview-chat" { return EmbedEditPlace(readOnly: true) }
+        #endif
+        return EmbedEditPlace(chatId: chatId, chatTeamId: OfflineStore.shared.loadChat(id: chatId)?.teamId,
+                              readOnly: recipientView)
+    }
+
+    private func openVersionEdits(for embed: EmbedRecord) async {
+        let place = await versionEditPlace(for: embed)
+        guard !Task.isCancelled, currentEmbed?.id == embed.id else { return }
+        let reloadsTimeline = !isEnhanceType(embed)
+        versionEdits.onHeadChanged = { _ in
+            NotificationCenter.default.post(name: .embedVersionHeadChanged, object: nil, userInfo: ["embedId": embed.id])
+            guard reloadsTimeline else { return }
+            Task { await openVersionHistory(for: embed) }
+        }
+        await versionEdits.open(embedId: embed.id, place: place, enhanceable: isEnhanceable(embed)).value
     }
 
     private func openVersionHistory(for embed: EmbedRecord) async {
@@ -726,9 +778,18 @@ struct EmbedFullscreenContainer: View {
         await versionHistory.open(embedID: embed.id, currentVersion: currentVersionNumber(for: embed), session: session)
     }
 
+    @ViewBuilder
     private func versionTimeline(for embed: EmbedRecord) -> some View {
-        EmbedVersionHistoryTimeline(history: versionHistory, reopen: { await openVersionHistory(for: embed) })
-            .padding(.horizontal, .spacing6).padding(.bottom, .spacing5)
+        if isEnhanceType(embed) {
+            EmbedCoreVersionList(model: versionEdits, kind: .image)
+        } else {
+            VStack(spacing: 0) {
+                EmbedVersionHistoryTimeline(history: versionHistory, reopen: { await openVersionHistory(for: embed) })
+                    .padding(.horizontal, .spacing6).padding(.bottom, .spacing5)
+                EmbedVersionRestoreBar(model: versionEdits, selectedVersion: versionHistory.selectedVersion,
+                                       currentVersion: versionHistory.currentVersion)
+            }
+        }
     }
 
     private func firstString(_ keys: [String], in data: [String: AnyCodable]) -> String? {
@@ -1128,6 +1189,8 @@ private struct EmbedFullscreenTopBar: View {
     var downloadDisabled = false
     var downloadIdentifier = "embed-download-button"
     var hostingActions: [HostingHeaderAction] = []
+    /// Image Enhance (web `responsiveAction`): first action, under More when the bar has no room.
+    var enhance: EmbedEnhanceHeaderAction? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var focusedActionID: String?
     @State private var toolbarFrame: CGRect = .zero
@@ -1143,6 +1206,9 @@ private struct EmbedFullscreenTopBar: View {
     private var share: Action { .init(id: "share", icon: "share", label: AppStrings.shareChat, perform: onShare) }
     private var actions: [Action] {
         var values: [Action] = []
+        if let enhance {
+            values.append(.init(id: "enhance", icon: "sparkles", label: enhance.label, active: enhance.running, perform: enhance.perform))
+        }
         if showCopy { values.append(.init(id: "copy", icon: "copy", label: AppStrings.copy, perform: onCopy)) }
         if showDownload { values.append(.init(id: "download", icon: "download", label: downloadLabel, perform: onDownload)) }
         if showCalendar { values.append(.init(id: "calendar", icon: "calendar", label: "Add to calendar", perform: onCalendar)) }
@@ -1153,7 +1219,7 @@ private struct EmbedFullscreenTopBar: View {
     }
     private var usesMore: Bool { EmbedHeaderActionPolicy.usesMore(width: viewportWidth, actionCount: actions.count, hasShare: showShare) }
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: .spacing4) {
             if showReport {
                 pill(.init(id: "report", icon: "bug", label: LocalizationManager.shared.text("header.report_issue"), perform: onReportIssue), label: EmbedHeaderActionPolicy.reportShowsLabel(width: viewportWidth))
             }
@@ -1201,7 +1267,7 @@ private struct EmbedFullscreenTopBar: View {
             pill(.init(id: "close", icon: "close", label: AppStrings.close, perform: onClose))
                 .accessibilityIdentifier("embed-minimize") // Preserve existing automation contract.
         }
-        .padding(.horizontal, 16).padding(.vertical, 12)
+        .padding(.horizontal, .spacing8).padding(.vertical, .spacing6)
         .frame(maxWidth: .infinity, alignment: .top)
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("embed-fullscreen-coordinate")) } action: { toolbarFrame = $0 }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: moreOpen)
@@ -1228,19 +1294,21 @@ private struct EmbedFullscreenTopBar: View {
     }
     private var menuWidth: CGFloat { EmbedHeaderActionPolicy.menuWidth(toolbar: toolbarFrame, anchor: moreFrame) }
     private var menuActions: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: .spacing4) {
             if viewportWidth < 460 && showShare { pill(share, label: true, inMenu: true) }
             ForEach(actions) { pill($0, label: true, inMenu: true) }
         }
     }
     private func pill(_ action: Action, label: Bool = false, inMenu: Bool = false) -> some View {
         EmbedHeaderActionPill(icon: action.icon, label: action.label, showsLabel: label,
-                              headerFrame: inMenu ? .zero : headerFrame, active: action.active, inMenu: inMenu) {
+                              headerFrame: inMenu ? .zero : headerFrame, active: action.active, inMenu: inMenu,
+                              busy: action.id == "enhance" && enhance?.running == true) {
             traceFullscreenHeaderAction("action-\(action.id)")
             if action.id != "more" { moreOpen = false }
             action.perform()
         }.focused($focusedActionID, equals: action.id)
-            .disabled(action.id == "download" && downloadDisabled)
+            .disabled((action.id == "download" && downloadDisabled) || (action.id == "enhance" && enhance?.disabled == true))
+            .modifier(EmbedEnhanceStateValue(state: action.id == "enhance" ? enhance?.state : nil))
             .accessibilityIdentifier(action.id.hasPrefix("hosting-view-") ? action.id : action.id == "download" ? downloadIdentifier : "embed-\(action.id)-button")
     }
 }
@@ -1252,20 +1320,27 @@ private struct EmbedHeaderActionPill: View {
     let headerFrame: CGRect
     let active: Bool
     let inMenu: Bool
+    /// Shows progress in place of the icon (running Enhance).
+    var busy = false
     let action: () -> Void
     @State private var frame: CGRect = .zero
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var overHeader: Bool { EmbedHeaderActionPolicy.overlaps(control: frame, header: headerFrame) }
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                Icon(icon, size: 25)
-                    .foregroundStyle(overHeader ? AnyShapeStyle(Color.white) : AnyShapeStyle(LinearGradient.primary))
+            HStack(spacing: .spacing4) {
+                if busy {
+                    ProgressView().controlSize(.small).frame(width: 25, height: 25)
+                        .accessibilityIdentifier("embed-enhance-progress")
+                } else {
+                    Icon(icon, size: 25)
+                        .foregroundStyle(overHeader ? AnyShapeStyle(Color.white) : AnyShapeStyle(LinearGradient.primary))
+                }
                 if showsLabel {
                     Text(label).font(.custom("Lexend Deca", size: 16).weight(.semibold))
-                        .foregroundStyle(overHeader ? Color.white : Color.fontPrimary).padding(.trailing, 8)
+                        .foregroundStyle(overHeader ? Color.white : Color.fontPrimary).padding(.trailing, .spacing4)
                 }
-            }.padding(8)
+            }.padding(.spacing4)
                 .background(overHeader ? Color.white.opacity(0.2) : Color.grey10)
                 .clipShape(Capsule())
                 .contentShape(Capsule())
@@ -1762,6 +1837,11 @@ struct EmbedFullscreenHeader: View {
             let raw = embed.rawData ?? [:]
             return [raw["framework"]?.value as? String, raw["runtime"]?.value as? String]
                 .compactMap { $0 }.joined(separator: " · ")
+        }
+        if embedType == .codeTestResult {
+            let run = TestResultView(data: embed.rawData)
+            return [AppStrings.localized(run.runStatus.labelKey), TestResultView.formatDuration(run.durationMs)]
+                .filter { !$0.isEmpty }.joined(separator: " · ")
         }
         if embedType == .socialMediaPost {
             let raw = embed.rawData ?? [:]

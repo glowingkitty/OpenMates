@@ -1,0 +1,76 @@
+# Hand-curated specification links for shared-client.yml (per domain), cli.yml and sdk.yml.
+# spec_assertions: ids that exist in specifications/generated/assertion-index.yml (validated).
+# spec_gaps: Rust behavior no assertion covers. Never edit specification files from here;
+# spec changes need the approval flow with the user.
+schema_version: 1
+shared_client_domains:
+  encryption:
+    spec_assertions: [sdk.encryption.local-only, auth.keys.client-wrapped, chats.persistence.client-encrypted]
+    spec_gaps:
+    - AES-GCM combined format and legacy OM header fallback have no assertion.
+  auth:
+    spec_assertions:
+    - sdk.auth.api-key-only
+    - sdk.auth.credential-separation
+    - auth.pair-login.single-use-zk
+    - auth.session.lifecycle
+    spec_gaps: []
+  recovery:
+    spec_assertions:
+    - chats.completion.recovery-takeover
+    - chats.sync.key-gated-recovery
+    - sync.delta.reset
+    - sync.startup.bounded-phases
+    spec_gaps:
+    - Initial-startup sync replay and settings-reminders recovery vectors have no assertion.
+  configuration:
+    spec_assertions: [cli.credentials.storage-mode, sdk.library.explicit-headless, sdk.auth.legacy-key-migration]
+    spec_gaps: []
+  streaming:
+    spec_assertions: [chats.streaming.ordered-final]
+    spec_gaps:
+    - SDK streaming cancellation before IO has no assertion.
+  errors:
+    spec_assertions: [cli.output.actionable-readable]
+    spec_gaps:
+    - SDK transport error classification and HTTP error text parity have no assertion.
+cli:
+  spec_assertions:
+  - cli.runtime.native-rust
+  - cli.distribution.cargo-prereleases
+  - cli.validation.linux-mac-windows-waiver
+  - cli.migration.complete-compatible
+  - cli.migration.transition-acceptance
+  - cli.slugs.encrypted-stable
+  - cli.slugs.local-resolution-id-transport
+  - cli.output.actionable-readable
+  - cli.surface.semantic-parity
+  - cli.work-structure.complete
+  - cli.plan-approval.web-only
+  - cli.recovery.yaml-explicit
+  - cli.credentials.storage-mode
+  - cli.pairing.expiry-upgrade
+  - cli.generated-files.cwd-default
+  - cli.generated-files.destination
+  - cli.generated-files.safe-visible
+  - cli.generated-files.help
+  spec_gaps:
+  - Differential parity with the npm CLI per command is tracked in config/cli-command-catalog.json, not in an assertion.
+sdk:
+  spec_assertions:
+  - sdk.library.explicit-headless
+  - sdk.client.thin-platform-boundary
+  - sdk.migration.ordered-client-rollout
+  - sdk.web.before-after-performance
+  - sdk.distribution.separate-rust-crate
+  - sdk.parity.executable-release-gate
+  - sdk.auth.approved-api-key-device
+  - sdk.encryption.local-only
+  - sdk.auth.api-key-only
+  - sdk.auth.credential-separation
+  - sdk.auth.limited-resource-keys
+  - sdk.auth.legacy-key-migration
+  - sdk.surface.semantic-parity
+  - sdk.anonymous.execution
+  - sdk.anonymous.signup-required
+  spec_gaps: []

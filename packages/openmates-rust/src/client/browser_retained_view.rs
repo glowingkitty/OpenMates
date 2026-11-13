@@ -50,6 +50,7 @@ pub(super) fn retained_projection(client:&Client,owner:&str,id:&str,metadata:&Va
             }
             if semantic["has_thinking"].is_boolean(){public["hasThinking"]=semantic["has_thinking"].clone();}
             if let Some(values)=semantic.get("pii_mappings"){let values=values.as_array().ok_or(Error::Protocol)?;mappings.insert(message.id.clone(),values.clone());}
+            if !mappings.contains_key(&message.id){let extra=crate::client::memory_privacy::response_mappings(&message)?;if !extra.is_empty(){mappings.insert(message.id.clone(),extra);}}
             message_metadata.push(public.into_inner());chat.messages.push(message.into_inner());
         } else {
             let (raw,message)=crate::client::sync::decode_chat_message(&closed,id,key,&mut seen)?;
@@ -57,6 +58,7 @@ pub(super) fn retained_projection(client:&Client,owner:&str,id:&str,metadata:&Va
             let encoded=Zeroizing::new(crate::client::sync::decrypt_optional(&raw,"encrypted_pii_mappings",key)?);
             let values=Plain::new(if encoded.is_empty(){vec![]}else{serde_json::from_str::<Vec<Value>>(&encoded)?});
             if raw.get("encrypted_pii_mappings").is_some(){mappings.insert(message.id.clone(),values.into_inner());}
+            else{let extra=crate::client::memory_privacy::response_mappings(&message)?;if !extra.is_empty(){mappings.insert(message.id.clone(),extra);}}
             let mut public=Plain::new(crate::client::saved_chat_read::metadata::message(row,&message,id,key)?);
             if public.storage_id.is_none(){public.storage_id=Some(wire::position(row)?.1.to_owned());}
             message_metadata.push(serde_json::to_value(&*public)?);chat.messages.push(message.into_inner());
@@ -64,7 +66,7 @@ pub(super) fn retained_projection(client:&Client,owner:&str,id:&str,metadata:&Va
     }
     // Identical maintained page-local PII interpretation: user-row mappings
     // in this retained page only, never account-wide restoration material.
-    let page_mappings=Plain::new(chat.messages.iter().filter(|message|message.role=="user")
+    let page_mappings=Plain::new(chat.messages.iter().filter(|message|message.role=="user"||message.role=="system")
         .filter_map(|message|mappings.get(&message.id)).flatten().cloned().collect::<Vec<Value>>());
     for message in &mut chat.messages {
         let content=crate::privacy::restore_page(&message.content,&page_mappings)?;replace_text(&mut message.content,content);

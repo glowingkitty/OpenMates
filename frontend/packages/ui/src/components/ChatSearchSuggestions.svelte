@@ -20,14 +20,13 @@
 -->
 <script lang="ts">
   import { search as performSearch, type EmbedSearchResult } from '../services/searchService';
-  import { searchSavedEmbedMemories, type SavedEmbedSuggestion } from '../services/embedSuggestionSearch';
+  import { searchSavedEmbeds, type SavedEmbedSuggestion } from '../services/embedSuggestionSearch';
   import { chatDB } from '../services/db';
   import { chatMetadataCache } from '../services/chatMetadataCache';
   import { getLucideIcon, getValidIconName, getFallbackIconForCategory, getCategoryGradientColors } from '../utils/categoryUtils';
   import { getAppGradientBackground } from './activeChatUtils';
   import { authStore } from '../stores/authStore';
   import { activeTeamId } from '../stores/teamStore';
-  import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
   import { text } from '@repo/ui';
   import { get } from 'svelte/store';
   import {
@@ -51,7 +50,7 @@
     messageInputContent?: string;
     onChatNavigate: (chatId: string) => void;
     onFileSelect: (file: UploadedFileSearchResult) => void;
-    onEmbedSelect: (embedId: string, settingsPath?: string, embedChatId?: string) => void;
+    onEmbedSelect: (embedId: string, settingsPath?: string, embedChatId?: string, savedEmbed?: boolean) => void;
     currentChatId?: string | undefined;
   } = $props();
 
@@ -130,9 +129,13 @@
    */
   $effect(() => {
     const query = filterQuery;
-    savedEmbedResults = query && $authStore.isAuthenticated
-      ? searchSavedEmbedMemories($appSettingsMemoriesStore, query)
-      : [];
+    if (!query || !$authStore.isAuthenticated) {
+      savedEmbedResults = [];
+      return;
+    }
+    let cancelled = false;
+    void searchSavedEmbeds(query).then((results) => { if (!cancelled) savedEmbedResults = results; });
+    return () => { cancelled = true; };
   });
 
   $effect(() => {
@@ -239,7 +242,7 @@
     <div class="chat-search-scroll">
       {#each savedEmbedResults as embed (embed.embedId)}
         <div class="chat-result-wrapper">
-          <button class="suggestion-card embed-result-card" data-testid="saved-embed-search-result" data-embed-id={embed.embedId} data-app-id={embed.appId} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, embed.settingsPath)}>
+          <button class="suggestion-card embed-result-card" data-testid="saved-embed-search-result" data-embed-id={embed.embedId} data-app-id={embed.appId} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, embed.settingsPath, undefined, true)}>
             <span class="card-icon"><Icon name={embed.appId} type="app" size="24px" noAnimation noMargin /></span>
             <span class="card-text">{embed.title}</span>
           </button>

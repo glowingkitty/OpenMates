@@ -98,14 +98,14 @@ async def test_media_batch_seals_successful_children_and_notifies_once_after_par
     assert callback_args["completed_results"][0]["input_embed_ids"] == ["saved-source"]
     assert callback_args["completed_results"][0]["embed_ref"]
     assert callback_args["completed_results"][0]["parent_embed_id"] == parent_id
-    assert callback_args["completed_results"][0]["parent_embed_ref"].startswith("generated-media-images-")
+    # The skill-use parent ref is never offered to the assistant for its answer body.
+    assert "parent_embed_ref" not in callback_args["completed_results"][0]
     assert callback_args["request_metadata"]["parent_embed_id"] == parent_id
-    assert callback_args["request_metadata"]["parent_embed_ref"] == callback_args["completed_results"][0]["parent_embed_ref"]
+    assert "parent_embed_ref" not in callback_args["request_metadata"]
     assert "aes_key" not in callback_args["completed_results"][0]
     assert "files" not in callback_args["completed_results"][0]
     assert callback_args["completed_results"][1] == {
         "parent_embed_id": parent_id,
-        "parent_embed_ref": callback_args["completed_results"][0]["parent_embed_ref"],
         "request_index": 1, "status": "error", "error": "Generation failed",
     }
 
@@ -306,3 +306,18 @@ def test_generated_authority_requires_exact_finished_canonical_uuid_pair():
     for changes in ({"status": "failed"}, {"embed_id": "invalid"}, {"app_id": "unknown"},
                     {"embed_ref": "generated-images-invented"}, {"embed_id": "22222222-2222-4222-8222-222222222222"}):
         assert authenticated_generated_outputs([{**row, **changes}]) == {}
+
+
+# contract-test: supporting surface=gui.web assertions=design-embroidery.request.vector-source
+def test_same_turn_generated_results_can_be_named_by_a_later_skill_call():
+    from backend.shared.python_utils.generated_media_graph import generated_output_file_index
+
+    child_id = "11111111-1111-4111-8111-111111111111"
+    row = {"app_id": "images", "skill_id": "generate", "status": "finished", "embed_id": child_id,
+           "embed_ref": "generated-images-111111111111", "filename": "cat-face-11111111.svg"}
+    assert generated_output_file_index([row]) == {
+        "generated-images-111111111111": child_id, "cat-face-11111111.svg": child_id,
+    }
+    assert generated_output_file_index([{**row, "status": "failed"}]) == {}
+    assert generated_output_file_index([{**row, "embed_ref": "generated-images-invented"}]) == {}
+

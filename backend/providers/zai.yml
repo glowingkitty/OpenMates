@@ -49,19 +49,19 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 238 # About 3x $1.40/M at $0.001 per credit.
+          per_credit_unit: 480
         cache_read:
-          per_credit_unit: 2380 # About 3x $0.14/M.
+          per_credit_unit: 4765
         output:
-          per_credit_unit: 75 # About 3x $4.40/M, including reasoning tokens.
+          per_credit_unit: 155
     cache_pricing:
       enabled: true
       write_billing: included_in_input
       eligible_hosts: [mistral]
       source_url: https://docs.mistral.ai/models/zai-glm-5-3
-      reviewed_on: "2026-10-10"
+      reviewed_on: "2026-11-09"
       status: verified_for_activation
-      expires_on: "2026-11-10"
+      expires_on: "2026-12-09"
     costs:
       input_per_million_token:
         price: 1.40
@@ -108,9 +108,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 275 # Based on $1.20/M input (OpenRouter): 333.33 / 1.20 = 277.8, rounded down
+          per_credit_unit: 560
         output:
-          per_credit_unit: 80 # Based on $4.10/M output (OpenRouter): 333.33 / 4.10 = 81.3, rounded down
+          per_credit_unit: 165
     costs:
       input_per_million_token:
         price: 1.20
@@ -161,9 +161,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 150
+          per_credit_unit: 300
         output:
-          per_credit_unit: 120
+          per_credit_unit: 245
     costs:
       input_per_million_token:
         price: 2.25

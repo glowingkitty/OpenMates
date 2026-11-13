@@ -28,7 +28,7 @@
     const defaultComplex = $derived($userProfile.default_ai_model_complex ?? null);
     const defaultMostDemanding = $derived($userProfile.default_ai_model_most_demanding ?? null);
     const followUpSuggestionsEnabled = $derived($userProfile.follow_up_suggestions_enabled !== false);
-    const quickTipsEnabled = $derived($userProfile.quick_tips_enabled !== false);
+    const recommendationsEnabled = $derived($userProfile.recommendations_enabled !== false);
     const preferEuServers = $derived($userProfile.server_region_preference !== 'global');
     const aiModels = $derived(modelsMetadata.filter((model) => model.for_app_skill === 'ai.ask'));
     const providerFamilies = $derived.by(() => {
@@ -68,7 +68,7 @@
     }
 
     async function saveResponseSetting(
-        field: 'follow_up_suggestions_enabled' | 'quick_tips_enabled',
+        field: 'follow_up_suggestions_enabled' | 'recommendations_enabled',
         nextValue: boolean,
     ): Promise<void> {
         updateProfile({ [field]: nextValue });
@@ -137,7 +137,7 @@
                     <SettingsItem type="heading" icon="settings" title={$text('settings.ai_ask.ai_ask_settings.response_settings')} />
                     <div class="ai-row-list">
                         <SettingsItem type="ai-row" icon="chat" title={$text('settings.ai_ask.ai_ask_settings.follow_up_suggestions')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.follow_up_suggestions_description')} hasToggle={true} checked={followUpSuggestionsEnabled} data-testid="ai-response-feature-follow-up-suggestions" onClick={() => saveResponseSetting('follow_up_suggestions_enabled', !followUpSuggestionsEnabled)} />
-                        <SettingsItem type="ai-row" icon="insight" title={$text('settings.ai_ask.ai_ask_settings.quick_tips')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.quick_tips_description')} hasToggle={true} checked={quickTipsEnabled} data-testid="ai-response-feature-quick-tips" onClick={() => saveResponseSetting('quick_tips_enabled', !quickTipsEnabled)} />
+                        <SettingsItem type="ai-row" icon="insight" title={$text('settings.ai_ask.ai_ask_settings.recommendations')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.recommendations_description')} hasToggle={true} checked={recommendationsEnabled} data-testid="ai-response-feature-recommendations" onClick={() => saveResponseSetting('recommendations_enabled', !recommendationsEnabled)} />
                     </div>
                 </section>
             {/if}

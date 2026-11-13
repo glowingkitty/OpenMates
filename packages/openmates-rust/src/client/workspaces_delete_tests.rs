@@ -114,6 +114,8 @@ pub(in crate::client) async fn peer_control(
             assert_eq!(deletion["payload"], expected);
         } else if operation == "delete_draft" {
             assert_eq!(deletion["payload"], json!({"chat_id":ID}));
+        } else if operation == "chat_read_status_update" {
+            assert_eq!(deletion["payload"], json!({"chat_id":ID,"unread_count":0}));
         } else {
             let payload = &deletion["payload"];
             assert_eq!(payload.as_object().unwrap().len(), 3);

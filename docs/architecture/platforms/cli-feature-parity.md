@@ -77,13 +77,13 @@ The main exceptions are browser-bound or high-risk account operations that canno
 | App store browsing | Full for metadata | `apps list`, `apps <app-id>`, `apps skill-info`. Terminal output is metadata-oriented, not a visual store. |
 | Skill execution | Full | `apps <app-id> <skill-id> <query>` or `--input '<json>'`. |
 | Travel booking link | Full for terminal handoff | `apps travel booking-link --token ...`; browser still completes external booking. |
-| Model, mate, skill, focus, memory mentions | Full | `@Best`, `@Sophia`, `@Web-Search`, focus modes, memory categories, and memory entries are resolved in `mentions.ts`. |
+| Model, mate, skill, focus, memory mentions | Full | `@Best`, `@Sophia`, `@Web-Search`, focus modes, the Memories category, and Memory documents are resolved in `mentions.ts`. |
 | Local file attachment mentions | Full | `@/path/to/file` supports text/code, images, PDFs, S3 upload, and sensitive-file handling. |
 | Embed preview/fullscreen | Partial | `embeds show` renders decrypted content in terminal; visual parity is intentionally terminal-native. |
 | Embed sharing | Full | `embeds share` with expiry/password. |
 | Daily inspirations | Full | `inspirations` supports public and personalized responses. |
 | New chat suggestions | Full | `newchatsuggestions`. |
-| Memories and app settings entries | Full | `settings memories list/types/create/update/delete`. |
+| Memories | Partial | `settings memories list/update/delete`; Memory documents are created in the web app. Typed app memories were replaced by Memories, so `create`/`types` only print a pointer to Settings > Memories. |
 | User language, dark mode, font | Full | `settings interface language/dark-mode/font ...` predefined commands. |
 | Username and timezone | Full | `settings account username set ...` and `settings account timezone set ...`. |
 | Email change | Missing | Web has a multi-step verification flow. CLI has no safe guided flow. |

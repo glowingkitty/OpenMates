@@ -360,7 +360,7 @@ test('explains selected assistant text in a background new chat', async ({ page 
 		logCheckpoint: log
 	});
 	// The mock answer text arrives before backend post-processing publishes title,
-	// quick-tip, and follow-up updates. Let those UI updates settle before opening
+	// recommendations, and follow-up updates. Let those UI updates settle before opening
 	// the transient selection context menu, otherwise the menu can close on scroll
 	// between the visibility assertion and the click.
 	await page.waitForTimeout(3000);

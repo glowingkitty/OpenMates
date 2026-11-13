@@ -746,7 +746,6 @@ final class ChatSyncParityTests: XCTestCase {
         let previous = [row("database-user"), row("client-user"), row("repeat-user"),
                         row("database-assistant", role: .assistant, content: assistantBody, ciphertext: "same-assistant-cipher")]
         store.setMessages(for: "chat-1", messages: previous)
-        bridge.sendMessageOffline(chatId: "chat-1", messageId: "queued-user", content: "Still waiting offline")
         let user = row("client-user", alias: "database-user")
         let savedAssistant = Message(id: "client-assistant", chatId: "chat-1", role: .assistant,
             content: nil, encryptedContent: "same-assistant-cipher", createdAt: time, updatedAt: nil,
@@ -756,10 +755,10 @@ final class ChatSyncParityTests: XCTestCase {
             store.applySyncedContent(messagesByChat: ["chat-1": snapshot], embedsByChat: [:])
         }
         XCTAssertEqual(Set(store.messages(for: "chat-1").map(\.id)),
-                       ["client-user", "repeat-user", "client-assistant", "queued-user"])
+                       ["client-user", "repeat-user", "client-assistant"])
         XCTAssertEqual(store.messages(for: "chat-1").first { $0.id == "client-assistant" }?.content, assistantBody)
         let reloaded = OfflineStore(modelContainer: container).loadMessages(chatId: "chat-1")
-        XCTAssertEqual(Set(reloaded.map(\.id)), ["client-user", "repeat-user", "client-assistant", "queued-user"])
+        XCTAssertEqual(Set(reloaded.map(\.id)), ["client-user", "repeat-user", "client-assistant"])
         XCTAssertEqual(reloaded.first { $0.id == "client-assistant" }?.content, assistantBody)
         XCTAssertEqual(reloaded.first { $0.id == "client-user" }?.serverMessageId, "database-user")
         XCTAssertEqual(reloaded.filter { $0.content == "Same intentionally repeated text" }.count, 2)

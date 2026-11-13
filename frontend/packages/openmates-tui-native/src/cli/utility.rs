@@ -12,12 +12,14 @@ mod examples;
 mod finance;
 #[path = "utility/prompt_budget.rs"]
 mod prompt_budget;
+#[path = "utility/proton.rs"]
+mod proton;
 #[path = "utility/revolut.rs"]
 mod revolut;
 #[path = "utility/self_update.rs"]
 mod self_update;
 
-const MEMORIES_HELP: &str = "Memories commands:\n  openmates settings memories list [--app-id <id>] [--item-type <type>] [--json]\n  openmates settings memories types [--app-id <id>] [--json]\n  openmates settings memories create --app-id <id> --item-type <type> --data '<json>'\n  openmates settings memories update --id <id> --app-id <id> --item-type <type> --data '<json>' [--version <n>]\n  openmates settings memories delete --id <entry-id>\n\nExamples:\n  openmates settings memories types --app-id code\n  openmates settings memories list --app-id code\n  openmates settings memories create --app-id code --item-type preferred_tech --data '{\"name\":\"Python\",\"proficiency\":\"advanced\"}'\n  openmates settings memories delete --id <uuid>";
+const MEMORIES_HELP: &str = "Memories commands:\n  openmates settings memories list [--app-id <id>] [--item-type <type>] [--json]\n  openmates settings memories update --id account-memory-<id> --data '{\"title\":\"...\",\"document\":\"...\"}'\n  openmates settings memories delete --id <entry-id>\n  openmates settings memories undo --chat <chat-id> [--id <entry-id>]\n\nTyped app memories were replaced by Memories (personal documents).\nCreate and organize Memories in the web app under Settings > Memories.";
 
 fn local(i: &Invocation) -> bool {
     matches!(
@@ -32,11 +34,36 @@ pub(super) fn is_network_public(i: &Invocation) -> bool {
 pub(super) fn is_public(i: &Invocation) -> bool {
     local(i) || is_network_public(i)
 }
+/// npm refuses credit-spending benchmark runs without `--confirm-spend-credits`
+/// (or `--dry-run`) before any network call. The runners themselves are not
+/// ported, so confirmed or dry-run invocations still report unsupported. The refusal is
+/// a pre-flight answer from `public`, deliberately not part of `is_public`/`supported`
+/// (the catalog keeps these benchmark rows unsupported).
+fn spend_refusal(i: &Invocation) -> Option<&'static str> {
+    if i.boolean("dry-run") || i.boolean("confirm-spend-credits") {
+        return None;
+    }
+    match i.command_path().as_str() {
+        "benchmark model" if !i.positionals.is_empty() => Some(
+            "Benchmark runs spend real credits from the logged-in account. Rerun with --confirm-spend-credits, or use --dry-run to preview the plan.",
+        ),
+        "benchmark prompt-budget" if i.positionals.is_empty() => Some(
+            "Prompt-budget benchmark runs spend real credits from the logged-in account. Rerun with --confirm-spend-credits, or use --dry-run to preview the plan.",
+        ),
+        _ => None,
+    }
+}
 pub(super) fn supported(i: &Invocation) -> bool {
-    is_public(i) || finance::supported(i) || revolut::supported(i)
+    is_public(i) || finance::supported(i) || revolut::supported(i) || proton::supported(i)
 }
 /// Synchronous local handlers; run before any credential storage is opened.
 pub(super) fn public(i: &Invocation) -> Option<Result<CliOutput, CliError>> {
+    if let Some(message) = spend_refusal(i) {
+        return Some(Err(CliError::Contract {
+            code: "command_failed",
+            message: message.into(),
+        }));
+    }
     if !local(i) {
         return None;
     }
@@ -58,10 +85,24 @@ pub(super) async fn execute_public(i: &Invocation) -> Result<CliOutput, CliError
     self_update::execute(i).await
 }
 pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOutput, CliError> {
+    if proton::supported(i) {
+        return proton::execute(i, client).await;
+    }
     if revolut::supported(i) {
         return revolut::execute(i, client).await;
     }
     finance::execute(i, client).await
+}
+
+/// `finance check-accounts` under an explicit `--api-key` (CSV statements only).
+pub(super) fn finance_key_supported(i: &Invocation) -> bool {
+    finance::supported(i)
+}
+pub(super) async fn execute_finance_key(
+    i: &Invocation,
+    sdk: &openmates_sdk::sdk::OpenMates,
+) -> Result<CliOutput, CliError> {
+    finance::execute_key(i, sdk).await
 }
 
 /// JavaScript `String(number)` for finite values that fit the JSON artifacts.

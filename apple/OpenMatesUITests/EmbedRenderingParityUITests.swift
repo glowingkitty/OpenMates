@@ -74,6 +74,10 @@ final class EmbedRenderingParityUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        // A test that times out skips its `defer` orientation reset, and the
+        // restarted runner assumes portrait while the simulator stays rotated.
+        // Set portrait explicitly so one timeout cannot run later tests in landscape.
+        XCUIDevice.shared.orientation = .portrait
     }
 
     // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
@@ -318,22 +322,10 @@ final class EmbedRenderingParityUITests: XCTestCase {
         XCTAssertEqual(calendar.label, "Add to calendar")
         attachScreenshot(name: "Appointment responsive calendar header action")
         calendar.tap()
-        let export = app.otherElements["ShareSheet.RemoteContainerView"].firstMatch
-        XCTAssertTrue(export.waitForExistence(timeout: 8), "The action must present the real ICS file export sheet")
-        XCTAssertGreaterThan(export.frame.width, 0)
-        XCTAssertTrue(app.frame.intersects(export.frame))
-        // The system's share service exposes the file and actions from its remote process;
-        // UIActivityViewController's host view is not an accessibility container.
-        let filename = app.descendants(matching: .any).matching(NSPredicate(
-            format: "identifier == %@ AND label == %@", "LP.CaptionBar.BottomCaption",
-            "dr-sophie-m-ller-ophthalmologist-2026-04-03.ics")).firstMatch
-        XCTAssertTrue(filename.waitForExistence(timeout: 5), "Export must contain the appointment's actual ICS file")
-        for label in ["Copy", "Save to Files"] {
-            let action = app.cells.matching(NSPredicate(format: "label == %@", label)).firstMatch
-            XCTAssertTrue(action.waitForExistence(timeout: 5), "The file export must offer \(label)")
-            XCTAssertTrue(action.isHittable, "The real \(label) export action must be usable")
-        }
-        attachScreenshot(name: "Appointment native calendar file export")
+        // Since e97f14609f the action opens the system event editor prefilled
+        // with the appointment (NativeEmbedActionController.calendar), not an ICS share sheet.
+        assertSystemCalendarEditor(app: app, titleContaining: "Sophie Müller",
+                                   screenshot: "Appointment native calendar event editor")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
@@ -415,6 +407,14 @@ final class EmbedRenderingParityUITests: XCTestCase {
             "app:audio:generate", "app:audio:speak", "app:music:generate", "app:videos:generate",
             "app:videos:search", "app:web:search", "app:images:search", "image",
             "images-image-result", "pdf", "recording", "videos-video"
+        ])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testJobsAndRainRadarEmbedsRenderPreviewAndFullscreen() {
+        continueAfterFailure = true
+        captureCanonicalRegistryKeys([
+            "app:jobs:search", "jobs-job-result", "app:weather:rain_radar"
         ])
     }
 
@@ -1013,10 +1013,9 @@ final class EmbedRenderingParityUITests: XCTestCase {
         copy.tap()
         let feedback = app.staticTexts["Copied to clipboard"]
         XCTAssertTrue(feedback.waitForExistence(timeout: 3))
-        let dismissFeedback = app.buttons["notification-dismiss"].firstMatch
-        if dismissFeedback.exists && dismissFeedback.isHittable { dismissFeedback.tap() }
+        // The feedback dismisses itself; querying its dismiss button races with that.
         let feedbackGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: feedback)
-        XCTAssertEqual(XCTWaiter.wait(for: [feedbackGone], timeout: 5), .completed,
+        XCTAssertEqual(XCTWaiter.wait(for: [feedbackGone], timeout: 10), .completed,
                        "Copy feedback must clear before operating the header underneath")
         try openTravelMoreIfPresent(app: app)
         let calendar = app.buttons["embed-calendar-button"]
@@ -1024,13 +1023,27 @@ final class EmbedRenderingParityUITests: XCTestCase {
         XCTAssertTrue(calendar.isHittable)
         attachScreenshot(name: "Travel connection copy and calendar responsive actions")
         calendar.tap()
-        XCTAssertTrue(app.otherElements["ShareSheet.RemoteContainerView"].firstMatch.waitForExistence(timeout: 8))
-        let filename = app.descendants(matching: .any).matching(NSPredicate(
-            format: "identifier == %@ AND label == %@", "LP.CaptionBar.BottomCaption",
-            "munich-muc-london-heathrow-lhr-2026-03-15.ics")).firstMatch
-        XCTAssertTrue(filename.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.cells.matching(NSPredicate(format: "label == %@", "Save to Files")).firstMatch.isHittable)
-        attachScreenshot(name: "Travel connection real ICS export")
+        assertSystemCalendarEditor(app: app, titleContaining: "London Heathrow",
+                                   screenshot: "Travel connection native calendar event editor")
+    }
+
+    /// The calendar action presents EventKit's editor prefilled with the embed's
+    /// event; the test cancels it so nothing is saved to the simulator calendar.
+    private func assertSystemCalendarEditor(app: XCUIApplication, titleContaining title: String, screenshot: String) {
+        let editor = app.descendants(matching: .any)["native-embed-calendar-editor"].firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout: 8), "The action must present the system calendar event editor")
+        XCTAssertTrue(app.frame.intersects(editor.frame))
+        let titleField = app.textFields.matching(NSPredicate(format: "value CONTAINS %@", title)).firstMatch
+        XCTAssertTrue(titleField.waitForExistence(timeout: 5), "The editor must be prefilled with the embed's event title")
+        let cancel = app.buttons["Cancel"].firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5))
+        XCTAssertTrue(cancel.isHittable, "The system editor must stay dismissible")
+        attachScreenshot(name: screenshot)
+        cancel.tap()
+        // EventKit may confirm discarding the unsaved editor on some OS versions.
+        let discard = app.buttons["Discard Changes"].firstMatch
+        if discard.waitForExistence(timeout: 1) { discard.tap() }
+        XCTAssertTrue(editor.waitForNonExistence(timeout: 5))
     }
 
     private func assertTravelFullscreenDetails(wide: Bool) throws {

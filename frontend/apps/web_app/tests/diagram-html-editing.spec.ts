@@ -13,8 +13,14 @@ const { reloadChatWorkspace } = require('./helpers/workspace-navigation');
 const { closeFullscreen } = require('./helpers/embed-test-helpers');
 
 const { email, password, otpKey } = getTestAccount();
+/**
+ * Rust core build (`--web-rust-core` CI lane): the client core saves the edit and
+ * writes the chat's "Diagram edited" event (embed-user-edits); other builds keep
+ * the WebSocket revision commit, whose receipts the spec checks instead.
+ */
+const RUST_CORE = process.env.VITE_OPENMATES_RUST_CORE === '1';
 
-// contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped,app-memories.transparency.loaded-set,chats.rendering.assistant-document-convergence,chats.persistence.client-encrypted,storage.versions.bounded-reconstruction,chats.layout.responsive-history
+// contract-test: supporting surface=gui.web assertions=app-memories.selection.source-scoped,app-memories.transparency.loaded-set,chats.rendering.assistant-document-convergence,chats.persistence.client-encrypted,storage.versions.bounded-reconstruction,chats.layout.responsive-history,embed-user-edits.edit.next-version,embed-user-edits.event.chat-notice
 test('missed diagram preselection and ASCII output recover through memories and keep editable encrypted history', async ({ page }: { page: any }, testInfo: any) => {
   test.setTimeout(300_000);
   skipWithoutCredentials(test, email, password, otpKey);
@@ -34,6 +40,13 @@ test('missed diagram preselection and ASCII output recover through memories and 
     });
   });
   observeHistoryErrors(page);
+  // A deferred chat event logs its stable reason code; print it beside a missing notice row.
+  page.on('console', (message: any) => {
+    const textValue = message.text();
+    if (message.type() === 'warning' && textValue.startsWith('[embedEditSession]')) {
+      console.log(`[diagram-html-editing] Browser warning: ${textValue.slice(0, 300)}`);
+    }
+  });
   page.on('websocket', (socket: any) => {
     socket.on('framereceived', ({ payload }: { payload: string | Buffer }) => {
       try {
@@ -122,12 +135,29 @@ test('missed diagram preselection and ASCII output recover through memories and 
     await screenshot(page, 'fullscreen-editing-text-and-layout');
     await expect(overlay.getByTestId('diagram-html-save')).toBeEnabled();
     await overlay.getByTestId('diagram-html-save').click();
-    await expect(overlay.getByTestId('diagram-html-canvas')).toHaveAttribute('data-editing', 'false', { timeout: 45_000 });
-    await expect(overlay.getByTestId('diagram-html-save-error')).toHaveCount(0);
+    const canvas = overlay.getByTestId('diagram-html-canvas');
+    const saveError = overlay.getByTestId('diagram-html-save-error');
+    // Settle on whichever comes first, so a refused save fails at once with its visible text.
+    await expect
+      .poll(async () => (await saveError.count()) > 0 || (await canvas.getAttribute('data-editing')) === 'false', {
+        timeout: 45_000
+      })
+      .toBe(true);
+    expect((await saveError.count()) > 0 ? await saveError.innerText() : '', 'diagram save error text').toBe('');
+    await expect(canvas).toHaveAttribute('data-editing', 'false');
     await expect(overlay.getByTestId('version-dot-2')).toBeVisible({ timeout: 20_000 });
     await screenshot(page, 'fullscreen-saved-version-2');
 
     await closeFullscreen(page, overlay, { returnToChatUrl: chatUrl });
+    const editNotices = page.locator('[data-testid="embed-updated-event"][data-action="edit"]');
+    if (RUST_CORE) {
+      // embed-user-edits.event.chat-notice: the saved edit shows as one quiet chat row, without a reload.
+      await expect(editNotices).toHaveCount(1, { timeout: 60_000 });
+      await expect(editNotices.first()).toContainText('2');
+      await expect(editNotices.first()).toHaveAttribute('data-change-count', '1');
+      await expect(page.locator('[data-testid="message-system"]').filter({ hasText: '"embed_updated"' })).toHaveCount(0);
+      await screenshot(page, 'chat-diagram-edit-notice');
+    }
     await test.step('Reload saved diagram chat and wait for workspace readiness', async () => {
       await reloadChatWorkspace(page, chatUrl, log);
     });
@@ -179,7 +209,14 @@ test('missed diagram preselection and ASCII output recover through memories and 
     await closeFullscreen(page, overlay);
     await screenshot(page, 'chat-phone-preview');
     await testInfo.attach('diagram-revision-receipts', { body: JSON.stringify(revisions), contentType: 'application/json' });
-    expect([...new Set(revisions.filter(receipt => receipt.status === 'committed').map(receipt => receipt.version))]).toEqual([2, 3]);
+    if (RUST_CORE) {
+      // Both saved versions (the edit and the re-saved version 1) fold into one chat row at version 3.
+      await expect(editNotices).toHaveCount(1, { timeout: 60_000 });
+      await expect(editNotices.first()).toHaveAttribute('data-change-count', '2');
+      await expect(editNotices.first()).toContainText('3');
+    } else {
+      expect([...new Set(revisions.filter(receipt => receipt.status === 'committed').map(receipt => receipt.version))]).toEqual([2, 3]);
+    }
     expect(historyErrors).toEqual([]);
     await expect(otherTab.getByTestId('notification').filter({ hasText: 'Immutable embed version mismatch' })).toHaveCount(0);
   } catch (error) {

@@ -2,6 +2,7 @@
 import {
   detectPII, PII_TYPE_TO_CATEGORY, type PIIDetectionOptions, type PIIMappingGeneric,
 } from "../components/enter_message/services/piiDetectionService";
+import { embedReferenceRanges } from "../../../secret-scanner/src/embedReferenceRanges";
 import { validateProjectFileMutation, type ProjectFileMutation } from "../utils/projectFileMutationProtocol";
 
 export interface ProjectFilePrivacyOptions {
@@ -107,7 +108,10 @@ export class ProjectFilePrivacy {
       if (!(this.options.preserveMappedTokens && this.values.has(literal))
           && (this.values.has(literal) || GENERATED_TOKEN.test(literal) || legacyToken(literal))) ranges.push(range);
     }
-    const overlaps = (start: number, end: number) => [...tokens, ...ranges].some((r) => start < r.end && end > r.start);
+    // Embed refs (message reference blocks appended by the CLI) are ids, not
+    // personal data: known values, detector and semantic spans never cut into them.
+    const shields = [...tokens, ...embedReferenceRanges(text)];
+    const overlaps = (start: number, end: number) => [...shields, ...ranges].some((r) => start < r.end && end > r.start);
     // Known values are matched exactly, so restoration preserves original case.
     for (const mapping of Array.from(this.values.values()).sort((a, b) => b.original.length - a.original.length)) {
       let start = text.indexOf(mapping.original);
@@ -126,7 +130,7 @@ export class ProjectFilePrivacy {
         // Preserve deterministic precedence without losing the uncovered suffix
         // of a broader semantic match (e.g. configured first name + surname).
         let fragments = [{ ...range }];
-        for (const shield of [...tokens, ...ranges]) fragments = fragments.flatMap((part) => {
+        for (const shield of [...shields, ...ranges]) fragments = fragments.flatMap((part) => {
           if (part.start >= shield.end || part.end <= shield.start) return [part];
           return [part.start < shield.start ? { ...part, end: shield.start } : null,
             part.end > shield.end ? { ...part, start: shield.end } : null].filter((part): part is typeof range => part !== null);

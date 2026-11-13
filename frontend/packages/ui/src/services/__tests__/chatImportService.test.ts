@@ -7,13 +7,13 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import JSZip from "jszip";
 
 const mocks = vi.hoisted(() => ({
   addChat: vi.fn(),
   batchSaveMessages: vi.fn(),
   createAndPersistKey: vi.fn(),
   encryptWithChatKey: vi.fn(),
+  parseImportFile: vi.fn(),
 }));
 
 vi.mock("../db", () => ({
@@ -32,6 +32,63 @@ vi.mock("../encryption/ChatKeyManager", () => ({
 vi.mock("../encryption/MessageEncryptor", () => ({
   encryptWithChatKey: mocks.encryptWithChatKey,
 }));
+
+// The Rust `transfer` unit (shared Worker) owns parsing and batching; its parsing is
+// proven by web_transfer_tests.rs in the crate. This suite covers the page-side
+// import flow, so the adapter is replaced by a deterministic stand-in.
+vi.mock("../rustCore/transfer/rustChatImport", () => ({
+  rustParseImportFile: mocks.parseImportFile,
+  rustEstimateImportCost: (chats: Array<{ messages: Array<{ content: string }> }>) => ({
+    totalInputTokens: chats.reduce((sum, chat) => sum + chat.messages.length, 0),
+    estimatedCredits: chats.length,
+    chatCount: chats.length,
+    messageCount: chats.reduce((sum, chat) => sum + chat.messages.length, 0),
+  }),
+  rustBuildMessageBatches: async (
+    chats: Array<{ source_fingerprint: string; messages: unknown[] }>,
+    maxMessages: number,
+  ) => chats.flatMap((chat, chatIndex) => {
+    const chunkCount = Math.max(1, Math.ceil(chat.messages.length / maxMessages));
+    return Array.from({ length: chunkCount }, (_, chunkIndex) => ({
+      chatIndex,
+      chunkIndex,
+      sourceFingerprint: chat.source_fingerprint,
+      batchId: `scan-${chat.source_fingerprint.slice(0, 16)}-${chunkIndex}`,
+      chat: { ...chat, messages: chat.messages.slice(chunkIndex * maxMessages, (chunkIndex + 1) * maxMessages) },
+    }));
+  }),
+}));
+
+function parsedChat(title: string, messages: Array<Record<string, unknown>>, source: "claude" | "gemini") {
+  const identity = source === "claude"
+    ? { category: "claude", sender_name: "Claude", model_name: "Claude" }
+    : { category: "gemini", sender_name: "Gemini", model_name: "synthetic-model" };
+  return {
+    source,
+    parserFormat: source === "claude" ? "claude" : "generic",
+    fileType: source === "claude" ? "claude-json" : "generic-json",
+    skippedDomains: [],
+    chats: [{
+      provider: source,
+      source_chat_id: `${source}-chat-1`,
+      source_fingerprint: `fingerprint-${source}-1`,
+      title,
+      created_at: "2026-07-18T12:00:00Z",
+      updated_at: "2026-07-18T12:05:00Z",
+      messages: messages.map((message) => ({
+        provider_metadata: {},
+        source_message_id: null,
+        created_at: null,
+        ...message,
+        imported_assistant_identity: message.role === "assistant" ? identity : null,
+      })),
+      embeds: [],
+      uploads: [],
+      provider_labels: [source],
+      source_metadata: {},
+    }],
+  };
+}
 
 function pathFromUrl(input: RequestInfo | URL): string {
   return new URL(String(input)).pathname;
@@ -99,6 +156,7 @@ describe("chatImportService Account Import V1", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=account-import.persistence.client-encrypted,account-import.review.confirmed-results
   it("parses, previews, scans, encrypts, persists, and completes without plaintext persistence", async () => {
     const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -153,32 +211,11 @@ describe("chatImportService Account Import V1", () => {
     }));
 
     const service = await import("../chatImportService");
-    const claudeJson = JSON.stringify([
-        {
-          uuid: "claude-chat-1",
-          name: "Sensitive web import",
-          created_at: "2026-07-18T12:00:00Z",
-          updated_at: "2026-07-18T12:05:00Z",
-           chat_messages: [
-             {
-               uuid: "message-1",
-               sender: "human",
-               text: "Synthetic prompt injection payload",
-               created_at: "2026-07-18T12:01:00Z",
-             },
-             {
-               uuid: "message-2",
-               sender: "system",
-               text: "Synthetic system import instruction",
-               created_at: "2026-07-18T12:02:00Z",
-             },
-           ],
-        },
-      ]);
-    const file = {
-      name: "claude-export.json",
-      text: async () => claudeJson,
-    } as File;
+    mocks.parseImportFile.mockResolvedValue(parsedChat("Sensitive web import", [
+      { role: "user", content: "Synthetic prompt injection payload", created_at: "2026-07-18T12:01:00Z" },
+      { role: "system", content: "Synthetic system import instruction", created_at: "2026-07-18T12:02:00Z" },
+    ], "claude"));
+    const file = { name: "claude-export.json" } as File;
 
     const parsed = await service.parseImportFile(file);
     const preview = await service.previewImport(parsed);
@@ -223,6 +260,7 @@ describe("chatImportService Account Import V1", () => {
     expect(mocks.batchSaveMessages).toHaveBeenCalledOnce();
   });
 
+  // contract-test: supporting surface=gui.web assertions=account-import.review.confirmed-results
   it("fails closed when safety scan blocks every selected chat", async () => {
     const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -290,6 +328,7 @@ describe("chatImportService Account Import V1", () => {
     expect(mocks.batchSaveMessages).not.toHaveBeenCalled();
   });
 
+  // contract-test: supporting surface=gui.web assertions=account-import.review.confirmed-results
   it("fails closed when safety scan returns failures with sanitized chats", async () => {
     const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -373,6 +412,7 @@ describe("chatImportService Account Import V1", () => {
     expect(mocks.batchSaveMessages).not.toHaveBeenCalled();
   });
 
+  // contract-test: supporting surface=gui.web assertions=account-import.persistence.client-encrypted
   it("does not cache messages that failed encrypted persistence", async () => {
     const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
     let failedMessageId = "";
@@ -476,6 +516,7 @@ describe("chatImportService Account Import V1", () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=account-import.persistence.client-encrypted
   it("does not report or cache chats with chat-level encrypted persistence failures", async () => {
     const requests: Array<{ path: string; body: Record<string, unknown> }> = [];
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -559,202 +600,7 @@ describe("chatImportService Account Import V1", () => {
     expect(mocks.batchSaveMessages).not.toHaveBeenCalled();
   });
 
-  it("parses OpenMates Export V1 archives and reports skipped non-chat domains", async () => {
-    const service = await import("../chatImportService");
-    const zip = new JSZip();
-    zip.file("manifest.yml", [
-      "format: openmates-account-export",
-      "version: 1",
-      "domains:",
-      "  chats: {}",
-      "  embeds: {}",
-      "  uploads: {}",
-      "  projects: {}",
-    ].join("\n"));
-    zip.file("chats/chat-1.yml", [
-      "id: chat-1",
-      "title: Exported OpenMates chat",
-      "created_at: '2026-07-18T12:00:00Z'",
-      "updated_at: '2026-07-18T12:05:00Z'",
-      "messages:",
-      "  - id: msg-1",
-      "    role: user",
-      "    content: hello from export",
-    ].join("\n"));
-    const bytes = await zip.generateAsync({ type: "uint8array" });
-    const file = {
-      name: "openmates-export.zip",
-      arrayBuffer: async () => bytes.buffer.slice(
-        bytes.byteOffset,
-        bytes.byteOffset + bytes.byteLength,
-      ),
-    } as File;
-
-    const parsed = await service.parseImportFile(file);
-
-    expect(parsed.source).toBe("openmates");
-    expect(parsed.skippedDomains).toEqual(["projects"]);
-    expect(parsed.chats[0].title).toBe("Exported OpenMates chat");
-    expect(parsed.chats[0].messages[0].content).toBe("hello from export");
-  });
-
-  it("parses nested ChatGPT official export ZIPs from the active message path", async () => {
-    const service = await import("../chatImportService");
-    const zip = new JSZip();
-    zip.file("ChatGPT Export/conversations.json", JSON.stringify([{
-      id: "chatgpt-chat-1",
-      conversation_id: "chatgpt-conversation-1",
-      title: "Synthetic ChatGPT chat",
-      create_time: 1785000000,
-      update_time: 1785000010,
-      current_node: "assistant-1",
-      mapping: {
-        root: { id: "root", message: null, parent: null },
-        "user-1": {
-          id: "user-1",
-          parent: "root",
-          message: {
-            id: "message-user-1",
-            author: { role: "user" },
-            create_time: 1785000001,
-            content: {
-              content_type: "multimodal_text",
-              parts: [
-                "Synthetic ChatGPT user text.",
-                { asset_pointer: "file-service://redacted", content_type: "image_asset_pointer" },
-              ],
-            },
-          },
-        },
-        "assistant-1": {
-          id: "assistant-1",
-          parent: "user-1",
-          message: {
-            id: "message-assistant-1",
-            author: { role: "assistant" },
-            create_time: 1785000002,
-            content: { content_type: "text", parts: ["Synthetic ChatGPT assistant text."] },
-          },
-        },
-        branch: {
-          id: "branch",
-          parent: "user-1",
-          message: {
-            id: "message-branch",
-            author: { role: "assistant" },
-            content: { content_type: "text", parts: ["This branch must not import."] },
-          },
-        },
-      },
-    }]));
-    const bytes = await zip.generateAsync({ type: "uint8array" });
-    const file = {
-      name: "chatgpt-export.zip",
-      arrayBuffer: async () => bytes.buffer.slice(
-        bytes.byteOffset,
-        bytes.byteOffset + bytes.byteLength,
-      ),
-    } as File;
-
-    const parsed = await service.parseImportFile(file);
-
-    expect(parsed.source).toBe("chatgpt");
-    expect(parsed.fileType).toBe("chatgpt-zip");
-    expect(parsed.chats[0].provider).toBe("chatgpt");
-    expect(parsed.chats[0].messages.map((message) => message.role)).toEqual(["user", "assistant"]);
-    expect(parsed.chats[0].messages[0].content).toBe("Synthetic ChatGPT user text.");
-    expect(parsed.chats[0].messages[0].provider_metadata).toEqual({ content_type: "multimodal_text", asset_count: 1 });
-    expect(JSON.stringify(parsed)).not.toContain("This branch must not import");
-    expect(parsed.chats[0].uploads).toEqual([]);
-  });
-
-  it("parses OpenCode CLI transcript exports without importing reasoning or tool output", async () => {
-    const service = await import("../chatImportService");
-    const file = {
-      name: "opencode-session.json",
-      text: async () => JSON.stringify({
-        info: {
-          id: "ses_opencode_1",
-          title: "Synthetic OpenCode session",
-          time: { created: 1785000000000, updated: 1785000010000 },
-        },
-        messages: [
-          {
-            info: { id: "msg_user_1", role: "user", time: { created: 1785000001000 } },
-            parts: [
-              { id: "part_user_text", type: "text", text: "Synthetic OpenCode user text." },
-              { id: "part_file", type: "file", filename: "notes.txt", mime: "text/plain", url: "data:text/plain;base64,cHJpdmF0ZQ==" },
-            ],
-          },
-          {
-            info: { id: "msg_assistant_1", role: "assistant", time: { created: 1785000002000 } },
-            parts: [
-              { id: "part_reasoning", type: "reasoning", text: "Private reasoning must not import." },
-              { id: "part_assistant_text", type: "text", text: "Synthetic OpenCode assistant text." },
-              { id: "part_tool", type: "tool", state: { status: "completed", output: "Tool output must not import." } },
-            ],
-          },
-        ],
-      }),
-    } as File;
-
-    const parsed = await service.parseImportFile(file);
-
-    expect(parsed.source).toBe("opencode");
-    expect(parsed.fileType).toBe("opencode-json");
-    expect(parsed.chats[0].provider).toBe("opencode");
-    expect(parsed.chats[0].source_chat_id).toBe("ses_opencode_1");
-    expect(parsed.chats[0].title).toBe("Synthetic OpenCode session");
-    expect(parsed.chats[0].messages.map((message) => message.role)).toEqual(["user", "assistant"]);
-    expect(parsed.chats[0].messages.map((message) => message.content)).toEqual([
-      "Synthetic OpenCode user text.",
-      "Synthetic OpenCode assistant text.",
-    ]);
-    expect(parsed.chats[0].uploads).toEqual([]);
-    expect(JSON.stringify(parsed)).not.toContain("cHJpdmF0ZQ==");
-    expect(JSON.stringify(parsed)).not.toContain("Private reasoning must not import.");
-    expect(JSON.stringify(parsed)).not.toContain("Tool output must not import.");
-  });
-
-  it("strictly parses generic Gemini and Other transcripts independently from source identity", async () => {
-    const service = await import("../chatImportService");
-    const file = {
-      name: "generic-transcript.json",
-      text: async () => JSON.stringify({
-        title: "Synthetic generic transcript",
-        messages: [
-          { role: "user", content: "Synthetic generic question" },
-          { role: "assistant", content: "Synthetic generic answer", model: "synthetic-model" },
-        ],
-      }),
-    } as File;
-
-    const gemini = await service.parseImportFile(file, "gemini");
-    const other = await service.parseImportFile(file, "other");
-
-    expect(gemini.parserFormat).toBe("generic");
-    expect(gemini.source).toBe("gemini");
-    expect(gemini.chats[0].messages[1].imported_assistant_identity).toEqual({
-      category: "gemini",
-      sender_name: "Gemini",
-      model_name: "synthetic-model",
-    });
-    expect(other.chats[0].messages[1].imported_assistant_identity).toEqual({
-      category: "other",
-      sender_name: "AI assistant",
-      model_name: "synthetic-model",
-    });
-
-    await expect(service.parseImportFile({
-      name: "raw-gemini-takeout.json",
-      text: async () => JSON.stringify({ conversations: [{ turns: [] }] }),
-    } as File, "gemini")).rejects.toThrow("generic role/content JSON");
-    await expect(service.parseImportFile({
-      name: "ambiguous.json",
-      text: async () => JSON.stringify({ messages: [{ role: "assistant", text: "wrong key" }] }),
-    } as File, "other")).rejects.toThrow("role and content");
-  });
-
+  // contract-test: supporting surface=gui.web assertions=account-import.persistence.client-encrypted
   it("resumes acknowledged scan and compression batches in the same tab without duplicate work", async () => {
     const requests: Array<{ path: string; method: string; body: Record<string, unknown> }> = [];
     let scanCursor = -1;
@@ -810,18 +656,13 @@ describe("chatImportService Account Import V1", () => {
     }));
 
     const service = await import("../chatImportService");
-    const parsed = await service.parseImportFile({
-      name: "generic-transcript.json",
-      text: async () => JSON.stringify({
-        title: "Long synthetic transcript",
-        messages: [
-          { role: "user", content: "Question one" },
-          { role: "assistant", content: "Answer one", model: "synthetic-model" },
-          { role: "user", content: "Question two" },
-          { role: "assistant", content: "Answer two", model: "synthetic-model" },
-        ],
-      }),
-    } as File, "gemini");
+    mocks.parseImportFile.mockResolvedValue(parsedChat("Long synthetic transcript", [
+      { role: "user", content: "Question one" },
+      { role: "assistant", content: "Answer one" },
+      { role: "user", content: "Question two" },
+      { role: "assistant", content: "Answer two" },
+    ], "gemini"));
+    const parsed = await service.parseImportFile({ name: "generic-transcript.json" } as File, "gemini");
 
     const preview = {
       import_id: "import-resume",

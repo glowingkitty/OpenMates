@@ -19,14 +19,16 @@ test('Claude and OpenAI selectors keep curated models visible and expand recent 
 	expect(catalogueResponse.ok()).toBe(true);
 	const catalogue = (await catalogueResponse.json()).data;
 	const curated: Record<string, string[]> = {
-		anthropic: ['claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
+		anthropic: ['claude-fable-5-2', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
 		openai: ['gpt-6.1-sol', 'gpt-6-astra', 'gpt-6-luna', 'gpt-5.6-terra', 'gpt-oss-120b']
 	};
 	const modelIds = new Set(catalogue.map((model: { id: string }) => model.id));
-	for (const [provider, ids] of Object.entries(curated)) {
-		for (const id of ids) expect(modelIds.has(`${provider}/${id}`)).toBe(true);
-	}
-	expect(modelIds.has('anthropic/claude-opus-4-8')).toBe(true);
+	const expectedIds = [
+		...Object.entries(curated).flatMap(([provider, ids]) => ids.map((id) => `${provider}/${id}`)),
+		'anthropic/claude-opus-4-8',
+		'anthropic/claude-fable-5-1'
+	];
+	expect(expectedIds.filter((id) => !modelIds.has(id))).toEqual([]);
 
 	const log = createSignupLogger('GPT61_SOL_MODEL_PICKER');
 	await loginToTestAccount(page, log, createStepScreenshotter(log, { filenamePrefix: 'gpt61-sol-model-picker' }));
@@ -58,16 +60,17 @@ test('Claude and OpenAI selectors keep curated models visible and expand recent 
 	await menu.getByTestId('composer-model-back').click();
 	await menu.getByTestId('composer-model-provider-anthropic').click();
 	await expect(menu.getByTestId('composer-model-name')).toHaveText([
-		'Claude Haiku 5.5', 'Claude Sonnet 5.5', 'Claude Opus 5.5', 'Claude Fable 5.1'
+		'Claude Haiku 5.5', 'Claude Sonnet 5.5', 'Claude Opus 5.5', 'Claude Fable 5.2'
 	]);
 	await expect(menu.getByTestId('composer-model-show-old')).toHaveAttribute('aria-expanded', 'false');
 	await menu.getByTestId('composer-model-show-old').click();
 	await expect(menu.getByTestId('composer-model-row').filter({ hasText: 'Claude Opus 4.8' })).toBeVisible();
+	await expect(menu.getByTestId('composer-model-row').filter({ hasText: 'Claude Fable 5.1' })).toBeVisible();
 	await menu.getByTestId('composer-model-show-old').click();
 	await expect(menu.getByTestId('composer-model-row').filter({ hasText: 'Claude Opus 4.8' })).toHaveCount(0);
 	for (const [name, level, capability] of [
 		['Claude Haiku 5.5', 'low', 'Low'], ['Claude Sonnet 5.5', 'medium', 'Medium'],
-		['Claude Opus 5.5', 'high', 'High'], ['Claude Fable 5.1', 'max', 'Maximum']
+		['Claude Opus 5.5', 'high', 'High'], ['Claude Fable 5.2', 'max', 'Maximum']
 	]) {
 		const row = menu.getByTestId('composer-model-row').filter({ hasText: name });
 		await expect(row.getByTestId('composer-model-capability')).toHaveAttribute('data-level', level);

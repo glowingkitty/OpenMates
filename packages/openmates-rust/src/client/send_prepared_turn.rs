@@ -78,6 +78,11 @@ impl Client {
         }
         let settings=Plain::new(self.decrypt_optional_with_capability(memory_snapshot,"encrypted_settings",&master).await?);
         turn_scope.check_chat(self,id)?;
+        // Metadata-only personal Memory catalog from the same fresh snapshot
+        // (web `collectMemoryCatalog`): the server can select only these and
+        // then asks for their bodies through `request_app_settings_memories`.
+        let (personal_catalog,personal_chars)=super::memory_catalog::send_memory_catalog_sized(&settings,i64::try_from(now_ms()).unwrap_or(i64::MAX));
+        let mut memory_catalog=Plain::new(personal_catalog.into_iter().map(|entry|json!(entry)).collect::<Vec<Value>>());
         let settings=Plain::new(if settings.is_empty(){json!({})}else{serde_json::from_str::<Value>(&settings)?});
         if !settings.is_object() {
             return Err(Error::Protocol);
@@ -106,28 +111,72 @@ impl Client {
                 memories.push(json!({"id":doc["id"],"app_id":"openmates","item_type":"memories","data":{"document":doc["document"]}}));
             }
         }
-        let prepared = Plain::new(if options.pii_detection {
-            crate::privacy::prepare(input, &memories, existing)?
-        } else {
-            crate::privacy::PreparedPrivacy {
-                text: input.into(),
-                mappings: vec![],
-            }
-        });
+        // Attachment references join the text before privacy preparation (it
+        // never cuts into reference blocks), so the stored message, the
+        // inference content and the PII mappings all see the same text.
+        let composed = Plain::new(super::send_attachments::content_with_references(
+            input,
+            &options.embeds,
+        ));
+        let prepared = Plain::new(super::send_attachments::prepare_turn_privacy(
+            &composed, &memories, existing, options,
+        )?);
         if cancel.is_cancelled() || self.generation != generation {
             return Err(Error::Cancelled);
         }
         let wait_ai = should_wait_for_ai(&prepared.text, team.as_deref());
         turn_scope.check_chat(self,id)?;
-        let project_context=Plain::new(if new_chat||!wait_ai{json!({})}else{self.active_project_context(id,&prepared.text).await?});
+        // One creation time for the stored chat shell and the turn's chat
+        // metadata: the server completes an existing empty shell only when
+        // every field it already holds matches (`canCompleteChatMetadata`).
+        let created = now_ms() / 1000;
+        // An explicit Project (`--project`) is bound before context collection,
+        // so a new chat's first turn already carries that Project's context.
+        let bound_project = match &options.project_id {
+            Some(project) if wait_ai => {
+                self.bind_project_for_send(ws, id, project, new_chat, wrapped, created, team.as_deref(), cancel).await?;
+                turn_scope.check_chat(self,id)?;
+                true
+            }
+            _ => false,
+        };
+        let mut project_context=Plain::new(if (new_chat&&!bound_project)||!wait_ai{json!({})}else{self.active_project_context(id,&prepared.text).await?});
+        // Ask first Project Memories join the personal catalog under its bounds.
+        if let Some(Value::Array(project_rows))=project_context.as_object_mut().and_then(|context|context.remove("project_memory_catalog")){
+            let merged=super::memory_catalog::merge_project_catalog(std::mem::take(&mut *memory_catalog),personal_chars,project_rows);
+            *memory_catalog=merged;
+        }
         turn_scope.check_chat(self,id)?;
         let recovery = crypto::recovery_keypair(key, id, 1)?;
-        let created = now_ms() / 1000;
         let mut encrypted = json!({"client_message_id":message,"chat_id":id,"encrypted_content":crypto::encrypt_combined(&prepared.text,key)?,"encrypted_sender_name":crypto::encrypt_combined(&sender,key)?,"role":"user","created_at":created,"updated_at":created});
         if !prepared.mappings.is_empty(){let encoded=Plain::new(serde_json::to_string(&prepared.mappings)?);encrypted["encrypted_pii_mappings"]=json!(crypto::encrypt_combined(&encoded,key)?);}
         let mut inference = Plain::new(json!({"chat_id":id,"client_capabilities":[],"is_incognito":false,"message":{"message_id":message,"chat_id":id,"role":"user","sender_name":"User","status":"sent","content":prepared.text,"created_at":created,"chat_has_title":!new_chat},"turn_id":turn,"recovery_public_key":recovery.public_key,"chat_key_version":1,"custom_memory_documents":[],"app_settings_memories_metadata":memory_metadata,"project_focus_candidates":projects.as_slice()}));
+        if let Some(call) = &options.voice_call {
+            for (name, value) in call.message_fields() {
+                inference["message"][name] = value;
+            }
+        }
+        if !memory_catalog.is_empty() {
+            inference["memory_catalog"] = Value::Array(std::mem::take(&mut *memory_catalog));
+        }
         if options.task_update_jobs {
             inference["client_capabilities"] = json!(["task_update_jobs"]);
+        }
+        if options.project_create_requests {
+            // The server also requires this on the turn request, not only on the socket.
+            let capabilities = inference["client_capabilities"].as_array_mut().ok_or(Error::Protocol)?;
+            capabilities.push(json!(PROJECT_CREATE_CAPABILITY));
+        }
+        if options.project_file_jobs && PROJECT_FILE_JOBS_AVAILABLE {
+            let capabilities = inference["client_capabilities"].as_array_mut().ok_or(Error::Protocol)?;
+            capabilities.push(json!(PROJECT_FILE_JOBS_CAPABILITY));
+        }
+        if options.memory_write_jobs {
+            let capabilities = inference["client_capabilities"].as_array_mut().ok_or(Error::Protocol)?;
+            capabilities.push(json!(MEMORY_WRITE_JOBS_CAPABILITY));
+        }
+        if let Some(restrictions) = options.server_region.routing_restrictions() {
+            inference["model_routing_restrictions"] = restrictions;
         }
         let (active_focus, mut focus_state) = self.current_focus_state(id, key)?;
         inference["active_focus_id"] = json!(active_focus);
@@ -140,11 +189,49 @@ impl Client {
         if new_chat {
             inference["encrypted_chat_key"] = json!(wrapped)
         }
+        // Attachments: cleartext copies for the inference cache and the
+        // client-encrypted bundle the server stores with the message.
+        let cleartext_embeds = Plain::new(super::send_attachments::cleartext_embeds(
+            &options.embeds,
+            created,
+        ));
+        if !cleartext_embeds.is_empty() {
+            inference["embeds"] = json!(cleartext_embeds.as_slice());
+        }
+        let encrypted_embeds = if cleartext_embeds.is_empty() {
+            vec![]
+        } else {
+            // The bundle is bound to the owner: the server checks its hash.
+            let owner = text(&self.user, "id");
+            let owner = if owner.is_empty() {
+                required(&self.user, "user_id")?
+            } else {
+                owner
+            }
+            .to_owned();
+            let scope = super::send_attachments::BundleScope {
+                chat_id: id,
+                message_id: message,
+                user_id: &owner,
+                created,
+            };
+            let bundle =
+                super::send_attachments::encrypted_bundle(&options.embeds, &scope, key, &master)
+                    .await?;
+            turn_scope.check_chat(self, id)?;
+            bundle
+        };
+        if !encrypted_embeds.is_empty() {
+            inference["encrypted_embeds"] = Value::Array(encrypted_embeds.clone());
+        }
         if let Some(rows)=self.history.get(id){
             let mut history=Plain::new(vec![]);
             for row in rows{
                 let sender=Plain::new(decrypt_optional(row,"encrypted_sender_name",key)?);
                 let content=Plain::new(decrypt_optional(row,"encrypted_content",key)?);
+                // Presentation-only history events never reach the AI (web:
+                // withoutPresentationOnlyEvents); they may carry sealed Undo data.
+                if row["role"]=="system" && crate::client::embed_updated_event::is_presentation_only_event(&content){continue;}
                 history.push(json!({"message_id":row.get("client_message_id").or_else(||row.get("message_id")).or_else(||row.get("id")),"chat_id":id,"role":row["role"],"sender_name":sender.as_str(),"content":content.as_str(),"created_at":row["created_at"]}));
             }
             if !history.is_empty(){inference["message_history"]=json!(history.as_slice());}
@@ -162,6 +249,10 @@ impl Client {
                 inference.wipe();*inference=replacement.into_inner();
                 if new_chat {
                     inference["encrypted_chat_key"] = json!(wrapped)
+                }
+                // A Team message without AI still stores its attachments.
+                if !encrypted_embeds.is_empty() {
+                    inference["encrypted_embeds"] = Value::Array(encrypted_embeds.clone());
                 }
             }
             if wait_ai {
@@ -224,3 +315,4 @@ impl Client {
         Ok(PreparedTurnContext{team,projects,sender,memories,prepared,wait_ai,focus_state:Plain::new(focus_state)})
     }
 }
+

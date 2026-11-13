@@ -242,6 +242,33 @@ for _identity, _stem, _npm in (
         sys.executable, "tests/sdk-conformance/runners/" + _npm + ".py",
     ]
 
+# API-key billing + memories wire vectors (raw downloads, TOON decoding): one
+# independent driver per vector; fixed adapters, never matrix-supplied commands.
+for _identity in ("sdk.billing", "sdk.memories"):
+    ADAPTER_OVERRIDES[("rust", _identity)] = [
+        *RUNNERS["rust"][:-2], "sdk-api-key-wire-conformance", "--",
+    ]
+    ADAPTER_OVERRIDES[("npm", _identity)] = ["node", "tests/sdk-conformance/runners/sdk-api-key-wire.mjs"]
+    ADAPTER_OVERRIDES[("python", _identity)] = [sys.executable, "tests/sdk-conformance/runners/sdk-api-key-wire.py"]
+
+# Shared API-key wire, public-helper, key-management and model fixtures: one
+# fixed Rust example, the npm runner (source facades; WASM for keys/models) and
+# fixed Python runners. Matrix metadata never supplies commands.
+for _identity, _python in (
+    ("sdk.api-key-operations.v1", "sdk-api-key-operations.py"),
+    ("sdk.api-key-domains-b.v1", "sdk-api-key-operations.py"),
+    ("sdk.public-utilities-helpers.v1", "sdk-api-key-operations.py"),
+    ("sdk.key-management.primitives.v1", "sdk-local-primitives.py"),
+    ("sdk.models.layout.v1", "sdk-local-primitives.py"),
+):
+    ADAPTER_OVERRIDES[("rust", _identity)] = [
+        *RUNNERS["rust"][:-2], "sdk-api-key-shared-conformance", "--",
+    ]
+    ADAPTER_OVERRIDES[("npm", _identity)] = ["node", "tests/sdk-conformance/runners/npm.mjs"]
+    ADAPTER_OVERRIDES[("python", _identity)] = [
+        sys.executable, "tests/sdk-conformance/runners/" + _python,
+    ]
+
 # Required direct-library cache adapters; conformance schedules checks, while
 # partial support and remaining gaps continue to block SDK publication.
 ADAPTER_OVERRIDES[("rust", "session.cache-preferred-settlement.v1")] = [*RUST_SESSION_RUNNER[:-2], "session-cache-preferred-settlement-conformance", "--"]
@@ -461,6 +488,7 @@ def validate_matrix(matrix: dict, inventory: dict, root: Path = ROOT) -> list[st
                     "frontend/packages/openmates-tui-native/src/runtime_store.rs",
                     "packages/openmates-rust/examples/sdk-api-key-history-conformance.rs",
                     "packages/openmates-rust/examples/sdk-api-key-chats-conformance.rs",
+                    "packages/openmates-rust/examples/sdk-api-key-wire-conformance.rs",
                     "packages/openmates-rust/examples/sdk-api-key-drafts-conformance.rs",
                     "packages/openmates-rust/examples/sdk-api-key-docs-conformance.rs",
                     "packages/openmates-rust/examples/sdk-api-key-wikipedia-conformance.rs",
@@ -468,6 +496,8 @@ def validate_matrix(matrix: dict, inventory: dict, root: Path = ROOT) -> list[st
                     "packages/openmates-rust/examples/sdk-api-key-embeds-family-conformance.rs",
                     "packages/openmates-rust/examples/sdk-embed-version-content-conformance.rs",
                     "packages/openmates-rust/examples/project-create-conformance.rs",
+                    "packages/openmates-rust/examples/sdk-live-work-conformance.rs",
+                    "packages/openmates-rust/examples/sdk-api-key-shared-conformance/main.rs",
                     "packages/openmates-session-bindings/examples/sdk-conformance.rs",
                     "packages/openmates-session-bindings/examples/project-remote-crypto-worker.rs",
                     "packages/openmates-session-bindings/examples/session-initial-startup-sync-conformance.rs",

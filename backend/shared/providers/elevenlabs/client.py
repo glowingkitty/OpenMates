@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Any, Optional
@@ -28,6 +29,19 @@ DEFAULT_OUTPUT_FORMAT = "mp3_44100_128"
 DEFAULT_TIMEOUT_SECONDS = 60.0
 BITS_PER_BYTE = 8
 KILOBITS_PER_SECOND = 1000
+RATE_LIMIT_RETRIES = 3
+MAX_RETRY_DELAY_SECONDS = 10.0
+
+
+def _retry_delay_seconds(retry_after: Optional[str], attempt: int) -> float:
+    """Seconds to wait after a 429: the server's Retry-After when it is a short number, else 1, 2, 4 s."""
+    try:
+        wanted = float(retry_after) if retry_after is not None else None
+    except ValueError:
+        wanted = None
+    if wanted is not None and 0 < wanted <= MAX_RETRY_DELAY_SECONDS:
+        return wanted
+    return float(2 ** attempt)
 ID3V2_HEADER_BYTES = 10
 ID3V1_TAG_BYTES = 128
 
@@ -116,12 +130,21 @@ class ElevenLabsClient:
         }
 
         async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
-            response = await client.post(
-                url,
-                params={"output_format": output_format},
-                headers=headers,
-                json=payload,
-            )
+            for attempt in range(RATE_LIMIT_RETRIES + 1):
+                response = await client.post(
+                    url,
+                    params={"output_format": output_format},
+                    headers=headers,
+                    json=payload,
+                )
+                # 429 is the plan's concurrency limit (several clips of one video, parallel requests);
+                # it clears within seconds, so wait briefly instead of failing the whole request.
+                if response.status_code != 429 or attempt == RATE_LIMIT_RETRIES:
+                    break
+                delay = _retry_delay_seconds(response.headers.get("retry-after"), attempt)
+                logger.warning("ElevenLabs answered 429; retry %s of %s in %.1f s", attempt + 1,
+                               RATE_LIMIT_RETRIES, delay)
+                await asyncio.sleep(delay)
 
         try:
             response.raise_for_status()

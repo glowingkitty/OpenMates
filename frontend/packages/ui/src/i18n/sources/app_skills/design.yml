@@ -49,3 +49,55 @@ search_icons.description:
   he: מצא אייקוני SVG בקוד פתוח מאוספי Iconify.
   verified_by_human:
     - en
+
+embroidery:
+  context: Skill name for turning a vector graphic into embroidery machine files
+  en: Embroidery
+  de: Stickerei
+  zh: 刺绣
+  es: Bordado
+  fr: Broderie
+  pt: Bordado
+  ru: Вышивка
+  ja: 刺しゅう
+  ko: 자수
+  it: Ricamo
+  tr: Nakış
+  vi: Thêu
+  id: Bordir
+  pl: Haft
+  nl: Borduren
+  ar: تطريز
+  hi: कढ़ाई
+  th: งานปัก
+  cs: Výšivka
+  sv: Broderi
+  he: רקמה
+  verified_by_human:
+    - en
+
+embroidery.description:
+  context: Description for the Design embroidery skill
+  en: Turn a vector graphic into embroidery machine files with a stitch preview.
+  de: Wandle eine Vektorgrafik in Stickmaschinen-Dateien mit Stichvorschau um.
+  zh: 将矢量图形转换为带针迹预览的刺绣机文件。
+  es: Convierte un gráfico vectorial en archivos para máquinas de bordar con vista previa de puntadas.
+  fr: Transformez un graphique vectoriel en fichiers pour machine à broder avec aperçu des points.
+  pt: Transforme um gráfico vetorial em arquivos para máquina de bordar com prévia dos pontos.
+  ru: Превращает векторную графику в файлы для вышивальной машины с предпросмотром стежков.
+  ja: ベクター画像を、ステッチプレビュー付きの刺しゅうミシン用ファイルに変換します。
+  ko: 벡터 그래픽을 스티치 미리보기가 포함된 자수기 파일로 변환합니다.
+  it: Trasforma una grafica vettoriale in file per macchine da ricamo con anteprima dei punti.
+  tr: Bir vektör grafiği, dikiş önizlemeli nakış makinesi dosyalarına dönüştürün.
+  vi: Chuyển đồ họa vector thành tệp cho máy thêu kèm bản xem trước mũi thêu.
+  id: Ubah grafik vektor menjadi file mesin bordir dengan pratinjau jahitan.
+  pl: Zamień grafikę wektorową na pliki dla hafciarki z podglądem ściegów.
+  nl: Zet een vectorafbeelding om in borduurmachinebestanden met steekvoorbeeld.
+  ar: حوّل رسمًا متجهيًا إلى ملفات لآلة التطريز مع معاينة للغرز.
+  hi: किसी वेक्टर ग्राफ़िक को टांकों के पूर्वावलोकन के साथ कढ़ाई मशीन फ़ाइलों में बदलें।
+  th: แปลงกราฟิกเวกเตอร์เป็นไฟล์สำหรับเครื่องปักพร้อมตัวอย่างฝีเข็ม
+  cs: Převeďte vektorovou grafiku na soubory pro vyšívací stroj s náhledem stehů.
+  sv: Gör om en vektorgrafik till filer för broderimaskiner med förhandsvisning av stygnen.
+  he: הפוך גרפיקה וקטורית לקובצי מכונת רקמה עם תצוגה מקדימה של התפרים.
+  verified_by_human:
+    - en

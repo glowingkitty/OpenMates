@@ -1,0 +1,88 @@
+schema_version: 1
+specification: feature.embed-user-edits@1
+
+history:
+  - id: same-history-in-chat-and-project
+    assertion_ids: [embed-user-edits.history.one-per-embed]
+    given: Alice's diagram was made in a chat and later added to her Project "Kitchen renovation".
+    when: She opens it in the chat and then in the Project workspace.
+    then: Both show the same list of versions, and an edit made in one place appears in the other.
+
+edit:
+  - id: edit-slides-next-version
+    assertion_ids: [embed-user-edits.edit.next-version]
+    given: Alice's slide deck is at version 2 and she changes a title.
+    when: She saves.
+    then: The deck is at version 3, and versions 1 and 2 can still be opened.
+  - id: outdated-save-refused
+    assertion_ids: [embed-user-edits.edit.next-version]
+    given: Alice has the sheet open at version 2, while her laptop already saved version 3.
+    when: Her phone saves a change based on version 2.
+    then: The save is refused and version 3 stays as it is.
+
+event:
+  - id: image-updated-notice
+    assertion_ids: [embed-user-edits.event.chat-notice]
+    given: Alice edits an image from her chat.
+    when: The edit is saved.
+    then: The chat shows one small line "Image updated". The server only stores an encrypted entry.
+  - id: project-edit-reaches-chat
+    assertion_ids: [embed-user-edits.event.project-edit-reaches-chat]
+    given: Alice's diagram belongs to a chat and to her Project. She edits it in the Projects workspace.
+    when: She opens that chat afterwards.
+    then: The chat shows "Diagram updated". A file that exists only in the Project gets no chat line, only the Project timeline entry.
+  - id: three-edits-one-line
+    assertion_ids: [embed-user-edits.event.collapse]
+    given: Alice edits the same image three times with no message in between.
+    when: She looks at the chat.
+    then: One line reads "Image updated, 3 changes".
+
+assistant:
+  - id: assistant-sees-change
+    assertion_ids: [embed-user-edits.assistant.knows-current-version]
+    given: Alice enhanced the logo, which is now version 2.
+    when: She asks the assistant to make it blue.
+    then: The assistant knows she changed the logo and that version 2 is current, and works from it.
+
+display:
+  - id: worked-example
+    assertion_ids: [embed-user-edits.display.latest-follows-user-versions]
+    given: Message 1 made image v1. Alice's Enhance makes v2. The assistant makes v3 at message 3. Alice restores v2 later.
+    when: She reads the chat.
+    then: Message 1 shows v2 after Enhance. After message 3, message 1 keeps v2 and message 3 shows v3. After the restore, which makes v4, message 3 shows v4 and message 1 stays v2.
+  - id: restore-makes-new-version
+    assertion_ids: [embed-user-edits.restore.creates-version]
+    given: An image has versions 1 to 3.
+    when: Alice restores version 1.
+    then: Version 4 is created and looks like version 1. Versions 1 to 3 remain.
+
+enhance:
+  - id: enhance-button-states
+    assertion_ids: [embed-user-edits.enhance.button]
+    given: Alice opens an image fullscreen.
+    when: She taps Enhance, then taps it again while it runs. On a narrow window she looks for it.
+    then: The round button shows progress and the second tap does nothing. On the narrow window the action is under More.
+  - id: faithful-two-k
+    assertion_ids: [embed-user-edits.enhance.faithful-2k]
+    given: A 1024 by 768 picture of a kitchen.
+    when: Alice enhances it.
+    then: The result is about 2048 by 1536, shows the same kitchen with nothing added, removed or moved, and is the new default version.
+
+enhance_billing:
+  - id: charged-once
+    assertion_ids: [embed-user-edits.enhance.billed-once-refunded-on-failure]
+    given: Alice enhances an image and her phone resends the request.
+    when: The result is produced and saved.
+    then: She is charged 63 credits once.
+  - id: failed-or-unsaved
+    assertion_ids: [embed-user-edits.enhance.billed-once-refunded-on-failure]
+    given: One Enhance fails, a second produces a result that never reaches Alice's phone, and a third result reaches her phone but she does not save it.
+    when: 24 hours pass without a save.
+    then: The failed one costs nothing, the one that never reached her phone is refunded, and the one she saw stays charged; until then she could still have saved it.
+
+client_file:
+  - id: cropped-file-version
+    assertion_ids: [embed-user-edits.files.client-made-version]
+    given: Alice's app crops an image into a new file.
+    when: It saves that file as an edit.
+    then: The image gains the next version showing the cropped file.

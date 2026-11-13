@@ -1,5 +1,5 @@
 // Build-time packaging of the shared Rust core (wasm-bindgen `--target web` output)
-// for the opt-in browser Worker (src/lib/rustCore/production.worker.ts).
+// for the opt-in shared browser Worker (src/lib/rustCore/shared/shared.worker.ts).
 //
 // Inert unless OPENMATES_RUST_CORE_PKG names a package directory: the virtual
 // module then resolves to a stub whose loadBinding() refuses, and nothing in the
@@ -42,8 +42,20 @@ export function rustCoreModuleSource(directory) {
 		'export const assets = Object.freeze({ artifact, javascriptUrl: import.meta.url, wasmUrl });',
 		'let loading = null;',
 		'export function loadBinding() {',
-		'\tloading ??= init({ module_or_path: wasmUrl }).then(() => binding);',
+		'\tloading ??= instantiate();',
 		'\treturn loading;',
+		'}',
+		// Fixed-name marks (no content) bracket instantiation for the bench profile.
+		// The linear memory's byte count (a number, never the memory) is recorded in
+		// the end mark and readable through a non-enumerable getter of the realm.
+		// WorkerNavigator has no `webdriver`, so this is not automation-gated.
+		'async function instantiate() {',
+		'\tperformance.mark("openmates:rust:wasm-instantiate-start");',
+		'\tconst exports = await init({ module_or_path: wasmUrl });',
+		'\tconst memory = exports?.memory instanceof WebAssembly.Memory ? exports.memory : null;',
+		'\tperformance.mark("openmates:rust:wasm-instantiate-end", { detail: { wasmBytes: memory ? memory.buffer.byteLength : null } });',
+		'\tif (memory) Object.defineProperty(globalThis, "__openmatesRustCoreWasmBytes", { value: () => memory.buffer.byteLength });',
+		'\treturn binding;',
 		'}',
 		''
 	].join('\n');
@@ -53,6 +65,13 @@ export function rustCoreAssetsPlugin(env = process.env) {
 	const directory = rustCorePackageDirectory(env);
 	return {
 		name: 'openmates-rust-core-package',
+		// A flag-on production build without the package would compile the stub and
+		// only fail in the browser, so refuse it here.
+		config(_config, { command }) {
+			if (command === 'build' && env.VITE_OPENMATES_RUST_CORE === '1' && !directory) {
+				throw new Error('VITE_OPENMATES_RUST_CORE=1 requires OPENMATES_RUST_CORE_PKG (build it with build-rust-core-web.mjs)');
+			}
+		},
 		resolveId(id) {
 			return id === VIRTUAL ? INTERNAL : null;
 		},

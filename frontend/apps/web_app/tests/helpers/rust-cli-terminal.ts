@@ -25,7 +25,7 @@ type RunResult = { code: number | null; stdout: string; stderr: string };
 type TerminalStep = Record<string, unknown> & { name: string };
 type CaptureManifest = { input_checkpoints?: Array<{ name: string; at_ms: number; transcript_offset: number }>; [key: string]: unknown };
 
-function buildRustCli(testInfo: TestInfo): string {
+function buildRustCli(testInfo?: TestInfo): string {
 	const supplied = process.env.OPENMATES_RUST_CLI_BIN;
 	if (supplied) {
 		if (!fs.existsSync(supplied)) throw new Error(`OPENMATES_RUST_CLI_BIN does not exist: ${supplied}`);
@@ -51,7 +51,7 @@ function buildRustCli(testInfo: TestInfo): string {
 	run('rustup', ['toolchain', 'install', TOOLCHAIN, '--profile', 'minimal'], 300_000);
 	run('cargo', [`+${TOOLCHAIN}`, 'build', '--release', '--locked', '-p', 'openmates', '--bin', 'openmates', '--target-dir', targetDir], 2_400_000);
 	const binary = path.join(targetDir, 'release', 'openmates');
-	testInfo.annotations.push({ type: 'rust-cli-build', description: `cargo release build ${Math.round((Date.now() - started) / 1000)}s` });
+	testInfo?.annotations.push({ type: 'rust-cli-build', description: `cargo release build ${Math.round((Date.now() - started) / 1000)}s` });
 	return binary;
 }
 

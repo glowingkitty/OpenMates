@@ -18,6 +18,16 @@ import {
 	type EncryptedConnectedAccountCreateInput
 } from './connectedAccountStorageService';
 
+// Flag switch: default builds run the TypeScript logic below unchanged; with
+// VITE_OPENMATES_RUST_CORE=1 the shared Rust Worker decides the row plan (no
+// TypeScript fallback). The const-false branch is dead-code eliminated from
+// flag-off builds, so no Rust adapter ships there.
+const RUST_CONNECTED_ACCOUNTS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
+type RustConnectedAccountWrites = typeof import('./rustCore/connectedAccounts/rustConnectedAccountWrites');
+function rustConnectedAccountWrites(): Promise<RustConnectedAccountWrites> | null {
+	return RUST_CONNECTED_ACCOUNTS_BUILD ? import('./rustCore/connectedAccounts/rustConnectedAccountWrites') : null;
+}
+
 export interface OAuthHandoffClaimResponse {
 	provider_id: string;
 	refresh_token_bundle: Record<string, unknown>;
@@ -93,6 +103,8 @@ export async function buildEncryptedConnectedAccountRow(params: {
 	handoff: OAuthHandoffClaimResponse;
 	capabilitiesOverride?: string[];
 }): Promise<EncryptedConnectedAccountCreateInput> {
+	const rust = rustConnectedAccountWrites();
+	if (rust) return (await rust).rustBuildEncryptedConnectedAccountRow(params, encryptWithMasterKey, computeSHA256);
 	const providerId = params.handoff.provider_id;
 	const capabilities = normalizeCapabilities(
 		params.capabilitiesOverride ?? params.handoff.account_hint.capabilities

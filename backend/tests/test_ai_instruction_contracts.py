@@ -38,6 +38,19 @@ def test_code_instruction_uses_notebook_artifacts_for_jupyter_requests() -> None
     assert "Do NOT emit raw nbformat JSON unless" in instruction
 
 
+def test_code_instruction_routes_vector_graphics_to_the_images_generate_skill() -> None:
+    instruction = CODE_BLOCK_INSTRUCTION_PATH.read_text(encoding="utf-8")
+    start = instruction.index("**11. Vector graphics (SVG):**")
+    section = instruction[start:]
+
+    assert "images-generate" in section
+    assert "output_filetype" in section
+    assert "reference_images" in section
+    assert "images-vectorize" in section
+    assert "Do NOT write the SVG code yourself" in section
+    assert "```svg" not in section
+
+
 def test_stream_consumer_suppresses_deferred_application_preview_chunks() -> None:
     source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
 
@@ -152,3 +165,40 @@ def test_price_products_asks_first_and_quotes_only_sheet_numbers() -> None:
     assert "never recompute" in skill
     assert "what should I charge" in skill
     assert "what should I charge" in " ".join((root / "business/app.yml").read_text().split())
+
+
+# contract-test: direct surface=rest_api assertions=images-generate.vector.skill-authors-svg,images-generate.vector.references-vector-and-pixel
+def test_images_generate_owns_vector_graphics_and_offers_both_engines() -> None:
+    import yaml
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/images/app.yml").read_text(encoding="utf-8"))
+    skill = next(item for item in app["skills"] if item["id"] == "generate" and "tool_schema" in item)
+    request = skill["tool_schema"]["properties"]["requests"]["items"]["properties"]
+    assert "instead of writing SVG code" in skill["preprocessor_hint"]
+    assert request["vector_engine"]["enum"] == ["llm", "script", "recraft"]
+    assert request["requirements"]["type"] == "array"
+    assert "no check\n" in request["requirements"]["description"] or "no check" in request["requirements"]["description"]
+    assert request["vector_engine"]["default"] == "llm"
+    assert "modified from its source code" in request["reference_images"]["description"]
+    assert "pixel reference is redrawn as vector" in request["reference_images"]["description"]
+    assert any("Do not write SVG code in the answer" in item["instruction"] for item in app["instructions"])
+    assert any(
+        "never show an earlier embed_ref as" in item["instruction"] for item in app["instructions"]
+    )
+
+
+# contract-test: direct surface=rest_api assertions=images-generate.vector.skill-authors-svg
+def test_images_app_catalogue_tells_preprocessing_about_vector_graphics() -> None:
+    """Stage one only sees the first sentence of a skill hint, so that sentence must name SVG work."""
+    import yaml
+
+    from backend.apps.ai.processing.jev_preprocessing import _app_catalogue
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/images/app.yml").read_text())
+    skills = [
+        f"images-{skill['id']}: {' '.join((skill.get('preprocessor_hint') or '').split())}"
+        for skill in app["skills"]
+    ]
+    (entry,) = _app_catalogue(["images"], skills)
+    assert "SVG vector graphics" in entry
+    assert "new or modified" in entry

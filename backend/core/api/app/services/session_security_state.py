@@ -86,6 +86,60 @@ async def get_session_state_cached(directus, cache, digest: str, *,
     return _check(row, user_id, allow_risk=allow_risk) if row else None
 
 
+async def get_session_lineage_state(directus, cache, digest: str, *,
+                                    user_id: str,
+                                    allow_risk: bool = True) -> tuple[str, dict] | None:
+    """Resolve a long-lived socket's opening hash to its live rotation member.
+
+    A WebSocket authenticates once with the refresh-token hash it opened with.
+    Issuer rotation (another tab's reload, a /session refresh) retires that
+    hash while the browser keeps the same logical session, so the socket must
+    follow the server-recorded lineage instead of failing as if it was revoked.
+    The client never names the successor: it is selected by the source row's
+    durable ``logical_session_id`` and owner. Revocation, expiry and risk still
+    apply to the source and to every live member, so logout of the chain, an
+    expired deadline or a pending risk challenge are still rejected.
+
+    Returns ``(current_hash, state)``, or ``None`` for a pre-ledger session.
+    """
+    row = await _row(directus, digest)
+    if row is None:
+        return None
+    if not row.get("retired"):
+        return digest, _check(row, user_id, allow_risk=allow_risk)
+    _check({**row, "retired": False}, user_id, allow_risk=allow_risk)
+    logical_session_id = row.get("logical_session_id")
+    if not isinstance(logical_session_id, str) or not logical_session_id:
+        raise HTTPException(401, "Session expired or revoked")
+    try:
+        members = await directus.get_items(
+            COLLECTION,
+            params={"filter": {"user_id": {"_eq": user_id},
+                               "logical_session_id": {"_eq": logical_session_id},
+                               "retired": {"_eq": False}},
+                    "fields": "id,token_hash,user_id,logical_session_id,expires_at,revoked,retired,risk_pending",
+                    "limit": 5},
+            admin_required=True, no_cache=True, raise_on_error=True,
+        )
+    except Exception as exc:
+        raise HTTPException(503, "Session verification temporarily unavailable") from exc
+    live = [member for member in members or []
+            if isinstance(member, dict)
+            and member.get("logical_session_id") == logical_session_id
+            and not member.get("retired")
+            and isinstance(member.get("token_hash"), str) and member["token_hash"]]
+    if not live:
+        raise HTTPException(401, "Session expired or revoked")
+    # A rotation is mid-transfer when two members are live; each must be a
+    # valid continuation with the source's fixed deadline.
+    for member in live:
+        _check(member, user_id, allow_risk=allow_risk)
+        if str(member.get("expires_at")) != str(row.get("expires_at")):
+            raise HTTPException(401, "Invalid session rotation")
+    current = live[-1]
+    return current["token_hash"], current
+
+
 async def register_session_state(directus, cache, token: str, user_id: str,
                                  *, ttl_seconds: int, strong_proof: bool = False,
                                  verified_login_method: str | None = None,

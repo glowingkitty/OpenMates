@@ -51,7 +51,7 @@ def main() -> None:
     if not answer:
         raise AssertionError("Live chat returned no assistant answer")
     if args.mode == "models":
-        for name in ("GPT-6", "Claude Opus 5.5", "GPT Image 2", "Veo 3.1", "Voxtral Mini"):
+        for name in ("GPT-6", "Claude Opus 5.5", "GPT Image 2", "Gemini Omni 1.2 Flash", "Voxtral Mini"):
             if name not in answer:
                 raise AssertionError(f"Missing catalogued recent model: {name}")
         if "release date unrecorded" not in answer.lower():

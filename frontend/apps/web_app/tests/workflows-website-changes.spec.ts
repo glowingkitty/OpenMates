@@ -6,6 +6,7 @@ const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { workflowErrorNotifications } = require('./helpers/workflow-notifications');
 
 function apiUrl(): string {
   const url = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org');
@@ -76,7 +77,7 @@ test.describe('Website change workflows', () => {
     await expect(starter).toContainText('events.ccc.de');
     await expect(starter).toHaveAttribute('data-icon', 'globe');
     await starter.click();
-    await expect(page.getByTestId('workflows-error')).toContainText('Template validation unavailable');
+    await expect(workflowErrorNotifications(page, 'Template validation unavailable').first()).toBeVisible();
     expect(workflow).toBeNull();
     await expect(starter).toBeVisible();
     await starter.click();

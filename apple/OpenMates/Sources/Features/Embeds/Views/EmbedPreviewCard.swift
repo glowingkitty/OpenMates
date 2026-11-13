@@ -9,6 +9,7 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+//          frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedPreview.svelte (skillName, status line)
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -91,7 +92,7 @@ enum EmbedVisualSkillIcon {
              "app:code:search_repos", "app:design:search_icons",
              "app:electronics:search_components", "electronics-component",
              "app:events:search", "app:fitness:search_locations", "app:fitness:search_classes",
-             "app:home:search", "app:images:search", "app:maps:search",
+             "app:home:search", "app:images:search", "app:jobs:search", "app:maps:search",
              "app:models3d:search", "app:news:search", "app:nutrition:search_recipes",
              "nutrition-recipe", "app:shopping:search_products", "shopping-product",
              "app:social_media:search", "app:tasks:search",
@@ -109,8 +110,9 @@ enum EmbedVisualSkillIcon {
         case "app:health:search_appointments": return fullscreen ? "health" : "search"
         case "health-appointment": return "health"
         case "home-listing": return fullscreen ? "home" : "search"
-        case "app:images:generate", "app:images:generate_draft", "app:music:generate": return "ai"
+        case "app:images:generate", "app:images:generate_draft", "app:images:modify", "app:music:generate": return "ai"
         case "image", "images-image-result": return "image"
+        case "jobs-job-result": return "jobs"
         case "app:mail:search", "mail-email": return "mail"
         case "maps", "maps-place": return "pin"
         case "app:math:calculate", "math-plot": return "math"
@@ -620,6 +622,7 @@ struct EmbedPreviewCard: View {
             || embedType == .travelConnection
             || embedType == .travelStay
             || embedType == .codeApplication
+            || embedType == .codeTestResult
             || embedType == .designIconResult
             || embedType == .electronicsPcbSchematic
             || embedType == .mindmapsMindmap
@@ -638,6 +641,7 @@ struct EmbedPreviewCard: View {
             return websiteUsesFullWidthImage
         }
         return embedType == .travelStay
+            || embedType == .codeTestResult
             || embedType == .codeCode
             || embedType == .docsDoc
             || embedType == .image
@@ -668,7 +672,9 @@ struct EmbedPreviewCard: View {
         case .audioGenerate, .audioSpeak: return "Generate SFX"
         case .calendarListCalendars, .calendarGetEvents, .calendarCreateEvent,
              .calendarUpdateEvent, .calendarDeleteEvent: return AppStrings.search
-        case .imagesGenerate, .imagesGenerateDraft, .videosGenerate, .musicGenerate: return "Generate"
+        case .imagesGenerate: return AppStrings.imageGenerateSkillGenerate
+        case .imagesGenerateDraft: return AppStrings.imageGenerateSkillDraft
+        case .videosGenerate, .musicGenerate: return "Generate"
         case .financeCheckAccounts: return AppStrings.financeCheckAccounts
         case .mathCalculate: return "Calculate"
         case .reminderSet, .reminderList, .reminderCancel: return AppStrings.setReminder
@@ -692,8 +698,9 @@ struct EmbedPreviewCard: View {
             return firstString(in: embed.rawData ?? [:], keys: ["filename"]) ?? "notebook.ipynb"
         }
         if embedType == .codeApplication {
-            return firstString(in: embed.rawData ?? [:], keys: ["name"]) ?? "Application"
+            return firstString(in: embed.rawData ?? [:], keys: ["name"]) ?? AppStrings.localized("embeds.application_title")
         }
+        if embedType == .codeTestResult { return TestResultView(data: embed.rawData).title }
         if embedType == .designIconResult {
             return firstString(in: embed.rawData ?? [:], keys: ["display_name", "name", "icon_id"]) ?? "Icon"
         }
@@ -798,6 +805,9 @@ struct EmbedPreviewCard: View {
             if embedType == .electronicsPcbSchematic { return "Atopile" }
             return AppStrings.localized("common.processing")
         }
+        // BasicInfosBar.svelte displayedStatusText for the image generation card.
+        if isImageGenerateCard, embed.status == .cancelled { return AppStrings.imageGenerateCancelled }
+        if isImageGenerateCard, embed.status == .error { return AppStrings.imageGenerateStatusError }
         switch embedType {
         case .financeCheckAccounts:
             let accounts = embed.rawData?["account_count"]?.value as? Int ?? 0
@@ -849,8 +859,16 @@ struct EmbedPreviewCard: View {
             let framework = firstString(in: raw, keys: ["framework"])
             let runtime = firstString(in: raw, keys: ["runtime"])
             let count = (raw["file_refs"]?.value as? [Any])?.count ?? 0
-            return [framework, runtime, count > 0 ? "\(count) files" : nil]
+            let files = count > 0
+                ? AppStrings.localized("embeds.application_file_count").replacingOccurrences(of: "{count}", with: String(count))
+                : nil
+            return [framework, runtime, files]
                 .compactMap { $0 }.joined(separator: " · ")
+        }
+        if embedType == .codeTestResult {
+            let run = TestResultView(data: embed.rawData)
+            return [AppStrings.localized(run.runStatus.labelKey), TestResultView.formatDuration(run.durationMs)]
+                .filter { !$0.isEmpty }.joined(separator: " · ")
         }
         if embedType == .codeRepo {
             let raw = embed.rawData ?? [:]
@@ -929,22 +947,37 @@ struct EmbedPreviewCard: View {
             ?? host(from: firstString(in: embed.rawData ?? [:], keys: ["source_page_url", "url"]))
     }
 
+    private var isImageGenerateCard: Bool {
+        if embedType == .imagesGenerate || embedType == .imagesGenerateDraft { return true }
+        let skillId = embed.skillId ?? embed.rawData?["skill_id"]?.value as? String ?? ""
+        return embed.isAppSkillUse && appId == "images" && ImageGenerateCardState.skillIds.contains(skillId)
+    }
+
     private var skillDisplayName: String {
         let appId = embed.appId ?? embed.rawData?["app_id"]?.value as? String ?? "web"
         let skillId = embed.skillId ?? embed.rawData?["skill_id"]?.value as? String ?? "search"
         switch (appId, skillId) {
-        case ("events", "search"), ("web", "search"), ("news", "search"), ("images", "search"), ("videos", "search"):
+        case ("events", "search"), ("web", "search"), ("news", "search"), ("images", "search"), ("videos", "search"), ("jobs", "search"):
             return LocalizationManager.shared.text("common.search")
         case ("videos", "get_transcript"), ("videos", "get-transcript"):
             return AppStrings.videoGetTranscript
         case ("images", "view"):
             return LocalizationManager.shared.text("common.view")
+        // ImageGenerateEmbedPreview.svelte skillName.
+        case ("images", "generate"):
+            return AppStrings.imageGenerateSkillGenerate
+        case ("images", "generate_draft"):
+            return AppStrings.imageGenerateSkillDraft
+        case ("images", "modify"):
+            return AppStrings.imageModifyTitle
         case ("travel", "search_connections"):
             return "Search connections"
         case ("weather", "forecast"):
             return AppStrings.weatherForecast
         case ("code", "get_docs"):
             return AppStrings.localized("app_skills.code.get_docs")
+        case ("weather", "rain_radar"), ("weather", "rain-radar"):
+            return AppStrings.localized("apps.weather.rain_radar")
         default:
             let key = "app_skills.\(appId).\(skillId.replacingOccurrences(of: "-", with: "_"))"
             let localized = AppStrings.localized(key)

@@ -13,6 +13,24 @@ import type { Message } from "../../types/chat";
 import { writeWithQuotaRetry } from "./quotaRecovery";
 import { chatKeyManager } from "../encryption/ChatKeyManager";
 import { invalidateRecentChatWindow, invalidateRecentChatWindowForMessage } from "../recentChatWindowCache";
+import { cacheDecisions } from "./cacheDecisions";
+import { MESSAGE_WINDOW_PAGE_CACHE_GENERATION } from "./cacheTypes";
+import { deleteConfirmedMessageAfterDecision } from "./messageEviction";
+
+/**
+ * Save/duplicate/eviction, window, cache-budget and quota decisions run in the
+ * shared Worker `persist` unit. IndexedDB reads, writes and encryption stay here.
+ */
+function rustMessageRowPolicy() {
+  return import("../rustCore/persist/rustMessageRowPolicy");
+}
+
+/** A stored queued message already carries a newer queue revision than the incoming one. */
+function hasNewerStoredRevision(stored: Message, incoming: Message): boolean {
+  return Number.isSafeInteger(stored.queue_revision) &&
+    Number.isSafeInteger(incoming.queue_revision) &&
+    (stored.queue_revision ?? 0) > (incoming.queue_revision ?? 0);
+}
 
 // Type for ChatDatabase instance to avoid circular import
 // Only includes properties/methods needed by this module
@@ -32,29 +50,12 @@ interface ChatDatabaseInstance {
 // Store name constant (must match the one in db.ts)
 const MESSAGES_STORE_NAME = "messages";
 const MESSAGE_WINDOW_PAGES_STORE_NAME = "message_window_pages";
-const DEFAULT_MESSAGE_WINDOW_LIMIT = 30;
-const MAX_MESSAGE_WINDOW_LIMIT = 100;
-const MESSAGE_WINDOW_PAGE_CACHE_GENERATION = 1;
-const DEFAULT_MESSAGE_WINDOW_PAGE_CACHE_LIMIT = 12;
 const DEFAULT_OFFLINE_CACHE_BUDGET_BYTES = 100 * 1024 * 1024;
 const MAX_BUDGET_SCAN_PAGES = 4096;
-const MAX_BUDGET_EVICTIONS = 32;
 let configuredOfflineCacheBudgetBytes = DEFAULT_OFFLINE_CACHE_BUDGET_BYTES;
 let lastBudgetCheckAt = 0;
 let budgetTrim: Promise<number> | null = null;
 let budgetTrimForced = false;
-
-const UNSAFE_TO_EVICT_MESSAGE_STATUSES = new Set<Message["status"]>([
-  "sending",
-  "waiting_for_upload",
-  "waiting_for_internet",
-  "queued",
-  "processing",
-  "streaming",
-  "failed",
-  "waiting_for_user",
-  "delivered",
-]);
 
 export type MessageWindowDirection = "latest" | "before" | "after" | "around";
 
@@ -124,13 +125,6 @@ function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
-function clampWindowLimit(limit?: number): number {
-  if (!Number.isFinite(limit) || !limit || limit < 1) {
-    return DEFAULT_MESSAGE_WINDOW_LIMIT;
-  }
-  return Math.min(Math.floor(limit), MAX_MESSAGE_WINDOW_LIMIT);
-}
-
 function chatRange(
   chatId: string,
   lowerTimestamp: number = -Infinity,
@@ -185,23 +179,31 @@ async function decryptWindow(
   return Promise.all(records.map((msg) => dbInstance.decryptMessageFields(msg, chatId)));
 }
 
-function windowResult(
+async function windowResult(
   messages: Message[],
-  hasMoreBefore: boolean,
-  hasMoreAfter: boolean,
-  anchorFound = true,
-): MessageWindowResult {
-  return {
-    messages,
-    hasMoreBefore,
-    hasMoreAfter,
-    startCursor: messages[0]?.created_at ?? null,
-    startCursorMessageId: messages[0]?.message_id ?? null,
-    endCursor: messages[messages.length - 1]?.created_at ?? null,
-    endCursorMessageId: messages[messages.length - 1]?.message_id ?? null,
-    anchorFound,
-  };
+  flags: {
+    direction: MessageWindowDirection;
+    hasMore: boolean;
+    beforeHasMore?: boolean;
+    afterHasMore?: boolean;
+    anchorFound?: boolean;
+  },
+): Promise<MessageWindowResult> {
+  const meta = await (await cacheDecisions()).windowResultMeta({
+    direction: flags.direction,
+    hasMore: flags.hasMore,
+    beforeHasMore: flags.beforeHasMore ?? false,
+    afterHasMore: flags.afterHasMore ?? false,
+    anchorFound: flags.anchorFound ?? true,
+    first: messages[0] ?? null,
+    last: messages[messages.length - 1] ?? null,
+  });
+  return { messages, ...meta };
 }
+
+/** The window the request names no cursor for: no messages, no more pages, no anchor. */
+const emptyWindow = (): Promise<MessageWindowResult> =>
+  windowResult([], { direction: "latest", hasMore: false, anchorFound: false });
 
 function compareMessageCursorPosition(message: Message, timestamp: number, messageId?: string): number {
   if (message.created_at !== timestamp) {
@@ -211,34 +213,6 @@ function compareMessageCursorPosition(message: Message, timestamp: number, messa
   return message.message_id.localeCompare(messageId);
 }
 
-function buildMessageWindowPageId(
-  chatId: string,
-  pageKind: MessageWindowPageKind,
-  direction: MessageWindowDirection,
-  result: MessageWindowResult,
-): string {
-  return [
-    chatId,
-    pageKind,
-    direction,
-    result.startCursor ?? "start",
-    result.startCursorMessageId ?? "start-id",
-    result.endCursor ?? "end",
-    result.endCursorMessageId ?? "end-id",
-    MESSAGE_WINDOW_PAGE_CACHE_GENERATION,
-  ].join("|");
-}
-
-export function isSafeToEvictMessage(message: Message | undefined): boolean {
-  if (!message) return false;
-  const raw = message as Message & Record<string, unknown>;
-  return message.status === "synced" &&
-    !UNSAFE_TO_EVICT_MESSAGE_STATUSES.has(message.status) &&
-    !raw.pending_turn_preflight_v1 &&
-    !raw.pending_encrypted_turn_preflight_v1 &&
-    !raw.pending_encrypted_embed_bundle_v1;
-}
-
 /** Configure the whole-origin cache target; protected data may exceed it. */
 export function configureOfflineCacheBudget(bytes: number): void {
   if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error("Invalid offline cache budget");
@@ -246,31 +220,14 @@ export function configureOfflineCacheBudget(bytes: number): void {
   lastBudgetCheckAt = 0;
 }
 
-export function offlineCacheTargetBytes(quota?: number): number {
-  return quota && Number.isFinite(quota) && quota > 0
-    ? Math.min(configuredOfflineCacheBudgetBytes, Math.floor(quota / 2))
-    : configuredOfflineCacheBudgetBytes;
-}
-
 async function deleteConfirmedMessage(
   dbInstance: ChatDatabaseInstance,
   messageId: string,
 ): Promise<boolean> {
-  const transaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readwrite");
-  return new Promise((resolve, reject) => {
-    const store = transaction.objectStore(MESSAGES_STORE_NAME);
-    let deleted = false;
-    const request = store.get(messageId);
-    request.onsuccess = () => {
-      if (!isSafeToEvictMessage(request.result as Message | undefined)) return;
-      store.delete(messageId);
-      deleted = true;
-    };
-    request.onerror = () => reject(request.error);
-    transaction.oncomplete = () => resolve(deleted);
-    transaction.onerror = () => reject(transaction.error);
-    transaction.onabort = () => reject(transaction.error ?? new Error("Cache eviction aborted"));
-  });
+  // The Rust verdict arrives outside the transaction: decide on a snapshot, then delete only if the row is unchanged.
+  return deleteConfirmedMessageAfterDecision(
+    dbInstance, messageId, (row) => rustMessageRowPolicy().then((policy) => policy.rustIsSafeToEvictMessage(row)),
+  );
 }
 
 function pageRecordsForChatRange(chatId: string): IDBKeyRange {
@@ -278,208 +235,8 @@ function pageRecordsForChatRange(chatId: string): IDBKeyRange {
 }
 
 // ============================================================================
-// MESSAGE STATUS PRIORITY
-// ============================================================================
-
-/**
- * Status priority map for determining which message version to keep
- * Higher priority means the message has progressed further in its lifecycle
- */
-const STATUS_PRIORITY: Record<string, number> = {
-  sending: 1,
-  waiting_for_upload: 1, // Upload in progress, same level as sending
-  waiting_for_internet: 1,
-  queued: 3.1, // Server queue admission survives an ordinary synced/delivered refresh
-  processing: 2,
-  streaming: 2,
-  waiting_for_user: 2.3, // Higher than streaming/processing, lower than failed - chat paused for user action
-  failed: 2.5,
-  delivered: 2.8, // Server received the message, awaiting full sync confirmation
-  synced: 3,
-};
-
-/**
- * Determines if a new message should update an existing message.
- *
- * Rules:
- * - Always allow streaming -> streaming updates (content grows over time).
- * - Never allow synced to overwrite waiting_for_user. 'waiting_for_user' is a
- *   terminal client-side display state (e.g. credits-rejection, permissions request).
- *   Phased sync delivers these messages from Directus with status='synced' (the
- *   server-side storage status), but the client must keep 'waiting_for_user' so
- *   the Buy Credits button, header banner, and typing indicator suppression remain
- *   correct after a tab reload.
- * - Otherwise, allow updates when status priority increases.
- */
-export function shouldUpdateMessage(
-  existing: Message,
-  incoming: Message,
-): boolean {
-  if (existing.queue_dispatch_status === "paused" &&
-      (incoming.queue_dispatch_status === "queued" || incoming.queue_dispatch_status === "processing")) {
-    return false; // This increment has no same-ID resume; older receipts cannot revive a paused turn.
-  }
-  if (existing.queue_dispatch_status === "processing" && incoming.queue_dispatch_status === "queued") {
-    return false; // An older queued receipt cannot undo a durable task handoff.
-  }
-  if ((existing.status === "queued" || existing.queue_dispatch_status === "processing") &&
-      incoming.queue_dispatch_status === "paused") {
-    return true; // Failure receipt supersedes both pending and consumed Steer states.
-  }
-  if (existing.status === "queued" && Number.isSafeInteger(incoming.queue_revision) &&
-      (incoming.queue_revision ?? 0) >= (existing.queue_revision ?? 0) &&
-      incoming.queue_dispatch_status === "processing") {
-    return true; // Durable server handoff receipt clears queued UI after missed WS events.
-  }
-  if (existing.status === "queued" && Number.isSafeInteger(incoming.queue_revision) &&
-      (incoming.queue_revision ?? 0) > (existing.queue_revision ?? 0)) {
-    return true; // A newer encrypted edit revision must replace a stale local body.
-  }
-  // Streaming chunks must be able to update the same message id.
-  if (existing.status === "streaming" && incoming.status === "streaming") {
-    return true;
-  }
-
-  // Never overwrite a waiting_for_user message with synced or delivered from phased sync.
-  // 'waiting_for_user' is a terminal client-side display state that the server doesn't
-  // persist — Directus has no status column, so phased sync messages arrive with no status
-  // and prepareMessagesForStorage() assigns 'delivered' as the default. Since 'delivered'
-  // has higher priority (2.8) than 'waiting_for_user' (2.3), the priority check below would
-  // allow the overwrite. This would clobber the client state and hide the Buy Credits button
-  // and the credits-error header after a page reload.
-  // Guard both 'synced' (from chat_message_confirmed events) and 'delivered' (from phased sync).
-  if (
-    existing.status === "waiting_for_user" &&
-    (incoming.status === "synced" || incoming.status === "delivered")
-  ) {
-    return false;
-  }
-
-  const existingPriority = STATUS_PRIORITY[existing.status] ?? 0;
-  const incomingPriority = STATUS_PRIORITY[incoming.status] ?? 0;
-
-  if (incomingPriority > existingPriority) {
-    return true;
-  }
-
-  if (incomingPriority === existingPriority && existing.status === incoming.status) {
-    if (existing.content !== incoming.content) return false;
-
-    if (
-      existing.model_name !== incoming.model_name ||
-      existing.category !== incoming.category ||
-      existing.thinking_content !== incoming.thinking_content ||
-      existing.thinking_signature !== incoming.thinking_signature ||
-      existing.thinking_token_count !== incoming.thinking_token_count ||
-      existing.has_thinking !== incoming.has_thinking
-    ) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
- * Returns true if the incoming encrypted record adds encrypted fields that are missing on the existing record.
- * This is important for placeholder messages (e.g. assistant message created before first chunk arrives).
- */
-export function hasNewEncryptedFields(
-  existing: Message,
-  incomingEncrypted: Message,
-): boolean {
-  const pairs: Array<[keyof Message, keyof Message]> = [
-    ["encrypted_content", "encrypted_content"],
-    ["encrypted_sender_name", "encrypted_sender_name"],
-    ["encrypted_category", "encrypted_category"],
-    ["encrypted_model_name", "encrypted_model_name"],
-    // Thinking content/signature must be persisted even if status doesn't advance.
-    ["encrypted_thinking_content", "encrypted_thinking_content"],
-    ["encrypted_thinking_signature", "encrypted_thinking_signature"],
-    // PII mappings for client-side restoration of anonymized data
-    ["encrypted_pii_mappings", "encrypted_pii_mappings"],
-  ];
-
-  return pairs.some(([existingKey, incomingKey]) => {
-    const existingValue = existing[existingKey];
-    const incomingValue = incomingEncrypted[incomingKey];
-    return !existingValue && !!incomingValue;
-  });
-}
-
-function hasNewerStoredRevision(stored: Message, incoming: Message): boolean {
-  return Number.isSafeInteger(stored.queue_revision) &&
-    Number.isSafeInteger(incoming.queue_revision) &&
-    (stored.queue_revision ?? 0) > (incoming.queue_revision ?? 0);
-}
-
-// ============================================================================
 // DUPLICATE DETECTION
 // ============================================================================
-
-/**
- * Determines if two messages are content duplicates (same logical message, different IDs)
- *
- * CRITICAL: For assistant messages, we also check if the message_id matches the task_id pattern
- * to avoid false positives when the same response is saved with different IDs from different sources.
- */
-export function isContentDuplicate(
-  existing: Message,
-  incoming: Message,
-): boolean {
-  // Must be same chat, role, and have similar content
-  if (
-    existing.chat_id !== incoming.chat_id ||
-    existing.role !== incoming.role
-  ) {
-    return false;
-  }
-
-  // Repeating text is a new user submission when its stable message ID differs.
-  // Retries and sync copies retain that ID and use the primary-key save path.
-  if (existing.role === "user" && existing.message_id !== incoming.message_id) {
-    return false;
-  }
-
-  // For assistant messages, if message_ids are different but both look like task IDs (UUIDs),
-  // and content matches, they might be the same message from different sync sources.
-  // However, we should be more careful - only treat as duplicate if encrypted_content matches
-  // AND timestamps are very close (within 1 minute for assistant messages to account for streaming delays)
-  const isAssistantMessage =
-    existing.role === "assistant" && incoming.role === "assistant";
-  const timeThreshold = isAssistantMessage ? 60 : 300; // 1 minute for assistant, 5 minutes for user
-
-  // Prefer encrypted content when both records have it. When this function is
-  // called after getMessagesForChat(), records may already be decrypted and
-  // encrypted_content is intentionally absent; two missing encrypted fields are
-  // not evidence of duplicate content.
-  const hasEncryptedContent = !!existing.encrypted_content && !!incoming.encrypted_content;
-  const contentMatch = hasEncryptedContent
-    ? existing.encrypted_content === incoming.encrypted_content
-    : !!existing.content && !!incoming.content && existing.content === incoming.content;
-
-  // Check if timestamps are close (within threshold) - messages from different sync sources
-  const timeDiff = Math.abs(existing.created_at - incoming.created_at);
-  const timeMatch = timeDiff < timeThreshold;
-
-  // Check if sender names match (for user messages)
-  // For assistant messages, sender_name is typically null/undefined, so this check is less relevant
-  const senderMatch =
-    existing.encrypted_sender_name === incoming.encrypted_sender_name ||
-    (existing.role === "assistant" && incoming.role === "assistant");
-
-  const isDuplicate = contentMatch && timeMatch && senderMatch;
-
-  if (isDuplicate && isAssistantMessage) {
-    console.debug(
-      `[ChatDatabase] Detected potential duplicate assistant message: ` +
-        `existing=${existing.message_id}, incoming=${incoming.message_id}, ` +
-        `timeDiff=${timeDiff}s, contentMatch=${contentMatch}`,
-    );
-  }
-
-  return isDuplicate;
-}
 
 /**
  * Finds content-based duplicates (same content but different message_id)
@@ -490,31 +247,21 @@ export async function findContentDuplicate(
   message: Message,
   transaction?: IDBTransaction,
 ): Promise<Message | null> {
+  let chatMessages: Message[];
   try {
     // Get all messages for the same chat
-    const chatMessages = await getMessagesForChat(
+    chatMessages = await getMessagesForChat(
       dbInstance,
       message.chat_id,
       transaction,
     );
-
-    // Look for messages with same content, role, and similar timestamp
-    for (const existingMessage of chatMessages) {
-      if (existingMessage.message_id === message.message_id) {
-        continue; // Skip same message_id
-      }
-
-      // Check if it's the same logical message based on content and timing
-      if (isContentDuplicate(existingMessage, message)) {
-        return existingMessage;
-      }
-    }
-
-    return null;
   } catch (error) {
     console.error("[ChatDatabase] Error finding content duplicate:", error);
     return null;
   }
+
+  // The Rust decision is outside the read guard: a refused call must fail, not read as "no duplicate".
+  return (await rustMessageRowPolicy()).rustFindContentDuplicate(chatMessages, message);
 }
 
 // ============================================================================
@@ -652,22 +399,37 @@ export async function getMessageWindowForChat(
   transaction?: IDBTransaction,
 ): Promise<MessageWindowResult> {
   await dbInstance.init();
-  const limit = clampWindowLimit(options.limit);
-  const direction = options.direction ?? "latest";
+  const decisions = await cacheDecisions();
+  const planInput = {
+    chatId: chat_id,
+    direction: options.direction,
+    limit: options.limit,
+    anchorMessageId: options.anchorMessageId,
+    anchorCreatedAt: options.anchorCreatedAt,
+    beforeTimestamp: options.beforeTimestamp,
+    afterTimestamp: options.afterTimestamp,
+    compressedUpToTimestamp: options.compressedUpToTimestamp,
+  };
+  let plan = await decisions.windowPlan(planInput);
 
   let anchorRecord: Message | null = null;
-  if (direction === "around" && options.anchorMessageId) {
+  if (plan.needsAnchorRead) {
     const anchorTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
     anchorRecord = await new Promise<Message | null>((resolve, reject) => {
       const request = anchorTransaction.objectStore(MESSAGES_STORE_NAME).get(options.anchorMessageId!);
       request.onsuccess = () => resolve((request.result as Message | undefined) ?? null);
       request.onerror = () => reject(request.error);
     });
-    if (anchorRecord?.chat_id !== chat_id) {
-      anchorRecord = null;
-    }
+    plan = await decisions.windowPlan({
+      ...planInput,
+      anchorRecord: anchorRecord ? { chat_id: anchorRecord.chat_id, created_at: anchorRecord.created_at } : null,
+    });
+    if (!plan.keepAnchor) anchorRecord = null;
   }
+  if (plan.empty) return emptyWindow();
 
+  const { direction, limit } = plan;
+  const lowerBound = plan.lowerBound ?? -Infinity;
   const currentTransaction =
     transaction ||
     (await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly"));
@@ -675,28 +437,22 @@ export async function getMessageWindowForChat(
   const index = store.index("chat_id_created_at");
 
   if (direction === "around") {
-    const anchorCreatedAt = anchorRecord?.created_at ?? options.anchorCreatedAt;
-    if (!anchorCreatedAt) {
-      return windowResult([], false, false, false);
-    }
-
-    const beforeLimit = Math.floor((limit - 1) / 2);
-    const afterLimit = limit - 1 - beforeLimit;
-    const before = beforeLimit > 0
+    const anchorCreatedAt = plan.anchorCreatedAt!;
+    const before = plan.beforeLimit > 0
       ? await readCursorWindow(
           index,
-          chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, anchorCreatedAt, !!options.compressedUpToTimestamp, false),
+          chatRange(chat_id, lowerBound, anchorCreatedAt, plan.lowerOpen, false),
           "prev",
-          beforeLimit,
+          plan.beforeLimit,
           (message) => compareMessageCursorPosition(message, anchorCreatedAt, options.anchorMessageId) < 0,
         )
       : { records: [], hasMore: false };
-    const after = afterLimit > 0
+    const after = plan.afterLimit > 0
       ? await readCursorWindow(
           index,
           chatRange(chat_id, anchorCreatedAt, Infinity, true, false),
           "next",
-          afterLimit,
+          plan.afterLimit,
           (message) => compareMessageCursorPosition(message, anchorCreatedAt, options.anchorMessageId) > 0,
         )
       : { records: [], hasMore: false };
@@ -706,26 +462,26 @@ export async function getMessageWindowForChat(
       ...after.records,
     ];
     const messages = await decryptWindow(dbInstance, encryptedMessages, chat_id);
-    return windowResult(messages, before.hasMore, after.hasMore, !!anchorRecord || !!options.anchorCreatedAt);
+    return windowResult(messages, {
+      direction, hasMore: false, beforeHasMore: before.hasMore, afterHasMore: after.hasMore, anchorFound: plan.anchorFound,
+    });
   }
 
   if (direction === "before") {
-    const beforeTimestamp = options.beforeTimestamp ?? options.anchorCreatedAt;
-    if (!beforeTimestamp) return windowResult([], false, false, false);
+    const beforeTimestamp = plan.timestamp!;
     const { records, hasMore } = await readCursorWindow(
       index,
-      chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, beforeTimestamp, !!options.compressedUpToTimestamp, false),
+      chatRange(chat_id, lowerBound, beforeTimestamp, plan.lowerOpen, false),
       "prev",
       limit,
       (message) => compareMessageCursorPosition(message, beforeTimestamp, options.beforeMessageId) < 0,
     );
     const messages = await decryptWindow(dbInstance, records.reverse(), chat_id);
-    return windowResult(messages, hasMore, true);
+    return windowResult(messages, { direction, hasMore });
   }
 
   if (direction === "after") {
-    const afterTimestamp = options.afterTimestamp ?? options.anchorCreatedAt;
-    if (!afterTimestamp) return windowResult([], false, false, false);
+    const afterTimestamp = plan.timestamp!;
     const { records, hasMore } = await readCursorWindow(
       index,
       chatRange(chat_id, afterTimestamp, Infinity, false, false),
@@ -734,17 +490,17 @@ export async function getMessageWindowForChat(
       (message) => compareMessageCursorPosition(message, afterTimestamp, options.afterMessageId) > 0,
     );
     const messages = await decryptWindow(dbInstance, records, chat_id);
-    return windowResult(messages, true, hasMore);
+    return windowResult(messages, { direction, hasMore });
   }
 
   const { records, hasMore } = await readCursorWindow(
     index,
-    chatRange(chat_id, options.compressedUpToTimestamp ?? -Infinity, Infinity, !!options.compressedUpToTimestamp, false),
+    chatRange(chat_id, lowerBound, Infinity, plan.lowerOpen, false),
     "prev",
     limit,
   );
   const messages = await decryptWindow(dbInstance, records.reverse(), chat_id);
-  return windowResult(messages, hasMore, false);
+  return windowResult(messages, { direction: "latest", hasMore });
 }
 
 /**
@@ -764,7 +520,24 @@ export async function recordMessageWindowPage(
   const direction = options.direction ?? "latest";
   const pageKind = options.pageKind ?? "normal";
   const now = options.now ?? Date.now();
-  const id = buildMessageWindowPageId(chat_id, pageKind, direction, result);
+  const decisions = await cacheDecisions();
+  const pageInput = {
+    chatId: chat_id,
+    pageKind,
+    direction,
+    result: {
+      startCursor: result.startCursor,
+      startCursorMessageId: result.startCursorMessageId,
+      endCursor: result.endCursor,
+      endCursorMessageId: result.endCursorMessageId,
+      hasMoreBefore: result.hasMoreBefore,
+      hasMoreAfter: result.hasMoreAfter,
+    },
+    messageIds: result.messages.map((message) => message.message_id),
+    now,
+  };
+  // The record id names the page; it is built before the stored copy (and its first-cached time) is read.
+  const { id } = await decisions.windowPageRecord({ ...pageInput, existingCachedAt: null });
   const readTransaction = await dbInstance.getTransaction(
     MESSAGE_WINDOW_PAGES_STORE_NAME,
     "readonly",
@@ -772,22 +545,10 @@ export async function recordMessageWindowPage(
   const existing = await requestToPromise<MessageWindowPageCacheRecord | undefined>(
     readTransaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).get(id),
   );
-  const record: MessageWindowPageCacheRecord = {
-    id,
-    chat_id,
-    page_kind: pageKind,
-    direction,
-    start_cursor: result.startCursor,
-    start_cursor_message_id: result.startCursorMessageId,
-    end_cursor: result.endCursor,
-    end_cursor_message_id: result.endCursorMessageId,
-    has_more_before: result.hasMoreBefore,
-    has_more_after: result.hasMoreAfter,
-    message_ids: result.messages.map((message) => message.message_id),
-    cached_at: existing?.cached_at ?? now,
-    last_accessed_at: now,
-    cache_generation: MESSAGE_WINDOW_PAGE_CACHE_GENERATION,
-  };
+  const record: MessageWindowPageCacheRecord = await decisions.windowPageRecord({
+    ...pageInput,
+    existingCachedAt: existing?.cached_at ?? null,
+  });
   const writeTransaction = await dbInstance.getTransaction(
     MESSAGE_WINDOW_PAGES_STORE_NAME,
     "readwrite",
@@ -828,55 +589,49 @@ export async function evictStaleMessageWindowPages(
   chat_id: string,
   options: EvictMessageWindowPagesOptions = {},
 ): Promise<EvictMessageWindowPagesResult> {
-  const maxPagesPerChat = Math.max(1, Math.floor(options.maxPagesPerChat ?? DEFAULT_MESSAGE_WINDOW_PAGE_CACHE_LIMIT));
-  const protectedPageIds = new Set(options.protectedPageIds ?? []);
-  const protectedMessageIds = new Set(options.protectedMessageIds ?? []);
+  const decisions = await cacheDecisions();
   const pages = await getMessageWindowPagesForChat(dbInstance, chat_id);
-  const normalPages = pages
-    .filter((page) => page.page_kind === "normal" && !protectedPageIds.has(page.id))
-    .sort((a, b) => a.last_accessed_at - b.last_accessed_at);
-  const deleteCount = Math.max(0, pages.filter((page) => page.page_kind === "normal").length - maxPagesPerChat);
+  const { deleteCount, candidates } = await decisions.evictPlan({
+    pages,
+    maxPagesPerChat: options.maxPagesPerChat,
+    protectedPageIds: options.protectedPageIds,
+    protectedMessageIds: options.protectedMessageIds,
+  });
   const pagesToDelete: MessageWindowPageCacheRecord[] = [];
-  for (const page of normalPages) {
+  for (const pageId of candidates) {
     if (pagesToDelete.length >= deleteCount) break;
-    if (page.message_ids.some((id) => protectedMessageIds.has(id))) continue;
-    let confirmed = true;
+    const page = pages.find((candidate) => candidate.id === pageId)!;
+    const stored: Array<Message | undefined> = [];
     for (const messageId of page.message_ids) {
       const readTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
-      const message = await requestToPromise<Message | undefined>(
+      stored.push(await requestToPromise<Message | undefined>(
         readTransaction.objectStore(MESSAGES_STORE_NAME).get(messageId),
-      );
-      if (!isSafeToEvictMessage(message)) {
-        confirmed = false;
-        break;
-      }
+      ));
     }
-    if (confirmed) pagesToDelete.push(page);
+    if (await decisions.pageConfirmed(stored)) pagesToDelete.push(page);
   }
   if (pagesToDelete.length === 0) {
     return { deletedPageIds: [], deletedMessageIds: [] };
   }
   invalidateRecentChatWindow(chat_id, 'message');
 
-  const deletingPageIds = new Set(pagesToDelete.map((page) => page.id));
-  const retainedMessageIds = new Set<string>();
-  for (const page of pages) {
-    if (deletingPageIds.has(page.id)) continue;
-    for (const messageId of page.message_ids) retainedMessageIds.add(messageId);
-  }
+  const deletePlan = await decisions.evictDeletePlan({
+    pages,
+    deletingPageIds: pagesToDelete.map((page) => page.id),
+    protectedMessageIds: options.protectedMessageIds,
+  });
 
   const deletedPageIds: string[] = [];
   const deletedMessageIds: string[] = [];
-  for (const page of pagesToDelete) {
+  for (const { pageId, messageIds } of deletePlan) {
     const pageTransaction = await dbInstance.getTransaction(
       MESSAGE_WINDOW_PAGES_STORE_NAME,
       "readwrite",
     );
-    await requestToPromise(pageTransaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).delete(page.id));
-    deletedPageIds.push(page.id);
+    await requestToPromise(pageTransaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).delete(pageId));
+    deletedPageIds.push(pageId);
 
-    for (const messageId of page.message_ids) {
-      if (retainedMessageIds.has(messageId) || protectedMessageIds.has(messageId)) continue;
+    for (const messageId of messageIds) {
       if (await deleteConfirmedMessage(dbInstance, messageId)) deletedMessageIds.push(messageId);
     }
   }
@@ -894,7 +649,8 @@ export async function enforceOfflineCacheBudget(
   dbInstance: ChatDatabaseInstance,
   force = false,
 ): Promise<number> {
-  if (!force && Date.now() - lastBudgetCheckAt < 30_000) return 0;
+  const decisions = await cacheDecisions();
+  if (await decisions.budgetThrottled({ force, now: Date.now(), lastCheckAt: lastBudgetCheckAt })) return 0;
   if (budgetTrim) {
     if (!force || budgetTrimForced) return budgetTrim;
     await budgetTrim.catch(() => 0);
@@ -905,33 +661,36 @@ export async function enforceOfflineCacheBudget(
   budgetTrim = (async () => {
     const storage = typeof navigator !== "undefined" ? navigator.storage : undefined;
     const estimate = await storage?.estimate?.().catch(() => undefined);
-    const target = offlineCacheTargetBytes(estimate?.quota);
-    if (!force && (estimate?.usage === undefined || estimate.usage <= target)) return 0;
+    const { target, trim } = await decisions.budgetTarget({
+      force,
+      configuredBytes: configuredOfflineCacheBudgetBytes,
+      quota: estimate?.quota,
+      usage: estimate?.usage,
+    });
+    if (!trim) return 0;
 
     await dbInstance.init();
     const transaction = await dbInstance.getTransaction(MESSAGE_WINDOW_PAGES_STORE_NAME, "readonly");
     const pages = await requestToPromise<MessageWindowPageCacheRecord[]>(
       transaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).getAll(undefined, MAX_BUDGET_SCAN_PAGES),
     );
-    const normalPages = pages
-      .filter((page) => page.page_kind === "normal" &&
-        page.cache_generation === MESSAGE_WINDOW_PAGE_CACHE_GENERATION)
-      .sort((a, b) => a.last_accessed_at - b.last_accessed_at);
     let removed = 0;
-    for (const page of normalPages) {
-      if (removed >= MAX_BUDGET_EVICTIONS) break;
+    for (const page of await decisions.budgetCandidates(pages)) {
       const count = (await getMessageWindowPagesForChat(dbInstance, page.chat_id))
         .filter((candidate) => candidate.page_kind === "normal").length;
-      if (count <= 1) continue;
+      const step = await decisions.budgetChatStep(count);
+      if (step.skip) continue;
       const result = await evictStaleMessageWindowPages(dbInstance, page.chat_id, {
-        maxPagesPerChat: count - 1,
+        maxPagesPerChat: step.maxPagesPerChat,
       });
       if (result.deletedPageIds.length === 0) continue;
       removed += result.deletedPageIds.length;
-      if (!force && removed % 4 === 0) {
+      let action = await decisions.budgetAfter({ force, removed, target });
+      if (action === "need_usage") {
         const current = await storage?.estimate?.().catch(() => undefined);
-        if (current?.usage !== undefined && current.usage <= target) break;
+        action = await decisions.budgetAfter({ force, removed, target, usage: current?.usage ?? null });
       }
+      if (action === "stop_max" || action === "stop_under_target") break;
     }
     return removed;
   })().finally(() => { budgetTrim = null; budgetTrimForced = false; });
@@ -1239,15 +998,10 @@ export async function saveMessage(
 
   // Handle duplicates based on check results
   if (existingMessage) {
-    const shouldUpdateDueToNewEncryptedFields = hasNewEncryptedFields(
-      existingMessage,
-      encryptedMessage,
-    );
+    const rustDecision = await (await rustMessageRowPolicy()).rustSaveDecision(existingMessage, message, encryptedMessage);
+    const shouldUpdateDueToNewEncryptedFields = rustDecision.fillsEncrypted;
     // Only update if the new message has higher priority status
-    if (
-      shouldUpdateMessage(existingMessage, message) ||
-      shouldUpdateDueToNewEncryptedFields
-    ) {
+    if (rustDecision.shouldUpdate || shouldUpdateDueToNewEncryptedFields) {
       if (
         shouldUpdateDueToNewEncryptedFields &&
         existingMessage.status === message.status
@@ -1271,7 +1025,7 @@ export async function saveMessage(
       `[ChatDatabase] ⚠️ CONTENT DUPLICATE DETECTED - Found duplicate with different message_id: ${contentDuplicate.message_id} -> ${message.message_id}`,
     );
     // Update the existing message with higher priority status if applicable
-    if (shouldUpdateMessage(contentDuplicate, message)) {
+    if (await (await rustMessageRowPolicy()).rustShouldUpdateMessage(contentDuplicate, message)) {
       console.info(
         `[ChatDatabase] ✅ DUPLICATE PREVENTED - Updating content duplicate with higher priority: ${contentDuplicate.message_id} (${contentDuplicate.status} -> ${message.status})`,
       );
@@ -1415,7 +1169,7 @@ export async function saveMessage(
             message.message_id,
             recheckTx,
           );
-          if (currentInDb && !shouldUpdateMessage(currentInDb, message)) {
+          if (currentInDb && !(await (await rustMessageRowPolicy()).rustShouldUpdateMessage(currentInDb, message))) {
             console.info(
               `[ChatDatabase] ✅ STALE WRITE PREVENTED on external tx retry - message ${message.message_id} already has status (${currentInDb.status}), skipping write of status (${message.status})`,
             );
@@ -1463,7 +1217,7 @@ export async function saveMessage(
             message.message_id,
             recheckTx,
           );
-          if (currentInDb && !shouldUpdateMessage(currentInDb, message)) {
+          if (currentInDb && !(await (await rustMessageRowPolicy()).rustShouldUpdateMessage(currentInDb, message))) {
             console.info(
               `[ChatDatabase] ✅ STALE WRITE PREVENTED on retry - message ${message.message_id} already has equal/higher priority status in IDB (${currentInDb.status}), skipping write of status (${message.status})`,
             );
@@ -1508,8 +1262,10 @@ export async function saveMessage(
       try {
         const recheckTx = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
         const current = await getMessage(dbInstance, message.message_id, recheckTx);
-        if (current && !shouldUpdateMessage(current, message) &&
-            !hasNewEncryptedFields(current, encryptedMessage)) return;
+        if (current) {
+          const decision = await (await rustMessageRowPolicy()).rustSaveDecision(current, message, encryptedMessage);
+          if (!decision.shouldUpdate && !decision.fillsEncrypted) return;
+        }
       } catch (recheckError) {
         console.debug("[ChatDatabase] Could not recheck message after quota trim:", recheckError);
       }
@@ -1699,13 +1455,17 @@ export async function batchSaveMessages(
     }),
   );
 
-  // Process duplicate checks in memory
+  // Process duplicate checks in memory. One batched Rust call decides every stored pair.
+  const storedPairs = existingMessageChecks.flatMap(({ message, existingMessage }) =>
+    existingMessage ? [{ existing: existingMessage, incoming: message }] : []);
+  const rustUpdates = await (await rustMessageRowPolicy()).rustShouldUpdateMessages(storedPairs);
+  let storedPairIndex = 0;
   for (const { message, existingMessage } of existingMessageChecks) {
     if (existingMessage) {
       existingMessagesMap.set(message.message_id, existingMessage);
 
       // Check if we should update
-      if (shouldUpdateMessage(existingMessage, message)) {
+      if (rustUpdates[storedPairIndex++]) {
         console.debug(
           `[ChatDatabase] batchSaveMessages: Will update existing message ${message.message_id} with higher priority`,
         );
@@ -2210,82 +1970,12 @@ export async function cleanupDuplicateMessages(
   console.debug("[ChatDatabase] Starting duplicate message cleanup...");
 
   try {
-    // Get all messages grouped by chat
     // Pass duringInit=true since this is called from init()
     const allMessages = await getAllMessages(dbInstance, true);
-    const messagesByChat = new Map<string, Message[]>();
-
-    // Group messages by chat_id
-    allMessages.forEach((msg) => {
-      if (!messagesByChat.has(msg.chat_id)) {
-        messagesByChat.set(msg.chat_id, []);
-      }
-      messagesByChat.get(msg.chat_id)!.push(msg);
-    });
-
-    let duplicatesRemoved = 0;
-
-    // Process each chat's messages for duplicates
-    const chatIds = Array.from(messagesByChat.keys());
-    for (const chatId of chatIds) {
-      const messages = messagesByChat.get(chatId)!;
-      const processedMessages = new Set<string>();
-
-      for (let i = 0; i < messages.length; i++) {
-        const currentMessage = messages[i];
-
-        if (processedMessages.has(currentMessage.message_id)) {
-          continue; // Already processed
-        }
-
-        // Find all duplicates of this message (same message_id or content duplicates)
-        const duplicates = [currentMessage];
-
-        for (let j = i + 1; j < messages.length; j++) {
-          const otherMessage = messages[j];
-
-          if (processedMessages.has(otherMessage.message_id)) {
-            continue; // Already processed
-          }
-
-          // Only match on exact message_id — content-based matching was removed because it
-          // could falsely delete legitimate messages that happen to share the same encrypted_content
-          // within a time window, shrinking the local count below server count and triggering
-          // perpetual re-sync loops ("DATA INCONSISTENCY DETECTED" on every reload).
-          if (currentMessage.message_id === otherMessage.message_id) {
-            duplicates.push(otherMessage);
-            processedMessages.add(otherMessage.message_id);
-          }
-        }
-
-        if (duplicates.length > 1) {
-          console.debug(
-            `[ChatDatabase] Found ${duplicates.length} duplicates for message ${currentMessage.message_id} in chat ${chatId}`,
-          );
-
-          // Use the shared STATUS_PRIORITY map (not a local copy) so priority ordering
-          // stays consistent with shouldUpdateMessage() and the rest of the sync pipeline.
-          const bestMessage = duplicates.reduce((best, current) => {
-            const bestPriority = STATUS_PRIORITY[best.status] ?? 0;
-            const currentPriority = STATUS_PRIORITY[current.status] ?? 0;
-            return currentPriority > bestPriority ? current : best;
-          });
-
-          // Delete all duplicates except the best one
-          const toDelete = duplicates.filter((msg) => msg !== bestMessage);
-          for (const duplicate of toDelete) {
-            await deleteMessage(dbInstance, duplicate.message_id);
-            duplicatesRemoved++;
-          }
-
-          console.debug(
-            `[ChatDatabase] Kept message ${bestMessage.message_id} with status '${bestMessage.status}', removed ${toDelete.length} duplicates`,
-          );
-        }
-
-        processedMessages.add(currentMessage.message_id);
-      }
-    }
+    // Which copies go is decided by the Rust persist unit; the deletes stay here.
+    const deleteIds = await (await rustMessageRowPolicy()).rustPlanDuplicateCleanup(allMessages);
+    for (const messageId of deleteIds) await deleteMessage(dbInstance, messageId);
+    const duplicatesRemoved = deleteIds.length;
 
     console.debug(
       `[ChatDatabase] Duplicate cleanup completed. Removed ${duplicatesRemoved} duplicate messages.`,

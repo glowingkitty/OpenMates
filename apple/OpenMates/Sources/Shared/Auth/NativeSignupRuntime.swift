@@ -73,7 +73,11 @@ struct NativeSignupLoginProof {
     func validates(_ response: LoginResponse) -> Bool {
         guard response.success, response.tfaRequired != true, response.needsDeviceVerification != true,
               let user = response.user else { return false }
-        return (expectedUserId == nil || user.id == expectedUserId) &&
+        return validates(user: user)
+    }
+    /// The admitted account carries the credential envelope signup created.
+    func validates(user: UserProfile) -> Bool {
+        (expectedUserId == nil || user.id == expectedUserId) &&
             user.encryptedKey == request.encryptedMasterKey && user.keyIv == request.keyIv &&
             user.salt == request.salt && user.userEmailSalt == request.userEmailSalt &&
             user.credentialVersion == request.credentialVersion

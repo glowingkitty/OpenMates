@@ -1,0 +1,443 @@
+{
+ "displayName": [
+  {
+   "in": "preferred_technologies",
+   "out": "Preferred technologies"
+  },
+  {
+   "in": "a",
+   "out": "A"
+  },
+  {
+   "in": "",
+   "out": ""
+  },
+  {
+   "in": "_x",
+   "out": " x"
+  },
+  {
+   "in": "x__y",
+   "out": "X  y"
+  },
+  {
+   "in": "ßeta_one",
+   "out": "SSeta one"
+  },
+  {
+   "in": "éa_b",
+   "out": "Éa b"
+  },
+  {
+   "in": "𐐨x_y",
+   "out": "𐐨x y"
+  },
+  {
+   "in": "Already",
+   "out": "Already"
+  },
+  {
+   "in": "a_b_c",
+   "out": "A b c"
+  }
+ ],
+ "gradient": [
+  {
+   "in": "code",
+   "out": "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)"
+  },
+  {
+   "in": "travel",
+   "out": "linear-gradient(135deg, #059DB3 9.04%, #13DAF5 90.06%)"
+  },
+  {
+   "in": "study",
+   "out": "linear-gradient(135deg, #F59E0B 9.04%, #D97706 90.06%)"
+  },
+  {
+   "in": "plants",
+   "out": "linear-gradient(135deg, #22C55E 9.04%, #16A34A 90.06%)"
+  },
+  {
+   "in": "unknown",
+   "out": "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)"
+  },
+  {
+   "in": "",
+   "out": "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)"
+  },
+  {
+   "in": "__proto__",
+   "out": "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)"
+  },
+  {
+   "in": "constructor",
+   "out": "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)"
+  }
+ ],
+ "plans": [
+  {
+   "keys": [
+    "code-preferred_technologies",
+    "nodash",
+    "-x",
+    "x-",
+    "travel-trips",
+    "mail-writing_styles",
+    "a-b-c",
+    "a-zero",
+    "a-neg"
+   ],
+   "counts": {
+    "code-preferred_technologies": 3,
+    "travel-trips": 1,
+    "a-b-c": 2,
+    "a-zero": 0,
+    "a-neg": -1
+   },
+   "out": {
+    "categories": [
+     {
+      "key": "code-preferred_technologies",
+      "appId": "code",
+      "itemType": "preferred_technologies",
+      "displayName": "Preferred technologies",
+      "entryCount": 3,
+      "iconGradient": "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)",
+      "selected": true
+     },
+     {
+      "key": "travel-trips",
+      "appId": "travel",
+      "itemType": "trips",
+      "displayName": "Trips",
+      "entryCount": 1,
+      "iconGradient": "linear-gradient(135deg, #059DB3 9.04%, #13DAF5 90.06%)",
+      "selected": true
+     },
+     {
+      "key": "a-b-c",
+      "appId": "a",
+      "itemType": "b-c",
+      "displayName": "B-c",
+      "entryCount": 2,
+      "iconGradient": "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)",
+      "selected": true
+     },
+     {
+      "key": "a-neg",
+      "appId": "a",
+      "itemType": "neg",
+      "displayName": "Neg",
+      "entryCount": -1,
+      "iconGradient": "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)",
+      "selected": true
+     }
+    ],
+    "validKeys": [
+     "code-preferred_technologies",
+     "travel-trips",
+     "a-b-c",
+     "a-neg"
+    ]
+   }
+  },
+  {
+   "keys": [],
+   "counts": {},
+   "out": {
+    "categories": [],
+    "validKeys": []
+   }
+  },
+  {
+   "keys": [
+    "é-ü_ö",
+    "x-y",
+    "x-y"
+   ],
+   "counts": {
+    "é-ü_ö": 5,
+    "x-y": 1.5
+   },
+   "out": {
+    "categories": [
+     {
+      "key": "é-ü_ö",
+      "appId": "é",
+      "itemType": "ü_ö",
+      "displayName": "Ü ö",
+      "entryCount": 5,
+      "iconGradient": "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)",
+      "selected": true
+     },
+     {
+      "key": "x-y",
+      "appId": "x",
+      "itemType": "y",
+      "displayName": "Y",
+      "entryCount": 1.5,
+      "iconGradient": "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)",
+      "selected": true
+     },
+     {
+      "key": "x-y",
+      "appId": "x",
+      "itemType": "y",
+      "displayName": "Y",
+      "entryCount": 1.5,
+      "iconGradient": "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)",
+      "selected": true
+     }
+    ],
+    "validKeys": [
+     "é-ü_ö",
+     "x-y",
+     "x-y"
+    ]
+   }
+  }
+ ],
+ "answered": [
+  {
+   "contents": [
+    "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"m1\"}"
+   ],
+   "id": "m1",
+   "out": true
+  },
+  {
+   "contents": [
+    "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"m2\"}"
+   ],
+   "id": "m1",
+   "out": false
+  },
+  {
+   "contents": [
+    "",
+    "not json",
+    "null",
+    "5",
+    "\"s\"",
+    "[]"
+   ],
+   "id": "m1",
+   "out": false
+  },
+  {
+   "contents": [
+    "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"m1\"}"
+   ],
+   "id": "m1",
+   "out": false
+  },
+  {
+   "contents": [],
+   "id": "m1",
+   "out": false
+  },
+  {
+   "contents": [
+    "{bad",
+    "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"m1\"}"
+   ],
+   "id": "m1",
+   "out": true
+  },
+  {
+   "contents": [
+    "{\"type\":\"app_settings_memories_response\",\"user_message_id\":5}"
+   ],
+   "id": "5",
+   "out": false
+  }
+ ],
+ "requests": [
+  {
+   "u": "u1",
+   "r": "r1",
+   "keys": [
+    "b-x",
+    "a-y",
+    "a-y"
+   ],
+   "at": 1700000000,
+   "counts": {
+    "b-x": 2,
+    "a-y": 0
+   },
+   "voice": false,
+   "out": {
+    "kind": "ok",
+    "message": {
+     "message_id": "r1",
+     "role": "system",
+     "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"u1\",\"request_id\":\"r1\",\"requested_keys\":[\"a-y\",\"b-x\"],\"categories\":[{\"appId\":\"a\",\"itemType\":\"y\",\"entryCount\":0},{\"appId\":\"b\",\"itemType\":\"x\",\"entryCount\":2}],\"count_semantics_version\":1}",
+     "created_at": 1700000000,
+     "user_message_id": "u1"
+    }
+   }
+  },
+  {
+   "u": "u1",
+   "r": "r1",
+   "keys": [
+    "a-y"
+   ],
+   "at": 1,
+   "counts": {
+    "a-y": -1
+   },
+   "voice": true,
+   "out": {
+    "kind": "ok",
+    "message": {
+     "message_id": "r1",
+     "role": "system",
+     "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"u1\",\"request_id\":\"r1\",\"requested_keys\":[\"a-y\"],\"categories\":[{\"appId\":\"a\",\"itemType\":\"y\",\"entryCount\":null}],\"count_semantics_version\":1,\"response_transport\":\"voice\"}",
+     "created_at": 1,
+     "user_message_id": "u1"
+    }
+   }
+  },
+  {
+   "u": "u1",
+   "r": "r1",
+   "keys": [
+    "a-y",
+    "z-é",
+    "é-a",
+    "𐐨-a",
+    "Ａ-a"
+   ],
+   "at": 2,
+   "counts": {
+    "a-y": 1.5,
+    "z-é": 9007199254740991,
+    "é-a": 9007199254740992
+   },
+   "voice": false,
+   "out": {
+    "kind": "ok",
+    "message": {
+     "message_id": "r1",
+     "role": "system",
+     "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"u1\",\"request_id\":\"r1\",\"requested_keys\":[\"a-y\",\"z-é\",\"é-a\",\"𐐨-a\",\"Ａ-a\"],\"categories\":[{\"appId\":\"a\",\"itemType\":\"y\",\"entryCount\":null},{\"appId\":\"z\",\"itemType\":\"é\",\"entryCount\":9007199254740991},{\"appId\":\"é\",\"itemType\":\"a\",\"entryCount\":null},{\"appId\":\"𐐨\",\"itemType\":\"a\",\"entryCount\":null},{\"appId\":\"Ａ\",\"itemType\":\"a\",\"entryCount\":null}],\"count_semantics_version\":1}",
+     "created_at": 2,
+     "user_message_id": "u1"
+    }
+   }
+  },
+  {
+   "u": "",
+   "r": "r1",
+   "keys": [
+    "a-y"
+   ],
+   "at": 1,
+   "counts": {},
+   "voice": false,
+   "out": {
+    "kind": "error",
+    "message": "Memory requests require stable request and user-message identities"
+   }
+  },
+  {
+   "u": "u",
+   "r": "",
+   "keys": [
+    "a-y"
+   ],
+   "at": 1,
+   "counts": {},
+   "voice": false,
+   "out": {
+    "kind": "error",
+    "message": "Memory requests require stable request and user-message identities"
+   }
+  },
+  {
+   "u": "u",
+   "r": "r",
+   "keys": [
+    "nodash"
+   ],
+   "at": 1,
+   "counts": {},
+   "voice": false,
+   "out": {
+    "kind": "error",
+    "message": "Invalid memory category key: nodash"
+   }
+  },
+  {
+   "u": "u",
+   "r": "r",
+   "keys": [
+    "-lead"
+   ],
+   "at": 1,
+   "counts": {},
+   "voice": false,
+   "out": {
+    "kind": "error",
+    "message": "Invalid memory category key: -lead"
+   }
+  },
+  {
+   "u": "u",
+   "r": "r",
+   "keys": [
+    "trail-"
+   ],
+   "at": 1,
+   "counts": {},
+   "voice": false,
+   "out": {
+    "kind": "error",
+    "message": "Invalid memory category key: trail-"
+   }
+  },
+  {
+   "u": "u",
+   "r": "r",
+   "keys": [],
+   "at": 1,
+   "counts": {},
+   "voice": false,
+   "out": {
+    "kind": "ok",
+    "message": {
+     "message_id": "r",
+     "role": "system",
+     "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"u\",\"request_id\":\"r\",\"requested_keys\":[],\"categories\":[],\"count_semantics_version\":1}",
+     "created_at": 1,
+     "user_message_id": "u"
+    }
+   }
+  },
+  {
+   "u": "u\"q",
+   "r": "r\\n",
+   "keys": [
+    "a-b\"c"
+   ],
+   "at": 3,
+   "counts": {
+    "a-b\"c": 4
+   },
+   "voice": true,
+   "out": {
+    "kind": "ok",
+    "message": {
+     "message_id": "r\\n",
+     "role": "system",
+     "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"u\\\"q\",\"request_id\":\"r\\\\n\",\"requested_keys\":[\"a-b\\\"c\"],\"categories\":[{\"appId\":\"a\",\"itemType\":\"b\\\"c\",\"entryCount\":4}],\"count_semantics_version\":1,\"response_transport\":\"voice\"}",
+     "created_at": 3,
+     "user_message_id": "u\"q"
+    }
+   }
+  }
+ ]
+}

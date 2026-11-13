@@ -18,6 +18,13 @@ export function outputTemplateSyntax(reference: string): string {
   return `{{${reference.replace(/^\$nodes\./, 'steps.').replace(/^\$items\./, 'items.').replace('.output.', '.')}}}`;
 }
 
+/** Memory mention chip; stored as `{{memory.<id>}}` and resolved to a snapshot on save. */
+export function memoryToken(memoryId: string, title: string): JSONContent {
+  return { type: WORKFLOW_OUTPUT_NODE, attrs: { mentionType: 'workflow_memory', displayName: title, sourceLabel: title,
+    mentionSyntax: `{{memory.${memoryId}}}`, mentionId: `memory.${memoryId}`,
+    colorStart: 'var(--color-primary-start)', colorEnd: 'var(--color-primary-end)' } };
+}
+
 export function outputToken(output: TokenOutput): JSONContent {
   const appId = /^[a-z0-9_-]+$/.test(output.appId ?? '') ? output.appId : '';
   return { type: WORKFLOW_OUTPUT_NODE, attrs: { mentionType: 'workflow_output', displayName: outputCanonicalName(output) ?? output.label, sourceLabel: output.label, mentionSyntax: outputTemplateSyntax(output.reference), mentionId: output.reference,
@@ -25,8 +32,10 @@ export function outputToken(output: TokenOutput): JSONContent {
     ...(appId ? { colorStart: `var(--color-app-${appId}-start, var(--color-primary-start))`, colorEnd: `var(--color-app-${appId}-end, var(--color-primary-end))` } : {}) } };
 }
 
-function parsedToken(expression: string, outputs: TokenOutput[]): JSONContent {
+function parsedToken(expression: string, outputs: TokenOutput[], memoryTitles: Record<string, string>): JSONContent {
   const path = expression.trim();
+  const memory = path.match(/^memory\.([A-Za-z0-9_-]+)$/);
+  if (memory) return memoryToken(memory[1], memoryTitles[memory[1]] ?? 'Memory');
   const reference = path.startsWith('steps.') ? path.replace(/^steps\.([^.]+)\./, '$nodes.$1.output.') : path.startsWith('items.') ? `$${path}` : path;
   const known = outputs.find(output => output.reference === reference);
   if (known) return outputToken(known);
@@ -36,13 +45,13 @@ function parsedToken(expression: string, outputs: TokenOutput[]): JSONContent {
 }
 
 /** Templates are storage syntax only; editors receive plain text and atomic labels. */
-export function templateToDocument(template: string, outputs: TokenOutput[] = []): JSONContent {
+export function templateToDocument(template: string, outputs: TokenOutput[] = [], memoryTitles: Record<string, string> = {}): JSONContent {
   return { type: 'doc', content: template.split('\n').map(line => {
     const content: JSONContent[] = [];
     let offset = 0;
     for (const match of line.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)) {
       if (match.index! > offset) content.push({ type: 'text', text: line.slice(offset, match.index) });
-      content.push(parsedToken(match[1], outputs));
+      content.push(parsedToken(match[1], outputs, memoryTitles));
       offset = match.index! + match[0].length;
     }
     if (offset < line.length) content.push({ type: 'text', text: line.slice(offset) });

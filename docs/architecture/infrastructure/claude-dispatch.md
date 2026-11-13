@@ -13,11 +13,35 @@ key_files:
 Two automations open a new Claude Code chat on the dev-server Remote Control
 bridge, so the chat shows up in the owner's Claude app and can ask the admin
 for input there. Both go through `scripts/claude_dispatch.py`, which runs from
-the canonical checkout through cron and launches:
+the canonical checkout through cron and opens each chat as its own tab
+(named after the chat title) in the persistent zellij session `claude`:
 
 ```bash
-claude --bg --remote-control "<title>" --model claude-sonnet-5-5 --effort high --permission-mode auto "<prompt>"
+zellij --session claude action new-tab --name "<title>" -- \
+  claude --remote-control "<title>" --model <model> --effort <effort> --permission-mode auto "<prompt>"
 ```
+
+Issue chats run on `claude-opus-5-5` at `medium` effort
+(`CLAUDE_DISPATCH_ISSUE_MODEL`, `CLAUDE_DISPATCH_ISSUE_EFFORT`). Production
+chat-failure chats and every other chat started through `launch_claude_chat`
+(the private voice connector, daily-meeting decision handovers) default to
+`claude-opus-5-5` at `high` effort (`CLAUDE_DISPATCH_MODEL`, `CLAUDE_DISPATCH_EFFORT`).
+
+Fable (`claude-fable-5-2`) is never a default: `launch_claude_chat` refuses it
+unless the caller relays an explicit user request (`explicit_model=True`), also
+when an environment override names it, and marks such chats with
+`OPENMATES_FABLE_REQUESTED=1`. The `fable-guard` SessionStart hook
+(`scripts/fable_guard.py`) catches Fable chats started any other way and makes
+them stop and ask the user before any work; a prompt naming Fable confirms it.
+Each launch is logged with its model in `logs/claude-dispatch/launches.jsonl`.
+
+Chats are interactive sessions, not `claude --bg` jobs. Background jobs are
+retired after about 8 hours idle at a prompt, so a chat waiting for the admin's
+answer went offline in the Claude app and could not be resumed there. A tab
+stays connected until it is closed. If the `claude` zellij session is missing
+or exited, the dispatcher recreates it with a `remote-control` tab running the
+`claude remote-control` bridge (for chats started from the app). It sets
+`XDG_RUNTIME_DIR` because cron lacks it and zellij would not see the live session.
 
 Prompts are built only from validated identifiers and server-defined labels.
 No report text or log message text is ever put into a prompt. The chat reads
@@ -94,5 +118,6 @@ python3 scripts/claude_dispatch.py prod-errors --dry-run   # check without openi
 tail logs/claude-dispatch/launches.jsonl                    # launched chats
 ```
 
-The bridge (`claude remote-control`) must be running on the dev server for
-chats to appear in the Claude app.
+Resume a dispatched chat from the Claude app (it keeps its title) or on the
+server with `zellij attach claude` and switch to its tab. Close the tab (or
+`/exit`) when the chat is finished; chats are not retired automatically.

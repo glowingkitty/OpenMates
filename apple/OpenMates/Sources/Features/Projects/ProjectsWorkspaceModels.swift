@@ -176,6 +176,85 @@ enum ProjectWorkspacePath {
     }
 }
 
+/// One direct child of a hosted folder, as listed on its card.
+struct ProjectVirtualFolderChild: Equatable, Sendable {
+    let name: String
+    let isFolder: Bool
+}
+
+struct ProjectVirtualFolderEntry: Equatable, Sendable {
+    let name: String
+    let path: String
+    /// Direct children, folders first then files, each by name.
+    let children: [ProjectVirtualFolderChild]
+}
+
+/// Mirrors web `projectBrowserTree.ts`: hosted paths and adopted application
+/// links become browsable virtual folders; the application card leads the
+/// folder it was adopted into, ahead of subfolders and files.
+enum ProjectBrowserTree {
+    static func applicationFolder(_ item: ProjectWorkspaceItem) -> String? {
+        guard item.metadata["source"] == "project_application",
+              let path = item.metadata["path"] else { return nil }
+        return ProjectWorkspacePath.normalized(path)
+    }
+
+    static func hostedPath(_ item: ProjectWorkspaceItem) -> String? {
+        guard item.metadata["source"] == "hosted_project_file",
+              let path = item.metadata["path"] else { return nil }
+        return ProjectWorkspacePath.normalized(path)
+    }
+
+    /// File name shown on a row: the last path segment of a hosted file.
+    static func itemName(_ item: ProjectWorkspaceItem) -> String {
+        hostedPath(item)?.split(separator: "/").last.map(String.init)
+            ?? (item.name.isEmpty ? item.targetID : item.name)
+    }
+
+    static func view(items: [ProjectWorkspaceItem], virtualPath: String?)
+        -> (folders: [ProjectVirtualFolderEntry], items: [ProjectWorkspaceItem]) {
+        let prefix = virtualPath.map { $0 + "/" } ?? ""
+        var folders: [String: (name: String, children: [ProjectVirtualFolderChild])] = [:]
+        var visible: [ProjectWorkspaceItem] = []
+        var applications: [ProjectWorkspaceItem] = []
+        func add(_ child: ProjectVirtualFolderChild?, name: String) -> Void {
+            let path = prefix + name
+            var entry = folders[path] ?? (name: name, children: [])
+            if let child, !entry.children.contains(child) { entry.children.append(child) }
+            folders[path] = entry
+        }
+        for item in items where item.folderHash == nil {
+            if let folder = applicationFolder(item) {
+                if folder == virtualPath {
+                    applications.append(item)
+                } else if folder.hasPrefix(prefix) {
+                    let parts = folder.dropFirst(prefix.count).split(separator: "/").map(String.init)
+                    guard let name = parts.first else { continue }
+                    add(parts.count > 1 ? ProjectVirtualFolderChild(name: parts[1], isFolder: true) : nil,
+                        name: name)
+                }
+                continue
+            }
+            guard let path = hostedPath(item) else {
+                if virtualPath == nil { visible.append(item) }
+                continue
+            }
+            guard path.hasPrefix(prefix) else { continue }
+            let parts = path.dropFirst(prefix.count).split(separator: "/").map(String.init)
+            if parts.count == 1 { visible.append(item); continue }
+            add(parts.count == 2 ? ProjectVirtualFolderChild(name: parts[1], isFolder: false)
+                : ProjectVirtualFolderChild(name: parts[1], isFolder: true), name: parts[0])
+        }
+        let sorted = folders.map { path, value in
+            ProjectVirtualFolderEntry(name: value.name, path: path, children: value.children.sorted {
+                $0.isFolder == $1.isFolder
+                    ? $0.name.localizedStandardCompare($1.name) == .orderedAscending : $0.isFolder
+            })
+        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        return (sorted, applications + visible)
+    }
+}
+
 // These mirror the encrypted API records. Nothing in them is persisted as plaintext.
 struct ProjectWorkspaceKeyWrapper: Decodable, Sendable {
     let keyType: String

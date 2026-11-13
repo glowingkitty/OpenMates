@@ -38,13 +38,17 @@ scope:
     after a twenty-minute wait expires.
   - A consistent split between Git-ignore discovery filtering, explicit exact-file inclusion, and non-overridable private-path
     denial across remote Project file operations.
+  - Automatic Project creation when a chat without a Project asks for a multi-file application, with the application's
+    files stored once and shown both in the chat and in the Project.
+  - Named Project commits over existing file revisions and a Project timeline of file changes and commits.
+  - One Git worktree per chat for connected Git repositories, shared with that chat's sub-chats; the chat's commits land on the target branch locally after green tests.
   excludes:
   - Automatically materializing every repository test as a Project item.
   - Copying linked objects into Project-owned records or changing their canonical lifecycle state.
   - Low-level remote filesystem bridge protocols, patch application algorithms, and command execution authority; observable
     file-write authorization, freshness, and recovery requirements are included.
-  - Automatic Git worktree creation, branch switching, merging, and worktree cleanup in the initial file-editing release;
-    remote edits target the connected folder directly.
+  - Unprompted pushing of a chat's commits to a remote, and worktrees for connected folders that are not Git repositories;
+    those folders are edited directly.
   - Public APIs for raw Project ciphertext, raw keys, or server-side plaintext Project search.
   - Requiring one visual layout for every linked object type when equivalent responsive outcomes are preserved.
 relationships:
@@ -418,6 +422,9 @@ assertions:
   must: A patch must apply unambiguously to its validated base. Missing, ambiguous, or mismatched patch context produces a
     recoverable failure without changing that file; the system must not silently force a fuzzy replacement, discard intervening
     edits, or fall back to an unconditional whole-file overwrite. A regenerated patch is checked against its new base again.
+    Hunk line numbers and counts are position hints only; a hunk whose context and removed lines occur verbatim at exactly
+    one nearest place in the base applies there, and the stored revision diff is rewritten with the real coordinates. Context
+    lines themselves are never matched loosely.
 - id: projects.files.automatic-recovery
   type: behavior
   must: In Apply and show changes mode, an agent receiving a recoverable stale-file or patch failure may reread authorized
@@ -598,6 +605,16 @@ assertions:
   depends_on:
   - models.ProjectItemLink
   - examples.project_uploads
+- id: projects.items.create-documents
+  type: behavior
+  must: From the Create menu of a Project, in the Project root or any folder or subfolder, a member with write access can
+    create a new document, sheet or slides deck without opening a chat. The new item appears in that folder at once, opens
+    in its editor, is client-encrypted with owner and Project wrappers like an upload, and can afterwards be renamed, moved,
+    edited, versioned and referenced in chats like an item created by the assistant. A new deck uses the Project's pinned
+    template, else the user's chosen library template. Members without write access do not see these entries.
+  depends_on:
+  - models.ProjectItemLink
+  - examples.project_document_creation
 - id: projects.surface.semantic-parity
   type: parity
   must: REST, CLI, SDK, and web preserve explicit context, encrypted CRUD, wrappers, item links, object ownership, destructive
@@ -644,9 +661,137 @@ assertions:
   must: Project Memories provide relevant facts, preferences and reusable guidance automatically only within current authoritative
     active Project Focus/access. Deactivation prevents future inclusion, while already included conversation content keeps
     existing chat-history behavior. Personal memories about a Project retain personal consent. New Project Memory documents
-    use .openmates/memories; compatible legacy rules and facts documents remain readable without duplication.
+    use .openmates/memories with the same title, memory, when-to-use, optional start/expiry and load-mode fields as personal Memories and are edited in a Project Memories tab; compatible legacy rules and facts documents remain readable without duplication.
+    When the user agrees, the assistant can save a new Project Memory, but only under current authoritative active Project
+    Focus with Project file tools; the user's device encrypts and stores it as a Project file in .openmates/memories with
+    revision history, nothing is written to personal Memories, and the assistant says it was saved only after the file
+    operation succeeded. Without that Focus a Project save is refused and the assistant offers a personal Memory instead.
   depends_on:
   - examples.project_memories
+- id: projects.creation.assistant-inferred
+  type: behavior
+  must: When a chat without an active Project asks the assistant to build a multi-file application such as a web app or
+    a native app, preprocessing decides that a new Project is needed and the Project is created without a confirmation
+    step. The chat shows a created-Project card with an undo control, the Project uses the Apply and show write policy,
+    and its default Work on (project) focus becomes active in that chat at once. The assistant reply starts with that focus
+    shown as already active (no countdown, no accept or reject) and marked as following the Project creation, and every
+    client keeps it as the chat's active focus, also after a reload. A request for a single script or snippet
+    creates no Project. Undo removes the Project and its focus but leaves the chat and its embeds intact. Creation uses
+    the same client-side encryption and key wrapping as a Project created by the user; the server never receives the
+    Project key or plaintext name.
+  depends_on:
+  - examples.project_assistant_creation
+- id: projects.creation.machine-folder
+  type: behavior
+  must: A new Project is created in the cloud unless the user asks for it on their own machine. Only then, and only for
+    a machine that is connected through remote access and whose owner configured one folder for new Projects, the chat
+    shows a confirmation with the Project name and the target machine, and nothing is created on the machine before the
+    user confirms that exact request. After confirmation the remote-access host creates a new folder for the Project
+    inside the configured folder, initializes a Git repository on the branch main with a first commit, and serves it as
+    a connected source of the Project. The host never writes outside the configured folder and never into or over an
+    existing path; a machine without that setting does not offer creation. A refusal (creation_not_configured,
+    invalid_project_name, creation_folder_unavailable, identity_missing, target_exists) creates nothing and consumes no
+    confirmation, and the pending request can be retried or removed without the machine. Only the bound machine of the
+    confirming user can complete the creation.
+  depends_on:
+  - examples.project_machine_creation
+- id: projects.files.application-single-source
+  type: invariant
+  must: Each file of an application created in a Project chat is stored as exactly one encrypted embed that is both a
+    child of the chat's application embed and a Project file linked at its path under a dedicated subfolder such as web-app/.
+    An assistant edit through the Project file tools and an edit made by a user in the Project view change that same embed
+    and extend the same revision history; no second copy exists to synchronize. A raw diff block in an assistant reply that
+    targets a Project-linked file never writes and is shown as not applied with code project_file_tool_required. The
+    subfolder is an ordinary folder whose files are visible, and the application card is shown at the top of that folder
+    as the entry for starting and previewing the application. Every file the assistant writes for the application is one
+    of these files, also script sources it sends after a combined file bundle or as unfenced language:path sections; none
+    of them stays chat text.
+  depends_on:
+  - models.ProjectItemLink
+  - examples.project_application_files
+- id: projects.agentic.long-turn-stays-online
+  type: behavior
+  must: A coding turn that writes, tests and fixes an application can run longer than the client response timeout. The
+    timeout counts silence, not turn length; every frame the client receives for the turn restarts it, and one turn ends
+    at the latest after one day. A turn whose server stays silent for the whole timeout still ends as Offline with its
+    recovery hint.
+  depends_on:
+  - examples.project_application_files
+- id: projects.agentic.test-result-in-reply
+  type: behavior
+  must: Each test run the assistant starts in a coding turn produces a test result embed (status, step timeline and, for
+    browser tests, the recording) that is shown in the assistant reply that interprets the run, also when the model does
+    not link it itself, so every client shows the failing and the passing runs in the chat. This holds as well when
+    several runs of one turn resume together.
+  depends_on:
+  - examples.project_application_files
+- id: projects.agentic.test-run-installs-dependencies
+  type: behavior
+  must: A hosted test run of a Node project installs its dependencies before the server or tests start. When the folder
+    the server (or, without a server, the test command) runs in has a package.json and no setup command installs
+    packages, the run adds one npm install step there, shown in its step timeline.
+  depends_on:
+  - examples.project_application_files
+- id: projects.files.adopt-embed
+  type: behavior
+  must: An existing chat embed the user may write is adopted into a Project they may write as one atomic, idempotent
+    operation of kind file, application or test result. The embed keeps its id and stays readable in its chat, gains a
+    Project-key wrapper so every Project member can read it, and gets exactly one Project link; a second link for the same
+    embed is refused with embed_already_linked and a link at an existing path with path_conflict. From then on legacy and
+    server writers of that embed are refused with project_context_required. This refusal does not cover a user edit of
+    the embed, which projects.files.user-edit-direct allows.
+  depends_on:
+  - models.ProjectItemLink
+  - examples.project_application_files
+- id: projects.files.user-edit-direct
+  type: behavior
+  must: A member with write access can edit a Project file directly in the Project view without an open chat. The edit is
+    the next version of that same embed, and the Project timeline shows who made it.
+  depends_on:
+  - models.ProjectItemLink
+  - examples.project_application_files
+- id: projects.files.rename-delete
+  type: behavior
+  must: The user and the assistant can rename a Project file, which changes only the path of its link and keeps the embed
+    id and its revision history, and delete a Project file, which removes only the link from the folder and keeps the
+    embed and its revisions so a commit restore can relink it. A rename onto an existing path is refused with path_conflict.
+    Each rename and delete is idempotent by operation id and recorded for the Project timeline without the server
+    learning the path.
+  depends_on:
+  - models.ProjectItemLink
+  - examples.project_application_files
+- id: projects.files.server-owned-fields
+  type: invariant
+  must: For Project links of kind application and test result the server may still publish its own narrow non-content
+    fields, the application thumbnail and the test run status, as the next version without a client revision. No other
+    field and no file content ever passes the Project write fence this way, and links of kind file admit no server write.
+  depends_on:
+  - models.ProjectItemLink
+  - examples.project_application_files
+- id: projects.history.native-commits
+  type: behavior
+  must: A Project commit is a named snapshot with a message that records the exact revision of every OpenMates-stored
+    file in the Project at that moment; it stores no second copy of file content. The Project has a timeline that lists
+    file changes and commits newest first with author (user or assistant), time and affected paths, and a commit can be
+    opened to see its files and restored as a whole, which creates new revisions rather than deleting later history.
+    The assistant creates a commit automatically after the required tests for its change pass; a failed or stale test
+    result creates none.
+  depends_on:
+  - examples.project_commits
+- id: projects.sources.chat-worktrees
+  type: behavior
+  must: For a connected Git repository, each chat that writes files or runs source-writing commands works in its own Git
+    worktree with a detached HEAD, created on first write from the source's target branch (a per-source setting such as dev).
+    No named branch is created for the chat; a hidden ref refs/openmates/chats/(chat id), which is not a branch, protects
+    its commits. The chat's file tools, commands and tests resolve inside that worktree, and sub-chats use their parent
+    chat's worktree. The user's main checkout working tree changes only when the chat's commits land. The assistant commits
+    in the worktree automatically after the required tests pass; when the work is ready the commits are rebased onto the
+    target branch and land there automatically on the local machine after the tests pass (conflicts are resolved by the
+    assistant in the chat worktree and the tests run again first). Pushing to a remote always requires explicit approval of
+    that exact action. After landing, the worktree and the hidden ref are removed; unlanded commits are never deleted. Private-path, confinement, write-policy and expected-base rules apply inside the worktree unchanged. Connected
+    folders without Git are edited directly as before.
+  depends_on:
+  - examples.project_chat_worktrees
 applies_to:
   rest_api:
     required: true
@@ -763,5 +908,10 @@ examples:
   - project_check_catalog
   - project_item_presentation
   - project_uploads
+  - project_document_creation
+  - project_assistant_creation
+  - project_application_files
+  - project_commits
+  - project_chat_worktrees
   - project_surface_parity
   - focus_auto_selection

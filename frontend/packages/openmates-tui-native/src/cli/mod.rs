@@ -1,6 +1,7 @@
 //! Native command parser and dispatcher. The migration inventory is the command
 //! catalog; an unported operation always fails explicitly, never delegates to npm.
 mod account;
+mod apps_metadata;
 mod apps_run;
 mod generated_files;
 pub use apps_run::execute_sdk_apps;
@@ -12,8 +13,15 @@ mod global_history;
 mod full_chat_read;
 mod drafts;
 mod embed_commands;
+mod test_result_cmd;
 mod embed_share;
+pub(crate) mod embed_update_notice;
+mod embed_user_edit_cmd;
+mod extra_ports;
+pub use extra_ports::{execute_provisioning as execute_e2e_provisioning, is_provisioning as is_e2e_provisioning};
 pub use embed_share::execute_admitted as execute_cookie_embed_share_admitted;
+/// True for `embeds enhance` / `embeds restore` (Personal Cookie session only).
+pub use embed_user_edit_cmd::supported as embed_user_edit_supported;
 pub use embed_commands::{execute_sdk_embeds, execute_sdk_embeds_with_gate, supported as sdk_embeds_supported};
 pub use drafts::execute_sdk_drafts;
 mod goal_chat;
@@ -33,20 +41,60 @@ mod parity_extras;
 mod parser;
 mod plans;
 mod projects;
+#[cfg(unix)]
+mod remote_access;
+#[cfg(unix)]
+mod remote_access_folder;
 mod send;
+mod send_machine;
 pub mod signup;
 mod utility;
 pub use send::execute_anonymous;
 mod task_input;
 pub(crate) mod task_queue;
+mod task_queue_actions;
+mod task_legacy_outbox;
 mod tasks;
+mod teams_message;
 mod workflows;
 pub use global_history::execute_sdk_global_history;
 pub use plans::execute_sdk_plans_with_delivery;
 pub use projects::execute_sdk_projects_with_delivery;
 pub use workflows::execute_sdk_workflows;
+/// True for account commands implemented over the explicit API-key SDK.
+pub fn sdk_key_account_supported(invocation: &Invocation) -> bool {
+    account::key_supported(invocation)
+}
+pub async fn execute_sdk_account(
+    invocation: &Invocation,
+    client: &mut openmates_sdk::sdk::OpenMates,
+    cancel: tokio_util::sync::CancellationToken,
+) -> Result<CliOutput, CliError> {
+    account::execute_key(invocation, client, cancel).await
+}
+/// Non-account commands with an explicit-key route: `chats fork|rewind|retry|open`,
+/// `finance check-accounts` (CSV only) and `apps design export-icon`.
+pub fn sdk_key_command_supported(invocation: &Invocation) -> bool {
+    parity_chat_recovery::key_supported(invocation)
+        || utility::finance_key_supported(invocation)
+        || extra_ports::key_supported(invocation)
+}
+/// Runs a [`sdk_key_command_supported`] command over the API-key SDK only.
+pub async fn execute_sdk_key_command(
+    invocation: &Invocation,
+    client: &mut openmates_sdk::sdk::OpenMates,
+) -> Result<CliOutput, CliError> {
+    if parity_chat_recovery::key_supported(invocation) {
+        return parity_chat_recovery::execute_key(invocation, client).await;
+    }
+    if utility::finance_key_supported(invocation) {
+        return utility::execute_finance_key(invocation, client).await;
+    }
+    extra_ports::execute_key(invocation, client).await
+}
 pub mod trusted_account;
 pub mod private_path;
+pub mod npm_wording;
 use crate::error::Error;
 pub use handlers::{
     ApplicationRecoveryContext, ListReadDiagnosticStage, execute, execute_public, execute_with_delivery,
@@ -217,6 +265,7 @@ fn client_error_code(error: &Error) -> &'static str {
         Error::Forbidden => "forbidden",
         Error::Conflict => "conflict",
         Error::Expired => "session_expired",
+        Error::VerificationRequired => "verification_required",
         Error::Cancelled => "cancelled",
         Error::Io => "local_io_failed",
         Error::Protocol => "invalid_server_response",

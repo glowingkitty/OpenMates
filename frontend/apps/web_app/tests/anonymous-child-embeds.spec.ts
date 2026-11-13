@@ -142,7 +142,7 @@ async function mockGermanCodeStream(page: any, requests: Array<Record<string, un
 					emit({ type: 'ai_task_ended', chatId: body.client_chat_id, taskId, status: 'completed' });
 					emit({ type: 'post_processing_completed', chat_id: body.client_chat_id, task_id: taskId,
 						follow_up_request_suggestions: [fixture.suggestion], new_chat_request_suggestions: [],
-						chat_summary: fixture.summary, chat_tags: [], harmful_response: 0, quick_tip_slugs: [] });
+						chat_summary: fixture.summary, chat_tags: [], harmful_response: 0, recommendations: [] });
 					controller.close();
 				}
 			});

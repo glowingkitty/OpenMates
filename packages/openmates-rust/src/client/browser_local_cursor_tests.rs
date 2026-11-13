@@ -773,14 +773,115 @@ fn local_plan_control_unicode_and_quote_escapes_count_actual_serialized_bytes() 
 #[tokio::test]
 async fn actual_rust_producer_refuses_plus1_before_platform_io_and_admits_exact_budget() {
     use std::cell::Cell;
-    let client=client();let scope=client.browser_local_read_scope(OWNER,CHAT).unwrap();let before=client.ciphertext_snapshot();
-    for over in [false,true] {
-        let mut id=sized_plan_id(MAX_PLAN_BYTES);if over{id.push('x');}
-        let calls=Cell::new(0);
-        let mut io=|encoded:String|{calls.set(calls.get()+1);assert_eq!(encoded.len(),MAX_PLAN_BYTES);std::future::ready(Err::<String,_>(Error::Offline))};
-        let result=client.local_cursor_io(OWNER,CHAT,&scope,&budget_plan(&id),&mut io).await;
-        if over{assert!(matches!(result,Err(Error::Protocol)));assert_eq!(calls.get(),0);}
-        else{assert!(matches!(result,Err(Error::Offline)));assert_eq!(calls.get(),1);}
-        assert_eq!(client.ciphertext_snapshot(),before);assert_eq!(client.credential_ack,0);assert!(client.history.is_empty());
+    let client = client();
+    let scope = client.browser_local_read_scope(OWNER, CHAT).unwrap();
+    let before = client.ciphertext_snapshot();
+    for over in [false, true] {
+        let mut id = sized_plan_id(MAX_PLAN_BYTES);
+        if over {
+            id.push('x');
+        }
+        let calls = Cell::new(0);
+        let mut io = |encoded: String| {
+            calls.set(calls.get() + 1);
+            assert_eq!(encoded.len(), MAX_PLAN_BYTES);
+            std::future::ready(Err::<String, _>(Error::Offline))
+        };
+        let result = client
+            .local_cursor_io(
+                OWNER,
+                CHAT,
+                &scope,
+                crate::client::local_cached_read::CachedViewMode::LocalProfile,
+                &budget_plan(&id),
+                &mut io,
+            )
+            .await;
+        if over {
+            assert!(matches!(result, Err(Error::Protocol)));
+            assert_eq!(calls.get(), 0);
+        } else {
+            assert!(matches!(result, Err(Error::Offline)));
+            assert_eq!(calls.get(), 1);
+        }
+        assert_eq!(client.ciphertext_snapshot(), before);
+        assert_eq!(client.credential_ack, 0);
+        assert!(client.history.is_empty());
+    }
+}
+async fn cached_view_read(
+    client: &Client,
+    input: &Value,
+    online: bool,
+) -> Result<zeroize::Zeroizing<String>> {
+    let io = |plan: String| std::future::ready(Ok(reply(&plan, input).to_string()));
+    if online {
+        client
+            .browser_online_cached_saved_chat_read_with_io_json(
+                OWNER,
+                CHAT,
+                SavedChatReadOptions::default(),
+                io,
+            )
+            .await
+    } else {
+        client
+            .browser_local_saved_chat_read_with_io_json(
+                OWNER,
+                CHAT,
+                SavedChatReadOptions::default(),
+                io,
+            )
+            .await
+    }
+}
+#[tokio::test]
+async fn online_cached_view_reads_retained_rows_only_in_its_own_admitted_mode() {
+    let input = fixture();
+    let mut online = client();
+    online.browser_local_read_only = false;
+    let snapshot = online.ciphertext_snapshot();
+    let offline_view = cached_view_read(&client(), &input, false).await.unwrap();
+    let online_view = cached_view_read(&online, &input, true).await.unwrap();
+    let offline_view: Value = serde_json::from_str(&offline_view).unwrap();
+    let online_view: Value = serde_json::from_str(&online_view).unwrap();
+    // Same retained rows and decryption; provenance stays local/incomplete/not fresh.
+    assert_eq!(online_view["chat"], offline_view["chat"]);
+    assert_eq!(
+        online_view["messageMetadata"],
+        offline_view["messageMetadata"]
+    );
+    assert_eq!(online_view["source"], "local_profile");
+    assert_eq!(online_view["fresh"], false);
+    assert_eq!(online_view["historyComplete"], false);
+    assert_eq!(online.ciphertext_snapshot(), snapshot);
+    assert_eq!(online.credential_ack, 0);
+    // Each entry refuses the other admitted mode.
+    assert!(cached_view_read(&online, &input, false).await.is_err());
+    assert!(cached_view_read(&client(), &input, true).await.is_err());
+    let mut no_transport = client();
+    no_transport.browser_local_read_only = false;
+    no_transport.browser_transport = false;
+    assert!(cached_view_read(&no_transport, &input, true).await.is_err());
+}
+#[test]
+fn online_cached_view_scope_rejects_mode_owner_and_generation_replacement() {
+    for change in 0..4 {
+        let mut client = client();
+        client.browser_local_read_only = false;
+        let view = crate::client::local_cached_read::CachedViewMode::OnlineCache;
+        let scope = client.browser_cached_view_scope(OWNER, CHAT, view).unwrap();
+        let cached = client.local_cached_scope_for(view).unwrap();
+        match change {
+            0 => client.browser_local_read_only = true,
+            1 => client.user = json!({"id":CHAT}),
+            2 => client.generation += 1,
+            _ => client.browser_authority.as_mut().unwrap().principal = CHAT.into(),
+        }
+        assert!(
+            scope.check_chat(&client, CHAT).is_err()
+                || client.browser_cached_view_scope(OWNER, CHAT, view).is_err()
+                || client.local_cached_scope_for(view).ok() != Some(cached.clone())
+        );
     }
 }

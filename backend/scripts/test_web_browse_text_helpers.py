@@ -65,6 +65,11 @@ async def test_live_quotation_controls(observation: dict) -> dict:
                 actual = None
                 try:
                     actual = await models.verify(goal, observation, data)
+                    if not actual:
+                        # As in a run: the review decides only a full completion here.
+                        actual = all(
+                            (await models.review(goal, observation, data)).values()
+                        )
                 except Exception as exc:
                     error = type(exc).__name__
                 results.append(

@@ -1,5 +1,6 @@
 /** Model output adaptation only: no input or detections are stored outside memory. */
 import { detectPII, PII_TYPE_TO_CATEGORY, type PIIDetectionOptions, type PIIMatch, type PIIType } from './piiDetectionService';
+import { embedReferenceRanges } from '../../../../../secret-scanner/src/embedReferenceRanges';
 
 export interface WebPIIEntity { label: string; original: string; start: number; end: number; confidence: number }
 
@@ -18,11 +19,12 @@ export const WEB_PII_LABELS = [...Object.keys(LABEL_TYPES), 'IP_ADDRESS'];
 // A city or state on its own is general knowledge ("the history of Berlin"),
 // not personal data. It is only part of an address next to a street, building
 // number, unit or postal code, e.g. "Hauptstr. 5, 10115 Berlin".
-/** Everyday words the model mislabels as given names when capitalised at a sentence start. Never add real first names (Will, Grace). */
+/** Everyday words (interjections, determiners, pronouns, question words, sentence starters) the model mislabels as a lone given name when capitalised at a sentence start ("Same question."). Never add words that are also given names (will, may, mark, hope, grace, bill, rose, joy, april, june, art, pat, sue). Mirrors NON_NAME_STANDALONE_WORDS in web_pii.rs. */
 export const NON_NAME_STANDALONE_WORDS = new Set([
   'awesome', 'great', 'perfect', 'okay', 'ok', 'nice', 'cool', 'thanks', 'thank', 'hello', 'hi', 'hey', 'sure', 'wonderful',
   'excellent', 'amazing', 'fine', 'good', 'yes', 'no', 'yeah', 'right', 'sorry', 'please', 'welcome', 'fantastic', 'brilliant',
   'lovely', 'super', 'sweet', 'absolutely', 'definitely', 'exactly', 'indeed', 'well', 'alright', 'bye', 'goodbye', 'cheers',
+  'same', 'this', 'that', 'these', 'those', 'what', 'which', 'who', 'why', 'how', 'when', 'where', 'your', 'my', 'our', 'their', 'his', 'her', 'its', 'also', 'again', 'another', 'other', 'both', 'each', 'every', 'any', 'some', 'none', 'all', 'many', 'more', 'most', 'now', 'then', 'here', 'there', 'maybe',
 ]);
 const NAME_LABELS = new Set(['GIVEN_NAME', 'SURNAME']);
 const NAME_PART_MAX_GAP = 1;
@@ -51,7 +53,8 @@ export function modelPIIMatchId(type: PIIType, value: string): string {
 }
 
 function protectedRanges(text: string): Array<{ start: number; end: number }> {
-  return Array.from(text.matchAll(/https?:\/\/[^\s]+|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi), m => ({ start: m.index!, end: m.index! + m[0].length }));
+  // Embed refs are ids, never model-detectable personal data (see embedReferenceRanges).
+  return [...embedReferenceRanges(text), ...Array.from(text.matchAll(/https?:\/\/[^\s]+|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi), m => ({ start: m.index!, end: m.index! + m[0].length }))];
 }
 const overlaps = (start: number, end: number, range: { start: number; end: number }) => start < range.end && end > range.start;
 const mandatoryCategories = new Set(['api_keys', 'generic_secrets', 'private_keys', 'jwt_tokens']);

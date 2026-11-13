@@ -39,10 +39,11 @@ pub const MATE_NAMES: &[(&str, &str)] = &[
 type ModelRow = (&'static str, &'static str, Option<&'static str>, Option<&'static str>, Option<&'static str>);
 /// (id, name, provider, legacy release date, API retirement date): mentions.ts CHAT_MODELS.
 const CHAT_MODELS: &[ModelRow] = &[
-    ("claude-fable-5-1", "Claude Fable 5.1", None, None, None),
+    ("claude-fable-5-2", "Claude Fable 5.2", None, None, None),
     ("claude-opus-5-5", "Claude Opus 5.5", None, None, None),
     ("claude-sonnet-5-5", "Claude Sonnet 5.5", None, None, None),
     ("claude-haiku-5-5", "Claude Haiku 5.5", None, None, None),
+    ("claude-fable-5-1", "Claude Fable 5.1", None, Some("2026-09-01"), None),
     ("claude-fable-5", "Claude Fable 5", None, Some("2026-06-09"), None),
     ("claude-opus-5", "Claude Opus 5", None, Some("2026-07-24"), None),
     ("claude-sonnet-5", "Claude Sonnet 5", None, Some("2026-06-30"), None),
@@ -71,6 +72,7 @@ const CHAT_MODELS: &[ModelRow] = &[
     ("gpt-oss-120b", "GPT-OSS-120b", None, None, None),
     ("gemma-4-31b", "Gemma 4 31B", None, None, None),
     ("gemini-3-flash-preview", "Gemini 3 Flash", None, None, None),
+    ("gemini-4-carbon", "Gemini 4 Carbon", None, None, None),
     ("gemini-3.8-flash", "Gemini 3.8 Flash", None, None, None),
     ("gemini-3.7-flash", "Gemini 3.7 Flash", None, None, None),
     ("gemini-3-pro-image-preview", "Gemini 3 Pro", None, None, None),

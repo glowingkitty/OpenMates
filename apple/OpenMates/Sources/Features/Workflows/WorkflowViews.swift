@@ -38,6 +38,12 @@ struct WorkflowWorkspaceView: View {
                 WorkflowHomeView(store: store, authManager: authManager,
                                  authoring: store.authoring, onReportIssue: onReportIssue)
             }
+            // A container over a single container merges with it and the outer
+            // name wins, hiding workflows-home behind workflows-workspace. This
+            // zero-size sibling keeps the destination its own node.
+            Color.clear
+                .frame(width: 0, height: 0)
+                .accessibilityIdentifier("workflows-workspace-anchor")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task {

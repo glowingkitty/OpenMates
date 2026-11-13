@@ -17,7 +17,7 @@
 use super::*;
 use openmates_sdk::remote_command::{
     RemoteAccessSource, RemoteCommandError, RemoteCommandPermissions, ResourceKind,
-    disable_preset_grant, disable_resource_grant, enable_credential_grant, enable_network_grant,
+    disable_preset_grant, disable_resource_grant, enable_preset_grant, enable_credential_grant, enable_network_grant,
     enable_writable_grant, list_preset_grants, list_remote_access_sources, list_resource_grants,
     load_remote_command_permissions, remote_command_preset_digest, select_remote_command_source,
 };
@@ -247,13 +247,18 @@ async fn presets(i: &Invocation, service: &mut Projects<'_>) -> Result<CliOutput
     }
     let preset_id = required(i.positionals.get(1).map(String::as_str), "preset ID")?;
     match action {
-        // npm installs/verifies host command protection (bubblewrap/AppArmor)
-        // here before writing the grant. That setup is not ported, and a grant
-        // without it must not be written, so enabling fails explicitly.
-        "enable" => Err(CliError::Unsupported {
-            command: i.command_path(),
-            reason: "Host command protection setup and verification (bubblewrap/AppArmor) is not ported; enable presets with the npm CLI.".into(),
-        }),
+        // npm verifies host command protection (bubblewrap/AppArmor) before
+        // writing the grant; a grant without it must not be written.
+        "enable" => {
+            super::command_protection::ensure(super::command_protection::inspect())?;
+            let grant = enable_preset_grant(state_dir, project_id, Path::new(&source.root_path), preset_id)
+                .map_err(remote)?;
+            output(
+                i,
+                json!({"project_id":project_id,"source_id":source.source_id,"grant":grant}),
+                format!("Command preset enabled: {preset_id}"),
+            )
+        }
         "disable" => {
             disable_preset_grant(state_dir, project_id, preset_id).map_err(remote)?;
             output(

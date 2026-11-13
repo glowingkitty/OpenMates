@@ -21,12 +21,18 @@ import {
   base64ToUint8Array,
 } from "./cryptoService";
 import { browser } from "$app/environment";
+import { hiddenLockMirror } from "./rustCore/chatState/hiddenLockMirror";
 
 // Storage keys
 const HIDDEN_CHAT_SALT_KEY = "hidden_chat_salt";
 // Note: Code is NOT stored - it's memory-only for security
 
 // Rate limiting constants
+// Compile-time flag: default builds fold this to false and drop the Rust adapter.
+// The measurement-only opt-out `openmates_rust_core_chatstate=ts` keeps the TS arm (same switch as the chat list).
+const RUST_HIDDEN: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_chatstate") === "ts");
+
 const MAX_FAILED_ATTEMPTS = 3;
 const LOCKOUT_DURATION_MS = 30000; // 30 seconds
 
@@ -131,6 +137,8 @@ class HiddenChatService {
    * @returns Promise<Uint8Array | null> - Combined secret or null if derivation fails
    */
   async deriveCombinedSecret(password: string): Promise<Uint8Array | null> {
+    // The combined secret never leaves the Rust Worker; only unlock/wrap ops exist.
+    if (RUST_HIDDEN) return null;
     if (!browser) {
       return null;
     }
@@ -209,6 +217,13 @@ class HiddenChatService {
     password: string,
     verifiedEncryptedChatKey?: string,
   ): Promise<{ success: boolean; decryptedCount: number }> {
+    if (RUST_HIDDEN) {
+      const rust = await import("./rustCore/chatState/rustHiddenChat");
+      const { chatDB } = await import("./db");
+      const allChats = await chatDB.getAllChats();
+      const keys = allChats.flatMap((chat) => (chat.encrypted_chat_key ? [chat.encrypted_chat_key] : []));
+      return rust.rustHiddenUnlock(password, keys, verifiedEncryptedChatKey);
+    }
     if (!browser) {
       return { success: false, decryptedCount: 0 };
     }
@@ -323,6 +338,10 @@ class HiddenChatService {
     chatKey: Uint8Array,
     password: string,
   ): Promise<string | null> {
+    if (RUST_HIDDEN) {
+      const rust = await import("./rustCore/chatState/rustHiddenChat");
+      return rust.rustHiddenWrapWithCode(chatKey, password);
+    }
     if (!browser) {
       return null;
     }
@@ -351,6 +370,9 @@ class HiddenChatService {
    * Also clears all decrypted chat keys from cache for hidden chats
    */
   async lockHiddenChats(): Promise<void> {
+    if (RUST_HIDDEN) {
+      await (await import("./rustCore/chatState/rustHiddenChat")).rustHiddenLock();
+    }
     if (this.combinedSecret) {
       // Clear secret from memory
       this.combinedSecret.fill(0);
@@ -385,6 +407,7 @@ class HiddenChatService {
    * Check if hidden chats are currently unlocked
    */
   isUnlocked(): boolean {
+    if (RUST_HIDDEN) return hiddenLockMirror.unlocked;
     return this.combinedSecret !== null;
   }
 
@@ -403,6 +426,9 @@ class HiddenChatService {
   async encryptChatKeyWithCombinedSecret(
     chatKey: Uint8Array,
   ): Promise<string | null> {
+    if (RUST_HIDDEN) {
+      return (await import("./rustCore/chatState/rustHiddenChat")).rustHiddenWrap(chatKey);
+    }
     if (!this.combinedSecret) {
       console.error(
         "[HiddenChatService] Cannot encrypt: hidden chats are locked",
@@ -431,6 +457,9 @@ class HiddenChatService {
     encryptedChatKeyWithIV: string,
     chatId?: string,
   ): Promise<Uint8Array | null> {
+    if (RUST_HIDDEN) {
+      return (await import("./rustCore/chatState/rustHiddenChat")).rustHiddenUnwrap(encryptedChatKeyWithIV);
+    }
     if (!this.combinedSecret) {
       // Not an error - hidden chats are just locked
       return null;
@@ -484,6 +513,19 @@ class HiddenChatService {
     isHidden: boolean;
     isHiddenCandidate: boolean;
   }> {
+    if (RUST_HIDDEN) {
+      // Ordinary chats open with the master key (keys lane) without a Worker round trip;
+      // only the hidden-secret path (and its classification) is decided in Rust.
+      let ordinaryKey: Uint8Array | null = null;
+      try {
+        ordinaryKey = await decryptChatKeyWithMasterKey(encryptedChatKeyWithIV);
+      } catch {
+        ordinaryKey = null;
+      }
+      if (ordinaryKey) return { chatKey: ordinaryKey, isHidden: false, isHiddenCandidate: false };
+      if (!hiddenLockMirror.unlocked) return { chatKey: null, isHidden: false, isHiddenCandidate: true };
+      return (await import("./rustCore/chatState/rustHiddenChat")).rustHiddenTryDecrypt(encryptedChatKeyWithIV);
+    }
     // Legitimate bypass: testing wrapping type, not performing crypto operation.
     // Tries master key decrypt to determine if this is a normal or hidden chat.
     let normalKey: Uint8Array | null = null;
@@ -552,6 +594,7 @@ class HiddenChatService {
    * Get remaining lockout time in seconds
    */
   getRemainingLockoutTime(): number {
+    if (RUST_HIDDEN) return hiddenLockMirror.lockoutSeconds();
     if (!this.isLockedOut()) {
       return 0;
     }
@@ -607,6 +650,21 @@ class HiddenChatService {
       }
 
       // Decrypt the chat key using the combined secret (hidden chat path)
+      if (RUST_HIDDEN) {
+        const rust = await import("./rustCore/chatState/rustHiddenChat");
+        const rewrapped = await rust.rustHiddenUnhide(chat.encrypted_chat_key);
+        if (!rewrapped) return false;
+        await chatDB.updateChat({ ...chat, encrypted_chat_key: rewrapped });
+        chatDB.clearChatKey(chatId);
+        try {
+          const { chatSyncService } = await import("./chatSyncService");
+          await chatSyncService.sendUpdateEncryptedChatKey(chatId, rewrapped);
+        } catch (syncError) {
+          console.warn("[HiddenChatService] Failed to sync unhidden chat to server:", syncError);
+        }
+        return true;
+      }
+
       const decryptedChatKey = await this.decryptChatKeyWithCombinedSecret(
         chat.encrypted_chat_key,
         chatId,

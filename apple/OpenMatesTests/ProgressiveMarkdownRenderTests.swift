@@ -114,8 +114,13 @@ final class ProgressiveMarkdownRenderTests: XCTestCase {
         projection.update(request(prefix))
         let firstID = projection.blocks[0].id
         let fence = "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"source-1\"}\n```"
-        projection.update(request(prefix + fence))
+        // An unclosed internal fence stays hidden; a closed, validated anchor is
+        // semantic content even while streaming.
+        projection.update(request(prefix + String(fence.dropLast(4))))
         XCTAssertEqual(projection.blocks.last?.document.kind, .hiddenProtocol)
+        XCTAssertEqual(projection.blocks[0].id, firstID)
+        projection.update(request(prefix + fence))
+        XCTAssertEqual(projection.blocks.last?.document.kind, .embedGroup)
         XCTAssertEqual(projection.blocks[0].id, firstID)
         projection.update(request(prefix + fence, streaming: false))
         XCTAssertEqual(projection.blocks[0].id, firstID)

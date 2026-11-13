@@ -30,7 +30,7 @@ def _model(model_id):
     return next(model for model in _catalog()['models'] if model['id'] == model_id)
 
 
-@pytest.mark.parametrize('model_id', ['claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5',
+@pytest.mark.parametrize('model_id', ['claude-fable-5-2', 'claude-fable-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5',
     'claude-haiku-5-5', 'claude-fable-5', 'claude-opus-5', 'claude-sonnet-5',
     'claude-sonnet-4-6', 'claude-opus-4-6', 'claude-opus-4-7', 'claude-opus-4-8', 'claude-opus-4-5-20251101'])
 def test_declared_routes_native_level_mapping(model_id):

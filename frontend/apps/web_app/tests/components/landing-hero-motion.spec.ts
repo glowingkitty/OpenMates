@@ -467,7 +467,7 @@ test('desktop privacy story naturally completes every encryption, PII and permis
   await expect(story).toHaveAttribute('data-active-stage', 'memory-permission', { timeout: 3500 });
   const permission = story.getByTestId('app-settings-memories-permission-card');
   await expect(permission).toContainText('Include these memories in this chat, for a more personalized response?');
-  await expect(permission).toContainText('Trips');
+  await expect(permission).toContainText('Memories');
   await expect(privacy).toHaveAttribute('data-story-state', 'complete', { timeout: 5500 });
   await expect(privacy.locator('.story-copy p')).toBeVisible();
   await expect(privacy.getByTestId('device-screenshots')).toBeVisible();

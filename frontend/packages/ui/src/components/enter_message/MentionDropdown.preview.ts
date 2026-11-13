@@ -22,7 +22,7 @@ export const layout = 'fill';
 export default {
   show: true, query: 'Mobile preference', positionY: 16, positionDirection: 'below',
   source: {
-    search: (query: string, _limit?: number, teamActive = false) => teamActive
+    search: async (query: string, _limit?: number, teamActive = false) => teamActive
       ? [getOpenMatesMentionResult()]
       : query === 'memories' ? [category] : [entry],
     projects: async () => [],

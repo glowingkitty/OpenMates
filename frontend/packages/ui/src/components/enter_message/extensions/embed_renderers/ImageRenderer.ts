@@ -400,11 +400,14 @@ export class ImageRenderer implements EmbedRenderer {
         // Same priority: live File object first, then stored TOON blob values
         const fullscreenFileSize = attrs.originalFile?.size ?? attrs.fileSize;
         const fullscreenFileType = attrs.originalFile?.type ?? attrs.fileType;
+        const fullscreenEmbedId = attrs.uploadEmbedId ||
+          (attrs.contentRef?.startsWith("embed:") ? attrs.contentRef.slice("embed:".length) : undefined);
         content.dispatchEvent(
           new CustomEvent("imagefullscreen", {
             bubbles: true,
             composed: true,
             detail: {
+              embedId: fullscreenEmbedId,
               src: attrs.src,
               filename: attrs.filename,
               s3Files: attrs.s3Files,

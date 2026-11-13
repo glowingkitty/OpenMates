@@ -54,9 +54,9 @@ models:
     # Regular standard rates from December 1; AI Studio route only.
     pricing:
       tokens:
-        input: { per_credit_unit: 80 }
-        cache_read: { per_credit_unit: 1600 }
-        output: { per_credit_unit: 15 }
+        input: { per_credit_unit: 170 }
+        cache_read: { per_credit_unit: 3335 }
+        output: { per_credit_unit: 35 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -79,9 +79,77 @@ models:
         processing_tier: standard
         pricing:
           tokens:
-            input: { per_credit_unit: 160 }
-            cache_read: { per_credit_unit: 3200 }
-            output: { per_credit_unit: 30 }
+            input: { per_credit_unit: 335 }
+            cache_read: { per_credit_unit: 6670 }
+            output: { per_credit_unit: 70 }
+        costs:
+          input_per_million_token: { price: 2, currency: USD, max_context: 1048576 }
+          cached_input_per_million_token: { price: 0.1, currency: USD }
+          output_per_million_token: { price: 10, currency: USD, max_context: 1048576 }
+    features:
+      max_output_tokens: 65536
+      tool_use: true
+      computer_use: true
+      streaming: true
+
+  - id: "gemini-4-carbon"
+    name: "Gemini 4 Carbon"
+    description: "Google's most capable Gemini 4 reasoning model for sustained agentic coding, multimodal knowledge work, scientific reasoning, and cybersecurity defense. Served through Google AI Studio with a bounded 64K synchronous output limit."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-11-10" # Gemini API general availability (changelog)
+    capability_level: "high"
+    allow_auto_select: false # Explicit selection only; automatic routing profiles stay unchanged.
+    reasoning: true
+    reasoning_effort: "medium"
+    default_thinking_level: "MEDIUM"
+    bill_reasoning_tokens: true # Google bills output including thinking tokens.
+    input_types: [text, image, video, audio, pdf]
+    output_types: [text]
+    default_server: "google_ai_studio"
+    servers:
+      - id: "google_ai_studio"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://ai.google.dev/gemini-api/docs/thinking
+        name: "Google AI Studio"
+        model_id: "gemini-4-carbon"
+        region: "US"
+        country: "US"
+    # Regular standard rates from December 1; AI Studio route only.
+    pricing:
+      tokens:
+        input: { per_credit_unit: 170 }
+        cache_read: { per_credit_unit: 3335 }
+        output: { per_credit_unit: 35 }
+    cache_pricing:
+      enabled: true
+      write_billing: included_in_input
+      eligible_hosts: [google_ai_studio]
+      source_url: https://ai.google.dev/gemini-api/docs/pricing
+      reviewed_on: "2026-11-12"
+      status: verified_for_activation
+      expires_on: "2026-12-31" # Cache evidence review expiry; independent of promotion expiry.
+      # Implicit caching only (explicit caching unsupported); a live AI Studio
+      # probe on 2026-11-12 reported cachedContentTokenCount on the repeat call.
+    costs:
+      input_per_million_token: { price: 4, currency: USD, max_context: 1048576 }
+      cached_input_per_million_token: { price: 0.2, currency: USD }
+      output_per_million_token: { price: 20, currency: USD, max_context: 1048576 }
+    temporary_prices:
+      - id: "introductory-2026"
+        effective_from: "2026-11-10"
+        expires_on: "2026-11-30"
+        source_url: https://ai.google.dev/gemini-api/docs/pricing
+        reviewed_on: "2026-11-12"
+        eligible_hosts: [google_ai_studio]
+        processing_tier: standard
+        pricing:
+          tokens:
+            input: { per_credit_unit: 335 }
+            cache_read: { per_credit_unit: 6670 }
+            output: { per_credit_unit: 70 }
         costs:
           input_per_million_token: { price: 2, currency: USD, max_context: 1048576 }
           cached_input_per_million_token: { price: 0.1, currency: USD }
@@ -115,9 +183,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 335 # Based on $0.99/M input (Cerebras developer pricing)
+          per_credit_unit: 675
         output:
-          per_credit_unit: 220 # Based on $1.49/M output (Cerebras developer pricing)
+          per_credit_unit: 450
     costs:
       input_per_million_token:
         price: 0.99
@@ -176,9 +244,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 650
+          per_credit_unit: 1335
         output:
-          per_credit_unit: 110
+          per_credit_unit: 225
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -241,11 +309,11 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 225 # Regular $1.50/M input; introductory tariff below.
+          per_credit_unit: 445
         cache_read:
-          per_credit_unit: 2250
+          per_credit_unit: 4445
         output:
-          per_credit_unit: 45 # Regular $7.50/M output; introductory tariff below.
+          per_credit_unit: 90
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -285,9 +353,9 @@ models:
         pricing:
           tokens:
             input:
-              per_credit_unit: 450
+              per_credit_unit: 445
             cache_read:
-              per_credit_unit: 4500
+              per_credit_unit: 4445
             output:
               per_credit_unit: 90
         costs:
@@ -360,11 +428,11 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 225 # Regular $1.50/M input; introductory tariff below.
+          per_credit_unit: 445
         cache_read:
-          per_credit_unit: 2250
+          per_credit_unit: 4445
         output:
-          per_credit_unit: 45 # Regular $7.50/M output; introductory tariff below.
+          per_credit_unit: 90
     cache_pricing:
       enabled: true
       write_billing: included_in_input
@@ -404,9 +472,9 @@ models:
         pricing:
           tokens:
             input:
-              per_credit_unit: 450
+              per_credit_unit: 445
             cache_read:
-              per_credit_unit: 4500
+              per_credit_unit: 4445
             output:
               per_credit_unit: 90
         costs:
@@ -479,16 +547,16 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 170 # 1 credit per 170 input tokens (for <=200K tokens: $2.00/M)
+          per_credit_unit: 335
         output:
-          per_credit_unit: 30 # 1 credit per 30 output tokens (for <=200K tokens: $12.00/M)
+          per_credit_unit: 60
       context_bands:
         over_200k:
           min_input_tokens: 200001
           eligible_hosts: [google_ai_studio, google]
           tokens:
-            input: { per_credit_unit: 85 }
-            output: { per_credit_unit: 20 }
+            input: { per_credit_unit: 170 }
+            output: { per_credit_unit: 40 }
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -567,9 +635,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 200
+          per_credit_unit: 445
         output:
-          per_credit_unit: 40
+          per_credit_unit: 75
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -631,9 +699,9 @@ models:
     pricing:
       tokens:
         input:
-          per_credit_unit: 1100 # Based on $0.30/M input tokens.
+          per_credit_unit: 2225
         output:
-          per_credit_unit: 130 # Based on $2.50/M output tokens.
+          per_credit_unit: 270
     cache_pricing:
       enabled: false
       write_billing: included_in_input
@@ -692,7 +760,7 @@ models:
         country: "US"
     pricing:
       per_unit:
-        credits: 200
+        credits: 205
         unit_name: "image"
     costs:
       # Output (generated image): $0.134/image (1120 tokens × $120/M tokens for 1K/2K images)
@@ -703,6 +771,34 @@ models:
         currency: USD
       input_per_image:
         price: 0.0011
+        currency: USD
+
+  - id: "gemini-nano-banana-2.1" # Official Gemini API model id
+    name: "Nano Banana 2.1"
+    description: "Google image model used by the image Enhance action: a faithful higher-quality re-render of one picture at 2K."
+    country_origin: "US"
+    for_app_skill: "images.enhance" # Enhance action of the image fullscreen (not a chat-callable skill)
+    allow_auto_select: false
+    input_types:
+      - text
+      - image
+    output_types:
+      - image
+    default_server: "google_ai_studio"
+    servers:
+      - id: "google_ai_studio"
+        name: "Google AI Studio"
+        model_id: "gemini-nano-banana-2.1"
+        region: "US"
+        country: "US"
+    pricing:
+      per_unit:
+        credits: 80
+        unit_name: "image"
+    costs:
+      # Gemini API price per 2K output image: $0.0504; 63 credits = provider price + 25%.
+      output_per_image:
+        price: 0.0504
         currency: USD
 
   - id: "lyria-3-pro-preview"
@@ -788,15 +884,16 @@ models:
         price: 0.04
         currency: USD
 
-  - id: "veo-3.1-generate-preview"
-    name: "Veo 3.1"
-    description: "Google's latest Veo 3.1 preview model for high-fidelity short video generation with native audio. OpenMates stores generated videos encrypted and serves REST downloads through short-lived decrypted links."
+  - id: "gemini-omni-1.2-flash"
+    name: "Gemini Omni 1.2 Flash"
+    description: "Google's Gemini Omni video model (replaces the Veo 3.1 previews, shut down in the Gemini API on 2026-10-22). Text, first-frame, first+last-frame and reference-image video with native audio, 3-15 seconds. OpenMates stores generated videos encrypted and serves REST downloads through short-lived decrypted links."
     country_origin: "US"
     for_app_skill: "videos.generate"
-    release_date: "2026-01-01"
+    release_date: "2026-11-01"
     allow_auto_select: false
     input_types:
       - text
+      - image
     output_types:
       - video
       - audio
@@ -804,74 +901,28 @@ models:
     servers:
       - id: "google_ai_studio"
         name: "Google Gemini API"
-        model_id: "veo-3.1-generate-preview"
+        model_id: "gemini-omni-1.2-flash"
         region: "US"
         country: "US"
     pricing:
-      per_second: 600
+      # Generated-media markup 1.5x on the 720p rate: $0.07/sec = 105 credits/sec (videos.generate
+      # bills each resolution at its own price, backend/apps/videos/tasks/generate_billing.py).
+      per_second: 105
     costs:
-      # Gemini Developer API pricing: $0.40/sec for 720p and 1080p, $0.60/sec for 4k.
+      # Source: https://aistudio.google.com/docs/pricing (checked 2026-11-12).
+      # Billed on output video tokens; per-second approximations by resolution:
+      # 360p $0.023, 720p $0.07, 1080p $0.104, 4k $0.209 (1080p/4k are upsampled).
       output_per_second:
-        price: 0.40
-        price_4k: 0.60
+        price: 0.07
+        price_360p: 0.023
+        price_1080p: 0.104
+        price_4k: 0.209
         currency: USD
+      # Veo 3.1 / Veo 3.1 Fast previews were removed from this file: shut down
+      # 2026-10-22 (https://aistudio.google.com/docs/deprecations); the Gemini API
+      # now returns 404 NOT_FOUND for them (verified 2026-11-12).
 
-  - id: "veo-3.1-fast-generate-preview"
-    name: "Veo 3.1 Fast"
-    description: "Faster Google Veo 3.1 preview model for short video generation."
-    country_origin: "US"
-    for_app_skill: "videos.generate"
-    release_date: "2026-01-01"
-    allow_auto_select: false
-    input_types:
-      - text
-    output_types:
-      - video
-      - audio
-    default_server: "google_ai_studio"
-    servers:
-      - id: "google_ai_studio"
-        name: "Google Gemini API"
-        model_id: "veo-3.1-fast-generate-preview"
-        region: "US"
-        country: "US"
-    pricing:
-      per_second: 150
-    costs:
-      # Gemini Developer API pricing: $0.10/sec for 720p, $0.12/sec for 1080p, $0.30/sec for 4k.
-      output_per_second:
-        price: 0.10
-        price_1080p: 0.12
-        price_4k: 0.30
-        currency: USD
-
-# Pricing Formula:
-# 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
-# 2. Tokens per credit = credit_value_usd / cost_per_token
-#
-# Where:
-# - credit_value_usd = 0.001 (110 USD / 110,000 credits)
-# - markup = 3 (3x your cost)
-#
-# Simplified: tokens_per_credit = 0.001 / ((your_cost_per_million * 3) / 1,000,000)
-# Or even simpler: tokens_per_credit = 333.33 / your_cost_per_million
-#
-# Examples:
-# - Input ($1.25/M): 333.33 / 1.25 = 267 tokens/credit → round to 300
-# - Output ($10/M): 333.33 / 10 = 33 tokens/credit → round to 30
-#
-# FOR PER-UNIT PRICING (images, API calls, etc.):
-# 1. Your price to user = your_cost_per_unit * markup
-# 2. Credits per unit = your_price_to_user / credit_value_usd
-#
-# Simplified: credits_per_unit = (your_cost_per_unit * 3) / 0.001
-# Or even simpler: credits_per_unit = your_cost_per_unit * 3000
-#
-# Per-Unit Examples:
-# - Image ($0.04 each): 0.04 * 3000 = 120 credits per image
-# - API call ($0.01 each): 0.01 * 3000 = 30 credits per call
-#
-# Generated music/video intentionally uses a lower 1.5x margin:
-# - Lyria 3 Pro ($0.08/song): 120 credits per song
-# - Lyria 3 Clip ($0.04/song): 60 credits per song
-# - Veo 3.1 Standard 720p/1080p ($0.40/sec): 600 credits per second
+# Customer pricing: every `pricing` value is derived from `costs` (supplier USD)
+# as cost x (1 + pricing.margin_percent in backend/config/backend_config.yml),
+# rounded up to 5-credit steps (1 credit = $0.001). Regenerate with
+# `python3 scripts/derive_customer_prices.py --write`; tests fail on drift.

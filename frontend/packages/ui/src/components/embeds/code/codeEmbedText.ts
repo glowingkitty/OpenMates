@@ -92,3 +92,13 @@ export function renderApplication(c: Record<string, unknown>): string {
 export function renderNotebook(c: Record<string, unknown>): string {
   return renderNotebookText(c);
 }
+
+/** code-test-result — finished test run embed */
+export function renderTestResult(c: Record<string, unknown>): string {
+  const target = str(c.target) ?? 'test run';
+  const status = str(c.run_status) ?? 'unknown';
+  const num = (v: unknown) => (typeof v === 'number' ? v : 0);
+  const lines = [`**Test result** — ${target}`, `${status} · ${num(c.passed)} passed · ${num(c.failed)} failed · ${num(c.skipped)} skipped`];
+  if (c.is_current === false) lines.push('Stale: code changed after this run');
+  return lines.join('\n');
+}

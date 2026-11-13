@@ -150,17 +150,24 @@
         wikipediaError = false;
         wikipediaSearched = false;
         wikipediaDisambiguation = false;
-        const baseResults = source.search(currentQuery, undefined, teamActive);
-        results = baseResults;
-        selectedIndex = 0; // Reset selection when results change
         // Collapse all expanded categories when query changes
         expandedCategories = new Set();
         categoryEntries = new Map();
 
-        void source.projects(currentQuery).then((projectResults) => {
+        // Ranking runs in the Rust core, so results arrive asynchronously; a
+        // newer query bumps searchSequence and drops the stale answer.
+        void source.search(currentQuery, undefined, teamActive).then((baseResults) => {
             if (sequence !== searchSequence) return;
-            results = mergeMentionResults(baseResults, projectResults);
-            selectedIndex = 0;
+            results = baseResults;
+            selectedIndex = 0; // Reset selection when results change
+            return source.projects(currentQuery).then((projectResults) => {
+                if (sequence !== searchSequence) return;
+                results = mergeMentionResults(baseResults, projectResults);
+                selectedIndex = 0;
+            });
+        }).catch((error: unknown) => {
+            if (sequence !== searchSequence) return;
+            console.error('[MentionDropdown] Mention search failed:', error);
         });
     });
 
@@ -438,13 +445,11 @@
                 return `apps/${focusResult.appId}/focus/${focusModeId}`;
             }
             case 'settings_memory': {
-                const memoryResult = result as SettingsMemoryMentionResult;
-                const memoryId = result.id.split(':')[1] || result.id;
-                return `apps/${memoryResult.appId}/settings_memories/${memoryId}`;
+                return 'settings_memories';
             }
             case 'settings_memory_entry': {
                 const entryResult = result as SettingsMemoryEntryMentionResult;
-                return `apps/${entryResult.appId}/settings_memories/${entryResult.memoryCategoryId}`;
+                return `memories/${encodeURIComponent(entryResult.entryId.replace(/^account-memory-/, ''))}`;
             }
             case 'project':
             case 'project_folder':

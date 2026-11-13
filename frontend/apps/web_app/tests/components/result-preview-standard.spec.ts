@@ -1,7 +1,7 @@
 /**
  * Geometry and interaction contracts for the common embed preview shell.
  * Uses existing default fixtures and the real named assistant container.
- * Screenshots document requested Home, Health, Event and memory states;
+ * Screenshots document requested Home, Health, Event and saved states;
  * assertions establish dimensions and behavior without claiming visual approval.
  */
 import { expect, test } from '../helpers/cookie-audit';
@@ -12,15 +12,15 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 const { createVideoProofRuntime, defineVideoProof } = require('../helpers/video-proof');
 
 const proofContract = defineVideoProof({
-  id: 'result-preview-memory-control', title: 'Icon-only memory control changes saved state',
+  id: 'result-preview-save-control', title: 'Icon-only Save control changes saved state',
   surface: 'web', domain: 'app.dev.openmates.org', devices: ['web-laptop'],
   transcript: [
-    { id: 'unsaved', checkpoint: 'unsaved', devices: ['web-laptop'], text: 'The unsaved memory action shows a heart and retains its accessible Add memory label.' },
+    { id: 'unsaved', checkpoint: 'unsaved', devices: ['web-laptop'], text: 'The unsaved action shows a heart and retains its accessible Save label.' },
     { id: 'saved', checkpoint: 'saved', devices: ['web-laptop'], text: 'Activating the heart changes its pressed state and pink saved appearance without adding visible text.' },
   ],
   assertions: [
-    { id: 'chats.rendering.inline-entity-interaction', checkpoint: 'unsaved', devices: ['web-laptop'], visual: 'The memory button is a white circle containing the existing heart icon.' },
-    { id: 'chats.rendering.assistant-document-convergence', checkpoint: 'saved', devices: ['web-laptop'], visual: 'The same button is pink after activation and exposes the Forget accessible label.' },
+    { id: 'chats.rendering.inline-entity-interaction', checkpoint: 'unsaved', devices: ['web-laptop'], visual: 'The save button is a white circle containing the existing heart icon.' },
+    { id: 'chats.rendering.assistant-document-convergence', checkpoint: 'saved', devices: ['web-laptop'], visual: 'The same button is pink after activation and exposes the Saved accessible label.' },
   ],
   tutorial: { readingWordsPerSecond: 3, minimumHoldMs: 1200, maximumHoldMs: 4000 },
 });
@@ -176,14 +176,14 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(card).toHaveCSS('transform', 'none');
   });
 
-  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction,chats.rendering.assistant-document-convergence
-  test(`memory heart toggles accessible unsaved and saved states without visible text in ${theme}`, async ({ page }, testInfo) => {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction,chats.rendering.assistant-document-convergence,app-memories.saved-items.not-memories
+  test(`save heart toggles accessible unsaved and saved states without visible text in ${theme}`, async ({ page }, testInfo) => {
     const proof = createVideoProofRuntime(proofContract, { device: 'web-laptop', attach: testInfo.attach.bind(testInfo) });
     await page.goto(`/dev/preview/embeds/MemoryCtaFixture?chrome=0&width=390&theme=${theme}`);
     await waitForComponentPreview(page);
     const heart = page.getByTestId('memory-cta-toggle');
     await proof.assert('chats.rendering.inline-entity-interaction', async () => {
-      await expect(heart).toHaveAccessibleName('Add memory');
+      await expect(heart).toHaveAccessibleName('Save');
       await expect(heart).toHaveAttribute('aria-pressed', 'false');
       await expect(heart).toHaveText('');
       await expect(heart).toHaveCSS('background-color', 'rgb(255, 255, 255)');
@@ -204,12 +204,12 @@ for (const theme of ['light', 'dark'] as const) {
       expect(heartMask.actual).not.toBe('none');
       expect(heartMask.actual).toBe(heartMask.expected);
     });
-    await capture(page, testInfo, `memory-heart-unsaved-white-${theme}`);
+    await capture(page, testInfo, `save-heart-unsaved-white-${theme}`);
     await proof.checkpoint('unsaved');
     await heart.focus();
     await heart.press('Enter');
     await expect(heart).toHaveAttribute('aria-pressed', 'true');
-    await expect(heart).toHaveAccessibleName('Forget');
+    await expect(heart).toHaveAccessibleName('Saved');
     await expect(heart).toHaveText('');
     const expectedPink = await heart.evaluate(element => {
       const probe = document.createElement('span');
@@ -222,13 +222,13 @@ for (const theme of ['light', 'dark'] as const) {
     await proof.assert('chats.rendering.assistant-document-convergence', async () => {
       await expect(heart).toHaveCSS('background-color', expectedPink);
       await expect(heart).toHaveAttribute('aria-pressed', 'true');
-      await expect(heart).toHaveAccessibleName('Forget');
+      await expect(heart).toHaveAccessibleName('Saved');
     });
-    await capture(page, testInfo, `memory-heart-saved-pink-${theme}`);
+    await capture(page, testInfo, `save-heart-saved-pink-${theme}`);
     await proof.checkpoint('saved');
     await heart.press('Space');
     await expect(heart).toHaveAttribute('aria-pressed', 'false');
-    await expect(heart).toHaveAccessibleName('Add memory');
+    await expect(heart).toHaveAccessibleName('Save');
     await proof.attach();
   });
 }

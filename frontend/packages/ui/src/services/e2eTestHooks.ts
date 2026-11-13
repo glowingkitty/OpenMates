@@ -68,16 +68,7 @@ export async function installE2ETestHooks() {
     __openmatesE2EEvictEmbedCache?: (embedIds: string[]) => Promise<void>;
     __openmatesE2EPrepareEmbedCache?: (input: { chatId: string; embedIds: string[]; indexByApp?: boolean }) => Promise<{ decryptedCount: number; encryptedCount: number; indexedCount?: number }>;
     __openmatesE2ESeedFollowupImage?: () => Promise<{ chatId: string; embedId: string }>;
-    __openmatesE2ESeedSavedEmbedMemory?: (input: {
-      embedId: string;
-      title: string;
-      provider?: string;
-      url?: string;
-      date_start?: string;
-      date_end?: string;
-      location?: string;
-      notes?: string;
-    }) => Promise<{ entryId: string }>;
+    __openmatesE2ESetEmbedSaved?: (embedId: string, saved: boolean) => Promise<boolean>;
     __openmatesE2ESetDraftPreview?: (chatId: string, preview: string, markdown?: string) => Promise<void>;
     __openmatesE2EChatConnectionState?: () => Promise<{
       online: boolean;
@@ -298,35 +289,12 @@ export async function installE2ETestHooks() {
     return { chatId, messageCount: messages.length };
   };
 
-  testWindow.__openmatesE2ESeedSavedEmbedMemory = async ({ embedId, title, ...eventFields }) => {
-    if (!embedId.startsWith('e2e-')) {
-      const { authStore } = await import('../stores/authState');
-      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      if (!['localhost', '127.0.0.1'].includes(window.location.hostname) || !get(authStore).isAuthenticated || !uuid.test(embedId)) {
-        throw new Error('Owned saved embed fixtures require authenticated localhost and a canonical UUID');
-      }
-    }
-    const { encryptWithMasterKey } = await import('./cryptoService');
-    const { appSettingsMemoriesStore } = await import('../stores/appSettingsMemoriesStore');
-    const encrypted = await encryptWithMasterKey(JSON.stringify({
-      ...eventFields, embed_id: embedId, title, settings_group: 'saved_events', _original_item_key: title,
-    }));
-    if (!encrypted) throw new Error('Could not encrypt E2E saved memory fixture');
-    const entryId = crypto.randomUUID();
-    const now = Math.floor(Date.now() / 1000);
-    await chatDB.storeAppSettingsMemoriesEntries([{
-      id: entryId,
-      app_id: 'events',
-      item_key: `e2e-${entryId}`,
-      item_type: 'saved_events',
-      encrypted_item_json: encrypted,
-      encrypted_app_key: '',
-      created_at: now,
-      updated_at: now,
-      item_version: 1,
-    }]);
-    await appSettingsMemoriesStore.loadEntries();
-    return { entryId };
+  // Sets the encrypted saved flag on an embed (the Save / Saved CTA path) and
+  // returns the persisted flag, so specs can seed or verify saved embeds.
+  testWindow.__openmatesE2ESetEmbedSaved = async (embedId, saved) => {
+    const { setEmbedSaved, loadEmbedSaved } = await import('./savedEmbedService');
+    await setEmbedSaved(embedId, saved);
+    return loadEmbedSaved(embedId);
   };
 
   testWindow.__openmatesE2ESetDraftPreview = async (chatId, preview, markdown) => {

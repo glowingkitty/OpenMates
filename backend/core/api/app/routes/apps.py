@@ -13,6 +13,8 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel, Field
 
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition, ProviderRef, skill_has_provider_support
+from backend.shared.app_packages.loader import is_installed_provider
+from backend.shared.app_packages.secrets import installed_provider_ready, ready_installed_provider_ids
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
@@ -122,6 +124,8 @@ async def _available_provider_ids(
             continue
         if await check_provider_api_key_available(provider_id, secrets_manager):
             available.add(provider_id)
+    # Operator-installed providers are usable only when their declared secrets resolve.
+    available.update(await ready_installed_provider_ids(secrets_manager))
     return available
 
 
@@ -253,8 +257,11 @@ async def is_skill_available(
     for provider_ref in skill.providers:
         provider_id = map_provider_name_to_id(provider_ref.name, app_id)
 
-        # Check configuration: API key available or no_api_key flag
-        if provider_ref.no_api_key:
+        # Installed app package providers: the server registry decides, and
+        # every declared secret must resolve (Vault kv/data/providers/<id>).
+        if is_installed_provider(app_id, skill.id, provider_ref.name):
+            is_configured = await installed_provider_ready(app_id, skill.id, provider_ref.name, secrets_manager)
+        elif provider_ref.no_api_key:
             is_configured = True
         else:
             is_configured = await check_provider_api_key_available(provider_id, secrets_manager)
@@ -444,17 +451,6 @@ class ModelMetadataItem(BaseModel):
     active_temporary_price: Optional[Dict[str, Any]] = None
 
 
-class MemoryMetadataItem(BaseModel):
-    """Browsable memory category metadata; user entries are never included."""
-
-    id: str
-    name: str
-    description: str
-    icon_image: Optional[str] = None
-    type: str = ""
-    example_translation_keys: List[str] = Field(default_factory=list)
-
-
 class ContentMetadataItem(BaseModel):
     """Browsable durable content metadata from the shared embed catalog source."""
 
@@ -486,7 +482,6 @@ class AppMetadataItem(BaseModel):
     last_updated: Optional[str] = None
     skills: List[SkillMetadataItem]
     focus_modes: List[FocusModeMetadataItem] = Field(default_factory=list)
-    settings_and_memories: List[MemoryMetadataItem] = Field(default_factory=list)
     memories: List[Dict[str, Any]] = Field(default_factory=list, description="Read-only public app-provided Memory documents.")
     content_types: List[ContentMetadataItem] = Field(default_factory=list)
 
@@ -752,28 +747,6 @@ def build_app_metadata_item(
             ),
         ))
 
-    memories = [
-        MemoryMetadataItem(
-            id=field.id,
-            name=resolve_translation(
-                translation_service,
-                field.name_translation_key,
-                namespace="app_settings_memories",
-                fallback=field.id,
-            ),
-            description=resolve_translation(
-                translation_service,
-                field.description_translation_key,
-                namespace="app_settings_memories",
-                fallback="",
-            ),
-            icon_image=field.icon_image,
-            type=field.type,
-            example_translation_keys=field.example_translation_keys or [],
-        )
-        for field in app_metadata.memory_fields
-    ]
-
     content_types: List[ContentMetadataItem] = []
     for embed in app_metadata.embed_types:
         catalog = embed.content_catalog or {}
@@ -814,7 +787,6 @@ def build_app_metadata_item(
         last_updated=app_metadata.last_updated,
         skills=skills,
         focus_modes=focus_modes,
-        settings_and_memories=memories,
         content_types=sorted(content_types, key=lambda content: (content.order, content.name.lower())),
     )
 
@@ -918,7 +890,7 @@ async def get_apps_metadata(
         if app_id in EXCLUDED_DISCOVERY_APPS:
             continue
         # Log what we're processing for debugging
-        logger.info(f"Processing app '{app_id}': {len(app_metadata.skills)} skills, {len(app_metadata.focuses)} focus modes, {len(app_metadata.memory_fields) if app_metadata.memory_fields else 0} memory fields")
+        logger.info(f"Processing app '{app_id}': {len(app_metadata.skills)} skills, {len(app_metadata.focuses)} focus modes")
         
         if not app_metadata.description_translation_key:
             logger.error(f"App '{app_id}' is missing required description_translation_key, skipping")

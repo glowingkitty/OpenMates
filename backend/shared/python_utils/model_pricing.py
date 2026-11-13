@@ -153,6 +153,22 @@ def validate_temporary_prices(model: Mapping[str, Any]) -> None:
         windows.append((start, end, hosts, regions, tier))
 
 
+def _cache_review_lapsed(model: Mapping[str, Any], today: date) -> bool:
+    """True when an enabled cache tariff is past its evidence review deadline."""
+    cache = model.get("cache_pricing") or {}
+    return bool(
+        cache.get("enabled") and cache.get("expires_on")
+        and today > _date(cache["expires_on"], "cache expires_on")
+    )
+
+
+def _without_lapsed_cache(resolved: dict[str, Any]) -> dict[str, Any]:
+    """Switch an owned tariff copy to ordinary billing; the caller must pass a copy."""
+    resolved["cache_pricing"]["enabled"] = False
+    resolved["cache_pricing"]["status"] = "expired_pending_review"
+    return resolved
+
+
 def resolve_model_tariff(
     model: Mapping[str, Any], *, inference_host: str | None = None,
     region: str | None = None, processing_tier: str = "standard", on_date: date | None = None,
@@ -160,9 +176,11 @@ def resolve_model_tariff(
     """Resolve one tariff at dispatch/read time; regular rates remain untouched."""
     if "temporary_prices" in model:
         validate_temporary_prices(model)
-    if not model.get("temporary_prices"):
-        return model if isinstance(model, dict) else dict(model)
     today = on_date or utc_today()
+    if not model.get("temporary_prices"):
+        if not _cache_review_lapsed(model, today):
+            return model if isinstance(model, dict) else dict(model)
+        return _without_lapsed_cache(copy.deepcopy(dict(model)))
     host = inference_host or model.get("default_server")
     if region is None:
         regions = {server.get("region") for server in model.get("servers", []) if server.get("id") == host}
@@ -185,8 +203,4 @@ def resolve_model_tariff(
             break
     # A verification deadline is independent of a promotion's expiry. Continue
     # valid ordinary billing after cache verification lapses; never extend it.
-    cache = resolved.get("cache_pricing") or {}
-    if cache.get("enabled") and cache.get("expires_on") and today > _date(cache["expires_on"], "cache expires_on"):
-        cache["enabled"] = False
-        cache["status"] = "expired_pending_review"
-    return resolved
+    return _without_lapsed_cache(resolved) if _cache_review_lapsed(resolved, today) else resolved

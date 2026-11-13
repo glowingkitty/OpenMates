@@ -50,6 +50,7 @@ import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte"
 import BrowseEmbedPreview from "../../../embeds/web/BrowseEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
+import { mountSlidesDeckPreview } from "./slidesDeckMount";
 import { docxModelToHtml } from "../../../embeds/docs/docsEmbedContent";
 import SheetEmbedPreview from "../../../embeds/sheets/SheetEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
@@ -67,6 +68,7 @@ import Model3DResultEmbedPreview from "../../../embeds/models3d/Model3DResultEmb
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
 import AudioGenerateEmbedPreview from "../../../embeds/audio/AudioGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
+import { videoGenerateCardProps } from "../../../embeds/videos/videoGenerateCard";
 import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
@@ -108,6 +110,8 @@ import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRad
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
 import BusinessTrademarkSearchEmbedPreview from "../../../embeds/business/BusinessTrademarkSearchEmbedPreview.svelte";
+import BusinessInvestorSearchEmbedPreview from "../../../embeds/business/BusinessInvestorSearchEmbedPreview.svelte";
+import BusinessCompanyOwnershipEmbedPreview from "../../../embeds/business/BusinessCompanyOwnershipEmbedPreview.svelte";
 import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
 import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
 import GenericAppSkillEmbedPreview from "../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte";
@@ -348,6 +352,7 @@ export class GroupRenderer implements EmbedRenderer {
       ["ai-authored-results", (item, row, decoded, target) => this.renderRegistryPreviewComponent(item, row, decoded, target)],
       ["tv-movie", (item, row, decoded, target) => this.renderRegistryPreviewComponent(item, row, decoded, target)],
       ["tv-series", (item, row, decoded, target) => this.renderRegistryPreviewComponent(item, row, decoded, target)],
+      ["code-test-result", (item, row, decoded, target) => this.renderRegistryPreviewComponent(item, row, decoded, target)],
       ["images-generated-image", (item, embedData, decodedContent, content) =>
         this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
       ["audio-generated-audio", (item, embedData, decodedContent, content) =>
@@ -357,6 +362,8 @@ export class GroupRenderer implements EmbedRenderer {
       ["videos-generated-video", (item, embedData, decodedContent, content) =>
         this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
       ["models3d-generated-model", (item, embedData, decodedContent, content) =>
+        this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
+      ["design-embroidery", (item, embedData, decodedContent, content) =>
         this.renderRegistryPreviewComponent(item, embedData, decodedContent, content)],
       [
         "web-website",
@@ -402,6 +409,13 @@ export class GroupRenderer implements EmbedRenderer {
         "docs-doc",
         (item, embedData, decodedContent, content) =>
           this.renderDocsComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "slides-deck",
+        (item, embedData, decodedContent, content) =>
+          mountSlidesDeckPreview(item, decodedContent, content, () =>
+            this.openFullscreen(item, embedData, decodedContent),
+          ),
       ],
       [
         "sheets-sheet",
@@ -2469,6 +2483,30 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      if (appId === "business" && skillId === "company_ownership") {
+        const component = mount(BusinessCompanyOwnershipEmbedPreview, {
+          target,
+          props: {id: embedId, data: decodedContent || {}, query: query || "", status,
+            taskId, onFullscreen: (updated?: Record<string, unknown>) => this.openFullscreen(item, embedData, {
+              ...fullscreenContent, ...(updated ?? {}), app_id: "business", skill_id: "company_ownership",
+            })},
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "business" && skillId === "search_investors") {
+        const component = mount(BusinessInvestorSearchEmbedPreview, {
+          target,
+          props: {id: embedId, data: decodedContent || {}, query: query || "", status,
+            taskId, onFullscreen: (updated?: Record<string, unknown>) => this.openFullscreen(item, embedData, {
+              ...fullscreenContent, ...(updated ?? {}), app_id: "business", skill_id: "search_investors",
+            })},
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
       if (appId === "business" && skillId === "search_trademarks") {
         const component = mount(BusinessTrademarkSearchEmbedPreview, {
           target,
@@ -2549,10 +2587,10 @@ export class GroupRenderer implements EmbedRenderer {
             files: decodedContent?.files || undefined,
             aesKey: decodedContent?.aes_key || "",
             aesNonce: decodedContent?.aes_nonce || "",
-            previewVideoUrl: decodedContent?.previewVideoUrl || decodedContent?.preview_video_url || "",
             previewImageUrl: decodedContent?.previewImageUrl || decodedContent?.preview_image_url || "",
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || "",
+            ...videoGenerateCardProps(decodedContent),
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,

@@ -337,6 +337,7 @@ fn error_code(error: Error) -> &'static str {
         Error::Offline => "offline",
         Error::Forbidden => "forbidden",
         Error::Expired => "expired",
+        Error::VerificationRequired => "verification_required",
         Error::Cancelled => "cancelled",
         Error::Io => "io",
         Error::Protocol => "protocol",

@@ -284,6 +284,7 @@ pub(super) fn start(c: &Configuration, selected: Vec<String>) -> Result<()> {
         phases: vec![],
     };
     journal.phase("prepare_bind_mounts", || bind_mounts::prepare(c))?;
+    journal.phase("prepare_app_packages", || super::apps::prepare_root(c))?;
     // Resume dependency-only/created-consumer projects after failed or cancelled
     // bootstrap. A verified live cohort keeps ordinary selected startup; never
     // force setup under live consumers or interrupt an active one-shot setup.

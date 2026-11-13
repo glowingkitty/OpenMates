@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const { getTestAccount, generateTotp } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { expireIsolatedAccessWindow } = require('./helpers/isolated-session-rotation');
 
 function parsePersonalPrivacyProof(output: string): Record<string, unknown> {
 	const marker = 'OPENMATES_PERSONAL_PRIVACY_PROOF=';
@@ -24,33 +25,6 @@ function parsePersonalPrivacyProof(output: string): Record<string, unknown> {
 		throw new Error('Personal privacy probe returned an invalid proof object');
 	}
 	return proof as Record<string, unknown>;
-}
-
-function expireIsolatedAccessWindow(token: string): void {
-	const sourceRoot = process.env.OPENMATES_CI_SOURCE_ROOT;
-	if (process.env.OPENMATES_CI_ISOLATED !== '1' || !sourceRoot) {
-		throw new Error('Rotation fixture requires the disposable isolated CI backend.');
-	}
-	const composeFile = path.join(sourceRoot, 'test-results/ci-private/compose.json');
-	if (!fs.existsSync(composeFile)) throw new Error('Isolated compose fixture is missing.');
-	// Only the disposable session link changes. Neither the durable lifetime nor
-	// any sibling session is modified; no credential goes into process arguments.
-	const digest = createHash('sha256').update(token).digest('hex');
-	const fixture = [
-		'import json, os, re, sys, redis',
-		'digest = sys.stdin.read().strip()',
-		'assert re.fullmatch("[a-f0-9]{64}", digest)',
-		'host, port = os.environ["DRAGONFLY_URL"].rsplit(":", 1)',
-		'client = redis.Redis(host=host, port=int(port), password=os.environ["DRAGONFLY_PASSWORD"])',
-		'key = "session:" + digest',
-		'link = json.loads(client.get(key))',
-		'assert link.get("user_id") and client.ttl(key) > 0',
-		'link["token_expiry"] = 0',
-		'assert client.set(key, json.dumps(link), xx=True, keepttl=True)'
-	].join('\n');
-	execFileSync('docker', ['compose', '-f', composeFile, 'exec', '-T', 'api', 'python', '-c', fixture], {
-		input: digest, stdio: ['pipe', 'pipe', 'pipe'], timeout: 30000
-	});
 }
 
 function challengeIsolatedSession(token: string): void {

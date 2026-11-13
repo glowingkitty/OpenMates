@@ -1,6 +1,7 @@
 // contract-test-file: infrastructure
 import {describe,it,expect,vi,afterEach} from 'vitest';
-const m=vi.hoisted(()=>({db:{getChat:vi.fn(),getMessage:vi.fn(),saveMessage:vi.fn(),updateChat:vi.fn(),getEncryptedFields:vi.fn(),getPendingEmbedOperations:vi.fn(async()=>[])},getKey:vi.fn(),openOutput:vi.fn(),fetch:vi.fn(),complete:vi.fn(),ws:{on:vi.fn(),off:vi.fn(),sendMessage:vi.fn()}}));
+// Mirrors the real service: an owned embed request listens on "error" until released.
+const m=vi.hoisted(()=>{const ws={on:vi.fn(),off:vi.fn(),sendMessage:vi.fn(),ownEmbedProtocolRequest:(_id:string,fn:(payload:unknown)=>void)=>{ws.on('error',fn);return()=>ws.off('error',fn)}};return {db:{getChat:vi.fn(),getMessage:vi.fn(),saveMessage:vi.fn(),updateChat:vi.fn(),getEncryptedFields:vi.fn(),getPendingEmbedOperations:vi.fn(async()=>[])},getKey:vi.fn(),openOutput:vi.fn(),fetch:vi.fn(),complete:vi.fn(),ws}});
 vi.mock('../db',()=>({chatDB:m.db}));
 vi.mock('../userDB',()=>({userDB:{getUserProfile:async()=>({user_id:"owner"})}}));
 vi.mock('../../config/api',()=>({getApiEndpoint:(x)=>x,storageArchiveFetch:m.fetch}));
@@ -22,9 +23,12 @@ vi.mock('../../message_parsing/utils',()=>({computeSHA256:async(s)=>s==="content
 vi.mock('../encryption/MessageEncryptor',()=>({encryptWithChatKey:async()=>"encrypted"}));
 vi.mock('../encryption/MetadataEncryptor',()=>({encryptChatKeyWithMasterKey:async()=>"wrapped",deriveEmbedKeyFromChatKey:async()=>new Uint8Array([1]),encryptWithEmbedKey:async(value)=>value==='code'?'type-cipher':"encrypted",decryptWithEmbedKey:async(s)=>s==="type-cipher"?"code":"{}",wrapEmbedKeyWithMasterKey:async()=>"master-wrapper",wrapEmbedKeyWithChatKey:async()=>"chat-wrapper",unwrapEmbedKeyWithMasterKey:async(cipher)=>new Uint8Array([cipher==='conflicting-wrapper'?2:1]),unwrapEmbedKeyWithChatKey:async()=>new Uint8Array([1])}));
 vi.mock('../../utils/chatCompletionRecovery',()=>({deriveChatCompletionRecoveryKeypair:async()=>({privateKey:"private"}),openRecoveryOutputEnvelope:m.openOutput,openChatCompletionRecoveryEnvelope:async()=>new TextEncoder().encode(JSON.stringify({job_id:"job",chat_id:"chat",turn_id:"turn",assistant_message_id:"assistant",key_version:1,content:"Recovered reply",category:null,model_name:null}))}));
-const {handleRecoveryOutputsAvailableImpl,handleRecoveryJobsAvailableImpl,resetRecoveryLifecycleImpl}=await import('../chatSyncServiceHandlersRecovery.ts');
+// vi.mock calls are hoisted above these imports, so the mocks apply.
+import {handleRecoveryOutputsAvailableImpl,handleRecoveryJobsAvailableImpl,resetRecoveryLifecycleImpl} from '../chatSyncServiceHandlersRecovery';
+import type {ChatSynchronizationService} from '../chatSyncService';
+type LooseStored={embed_keys:unknown[]}&Record<string,unknown>;
 
-const output={record_id:'record',root_chat_id:'chat',target_chat_id:'chat',turn_id:'turn',subject_id:'embed',output_kind:'embed',output_version:1,chat_key_version:1};
+const output={record_id:'record',root_chat_id:'chat',target_chat_id:'chat',turn_id:'turn',subject_id:'embed',output_kind:'embed' as const,output_version:1,chat_key_version:1};
 const job={job_id:'job',chat_id:'chat',turn_id:'turn',assistant_message_id:'assistant',chat_key_version:1};
 const canonical={embed:{embed_id:'embed',hashed_chat_id:'hash:chat',hashed_message_id:'hash:assistant',hashed_user_id:'hash:owner',encrypted_content:'content-cipher',encrypted_type:'type-cipher',version_number:1},embed_keys:[{hashed_embed_id:'hash:embed',key_type:'master',encrypted_embed_key:'master-wrapper',hashed_user_id:'hash:owner'},{hashed_embed_id:'hash:embed',key_type:'chat',hashed_chat_id:'hash:chat',encrypted_embed_key:'chat-wrapper',hashed_user_id:'hash:owner'}]};
 function setup({terminal=false,selectedOutput=output,selectedOutputs=[selectedOutput]}={}){
@@ -45,7 +49,7 @@ function setup({terminal=false,selectedOutput=output,selectedOutputs=[selectedOu
  const chat={chat_id:'chat',user_id:'owner',messages_v:terminal?2:1,encrypted_chat_key:'wrapped'};
  m.db.getChat.mockResolvedValue(chat);m.db.getMessage.mockResolvedValue(terminal?{message_id: "assistant",chat_id: "chat"}:undefined);m.getKey.mockResolvedValue(new Uint8Array([1]));
  m.db.getEncryptedFields.mockResolvedValue({encrypted_content:'cipher'});
- const service={hasCompletedInitialSync_FOR_HANDLERS_ONLY:true,requestChatContentBatch_FOR_HANDLERS_ONLY:vi.fn().mockResolvedValue(undefined),dispatchEvent:vi.fn()};
+ const service={hasCompletedInitialSync_FOR_HANDLERS_ONLY:true,requestChatContentBatch_FOR_HANDLERS_ONLY:vi.fn().mockResolvedValue(undefined),dispatchEvent:vi.fn()} as unknown as ChatSynchronizationService;
  const errors=vi.spyOn(console,'error').mockImplementation(()=>{});
  return{sent,service,errors,emit};
 }
@@ -70,9 +74,9 @@ describe('offline diagnostic: typed output readiness and terminal job ordering',
   const stored=structuredClone(canonical);
   if(mode==='conflict')stored.embed_keys.push({...stored.embed_keys[0],encrypted_embed_key:'conflicting-wrapper'});
   if(mode==='foreign-owner')stored.embed_keys.push({...stored.embed_keys[0],hashed_user_id:'foreign'});
-  if(mode==='foreign-scope')stored.embed_keys.push({...stored.embed_keys[0],hashed_project_id:'unrelated'});
-  if(mode==='oversized')stored.oversized_embed_key_id='oversized-wrapper';
-  if(mode==='cursor-loop'){stored.embed_keys_has_more_after=true;stored.embed_keys_end_cursor='cursor';}
+  if(mode==='foreign-scope')(stored as unknown as LooseStored).embed_keys.push({...stored.embed_keys[0],hashed_project_id:'unrelated'});
+  if(mode==='oversized')(stored as unknown as LooseStored).oversized_embed_key_id='oversized-wrapper';
+  if(mode==='cursor-loop'){const loose=stored as unknown as LooseStored;loose.embed_keys_has_more_after=true;loose.embed_keys_end_cursor='cursor';}
   const before=JSON.stringify(stored);
   m.fetch.mockImplementation(async(url)=>({status:200,ok:true,json:async()=>url.includes('/keys/window')
    ?{embed_keys:stored.embed_keys,has_more_after:true,end_cursor:'cursor'}:stored}));
@@ -97,7 +101,7 @@ describe('offline diagnostic: typed output readiness and terminal job ordering',
  it.each([false,true])('publishes an initial root and its wrappers in one write (failure=%s)',async(failure)=>{
   const {sent,service,emit,errors}=setup();
   m.openOutput.mockResolvedValue(new TextEncoder().encode(JSON.stringify({
-   record_id:'record',target_chat_id:'chat',subject_id:'embed',output_kind:'embed',output_version:1,
+   record_id:'record',target_chat_id:'chat',subject_id:'embed',output_kind:'embed' as const,output_version:1,
    content:{embed_id:'embed',chat_id:'chat',message_id:'assistant',task_id:'task-1',content:'{}',type:'code',version_number:1},
   })));
   let persisted=false;
@@ -127,7 +131,7 @@ describe('offline diagnostic: typed output readiness and terminal job ordering',
   const v2={...output,output_version:2};
   const {sent,service,emit,errors}=setup({selectedOutput:v2});
   m.openOutput.mockResolvedValue(new TextEncoder().encode(JSON.stringify({
-   record_id:'record',target_chat_id:'chat',subject_id:'embed',output_kind:'embed',
+   record_id:'record',target_chat_id:'chat',subject_id:'embed',output_kind:'embed' as const,
    output_version:2,content:{embed_id:'embed',chat_id:'chat',message_id:'assistant',
     content:'{}',type:'code',version_number:2},
   })));
@@ -157,7 +161,7 @@ describe('offline diagnostic: typed output readiness and terminal job ordering',
   const v2={...output,output_version:2};
   const {sent,service,errors}=setup({selectedOutput:v2});
   m.openOutput.mockResolvedValue(new TextEncoder().encode(JSON.stringify({
-   record_id:'record',target_chat_id:'chat',subject_id:'embed',output_kind:'embed',
+   record_id:'record',target_chat_id:'chat',subject_id:'embed',output_kind:'embed' as const,
    output_version:2,content:{embed_id:'embed',chat_id:'chat',message_id:'assistant',
     content:'{}',type:'code',version_number:2},
   })));
@@ -270,8 +274,8 @@ describe('offline diagnostic: typed output readiness and terminal job ordering',
  it('bounds recent retry identities at 128, retains the newest consumed identity, and permits evicted explicit rediscovery',async()=>{
   const {sent,service}=setup();m.fetch.mockResolvedValue({status:503,ok:false});
   m.openOutput.mockImplementation(async()=>new TextEncoder().encode(JSON.stringify({
-    record_id:sent.filter(x=>x.type==='recovery_output_get').at(-1).record_id,
-    target_chat_id:'chat',subject_id:'embed',output_kind:'embed',output_version:1,
+    record_id:sent.filter(x=>x.type==='recovery_output_get').slice(-1)[0].record_id,
+    target_chat_id:'chat',subject_id:'embed',output_kind:'embed' as const,output_version:1,
     content:{embed_id:'embed',chat_id:'chat',message_id:'assistant',content:'{}',type:'code',version_number:1},
   })));
   await handleRecoveryJobsAvailableImpl(service,{jobs:[job]});
@@ -297,11 +301,11 @@ describe('confirmed child visibility depends on its acknowledged canonical paren
  it.each(['ready','still-missing','unauthorized-parent','wrong-parent','stale-parent','stale-session','owner-change'])('child-before-parent across discovery pages: %s',async(mode)=>{
   const child={...output,record_id:'child-record',subject_id:'child'};
   const parent={...output,record_id:'parent-record',subject_id:mode==='wrong-parent'?'unrelated':'parent'};
-  const {sent,service,emit}=setup({selectedOutputs:[child,parent]});
+  const {sent,service,emit,errors}=setup({selectedOutputs:[child,parent]});
   m.openOutput.mockImplementation(async()=>{
-   const record=sent.filter(row=>row.type==='recovery_output_get').at(-1).record_id;
+   const record=sent.filter(row=>row.type==='recovery_output_get').slice(-1)[0].record_id;
    const row=record===child.record_id?child:parent;
-   return new TextEncoder().encode(JSON.stringify({record_id:row.record_id,target_chat_id:'chat',subject_id:row.subject_id,output_kind:'embed',output_version:1,
+   return new TextEncoder().encode(JSON.stringify({record_id:row.record_id,target_chat_id:'chat',subject_id:row.subject_id,output_kind:'embed' as const,output_version:1,
     content:{embed_id:row.subject_id,chat_id:'chat',message_id:'assistant',content:'{}',type:'code',version_number:1,...(row===child?{parent_embed_id:'parent'}:{})}}));
   });
   const originalSend=m.ws.sendMessage.getMockImplementation();
@@ -311,7 +315,7 @@ describe('confirmed child visibility depends on its acknowledged canonical paren
   });
   let parentReady=false;
   m.fetch.mockImplementation(async(url)=>{
-   const id=String(url).split('/').at(-1);
+   const id=String(url).split('/').slice(-1)[0];
    if(id==='child'&&(!parentReady||mode==='still-missing'))return {status:404,ok:false};
    if(id!=='child'&&mode==='unauthorized-parent')return {status:403,ok:false};
    return {status:200,ok:true,json:async()=>({...canonical,embed:{...canonical.embed,embed_id:id,...(id==='parent'&&mode==='stale-parent'?{version_number:2}:{})},embed_keys:canonical.embed_keys.map(row=>({...row,hashed_embed_id:'hash:'+id}))})};
@@ -319,6 +323,8 @@ describe('confirmed child visibility depends on its acknowledged canonical paren
   await handleRecoveryOutputsAvailableImpl(service,{outputs:[child]});
   expect(sent.filter(row=>row.type==='store_embed')).toHaveLength(1);
   expect(sent.filter(row=>row.type==='recovery_output_ack_embed')).toHaveLength(0);
+  // The queued child waits for its parent; that is not reported as a failed recovery.
+  expect(errors).not.toHaveBeenCalled();
   // Terminal hydration alone must not consume the dependency-specific attempt.
   await handleRecoveryJobsAvailableImpl(service,{jobs:[job]});await vi.advanceTimersByTimeAsync(0);
   expect(sent.filter(row=>row.type==='recovery_output_get'&&row.record_id===child.record_id)).toHaveLength(1);

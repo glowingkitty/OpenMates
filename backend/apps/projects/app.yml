@@ -3,7 +3,6 @@ description_translation_key: projects.description
 icon_image: project.svg
 category: productivity
 last_updated: "2026-07-25"
-settings_and_memories: []
 embed_types:
   - id: search
     category: app-skill-use
@@ -48,6 +47,10 @@ skills:
         no_api_key: true
     pricing:
       fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Internal
     class_path: backend.apps.projects.skills.create_skill.CreateSkill
     tool_schema:
       type: object

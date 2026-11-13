@@ -10,6 +10,7 @@ packages/openmates-python/tests/test_sdk_generator.py.
 
 from __future__ import annotations
 
+import argparse
 import json
 import pprint
 import re
@@ -205,10 +206,32 @@ def generate_py(skills: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Fail when committed npm/Python outputs differ from app.yml metadata.",
+    )
+    args = parser.parse_args(argv)
     skills = load_skills()
     if not skills:
         raise SystemExit("No SDK app skills found")
+    if args.check:
+        stale = [
+            str(path.relative_to(REPO_ROOT))
+            for path, content in (
+                (NPM_GENERATED, generate_ts(skills)),
+                (PY_GENERATED, generate_py(skills)),
+            )
+            if not path.is_file() or path.read_text(encoding="utf-8") != content
+        ]
+        if stale:
+            raise SystemExit(
+                "Generated SDK app skills are stale (run scripts/generate_sdk_app_skills.py): "
+                + ", ".join(stale)
+            )
+        return 0
     NPM_GENERATED.parent.mkdir(parents=True, exist_ok=True)
     PY_GENERATED.parent.mkdir(parents=True, exist_ok=True)
     NPM_GENERATED.write_text(generate_ts(skills), encoding="utf-8")

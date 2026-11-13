@@ -1,0 +1,48 @@
+schema_version: 1
+specification: feature.app-skill.investor-search@1
+investor_search:
+- id: investors-request
+  given: Alice asks for seed investors for climate software in Germany and Austria.
+  when: The assistant searches with the topic "climate software", the regions DE and AT, and the stage seed.
+  then: The request is accepted and every selected provider receives the same typed request.
+  assertion_ids:
+  - investors.request
+- id: investors-bad-region
+  given: A request names the region "Germany" instead of a two-letter code.
+  when: The request is validated.
+  then: It is rejected with a message about the region and no provider runs.
+  assertion_ids:
+  - investors.request
+- id: investors-regions-skipped
+  given: my_provider declares only FR and an operator installed it next to a second provider that covers DE.
+  when: Alice searches for investors in Germany.
+  then: my_provider is not searched, the results come from the second provider and Alice sees that my_provider was
+    skipped because it does not cover DE.
+  assertion_ids:
+  - investors.regions
+- id: investors-worldwide-only-on-request
+  given: Alice asks for investors from Spain without mentioning other regions.
+  when: The assistant builds the request.
+  then: It passes only ES and does not add other countries or WORLDWIDE.
+  assertion_ids:
+  - investors.regions
+- id: investors-unavailable
+  given: No operator installed an investor provider on this server.
+  when: Alice asks for angels in Sweden.
+  then: She is told investor search is unavailable here, no source is named and no search is claimed.
+  assertion_ids:
+  - investors.unavailable
+- id: investors-results
+  given: Two providers are installed and one of them times out.
+  when: Alice searches for fintech investors in the Netherlands.
+  then: One result lists the investors of the other provider, shows a warning that the first did not respond and
+    marks the result as partial.
+  assertion_ids:
+  - investors.results
+- id: investors-limits
+  given: A provider returns an investor whose profile at example.org claims a typical ticket of 50,000 EUR.
+  when: Alice opens the result.
+  then: The ticket is shown as the investor's own description together with the note that results are public
+    self-descriptions and not a recommendation.
+  assertion_ids:
+  - investors.limits

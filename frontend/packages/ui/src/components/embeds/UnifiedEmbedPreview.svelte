@@ -34,6 +34,7 @@
 -->
 
 <script lang="ts">
+    import { vibrateDevice } from '../../services/eventSounds';
   import EmbedPreviewCorner from '@repo/public-site/components/results/EmbedPreviewCorner.svelte';
   import { text } from '../../i18n/translations';
   import AuthoredResultContextInfo from './AuthoredResultContextInfo.svelte';
@@ -45,14 +46,14 @@
   const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   import { onMount, onDestroy, getContext} from 'svelte';
   import BasicInfosBar from './BasicInfosBar.svelte';
+  import { nextEmbedProgress, parseEmbedProgress, type EmbedProgress } from './embedProgress';
   import InputEmbedThumbnails from './InputEmbedThumbnails.svelte';
   import SavedEmbedPreviewAction from './SavedEmbedPreviewAction.svelte';
   import { chatSyncService } from '../../services/chatSyncService';
   import { resolveEmbed, decodeToonContent, requestEmbedFromServerOnce } from '../../services/embedResolver';
   import { CONTENT_EMBED_CATALOG } from '../../data/embedRegistry.generated';
   import { EMBED_PREVIEW_PRESENTATION_CONTEXT, getStandalonePreviewPresentation, type EmbedPreviewPresentationContext } from '../../types/embedPreviewPresentation';
-  import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
-  import { findSavedEmbedMemoryReference } from '../../services/savedEmbedMemoryService';
+  import { savedEmbedIds, loadEmbedSaved, SAVEABLE_EMBED_APP_IDS } from '../../services/savedEmbedService';
   
   /**
    * Props interface for unified embed preview
@@ -159,7 +160,9 @@
   }: Props = $props();
   const authoring = $derived(authoringProp ?? authoredPresentation?.authoring);
 // Researched results would show only the source domain; some cards (events) omit it.
-  const showProvenance = $derived(!!authoring && !(hideSourceDomain && authoring.origin === 'researched'));
+  // A preview labels drafts, and names the source domain of a researched card unless the card hides it.
+  // Cards built from what the user supplied carry no origin label; their details view lists the origin.
+  const showProvenance = $derived(!!authoring && (authoring.origin === 'draft' || (authoring.origin === 'researched' && !hideSourceDomain)));
   
   type EmbedStatus = 'processing' | 'finished' | 'error' | 'cancelled';
 
@@ -174,6 +177,9 @@
   // Once the store says "finished", the $effect must NOT revert to statusProp
   // (which may still be "processing" from the HTML attribute baked during streaming).
   let storeResolved = $state(false);
+
+  // Live progress from repeated "processing" frames; the highest seq wins.
+  let progressState = $state<EmbedProgress | null>(null);
 
   // Use local status as the source of truth (allows updates from embed events)
   let status = $derived(localStatus ?? statusProp ?? 'processing');
@@ -197,7 +203,10 @@
     ? getStandalonePreviewPresentation(appId, skillId)
     : typeof previewPresentation === 'string' ? previewPresentation : previewPresentation.presentation) !== 'execution');
 
-  let savedEmbedMemory = $derived(findSavedEmbedMemoryReference($appSettingsMemoriesStore, id));
+  let isSavedEmbed = $derived($savedEmbedIds.has(id));
+  $effect(() => {
+    if (id && appId && (SAVEABLE_EMBED_APP_IDS as readonly string[]).includes(appId)) void loadEmbedSaved(id);
+  });
 
   // Stale-embed recovery: if still "processing" after STALE_CHECK_MS, send a
   // request_embed to the server. Redis pub/sub is fire-and-forget — if the
@@ -307,6 +316,9 @@
           const decodedContent = await decodeToonContent(embedData.content);
           if (decodedContent) {
             needsContentRecovery = false; // Content delivered — cancel pending retries
+            if (embedData.status === 'processing') {
+              progressState = nextEmbedProgress(progressState, parseEmbedProgress(decodedContent.progress));
+            }
             storedInputEmbedIds = Array.isArray(decodedContent.input_embed_ids)
               ? decodedContent.input_embed_ids.filter((id): id is string => typeof id === 'string') : [];
             // Recovery can retain stale outer status metadata. The decrypted
@@ -758,9 +770,7 @@
         previewElement.dispatchEvent(contextMenuEvent);
         
         // Vibrate to provide haptic feedback (if supported)
-        if (navigator.vibrate) {
-          navigator.vibrate(50);
-        }
+        vibrateDevice(50);
       }
     }, LONG_PRESS_DURATION);
   }
@@ -936,7 +946,7 @@
 {#snippet previewToolbar(inFlow: boolean)}
   <div class="result-tools" class:flow-tools={inFlow} data-testid="preview-tools">
         {#if resultPrimaryAction}{@render resultPrimaryAction()}{/if}
-        <SavedEmbedPreviewAction memory={savedEmbedMemory} onMore={handleContextMenu} />
+        <SavedEmbedPreviewAction embedId={id} saved={isSavedEmbed} onMore={handleContextMenu} />
         <button type="button" aria-label={$text('common.details')} onclick={(event) => { event.stopPropagation(); onFullscreen(); }} data-testid="result-preview-expand"><span class="clickable-icon icon_fullscreen" aria-hidden="true"></span></button>
       </div>
 {/snippet}
@@ -957,7 +967,7 @@
   class:intrinsic-preview={isAssistantResult && !resultPreview}
   class:plain-content-preview={isPlainTextResult}
   class:chat-result={isChatResult}
-  class:saved-grid-result={!isChatResult && !!savedEmbedMemory}
+  class:saved-grid-result={!isChatResult && isSavedEmbed}
   class:tools-preview={previewTools}
   data-testid="embed-preview"
   class:mobile={useMobileLayout}
@@ -991,7 +1001,7 @@
   ontouchmove={handleTouchMove}
   ontouchend={handleTouchEnd}
 >
-  {#if !isChatResult && savedEmbedMemory}<SavedEmbedPreviewAction memory={savedEmbedMemory} onMore={handleContextMenu} decorative />{/if}
+  {#if !isChatResult && isSavedEmbed}<SavedEmbedPreviewAction embedId={id} saved={isSavedEmbed} onMore={handleContextMenu} decorative />{/if}
   {#if resultPreview && isChatResult}{@render previewToolbar(false)}{/if}
   {#if usesResultShell}
     <EmbedPreviewCorner background={`var(--color-app-${appId}, var(--color-primary))`} iconUrl={`var(--icon-url-${resolveIconName(appIconName ?? appId)})`} />
@@ -1002,7 +1012,7 @@
       <div class="content-result-layout">
         <BasicInfosBar {appId} {skillId} {skillIconName} {appIconName} {status} {skillName} {taskId}
           isMobile={useMobileLayout} presentation="content" onStop={handleStop} {showStatus}
-          {faviconUrl} {faviconIsCircular} {customStatusText} {titleIcon} actionButton={specializedHeaderActions} />
+          {faviconUrl} {faviconIsCircular} {customStatusText} progress={progressState} {titleIcon} actionButton={specializedHeaderActions} />
         <div class="details-section" class:full-width-image={hasFullWidthImage}>
           {#if inputEmbedIds.length}<InputEmbedThumbnails {inputEmbedIds} />{/if}
           {#if details}
@@ -1031,6 +1041,7 @@
         {faviconIsCircular}
         showSkillIcon={shouldShowSkillIcon}
         customStatusText={customStatusText}
+        progress={progressState}
         {titleIcon}
         {actionButton}
       />
@@ -1069,6 +1080,7 @@
         {faviconIsCircular}
         showSkillIcon={shouldShowSkillIcon}
         customStatusText={customStatusText}
+        progress={progressState}
         {titleIcon}
         actionButton={previewTools ? specializedHeaderActions : actionButton}
       />

@@ -130,10 +130,10 @@ async def test_generates_one_encrypted_asset_and_records_exact_submitted_charact
 def test_assistant_response_speech_uses_one_message_level_character_rounding_step() -> None:
     assert calculate_assistant_response_speech_credits(submitted_characters=0) == 0
     assert calculate_assistant_response_speech_credits(submitted_characters=1) == 1
-    assert calculate_assistant_response_speech_credits(submitted_characters=76) == 1
-    assert calculate_assistant_response_speech_credits(submitted_characters=77) == 2
-    assert calculate_assistant_response_speech_credits(submitted_characters=1_000) == 13
-    assert calculate_assistant_response_speech_credits(submitted_characters=1_001) == 14
+    assert calculate_assistant_response_speech_credits(submitted_characters=51) == 1
+    assert calculate_assistant_response_speech_credits(submitted_characters=52) == 2
+    assert calculate_assistant_response_speech_credits(submitted_characters=1_000) == 20
+    assert calculate_assistant_response_speech_credits(submitted_characters=1_026) == 21
     assert calculate_assistant_response_speech_credits(submitted_characters=8 + 8) == 1
     assert ASSISTANT_RESPONSE_SPEECH_MODEL == "voxtral-mini-tts-3-0"
     assert DEFAULT_SPEECH_MODEL == "eleven_v3"
@@ -202,7 +202,7 @@ def test_billing_worker_settles_at_cost_with_model_attribution_and_no_duplicate_
         assert cleanup_calls == [True]
         return
 
-    total = {ASSISTANT_RESPONSE_SPEECH_MODEL: 13, ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL: 72, "eleven_v4_turbo": 40}[model]
+    total = {ASSISTANT_RESPONSE_SPEECH_MODEL: 20, ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL: 72, "eleven_v4_turbo": 40}[model]
     assert task.run({"manifest_id": "manifest-1"}) == {"status": "settled", "segments": 3, "credits": total}
     legacy_v3 = model == ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL
     assert [call["credits"] for call in charges] == ([1, 1, 70] if legacy_v3 else [1, total - 1])

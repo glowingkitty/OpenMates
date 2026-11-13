@@ -129,6 +129,28 @@ pub fn select_source(
         )),
     }
 }
+/// The relay request body; write-class calls also bind chat, operation id and
+/// proposal digest so the backend can match the stored approval.
+fn request_body(
+    request_id: &str,
+    client_id: &str,
+    sealed: (&str, u64, &str),
+    chat: Option<&str>,
+    approval: &Option<(String, String)>,
+) -> Value {
+    let (operation, key_epoch, envelope) = sealed;
+    let mut body = json!({"request_id":request_id,"requesting_client_id":client_id,
+        "operation":operation,"key_epoch":key_epoch,"encrypted_envelope":envelope});
+    // A chat id alone lets the relay resolve the chat worktree for reads.
+    if let Some(chat) = chat {
+        body["chat_id"] = json!(chat);
+    }
+    if let Some((operation_id, digest)) = approval {
+        body["operation_id"] = json!(operation_id);
+        body["proposal_digest"] = json!(digest);
+    }
+    body
+}
 fn object(text: &str) -> std::result::Result<Value, ProjectRequesterError> {
     serde_json::from_str::<Value>(text)
         .ok()
@@ -232,30 +254,77 @@ impl Projects<'_> {
         {
             return Err(remote("query_too_large", "Search query exceeds 256 bytes."));
         }
+        let (name, arguments) = operation.wire();
+        let capability = matches!(
+            operation,
+            ProjectFileOperation::Search {
+                include_content: true,
+                ..
+            }
+        )
+        .then_some("read");
+        let call = super::remote_ops::WireCall {
+            name,
+            arguments,
+            capability,
+            chat: None,
+            write: None,
+        };
+        let (project_id, source_id, result) = self
+            .source_call(selector, requested_source, call, timeout)
+            .await?;
+        Ok(json!({"project_id":project_id,"source_id":source_id,"result":result}))
+    }
+    /// The shared encrypted requester transport: resolve the Project and
+    /// source, optionally store the write approval, send one sealed request
+    /// and open the sealed answer. Returns `(project_id, source_id, result)`.
+    pub(super) async fn source_call(
+        &mut self,
+        selector: &str,
+        requested_source: Option<&str>,
+        call: super::remote_ops::WireCall,
+        timeout: std::time::Duration,
+    ) -> std::result::Result<(String, String, Value), ProjectRequesterError> {
         self.scope()?;
         let project = self.resolve(selector).await?;
         let project_id = string(&project.raw, "project_id")?.to_owned();
         let sources = self.list_sources_raw(&project_id).await?;
         let source = select_source(&sources, requested_source)?;
         let source_id = string(&source, "source_id")?.to_owned();
-        if source["status"] != "connected" {
+        // A placeholder awaiting folder creation is routable for exactly the
+        // creation operation (the backend rejects every other operation on it).
+        let creation = call.name == "create_source" && source["status"] == "creation_pending";
+        if source["status"] != "connected" && !creation {
             return Err(remote(
                 "source_offline",
                 "The selected Project source is offline.",
             ));
         }
-        if let ProjectFileOperation::Search {
-            include_content: true,
-            ..
-        } = &operation
+        if let Some(capability) = call.capability
             && source["capabilities"]
                 .as_array()
-                .is_some_and(|caps| !caps.iter().any(|c| c == "read"))
+                .is_some_and(|caps| !caps.iter().any(|c| c == capability))
         {
             return Err(remote(
                 "source_capability_denied",
-                "This Project source does not allow file reads.",
+                "This Project source does not allow this operation.",
             ));
+        }
+        let mut approval = None;
+        if let Some((chat, proposal)) = &call.write {
+            let digest = proposal.digest(&project.key, &project_id, chat)?;
+            let route = self.path(&format!("/v1/projects/{project_id}/write-approvals"), &[]);
+            self.backend
+                .request(
+                    Method::POST,
+                    &route,
+                    Some(
+                        json!({"chat_id":chat,"operation_id":proposal.operation_id(),"proposal_digest":digest}),
+                    ),
+                    None,
+                )
+                .await?;
+            approval = Some((proposal.operation_id().to_owned(), digest));
         }
         let mut session_id = source["source_session_id"]
             .as_str()
@@ -263,6 +332,13 @@ impl Projects<'_> {
             .map(str::to_owned);
         let mut key_epoch = source["key_epoch"].as_u64();
         let mut routing = None;
+        if creation && (session_id.is_none() || key_epoch.is_none()) {
+            // Discovery would use a read operation, which a placeholder refuses.
+            return Err(remote(
+                "source_offline",
+                "The machine has not bound the new Project source yet.",
+            ));
+        }
         if session_id.is_none() || key_epoch.is_none() {
             let (session, epoch, identity) = self
                 .discover_routing(&project_id, &source_id, &project.key, timeout)
@@ -308,7 +384,7 @@ impl Projects<'_> {
             },
         };
         let requester = HandshakeState::new(&project.key, identity, Role::Requester)?;
-        let (name, arguments) = operation.wire();
+        let (name, arguments) = (call.name, call.arguments);
         let envelope = crate::work::teams::legacy_encrypt(
             json!({"requesting_client_id":client_id,"requester_handshake":requester.handshake(),
                 "operation":name,"arguments":arguments})
@@ -322,10 +398,13 @@ impl Projects<'_> {
             .request(
                 Method::POST,
                 &route,
-                Some(
-                    json!({"request_id":request_id,"requesting_client_id":client_id,
-                    "operation":name,"key_epoch":key_epoch,"encrypted_envelope":envelope}),
-                ),
+                Some(request_body(
+                    &request_id,
+                    &client_id,
+                    (name, key_epoch, &envelope),
+                    call.chat.as_deref(),
+                    &approval,
+                )),
                 None,
             )
             .await?;
@@ -372,7 +451,7 @@ impl Projects<'_> {
                 message: remote_error_message(code),
             });
         }
-        Ok(json!({"project_id":project_id,"source_id":source_id,"result":response["result"]}))
+        Ok((project_id, source_id, response["result"].clone()))
     }
     async fn discover_routing(
         &mut self,
@@ -441,4 +520,4 @@ impl Projects<'_> {
 
 #[cfg(test)]
 #[path = "remote_files_tests.rs"]
-mod tests;
+pub(super) mod tests;

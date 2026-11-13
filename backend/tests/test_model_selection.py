@@ -142,7 +142,7 @@ class TestModelSelector:
         assert DEFAULT_FALLBACK_MODEL_ALT == "google/gemini-3.8-flash"
         assert {model for model in ECONOMICAL_MODELS if model.startswith("claude-")} == {"claude-haiku-5-5"}
         assert {model for model in PREMIUM_MODELS if model.startswith("claude-")} == {
-            "claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5",
+            "claude-fable-5-2", "claude-opus-5-5", "claude-sonnet-5-5",
         }
         assert {model for model in ECONOMICAL_MODELS | PREMIUM_MODELS if model.startswith(("gpt-", "gpt-oss-"))} == {
             "gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna", "gpt-5.6-terra", "gpt-oss-120b",
@@ -160,8 +160,8 @@ class TestModelSelector:
         assert model["for_app_skill"] == "ai.ask"
         assert model["allow_auto_select"] is True
         assert model["tier"] == "premium"
-        assert model["pricing"]["tokens"]["input"] == {"per_credit_unit": 225}
-        assert model["pricing"]["tokens"]["output"] == {"per_credit_unit": 45}
+        assert model["pricing"]["tokens"]["input"] == {"per_credit_unit": 445}
+        assert model["pricing"]["tokens"]["output"] == {"per_credit_unit": 90}
 
     def test_select_models_basic(self, mock_leaderboard_data):
         """Test basic model selection returns top-ranked models."""

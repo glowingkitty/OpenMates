@@ -10,6 +10,7 @@ from typing import Any, Optional, Union, List, Tuple, Literal, Dict
 from datetime import datetime, timezone
 from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData, MessageInCache
 from backend.core.api.app.services.cache_reminder_mixin import PENDING_EMBED_KEY_PREFIX
+from backend.core.api.app.services.draft_deletion_record import clear_draft_deletion_record
 
 logger = logging.getLogger(__name__)
 _AI_LOCK_LOST_CANCEL = object()
@@ -886,6 +887,8 @@ class ChatCacheMixin:
             )
             if was_written:
                 logger.debug(f"Updated draft for user {user_id}, chat {chat_id} with version {draft_version}")
+                if encrypted_draft_md is not None:  # A new draft outranks any earlier delete record.
+                    await clear_draft_deletion_record(self, user_id, chat_id)
             else:
                 logger.info(f"Skipped stale draft cache write for user {user_id}, chat {chat_id} at version {draft_version}")
             return bool(was_written)

@@ -13,6 +13,8 @@ vi.mock('../generatedChatMetadataPersistence', () => ({ persistGeneratedChatMeta
 // Keep mocks narrow so handler behavior remains visible.
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { ChatSynchronizationService } from "../chatSyncService";
 import { noteChatMetadataTurn } from "../lateChatMetadataGuard";
 import { hasQueuedProcessing } from "../queuedMessageLifecycle";
@@ -23,6 +25,8 @@ import {
   flushPendingFinalizedEmbedsForChat,
   handleAIBackgroundResponseCompletedImpl,
   handleAIMessageUpdateImpl,
+  handleAIThinkingChunkImpl,
+  handleAIThinkingCompleteImpl,
   handleAITaskInitiatedImpl,
   handleAITaskCancelRequestedImpl,
   handleAIResponseStorageConfirmedImpl,
@@ -74,6 +78,26 @@ describe("context failure typing end", () => {
       chatId: "chat-1", taskId: "task-1", userMessageId: "user-1", status: "failed",
     });
     expect(mockChatDB.saveMessage).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+  it("ends the turn as failed for a refused focus continuation with its own task id", () => {
+    const activeAITasks = new Map([["chat-1", { taskId: "cont-task", userMessageId: "user-1" }]]);
+    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    handleAITypingEndedImpl(service, {
+      chat_id: "chat-1", message_id: "user-1", task_id: "cont-task",
+      terminal_failure_code: "focus_continuation_unavailable",
+    });
+
+    expect(activeAITasks.has("chat-1")).toBe(false);
+    const ended = vi.mocked(service.dispatchEvent).mock.calls
+      .map(([event]) => event as CustomEvent)
+      .filter((event) => event.type === "aiTaskEnded");
+    expect(ended).toHaveLength(1);
+    expect(ended[0].detail).toEqual({
+      chatId: "chat-1", taskId: "cont-task", userMessageId: "user-1", status: "failed",
+    });
   });
 
   // contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
@@ -491,6 +515,25 @@ vi.mock("../websocketService", () => ({
   webSocketService: mockWebSocketService,
 }));
 
+const mockRecommendations = vi.hoisted(() => ({
+  inBuild: false,
+  reconcile: vi.fn(),
+  decrypt: vi.fn(),
+  encrypt: vi.fn(),
+  setState: vi.fn(),
+}));
+
+vi.mock("../chatRecommendationsPersistence", () => ({
+  get RECOMMENDATIONS_IN_BUILD() { return mockRecommendations.inBuild; },
+  reconcileIncomingRecommendations: mockRecommendations.reconcile,
+  decryptRecommendationsState: mockRecommendations.decrypt,
+  encryptRecommendationsState: mockRecommendations.encrypt,
+}));
+
+vi.mock("../../stores/chatRecommendationsStore", () => ({
+  setChatRecommendations: mockRecommendations.setState,
+}));
+
 vi.mock("../chatSyncService", () => ({
   chatSyncService: {
     addEventListener: vi.fn(),
@@ -879,6 +922,29 @@ describe("handleAIBackgroundResponseCompletedImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.completion.recovery-takeover
+  it("neither saves nor sends an interim agent step of a sealed-recovery turn", async () => {
+    mockChatDB.getChat.mockResolvedValue({
+      chat_id: "chat-1", title: "Recipe Manager", messages_v: 1,
+      last_edited_overall_timestamp: 100,
+    });
+    const activeAITasks = new Map([["chat-1", { taskId: "task-1", userMessageId: "user-1" }]]);
+    const service = {
+      activeAITasks, dispatchEvent: vi.fn(), sendCompletedAIResponse: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleAIBackgroundResponseCompletedImpl(service, {
+      chat_id: "chat-1", message_id: "assistant-1", user_message_id: "user-1",
+      task_id: "task-1", full_content: "Running the browser test now.",
+      awaiting_async_skill_continuation: true, recovery_turn_id: "turn-1",
+    });
+
+    expect(mockChatDB.saveMessage).not.toHaveBeenCalled();
+    expect(service.sendCompletedAIResponse).not.toHaveBeenCalled();
+    expect(activeAITasks.get("chat-1")?.taskId).toBe("task-1");
+    expect(mockAiTypingStore.clearTyping).not.toHaveBeenCalled();
+  });
+
   // contract-test: direct surface=gui.web assertions=chats.completion.pending-delivery,chats.local-state.precedence
   it("does not notify when the completed background response is for the visibly open chat", async () => {
     const chat = {
@@ -1209,7 +1275,7 @@ describe("handlePostProcessingCompletedImpl", () => {
       chat_tags: ["Berlin"],
       harmful_response: 0,
       top_recommended_apps_for_user: [],
-      quick_tip_slugs: [],
+      recommendations: [],
       source_title_v: 3,
       source_metadata_v: 3,
     });
@@ -1272,7 +1338,7 @@ describe("handlePostProcessingCompletedImpl", () => {
       chat_tags: [],
       harmful_response: 0,
       top_recommended_apps_for_user: [],
-      quick_tip_slugs: [],
+      recommendations: [],
       source_title_v: 3,
       source_metadata_v: 3,
     });
@@ -1302,6 +1368,92 @@ describe("handlePostProcessingCompletedImpl", () => {
       "",
       "encrypted-chat-key",
     );
+  });
+});
+
+describe("handlePostProcessingCompletedImpl recommendations", () => {
+  const recommendation = {
+    id: "rec-1", kind: "memory" as const, action: "create" as const, target_id: null,
+    title: "Conference preferences", summary: "Prefers open source conferences in Europe.",
+  };
+  const previous = {
+    schema_version: 1 as const, items: [], dismissed: ["Old idea"], resolved: [], updated_at: 1,
+  };
+  const basePayload = {
+    chat_id: "chat-1", task_id: "task-1", follow_up_request_suggestions: [],
+    new_chat_request_suggestions: [], chat_summary: "", chat_tags: [], harmful_response: 0,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRecommendations.inBuild = true;
+    mockChatDB.updateChat.mockResolvedValue(undefined);
+    mockChatDB.getChat.mockResolvedValue({
+      chat_id: "chat-1", encrypted_chat_key: "encrypted-chat-key", title_v: 1, metadata_v: 1,
+      encrypted_recommendations: "stored-recommendations",
+    });
+    mockChatKeyManager.withKey.mockImplementation(
+      async (_chatId: string, _reason: string, callback: (key: Uint8Array) => Promise<void>) => {
+        await callback(new Uint8Array([1, 2, 3]));
+      },
+    );
+    mockEnsureChatKeySafeForWrite.mockResolvedValue(true);
+    mockSendPostProcessingMetadata.mockResolvedValue(undefined);
+    mockRecommendations.decrypt.mockResolvedValue(previous);
+    mockRecommendations.reconcile.mockImplementation(async (items: unknown[], prior: typeof previous) => ({
+      ...prior, items, updated_at: 2,
+    }));
+    mockRecommendations.encrypt.mockImplementation(async (state: { items: unknown[] }) =>
+      `encrypted-recommendations:${state.items.length}`);
+  });
+
+  afterEach(() => { mockRecommendations.inBuild = false; });
+
+  // contract-test: direct surface=gui.web assertions=app-memories.suggestions.post-processor,app-memories.suggestions.no-duplicates
+  it("reconciles against the stored state, encrypts, persists, syncs and dispatches the items", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handlePostProcessingCompletedImpl(service, { ...basePayload, recommendations: [recommendation] });
+
+    expect(mockRecommendations.decrypt).toHaveBeenCalledWith("stored-recommendations", expect.any(Uint8Array), "chat-1");
+    expect(mockRecommendations.reconcile).toHaveBeenCalledWith([recommendation], previous);
+    expect(mockChatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({
+      encrypted_recommendations: "encrypted-recommendations:1",
+    }));
+    expect(mockSendPostProcessingMetadata).toHaveBeenCalledWith(
+      service, "chat-1", "", [], "", "", "", "encrypted-recommendations:1", "", "", "encrypted-chat-key",
+    );
+    expect(mockRecommendations.setState).toHaveBeenCalledWith("chat-1", expect.objectContaining({
+      items: [recommendation], dismissed: ["Old idea"],
+    }));
+    const completed = vi.mocked(service.dispatchEvent).mock.calls
+      .map(([event]) => event as CustomEvent)
+      .find((event) => event.type === "postProcessingCompleted");
+    expect(completed?.detail.recommendations).toEqual([recommendation]);
+  });
+
+  // contract-test: direct surface=gui.web assertions=app-memories.suggestions.post-processor
+  it("clears the open items when the latest turn has no recommendations", async () => {
+    mockRecommendations.decrypt.mockResolvedValue({ ...previous, items: [recommendation] });
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handlePostProcessingCompletedImpl(service, { ...basePayload, recommendations: [] });
+
+    expect(mockRecommendations.reconcile).not.toHaveBeenCalled();
+    expect(mockRecommendations.setState).toHaveBeenCalledWith("chat-1", expect.objectContaining({
+      items: [], dismissed: ["Old idea"],
+    }));
+  });
+
+  // contract-test: direct surface=gui.web assertions=app-memories.suggestions.post-processor
+  it("ignores recommendations in flag-off builds", async () => {
+    mockRecommendations.inBuild = false;
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handlePostProcessingCompletedImpl(service, { ...basePayload, recommendations: [recommendation] });
+
+    expect(mockRecommendations.decrypt).not.toHaveBeenCalled();
+    expect(mockRecommendations.reconcile).not.toHaveBeenCalled();
+    expect(mockRecommendations.encrypt).not.toHaveBeenCalled();
+    expect(mockRecommendations.setState).not.toHaveBeenCalled();
+    expect(mockChatDB.updateChat).not.toHaveBeenCalled();
   });
 });
 
@@ -1495,6 +1647,7 @@ describe("handleSendEmbedDataImpl", () => {
         expect.objectContaining({ key_type: 'master', encrypted_embed_key: 'wrapped-master-key' }),
         expect.objectContaining({ key_type: 'chat', encrypted_embed_key: 'wrapped-chat-key' }),
       ]) }), expect.objectContaining({ embedId: 'failed-execution' }),
+      'stream-completion',
     );
     expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
       type: 'embedUpdated', detail: expect.objectContaining({ embed_id: 'failed-execution', task_id: 'task-1', status: 'error', isProcessing: false }),
@@ -1758,6 +1911,7 @@ describe("handleSendEmbedDataImpl", () => {
       }),
       undefined,
       expect.objectContaining({ embedId: "child-1" }),
+      'stream-completion',
     );
   });
 
@@ -1844,6 +1998,7 @@ describe("handleSendEmbedDataImpl", () => {
         expect.objectContaining({ key_type: "chat" }),
       ]) }),
       expect.objectContaining({ embedId: "embed-1" }),
+      'stream-completion',
     );
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1940,6 +2095,7 @@ describe("handleSendEmbedDataImpl", () => {
         expect.objectContaining({ key_type: "chat" }),
       ]) }),
       expect.objectContaining({ embedId: "embed-1" }),
+      'stream-completion',
     );
   });
 
@@ -2028,6 +2184,7 @@ describe("handleSendEmbedDataImpl", () => {
           expect.objectContaining({ key_type: "chat" }),
         ]) }),
         expect.objectContaining({ embedId: "embed-1" }),
+        'stream-completion',
       );
     } finally {
       vi.useRealTimers();
@@ -2118,6 +2275,7 @@ describe("handleSendEmbedDataImpl", () => {
           expect.objectContaining({ key_type: "chat" }),
         ]) }),
         expect.objectContaining({ embedId: "embed-1" }),
+        'stream-completion',
       );
     } finally {
       vi.useRealTimers();
@@ -2183,7 +2341,7 @@ describe("legacy canonical ACK turn settlement", () => {
   const canonical = () => ({ chat_id: chat.chat_id, messages_v: 7, messages: [{ ...assistant, encrypted_content: "ciphertext" }] });
   const ack = { chat_id: chat.chat_id, message_id: assistant.message_id, task_id: "already_processed" };
   const service = { unmarkMessageSyncing: vi.fn(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
-  let entered: ReturnType<typeof vi.fn>;
+  let entered: (value: number | null) => void;
   let queued: Promise<unknown>;
   beforeEach(() => {
     vi.clearAllMocks();
@@ -2198,7 +2356,7 @@ describe("legacy canonical ACK turn settlement", () => {
     const first = reservePersonalChatTurn(chat.chat_id, assistant.user_message_id);
     bindPersonalChatTurn(first, "real-preflight-turn");
     entered = vi.fn();
-    queued = awaitPersonalChatPredecessor(reservePersonalChatTurn(chat.chat_id, "next-user")).then(entered, () => undefined);
+    queued = awaitPersonalChatPredecessor(reservePersonalChatTurn(chat.chat_id, "next-user")).then((value) => entered(value), () => undefined);
   });
   afterEach(async () => { clearPersonalChatTurnBarriers(); await queued; vi.unstubAllGlobals(); });
   // contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.message.identity-idempotent
@@ -2251,5 +2409,83 @@ describe("legacy canonical ACK turn settlement", () => {
     expect(mockChatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({ messages_v: 12 }));
     expect(mockChatListCache.upsertChat).toHaveBeenCalledWith(expect.objectContaining({ messages_v: 14 }));
     expect(entered).toHaveBeenCalledExactlyOnceWith(7);
+  });
+});
+
+// Parity vectors of the Rust stream assembler (packages/openmates-rust/src/web_stream),
+// observed from the real handlers. Regenerate with UPDATE_STREAM_VECTORS=1.
+describe("stream assembler parity vectors (TypeScript side)", () => {
+  const VECTORS = resolve(__dirname, "../../../../../../packages/openmates-rust/src/web_stream/ts_vectors_stream.json");
+  const update = process.env.UPDATE_STREAM_VECTORS === "1";
+  const json = (value: unknown) => JSON.parse(JSON.stringify(value));
+
+  type Step = { op: string; in: Record<string, unknown>; out?: Record<string, unknown> };
+  async function thinking(steps: Array<{ chunk?: Record<string, unknown>; complete?: Record<string, unknown> }>): Promise<{ steps: Step[] }> {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const recorded: Step[] = [];
+    for (const step of steps) {
+      if (step.chunk) {
+        handleAIThinkingChunkImpl(service, step.chunk as never);
+        recorded.push({ op: "thinkingChunk", in: json(step.chunk), out: { message_id: (step.chunk.message_id || step.chunk.task_id) as string } });
+      } else if (step.complete) {
+        mockChatDB.updateMessageRawFields.mockClear();
+        handleAIThinkingCompleteImpl(service, step.complete as never);
+        await Promise.resolve();
+        const call = mockChatDB.updateMessageRawFields.mock.calls[0];
+        recorded.push({
+          op: "thinkingComplete", in: json(step.complete),
+          out: { message_id: (step.complete.message_id || step.complete.task_id) as string, fields: call ? json(call[1]) : null },
+        });
+      }
+    }
+    return { steps: recorded };
+  }
+
+  // contract-test: supporting surface=sdks.rust assertions=sync.client.shared-rust-policy
+  it("thinking stream and final-chunk plan match the committed vectors", async () => {
+    vi.clearAllMocks();
+    mockChatDB.updateMessageRawFields.mockResolvedValue(undefined);
+    const chunk = (id: string, content?: string, extra: Record<string, unknown> = {}) => ({ chunk: { chat_id: "c1", task_id: "t1", message_id: id, ...(content === undefined ? {} : { content }), ...extra } });
+    const complete = (id: string, extra: Record<string, unknown> = {}) => ({ complete: { chat_id: "c1", task_id: "t1", message_id: id, ...extra } });
+    const scenarios = [
+      await thinking([chunk("m1", "He"), chunk("m1", "llo"), complete("m1", { signature: "sig", total_tokens: 7 })]),
+      await thinking([chunk("m2", "abc"), complete("m2")]),
+      await thinking([chunk("", "task keyed"), complete("", { signature: "s" })]),
+      await thinking([complete("m3", { signature: "s", total_tokens: 3 })]),
+      await thinking([chunk("m4", ""), complete("m4")]),
+      await thinking([chunk("m5", "x"), complete("m5", { signature: "first", total_tokens: 1 }), complete("m5", { signature: null, total_tokens: null }), complete("m5", { signature: "second" })]),
+      await thinking([chunk("m6", "x"), complete("m6", { total_tokens: 0 })]),
+      await thinking([chunk("m7", "x"), complete("m7", { signature: "" })]),
+      await thinking([chunk("m8", "a"), chunk("m8"), chunk("m8", "b", { chat_id: "c2" }), complete("m8")]),
+      await thinking([chunk("m9", "one"), chunk("m10", "two"), complete("m10"), chunk("m9", "+"), complete("m9")]),
+    ];
+
+    const plans: Array<{ in: unknown; out: unknown }> = [];
+    for (const awaiting of [false, true]) for (const revoked of [false, true]) for (const soft of [false, true]) for (const rejection of [undefined, "policy"]) {
+      for (const active of [null, "t1", "t2"]) {
+        const activeAITasks = new Map<string, { taskId: string; userMessageId: string }>();
+        if (active) activeAITasks.set("c1", { taskId: active, userMessageId: "u-active" });
+        const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+        const payload = {
+          type: "ai_message_chunk" as const, chat_id: "c1", task_id: "t1", message_id: "a1", user_message_id: "u-payload",
+          full_content_so_far: "", sequence: 1, is_final_chunk: true,
+          awaiting_async_skill_continuation: awaiting, interrupted_by_revocation: revoked, interrupted_by_soft_limit: soft,
+          ...(rejection ? { rejection_reason: rejection } : {}),
+        };
+        handleAIMessageUpdateImpl(service, payload as never);
+        const ended = vi.mocked(service.dispatchEvent).mock.calls.map(([event]) => event as CustomEvent).filter((event) => event.type === "aiTaskEnded");
+        const input = { payload: json(payload), activeTask: active ? { taskId: active, userMessageId: "u-active" } : null };
+        plans.push({
+          in: input,
+          out: ended.length
+            ? { action: "final", status: ended[0].detail.status, matched: active === "t1", userMessageId: ended[0].detail.userMessageId }
+            : { action: "ignore" },
+        });
+      }
+    }
+
+    const generated = { schema: 1, thinking: scenarios, finalPlan: plans };
+    if (update) writeFileSync(VECTORS, JSON.stringify(generated, null, 1) + "\n");
+    else expect(generated).toEqual(JSON.parse(readFileSync(VECTORS, "utf8")));
   });
 });

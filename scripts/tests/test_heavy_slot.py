@@ -37,3 +37,26 @@ def test_wrapped_command_applies_limits() -> None:
     assert f"MemoryMax={heavy_slot.MEMORY_MAX}" in wrapped
     assert wrapped[-2:] == ["cargo", "build"]
     assert "nice" in wrapped
+
+
+# contract-test: tooling
+def test_memory_admission_counts_a_run_that_just_started() -> None:
+    gib = heavy_slot.host_load_guard.GIB
+    # 2026-11-11: 8.4 GiB available admitted two 6 GiB-capped runs in the same second.
+    assert heavy_slot.memory_shortfall(int(8.4 * gib), recent=0) is not None
+    assert heavy_slot.memory_shortfall(9 * gib, recent=0) is None
+    assert heavy_slot.memory_shortfall(14 * gib, recent=1) is not None
+    assert heavy_slot.memory_shortfall(15 * gib, recent=1) is None
+
+
+# contract-test: tooling
+def test_recent_starts_ignores_settled_and_free_slots(tmp_path: Path) -> None:
+    held = heavy_slot.try_acquire(tmp_path)
+    assert held is not None
+    fd, slot = held
+    now = (tmp_path / f"slot-{slot}.lock").stat().st_mtime
+    assert heavy_slot.recent_starts(tmp_path, now + 1) == 1
+    assert heavy_slot.recent_starts(tmp_path, now + heavy_slot.SETTLE_SECONDS + 1) == 0
+    fcntl.flock(fd, fcntl.LOCK_UN)
+    os.close(fd)
+    assert heavy_slot.recent_starts(tmp_path, now + 1) == 0

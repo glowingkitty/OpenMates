@@ -1,0 +1,11 @@
+{
+  "description": "Shared missing-API-key refusal vectors for the account SDK client (npm/Python OpenMatesClient, Rust ApiKey::new). Spec: sdk.auth.api-key-only. Synthetic placeholder keys only.",
+  "code": "OPENMATES_SDK_API_KEY_REQUIRED",
+  "message_contains": "Settings → Developers",
+  "vectors": [
+    {"id": "absent-key-refused", "api_key": null, "expected_code": "OPENMATES_SDK_API_KEY_REQUIRED", "rust": "type-unrepresentable"},
+    {"id": "empty-key-refused", "api_key": "", "expected_code": "OPENMATES_SDK_API_KEY_REQUIRED"},
+    {"id": "whitespace-key-refused", "api_key": "  \t", "expected_code": "OPENMATES_SDK_API_KEY_REQUIRED"},
+    {"id": "present-key-accepted", "api_key": "sk-api-presentFixture", "expected_code": null}
+  ]
+}

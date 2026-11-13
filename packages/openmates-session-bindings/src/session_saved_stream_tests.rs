@@ -560,7 +560,9 @@ async fn actual_owned_close_drains_same_driver_without_client_lock_or_foreign_up
     assert_eq!(output.encode_checked(|_| { called.store(true,Ordering::SeqCst); Ok(()) }).err().map(|e|e.code),Some("cancelled"));
     assert!(!called.load(Ordering::SeqCst));
     assert!(output.output.is_empty());
-    assert!(peer.get("/__test/status")["closed_sockets"].as_u64().unwrap()>0);
+    // The peer counts the close on its own handler thread after the Core closes
+    // the socket, so observe it through the protocol barrier, not a one-shot read.
+    peer.wait(|r|r["closed_sockets"].as_u64().unwrap()>0).await;
 }
 
 // contract-test: supporting surface=sdks.rust assertions=sdk.surface.semantic-parity,auth.session.isolation

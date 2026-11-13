@@ -2,7 +2,7 @@
 //! journals, credentials, or draft state. Closing the authenticated socket
 //! revokes its server-owned volatile session nonce.
 use super::{send_observations::SendObservations, transport, *};
-use crate::privacy::{PreparedPrivacy, prepare, restore};
+use crate::privacy::{PreparedPrivacy, restore};
 use transport::{Socket, send};
 
 const MAX_RESPONSE: usize = 16 * 1024 * 1024;
@@ -37,7 +37,13 @@ impl Client {
                 "Native volatile chat is available only in Personal scope.",
             ));
         }
-        if text.trim().is_empty()
+        if anonymous && (!options.embeds.is_empty() || !options.pii_mappings.is_empty()) {
+            return Err(Error::Invalid(
+                "Anonymous chats cannot carry attachments or caller privacy mappings.",
+            ));
+        }
+        // An attachment-only turn is valid: its text is the reference blocks.
+        if (text.trim().is_empty() && options.embeds.is_empty())
             || (anonymous && text.chars().count() > 20_000)
             || (!anonymous && text.len() > 1_000_000)
         {
@@ -51,14 +57,8 @@ impl Client {
             return Err(Error::Cancelled);
         }
         self.verify_private_operation()?;
-        if options.pii_detection {
-            prepare(text, &[], &[])
-        } else {
-            Ok(PreparedPrivacy {
-                text: text.into(),
-                mappings: vec![],
-            })
-        }
+        let composed = super::send_attachments::content_with_references(text, &options.embeds);
+        super::send_attachments::prepare_turn_privacy(&composed, &[], &[], options)
     }
     fn register_ephemeral(&mut self, id: &str) -> Result<()> {
         // Never evict identifiers and accidentally permit a later draft write.
@@ -88,8 +88,8 @@ impl Client {
         if cancel.is_cancelled() {
             return Err(Error::Cancelled);
         }
-        let chat = uuid::Uuid::new_v4().to_string();
-        let user = uuid::Uuid::new_v4().to_string();
+        // Reserved ids let the shell route to the volatile chat before the send.
+        let (chat, user) = self.turn_identity(None, options.reserved_ids.as_ref())?;
         self.register_ephemeral(&chat)?;
         // Auth refresh completes before cancellation so rotations remain visible.
         let mut ws = self.ephemeral_socket().await?;
@@ -140,8 +140,15 @@ impl Client {
                 message_id: user.into(),
             },
         );
-        send(ws,"chat_message_added",json!({"chat_id":chat,"is_incognito":true,"client_capabilities":[],
-            "active_focus_id":null,"focus_phase_state":null,"message":message,"message_history":[message]})).await?;
+        let mut added = json!({"chat_id":chat,"is_incognito":true,"client_capabilities":[],
+            "active_focus_id":null,"focus_phase_state":null,"message":message,"message_history":[message]});
+        // Volatile attachments travel only as cleartext inference embeds
+        // (web: no `encrypted_embeds` for incognito, nothing is stored).
+        let embeds = super::send_attachments::cleartext_embeds(&options.embeds, created);
+        if !embeds.is_empty() {
+            added["embeds"] = Value::Array(embeds);
+        }
+        send(ws, "chat_message_added", added).await?;
         let deadline = crate::platform::time::Instant::now() + response_timeout(options);
         let mut stream = VolatileStream::new(chat, user, input, &prepared.mappings);
         loop {

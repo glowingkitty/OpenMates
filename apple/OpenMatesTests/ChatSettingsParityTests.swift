@@ -107,14 +107,14 @@ final class ChatSettingsParityTests: XCTestCase {
     }
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testBundledPublicUsagePopulatesKnownCreditsWithoutOwnerLoading() {
-        let rows = PublicChatUsageCatalog.rows(chatID: "example-audio-speak-openmates-welcome-message")
+        let rows = PublicChatUsageCatalog.rows(chatID: "example-audio-generate-openmates-success-chime")
         XCTAssertEqual(rows.count, 2)
-        XCTAssertEqual(rows.map(\.label), ["ai | ask", "audio | speak"])
+        XCTAssertEqual(rows.map(\.label), ["ai | ask", "audio | generate"])
         let model = ChatSettingsUsageModel()
         model.total = 999
         model.loadStatic(rows: rows)
         XCTAssertNil(model.total)
-        XCTAssertEqual(model.knownCredits, 37)
+        XCTAssertEqual(model.knownCredits, 34)
         XCTAssertTrue(model.hasKnownCredits)
         XCTAssertTrue(ChatSettingsProjection.visibleTabs(example: true, hasFiles: false, hasUsage: model.hasKnownCredits).contains(.usage))
         XCTAssertFalse(rows[0].timestampLabel.isEmpty)
@@ -135,14 +135,14 @@ final class ChatSettingsParityTests: XCTestCase {
     }
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testBundledPublicAudioFileUsesConfiguredOriginAndSanitizedReference() throws {
-        let chatID = "example-audio-speak-openmates-welcome-message"
+        let chatID = "example-audio-generate-openmates-success-chime"
         let files = PublicChatFileCatalog.rows(chatID: chatID)
         XCTAssertEqual(files.count, 1)
         let file = try XCTUnwrap(files.first)
         XCTAssertEqual(file.type, "audio")
-        XCTAssertEqual(ChatSettingsExport.title(file), "audio-speak-openmates-welcome-message.mp3")
+        XCTAssertEqual(ChatSettingsExport.title(file), "audio-generate-openmates-success-chime.mp3")
         let url = try XCTUnwrap(ChatSettingsExport.publicFileURL(file))
-        XCTAssertEqual(url, PublicAssistantSpeechSegment.url("/store-examples/audio-speak-openmates-welcome-message.mp3"))
+        XCTAssertEqual(url, PublicAssistantSpeechSegment.url("/store-examples/audio-generate-openmates-success-chime.mp3"))
         XCTAssertEqual(url.host, ServerProfile.current().webBaseURL.host)
         XCTAssertEqual(url.pathExtension, "mp3")
         XCTAssertEqual(Set(file.rawData?.keys.map { $0 } ?? []), ["filename", "type", "mime_type", "public_file_url", "public_file_reference", "file_icon", "file_metadata"])
@@ -152,7 +152,7 @@ final class ChatSettingsParityTests: XCTestCase {
         let alternateFile = try XCTUnwrap(PublicChatFileCatalog.parse(source, chatID: chatID, origin: alternate).first)
         XCTAssertEqual(ChatSettingsExport.publicFileURL(alternateFile)?.host, alternate.host)
         XCTAssertTrue(PublicChatFileCatalog.parse(source, chatID: "example-other").isEmpty)
-        let rejected = source.replacingOccurrences(of: "/store-examples/audio-speak-openmates-welcome-message.mp3", with: "https://user:secret@example.invalid/file.mp3")
+        let rejected = source.replacingOccurrences(of: "/store-examples/audio-generate-openmates-success-chime.mp3", with: "https://user:secret@example.invalid/file.mp3")
         let rejectedFile = try XCTUnwrap(PublicChatFileCatalog.parse(rejected, chatID: chatID).first)
         XCTAssertNil(ChatSettingsExport.publicFileURL(rejectedFile))
         XCTAssertNil(rejectedFile.rawData?["prompt"])
@@ -180,7 +180,7 @@ final class ChatSettingsParityTests: XCTestCase {
     }
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testPublicCodeWithoutURLExportsSanitizedReferenceInsteadOfEmptyCode() async throws {
-        for (chatID, expected) in [("example-python-squares-code-run", "square_parity.py"), ("example-svelte-runes-docs", "PriceCalculator.svelte")] {
+        for (chatID, expected) in [("example-svelte-runes-docs", "PriceCalculator.svelte")] {
             let file = try XCTUnwrap(PublicChatFileCatalog.rows(chatID: chatID).first { ChatSettingsExport.title($0) == expected })
             XCTAssertEqual(file.rawData?["public_file_reference"]?.value as? Bool, true)
             let exported = try await ChatSettingsExport.file(file, scope: nil)
@@ -192,9 +192,9 @@ final class ChatSettingsParityTests: XCTestCase {
             XCTAssertEqual(reference["contentRef"], "embed:" + file.id)
             XCTAssertFalse(exported.data.isEmpty)
         }
-        let audio = try XCTUnwrap(PublicChatFileCatalog.rows(chatID: "example-audio-speak-openmates-welcome-message").first)
+        let audio = try XCTUnwrap(PublicChatFileCatalog.rows(chatID: "example-audio-generate-openmates-success-chime").first)
         XCTAssertEqual(audio.rawData?["file_icon"]?.value as? String, "audio")
-        XCTAssertEqual(audio.rawData?["file_metadata"]?.value as? String, "Audio | 4.6s | 73 KB")
+        XCTAssertEqual(audio.rawData?["file_metadata"]?.value as? String, "Audio | 0.8s | 14 KB")
     }
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testUsageEntryAppIconsMatchWebMappingAndFallback() throws {
@@ -208,7 +208,7 @@ final class ChatSettingsParityTests: XCTestCase {
         let local = ChatSettingsUsageRow(id: "local", label: "AI | Ask", provider: "Model", credits: nil, timestamp: "")
         XCTAssertNil(local.appID)
         XCTAssertEqual(local.iconName, "chat")
-        XCTAssertEqual(PublicChatUsageCatalog.rows(chatID: "example-audio-speak-openmates-welcome-message").map(\.iconName), ["ai", "audio"])
+        XCTAssertEqual(PublicChatUsageCatalog.rows(chatID: "example-audio-generate-openmates-success-chime").map(\.iconName), ["ai", "audio"])
     }
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testUsageDatesNormalizeSecondsMillisecondsAndISOTime() {

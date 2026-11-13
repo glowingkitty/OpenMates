@@ -72,3 +72,31 @@ test("SDK validates canonical OM fingerprints while preserving the historical Py
   bytes[2] ^= 1;
   assert.equal(await decryptWithAesGcmCombined(bytes.toString("base64"), key), null);
 });
+
+test("npm API-key operations emit the shared wire vectors used by Rust and Python", async () => {
+  const { runOperationVectors, runMemoryVectors } = await import(resolve(root, "tests/sdk-conformance/runners/sdk-api-key-operations.mjs"));
+  const operations = JSON.parse(readFileSync(resolve(root, "tests/sdk-conformance/fixtures/sdk-api-key-operations.json"), "utf8")).capabilities["sdk.api-key-operations.v1"];
+  const sdk = await import("../src/sdk.ts");
+  const results = await runOperationVectors(operations, sdk);
+  assert.equal(results.length, operations.vectors.length);
+  const memories = JSON.parse(readFileSync(resolve(root, "tests/sdk-conformance/fixtures/sdk-api-key-memories.json"), "utf8"));
+  const crypto = await import("../src/crypto.ts");
+  const sdkCrypto = await import("../src/sdkCrypto.ts");
+  assert.equal((await runMemoryVectors(memories, crypto, sdkCrypto)).length, memories.vectors.length + memories.hashes.length + 1);
+});
+
+test("npm keyManagement and models facades run the shared Rust WASM core or refuse with a typed error", async () => {
+  const { keyManagement, models, SessionClientError } = await import("../src/sdk-entry.ts");
+  assert.ok(Object.isFrozen(keyManagement) && Object.isFrozen(models));
+  const key = new Uint8Array(32).map((_, index) => index);
+  if (!existsSync(resolve(root, "frontend/packages/openmates-cli/wasm/openmates_sdk_bg.wasm"))) {
+    assert.throws(() => keyManagement.encodeKey(key), (error: unknown) => error instanceof SessionClientError && error.code === "native_binding_unavailable");
+    assert.throws(() => models.workspaces(), (error: unknown) => error instanceof SessionClientError && error.code === "native_binding_unavailable");
+    return;
+  }
+  assert.deepEqual([...keyManagement.decodeKey(keyManagement.encodeKey(key))], [...key]);
+  assert.equal(keyManagement.decryptCombined(keyManagement.encryptCombined("synthetic plaintext", key), key), "synthetic plaintext");
+  assert.throws(() => keyManagement.decodeKey("c2hvcnQ="), (error: unknown) => error instanceof SessionClientError && error.code === "crypto");
+  assert.equal(models.workspaces()[0].id, "chats");
+  assert.throws(() => models.parseItem({ id: "item-1" }), (error: unknown) => error instanceof SessionClientError && error.code === "invalid_argument");
+});

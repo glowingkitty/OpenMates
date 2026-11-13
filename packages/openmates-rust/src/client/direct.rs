@@ -284,6 +284,16 @@ fn json_object(bytes: &[u8]) -> bool {
     bytes.iter().find(|byte| !byte.is_ascii_whitespace()) == Some(&b'{')
 }
 
+// OMDM1 sealing and Direct chat creation (npm openTeamDirectChat) reuse this
+// module's private identity and validation; they stay in child modules.
+#[path = "direct_open.rs"]
+mod open_chat;
+#[path = "direct_seal.rs"]
+mod seal;
+#[cfg(test)]
+#[path = "direct_ts_vector_tests.rs"]
+mod ts_vector_tests;
+
 #[cfg(test)]
 mod tests {
     use super::*;

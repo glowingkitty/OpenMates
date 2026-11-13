@@ -1,0 +1,457 @@
+{
+	"source": "scripts/generate-toon-decode-vectors.mjs",
+	"library": "@toon-format/toon@4.4.0",
+	"call": "decode(input, { strict: false })",
+	"vectors": [
+		{
+			"name": "encoded_web_search",
+			"input": "app_id: web\nskill_id: search\nquery: best espresso machines 2026\nprovider: Brave Search\nembed_ref: espresso-machines-k8D\nstatus: finished\nresults[2]{title,url,description,page_age,rank}:\n  Top 10 Espresso Machines,\"https://example.com/a?x=1,2\",\"Reviewed: \\\"Gaggia\\\", Breville & more\",2 days ago,1\n  \"Espresso: a guide\",\"https://example.org/b\",\"Pressure 9 bar, 93°C water\",null,2\nembed_ids[3]: e1,e2,e3",
+			"json": "{\"app_id\":\"web\",\"skill_id\":\"search\",\"query\":\"best espresso machines 2026\",\"provider\":\"Brave Search\",\"embed_ref\":\"espresso-machines-k8D\",\"status\":\"finished\",\"results\":[{\"title\":\"Top 10 Espresso Machines\",\"url\":\"https://example.com/a?x=1,2\",\"description\":\"Reviewed: \\\"Gaggia\\\", Breville & more\",\"page_age\":\"2 days ago\",\"rank\":1},{\"title\":\"Espresso: a guide\",\"url\":\"https://example.org/b\",\"description\":\"Pressure 9 bar, 93°C water\",\"page_age\":null,\"rank\":2}],\"embed_ids\":[\"e1\",\"e2\",\"e3\"]}"
+		},
+		{
+			"name": "encoded_nested_results",
+			"input": "app_id: travel\nskill_id: search_connections\nresults[2]:\n  - id: r1\n    legs[2]{from,to,stops}:\n      BER,LHR,0\n      LHR,JFK,1\n    price:\n      amount: 412.5\n      currency: EUR\n  - id: r2\n    legs: []\n    price:\n      amount: 0\n      currency: EUR\n    tags[2]: cheap,night",
+			"json": "{\"app_id\":\"travel\",\"skill_id\":\"search_connections\",\"results\":[{\"id\":\"r1\",\"legs\":[{\"from\":\"BER\",\"to\":\"LHR\",\"stops\":0},{\"from\":\"LHR\",\"to\":\"JFK\",\"stops\":1}],\"price\":{\"amount\":412.5,\"currency\":\"EUR\"}},{\"id\":\"r2\",\"legs\":[],\"price\":{\"amount\":0,\"currency\":\"EUR\"},\"tags\":[\"cheap\",\"night\"]}]}"
+		},
+		{
+			"name": "encoded_strings",
+			"input": "comma: \"a,b,c\"\ncolon: \"key: value\"\nquote: \"say \\\"hi\\\"\"\nbackslash: \"C:\\\\path\\\\x\"\nnewline: \"line1\\nline2\\r\\nline3\"\ntab: \"a\\tb\"\nunicode: Grüße 日本語 😀\nemoji_only: 🎉\nlooks_number: \"42\"\nlooks_bool: \"true\"\nlooks_null: \"null\"\nleading_space: \"  padded  \"\nempty: \"\"\ndash: \"- not a list\"\nhash: \"#hashtag\"\nbracket: \"[1]\"\nbrace: \"{x}\"\ncontrol: \"bell\\u0007end\"\nnbsp:  nbsp",
+			"json": "{\"comma\":\"a,b,c\",\"colon\":\"key: value\",\"quote\":\"say \\\"hi\\\"\",\"backslash\":\"C:\\\\path\\\\x\",\"newline\":\"line1\\nline2\\r\\nline3\",\"tab\":\"a\\tb\",\"unicode\":\"Grüße 日本語 😀\",\"emoji_only\":\"🎉\",\"looks_number\":\"42\",\"looks_bool\":\"true\",\"looks_null\":\"null\",\"leading_space\":\"  padded  \",\"empty\":\"\",\"dash\":\"- not a list\",\"hash\":\"#hashtag\",\"bracket\":\"[1]\",\"brace\":\"{x}\",\"control\":\"bell\\u0007end\",\"nbsp\":\" nbsp\"}"
+		},
+		{
+			"name": "encoded_numbers",
+			"input": "int: 42\nneg: -17\nzero: 0\nfloat: 3.14159\nsmall: 1e-7\nbig: 1e+21\nbigint_like: 9007199254740992\nexp: 25000000000\ntiny_neg: -0.000001\nmax: 9007199254740991\nhuge: 1.7976931348623157e+308\nfraction: 0.1",
+			"json": "{\"int\":42,\"neg\":-17,\"zero\":0,\"float\":3.14159,\"small\":1e-7,\"big\":1e+21,\"bigint_like\":9007199254740992,\"exp\":25000000000,\"tiny_neg\":-0.000001,\"max\":9007199254740991,\"huge\":1.7976931348623157e+308,\"fraction\":0.1}"
+		},
+		{
+			"name": "encoded_misc",
+			"input": "t: true\nf: false\nn: null\nempty_obj:\nempty_arr: []\nnested:\n  deeper:\n    deepest: x\n    list[4]: 1,two,true,null",
+			"json": "{\"t\":true,\"f\":false,\"n\":null,\"empty_obj\":{},\"empty_arr\":[],\"nested\":{\"deeper\":{\"deepest\":\"x\",\"list\":[1,\"two\",true,null]}}}"
+		},
+		{
+			"name": "encoded_numeric_keys",
+			"input": "\"2\": two\n\"10\": ten\nb: bee\na: ay\n\"01\": leading zero\n\"4294967295\": not index\n\"-1\": neg",
+			"json": "{\"2\":\"two\",\"10\":\"ten\",\"b\":\"bee\",\"a\":\"ay\",\"01\":\"leading zero\",\"4294967295\":\"not index\",\"-1\":\"neg\"}"
+		},
+		{
+			"name": "encoded_mixed_list",
+			"input": "items[7]:\n  - 1\n  - a: 1\n    b[2]: 2,3\n  - [2]: 4,5\n  - six\n  - [0]:\n  -\n  - [2]:\n    - x: 1\n    - x: 2",
+			"json": "{\"items\":[1,{\"a\":1,\"b\":[2,3]},[4,5],\"six\",[],{},[{\"x\":1},{\"x\":2}]]}"
+		},
+		{
+			"name": "encoded_array_of_arrays",
+			"input": "matrix[3]:\n  - [2]: 1,2\n  - [2]: 3,4\n  - [2]: a,\"b,c\"",
+			"json": "{\"matrix\":[[1,2],[3,4],[\"a\",\"b,c\"]]}"
+		},
+		{
+			"name": "encoded_code_embed",
+			"input": "language: python\nfilename: main.py\ncode: \"def f(x):\\n    return x * 2\\n\\n# comment\\nprint(f(3))\\n\"\nline_count: 5",
+			"json": "{\"language\":\"python\",\"filename\":\"main.py\",\"code\":\"def f(x):\\n    return x * 2\\n\\n# comment\\nprint(f(3))\\n\",\"line_count\":5}"
+		},
+		{
+			"name": "encoded_root_array_objects",
+			"input": "[2]{id,name}:\n  1,a\n  2,b",
+			"json": "[{\"id\":1,\"name\":\"a\"},{\"id\":2,\"name\":\"b\"}]"
+		},
+		{
+			"name": "encoded_root_primitive_array",
+			"input": "[4]: 1,a,true,null",
+			"json": "[1,\"a\",true,null]"
+		},
+		{
+			"name": "encoded_root_string",
+			"input": "hello world",
+			"json": "\"hello world\""
+		},
+		{
+			"name": "encoded_root_number",
+			"input": "12.5",
+			"json": "12.5"
+		},
+		{
+			"name": "encoded_root_empty_array",
+			"input": "[]",
+			"json": "[]"
+		},
+		{
+			"name": "encoded_root_empty_object",
+			"input": "",
+			"json": "{}"
+		},
+		{
+			"name": "empty_input",
+			"input": "",
+			"json": "{}"
+		},
+		{
+			"name": "only_blank_lines",
+			"input": "\n\n  \n",
+			"json": "{}"
+		},
+		{
+			"name": "only_comment",
+			"input": "# just a comment",
+			"json": "{}"
+		},
+		{
+			"name": "comment_lines",
+			"input": "# header\na: 1\n# middle\nb: 2",
+			"json": "{\"a\":1,\"b\":2}"
+		},
+		{
+			"name": "bom_prefix",
+			"input": "﻿a: 1",
+			"json": "{\"a\":1}"
+		},
+		{
+			"name": "crlf_lines",
+			"input": "a: 1\r\nb: two\r\n",
+			"json": "{\"a\":1,\"b\":\"two\"}"
+		},
+		{
+			"name": "trailing_spaces",
+			"input": "a: 1   \nb: x  ",
+			"json": "{\"a\":1,\"b\":\"x\"}"
+		},
+		{
+			"name": "tab_indent_nonstrict",
+			"input": "a:\n\tb: 1\n\tc: 2",
+			"json": "{\"a\":{\"b\":1,\"c\":2}}"
+		},
+		{
+			"name": "mixed_tab_space_indent",
+			"input": "a:\n \tb: 1",
+			"json": "{\"a\":{\"b\":1}}"
+		},
+		{
+			"name": "odd_indent_nonstrict",
+			"input": "a:\n   b: 1\n   c: 2",
+			"json": "{\"a\":{\"b\":1,\"c\":2}}"
+		},
+		{
+			"name": "depth_jump_nonstrict",
+			"input": "a:\n      b: 1",
+			"json": "{\"a\":{\"b\":1}}"
+		},
+		{
+			"name": "over_indented_sibling",
+			"input": "a:\n  b: 1\n    c: 2",
+			"error": true
+		},
+		{
+			"name": "over_indented_root",
+			"input": "  a: 1",
+			"error": true
+		},
+		{
+			"name": "over_indented_second_root",
+			"input": "a: 1\n  b: 2",
+			"error": true
+		},
+		{
+			"name": "length_mismatch_inline",
+			"input": "tags[3]: a,b",
+			"json": "{\"tags\":[\"a\",\"b\"]}"
+		},
+		{
+			"name": "length_mismatch_tabular",
+			"input": "rows[3]{id,name}:\n  1,a\n  2,b",
+			"json": "{\"rows\":[{\"id\":1,\"name\":\"a\"},{\"id\":2,\"name\":\"b\"}]}"
+		},
+		{
+			"name": "length_mismatch_list",
+			"input": "items[1]:\n  - a\n  - b\n  - c",
+			"json": "{\"items\":[\"a\",\"b\",\"c\"]}"
+		},
+		{
+			"name": "extra_tabular_rows",
+			"input": "rows[1]{id}:\n  1\n  2\n  3",
+			"json": "{\"rows\":[{\"id\":1},{\"id\":2},{\"id\":3}]}"
+		},
+		{
+			"name": "tabular_cell_count_mismatch",
+			"input": "rows[2]{id,name}:\n  1,a\n  2",
+			"error": true
+		},
+		{
+			"name": "tabular_then_key",
+			"input": "rows[2]{id,name}:\n  1,a\n  2,b\nnext: 3",
+			"json": "{\"rows\":[{\"id\":1,\"name\":\"a\"},{\"id\":2,\"name\":\"b\"}],\"next\":3}"
+		},
+		{
+			"name": "tabular_row_with_colon",
+			"input": "rows[2]{id,url}:\n  1,\"http://x\"\n  2,b: c",
+			"json": "{\"rows\":[{\"id\":1,\"url\":\"http://x\"},{\"id\":2,\"url\":\"b: c\"}]}"
+		},
+		{
+			"name": "blank_line_in_tabular",
+			"input": "rows[2]{id}:\n  1\n\n  2",
+			"json": "{\"rows\":[{\"id\":1},{\"id\":2}]}"
+		},
+		{
+			"name": "blank_line_in_list",
+			"input": "items[2]:\n  - a\n\n  - b",
+			"json": "{\"items\":[\"a\",\"b\"]}"
+		},
+		{
+			"name": "unterminated_quote_value",
+			"input": "a: \"abc",
+			"error": true
+		},
+		{
+			"name": "unterminated_quote_key",
+			"input": "\"abc: 1",
+			"error": true
+		},
+		{
+			"name": "chars_after_quote",
+			"input": "a: \"abc\"def",
+			"error": true
+		},
+		{
+			"name": "bad_escape",
+			"input": "a: \"x\\qy\"",
+			"error": true
+		},
+		{
+			"name": "unicode_escape",
+			"input": "a: \"caf\\u00e9\"",
+			"json": "{\"a\":\"café\"}"
+		},
+		{
+			"name": "lone_surrogate_escape",
+			"input": "a: \"\\ud83d\"",
+			"error": true
+		},
+		{
+			"name": "truncated_unicode_escape",
+			"input": "a: \"\\u12\"",
+			"error": true
+		},
+		{
+			"name": "quoted_key_spaces",
+			"input": "\"my key\"   : 5",
+			"json": "{\"my key\":5}"
+		},
+		{
+			"name": "quoted_key_no_colon",
+			"input": "\"my key\" 5",
+			"error": true
+		},
+		{
+			"name": "duplicate_keys_nonstrict",
+			"input": "a: 1\nb: 2\na: 3",
+			"json": "{\"a\":3,\"b\":2}"
+		},
+		{
+			"name": "duplicate_field_names",
+			"input": "rows[1]{a,a}:\n  1,2",
+			"json": "{\"rows\":[{\"a\":2}]}"
+		},
+		{
+			"name": "missing_colon_root_multi",
+			"input": "abc\ndef",
+			"error": true
+		},
+		{
+			"name": "root_primitive_quoted",
+			"input": "\"quoted root\"",
+			"json": "\"quoted root\""
+		},
+		{
+			"name": "root_primitive_number",
+			"input": "-0",
+			"json": "0"
+		},
+		{
+			"name": "root_primitive_bool",
+			"input": "false",
+			"json": "false"
+		},
+		{
+			"name": "root_bracket_empty",
+			"input": "[]",
+			"json": "[]"
+		},
+		{
+			"name": "root_bracket_empty_then_more",
+			"input": "[]\na: 1",
+			"error": true
+		},
+		{
+			"name": "root_header_then_more",
+			"input": "[2]: 1,2\nx: 1",
+			"error": true
+		},
+		{
+			"name": "inline_empty_values",
+			"input": "a[3]: ,,",
+			"json": "{\"a\":[\"\",\"\",\"\"]}"
+		},
+		{
+			"name": "inline_spaces",
+			"input": "a[2]:   x  ,  y  ",
+			"json": "{\"a\":[\"x\",\"y\"]}"
+		},
+		{
+			"name": "pipe_delimiter",
+			"input": "a[3|]: x|y,z|w",
+			"json": "{\"a\":[\"x\",\"y,z\",\"w\"]}"
+		},
+		{
+			"name": "tab_delimiter",
+			"input": "rows[2\t]{id\tname}:\n  1\tAda, Lovelace\n  2\tBob",
+			"json": "{\"rows\":[{\"id\":1,\"name\":\"Ada, Lovelace\"},{\"id\":2,\"name\":\"Bob\"}]}"
+		},
+		{
+			"name": "header_delimiter_mismatch",
+			"input": "rows[2|]{id,name}:\n  1|a\n  2|b",
+			"error": true
+		},
+		{
+			"name": "invalid_length",
+			"input": "a[01]: x",
+			"error": true
+		},
+		{
+			"name": "invalid_length_word",
+			"input": "a[n]: x",
+			"error": true
+		},
+		{
+			"name": "unterminated_bracket",
+			"input": "a[2: x,y",
+			"error": true
+		},
+		{
+			"name": "whitespace_before_bracket",
+			"input": "a [2]: x,y",
+			"error": true
+		},
+		{
+			"name": "content_after_fields_colon",
+			"input": "rows[1]{id}: 1",
+			"error": true
+		},
+		{
+			"name": "keyed_header",
+			"input": "users[2:]{age,city}:\n  ada: 36,London\n  bob: 41,Paris",
+			"json": "{\"users\":{\"ada\":{\"age\":36,\"city\":\"London\"},\"bob\":{\"age\":41,\"city\":\"Paris\"}}}"
+		},
+		{
+			"name": "keyed_header_nested_fields",
+			"input": "m[1:]{a{b,c},d}:\n  k: 1,2,3",
+			"json": "{\"m\":{\"k\":{\"a\":{\"b\":1,\"c\":2},\"d\":3}}}"
+		},
+		{
+			"name": "keyed_header_without_fields",
+			"input": "m[1:]:\n  k: 1",
+			"error": true
+		},
+		{
+			"name": "keyed_cell_mismatch",
+			"input": "m[1:]{a,b}:\n  k: 1",
+			"error": true
+		},
+		{
+			"name": "nested_field_group",
+			"input": "rows[1]{id,pos{x,y}}:\n  7,1.5,-2",
+			"json": "{\"rows\":[{\"id\":7,\"pos\":{\"x\":1.5,\"y\":-2}}]}"
+		},
+		{
+			"name": "list_dash_alone",
+			"input": "items[2]:\n  -\n  - x",
+			"json": "{\"items\":[{},\"x\"]}"
+		},
+		{
+			"name": "list_item_object_siblings",
+			"input": "items[1]:\n  - a: 1\n    b: 2\n    c:\n      d: 3",
+			"json": "{\"items\":[{\"a\":1,\"b\":2,\"c\":{\"d\":3}}]}"
+		},
+		{
+			"name": "list_item_header_first",
+			"input": "items[1]:\n  - rows[2]{id}:\n      1\n      2\n    name: x",
+			"json": "{\"items\":[{\"rows\":[{\"id\":1},{\"id\":2}],\"name\":\"x\"}]}"
+		},
+		{
+			"name": "list_item_nested_array",
+			"input": "items[2]:\n  - [2]: a,b\n  - []",
+			"json": "{\"items\":[[\"a\",\"b\"],[]]}"
+		},
+		{
+			"name": "list_item_keyless_fields",
+			"input": "items[1]:\n  - [1]{a}:\n    1",
+			"error": true
+		},
+		{
+			"name": "list_item_extra_spaces",
+			"input": "items[1]:\n  -    spaced: 1",
+			"json": "{\"items\":[{\"spaced\":1}]}"
+		},
+		{
+			"name": "keyless_header_nested",
+			"input": "a:\n  [2]: 1,2",
+			"error": true
+		},
+		{
+			"name": "numbers_edge",
+			"input": "a: 007\nb: 1e400\nc: -1e-400\nd: 1.0\ne: 1E3\nf: .5\ng: 5.\nh: +1\ni: 0x10\nj: 1_000",
+			"json": "{\"a\":\"007\",\"b\":\"1e400\",\"c\":0,\"d\":1,\"e\":1000,\"f\":\".5\",\"g\":\"5.\",\"h\":\"+1\",\"i\":\"0x10\",\"j\":\"1_000\"}"
+		},
+		{
+			"name": "empty_object_value",
+			"input": "a:\nb: 1",
+			"json": "{\"a\":{},\"b\":1}"
+		},
+		{
+			"name": "nested_empty_object",
+			"input": "a:\n  b:\n  c: 2",
+			"json": "{\"a\":{\"b\":{},\"c\":2}}"
+		},
+		{
+			"name": "list_array_no_items",
+			"input": "items[2]:\nnext: 1",
+			"json": "{\"items\":[],\"next\":1}"
+		},
+		{
+			"name": "hash_inside_nested",
+			"input": "a:\n  #not comment? b: 1\n  c: 2",
+			"json": "{\"a\":{\"c\":2}}"
+		},
+		{
+			"name": "proto_key",
+			"input": "__proto__: 1\nconstructor: 2",
+			"json": "{\"__proto__\":1,\"constructor\":2}"
+		},
+		{
+			"name": "unquoted_key_with_quote",
+			"input": "a\"b:c\": 1",
+			"json": "{\"a\\\"b:c\\\"\":1}"
+		},
+		{
+			"name": "value_with_brackets",
+			"input": "a: [x]: y",
+			"json": "{\"a\":\"[x]: y\"}"
+		},
+		{
+			"name": "colon_in_unquoted_value",
+			"input": "url: https://example.com:8080/x",
+			"json": "{\"url\":\"https://example.com:8080/x\"}"
+		},
+		{
+			"name": "deep_nesting",
+			"input": "a:\n  b:\n    c:\n      d:\n        e: deep",
+			"json": "{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":\"deep\"}}}}}"
+		},
+		{
+			"name": "key_with_unicode",
+			"input": "größe: 5\n日本: 語",
+			"json": "{\"größe\":5,\"日本\":\"語\"}"
+		},
+		{
+			"name": "root_list_without_header",
+			"input": "- a\n- b",
+			"error": true
+		}
+	]
+}

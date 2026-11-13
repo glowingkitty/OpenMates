@@ -15,11 +15,9 @@ const context: MentionContext = {
   apps: [
     { id: "ai", name: "AI", skills: [{ id: "ask", name: "Ask" }] },
     { id: "web", name: "Web", skills: [{ id: "search", name: "Search" }], focus_modes: [{ id: "research", name: "Research" }] },
-    { id: "code", name: "Code", settings_and_memories: [
-      { id: "projects", name: "Projects", type: "list" }, { id: "empty", name: "Empty", type: "list" },
-    ] },
+    { id: "code", name: "Code" },
   ],
-  memoryEntries: [{ id: "entry-1", app_id: "code", item_type: "projects", title: "My App" }],
+  memoryEntries: [{ id: "entry-1", app_id: "openmates", item_type: "memories", title: "My Notes" }, { id: "typed-1", app_id: "code", item_type: "projects", title: "Legacy" }],
 };
 const projects: TuiMentionProject[] = [
   { id: "p1", name: "Alpha Project", accessMode: "read_write", files: [{ path: "docs/readme.md", name: "Readme" }], folders: [{ path: "/src", sourceId: "source1" }] },
@@ -48,9 +46,9 @@ test("catalog uses live available models and emits backend wire tokens", () => {
   assert.equal(byId("mate:software_development")?.wireSyntax, "@mate:software_development");
   assert.equal(byId("skill:web:search")?.wireSyntax, "@skill:web:search");
   assert.equal(byId("focus:web:research")?.wireSyntax, "@focus:web:research");
-  assert.equal(byId("memory:code:projects")?.wireSyntax, "@memory:code:projects:list");
-  assert.equal(byId("memory-entry:code:projects:entry-1")?.wireSyntax, "@memory-entry:code:projects:entry-1");
-  assert.equal(byId("memory:code:empty"), undefined);
+  assert.equal(byId("memory:openmates:memories")?.wireSyntax, "@memory:openmates:memories:list");
+  assert.equal(byId("memory-entry:openmates:memories:entry-1")?.wireSyntax, "@memory-entry:openmates:memories:entry-1");
+  assert.equal(byId("memory-entry:code:projects:typed-1"), undefined);
   assert.equal(byId("project:p1")?.wireSyntax, "@project:p1:read_write");
   assert.equal(byId("project:p2")?.wireSyntax, "@project:p2:read");
   assert.equal(byId("project_file:p1::docs/readme.md")?.wireSyntax, "@project-file:p1:docs%2Freadme.md:read_write");

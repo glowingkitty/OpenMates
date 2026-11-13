@@ -18,7 +18,6 @@ workflow-yaml = ["dep:serde_yaml"]
 
 [dependencies]
 tokio-util = "0.7"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "http2"] }
 futures-util = "0.3"
 tungstenite = { version = "0.28", default-features = false, features = ["handshake"] }
 serde = { version = "1", features = ["derive"] }
@@ -47,19 +46,37 @@ unicode-normalization = "0.1"
 regex = "1"
 icu_collator = { version = "=2.3.1", default-features = false, features = ["compiled_data"] }
 icu_locale_core = { version = "=2.3.0", features = ["alloc"] }
+# Yjs v1 CRDT engine for live documents, sheets and decks (plan live-collaboration-crdt;
+# pinned: pre-1.0, upgrade deliberately).
+yrs = "=0.28.1"
 
 [dev-dependencies]
 tempfile = "3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "=1.54.1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "net"] }
+tokio = { version = "=1.54.1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "net", "fs"] }
 rustix = { version = "1", features = ["fs", "process"] }
+
+# TLS stack (rustls over ring) on every target except the 32-bit (ILP32)
+# Apple Watch `arm64_32-apple-watchos`: ring does not compile there. That one
+# target builds without TLS (next section); HTTPS/WSS there fails with the
+# typed transport error and never falls back to plain HTTP/WS
+# (plan apple-client-core-migration, finding on the arm64_32 TLS gap).
+[target.'cfg(not(all(target_os = "watchos", target_pointer_width = "32")))'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "http2"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(all(target_os = "watchos", target_pointer_width = "32"))))'.dependencies]
 tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
 # Same TLS stack and roots tokio-tungstenite uses; only for pre-establishing
 # the recovery socket's TCP/TLS connection (platform/socket.rs).
 tokio-rustls = { version = "0.26", default-features = false }
 rustls = { version = "0.23", default-features = false }
 webpki-roots = "0.26"
+
+# arm64_32 Apple Watch: same HTTP/WebSocket clients without any TLS backend.
+[target.'cfg(all(target_os = "watchos", target_pointer_width = "32"))'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "http2"] }
+tokio-tungstenite = "0.28"
 
 # Browser execution seam. Client transport/session portability is intentionally
 # not claimed by enabling these dependencies alone. Native defaults stay intact.

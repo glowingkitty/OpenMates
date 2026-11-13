@@ -677,9 +677,11 @@ class WorkflowInputService:
         timezone: str | None = None,
         vault_key_id: str | None = None,
         optimistic_save: bool = False,
+        draft_only: bool = False,
         on_event: Callable[[dict[str, Any]], None] | None = None,
         idempotency_key: str | None = None,
         source_chat_id: str | None = None,
+        source_message_id: str | None = None,
         execution_mode: Literal["saved", "run_once"] = "saved",
         return_outputs: dict[str, dict[str, str]] | None = None,
         transient_context: dict[str, Any] | None = None,
@@ -687,6 +689,8 @@ class WorkflowInputService:
     ) -> WorkflowInputSessionResult:
         if execution_mode == "run_once" and not source_chat_id:
             raise ValueError("One-time chat workflows require a source chat")
+        if source_message_id and not source_chat_id:
+            raise ValueError("A source message requires its source chat")
         started = time.perf_counter()
         resolved_vault_key_id = self._resolve_vault_key_id(user_id, vault_key_id)
         key_resolved_at = time.perf_counter()
@@ -712,6 +716,7 @@ class WorkflowInputService:
         )
         session["timezone"] = timezone
         session["source_chat_id"] = source_chat_id
+        session["source_message_id"] = source_message_id
         session["execution_mode"] = execution_mode
         session["return_outputs"] = return_outputs or {}
         # Authorized Project authoring history is provider context only. It
@@ -719,6 +724,8 @@ class WorkflowInputService:
         session["_transient_authoring_context"] = transient_context or {}
         session["_expected_workflow_version"] = expected_workflow_version
         session["_on_stream_event"] = on_event
+        # draft_only: validate and return the draft as session status "draft"; never save or apply a Workflow.
+        session["_draft_only"] = draft_only
         if on_event is not None:
             self._persist_session(session, resolved_vault_key_id)
             self._emit_stream(session, {"type": "started", "session_id": session["id"], "status": "running"})
@@ -747,6 +754,7 @@ class WorkflowInputService:
             session.pop("_on_stream_event", None)
             session.pop("_transient_authoring_context", None)
             session.pop("_expected_workflow_version", None)
+            session.pop("_draft_only", None)
         result.authoring_metrics = {
             **(result.authoring_metrics or {}),
             "service_seconds": round(time.perf_counter() - started, 3),
@@ -1118,6 +1126,8 @@ class WorkflowInputService:
             authorize_commit = (session.get("_transient_authoring_context") or {}).get("_authorize_commit")
             if callable(authorize_commit):
                 authorize_commit()
+            if session.get("_draft_only") and isinstance(validated_plan, (_PartialPlan, _CreateWorkflowPlan, _UpdateWorkflowPlan, _BatchPlan)):
+                return self._draft_only_plan(session, validated_plan, vault_key_id)
             if isinstance(validated_plan, _PartialPlan):
                 self._emit_stream(session, {"type": "progress", "phase": "saving"})
                 return self._apply_partial(session, validated_plan, vault_key_id)
@@ -1140,13 +1150,32 @@ class WorkflowInputService:
             logger.error("Workflow input processing failed for session %s with %s", session["id"], type(exc).__name__)
             return self._fail_session(session, "failed", "WORKFLOW_INPUT_PROCESSING_FAILED", "Workflow input processing failed.", vault_key_id, exc)
 
+    def _draft_only_plan(
+        self,
+        session: dict[str, Any],
+        plan: _CreateWorkflowPlan | _UpdateWorkflowPlan | _BatchPlan | _PartialPlan,
+        vault_key_id: str | None,
+    ) -> WorkflowInputSessionResult:
+        """Return the validated plan as a draft preview; nothing is queued, applied or saved."""
+        if isinstance(plan, _PartialPlan):
+            if not plan.operations or any(not operation.graph or not operation.graph.nodes for operation in plan.operations):
+                return self._fail_session(session, "no_valid_partial", WORKFLOW_INPUT_NO_VALID_PARTIAL,
+                                          "No valid workflow steps were completed before authoring stopped.", vault_key_id)
+            session["partial_reason"] = plan.reason
+            session["partial_warning"] = plan.notice
+            plan = _BatchPlan(action="batch", operations=plan.operations)
+        self._emit_stream(session, {"type": "progress", "phase": "preview"})
+        return self._queue_plan(session, plan, vault_key_id, draft_only=True)
+
     def _queue_plan(
         self,
         session: dict[str, Any],
         plan: _CreateWorkflowPlan | _UpdateWorkflowPlan | _BatchPlan,
         vault_key_id: str | None,
+        *,
+        draft_only: bool = False,
     ) -> WorkflowInputSessionResult:
-        if not isinstance(self.repository, DirectusWorkflowInputRepository):
+        if not draft_only and not isinstance(self.repository, DirectusWorkflowInputRepository):
             return self._apply_plan(session, plan, vault_key_id)
         if isinstance(plan, _BatchPlan):
             self._prepare_batch(session, plan, vault_key_id)
@@ -1172,6 +1201,13 @@ class WorkflowInputService:
             session["pending_before"] = before.model_dump(mode="json")
         session["pending_plan"] = plan.model_dump(mode="json", by_alias=True)
         session["pending_operation_id"] = self._authoring_operation_id(session)
+        if draft_only:
+            # Never "queued": commit_queued and the queue scanner only pick up status queued.
+            session["status"] = "draft"
+            session["draft_only_preview"] = True
+            session["message"] = "Workflow draft ready. Nothing was saved."
+            self._append_event(session, "draft_ready", {}, vault_key_id=vault_key_id)
+            return self._result(session)
         session["queued_user_id"] = session["user_id"]
         session["status"] = "queued"
         session["message"] = "Workflow prepared. Saving now."
@@ -1650,6 +1686,11 @@ class WorkflowInputService:
             # explicit request/registry fields to Jev and Gemini.
             context["_billing_user_id"] = session["user_id"]
             context["_billing_session_id"] = session["id"]
+            # Authoring started from a chat is charged to that chat (personal
+            # sessions only; the route verified chat ownership before start).
+            if session.get("source_chat_id") and not session.get("team_id"):
+                context["_billing_source_chat_id"] = session["source_chat_id"]
+                context["_billing_source_message_id"] = session.get("source_message_id")
         if getattr(self.planner, "requires_workflow_lookup", False):
             # Keep owner credentials and library contents out of model input.
             # The NL planner invokes these only after it has classified an edit.
@@ -1977,7 +2018,9 @@ class WorkflowInputService:
         return previews[0] if previews else None
 
     def _queued_previews(self, session: dict[str, Any]) -> list[WorkflowDetail]:
-        if session.get("status") != "queued" or not isinstance(session.get("pending_plan"), dict):
+        previewable = session.get("status") == "queued" or (
+            session.get("status") == "draft" and session.get("draft_only_preview"))
+        if not previewable or not isinstance(session.get("pending_plan"), dict):
             return []
         plan = WORKFLOW_INPUT_PLAN_ADAPTER.validate_python(session["pending_plan"])
         if isinstance(plan, _BatchPlan):
@@ -2068,6 +2111,7 @@ def _session_private_state(session: dict[str, Any]) -> dict[str, Any]:
         "team_id": session.get("team_id"),
         "timezone": session.get("timezone"),
         "source_chat_id": session.get("source_chat_id"),
+        "source_message_id": session.get("source_message_id"),
         "execution_mode": session.get("execution_mode", "saved"),
         "return_outputs": deepcopy(session.get("return_outputs") or {}),
         "authoring_metrics": deepcopy(session.get("authoring_metrics")),

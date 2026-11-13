@@ -55,6 +55,7 @@ class ImmutableSpeechBoundaryTracker:
         self._pending_tasks: list[asyncio.Task[None]] = []
         self._last_scheduled_task: asyncio.Task[None] | None = None
         self._finalization_task: asyncio.Task[None] | None = None
+        self._status_utterances = 0
 
     @property
     def has_response_segments(self) -> bool:
@@ -154,6 +155,20 @@ class ImmutableSpeechBoundaryTracker:
             return
         self._dispatched[sequence] = segment
         self._schedule(self._dispatch_speech(segment), sequence)
+
+    def dispatch_status_utterance(self, text: str) -> None:
+        """Speak a call status line in order with the answer, outside its transcript.
+
+        Status lines are never recorded as response segments, so sequence numbers,
+        sealed membership and heard boundaries of the written answer stay intact.
+        """
+        if not self._enabled or not self._voice_mode or not text.strip():
+            return
+        from backend.apps.ai.assistant_speech.voice_status import voice_status_segment
+
+        segment = voice_status_segment(self._metadata, text, self._status_utterances)
+        self._status_utterances += 1
+        self._schedule(self._dispatch_speech(segment), int(segment["sequence"]))
 
     def _segment(self, sequence: int, text: str, *, kind: str | None = None) -> dict[str, object]:
         if kind is None:

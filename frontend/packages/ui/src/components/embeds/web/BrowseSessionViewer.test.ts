@@ -62,3 +62,21 @@ it('removes a live frame and disables further interaction when ownership is deni
   expect(target.querySelectorAll('button')).toHaveLength(0);
   await unmount(instance);
 });
+
+// contract-test: supporting surface=gui.web assertions=web-browse.embed-and-observation
+it('shows the starting state without a frame and a step list with the phase while working', async () => {
+  const noFrame = vi.fn().mockRejectedValue(new BrowseHttpError(404));
+  const starting = await setup({ state: async () => ({ ...session, status: 'ai', phase: 'starting', steps: [] }), frame: noFrame, control: vi.fn() });
+  await settle();
+  expect(starting.target.querySelector('[data-testid="browse-starting"]')).not.toBeNull();
+  expect(starting.target.querySelector('[data-testid="browse-steps"]')).toBeNull();
+  await unmount(starting.instance);
+  const steps = [{ n: 1, kind: 'goto', label: '', url: 'https://example.com', at: 1 }, { n: 2, kind: 'click', label: 'Search', url: 'https://example.com', at: 2 }];
+  const working = await setup({ state: async () => ({ ...session, status: 'ai', phase: 'working', steps }), frame: noFrame, control: vi.fn() });
+  await settle();
+  expect(working.target.querySelector('[data-testid="browse-starting"]')).toBeNull();
+  expect(working.target.querySelectorAll('[data-testid="browse-steps"] li')).toHaveLength(2);
+  expect(working.target.querySelector('[data-testid="browse-steps"]')!.textContent).toContain('Search');
+  expect(working.target.querySelector('[data-testid="browse-phase"]')).not.toBeNull();
+  await unmount(working.instance);
+});

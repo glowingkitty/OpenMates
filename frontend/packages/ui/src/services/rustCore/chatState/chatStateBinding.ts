@@ -42,6 +42,7 @@ export interface ChatStateBinding {
   chat_state_hidden_key_update_payload(chatId: string, encryptedChatKey: string, messagesV: number | undefined, titleV: number | undefined, lastEdited: number | undefined, nowSeconds: number): string;
   chat_state_bookmarks_toggle_account(masterKey: CryptoKey, encryptedSettings: string | undefined, chatId: string, messageId: string, legacyIds: string[]): Promise<string>;
   chat_state_bookmarks_read_account(masterKey: CryptoKey, encryptedSettings: string | undefined): Promise<string>;
+  chat_state_bookmarks_identity(values: string[]): boolean;
   chat_state_bookmarks_toggle_device(stored: string | undefined, chatId: string, messageId: string, legacyIds: string[]): string;
   chat_state_bookmarks_decode_device(stored: string | undefined): string[];
   chat_state_highlight_add(recordJson: string, chatKey: Uint8Array): string;

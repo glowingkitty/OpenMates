@@ -718,6 +718,53 @@ describe("draftSave", () => {
       expect(mocks.encryptWithMasterKey).not.toHaveBeenCalled();
     });
 
+    const projectMention = (autoInserted: boolean) => ({
+      type: "genericMention",
+      attrs: {
+        mentionType: "project",
+        mentionSyntax: "@project:00000000-0000-4000-8000-000000000001:read",
+        autoInserted,
+      },
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+    it("does not persist or clear an untouched composer holding only an app-inserted mention", async () => {
+      // Regression: Project navigation prefills a Project mention; saving it alone
+      // left a draft-only chat behind whenever the user navigated away.
+      const content = { type: "doc", content: [{ type: "paragraph", content: [
+        projectMention(true), { type: "text", text: " " },
+      ] }] };
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue(content);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("@project:00000000-0000-4000-8000-000000000001:read ");
+
+      expect(inspectDraftContent(content)).toMatchObject({ hasMeaningfulContent: true, onlyAutoInserted: true });
+      await saveDraftDebounced(undefined, editor as never);
+
+      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).not.toHaveBeenCalled();
+      expect(mocks.encryptWithMasterKey).not.toHaveBeenCalled();
+      expect(mocks.clearEditorAndResetDraftState).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+    it.each([
+      ["a user-chosen mention", [projectMention(false)]],
+      ["an app-inserted mention with typed text", [projectMention(true), { type: "text", text: " Plan the launch" }]],
+    ])("still creates a draft for %s", async (_label, paragraph) => {
+      const content = { type: "doc", content: [{ type: "paragraph", content: paragraph }] };
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue(content);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("meaningful markdown");
+
+      expect(inspectDraftContent(content).onlyAutoInserted).toBe(false);
+      await saveDraftDebounced(undefined, editor as never);
+
+      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1);
+    });
+
     // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
     it("keeps a pending image in the composer without saving empty markdown", async () => {
       const editor = createEditor(false);
@@ -983,6 +1030,32 @@ describe("draftSave", () => {
         currentChatId: chatId, currentUserDraftVersion: 0, hasUnsavedChanges: false,
       });
       expect(mocks.chatDB.deleteDraftOnlyChat).not.toHaveBeenCalled();
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,video-call.chat.project-context
+    it.each([
+      ["persists it for a voice call start", true],
+      ["skips it for an ordinary flush", false],
+    ])("app-inserted-only Project draft: %s", async (_label, persistAutoInserted) => {
+      const chatId = "project-voice-draft-chat";
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue({ type: "doc", content: [{ type: "paragraph", content: [{
+        type: "genericMention",
+        attrs: { mentionType: "project", mentionSyntax: "@project:00000000-0000-4000-8000-000000000001:read", autoInserted: true },
+      }] }] });
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("@project:00000000-0000-4000-8000-000000000001:read");
+      mocks.resetDraftState({ currentChatId: chatId });
+
+      const flush = flushSaveDraftAndWaitForIdle(editor as never, chatId, {
+        suppressQueuedEditResaves: false, persistAutoInserted,
+      });
+      await Promise.race([flush, new Promise((resolve) => setTimeout(resolve, 50))]);
+
+      if (persistAutoInserted) expect(mocks.encryptWithMasterKey).toHaveBeenCalled();
+      else expect(mocks.encryptWithMasterKey).not.toHaveBeenCalled();
+      expect(mocks.clearEditorAndResetDraftState).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
     });
 
     // contract-test: direct surface=gui.web assertions=chat-queued-followups.editing.cancel

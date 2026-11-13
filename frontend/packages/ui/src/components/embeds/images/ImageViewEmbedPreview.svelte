@@ -1,8 +1,11 @@
 <!--
   frontend/packages/ui/src/components/embeds/images/ImageViewEmbedPreview.svelte
 
-  Preview card for the images/view skill result embed.
+  Preview card for the images/view app-skill embed.
   Shown when the AI executes the images.view skill on a user-uploaded image.
+  It is an app-skill execution card (round app icon + BasicInfosBar with the
+  skill name "View"), never a result card, because the viewed image is the
+  user's own upload and the skill only inspects it.
 
   Displays:
   - Processing state: default "Processing..." status from BasicInfosBar (embeds.processing i18n key)
@@ -25,9 +28,9 @@
 -->
 
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, setContext } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import { EMBED_PREVIEW_PRESENTATION_CONTEXT } from '../../../types/embedPreviewPresentation';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   import { text } from '@repo/ui';
   import {
@@ -35,6 +38,9 @@
     getCachedImageUrl,
     createImageUrlOwner,
   } from './imageEmbedCrypto';
+  // images/view is not a registered output route; classify it explicitly so the
+  // standalone preview and the chat renderer both use the app-skill design.
+  setContext(EMBED_PREVIEW_PRESENTATION_CONTEXT, 'execution');
   const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
 
 
@@ -133,7 +139,8 @@
   // Derived state
   let status = $derived(localStatus);
   let error = $derived(localError);
-  let previewFile = $derived(s3Files?.preview);
+  // Same source order as ImageEmbedPreview: uploads may carry only full/original.
+  let previewFile = $derived(s3Files?.preview ?? s3Files?.full ?? s3Files?.original);
   let previewS3Key = $derived(previewFile?.s3_key);
 
   /**
@@ -229,7 +236,6 @@
 </script>
 
 <UnifiedEmbedPreview
-  resultPreview={true}
   {id}
   appId="images"
   skillId="view"
@@ -244,8 +250,6 @@
   hasFullWidthImage={showFullWidthImage}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
-    <ResultEmbedCard title={skillName} mediaOnly={showFullWidthImage} mediaFit="contain">
-      {#snippet media()}
     <div class="image-view-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
 
       {#if status === 'finished' && imageUrl && !imageError}
@@ -299,15 +303,15 @@
       {/if}
 
     </div>
-      {/snippet}
-    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
   .image-view-preview {
     width: 100%;
-    height: 100%;
+    flex: 1 1 0;
+    min-height: 0;
+    position: relative;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -320,13 +324,16 @@
 
   /* Full-bleed image container */
   .image-content {
+    position: relative;
     width: 100%;
-    height: 100%;
+    flex: 1 1 0;
+    min-height: 0;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-grey-10, #f5f5f5);
+    /* Complete image; letterbox surface is white (light) / black (dark). */
+    background: var(--color-media-letterbox);
   }
 
   .image-content.clickable {
@@ -338,6 +345,10 @@
   }
 
   .preview-image {
+    /* Pinned to the box (not height: 100%): Safari cannot resolve a percentage
+       height inside a flex item, which cropped square images top and bottom. */
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: contain;
@@ -438,9 +449,6 @@
     background: var(--color-grey-80, #333);
   }
 
-  :global(.dark) .image-content {
-    background: var(--color-grey-90, #1a1a1a);
-  }
 
   :global(.dark) .error-state {
     background: var(--color-error-95, #2a1515);

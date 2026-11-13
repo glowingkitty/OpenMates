@@ -23,6 +23,7 @@ scope:
     - Explicit remote Project execution, exact command approvals and user-enabled command lists, scoped network/credentials, independent command explanations, and event-driven wait/continue behavior
     - Remote-command access to ignored dependencies and build outputs while deterministic Project private paths remain inaccessible
     - Required terminal-text safety coverage for live batches, completion results and later inference-cache hydration
+    - Test runs for Project files in E2B or on a connected remote machine, with recorded browser-test video, step timelines and terminal timelines shown as test result embeds
   excludes:
     - Backend execution, importing, package installation, linting, formatting, cloning, or URL fetching of user code outside E2B
     - Persisting direct-run source code, terminal output, artifacts, messages, embeds, embed keys, or code_run_outputs unless the caller uses chat-bound mode
@@ -265,8 +266,16 @@ assertions:
     depends_on: [models.CodeRunRequest, models.CodeRunInputFile, examples.valid_requests, examples.invalid_requests]
   - id: code-run.execution.e2b-only
     type: security
-    must: The default code/file execution target remains E2B. Remote Project execution is permitted only through an explicitly selected, authorized, OS-confined remote CLI executor governed by the remote-command assertions. OpenMates backend hosts treat source and generated files as inert data and never execute, import, clone, shell out, lint, format, package-install, or fetch user-supplied code themselves. A failed or unavailable remote executor never falls back to backend execution or unrestricted host access.
-    depends_on: [models.CodeRunExecution]
+    must: The assistant selects the execution target explicitly. Chat code and OpenMates-stored Project files default to E2B. Tests and commands for a Project whose files live on a connected remote source default to that remote machine, where its dependencies and services are, and may be directed to E2B instead when the needed files can be supplied. Remote Project execution is permitted only through an explicitly selected, authorized, OS-confined remote CLI executor governed by the remote-command assertions. OpenMates backend hosts treat source and generated files as inert data and never execute, import, clone, shell out, lint, format, package-install, or fetch user-supplied code themselves. A failed or unavailable remote executor never falls back to backend execution or unrestricted host access.
+    depends_on: [models.CodeRunExecution, examples.execution_targets]
+  - id: code-run.tests.project-snapshot
+    type: behavior
+    must: A test run for OpenMates-stored Project files executes in E2B against an exact set of file revisions supplied by the authorized client, may run more than one command, and may start the application's server and run tests against it before teardown. The result names the revisions it ran against; a result for older revisions is shown as stale and never counts as passing for the current files. The sandbox receives file contents for that run only and no Project or chat keys.
+    depends_on: [examples.project_test_runs]
+  - id: code-run.tests.recorded-evidence
+    type: behavior
+    must: A test run produces a test result embed. A browser test records a video and an ordered list of test steps with their times and outcomes; fullscreen plays the video beside a top-to-bottom step timeline, and selecting a step seeks the video. Its preview shows one deterministically chosen frame, namely the frame at the step the test marks as its preview, otherwise the last frame before the final assertion that is not blank. An end-to-end test of a command-line program records each command entered and the output it produced and shows them as a top-to-bottom terminal timeline; no video is required. A unit test run shows the ordinary run result with pass and fail counts and no recording. Recordings are stored as encrypted artifacts of the run under the existing artifact rules, and the same evidence is produced whether the test ran in E2B or on a connected remote machine.
+    depends_on: [examples.test_evidence]
   - id: code-run.remote.confinement
     type: security
     must: Remote commands require current access and the target Project's active focus in the originating chat. OS-enforced filesystem and process boundaries confine the command and descendants to declared Project/toolchain/cache access; cwd alone is insufficient. Unsupported isolation fails visibly without an unrestricted fallback. Background services have read-only source plus declared writable cache/output paths. Source-writing commands coordinate against overlapping Project edits during execution without holding reservations while explaining or awaiting permission.
@@ -407,3 +416,6 @@ examples:
   - remote_commands
   - terminal_output_safety
   - semantic_risk_review
+  - execution_targets
+  - project_test_runs
+  - test_evidence

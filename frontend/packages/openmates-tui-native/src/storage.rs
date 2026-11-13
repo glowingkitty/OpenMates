@@ -7,24 +7,33 @@ use crate::{
     crypto::Key,
     error::{Error, Result},
 };
-use aes_gcm::{
-    Aes256Gcm, KeyInit,
-    aead::{Aead, Payload},
-};
 use argon2::{Algorithm, Argon2, Block, Params, Version};
 use base64::{Engine, engine::general_purpose::STANDARD};
-use fs2::FileExt;
 use hmac::{Hmac, Mac};
 use rand::{RngCore, rngs::OsRng};
-use rustix::fs::{Mode, OFlags};
+use openmates_sdk::local_cache::{
+    ByteStore, ByteStoreError, CacheAdmission, CacheContext, CacheEngine, Durability,
+    FileByteStore, FileIdentity, LockGuard, OperationScope, RevocationFence,
+};
+// Record codec and naming live in the core; these are the names the TUI's
+// session code uses. The rest are test-only helpers for assertions on files.
+pub(crate) use openmates_sdk::local_cache::{
+    open as decrypt, owner_hash as owner_id, seal as encrypt, sha256_hex as digest,
+};
+#[cfg(test)]
+pub(crate) use openmates_sdk::local_cache::{
+    MAX_LOCAL_RECORD_BYTES, cache_file_name as cache_name, cache_record_encoded_len,
+    encode_bounded_json as encode_bounded_cache,
+};
+pub use openmates_sdk::local_cache::StorageMode;
+use openmates_sdk::local_cache::PendingCleanup;
+use openmates_sdk::shell_session::{SessionBeginStore, StoredCredential, begin_session_epoch};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-#[cfg(unix)]
-use std::os::unix::fs::MetadataExt;
 use std::{
     fs::File,
-    io::{Read, Write},
-    path::{Component, Path, PathBuf},
+    io::Read,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -33,17 +42,8 @@ use zeroize::{Zeroize, Zeroizing};
 // Credential DTO belongs to the headless SDK; keyring/vault policy stays here.
 pub use openmates_sdk::Session;
 
-#[path = "storage_sections.rs"]
-mod sections;
-pub(crate) use sections::{PreparedSections, SyncCacheRead, SyncReadMode};
+pub(crate) use openmates_sdk::local_cache::{PreparedSections, SyncCacheRead, SyncReadMode};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum StorageMode {
-    OsKeyring,
-    RestrictedLocalFile,
-    EncryptedVault,
-}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeyringFailure {
     Missing,
@@ -120,78 +120,12 @@ impl Envelope {
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct CacheRecord {
-    version: u8,
-    ciphertext: String,
-}
-/// Existing descriptor read ceiling; optional previews may never write a
-/// cache record that this same Store cannot read on restart.
-pub(crate) const MAX_LOCAL_RECORD_BYTES: usize = 32 * 1024 * 1024;
-/// Exact CacheRecord JSON framing with STANDARD base64 of nonce12 + plaintext
-/// + GCM tag16. The alphabet needs no JSON escapes; no encryption or KDF runs.
-pub(crate) fn cache_record_encoded_len(checkpoint_json_bytes: usize) -> Result<usize> {
-    let combined = checkpoint_json_bytes.checked_add(28).ok_or(Error::Protocol)?;
-    let ciphertext = combined.checked_add(2).ok_or(Error::Protocol)?
-        .checked_div(3).and_then(|value| value.checked_mul(4)).ok_or(Error::Protocol)?;
-    let framing = serde_json::to_vec(&CacheRecord { version: 1, ciphertext: String::new() })?.len();
-    framing.checked_add(ciphertext).ok_or(Error::Protocol)
-}
-fn encode_bounded_cache(value: &serde_json::Value) -> Result<Zeroizing<Vec<u8>>> {
-    let framing = serde_json::to_vec(&CacheRecord { version: 1, ciphertext: String::new() })?.len();
-    // STANDARD base64 length is 4*ceil((plaintext+nonce12+tag16)/3).
-    let limit = MAX_LOCAL_RECORD_BYTES.checked_sub(framing)
-        .and_then(|n| (n / 4).checked_mul(3)).and_then(|n| n.checked_sub(28))
-        .ok_or(Error::Protocol)?;
-    struct Encoder { bytes: Zeroizing<Vec<u8>>, limit: usize, exceeded: bool }
-    impl Write for Encoder {
-        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-            if self.bytes.len().checked_add(bytes.len()).is_none_or(|n| n > self.limit) {
-                self.exceeded = true;
-                return Err(std::io::Error::other("local cache capacity"));
-            }
-            self.bytes.extend_from_slice(bytes);
-            Ok(bytes.len())
-        }
-        fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
-    }
-    let mut encoder = Encoder { bytes: Zeroizing::new(Vec::new()), limit, exceeded: false };
-    let serialized = serde_json::to_writer(&mut encoder, value);
-    if encoder.exceeded { return Err(Error::Invalid("The local record is too large.")); }
-    serialized?;
-    if cache_record_encoded_len(encoder.bytes.len())? > MAX_LOCAL_RECORD_BYTES {
-        return Err(Error::Invalid("The local record is too large."));
-    }
-    Ok(encoder.bytes)
-}
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 struct PrivateRecord {
     version: u8,
     owner: String,
     context: String,
     ciphertext: String,
 }
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct PendingCleanup {
-    mode: StorageMode,
-    owner: String,
-}
-
-/// Independent of session.lock: logout can revoke a blocked keyring operation.
-/// Contexts are hashes, never credentials; a fresh admission replaces this epoch.
-#[derive(Default, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct RevocationFence {
-    version: u8,
-    epoch: String,
-    revoked: bool,
-    context: Option<String>,
-    admitted: Option<String>,
-    cleanup: Option<PendingCleanup>,
-    retired_contexts: Vec<String>,
-}
-
 // Only authenticated vaults enter this cache. No passphrase or deterministic
 // password verifier is retained: a fresh random HMAC key verifies warm calls.
 struct UnlockedVault {
@@ -222,39 +156,12 @@ impl Drop for UnlockedVault {
     }
 }
 
-// One Store-local, bounded ciphertext snapshot, never serialized or exposed.
-// An authenticated read is only a candidate: both it and a previous publication
-// must verify and synchronize the exact current file before issuing a proof.
-const CACHE_MEMO_MAX_BYTES: usize = 4 * 1024 * 1024;
-const CACHE_MEMO_MAX_NODES: usize = 65_536;
-const CACHE_MEMO_MAX_DEPTH: usize = 64;
-#[derive(Clone)]
-struct CacheRecordEvidence {
-    epoch: String,
-    binding: Zeroizing<[u8; 32]>,
-    record_digest: [u8; 32],
-    encoded_len: usize,
-    record_len: usize,
-}
-#[derive(Clone)]
-struct CachePublicationProof {
-    record: CacheRecordEvidence,
-}
-enum CacheMemoSource {
-    Published(CachePublicationProof),
-    AuthenticatedRead(CacheRecordEvidence),
-}
-struct CacheWriteMemo {
-    value: serde_json::Value,
-    source: CacheMemoSource,
-}
-impl CacheWriteMemo {
-    fn record(&self) -> &CacheRecordEvidence {
-        match &self.source {
-            CacheMemoSource::Published(proof) => &proof.record,
-            CacheMemoSource::AuthenticatedRead(record) => record,
-        }
-    }
+/// Outcome of a save that must not clobber a session another process rotated.
+pub enum SessionSave {
+    /// Whether the session was written (false: already the durable one).
+    Saved(bool),
+    /// The stored session is newer than the caller's; it was not overwritten.
+    Superseded(Session),
 }
 /// In-process evidence of the exact durable session publication. The Store's
 /// lifetime runtime lock excludes other writers; every skip still rechecks the
@@ -266,33 +173,11 @@ struct DurableSession {
     envelope_digest: [u8; 32],
     synced: bool,
 }
-/// In-process evidence of one durable cache record: the epoch/key/AAD binding,
-/// the digest of its canonical plaintext and the exact file identity. A skip
-/// requires all of them; any mismatch takes the ordinary encrypted write.
-struct DurableCache {
-    epoch: String,
-    binding: Zeroizing<[u8; 32]>,
-    plaintext_digest: [u8; 32],
-    identity: CacheFileIdentity,
-    synced: bool,
-}
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct CacheFileIdentity {
-    device: u64,
-    inode: u64,
-    mode: u32,
-    uid: u32,
-    gid: u32,
-    links: u64,
-    bytes: u64,
-    modified: (i64, i64),
-    changed: (i64, i64),
-}
 // A first intent is reusable only while the exact durable inode remains current.
 // Bytes alone cannot prove that a later replacement was durably published.
 struct DurableRevocationIntent {
     file: File,
-    identity: CacheFileIdentity,
+    identity: FileIdentity,
     bytes: Vec<u8>,
 }
 #[cfg(test)]
@@ -305,125 +190,26 @@ struct SessionIntentTestState {
     fail_session: bool,
     before_final: Option<Box<dyn FnOnce(&Store) + Send>>,
 }
-fn cache_file_identity(file: &File) -> Result<Option<CacheFileIdentity>> {
-    #[cfg(unix)]
-    {
-        let metadata = file.metadata()?;
-        if !metadata.is_file()
-            || metadata.uid() != rustix::process::geteuid().as_raw()
-            || metadata.mode() & 0o777 != 0o600
-            || metadata.nlink() != 1
-        {
-            return Err(Error::Io);
-        }
-        Ok(Some(CacheFileIdentity {
-            device: metadata.dev(),
-            inode: metadata.ino(),
-            mode: metadata.mode(),
-            uid: metadata.uid(),
-            gid: metadata.gid(),
-            links: metadata.nlink(),
-            bytes: metadata.len(),
-            modified: (metadata.mtime(), metadata.mtime_nsec()),
-            changed: (metadata.ctime(), metadata.ctime_nsec()),
-        }))
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = file;
-        Ok(None)
-    }
-}
-#[cfg(test)]
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum CacheHitPoint {
-    VerifiedRead,
-    DurableSync,
-    BeforeReadback,
-}
-#[cfg(test)]
-type CacheHitAction = (CacheHitPoint, Box<dyn FnOnce(&Store, &str) + Send>);
-
-fn cache_memo_eligible(value: &serde_json::Value) -> bool {
-    fn visit(
-        value: &serde_json::Value,
-        depth: usize,
-        nodes: &mut usize,
-        bytes: &mut usize,
-    ) -> bool {
-        if depth > CACHE_MEMO_MAX_DEPTH || *nodes == 0 {
-            return false;
-        }
-        *nodes -= 1;
-        match value {
-            serde_json::Value::String(text) => {
-                let Some(remaining) = (*bytes).checked_sub(text.capacity()) else {
-                    return false;
-                };
-                *bytes = remaining;
-            }
-            serde_json::Value::Array(rows) => {
-                let Some(remaining) =
-                    (*nodes).checked_sub(rows.capacity().saturating_sub(rows.len()))
-                else {
-                    return false;
-                };
-                *nodes = remaining;
-                for row in rows {
-                    if !visit(row, depth + 1, nodes, bytes) {
-                        return false;
-                    }
-                }
-            }
-            serde_json::Value::Object(rows) => {
-                for (key, row) in rows {
-                    let Some(remaining) = (*bytes).checked_sub(key.capacity()) else {
-                        return false;
-                    };
-                    *bytes = remaining;
-                    if !visit(row, depth + 1, nodes, bytes) {
-                        return false;
-                    }
-                }
-            }
-            _ => {}
-        }
-        true
-    }
-    let mut nodes = CACHE_MEMO_MAX_NODES;
-    let mut bytes = CACHE_MEMO_MAX_BYTES;
-    visit(value, 0, &mut nodes, &mut bytes)
-}
-fn cache_publication_mac(key: &[u8; 32], epoch: &str, aad: &[u8]) -> Result<Hmac<Sha256>> {
-    let mut mac = <Hmac<Sha256> as Mac>::new_from_slice(key).map_err(|_| Error::Crypto)?;
-    mac.update(b"openmates-rust-cache-publication-v1\0");
-    mac.update(&serde_json::to_vec(&(epoch, aad))?);
-    Ok(mac)
-}
-
 /// A descriptor anchored at a private, owner-controlled directory.
 pub struct Store {
-    root: File,
+    bytes: Arc<FileByteStore>,
+    /// The encrypted cache engine (core-owned) over this directory's records.
+    cache: Arc<CacheEngine<CacheBytes>>,
     path: PathBuf,
     account: String,
     backend: Arc<dyn CredentialBackend>,
     force_vault: bool,
-    _runtime_guard: Option<FileLock>,
+    runtime_guard: Mutex<Option<LockGuard>>,
+    /// Set by long-running hosts: the runtime lock is then taken per operation.
+    per_operation_lock: std::sync::atomic::AtomicBool,
     vault_cache: Mutex<Option<UnlockedVault>>,
     #[cfg(test)]
     session_intent_test: Mutex<SessionIntentTestState>,
-    cache_write_memo: Mutex<Option<CacheWriteMemo>>,
     durable_session: Mutex<Option<DurableSession>>,
-    durable_caches: Mutex<std::collections::HashMap<String, DurableCache>>,
-    section_manifests: Mutex<std::collections::HashMap<String, sections::Manifest>>,
-    #[cfg(test)]
-    cache_serializations: std::sync::atomic::AtomicUsize,
-    #[cfg(test)]
-    cache_hit_action: Mutex<Option<CacheHitAction>>,
     #[cfg(test)]
     vault_derivations: std::sync::atomic::AtomicUsize,
     #[cfg(test)]
-    io_counts: IoCounts,
+    io_counts: Arc<IoCounts>,
 }
 /// Test-only counters of private session/cache record reads and publications.
 #[cfg(test)]
@@ -441,47 +227,71 @@ impl Store {
             .ok_or(Error::Io)
     }
     pub fn new(path: PathBuf) -> Result<Self> {
-        let mut store = Self::with_backend(path, Arc::new(NativeKeyring))?;
-        let file = store.open("runtime.lock", OFlags::RDWR | OFlags::CREATE)?;
-        file.try_lock_exclusive().map_err(|error| {
-            if error.kind() == std::io::ErrorKind::WouldBlock {
+        let store = Self::with_backend(path, Arc::new(NativeKeyring))?;
+        let guard = store.bytes.try_lock("runtime.lock").map_err(|error| match error {
+            ByteStoreError::WouldBlock => {
                 Error::Invalid("This state directory is already in use by another native client.")
-            } else {
-                Error::Io
             }
+            _ => Error::Io,
         })?;
-        store._runtime_guard = Some(FileLock(file));
+        *store.runtime_guard.lock().map_err(|_| Error::Io)? = Some(guard);
         Ok(store)
+    }
+    /// Long-running hosts (`remote-access`) must not exclude every other
+    /// `openmates` command on the same state directory for their lifetime.
+    /// After this call the runtime lock is released and `with_runtime_lock`
+    /// takes it only around each store operation, so one-shot commands run
+    /// between operations while the cookie-refresh and cache-write exclusion
+    /// still holds for every individual operation.
+    pub fn scope_runtime_lock_to_operations(&self) -> Result<()> {
+        self.per_operation_lock
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        self.runtime_guard.lock().map_err(|_| Error::Io)?.take();
+        Ok(())
+    }
+    /// Run one store operation under the runtime lock when it is per-operation
+    /// (a no-op for lifetime-locked stores). Waits a bounded time for a
+    /// concurrent one-shot command to finish rather than blocking forever.
+    pub fn with_runtime_lock<T>(&self, operation: impl FnOnce() -> Result<T>) -> Result<T> {
+        if !self.per_operation_lock.load(std::sync::atomic::Ordering::SeqCst) {
+            return operation();
+        }
+        let _guard = self
+            .bytes
+            .lock_timeout("runtime.lock", std::time::Duration::from_secs(60))?;
+        operation()
     }
     /// Injectable backend for isolated storage tests; production constructors
     /// additionally hold a lifetime runtime lock against cookie-refresh races.
     pub fn with_backend(path: PathBuf, backend: Arc<dyn CredentialBackend>) -> Result<Self> {
         // Equivalent spellings must address the same keyring namespace.
         let path: PathBuf = path.components().collect();
-        let root = private_directory(&path)?;
+        let bytes = Arc::new(FileByteStore::open(&path)?);
+        #[cfg(test)]
+        let io_counts = Arc::new(IoCounts::default());
+        let cache = Arc::new(CacheEngine::new(CacheBytes {
+            inner: bytes.clone(),
+            #[cfg(test)]
+            io: io_counts.clone(),
+        }));
         let account = digest(path.as_os_str().as_encoded_bytes());
         Ok(Self {
-            root,
+            bytes,
+            cache,
             path,
             account,
             backend,
             force_vault: false,
-            _runtime_guard: None,
+            runtime_guard: Mutex::new(None),
+            per_operation_lock: std::sync::atomic::AtomicBool::new(false),
             vault_cache: Mutex::new(None),
             #[cfg(test)]
             session_intent_test: Mutex::new(SessionIntentTestState::default()),
-            cache_write_memo: Mutex::new(None),
             durable_session: Mutex::new(None),
-            durable_caches: Mutex::new(std::collections::HashMap::new()),
-            section_manifests: Mutex::new(std::collections::HashMap::new()),
-            #[cfg(test)]
-            cache_serializations: std::sync::atomic::AtomicUsize::new(0),
-            #[cfg(test)]
-            cache_hit_action: Mutex::new(None),
             #[cfg(test)]
             vault_derivations: std::sync::atomic::AtomicUsize::new(0),
             #[cfg(test)]
-            io_counts: IoCounts::default(),
+            io_counts,
         })
     }
     /// Explicit local vault mode, useful on hosts without a native credential store.
@@ -558,14 +368,7 @@ impl Store {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take();
-        self.durable_caches
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clear();
-        self.section_manifests
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clear();
+        self.cache.forget_evidence();
     }
     /// Change-only persistence: skip the credential publication when the exact
     /// session is already the durable one for the current epoch. Otherwise (or
@@ -579,6 +382,49 @@ impl Store {
             return Ok(false);
         }
         self.save_session(session, passphrase).map(|()| true)
+    }
+    /// Per-operation (host) stores only: the stored session when another
+    /// process rotated and saved it since this process last loaded or saved
+    /// it (the stored record's digest no longer matches the remembered one).
+    /// Lifetime-locked stores and stores with no remembered record never
+    /// report one, so one-shot commands behave exactly as before. The caller
+    /// must already hold the runtime lock (`RuntimeStore` operations do), so
+    /// the comparison and any following write form one critical section; this
+    /// never takes the runtime lock itself, which would deadlock under it.
+    pub fn superseded_session(&self, passphrase: Option<&str>) -> Result<Option<Session>> {
+        if !self.per_operation_lock.load(std::sync::atomic::Ordering::SeqCst) {
+            return Ok(None);
+        }
+        let Some(remembered) = self
+            .durable_session
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+        else {
+            return Ok(None);
+        };
+        let stored_digest = {
+            let _guard = self.lock("session.lock")?;
+            self.envelope_with_digest()?.map(|(_, digest)| digest)
+        };
+        match stored_digest {
+            Some(digest) if digest != remembered.envelope_digest => self.load_session(passphrase),
+            _ => Ok(None),
+        }
+    }
+    /// `save_session_if_changed`, except that a host whose stored session was
+    /// rotated by another process adopts that one instead of overwriting it
+    /// with its older in-memory credentials. Same lock contract as
+    /// `superseded_session`.
+    pub fn save_session_unless_superseded(
+        &self,
+        session: &Session,
+        passphrase: Option<&str>,
+    ) -> Result<SessionSave> {
+        if let Some(stored) = self.superseded_session(passphrase)? {
+            return Ok(SessionSave::Superseded(stored));
+        }
+        self.save_session_if_changed(session, passphrase).map(SessionSave::Saved)
     }
     fn durable_session_current(&self, session: &Session, passphrase: Option<&str>) -> Result<bool> {
         let digest = session_digest(session)?;
@@ -621,9 +467,9 @@ impl Store {
         self.require_epoch(&remembered.epoch)?;
         if !remembered.synced {
             for name in ["session.json", "revocation.json"] {
-                self.open(name, OFlags::RDONLY | OFlags::NONBLOCK)?.sync_all()?;
+                self.bytes.sync(name)?;
             }
-            self.root.sync_all()?;
+            self.bytes.barrier()?;
             self.remember_durable_session(DurableSession { synced: true, ..remembered });
         }
         Ok(true)
@@ -691,7 +537,7 @@ impl Store {
             let file = self.atomic_write_file("revocation.json", &bytes)?;
             // Optional evidence: unsupported/failed identity capture takes the
             // original second-write path, never grants authority or fails save.
-            cache_file_identity(&file).ok().flatten().map(|identity| {
+            FileByteStore::identity(&file).ok().map(|identity| {
                 DurableRevocationIntent { file, identity, bytes }
             })
         };
@@ -780,7 +626,7 @@ impl Store {
         }
         if result.is_err() && existing.is_none() && mode == StorageMode::RestrictedLocalFile {
             self.remove("credential-key")?;
-            self.root.sync_all()?;
+            self.bytes.barrier()?;
         }
         if result.is_ok() {
             // Even a newly created cache entry follows a verified AEAD record.
@@ -900,13 +746,6 @@ impl Store {
     /// work. Repeated announcements preserve the context and cleanup intent.
     pub fn revoke_session(&self) -> Result<()> {
         let _fence = self.lock("revocation.lock")?;
-        // Optional retained ciphertext must not survive completed local logout.
-        let previous = self
-            .cache_write_memo
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .take();
-        drop(previous);
         self.forget_durable_evidence();
         let mut fence = self.fence()?;
         if !fence.revoked {
@@ -947,58 +786,10 @@ impl Store {
         session: &Session,
         admitted: impl FnOnce() -> Result<()>,
     ) -> Result<()> {
-        if session.is_expired() || session.hashed_email.is_empty() || session.session_id.is_empty()
-        {
-            return Err(Error::Authentication);
-        }
+        // Fence policy lives in the core; this store supplies envelope and
+        // cleanup IO while `session.lock` is held.
         let _guard = self.lock("session.lock")?;
-        let before = self.fence()?;
-        let context = session_context(session)?;
-        if before.revoked && before.retired_contexts.contains(&context) {
-            return Err(Error::Authentication);
-        }
-        let existing = self.envelope()?;
-        if before.revoked
-            && existing
-                .as_ref()
-                .is_some_and(|record| record.context == context)
-        {
-            return Err(Error::Authentication);
-        }
-        if !before.revoked && before.admitted.as_ref() == Some(&context) {
-            if existing.as_ref().is_some_and(|record| {
-                record.context != context || record.owner != owner_id(&session.hashed_email)
-            }) {
-                return Err(Error::Authentication);
-            }
-            // Pairing can retry the same admission after a vault-unlock prompt.
-            // This path changes neither the epoch nor prior cleanup metadata.
-            let _fence = self.lock("revocation.lock")?;
-            self.require_epoch(&before.epoch)?;
-            admitted()?;
-            return Ok(());
-        }
-        if !before.revoked && (existing.is_some() || before.cleanup.is_some()) {
-            return Err(Error::Invalid(
-                "Sign out before admitting another stored session.",
-            ));
-        }
-        if before.revoked || self.pending_cleanup()?.is_some() {
-            self.clear_session_locked()?;
-        }
-        let _fence = self.lock("revocation.lock")?;
-        if self.fence()?.epoch != before.epoch {
-            return Err(Error::Cancelled);
-        }
-        admitted()?;
-        let fence = RevocationFence {
-            version: 1,
-            epoch: uuid::Uuid::new_v4().to_string(),
-            admitted: Some(context.clone()),
-            context: Some(context),
-            ..Default::default()
-        };
-        self.atomic_write("revocation.json", &serde_json::to_vec(&fence)?)
+        begin_session_epoch(self, session, admitted)
     }
     pub fn clear_session(&self) -> Result<()> {
         self.revoke_session()?;
@@ -1028,7 +819,7 @@ impl Store {
             }
         };
         self.remove("session.json")?;
-        self.root.sync_all()?;
+        self.bytes.barrier()?;
         self.clear_owned_cache(&pending.owner)?;
         if pending.mode == StorageMode::OsKeyring {
             self.backend
@@ -1039,7 +830,7 @@ impl Store {
             self.remove("credential-key")?;
         }
         self.remove("pending-cleanup.json")?;
-        self.root.sync_all()?;
+        self.bytes.barrier()?;
         let _fence = self.lock("revocation.lock")?;
         let mut fence = self.fence()?;
         if !fence.revoked {
@@ -1051,94 +842,17 @@ impl Store {
         self.atomic_write("revocation.json", &serde_json::to_vec(&fence)?)?;
         Ok(())
     }
+    /// Authenticated read of one logical cache value (sectioned layout
+    /// assembled); the work lives in the core cache engine.
     pub fn read_cache(
         &self,
         owner: &str,
         cache_key: &str,
         key: &[u8; 32],
     ) -> Result<Option<serde_json::Value>> {
-        let epoch = self.active_epoch()?;
-        let _session_guard = self.lock("session.lock")?;
-        self.require_epoch(&epoch)?;
-        let envelope = self.cache_session(owner)?;
-        let name = cache_name(owner, cache_key);
-        let _cache_guard = self.lock(&format!("{name}.lock"))?;
-        // A committed sectioned layout supersedes the legacy single record.
-        if let Some(read) =
-            self.read_sections_locked(&envelope, owner, cache_key, key, &epoch, SyncReadMode::Complete)?
-        {
-            let value = match read {
-                SyncCacheRead::Complete(value) | SyncCacheRead::Index(value) => value,
-            };
-            let _fence = self.lock("revocation.lock")?;
-            self.require_epoch(&epoch)?;
-            return Ok(Some(value));
-        }
-        let Some(bytes) = self.read(&name)? else {
-            return Ok(None);
-        };
-        let record: CacheRecord = serde_json::from_slice(&bytes)?;
-        if record.version != 1 {
-            return Err(Error::Protocol);
-        }
-        let aad = cache_aad(&envelope, cache_key)?;
-        let plaintext = decrypt(key, &record.ciphertext, &aad)?;
-        let value = serde_json::from_slice(&plaintext)?;
-        // Only the existing ciphertext sync snapshot is retained. Other reads
-        // (including recovery scheduling records) never seed this optimization.
-        // The authenticated bytes need not already be durable: publication will
-        // independently checkpoint the exact current file before issuing proof.
-        let candidate = if cache_key == "sync-personal"
-            && plaintext.len() <= CACHE_MEMO_MAX_BYTES
-            && cache_memo_eligible(&value)
-        {
-            Some(CacheWriteMemo {
-                value: value.clone(),
-                source: CacheMemoSource::AuthenticatedRead(CacheRecordEvidence {
-                    epoch: epoch.clone(),
-                    binding: Zeroizing::new(
-                        cache_publication_mac(key, &epoch, &aad)?.finalize().into_bytes().into(),
-                    ),
-                    record_digest: Sha256::digest(&bytes).into(),
-                    encoded_len: plaintext.len(),
-                    record_len: bytes.len(),
-                }),
-            })
-        } else {
-            None
-        };
-        let _fence = self.lock("revocation.lock")?;
-        self.require_epoch(&epoch)?;
-        if let Some(candidate) = candidate {
-            // Logout uses the same durable fence before clearing this slot;
-            // a late authenticated read cannot resurrect a revoked candidate.
-            if let Ok(mut memo) = self.cache_write_memo.lock() {
-                let previous = std::mem::replace(&mut *memo, Some(candidate));
-                drop(memo);
-                drop(previous);
-            }
-        }
-        Ok(Some(value))
+        self.cache.read_cache(self, owner, cache_key, key)
     }
-    /// Legacy single-record read for restore/migration. Caller holds
-    /// session.lock and the record lock; no memo candidate is retained.
-    fn read_legacy_locked(
-        &self,
-        envelope: &Envelope,
-        owner: &str,
-        cache_key: &str,
-        key: &[u8; 32],
-    ) -> Result<Option<serde_json::Value>> {
-        let Some(bytes) = self.read(&cache_name(owner, cache_key))? else {
-            return Ok(None);
-        };
-        let record: CacheRecord = serde_json::from_slice(&bytes)?;
-        if record.version != 1 {
-            return Err(Error::Protocol);
-        }
-        let plaintext = decrypt(key, &record.ciphertext, &cache_aad(envelope, cache_key)?)?;
-        Ok(Some(serde_json::from_slice(&plaintext)?))
-    }
+    /// Publish one logical value as a single encrypted record.
     pub fn write_cache(
         &self,
         owner: &str,
@@ -1146,239 +860,50 @@ impl Store {
         key: &[u8; 32],
         value: &serde_json::Value,
     ) -> Result<()> {
-        self.publish_cache(owner, cache_key, key, value).map(|_| ())
+        self.cache.write_cache(self, owner, cache_key, key, value)
     }
-    /// Consume the application's existing ciphertext snapshot without cloning
-    /// it into a second memo. Arbitrary borrowed callers retain no new values.
-    pub(crate) fn write_ciphertext_cache(
-        &self,
-        owner: &str,
-        cache_key: &str,
-        key: &[u8; 32],
-        value: serde_json::Value,
-    ) -> Result<()> {
-        self.write_ciphertext_cache_inner(owner, cache_key, key, value)
-    }
-    fn encode_cache_value(&self, value: &serde_json::Value) -> Result<Zeroizing<Vec<u8>>> {
-        let bytes = encode_bounded_cache(value)?;
-        #[cfg(test)]
-        self.cache_serializations.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        Ok(bytes)
-    }
-    fn write_ciphertext_cache_inner(&self, owner: &str, cache_key: &str, key: &[u8; 32],
-        value: serde_json::Value) -> Result<()> {
-        let proof = self.publish_cache(owner, cache_key, key, &value)?;
-        let next = if proof.record.encoded_len <= CACHE_MEMO_MAX_BYTES && cache_memo_eligible(&value) {
-            Some(CacheWriteMemo {
-                value,
-                source: CacheMemoSource::Published(proof.clone()),
-            })
-        } else {
-            None
-        };
-        // Match the durable epoch again before retaining a proof. Logout owns
-        // this same fence and cannot be followed by late memo resurrection.
-        let _fence = self.lock("revocation.lock")?;
-        self.require_epoch(&proof.record.epoch)?;
-        if let Ok(mut memo) = self.cache_write_memo.lock() {
-            let previous = std::mem::replace(&mut *memo, next);
-            drop(memo);
-            drop(previous);
-        }
-        Ok(())
-    }
-    fn publish_cache(
-        &self,
-        owner: &str,
-        cache_key: &str,
-        key: &[u8; 32],
-        value: &serde_json::Value,
-    ) -> Result<CachePublicationProof> {
-        let epoch = self.active_epoch()?;
-        let _session_guard = self.lock("session.lock")?;
-        let envelope = self.cache_session(owner)?;
-        let name = cache_name(owner, cache_key);
-        let _cache_guard = self.lock(&format!("{name}.lock"))?;
-        let aad = cache_aad(&envelope, cache_key)?;
-        let mac = cache_publication_mac(key, &epoch, &aad)?;
-        let previous = if cache_memo_eligible(value) {
-            self.cache_write_memo.lock().ok().and_then(|memo| {
-                memo.as_ref()
-                    .filter(|memo| {
-                        memo.value == *value
-                            && memo.record().epoch == epoch
-                            && mac
-                                .clone()
-                                .verify_slice(memo.record().binding.as_ref())
-                                .is_ok()
-                    })
-                    .map(|memo| memo.record().clone())
-            })
-        } else {
-            None
-        };
-        if let Some(proof) = previous {
-            // Read through the anchored descriptor and retain the exact file
-            // across the checkpoint. Missing/changed/tampered records cannot
-            // reuse a previous write. The ordinary full write is the fallback.
-            let fd = match rustix::fs::openat(
-                &self.root,
-                &name,
-                OFlags::RDWR | OFlags::CLOEXEC | OFlags::NOFOLLOW | OFlags::NONBLOCK,
-                Mode::empty(),
-            ) {
-                Ok(fd) => Some(fd),
-                Err(rustix::io::Errno::NOENT) => None,
-                Err(_) => return Err(Error::Io),
-            };
-            if let Some(fd) = fd {
-                check_private(&self.root, true)?;
-                let mut file = File::from(fd);
-                check_private(&file, false)?;
-                if let Some(identity) = cache_file_identity(&file)? {
-                    if proof.record_len <= MAX_LOCAL_RECORD_BYTES
-                        && identity.bytes == proof.record_len as u64
-                    {
-                        self.require_current_cache_file(&name, &file, &identity)?;
-                        let mut bytes = Vec::new();
-                        (&mut file)
-                            .take(proof.record_len as u64 + 1)
-                            .read_to_end(&mut bytes)?;
-                        let actual: [u8; 32] = Sha256::digest(&bytes).into();
-                        if bytes.len() == proof.record_len && actual == proof.record_digest {
-                            #[cfg(test)]
-                            self.run_cache_hit_action(CacheHitPoint::VerifiedRead, &name);
-                            self.require_current_cache_file(&name, &file, &identity)?;
-                            let _fence = self.lock("revocation.lock")?;
-                            self.require_epoch(&epoch)?;
-                            file.sync_all()?;
-                            self.root.sync_all()?;
-                            #[cfg(test)]
-                            self.run_cache_hit_action(CacheHitPoint::DurableSync, &name);
-                            self.require_current_cache_file(&name, &file, &identity)?;
-                            // Re-read the same bounded descriptor after sync;
-                            // metadata stability alone is not content evidence.
-                            #[cfg(test)]
-                            self.run_cache_hit_action(CacheHitPoint::BeforeReadback, &name);
-                            std::io::Seek::rewind(&mut file)?;
-                            bytes.clear();
-                            (&mut file)
-                                .take(proof.record_len as u64 + 1)
-                                .read_to_end(&mut bytes)?;
-                            let final_digest: [u8; 32] = Sha256::digest(&bytes).into();
-                            if bytes.len() != proof.record_len
-                                || final_digest != proof.record_digest
-                            {
-                                return Err(Error::Cancelled);
-                            }
-                            self.require_current_cache_file(&name, &file, &identity)?;
-                            self.require_epoch(&epoch)?;
-                            self.retire_sections_locked(owner, cache_key)?;
-                            return Ok(CachePublicationProof { record: proof });
-                        }
-                    }
-                }
-            }
-        }
-        // Encode at most once, before retiring old memo state.
-        let plaintext = self.encode_cache_value(value)?;
-        // Keep the old memo through capacity refusal; retire it before the
-        // ciphertext/base64 buffers. Exactly one plaintext buffer is owned.
-        let discarded = self
-            .cache_write_memo
-            .lock()
-            .ok()
-            .and_then(|mut memo| memo.take());
-        drop(discarded);
-        let record = CacheRecord {
-            version: 1,
-            ciphertext: encrypt(key, &plaintext, &aad)?,
-        };
-        let encoded = serde_json::to_vec(&record)?;
-        let _fence = self.lock("revocation.lock")?;
-        self.require_epoch(&epoch)?;
-        self.atomic_write(&name, &encoded)?;
-        drop(_fence);
-        self.retire_sections_locked(owner, cache_key)?;
-        Ok(CachePublicationProof {
-            record: CacheRecordEvidence {
-                epoch,
-                binding: Zeroizing::new(mac.finalize().into_bytes().into()),
-                record_digest: Sha256::digest(&encoded).into(),
-                encoded_len: plaintext.len(),
-                record_len: encoded.len(),
-            },
-        })
+    /// The core cache engine over this directory (shared with `RuntimeStore`).
+    pub(crate) fn cache_engine(&self) -> &Arc<CacheEngine<CacheBytes>> {
+        &self.cache
     }
     fn require_current_cache_file(
         &self,
         name: &str,
         held: &File,
-        expected: &CacheFileIdentity,
+        expected: &FileIdentity,
     ) -> Result<()> {
-        check_private(&self.root, true)?;
-        let current = self.open(name, OFlags::RDONLY | OFlags::NONBLOCK)?;
-        if cache_file_identity(held)?.as_ref() != Some(expected)
-            || cache_file_identity(&current)?.as_ref() != Some(expected)
+        self.bytes.check_directory()?;
+        let current = self.bytes.open_current(name)?;
+        if FileByteStore::identity(held)? != *expected
+            || FileByteStore::identity(&current)? != *expected
         {
             return Err(Error::Cancelled);
         }
         Ok(())
     }
     #[cfg(test)]
-    fn run_cache_hit_action(&self, point: CacheHitPoint, name: &str) {
-        let action = {
-            let mut slot = self.cache_hit_action.lock().unwrap();
-            if slot.as_ref().is_some_and(|(when, _)| *when == point) {
-                slot.take()
-            } else {
-                None
-            }
-        };
-        if let Some((_, action)) = action {
-            action(self, name);
-        }
+    pub(crate) fn cache_serializations_for_test(&self) -> usize {
+        self.cache.encode_count()
+    }
+    /// (cache record reads, cache record writes, session.json writes, revocation.json writes)
+    #[cfg(test)]
+    pub(crate) fn io_counts_for_test(&self) -> (usize, usize, usize, usize) {
+        let load = |counter: &std::sync::atomic::AtomicUsize| counter.load(std::sync::atomic::Ordering::SeqCst);
+        (
+            load(&self.io_counts.cache_reads),
+            load(&self.io_counts.cache_writes),
+            load(&self.io_counts.session_writes),
+            load(&self.io_counts.revocation_writes),
+        )
     }
     fn fence(&self) -> Result<RevocationFence> {
-        let Some(bytes) = self.read("revocation.json")? else {
-            return Ok(RevocationFence::default());
-        };
-        if bytes.len() > 4096 {
-            return Err(Error::Protocol);
-        }
-        let fence: RevocationFence = serde_json::from_slice(&bytes)?;
-        if fence.version != 1
-            || uuid::Uuid::parse_str(&fence.epoch).is_err()
-            || fence.retired_contexts.len() > 2
-        {
-            return Err(Error::Protocol);
-        }
-        Ok(fence)
+        RevocationFence::load(&*self.bytes)
     }
     fn active_epoch(&self) -> Result<String> {
-        let fence = self.fence()?;
-        if fence.revoked {
-            return Err(Error::Authentication);
-        }
-        Ok(fence.epoch)
+        self.fence()?.active_epoch()
     }
     fn require_epoch(&self, expected: &str) -> Result<()> {
-        let fence = self.fence()?;
-        if fence.revoked || fence.epoch != expected {
-            return Err(Error::Cancelled);
-        }
-        Ok(())
-    }
-    fn cache_session(&self, owner: &str) -> Result<Envelope> {
-        if self.pending_cleanup()?.is_some() {
-            return Err(Error::Authentication);
-        }
-        let envelope = self.envelope()?.ok_or(Error::Authentication)?;
-        envelope.validate()?;
-        if envelope.owner != owner_id(owner) {
-            return Err(Error::Forbidden);
-        }
-        Ok(envelope)
+        self.fence()?.require_epoch(expected)
     }
     fn pending_cleanup(&self) -> Result<Option<PendingCleanup>> {
         let bytes = self.read("pending-cleanup.json")?;
@@ -1554,56 +1079,16 @@ impl Store {
             key,
         ))
     }
-    fn open(&self, name: &str, flags: OFlags) -> Result<File> {
-        check_private(&self.root, true)?;
-        if name.contains('/') || name == "." || name == ".." {
-            return Err(Error::Io);
-        }
-        let fd = rustix::fs::openat(
-            &self.root,
-            name,
-            flags | OFlags::CLOEXEC | OFlags::NOFOLLOW,
-            Mode::RUSR | Mode::WUSR,
-        )
-        .map_err(|_| Error::Io)?;
-        let file = File::from(fd);
-        check_private(&file, false)?;
-        Ok(file)
-    }
     fn read(&self, name: &str) -> Result<Option<Vec<u8>>> {
-        Ok(self.read_with_identity(name)?.map(|(bytes, _)| bytes))
-    }
-    /// Bytes plus the identity of the exact descriptor they were read from.
-    fn read_with_identity(&self, name: &str) -> Result<Option<(Vec<u8>, Option<CacheFileIdentity>)>> {
-        check_private(&self.root, true)?;
-        let fd = match rustix::fs::openat(
-            &self.root,
-            name,
-            OFlags::RDONLY | OFlags::CLOEXEC | OFlags::NOFOLLOW | OFlags::NONBLOCK,
-            Mode::empty(),
-        ) {
-            Ok(fd) => fd,
-            Err(rustix::io::Errno::NOENT) => return Ok(None),
-            Err(_) => return Err(Error::Io),
-        };
-        let mut file = File::from(fd);
-        check_private(&file, false)?;
-        if file.metadata()?.len() > MAX_LOCAL_RECORD_BYTES as u64 {
-            return Err(Error::Invalid("The local record is too large."));
-        }
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)?;
+        let read = self.bytes.get(name)?;
         #[cfg(test)]
-        if name.starts_with("cache-") {
+        if read.is_some() && name.starts_with("cache-") {
             self.io_counts.cache_reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         }
-        let identity = cache_file_identity(&file).ok().flatten();
-        Ok(Some((bytes, identity)))
+        Ok(read)
     }
-    fn lock(&self, name: &str) -> Result<FileLock> {
-        let file = self.open(name, OFlags::RDWR | OFlags::CREATE)?;
-        file.lock_exclusive()?;
-        Ok(FileLock(file))
+    fn lock(&self, name: &str) -> Result<LockGuard> {
+        Ok(self.bytes.lock(name)?)
     }
     // Caller holds revocation.lock across this check and the session publish.
     // Retain the first fsynced inode, check both descriptor identities and the
@@ -1618,13 +1103,13 @@ impl Store {
             return Ok(false);
         }
         self.require_current_cache_file("revocation.json", &intent.file, &intent.identity)?;
-        let mut current = self.open("revocation.json", OFlags::RDONLY | OFlags::NONBLOCK)?;
-        if cache_file_identity(&current)?.as_ref() != Some(&intent.identity) {
+        let mut current = self.bytes.open_current("revocation.json")?;
+        if FileByteStore::identity(&current)? != intent.identity {
             return Ok(false);
         }
         let mut actual = Vec::new();
         (&mut current).take(bytes.len() as u64 + 1).read_to_end(&mut actual)?;
-        if actual != bytes || cache_file_identity(&current)?.as_ref() != Some(&intent.identity) {
+        if actual != bytes || FileByteStore::identity(&current)? != intent.identity {
             return Ok(false);
         }
         self.require_current_cache_file("revocation.json", &intent.file, &intent.identity)?;
@@ -1661,143 +1146,126 @@ impl Store {
                 if state.fail_session { return Err(Error::Io); }
             }
         }
-        // Validate existing targets as well as replacement files; reject symlinks.
-        self.read(name)?;
-        let temporary = format!(".tmp-{}", uuid::Uuid::new_v4());
-        let result = (|| {
-            let mut file = self.open(&temporary, OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL)?;
-            file.write_all(bytes)?;
-            file.sync_all()?;
-            rustix::fs::renameat(&self.root, &temporary, &self.root, name)
-                .map_err(|_| Error::Io)?;
+        Ok(self.bytes.put_file_hooked(name, bytes, sync_directory, || {
             #[cfg(test)]
             {
                 let state = self.session_intent_test.lock().unwrap();
                 if name == "revocation.json"
                     && state.fail_after_revocation_rename_at == Some(state.revocation_writes)
                 {
-                    return Err(Error::Io);
+                    return Err(ByteStoreError::Io);
                 }
             }
-            if sync_directory {
-                self.root.sync_all()?;
-            }
-            Ok(file)
-        })();
-        if result.is_err() {
-            let _ = rustix::fs::unlinkat(&self.root, &temporary, rustix::fs::AtFlags::empty());
-        }
-        result
+            Ok(())
+        })?)
     }
     fn remove(&self, name: &str) -> Result<()> {
-        check_private(&self.root, true)?;
-        let fd = match rustix::fs::openat(
-            &self.root,
-            name,
-            OFlags::RDONLY | OFlags::CLOEXEC | OFlags::NOFOLLOW,
-            Mode::empty(),
-        ) {
-            Ok(fd) => fd,
-            Err(rustix::io::Errno::NOENT) => return Ok(()),
-            Err(_) => return Err(Error::Io),
-        };
-        // Cleanup must work even for damaged or oversized ciphertext records.
-        check_private(&File::from(fd), false)?;
-        rustix::fs::unlinkat(&self.root, name, rustix::fs::AtFlags::empty())
-            .map_err(|_| Error::Io)?;
-        Ok(())
+        Ok(self.bytes.delete(name)?)
     }
     fn clear_owned_cache(&self, owner: &str) -> Result<()> {
-        // Enumerate through the same anchored descriptor used for reads/writes.
-        let prefix = format!("cache-{owner}-");
-        let journal_prefix = format!("private-{owner}-");
-        let entries = rustix::fs::Dir::read_from(&self.root).map_err(|_| Error::Io)?;
-        for entry in entries {
-            let entry = entry.map_err(|_| Error::Io)?;
-            let name = entry.file_name().to_str().map_err(|_| Error::Io)?;
-            if (name.starts_with(&prefix) || name.starts_with(&journal_prefix))
-                && (name.ends_with(".json") || name.ends_with(".json.lock"))
-            {
-                self.remove(name)?;
+        for prefix in [format!("cache-{owner}-"), format!("private-{owner}-")] {
+            for name in self.bytes.list(&prefix)? {
+                if name.ends_with(".json") || name.ends_with(".json.lock") {
+                    self.remove(&name)?;
+                }
             }
         }
-        self.root.sync_all()?;
+        self.bytes.barrier()?;
         Ok(())
     }
 }
-struct FileLock(File);
-impl Drop for FileLock {
-    fn drop(&mut self) {
-        let _ = FileExt::unlock(&self.0);
+/// The core's fresh-session fence (`begin_session_epoch`) over this
+/// directory: the session envelope, the pending-cleanup intent and the
+/// keyring/vault cleanup. Called with `session.lock` held.
+impl SessionBeginStore for Store {
+    type Bytes = FileByteStore;
+    fn fence_store(&self) -> &FileByteStore {
+        &self.bytes
+    }
+    fn stored_credential(&self) -> Result<Option<StoredCredential>> {
+        Ok(self.envelope()?.map(|record| StoredCredential { context: record.context, owner: record.owner }))
+    }
+    fn cleanup_pending(&self) -> Result<bool> {
+        Ok(self.pending_cleanup()?.is_some())
+    }
+    fn clear_stale(&self) -> Result<()> {
+        self.clear_session_locked()
+    }
+    fn write_fence(&self, encoded: &[u8]) -> Result<()> {
+        self.atomic_write("revocation.json", encoded)
     }
 }
-fn private_directory(path: &Path) -> Result<File> {
-    if !path.is_absolute() {
-        return Err(Error::Invalid(
-            "The state directory must be an absolute path.",
-        ));
-    }
-    // Walk from an open root descriptor so intermediate symlinks cannot redirect
-    // credential writes. Existing parent directories need not be private.
-    let mut directory = File::from(
-        rustix::fs::open(
-            "/",
-            OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC,
-            Mode::empty(),
-        )
-        .map_err(|_| Error::Io)?,
-    );
-    let components: Vec<_> = path.components().collect();
-    for (index, component) in components.iter().enumerate() {
-        let Component::Normal(name) = component else {
-            if matches!(component, Component::RootDir) {
-                continue;
-            }
-            return Err(Error::Invalid(
-                "The state directory must use a normalized absolute path.",
-            ));
-        };
-        let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
-        let fd = match rustix::fs::openat(&directory, *name, flags, Mode::empty()) {
-            Ok(fd) => fd,
-            Err(rustix::io::Errno::NOENT) => {
-                rustix::fs::mkdirat(&directory, *name, Mode::RUSR | Mode::WUSR | Mode::XUSR)
-                    .map_err(|_| Error::Io)?;
-                rustix::fs::openat(&directory, *name, flags, Mode::empty())
-                    .map_err(|_| Error::Io)?
-            }
-            Err(_) => return Err(Error::Io),
-        };
-        directory = File::from(fd);
-        if index + 1 == components.len() {
-            check_private(&directory, true)?;
+/// The session record decides who may use the cache: no pending logout
+/// cleanup, a valid unexpired envelope and the matching owner. Called by the
+/// core engine while it holds `session.lock`.
+impl CacheAdmission for Store {
+    fn admit(&self, owner: &str) -> Result<CacheContext> {
+        if self.pending_cleanup()?.is_some() {
+            return Err(Error::Authentication);
         }
+        let envelope = self.envelope()?.ok_or(Error::Authentication)?;
+        envelope.validate()?;
+        if envelope.owner != owner_id(owner) {
+            return Err(Error::Forbidden);
+        }
+        Ok(CacheContext {
+            owner_hash: envelope.owner,
+            context: envelope.context,
+            expires_at: envelope.expires_at,
+        })
     }
-    check_private(&directory, true)?;
-    Ok(directory)
 }
-fn check_private(file: &File, directory: bool) -> Result<()> {
-    let metadata = file.metadata()?;
-    if directory != metadata.is_dir() || (!directory && !metadata.is_file()) {
-        return Err(Error::Io);
+/// Per-operation hosts hold the runtime lock around every cache operation.
+impl OperationScope for Store {
+    fn enter(&self) -> Result<Option<LockGuard>> {
+        if !self.per_operation_lock.load(std::sync::atomic::Ordering::SeqCst) {
+            return Ok(None);
+        }
+        Ok(Some(self.bytes.lock_timeout("runtime.lock", std::time::Duration::from_secs(60))?))
     }
-    #[cfg(unix)]
-    if metadata.uid() != rustix::process::geteuid().as_raw()
-        || metadata.mode() & 0o777 != if directory { 0o700 } else { 0o600 }
-        || (!directory && metadata.nlink() != 1)
-    {
-        return Err(Error::Io);
+}
+/// The byte store the core cache engine uses: this directory's records, with
+/// test-only counters of cache record reads and publications.
+pub struct CacheBytes {
+    inner: Arc<FileByteStore>,
+    #[cfg(test)]
+    io: Arc<IoCounts>,
+}
+impl ByteStore for CacheBytes {
+    type Version = FileIdentity;
+    fn get(&self, name: &str) -> std::result::Result<Option<Vec<u8>>, ByteStoreError> {
+        let read = self.inner.get(name)?;
+        #[cfg(test)]
+        if read.is_some() && name.starts_with("cache-") {
+            self.io.cache_reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+        Ok(read)
     }
-    Ok(())
-}
-fn digest(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
-}
-fn owner_id(owner: &str) -> String {
-    digest(owner.as_bytes())
+    fn version(&self, name: &str) -> std::result::Result<Option<FileIdentity>, ByteStoreError> {
+        self.inner.version(name)
+    }
+    fn put(&self, name: &str, bytes: &[u8], durability: Durability) -> std::result::Result<(), ByteStoreError> {
+        #[cfg(test)]
+        if name.starts_with("cache-") {
+            self.io.cache_writes.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+        self.inner.put(name, bytes, durability)
+    }
+    fn delete(&self, name: &str) -> std::result::Result<(), ByteStoreError> {
+        self.inner.delete(name)
+    }
+    fn list(&self, prefix: &str) -> std::result::Result<Vec<String>, ByteStoreError> {
+        self.inner.list(prefix)
+    }
+    fn barrier(&self) -> std::result::Result<(), ByteStoreError> {
+        self.inner.barrier()
+    }
+    fn sync(&self, name: &str) -> std::result::Result<(), ByteStoreError> {
+        self.inner.sync(name)
+    }
+    fn lock(&self, scope: &str) -> std::result::Result<LockGuard, ByteStoreError> {
+        self.inner.lock(scope)
+    }
 }
 fn session_context(session: &Session) -> Result<String> {
     let identity = Zeroizing::new(serde_json::to_vec(&(
@@ -1811,22 +1279,6 @@ fn session_context(session: &Session) -> Result<String> {
 fn session_digest(session: &Session) -> Result<[u8; 32]> {
     let encoded = Zeroizing::new(serde_json::to_vec(session)?);
     Ok(Sha256::digest(encoded.as_slice()).into())
-}
-fn cache_name(owner: &str, cache_key: &str) -> String {
-    format!(
-        "cache-{}-{}.json",
-        owner_id(owner),
-        digest(cache_key.as_bytes())
-    )
-}
-fn cache_aad(envelope: &Envelope, cache_key: &str) -> Result<Vec<u8>> {
-    Ok(serde_json::to_vec(&(
-        "openmates-rust-cache-v1",
-        &envelope.owner,
-        &envelope.context,
-        envelope.expires_at,
-        cache_key,
-    ))?)
 }
 fn expired(deadline: Option<u64>) -> bool {
     deadline.is_some_and(|deadline| {
@@ -1862,46 +1314,103 @@ fn derive_vault_key(passphrase: Option<&str>, salt: &[u8]) -> Result<Key> {
         .map_err(|_| Error::Crypto)?;
     Ok(key)
 }
-fn encrypt(key: &[u8; 32], plaintext: &[u8], aad: &[u8]) -> Result<String> {
-    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| Error::Crypto)?;
-    let mut nonce = [0; 12];
-    OsRng.fill_bytes(&mut nonce);
-    let encrypted = cipher
-        .encrypt(
-            (&nonce).into(),
-            Payload {
-                msg: plaintext,
-                aad,
-            },
-        )
-        .map_err(|_| Error::Crypto)?;
-    let mut combined = nonce.to_vec();
-    combined.extend_from_slice(&encrypted);
-    Ok(STANDARD.encode(combined))
-}
-fn decrypt(key: &[u8; 32], ciphertext: &str, aad: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
-    let combined = STANDARD.decode(ciphertext).map_err(|_| Error::Crypto)?;
-    if combined.len() < 28 {
-        return Err(Error::Crypto);
-    }
-    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| Error::Crypto)?;
-    cipher
-        .decrypt(
-            (&combined[..12]).into(),
-            Payload {
-                msg: &combined[12..],
-                aad,
-            },
-        )
-        .map(Zeroizing::new)
-        .map_err(|_| Error::Crypto)
-}
-
 #[cfg(test)]
 mod vault_cache_tests {
     use super::*;
     use std::collections::BTreeMap;
     use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[test]
+    fn per_operation_runtime_lock_lets_a_second_client_open_between_operations() {
+        let (directory, host, _) = fixture();
+        let path = directory.path().to_path_buf();
+        assert!(Store::new(path.clone()).is_err(), "lifetime lock excludes a second client");
+        host.scope_runtime_lock_to_operations().unwrap();
+        let other = Store::new(path.clone()).expect("a one-shot client opens beside the scoped host");
+        drop(other);
+        let mut ran = false;
+        host.with_runtime_lock(|| {
+            ran = true;
+            assert!(Store::new(path.clone()).is_err(), "the lock is held during the operation");
+            Ok(())
+        })
+        .unwrap();
+        assert!(ran);
+        Store::new(path).expect("the lock is released after the operation");
+    }
+
+    const HOST_PASSPHRASE: &str = "fixture vault passphrase";
+    fn with_cookie(session: &Session, cookie: &str) -> Session {
+        let mut next = session.clone();
+        next.cookies.insert("session".into(), cookie.into());
+        next
+    }
+
+    #[test]
+    fn host_adopts_a_session_rotated_by_another_process_instead_of_overwriting_it() {
+        let (directory, host, session) = fixture();
+        host.save_session(&session, Some(HOST_PASSPHRASE)).unwrap();
+        host.scope_runtime_lock_to_operations().unwrap();
+        // A one-shot command rotates the cookie and stores it beside the host.
+        let rotated = with_cookie(&session, "rotated-cookie");
+        {
+            let other = Store::encrypted_vault(directory.path().to_path_buf()).unwrap();
+            other.save_session(&rotated, Some(HOST_PASSPHRASE)).unwrap();
+        }
+        assert!(
+            host.superseded_session(Some(HOST_PASSPHRASE)).unwrap().is_some(),
+            "the host sees the newer stored session",
+        );
+        // Re-arm: the lookup above adopted it, so do it again with a fresh rotation.
+        let newest = with_cookie(&session, "newest-cookie");
+        {
+            let other = Store::encrypted_vault(directory.path().to_path_buf()).unwrap();
+            other.save_session(&newest, Some(HOST_PASSPHRASE)).unwrap();
+        }
+        let stale = with_cookie(&session, "stale-host-cookie");
+        match host.save_session_unless_superseded(&stale, Some(HOST_PASSPHRASE)).unwrap() {
+            SessionSave::Superseded(stored) => {
+                assert_eq!(stored.cookies["session"], "newest-cookie");
+            }
+            SessionSave::Saved(_) => panic!("the host overwrote a newer stored session"),
+        }
+        let on_disk = host.load_session(Some(HOST_PASSPHRASE)).unwrap().unwrap();
+        assert_eq!(on_disk.cookies["session"], "newest-cookie");
+        assert!(
+            host.superseded_session(Some(HOST_PASSPHRASE)).unwrap().is_none(),
+            "after adopting, nothing is superseded any more",
+        );
+    }
+
+    #[test]
+    fn host_refresh_saves_when_the_stored_session_is_its_own() {
+        let (_directory, host, session) = fixture();
+        host.save_session(&session, Some(HOST_PASSPHRASE)).unwrap();
+        host.scope_runtime_lock_to_operations().unwrap();
+        // Not holding the runtime lock: must neither deadlock nor report a newer session.
+        assert!(host.superseded_session(Some(HOST_PASSPHRASE)).unwrap().is_none());
+        let refreshed = with_cookie(&session, "host-refreshed");
+        let saved = host
+            .with_runtime_lock(|| host.save_session_unless_superseded(&refreshed, Some(HOST_PASSPHRASE)))
+            .unwrap();
+        assert!(matches!(saved, SessionSave::Saved(true)));
+        let on_disk = host.load_session(Some(HOST_PASSPHRASE)).unwrap().unwrap();
+        assert_eq!(on_disk.cookies["session"], "host-refreshed");
+        // And again directly, outside the lock, with a second refresh.
+        let again = with_cookie(&session, "host-refreshed-twice");
+        let saved = host.save_session_unless_superseded(&again, Some(HOST_PASSPHRASE)).unwrap();
+        assert!(matches!(saved, SessionSave::Saved(true)));
+    }
+
+    #[test]
+    fn lifetime_locked_store_never_reports_a_superseded_session() {
+        let (_directory, store, session) = fixture();
+        store.save_session(&session, Some(HOST_PASSPHRASE)).unwrap();
+        assert!(store.superseded_session(Some(HOST_PASSPHRASE)).unwrap().is_none());
+        let next = with_cookie(&session, "one-shot-refresh");
+        let saved = store.save_session_unless_superseded(&next, Some(HOST_PASSPHRASE)).unwrap();
+        assert!(matches!(saved, SessionSave::Saved(true)));
+    }
 
     fn fixture() -> (tempfile::TempDir, Store, Session) {
         let mut builder = tempfile::Builder::new();
@@ -2154,10 +1663,10 @@ mod vault_cache_tests {
 }
 
 #[cfg(test)]
-mod cache_publication_memo_tests {
+mod cache_record_tests {
     use super::*;
     use serde_json::json;
-    use std::{collections::BTreeMap, sync::atomic::Ordering};
+    use std::collections::BTreeMap;
 
     struct NoKeyring;
     impl CredentialBackend for NoKeyring {
@@ -2203,72 +1712,23 @@ mod cache_publication_memo_tests {
     }
     fn write(store: &Store, session: &Session, value: serde_json::Value) {
         store
-            .write_ciphertext_cache(
-                &session.hashed_email,
-                "sync-personal",
-                &session.master_key,
-                value,
-            )
+            .write_cache(&session.hashed_email, "sync-personal", &session.master_key, &value)
             .unwrap();
     }
     fn serializations(store: &Store) -> usize {
-        store.cache_serializations.load(Ordering::SeqCst)
+        store.cache_serializations_for_test()
     }
 
+    // Without the write-skip memo every write encrypts afresh: equal values
+    // give new ciphertext (new nonce) that still opens to the same value.
     #[test]
-    fn identical_owned_snapshot_keeps_exact_ciphertext_without_reserializing() {
+    fn identical_snapshot_is_rewritten_and_still_reads_back() {
         let (_dir, store, session) = fixture();
         write(&store, &session, snapshot(1));
         let name = cache_name(&session.hashed_email, "sync-personal");
         let original = store.read(&name).unwrap().unwrap();
-        // Session refresh/persistence is retained and does not grant a cache hit.
-        store.save_session(&session, None).unwrap();
         write(&store, &session, snapshot(1));
-        assert_eq!(store.read(&name).unwrap().unwrap(), original);
-        assert_eq!(serializations(&store), 1);
-        assert_eq!(
-            store
-                .read_cache(&session.hashed_email, "sync-personal", &session.master_key)
-                .unwrap(),
-            Some(snapshot(1))
-        );
-    }
-    #[test]
-    fn changed_value_or_key_requires_fresh_durable_ciphertext() {
-        let (_dir, store, mut session) = fixture();
-        write(&store, &session, snapshot(1));
-        write(&store, &session, snapshot(2));
-        assert_eq!(serializations(&store), 2);
-        session.master_key = Zeroizing::new([9; 32]);
-        store.save_session(&session, None).unwrap();
-        write(&store, &session, snapshot(2));
-        assert_eq!(serializations(&store), 3);
-        assert_eq!(
-            store
-                .read_cache(&session.hashed_email, "sync-personal", &session.master_key)
-                .unwrap(),
-            Some(snapshot(2))
-        );
-    }
-    #[test]
-    fn another_store_handle_cannot_inherit_a_previous_publication() {
-        let (directory, store, session) = fixture();
-        write(&store, &session, snapshot(1));
-        let other =
-            Store::with_backend(directory.path().to_path_buf(), Arc::new(NoKeyring)).unwrap();
-        write(&other, &session, snapshot(1));
-        assert_eq!(serializations(&other), 1);
-        assert!(other.cache_write_memo.lock().unwrap().is_some());
-        write(&store, &session, snapshot(1));
-        assert_eq!(serializations(&store), 2);
-    }
-    #[test]
-    fn missing_or_changed_record_falls_back_to_real_write() {
-        let (_dir, store, session) = fixture();
-        write(&store, &session, snapshot(1));
-        let name = cache_name(&session.hashed_email, "sync-personal");
-        store.atomic_write(&name, b"damaged ciphertext").unwrap();
-        write(&store, &session, snapshot(1));
+        assert_ne!(store.read(&name).unwrap().unwrap(), original);
         assert_eq!(serializations(&store), 2);
         assert_eq!(
             store
@@ -2276,363 +1736,45 @@ mod cache_publication_memo_tests {
                 .unwrap(),
             Some(snapshot(1))
         );
-        store.remove(&name).unwrap();
-        write(&store, &session, snapshot(1));
-        assert_eq!(serializations(&store), 3);
     }
     #[test]
-    fn context_cache_key_owner_and_expiry_are_never_bypassed() {
+    fn owner_context_and_expiry_are_enforced_on_write() {
         let (_dir, store, mut session) = fixture();
         write(&store, &session, snapshot(1));
         assert!(matches!(
-            store.write_ciphertext_cache(
-                "another-owner",
-                "sync-personal",
-                &session.master_key,
-                snapshot(1)
-            ),
+            store.write_cache("another-owner", "sync-personal", &session.master_key, &snapshot(1)),
             Err(Error::Forbidden)
         ));
-        store
-            .write_ciphertext_cache(
-                &session.hashed_email,
-                "sync-team",
-                &session.master_key,
-                snapshot(1),
-            )
-            .unwrap();
-        assert_eq!(serializations(&store), 2);
         session.session_id = "fresh-authenticated-context".into();
         store.save_session(&session, None).unwrap();
+        assert!(matches!(
+            store.read_cache(&session.hashed_email, "sync-personal", &session.master_key),
+            Err(Error::Crypto)
+        ), "a record written for the previous context no longer opens");
         write(&store, &session, snapshot(1));
-        assert_eq!(serializations(&store), 3);
         let mut expired = store.envelope().unwrap().unwrap();
         expired.expires_at = Some(1);
         store
             .atomic_write("session.json", &serde_json::to_vec(&expired).unwrap())
             .unwrap();
         assert!(matches!(
-            store.write_ciphertext_cache(
-                &session.hashed_email,
-                "sync-personal",
-                &session.master_key,
-                snapshot(1)
-            ),
+            store.write_cache(&session.hashed_email, "sync-personal", &session.master_key, &snapshot(1)),
             Err(Error::Expired)
         ));
     }
     #[test]
-    fn logout_clears_the_memo_and_refuses_stale_publication() {
+    fn logout_refuses_stale_publication() {
         let (_dir, store, session) = fixture();
         write(&store, &session, snapshot(1));
         store.revoke_session().unwrap();
-        assert!(store.cache_write_memo.lock().unwrap().is_none());
         assert!(matches!(
-            store.write_ciphertext_cache(
-                &session.hashed_email,
-                "sync-personal",
-                &session.master_key,
-                snapshot(1)
-            ),
+            store.write_cache(&session.hashed_email, "sync-personal", &session.master_key, &snapshot(1)),
             Err(Error::Authentication) | Err(Error::Cancelled)
         ));
         assert_eq!(serializations(&store), 1);
     }
     #[test]
-    fn oversized_or_deep_snapshots_keep_existing_writes_without_retaining_memo() {
-        let (_dir, store, session) = fixture();
-        let large = json!({"ciphertext":"x".repeat(CACHE_MEMO_MAX_BYTES + 1)});
-        write(&store, &session, large.clone());
-        assert!(store.cache_write_memo.lock().unwrap().is_none());
-        write(&store, &session, large);
-        assert_eq!(serializations(&store), 2);
-        let mut deep = json!({});
-        for _ in 0..CACHE_MEMO_MAX_DEPTH + 2 {
-            deep = json!([deep]);
-        }
-        assert!(!cache_memo_eligible(&deep));
-        let mut spare = Vec::with_capacity(CACHE_MEMO_MAX_NODES + 1);
-        spare.push(serde_json::Value::Null);
-        assert!(!cache_memo_eligible(&serde_json::Value::Array(spare)));
-    }
-    #[test]
-    fn borrowed_cache_values_do_not_create_retained_snapshots() {
-        let (_dir, store, session) = fixture();
-        store
-            .write_cache(
-                &session.hashed_email,
-                "sync-personal",
-                &session.master_key,
-                &snapshot(1),
-            )
-            .unwrap();
-        assert!(store.cache_write_memo.lock().unwrap().is_none());
-        write(&store, &session, snapshot(1));
-        assert_eq!(serializations(&store), 2);
-    }
-    // Reopen the real authenticated on-disk fixture: this handle has no prior
-    // publication proof and cannot inherit the writer's in-memory memo.
-    fn read_seeded_fixture() -> (tempfile::TempDir, Store, Session, serde_json::Value) {
-        let (directory, writer, session) = fixture();
-        let value = snapshot(1);
-        write(&writer, &session, value.clone());
-        drop(writer);
-        let reader =
-            Store::with_backend(directory.path().to_path_buf(), Arc::new(NoKeyring)).unwrap();
-        assert!(reader.cache_write_memo.lock().unwrap().is_none());
-        assert_eq!(
-            reader
-                .read_cache(&session.hashed_email, "sync-personal", &session.master_key)
-                .unwrap(),
-            Some(value.clone())
-        );
-        assert!(matches!(
-            &reader.cache_write_memo.lock().unwrap().as_ref().unwrap().source,
-            CacheMemoSource::AuthenticatedRead(_)
-        ));
-        assert_eq!(serializations(&reader), 0);
-        (directory, reader, session, value)
-    }
-    #[test]
-    fn authenticated_read_is_only_a_candidate_until_all_publication_checkpoints() {
-        for point in [
-            CacheHitPoint::VerifiedRead,
-            CacheHitPoint::DurableSync,
-            CacheHitPoint::BeforeReadback,
-        ] {
-            let (_dir, store, session, value) = read_seeded_fixture();
-            let name = cache_name(&session.hashed_email, "sync-personal");
-            let before = store.read(&name).unwrap().unwrap();
-            *store.cache_hit_action.lock().unwrap() = Some((
-                point,
-                Box::new(|store, _| {
-                    assert!(matches!(
-                        &store.cache_write_memo.lock().unwrap().as_ref().unwrap().source,
-                        CacheMemoSource::AuthenticatedRead(_)
-                    ));
-                    assert_eq!(serializations(store), 0);
-                }),
-            ));
-            store.save_session(&session, None).unwrap();
-            write(&store, &session, value);
-            assert!(store.cache_hit_action.lock().unwrap().is_none());
-            assert!(matches!(
-                &store.cache_write_memo.lock().unwrap().as_ref().unwrap().source,
-                CacheMemoSource::Published(_)
-            ));
-            assert_eq!(store.read(&name).unwrap().unwrap(), before);
-            assert_eq!(serializations(&store), 0);
-        }
-    }
-    #[test]
-    fn read_candidate_changed_value_key_or_context_requires_normal_publication() {
-        for change in ["value", "key", "context", "cache-key"] {
-            let (_dir, store, mut session, mut value) = read_seeded_fixture();
-            let mut cache_key = "sync-personal";
-            match change {
-                "value" => value = snapshot(2),
-                "key" => session.master_key = Zeroizing::new([9; 32]),
-                "context" => session.session_id = "different-authenticated-context".into(),
-                "cache-key" => cache_key = "another-cache",
-                _ => unreachable!(),
-            }
-            store.save_session(&session, None).unwrap();
-            store
-                .write_ciphertext_cache(
-                    &session.hashed_email, cache_key, &session.master_key, value.clone(),
-                )
-                .unwrap();
-            assert_eq!(serializations(&store), 1, "{change}");
-            assert_eq!(
-                store.read_cache(&session.hashed_email, cache_key, &session.master_key).unwrap(),
-                Some(value),
-                "{change}"
-            );
-        }
-    }
-    #[test]
-    fn failed_authentication_missing_and_unrelated_reads_do_not_seed_candidates() {
-        for change in ["owner", "key", "tamper", "missing", "unrelated"] {
-            let (directory, writer, session) = fixture();
-            let cache_key = if change == "unrelated" { "recovery-cursor" } else { "sync-personal" };
-            writer.write_cache(&session.hashed_email, cache_key, &session.master_key, &snapshot(1)).unwrap();
-            let name = cache_name(&session.hashed_email, cache_key);
-            if change == "tamper" {
-                let mut record: CacheRecord = serde_json::from_slice(&writer.read(&name).unwrap().unwrap()).unwrap();
-                let replacement = if record.ciphertext.starts_with('A') { "B" } else { "A" };
-                record.ciphertext.replace_range(..1, replacement);
-                writer.atomic_write(&name, &serde_json::to_vec(&record).unwrap()).unwrap();
-            }
-            if change == "missing" { writer.remove(&name).unwrap(); }
-            let reader = Store::with_backend(directory.path().to_path_buf(), Arc::new(NoKeyring)).unwrap();
-            let owner = if change == "owner" { "wrong-owner" } else { &session.hashed_email };
-            let wrong_key = [9; 32];
-            let key = if change == "key" { &wrong_key } else { &*session.master_key };
-            let result = reader.read_cache(owner, cache_key, key);
-            match change {
-                "missing" => assert!(matches!(result, Ok(None))),
-                "unrelated" => assert_eq!(result.unwrap(), Some(snapshot(1))),
-                _ => assert!(result.is_err(), "{change}"),
-            }
-            assert!(reader.cache_write_memo.lock().unwrap().is_none(), "{change}");
-            assert_eq!(serializations(&reader), 0);
-        }
-    }
-    #[test]
-    fn stale_read_candidate_owner_and_epoch_cannot_authorize_a_write() {
-        let (_dir, store, session, value) = read_seeded_fixture();
-        assert!(matches!(
-            store.write_ciphertext_cache("wrong-owner", "sync-personal", &session.master_key, value.clone()),
-            Err(Error::Forbidden)
-        ));
-        store.revoke_session().unwrap();
-        assert!(store.cache_write_memo.lock().unwrap().is_none());
-        assert!(matches!(
-            store.write_ciphertext_cache(&session.hashed_email, "sync-personal", &session.master_key, value),
-            Err(Error::Authentication) | Err(Error::Cancelled)
-        ));
-        assert_eq!(serializations(&store), 0);
-    }
-    #[test]
-    fn revoked_during_candidate_checkpoint_returns_cancelled_without_publication() {
-        let (_dir, store, session, value) = read_seeded_fixture();
-        *store.cache_hit_action.lock().unwrap() = Some((
-            CacheHitPoint::VerifiedRead,
-            Box::new(|store, _| store.revoke_session().unwrap()),
-        ));
-        assert!(matches!(
-            store.write_ciphertext_cache(&session.hashed_email, "sync-personal", &session.master_key, value),
-            Err(Error::Cancelled)
-        ));
-        assert!(store.cache_write_memo.lock().unwrap().is_none());
-        assert_eq!(serializations(&store), 0);
-    }
-    #[test]
-    fn read_candidate_missing_tampered_or_new_authenticated_bytes_use_real_write() {
-        for change in ["missing", "tampered", "authenticated-change"] {
-            let (dir, store, session, value) = read_seeded_fixture();
-            let name = cache_name(&session.hashed_email, "sync-personal");
-            match change {
-                "missing" => store.remove(&name).unwrap(),
-                "tampered" => store.atomic_write(&name, b"changed opaque bytes").unwrap(),
-                "authenticated-change" => {
-                    let other = Store::with_backend(dir.path().to_path_buf(), Arc::new(NoKeyring)).unwrap();
-                    write(&other, &session, snapshot(2));
-                }
-                _ => unreachable!(),
-            }
-            write(&store, &session, value.clone());
-            assert_eq!(serializations(&store), 1, "{change}");
-            assert_eq!(store.read_cache(&session.hashed_email, "sync-personal", &session.master_key).unwrap(), Some(value));
-        }
-    }
-    #[test]
-    fn read_candidate_bounds_do_not_retain_oversized_or_deep_values() {
-        for value in [json!({"ciphertext":"x".repeat(CACHE_MEMO_MAX_BYTES + 1)}), {
-            let mut value = json!({});
-            for _ in 0..CACHE_MEMO_MAX_DEPTH + 2 { value = json!([value]); }
-            value
-        }] {
-            let (directory, writer, session) = fixture();
-            writer.write_cache(&session.hashed_email, "sync-personal", &session.master_key, &value).unwrap();
-            let reader = Store::with_backend(directory.path().to_path_buf(), Arc::new(NoKeyring)).unwrap();
-            assert_eq!(reader.read_cache(&session.hashed_email, "sync-personal", &session.master_key).unwrap(), Some(value));
-            assert!(reader.cache_write_memo.lock().unwrap().is_none());
-        }
-    }
-    #[cfg(unix)]
-    #[test]
-    fn read_candidate_rechecks_old_fd_aba_links_and_content_at_every_checkpoint() {
-        use std::os::unix::fs::{PermissionsExt, symlink};
-        for point in [CacheHitPoint::VerifiedRead, CacheHitPoint::DurableSync, CacheHitPoint::BeforeReadback] {
-            for change in ["aba", "unlink", "overwrite", "permissions", "hardlink", "symlink"] {
-                let (_dir, store, session, value) = read_seeded_fixture();
-                *store.cache_hit_action.lock().unwrap() = Some((point, Box::new(move |store, name| {
-                    let path = store.state_dir().join(name);
-                    match change {
-                        "aba" => {
-                            let bytes = std::fs::read(&path).unwrap();
-                            let retired = store.state_dir().join("old-owned-inode");
-                            std::fs::rename(&path, &retired).unwrap();
-                            std::fs::write(&path, bytes).unwrap();
-                            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
-                        }
-                        "unlink" => std::fs::remove_file(&path).unwrap(),
-                        "overwrite" => std::fs::OpenOptions::new().write(true).open(&path).unwrap().write_all(b"x").unwrap(),
-                        "permissions" => std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap(),
-                        "hardlink" => std::fs::hard_link(&path, store.state_dir().join("second-owned-link")).unwrap(),
-                        "symlink" => {
-                            let retired = store.state_dir().join("old-owned-inode");
-                            std::fs::rename(&path, &retired).unwrap();
-                            symlink(&retired, &path).unwrap();
-                        }
-                        _ => unreachable!(),
-                    }
-                })));
-                let result = store.write_ciphertext_cache(&session.hashed_email, "sync-personal", &session.master_key, value);
-                assert!(matches!(result, Err(Error::Io) | Err(Error::Cancelled)), "{change}");
-                assert!(store.cache_hit_action.lock().unwrap().is_none());
-                assert!(matches!(&store.cache_write_memo.lock().unwrap().as_ref().unwrap().source, CacheMemoSource::AuthenticatedRead(_)));
-                assert_eq!(serializations(&store), 0, "{change}");
-            }
-        }
-    }
-    #[cfg(unix)]
-    #[test]
-    fn identical_replacement_before_candidate_publication_checkpoints_current_inode() {
-        use std::os::unix::fs::{MetadataExt, PermissionsExt};
-        let (_dir, store, session, value) = read_seeded_fixture();
-        let name = cache_name(&session.hashed_email, "sync-personal");
-        let path = store.state_dir().join(&name);
-        let retired = store.state_dir().join("read-owned-inode");
-        std::fs::rename(&path, &retired).unwrap();
-        std::fs::write(&path, std::fs::read(&retired).unwrap()).unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
-        let current_inode = std::fs::metadata(&path).unwrap().ino();
-        write(&store, &session, value);
-        assert_eq!(std::fs::metadata(&path).unwrap().ino(), current_inode);
-        assert_eq!(serializations(&store), 0);
-        assert!(matches!(&store.cache_write_memo.lock().unwrap().as_ref().unwrap().source, CacheMemoSource::Published(_)));
-    }
-    #[test]
-    fn expired_envelope_cannot_publish_an_authenticated_read_candidate() {
-        let (_dir, store, session, value) = read_seeded_fixture();
-        let mut expired = store.envelope().unwrap().unwrap();
-        expired.expires_at = Some(1);
-        store.atomic_write("session.json", &serde_json::to_vec(&expired).unwrap()).unwrap();
-        assert!(matches!(
-            store.write_ciphertext_cache(&session.hashed_email, "sync-personal", &session.master_key, value),
-            Err(Error::Expired)
-        ));
-        assert_eq!(serializations(&store), 0);
-    }
-    #[cfg(unix)]
-    #[test]
-    fn candidate_before_open_refuses_redirected_or_nonprivate_current_file() {
-        use std::os::unix::fs::{PermissionsExt, symlink};
-        for change in ["permissions", "hardlink", "symlink"] {
-            let (_dir, store, session, value) = read_seeded_fixture();
-            let name = cache_name(&session.hashed_email, "sync-personal");
-            let path = store.state_dir().join(&name);
-            match change {
-                "permissions" => std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap(),
-                "hardlink" => std::fs::hard_link(&path, store.state_dir().join("another-owned-link")).unwrap(),
-                "symlink" => {
-                    let retired = store.state_dir().join("old-owned-inode");
-                    std::fs::rename(&path, &retired).unwrap();
-                    symlink(&retired, &path).unwrap();
-                }
-                _ => unreachable!(),
-            }
-            assert!(matches!(
-                store.write_ciphertext_cache(&session.hashed_email, "sync-personal", &session.master_key, value),
-                Err(Error::Io)
-            ), "{change}");
-            assert_eq!(serializations(&store), 0);
-        }
-    }
-    #[test]
-    fn authenticated_read_never_mints_or_changes_ciphertext_freshness_metadata() {
+    fn authenticated_read_never_changes_ciphertext_or_freshness_metadata() {
         let (directory, writer, session) = fixture();
         let mut value = snapshot(1);
         value["chat_list_freshness"] = json!({"opaque":"expired-or-untrusted-source-metadata"});
@@ -2643,217 +1785,6 @@ mod cache_publication_memo_tests {
         let returned = reader.read_cache(&session.hashed_email, "sync-personal", &session.master_key).unwrap().unwrap();
         assert_eq!(returned, value);
         assert_eq!(reader.read(&name).unwrap().unwrap(), bytes);
-        assert!(matches!(&reader.cache_write_memo.lock().unwrap().as_ref().unwrap().source, CacheMemoSource::AuthenticatedRead(_)));
-        write(&reader, &session, returned);
-        assert_eq!(reader.read(&name).unwrap().unwrap(), bytes);
-        assert_eq!(serializations(&reader), 0);
-    }
-
-}
-
-#[cfg(all(test, unix))]
-mod cache_publication_path_guard_tests {
-    use super::*;
-    use std::os::unix::fs::{PermissionsExt, symlink};
-    #[test]
-    fn memo_hit_still_rejects_nonprivate_or_redirected_targets() {
-        // Reuse the parent module's isolated fixture without a real OS keyring.
-        let (_directory, store, session) = super::cache_publication_memo_tests::fixture();
-        let value = serde_json::json!({"chats":{}});
-        store
-            .write_ciphertext_cache(
-                &session.hashed_email,
-                "sync-personal",
-                &session.master_key,
-                value.clone(),
-            )
-            .unwrap();
-        let name = cache_name(&session.hashed_email, "sync-personal");
-        let path = store.state_dir().join(&name);
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
-        assert!(matches!(
-            store.write_ciphertext_cache(
-                &session.hashed_email,
-                "sync-personal",
-                &session.master_key,
-                value.clone()
-            ),
-            Err(Error::Io)
-        ));
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
-        let target = store.state_dir().join("redirected-cache");
-        std::fs::rename(&path, &target).unwrap();
-        symlink(&target, &path).unwrap();
-        assert!(matches!(
-            store.write_ciphertext_cache(
-                &session.hashed_email,
-                "sync-personal",
-                &session.master_key,
-                value
-            ),
-            Err(Error::Io)
-        ));
-    }
-}
-
-#[cfg(all(test, unix))]
-mod cache_publication_interleaving_tests {
-    use super::*;
-    use std::os::unix::fs::PermissionsExt;
-    use std::sync::atomic::Ordering;
-
-    fn replace_same_bytes(store: &Store, name: &str) {
-        let path = store.state_dir().join(name);
-        let replacement = store.state_dir().join("owned-replacement");
-        std::fs::write(&replacement, std::fs::read(&path).unwrap()).unwrap();
-        std::fs::set_permissions(&replacement, std::fs::Permissions::from_mode(0o600)).unwrap();
-        std::fs::rename(&replacement, &path).unwrap();
-    }
-    #[test]
-    fn mid_hit_path_content_or_private_metadata_changes_cannot_acknowledge_old_fd() {
-        for point in [CacheHitPoint::VerifiedRead, CacheHitPoint::DurableSync] {
-            for change in [
-                "replace",
-                "unlink",
-                "append",
-                "truncate",
-                "permissions",
-                "link",
-            ] {
-                let (_dir, store, session) = super::cache_publication_memo_tests::fixture();
-                let value = serde_json::json!({"chats":{}});
-                store
-                    .write_ciphertext_cache(
-                        &session.hashed_email,
-                        "sync-personal",
-                        &session.master_key,
-                        value.clone(),
-                    )
-                    .unwrap();
-                *store.cache_hit_action.lock().unwrap() = Some((
-                    point,
-                    Box::new(move |store, name| {
-                        let path = store.state_dir().join(name);
-                        match change {
-                            "replace" => replace_same_bytes(store, name),
-                            "unlink" => std::fs::remove_file(&path).unwrap(),
-                            "append" => std::fs::OpenOptions::new()
-                                .append(true)
-                                .open(&path)
-                                .unwrap()
-                                .write_all(b"x")
-                                .unwrap(),
-                            "truncate" => std::fs::OpenOptions::new()
-                                .write(true)
-                                .open(&path)
-                                .unwrap()
-                                .set_len(1)
-                                .unwrap(),
-                            "permissions" => std::fs::set_permissions(
-                                &path,
-                                std::fs::Permissions::from_mode(0o644),
-                            )
-                            .unwrap(),
-                            "link" => {
-                                std::fs::hard_link(&path, store.state_dir().join("second-link"))
-                                    .unwrap()
-                            }
-                            _ => unreachable!(),
-                        }
-                    }),
-                ));
-                let result = store.write_ciphertext_cache(
-                    &session.hashed_email,
-                    "sync-personal",
-                    &session.master_key,
-                    value,
-                );
-                assert!(
-                    matches!(result, Err(Error::Io) | Err(Error::Cancelled)),
-                    "{change}"
-                );
-                assert!(store.cache_hit_action.lock().unwrap().is_none());
-                assert_eq!(store.cache_serializations.load(Ordering::SeqCst), 1);
-            }
-        }
-    }
-    #[test]
-    fn replacement_before_open_checkpoints_the_actual_current_inode() {
-        let (_dir, store, session) = super::cache_publication_memo_tests::fixture();
-        let value = serde_json::json!({"chats":{}});
-        store
-            .write_ciphertext_cache(
-                &session.hashed_email,
-                "sync-personal",
-                &session.master_key,
-                value.clone(),
-            )
-            .unwrap();
-        let name = cache_name(&session.hashed_email, "sync-personal");
-        replace_same_bytes(&store, &name);
-        let current = std::fs::metadata(store.state_dir().join(&name))
-            .unwrap()
-            .ino();
-        store
-            .write_ciphertext_cache(
-                &session.hashed_email,
-                "sync-personal",
-                &session.master_key,
-                value,
-            )
-            .unwrap();
-        assert_eq!(
-            std::fs::metadata(store.state_dir().join(&name))
-                .unwrap()
-                .ino(),
-            current
-        );
-        assert_eq!(store.cache_serializations.load(Ordering::SeqCst), 1);
-    }
-}
-
-// Test-only observation: production Store API and data flow are unchanged.
-#[cfg(test)]
-impl Store {
-    pub(crate) fn cache_serializations_for_test(&self) -> usize {
-        self.cache_serializations
-            .load(std::sync::atomic::Ordering::SeqCst)
-    }
-    /// (cache record reads, cache record writes, session.json writes, revocation.json writes)
-    pub(crate) fn io_counts_for_test(&self) -> (usize, usize, usize, usize) {
-        let load = |counter: &std::sync::atomic::AtomicUsize| counter.load(std::sync::atomic::Ordering::SeqCst);
-        (
-            load(&self.io_counts.cache_reads),
-            load(&self.io_counts.cache_writes),
-            load(&self.io_counts.session_writes),
-            load(&self.io_counts.revocation_writes),
-        )
-    }
-}
-
-#[cfg(test)]
-mod first_page_capacity_tests {
-    use super::*;
-    // contract-test: supporting surface=cli assertions=cli.runtime.native-rust,cli.migration.complete-compatible
-    #[test]
-    fn prospective_length_matches_actual_aes_base64_json_encoder_without_kdf() {
-        for bytes in [0,1,2,3,31,255,4096] {
-            let plain=Zeroizing::new(vec![0;bytes]);
-            let record=CacheRecord{version:1,ciphertext:encrypt(&[7;32],&plain,b"synthetic").unwrap()};
-            assert_eq!(cache_record_encoded_len(bytes).unwrap(),serde_json::to_vec(&record).unwrap().len());
-        }
-        assert!(cache_record_encoded_len(usize::MAX).is_err());
-    }
-    // contract-test: supporting surface=cli assertions=cli.runtime.native-rust,cli.migration.complete-compatible
-    #[test]
-    fn actual_encoded_record_boundary_preserves_existing_thirty_two_mib_read_ceiling() {
-        let mut low=0usize;let mut high=MAX_LOCAL_RECORD_BYTES;
-        while low<high {let middle=low+(high-low+1)/2;if cache_record_encoded_len(middle).unwrap()<=MAX_LOCAL_RECORD_BYTES{low=middle;}else{high=middle-1;}}
-        for bytes in [low,low+1] {
-            let plain=Zeroizing::new(vec![0;bytes]);
-            let record=CacheRecord{version:1,ciphertext:encrypt(&[7;32],&plain,b"synthetic").unwrap()};
-            let actual=serde_json::to_vec(&record).unwrap().len();assert_eq!(actual,cache_record_encoded_len(bytes).unwrap());assert_eq!(actual<=MAX_LOCAL_RECORD_BYTES,bytes==low);
-        }
     }
 }
 
@@ -2872,7 +1803,7 @@ mod ordinary_cache_roundtrip_capacity_tests {
     // contract-test: supporting surface=cli assertions=cli.runtime.native-rust,cli.migration.complete-compatible
     #[test]
     fn ordinary_writer_largest_record_roundtrips_through_actual_reader() {
-        let (_directory, store, session) = super::cache_publication_memo_tests::fixture();
+        let (_directory, store, session) = super::cache_record_tests::fixture();
         let mut restored = crate::client::Client::new(&session.api_url, Some(session.clone())).unwrap();
         // Ordinary restore deliberately drops the initial unsynced selector hint;
         // it cannot import the live read authority used by the owned cache path.
@@ -2895,10 +1826,10 @@ mod ordinary_cache_roundtrip_capacity_tests {
     }
     // contract-test: supporting surface=cli assertions=cli.runtime.native-rust,cli.migration.complete-compatible
     #[test]
-    fn oversized_ordinary_and_owned_writes_preserve_session_file_cache_and_memo() {
-        let (directory, store, session) = super::cache_publication_memo_tests::fixture();
+    fn oversized_ordinary_and_owned_writes_preserve_session_file_and_cache() {
+        let (directory, store, session) = super::cache_record_tests::fixture();
         let old = serde_json::json!({"chats":{},"history":{},"wrappers":[],"embeds":{},"embed_keys":[]});
-        store.write_ciphertext_cache(&session.hashed_email, "sync-personal", &session.master_key, old.clone()).unwrap();
+        store.write_cache(&session.hashed_email, "sync-personal", &session.master_key, &old).unwrap();
         let name = cache_name(&session.hashed_email, "sync-personal");
         let cache = store.read(&name).unwrap().unwrap();
         let credentials = std::fs::read(directory.path().join("session.json")).unwrap();
@@ -2906,11 +1837,10 @@ mod ordinary_cache_roundtrip_capacity_tests {
         let over = serde_json::Value::String("x".repeat(largest_plaintext() - 1));
         assert!(matches!(encode_bounded_cache(&over), Err(Error::Invalid(_))));
         assert!(store.write_cache(&session.hashed_email, "sync-personal", &session.master_key, &over).is_err());
-        assert!(store.write_ciphertext_cache(&session.hashed_email, "sync-personal", &session.master_key, over).is_err());
+        assert!(store.write_cache(&session.hashed_email, "sync-personal", &session.master_key, &over).is_err());
         assert_eq!(store.cache_serializations_for_test(), serializations, "refuse before encryption/publication without a completed serialization");
         assert_eq!(store.read(&name).unwrap().unwrap(), cache);
         assert_eq!(std::fs::read(directory.path().join("session.json")).unwrap(), credentials);
-        assert_eq!(store.cache_write_memo.lock().unwrap().as_ref().unwrap().value, old);
         assert_eq!(store.read_cache(&session.hashed_email, "sync-personal", &session.master_key).unwrap(), Some(old));
         assert!(!std::fs::read_dir(directory.path()).unwrap().any(|entry| entry.unwrap().file_name().to_string_lossy().starts_with(".tmp-")));
     }

@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 import uuid
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from backend.shared.app_packages.billing import even_request_charge_items
 from backend.shared.python_utils.billing_utils import BillingError, ensure_credit_headroom
 from backend.shared.python_utils.app_skill_output_safety import (
     AppSkillOutputSafetyContext,
@@ -597,16 +598,11 @@ async def _charge_workflow_skill_result(
     if credits_charged <= 0:
         return 0
 
-    requests = request.get("requests")
-    units_processed = len(requests) if isinstance(requests, list) else 1
     result_charge_items = apps_api.get_variable_result_charge_items(app_id, skill_id, result)
     if result_charge_items is None:
-        per_request_credits = credits_charged // units_processed if units_processed > 0 else credits_charged
-        credits_remainder = credits_charged - (per_request_credits * units_processed)
-        charge_items = [
-            (index, per_request_credits + (credits_remainder if index == units_processed - 1 else 0))
-            for index in range(units_processed)
-        ]
+        # Installed-provider-only request groups are skipped (server registry
+        # decides); rows keep the index of the request they charge.
+        charge_items = even_request_charge_items(app_id, skill_id, request, result, credits_charged)
     else:
         charge_items = result_charge_items
 

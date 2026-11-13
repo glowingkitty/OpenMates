@@ -30,6 +30,8 @@ from uuid import uuid4
 
 from verify_chat_sidebar_title_live import safe_failure, test_account_environment
 from workflow_schedule_real_test import API_URL, ProofError, acquire_leases, sessions, write_receipt
+from personal_dev_draft_guard import DraftGuard, DraftGuardError, record_leftovers
+from project_names import natural_project_name
 
 ROOT = Path(__file__).resolve().parents[1]
 TERMINAL = {"finished", "failed", "cancelled"}
@@ -58,22 +60,34 @@ def personal_test_environment() -> dict[str, str]:
     return env
 
 
-def personal_test_leases(session_id: str) -> list[tuple[str, str, set[str], str]]:
+def personal_dev_leases(prefix: str, session_id: str, *, timeout: int) -> list[tuple[str, str, set[str], str]]:
+    """Lease the exclusive personal-dev account first, then the shared dev stack.
+
+    Waiting for the single personal-dev account while already holding the shared
+    dev-stack lease keeps dev restarts from draining, and a queued restart refuses
+    every new lease, so the whole dev stack stalls for all chats. Restarts never
+    need the account, so holding only the account while waiting for the stack is
+    safe. On failure every lease taken so far is released before re-raising.
+    """
     owner = f"repository-session-{session_id}"
     leases: list[tuple[str, str, set[str], str]] = []
     try:
         for name, resources, mode in (
-            ("stack", {sessions.DOCKER_RESOURCE_DEV_STACK}, "shared"),
             ("account", {"playwright-account:personal-dev"}, "exclusive"),
+            ("stack", {sessions.DOCKER_RESOURCE_DEV_STACK}, "shared"),
         ):
-            lease_id = f"code-run-personal-{name}-{uuid4().hex[:12]}"
-            sessions.acquire_test_resource_lease(lease_id, owner, resources, mode=mode, timeout=120)
+            lease_id = f"{prefix}-{name}-{uuid4().hex[:12]}"
+            sessions.acquire_test_resource_lease(lease_id, owner, resources, mode=mode, timeout=timeout)
             leases.append((lease_id, owner, resources, mode))
         return leases
     except BaseException:
         for lease_id, *_ in reversed(leases):
             sessions.release_test_resource_lease(lease_id)
         raise
+
+
+def personal_test_leases(session_id: str) -> list[tuple[str, str, set[str], str]]:
+    return personal_dev_leases("code-run-personal", session_id, timeout=120)
 
 
 def fnv1a(text: str) -> str:
@@ -362,6 +376,8 @@ def main() -> int:
     parser.add_argument("--slot", type=int, choices=range(1, 14))
     parser.add_argument("--personal-dev-test-account", action="store_true",
                         help="Use the documented personal dev-test account in fresh isolated CLI state")
+    parser.add_argument("--personal-only", action="store_true",
+                        help="Wait for the personal account instead of using a throwaway account when it is busy")
     parser.add_argument("--case", action="append", choices=("python-math", "rust-fibonacci", "rust-word-count"),
                         help="Run only the selected case; repeat to select more than one")
     parser.add_argument("--timeout-seconds", type=int, default=600, help="Bounded continuation wait per flow")
@@ -393,7 +409,7 @@ def main() -> int:
     receipt = {"status": "started", "target": API_URL, "session": args.session,
                "deployed_revision": args.revision, "started_at": datetime.now(UTC).isoformat(),
                "cases": [], "cleanup": {}, "cli": cli, "sdk_module": str(sdk_module)}
-    leases, project_id, created_state = [], None, False
+    leases, project_id, created_state, draft_guard, real_account = [], None, False, None, None
     stop, errors = threading.Event(), []
     heartbeat = None
     old_umask = os.umask(0o077)
@@ -407,9 +423,14 @@ def main() -> int:
         if args.personal_dev_test_account:
             if args.slot:
                 raise ProofError("personal_account_cannot_use_numbered_slot")
-            login_env = personal_test_environment()
-            leases, slot = personal_test_leases(args.session), ""
-            receipt["account_role"] = "personal_dev_test"
+            import dev_test_account
+
+            real_account = dev_test_account.acquire_real_test_account(
+                "code-run-personal", args.session, "code-run", stack_timeout=120,
+                allow_throwaway=not args.personal_only)
+            login_env, leases, slot = real_account.environment, real_account.leases, ""
+            receipt["account_role"] = ("personal_dev_test" if real_account.kind == "personal"
+                                       else "throwaway_dev_test")
         else:
             login_env = test_account_environment()
             leases, slot = acquire_leases(args.session, args.slot)
@@ -434,7 +455,13 @@ def main() -> int:
         if login.returncode:
             receipt["bootstrap_failure"] = safe_failure(login.stderr)
             raise ProofError("disposable_account_bootstrap_failed")
-        project = command(cli, ["projects", "create", f"Code Run proof {uuid4().hex[:10]}",
+        if args.personal_dev_test_account and real_account.kind == "personal":
+            # The personal account is shared: a run must not leave drafts there.
+            try:
+                draft_guard = DraftGuard.start(cli, api_url=API_URL)
+            except DraftGuardError as exc:
+                raise ProofError(str(exc)) from exc
+        project = command(cli, ["projects", "create", natural_project_name("Python practice"),
                                "--write-policy", "apply_and_show", "--personal"])
         project_id = (project.get("project") or {}).get("project_id")
         if not isinstance(project_id, str) or not project_id:
@@ -515,15 +542,27 @@ def main() -> int:
             except (ProofError, subprocess.TimeoutExpired):
                 receipt["cleanup"]["project"] = "failed"
                 receipt["status"] = "failed"
+        record_leftovers(receipt, draft_guard)
         stop.set()
         if heartbeat:
             heartbeat.join(timeout=2)
-        for lease_id, *_ in reversed(leases):
-            try:
-                sessions.release_test_resource_lease(lease_id)
-            except RuntimeError:
+        if real_account is not None:
+            import dev_test_account
+
+            account_receipt = dev_test_account.finish_real_test_account(real_account)
+            receipt["cleanup"]["account"] = account_receipt
+            if account_receipt.get("lease_release_failed"):
                 receipt["cleanup"]["lease"] = "failed"
                 receipt["status"] = "failed"
+            if account_receipt.get("delete", {}).get("status") == "failed":
+                receipt["status"] = "failed"
+        else:
+            for lease_id, *_ in reversed(leases):
+                try:
+                    sessions.release_test_resource_lease(lease_id)
+                except RuntimeError:
+                    receipt["cleanup"]["lease"] = "failed"
+                    receipt["status"] = "failed"
         receipt["finished_at"] = datetime.now(UTC).isoformat()
         write_receipt(receipt_path, receipt)
         if created_state:

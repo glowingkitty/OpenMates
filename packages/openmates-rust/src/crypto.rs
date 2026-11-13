@@ -20,6 +20,10 @@ pub type Key = Zeroizing<[u8; 32]>;
 pub mod master;
 pub(crate) mod server_fields;
 pub mod web_formats;
+pub mod share;
+pub mod media;
+pub mod chat_key_policy;
+pub mod aead;
 mod password_master;
 pub mod signup;
 pub(crate) use password_master::{LEGACY_PASSWORD_ITERATIONS, password_master_envelope, password_master_from_plaintext};
@@ -137,6 +141,14 @@ pub(crate) fn unwrap_master_key_with_wrapping_key(ciphertext:&str,iv:&str,wrappi
     let envelope = password_master_envelope(ciphertext, iv)?;
     let raw = decrypt_aead(&envelope.ciphertext, wrapping_key, &envelope.iv, &[])?;
     password_master_from_plaintext(&raw)
+}
+
+/// Wrap a master key with an already-derived password wrapping key under a
+/// fresh random IV: base64 ciphertext+tag and base64 IV, the exact inverse of
+/// [`unwrap_master_key_with_wrapping_key`] (TS `cryptoService.encryptKey`).
+/// Used by the v1→v2 password migration; the caller zeroizes both keys.
+pub(crate) fn wrap_master_key_with_wrapping_key(master: &[u8; 32], wrapping_key: &[u8; 32]) -> Result<(String, String)> {
+    signup::wrap_raw_key(master, wrapping_key, &mut signup::os_fill)
 }
 
 pub fn derive_email_key(email: &str, salt_b64: &str) -> Result<String> {

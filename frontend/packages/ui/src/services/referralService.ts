@@ -9,6 +9,13 @@
 import { writable } from "svelte/store";
 import { apiEndpoints, getApiEndpoint } from "../config/api";
 import { WorkspaceQueryCache, WorkspaceCacheDiscardedError } from "./workspaceQueryCache";
+import { buildWorkBody, workClient, workDecide, type WorkRequest } from "./work/workRust";
+
+// Flag-on builds decide the referral status path, capture body and status refusal
+// in the shared Rust core Worker (`work` op, web_work/billing.rs); the constant
+// folds to false otherwise, so flag-off keeps the original paths. The page keeps
+// fetch, sessionStorage, the URL fragment handling (synchronous) and the cache.
+const RUST_WORK = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 
 const PENDING_REFERRAL_KEY = "openmates_pending_referral_code";
 const REFERRAL_CODE_PATTERN = /^[A-Za-z0-9]{4,32}$/;
@@ -58,6 +65,23 @@ export async function submitPendingReferralCode(): Promise<void> {
   if (!code) return;
 
   try {
+    const work = RUST_WORK ? workClient() : null;
+    if (work) {
+      const request = await workDecide<WorkRequest>(work, "referralCaptureBody", { code });
+      const body = await buildWorkBody(request.steps, {}, {});
+      const response = await fetch(getApiEndpoint(request.path), {
+        method: request.method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      if (response.ok) {
+        sessionStorage.removeItem(PENDING_REFERRAL_KEY);
+        statusCache.invalidate("status");
+        void loadReferralStatus();
+      }
+      return;
+    }
     const response = await fetch(getApiEndpoint(apiEndpoints.referrals.capture), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -77,6 +101,13 @@ export async function submitPendingReferralCode(): Promise<void> {
 export async function loadReferralStatus(): Promise<ReferralStatus | null> {
   try {
     const status = await statusCache.load("status", async () => {
+      const work = RUST_WORK ? workClient() : null;
+      if (work) {
+        const path = await workDecide<string>(work, "referralStatusPath", {});
+        const response = await fetch(getApiEndpoint(path), { credentials: "include" });
+        await workDecide(work, "referralStatusResult", { ok: response.ok, status: response.status });
+        return (await response.json()) as ReferralStatus;
+      }
       const response = await fetch(getApiEndpoint(apiEndpoints.referrals.status), {
         credentials: "include",
       });

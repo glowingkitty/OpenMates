@@ -109,6 +109,8 @@ pub(super) struct ResolvedPlan {
 pub struct Plans<'a> {
     tasks: Tasks<'a>,
     filters: PlanFilters,
+    team_key: Option<(String, Key)>,
+    skipped: Vec<String>,
 }
 impl<'a> Plans<'a> {
     pub(crate) fn cookie(client: &'a mut Client, team: Option<String>) -> Self {
@@ -118,12 +120,16 @@ impl<'a> Plans<'a> {
                 team_id: team,
                 ..Default::default()
             },
+            team_key: None,
+            skipped: Vec::new(),
         }
     }
     pub(crate) fn api_key(client: &'a mut OpenMates) -> Self {
         Self {
             tasks: Tasks::api_key(client),
             filters: Default::default(),
+            team_key: None,
+            skipped: Vec::new(),
         }
     }
     pub fn with_filters(mut self, mut filters: PlanFilters) -> Self {
@@ -138,14 +144,27 @@ impl<'a> Plans<'a> {
         self.filters = filters;
         self
     }
+    /// The validated Team of the current read scope, if any.
+    fn team(&self) -> Result<Option<String>> {
+        if self.filters.personal && self.filters.team_id.is_some() {
+            return Err(Error::Invalid("Choose Personal or a Team, not both."));
+        }
+        if let Some(team) = &self.filters.team_id {
+            uuid(team)?;
+        }
+        Ok(self.filters.team_id.clone())
+    }
+    /// Write scope: the server accepts Plan writes only from the personal owner.
     fn scope(&self) -> Result<()> {
-        if self.filters.team_id.is_some() {
-            return Err(Error::Unavailable {
-                code: "team_plan_keys_unavailable",
-                reason: "TEAM_PLAN_WRAPPERS_NOT_SUPPORTED",
-            });
+        if self.team()?.is_some() {
+            return Err(team::writes_unavailable());
         }
         Ok(())
+    }
+    /// Plan IDs the last Team-scoped list could not decrypt with the caller's
+    /// own master or exact Team wrapper (npm warns and skips these).
+    pub fn skipped_plan_ids(&self) -> &[String] {
+        &self.skipped
     }
     async fn read_response(&mut self, value: Value) -> Result<Value> {
         let master = self.tasks.backend.master().await?;
@@ -164,7 +183,8 @@ impl<'a> Plans<'a> {
             .collect())
     }
     async fn list_resolved(&mut self) -> Result<Vec<ResolvedPlan>> {
-        self.scope()?;
+        let team = self.team()?;
+        self.skipped.clear();
         let mut params = vec![];
         if let Some(status) = &self.filters.status {
             valid_status(status)?;
@@ -187,21 +207,31 @@ impl<'a> Plans<'a> {
             .backend
             .request(
                 Method::GET,
-                &path("/v1/user-plans", None, &params),
+                &path("/v1/user-plans", team.as_deref(), &params),
                 None,
                 None,
             )
             .await?;
-        let master = self.tasks.backend.master().await?;
-        data["plans"]
-            .as_array()
-            .ok_or(Error::Protocol)?
-            .iter()
-            .map(|p| decode(p.clone(), &master))
-            .collect()
+        let rows = data["plans"].as_array().ok_or(Error::Protocol)?.clone();
+        let mut plans = Vec::with_capacity(rows.len());
+        for row in rows {
+            let id = row["plan_id"].as_str().unwrap_or("unknown").to_owned();
+            match self.decode_scoped(row).await {
+                Ok(plan) => plans.push(plan),
+                Err(Error::Forbidden | Error::Crypto) if team.is_some() => self.skipped.push(id),
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(plans)
     }
+    /// Write-capable resolution: personal owner scope only.
     pub(super) async fn resolve(&mut self, id: &str) -> Result<ResolvedPlan> {
         self.scope()?;
+        self.resolve_read(id).await
+    }
+    /// Read resolution in the current Personal or Team scope.
+    pub(super) async fn resolve_read(&mut self, id: &str) -> Result<ResolvedPlan> {
+        let team = self.team()?;
         if uuid::Uuid::parse_str(id).is_ok()
             && self.filters.status.is_none()
             && self.filters.chat_id.is_none()
@@ -211,10 +241,14 @@ impl<'a> Plans<'a> {
             let data = self
                 .tasks
                 .backend
-                .request(Method::GET, &format!("/v1/user-plans/{id}"), None, None)
+                .request(
+                    Method::GET,
+                    &path(&format!("/v1/user-plans/{id}"), team.as_deref(), &[]),
+                    None,
+                    None,
+                )
                 .await?;
-            let master = self.tasks.backend.master().await?;
-            let plan = decode(data["plan"].clone(), &master)?;
+            let plan = self.decode_scoped(data["plan"].clone()).await?;
             if plan.raw["plan_id"] != id {
                 return Err(Error::Forbidden);
             }
@@ -254,7 +288,7 @@ impl<'a> Plans<'a> {
         plans.into_iter().nth(exact[0]).ok_or(Error::Protocol)
     }
     pub async fn show(&mut self, id: &str) -> Result<Value> {
-        Ok(self.resolve(id).await?.public)
+        Ok(self.resolve_read(id).await?.public)
     }
     async fn project_key(&mut self, id: &str) -> Result<Key> {
         uuid(id)?;
@@ -669,6 +703,10 @@ fn decode(raw: Value, master: &[u8; 32]) -> Result<ResolvedPlan> {
         string(master_wrappers[0], "encrypted_plan_key")?,
         master,
     )?)?;
+    decode_with_key(raw, key)
+}
+/// Decode the private fields once the caller authenticated the Plan key.
+fn decode_with_key(raw: Value, key: Key) -> Result<ResolvedPlan> {
     let mut public = json!({});
     for field in [
         "plan_id",
@@ -799,6 +837,8 @@ pub use advanced::*;
 
 mod ask;
 pub use ask::{PlanAskOptions, PlanAskUpdate, PlanProposal};
+
+mod team;
 mod recovery_ops;
 
 #[cfg(all(test,not(target_arch="wasm32")))]

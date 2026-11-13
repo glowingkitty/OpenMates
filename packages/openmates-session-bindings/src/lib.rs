@@ -16,9 +16,17 @@ pub use embed_version::reconstruct_embed_version_json;
 mod python;
 #[cfg(feature = "python-bindings")]
 mod python_api_key;
+#[cfg(feature = "python-bindings")]
+mod python_future;
 #[cfg(not(target_arch = "wasm32"))]
 mod session;
 mod task_order;
+mod key_management;
+/// Stateless key-management primitives (JSON envelope) shared by foreign SDK entries.
+pub use key_management::key_management_json;
+mod models;
+/// Stateless decrypted presentation models (JSON envelope) shared by foreign SDK entries.
+pub use models::models_json;
 pub use privacy::privacy_json;
 #[cfg(not(target_arch = "wasm32"))]
 pub use session::{ApiKeyBridge, ApiKeyRequest, ApiKeyOutput, BindingOptions, SessionBridge, SessionDraftReadOptions};

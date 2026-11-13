@@ -13,6 +13,10 @@ ProjectFileOperation = Literal[
     "read_text",
     "create_file",
     "update_file",
+    "rename_file",
+    "delete_file",
+    "commit",
+    "snapshot",
 ]
 
 

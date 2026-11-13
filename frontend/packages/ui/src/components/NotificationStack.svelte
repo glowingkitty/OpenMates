@@ -6,6 +6,8 @@
   Keeping this in the UI package prevents route-specific toast layout drift.
 -->
 <script lang="ts">
+    import { text } from '@repo/ui';
+    import { installEventSounds, setSilentMode } from '../services/eventSounds';
     import { onMount } from 'svelte';
     import Notification from './Notification.svelte';
     import ChatMessageNotification from './ChatMessageNotification.svelte';
@@ -50,6 +52,19 @@
             return false;
         }
     }
+
+    onMount(() => {
+        installEventSounds(() => {
+            notificationStore.addNotificationWithOptions('info', {
+                title: $text('settings.notifications.sounds.notice_title'),
+                message: $text('settings.notifications.sounds.notice_message'),
+                duration: 12000,
+                dedupeKey: 'event-sound-notice',
+                actionLabel: $text('settings.notifications.sounds.notice_turn_off'),
+                onAction: () => setSilentMode(true),
+            });
+        });
+    });
 
     onMount(() => {
         if (!e2eNotificationInjectionAllowed()) return;

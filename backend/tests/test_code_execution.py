@@ -1150,9 +1150,9 @@ async def test_collect_code_files_accepts_selected_client_attachment_fallback() 
     assert base64.b64decode(files[1]["content_base64"]) == b"hello"
 
 
-def test_code_run_cost_is_five_credits_per_minute() -> None:
-    assert ROUTE_RUN_CREDITS_PER_MINUTE == 5
-    assert TASK_RUN_CREDITS_PER_MINUTE == 5
+def test_code_run_cost_is_three_credits_per_minute() -> None:
+    assert ROUTE_RUN_CREDITS_PER_MINUTE == 3
+    assert TASK_RUN_CREDITS_PER_MINUTE == 3
 
 
 def test_dependency_install_request_rejects_shell_values() -> None:
@@ -1404,20 +1404,20 @@ async def test_charge_run_credits_links_usage_to_chat(monkeypatch: pytest.Monkey
             "target_path": "main.py",
             "files": [{"path": "main.py"}],
         },
-        5,
+        3,
         "execution-1",
         {"billing_phase": "initial_minute", "charged_minutes": 1},
     )
 
-    assert charged == 5
-    assert requests[0]["json"]["credits"] == 5
+    assert charged == 3
+    assert requests[0]["json"]["credits"] == 3
     assert requests[0]["json"]["app_id"] == "code"
     assert requests[0]["json"]["skill_id"] == "run"
     assert requests[0]["json"]["idempotency_key"].startswith("code-run:execution-1:")
     assert requests[0]["json"]["usage_details"]["chat_id"] == CHAT_ID
     assert requests[0]["json"]["usage_details"]["message_id"] == MESSAGE_ID
     usage_details = requests[0]["json"]["usage_details"]
-    assert usage_details["credits_per_minute"] == 5
+    assert usage_details["credits_per_minute"] == 3
     assert usage_details["code_run_filenames"] == ["main.py"]
 
 

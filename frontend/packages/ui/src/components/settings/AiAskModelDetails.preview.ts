@@ -1,6 +1,6 @@
 import { modelsMetadata } from '../../data/modelsMetadata';
 
-const model = modelsMetadata.find(candidate => candidate.id === 'claude-fable-5-1');
+const model = modelsMetadata.find(candidate => candidate.id === 'claude-fable-5-2');
 const includedModel = modelsMetadata.find(candidate => candidate.id === 'gpt-6.1-sol');
 const separateOpenAiModel = modelsMetadata.find(candidate => candidate.id === 'gpt-6-luna');
 if (!model?.default_server || !model.pricing?.cache_read_tokens_per_credit || !model.pricing.cache_write_tokens_per_credit) {

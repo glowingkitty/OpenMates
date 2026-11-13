@@ -238,6 +238,11 @@ export function printRecoveryKey(
     // Get translations if not provided
     const trans = translations || getPrintTranslations();
 
+    if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
+      const rustResult = printRecoveryKeyViaRust(recoveryKey, trans);
+      if (rustResult) return rustResult;
+    }
+
     // Generate the print page HTML
     const htmlContent = generatePrintPageHtml(recoveryKey, trans);
 
@@ -263,4 +268,36 @@ export function printRecoveryKey(
       error: error instanceof Error ? error.message : "Print failed",
     };
   }
+}
+
+/**
+ * Flag builds: the shared Rust core renders the print page. The window opens
+ * synchronously (keeps the click's popup permission); the document is written
+ * once Rust answers. Returns null when the Rust path is not selected for this
+ * page (localStorage override), so the TypeScript path above runs as deployed.
+ */
+function printRecoveryKeyViaRust(
+  recoveryKey: string,
+  trans: PrintTranslations,
+): SaveResult | null {
+  if (!window.localStorage || window.localStorage.getItem("openmates_rust_auth") === "ts") return null;
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    console.error("[recoveryKeyUtils] Could not open print window (popup blocked?)");
+    return { success: false, error: "Could not open print window" };
+  }
+  void import("../services/rustCore/authOperation")
+    .then(({ rustAuthFlow }) =>
+      rustAuthFlow<string>("recovery_print_html", { recoveryKey, translations: trans }),
+    )
+    .then((htmlContent) => {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.print();
+    })
+    .catch((error: unknown) => {
+      console.error("[recoveryKeyUtils] Rust print page failed:", error instanceof Error ? error.message : "unknown");
+      printWindow.close();
+    });
+  return { success: true };
 }

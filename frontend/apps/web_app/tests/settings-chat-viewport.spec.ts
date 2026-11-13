@@ -85,7 +85,8 @@ for (const chat of ['welcome', 'example-svelte-runes-docs'] as const) {
 			await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
 
 			if (chat === 'welcome') {
-				await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
+				// The signed-out welcome shows the ordinary Daily Inspiration banner, never the expanded landing intro.
+				await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
 				await page.getByTestId('daily-inspiration-next').click();
 				await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0, { timeout: 5000 });
 			} else {

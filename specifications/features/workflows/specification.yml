@@ -110,7 +110,7 @@ models:
       constraints: {validated_inline_embed_links_and_results_views_allowed: true, referenced_results_must_be_selected: true}
     runtime:
       type: isolated_workflow_ai_ask
-      constraints: {app_skill_or_tool_calls: forbidden, chat_history_and_memories: forbidden, external_text_as_instructions: forbidden}
+      constraints: {app_skill_or_tool_calls: forbidden, chat_history_forbidden: true, memories_only_via_explicit_snapshot: true, external_text_as_instructions: forbidden}
 
   WorkflowAskAiValidation:
     verdict:
@@ -378,7 +378,7 @@ assertions:
   - id: workflows.ai-ask.execution
     type: behavior
     must: >
-      Ask AI evaluates one multiline authored instruction with only explicitly referenced, accessible earlier Workflow values and returns one reusable answer that may contain validated inline result links, preview cards and results views. A prior Use app result, including a bounded selected result list, may be an input. The known upstream app and result types select applicable presentation instructions without a separate AI classification request, and the answer receives only stable references for selected results. Ask AI cannot discover or invoke app skills itself: server-side execution enforces a fresh Workflow context with no available tool definitions or dispatch authority, ordinary chat history or memories. It treats upstream text as untrusted data, bounds and previews selected values without dropping fields needed for usable event time/location previews, and does not expose credentials or opaque access material. Test uses unsaved inputs without committing a graph, and full runs use normal AI usage, credit and idempotency controls. The complete answer and useful failure detail are encrypted retained run content; failure stops dependent steps rather than inventing an answer or taking the AI Check Unsure branch.
+      Ask AI evaluates one multiline authored instruction with only explicitly referenced, accessible earlier Workflow values and returns one reusable answer that may contain validated inline result links, preview cards and results views. A prior Use app result, including a bounded selected result list, may be an input. The known upstream app and result types select applicable presentation instructions without a separate AI classification request, and the answer receives only stable references for selected results. Ask AI cannot discover or invoke app skills itself: server-side execution enforces a fresh Workflow context with no available tool definitions or dispatch authority, ordinary chat history, and memories except a snapshot the author explicitly mentioned (feature.app-memories). It treats upstream text as untrusted data, bounds and previews selected values without dropping fields needed for usable event time/location previews, and does not expose credentials or opaque access material. Test uses unsaved inputs without committing a graph, and full runs use normal AI usage, credit and idempotency controls. The complete answer and useful failure detail are encrypted retained run content; failure stops dependent steps rather than inventing an answer or taking the AI Check Unsure branch.
     depends_on: [models.WorkflowAskAi, examples.ask_ai_execution]
   - id: workflows.ai-ask.authoring-validation
     type: behavior

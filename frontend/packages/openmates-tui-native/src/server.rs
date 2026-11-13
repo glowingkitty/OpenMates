@@ -1,5 +1,9 @@
 //! Native application self-host management. Only documented system tools are
 //! spawned; application policy, configuration and validation execute in Rust.
+mod apps;
+mod apps_archive;
+#[cfg(test)]
+mod apps_tests;
 mod backup;
 mod bind_mounts;
 mod brevo;
@@ -10,6 +14,8 @@ mod configuration;
 mod data;
 mod fs;
 mod host_reporter;
+mod human;
+pub use human::human_text;
 mod local_models;
 mod monitoring;
 mod notifications;
@@ -1088,6 +1094,10 @@ fn validate_options(action: &str, args: &[String], flags: &Flags) -> Result<()> 
             "skip-quick-test",
         ],
         "ai models" | "ai models list" | "ai models test" | "ai models remove" => &["role"],
+        "apps" | "apps list" | "apps inspect" => &["role"],
+        "apps install" => &["role", "accept-server-execution", "no-restart"],
+        "apps rollback" => &["role", "to", "no-restart"],
+        "apps remove" => &["role", "yes", "no-restart"],
         "ai models add" => &[
             "role",
             "runtime",
@@ -1153,6 +1163,8 @@ fn validate_options(action: &str, args: &[String], flags: &Flags) -> Result<()> 
                 | "confirm-spend-credits"
                 | "skip-quick-test"
                 | "test"
+                | "accept-server-execution"
+                | "no-restart"
         );
         if switch && !value.is_boolean()
             || !switch
@@ -1174,6 +1186,10 @@ fn validate_options(action: &str, args: &[String], flags: &Flags) -> Result<()> 
             | "features reset"
             | "ai models test"
             | "ai models remove"
+            | "apps install"
+            | "apps inspect"
+            | "apps rollback"
+            | "apps remove"
     ) {
         if args.len() != 1 {
             return Err(Error::Invalid(
@@ -1328,6 +1344,8 @@ pub async fn execute_cancellable(
                 "preflight" => configuration::preflight(&c),
                 "ai models" | "ai models list" | "ai models add" | "ai models test"
                 | "ai models remove" => local_models::execute(&action, &c, &_positionals, &flags),
+                "apps" | "apps list" | "apps install" | "apps inspect" | "apps rollback"
+                | "apps remove" => apps::execute(&action, &c, &_positionals, &flags),
                 _ => Err(Error::Invalid(
                     "This server subcommand has not been ported to the native CLI.",
                 )),

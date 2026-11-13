@@ -1,10 +1,7 @@
+import { requiresInitialSnapshot } from '../../../services/embedUserRevisionHistory';
+
 /** Immutable version-one rows are reused; only legacy heads without history need a seed. */
-export function requiresInitialDiagramSnapshot(
-  currentVersion: number,
-  versions: readonly { version_number: number; has_snapshot: boolean }[],
-): boolean {
-  return currentVersion === 1 && !versions.some((row) => row.version_number === 1 && row.has_snapshot);
-}
+export const requiresInitialDiagramSnapshot = requiresInitialSnapshot;
 
 /** Keep the canonical head separate from historical display and editing rights. */
 export function resolveDiagramVersionView(

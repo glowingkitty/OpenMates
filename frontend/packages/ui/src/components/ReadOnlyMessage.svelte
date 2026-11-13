@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { vibrateDevice } from '../services/eventSounds';
     import { onMount, onDestroy, tick } from 'svelte';
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
@@ -417,9 +418,7 @@
                     });
                     
                     // Vibrate to provide haptic feedback (if supported)
-                    if (navigator.vibrate) {
-                        navigator.vibrate(50);
-                    }
+                    vibrateDevice(50);
                 }
             }
         }, LONG_PRESS_DURATION);
@@ -539,8 +538,10 @@
                 // parts[0]="focus", parts[1]=appId, parts[2]=focusModeId
                 deepLinkPath = `apps/${parts[1]}/focus/${parts[2]}`;
             } else if ((mentionType === 'settings_memory' || mentionType === 'settings_memory_entry') && parts.length >= 3) {
-                // parts[0]="memory", parts[1]=appId, parts[2]=categoryId
-                deepLinkPath = `apps/${parts[1]}/settings_memories/${parts[2]}`;
+                // parts[0]="memory", parts[1]=appId, parts[2]=categoryId, parts[3]=entry id (entry mentions)
+                deepLinkPath = mentionType === 'settings_memory_entry' && parts[3]
+                    ? `memories/${encodeURIComponent(parts[3].replace(/^account-memory-/, ''))}`
+                    : 'settings_memories';
             }
         }
 
@@ -1154,7 +1155,8 @@
         const result = applyIncrementalUpdate(editor, processedContent);
         if (!result.applied) {
             console.error('[ReadOnlyMessage] Incremental content update rejected; preserving last good document', {
-                failureClass: 'streaming_document_convergence_failed'
+                failureClass: 'streaming_document_convergence_failed',
+                reason: JSON.stringify(result.reason ?? null)
             });
             return;
         }

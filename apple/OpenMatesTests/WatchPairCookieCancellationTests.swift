@@ -64,8 +64,7 @@ final class WatchPairCookieCancellationTests: XCTestCase {
             cookiesDidPublish: { publicationObserved = true }, verifiedDidPersist: {})
         let receiver = Task { @MainActor in
             try await WatchPairReceiverAuthority.$current.withValue(authority) {
-                let _: Data = try await api.request(.post, path: "/v1/auth/pair/v2/complete/FIX346",
-                    serverProfile: profile, body: ["grant_secret": "synthetic-only"])
+                _ = try await Self.completePairThroughWatchTransport(api, transport: transport, profile: profile)
             }
         }
         await fulfillment(of: [headers], timeout: 3)
@@ -99,9 +98,13 @@ final class WatchPairCookieCancellationTests: XCTestCase {
             ServerConfiguration.current = previous
         }
         let api = APIClient(session: transport, cookieStorage: jar)
-        let request = Task {
-            let _: Data = try await api.request(.post, path: "/v1/auth/pair/v2/complete/FIX346",
-                serverProfile: profile, body: ["grant_secret": "synthetic-only"])
+        var publications = 0
+        let authority = WatchPairReceiverAuthority.Context(isCurrent: { true },
+            cookiesDidPublish: { publications += 1 }, verifiedDidPersist: {})
+        let request = Task { @MainActor in
+            try await WatchPairReceiverAuthority.$current.withValue(authority) {
+                _ = try await Self.completePairThroughWatchTransport(api, transport: transport, profile: profile)
+            }
         }
         await fulfillment(of: [headersDelivered], timeout: 3)
         XCTAssertEqual(jar.cookies(for: profile.apiBaseURL)?.first(where: { $0.name == "auth_refresh_token" })?.value,
@@ -115,6 +118,20 @@ final class WatchPairCookieCancellationTests: XCTestCase {
         } else { try await request.value }
         XCTAssertEqual(jar.cookies(for: profile.apiBaseURL)?.first(where: { $0.name == "auth_refresh_token" })?.value,
             cancel ? "original-fixture" : "successor-fixture")
+        XCTAssertEqual(publications, cancel ? 0 : 1, "Only the current receiver publishes, exactly once")
+    }
+
+    /// The iOS app pairs through the Rust core (`AuthManager.completePairLogin`),
+    /// whose binding wipes a cancelled pairing; only the Watch still completes a
+    /// pair receiver over `APIClient`. `APIClient.request` on iOS goes through the
+    /// core or the pre-session jar, so drive the Watch transport directly: the
+    /// same pinned request, URLSession call and authority-checked publication.
+    private static func completePairThroughWatchTransport(_ api: APIClient, transport: URLSession,
+                                                          profile: ServerProfile) async throws -> Data {
+        var request = try await api.buildRequest(.post, path: "/v1/auth/pair/v2/complete/FIX346", headers: nil,
+            baseURL: profile.apiBaseURL, webAppURL: profile.webBaseURL)
+        request.httpBody = Data(#"{"grant_secret":"synthetic-only"}"#.utf8)
+        return try await api.execute(request, using: transport)
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.explicit-entry-back

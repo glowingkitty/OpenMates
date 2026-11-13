@@ -3,6 +3,9 @@
 // Assertions: chats.message.confirmed-haptic
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.delivery.confirmed-action-haptics
+// Specification: specifications/features/notifications/specification.yml
+// Assertions: notifications.sounds.important-events, notifications.sounds.quiet-window, notifications.sounds.silent-mode
+// Svelte counterpart: frontend/packages/ui/src/services/eventSounds.ts
 import Foundation
 import CoreFoundation
 #if os(iOS)
@@ -16,34 +19,73 @@ import WatchKit
 
 /// OS feedback generators preserve system haptic settings. Unsupported hardware
 /// and inactive apps are silent. APNs vibration remains entirely OS-controlled.
+///
+/// Policy (Notifications Specification v2): a light tap only on primary commit
+/// actions (save, confirm, create, confirmed delete), a distinct accepted cue
+/// for a message the server admitted, a notification cue and an error cue.
+/// Ordinary button presses never vibrate. One shared quiet window drops any
+/// haptic within 3 seconds of the previous one (never queued or replayed and a
+/// dropped one does not extend it). Silent mode (device-only) plays nothing.
 @MainActor
 final class NativeHaptics {
     enum Event: String, CaseIterable {
         case messageAccepted, taskCreated, taskUpdated, workflowCreated, workflowUpdated
-        case teamCreated, authenticated, apiKeyCreated, notification
+        case teamCreated, authenticated, apiKeyCreated, chatDeleted, notification, error
+
+        /// What the user feels; every commit action renders the same light tap.
+        var cue: Cue {
+            switch self {
+            case .messageAccepted: return .accepted
+            case .notification: return .notification
+            case .error: return .error
+            case .taskCreated, .taskUpdated, .workflowCreated, .workflowUpdated,
+                 .teamCreated, .authenticated, .apiKeyCreated, .chatDeleted:
+                return .lightTap
+            }
+        }
     }
+
+    /// Rendered haptic kind, small enough for tests to assert.
+    enum Cue: Equatable { case lightTap, accepted, notification, error }
+
+    /// Same key the web app uses for its device-local silent mode.
+    static let silentModeKey = "openmates_silent_mode"
+    static let quietWindow: TimeInterval = 3
+
     static let shared = NativeHaptics()
     private struct Key: Hashable { let event: Event; let id: String; let scope: String }
     private var delivered: Set<Key> = []
     private var order: [Key] = []
+    private var lastPlayed: TimeInterval?
     private let enabled: @MainActor () -> Bool
-    private let render: @MainActor (Event) -> Void
+    private let render: @MainActor (Cue) -> Void
+    private let silent: @MainActor () -> Bool
+    private let clock: @MainActor () -> TimeInterval
 
     init(enabled: @escaping @MainActor () -> Bool = NativeHaptics.isSupportedAndActive,
-         render: @escaping @MainActor (Event) -> Void = NativeHaptics.play) {
-        self.enabled = enabled; self.render = render
+         render: @escaping @MainActor (Cue) -> Void = NativeHaptics.play,
+         silent: @escaping @MainActor () -> Bool = NativeHaptics.isSilentMode,
+         clock: @escaping @MainActor () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
+        self.enabled = enabled; self.render = render; self.silent = silent; self.clock = clock
     }
 
+    static func isSilentMode() -> Bool { UserDefaults.standard.bool(forKey: silentModeKey) }
+    static func setSilentMode(_ value: Bool) { UserDefaults.standard.set(value, forKey: silentModeKey) }
+
     /// Call only after the owning operation's account/context fence succeeds.
-    /// Consume even a suppressed event, so foregrounding never replays feedback.
+    /// Consume even a suppressed event, so foregrounding, silent mode and the
+    /// quiet window never replay feedback later.
     func confirmed(_ event: Event, id: String, scope: String) {
         guard !id.isEmpty, !scope.isEmpty else { return }
         let key = Key(event: event, id: id, scope: scope)
         guard delivered.insert(key).inserted else { return }
         order.append(key)
         if order.count > 512 { delivered.remove(order.removeFirst()) }
-        guard enabled() else { return }
-        render(event)
+        guard !silent(), enabled() else { return }
+        let now = clock()
+        if let lastPlayed, now - lastPlayed < Self.quietWindow { return }
+        lastPlayed = now
+        render(event.cue)
     }
 
     private static func isSupportedAndActive() -> Bool {
@@ -58,40 +100,27 @@ final class NativeHaptics {
         #endif
     }
 
-    private static func play(_ event: Event) {
+    private static func play(_ cue: Cue) {
         #if os(iOS)
-        switch event {
-        case .messageAccepted: UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        case .taskCreated: UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        case .taskUpdated: UISelectionFeedbackGenerator().selectionChanged()
-        case .workflowCreated: UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
-        case .workflowUpdated: UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-        case .teamCreated: UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-        case .authenticated: UINotificationFeedbackGenerator().notificationOccurred(.success)
-        case .apiKeyCreated: UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.7)
+        switch cue {
+        case .lightTap, .accepted: UIImpactFeedbackGenerator(style: .light).impactOccurred()
         case .notification: UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.5)
+        case .error: UINotificationFeedbackGenerator().notificationOccurred(.error)
         }
         #elseif os(macOS)
         // Apple's AppKit guidance limits trackpad feedback to user actions.
-        guard event != .notification else { return }
-        let pattern: NSHapticFeedbackManager.FeedbackPattern
-        switch event {
-        case .taskUpdated, .workflowUpdated: pattern = .levelChange
-        default: pattern = .generic
+        switch cue {
+        case .lightTap, .accepted:
+            NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+        case .notification, .error: break
         }
-        NSHapticFeedbackManager.defaultPerformer.perform(pattern, performanceTime: .now)
         #elseif os(watchOS)
         let pattern: WKHapticType
-        switch event {
-        case .messageAccepted: pattern = .start
-        case .taskCreated: pattern = .success
-        case .taskUpdated: pattern = .click
-        case .workflowCreated: pattern = .directionUp
-        case .workflowUpdated: pattern = .directionDown
-        case .teamCreated: pattern = .success
-        case .authenticated: pattern = .success
-        case .apiKeyCreated: pattern = .success
+        switch cue {
+        case .lightTap: pattern = .click
+        case .accepted: pattern = .start
         case .notification: pattern = .notification
+        case .error: pattern = .failure
         }
         WKInterfaceDevice.current().play(pattern)
         #endif

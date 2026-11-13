@@ -37,6 +37,8 @@ declare module "@tiptap/core" {
         colorStart?: string;
         /** Gradient end color from app config */
         colorEnd?: string;
+        /** Inserted by the app (navigation, "chat with" buttons), not typed by the user. */
+        autoInserted?: boolean;
       }) => ReturnType;
     };
   }
@@ -91,6 +93,12 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
       },
       colorEnd: {
         default: null,
+      },
+      // Editor-only marker: a mention the app inserted on its own is not draft
+      // content (inspectDraftContent). Never rendered, serialized or sent.
+      autoInserted: {
+        default: false,
+        rendered: false,
       },
     };
   },

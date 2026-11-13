@@ -108,10 +108,21 @@ async def handle_delete_app_settings_memories_entry(
                     entry_id,
                     user_id[:8],
                 )
+                # Deleting is idempotent: another device of the account may have
+                # deleted the entry already. Nothing is deleted here and the reply
+                # is the same for a missing entry and for one owned by someone
+                # else, so it reveals nothing; the asking device only drops its
+                # local copy. No broadcast, because no state changed.
                 await manager.send_personal_message(
                     {
-                        "type": "error",
-                        "payload": {"message": "Entry not found or access denied"},
+                        "type": "app_settings_memories_entry_deleted",
+                        "payload": {
+                            "entry_id": entry_id,
+                            "app_id": None,
+                            "item_type": None,
+                            "success": True,
+                            "already_deleted": True,
+                        },
                     },
                     user_id,
                     device_fingerprint_hash,

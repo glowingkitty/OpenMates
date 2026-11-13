@@ -24,7 +24,7 @@ def sanitize_request_data_for_logging(request_data: Dict[str, Any]) -> Dict[str,
         A sanitized dictionary suitable for logging
     """
     sanitized = request_data.copy()
-    for field in ("accepted_plan_context", "custom_rule_documents", "custom_memory_documents", "project_focus_catalog", "project_focus_documents",
+    for field in ("accepted_plan_context", "custom_rule_documents", "custom_memory_documents", "memory_catalog", "project_focus_catalog", "project_focus_documents",
                   "project_context_documents", "related_task_candidates", "agentic_context_ref"):
         if field in sanitized:
             sanitized[field] = "[Transient context redacted]"
@@ -93,6 +93,14 @@ def sanitize_request_data_for_logging(request_data: Dict[str, Any]) -> Dict[str,
         else:
             sanitized["follow_up_request_suggestions"] = "[REDACTED]"
     
+    # recommendations carry memory/workflow titles and summaries: keep only count and kinds
+    if "recommendations" in sanitized:
+        recommendations = sanitized["recommendations"]
+        sanitized["recommendations"] = (
+            [{"kind": item.get("kind"), "content": "[REDACTED_CONTENT]"} for item in recommendations if isinstance(item, dict)]
+            if isinstance(recommendations, list) else None
+        )
+
     # Sanitize new_chat_request_suggestions: replace with count and lengths
     if "new_chat_request_suggestions" in sanitized:
         if isinstance(sanitized["new_chat_request_suggestions"], list):

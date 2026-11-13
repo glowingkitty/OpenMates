@@ -5,7 +5,8 @@
 // video-call.audio.startup-buffer, video-call.audio.automatic-idle,
 // video-call.lifecycle.recovery-and-billing, video-call.privacy.first-call-warning,
 // video-call.audio.intentional-interruption, video-call.audio.spoken-rich-response,
-// video-call.audio.complete-turn-admission, video-call.chat.activity-status, video-call.usage.provider-metering, video-call.chat.skill-integration
+// video-call.audio.complete-turn-admission, video-call.chat.activity-status, video-call.usage.provider-metering, video-call.chat.skill-integration,
+// video-call.audio.background-resume
 
 import Foundation
 
@@ -129,7 +130,8 @@ actor NativeVoiceCallController {
             guard context.fields["mate_category"]?.string == scope.mateCategory
             else { throw NativeVoiceCallError.contextUnavailable }
             let startFrame: NativeVoiceCallFrame = ["type": .string("start"), "chat_id": .string(scope.chatID),
-                "startup_audio_allowance_ms": .number(10_000), "context": .object(context.fields)]
+                "startup_audio_allowance_ms": .number(10_000), "context": .object(context.fields),
+                "speech_output_transport": .string(NativeVoiceCallWire.speechOutputTransport)]
             guard try NativeVoiceCallWire.encode(startFrame).utf8.count <= 256_000
             else { throw NativeVoiceCallError.contextTooLarge }
             let auth = try await environment.authentication(scope)
@@ -170,7 +172,8 @@ actor NativeVoiceCallController {
     }
     private func fail(_ error: NativeVoiceCallError, token: UUID) async {
         guard generation == token else { return }
-        await finish(error: error)
+        // A microphone the system removed for good ends like a hangup (web endBecauseMicrophoneLost).
+        await finish(error: error, sendHangup: error == .endedInBackground)
     }
 
     private func appendPCM(_ pcm: Data, token: UUID) async {
@@ -344,10 +347,15 @@ actor NativeVoiceCallController {
                   frame["provider"]?.string == "mistral",
                   frame["model"]?.string == "voxtral-mini-transcribe-realtime-3-0",
                   frame["billing_basis"]?.string == "speech_duration_and_chat_usage",
+                  frame["speech_output_transport"]?.string == NativeVoiceCallWire.speechOutputTransport,
                   let rate = frame["rates"]?.object?["stt_credits_per_started_minute"]?.number, rate.isFinite, rate > 0,
-                  frame["mate_category"]?.string == scope.mateCategory else { throw NativeVoiceCallError.invalidResponse }
+                  // The STT-only broker no longer echoes the mate; the start
+                  // context binds it. A present but different mate is refused.
+                  frame["mate_category"] == nil || frame["mate_category"]?.string == scope.mateCategory
+            else { throw NativeVoiceCallError.invalidResponse }
             deadline?.cancel(); deadline = nil
             state.callID = callID; state.status = .live
+            state.cameraAvailable = frame["camera_available"]?.bool == true
             modelName = frame["model"]?.string; mateName = frame["mate_name"]?.string
             drainingStartup = true
             try await persistence.lifecycle(scope: scope, callID: callID, started: true,
@@ -389,13 +397,58 @@ actor NativeVoiceCallController {
                 mateName: role == .assistant ? mateName : nil)
             // STT drafts are ephemeral. Never persist an assistant spoken-only
             // projection over the authoritative rich assistant message.
-            guard role == .user, final, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            guard role == .user, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            guard final else {
+                // Partial drafts are display-only; they grant no chat authority.
+                guard !submittedTurns.contains(id) else { return }
+                state.liveTranscript = .init(messageID: id, text: String(text.suffix(4_000)), submitted: false)
+                await publish()
+                return
+            }
             guard submittedTurns.insert(id).inserted else { return }
+            state.liveTranscript = .init(messageID: id, text: String(text.suffix(4_000)), submitted: true)
+            await publish()
             try await environment.submitTurn(scope, value)
             try await requireCurrent(token, scope)
             pendingTyped.removeValue(forKey: id)
             await event(.transcript(value))
-        case "text_input.accepted", "transcript.discarded", "source", "waiting", "progress": break
+            // The accepted turn is now an ordinary chat row.
+            if state.liveTranscript?.messageID == id { state.liveTranscript = nil; await publish() }
+        case "transcript.pending":
+            // The broker holds an unfinished thought; the live line stays visible.
+            guard state.status == .live, let id = frame["message_id"]?.string,
+                  let live = state.liveTranscript, live.messageID == id, !live.submitted, !live.held else { return }
+            state.liveTranscript?.held = true
+            await publish()
+        case "transcript.discarded":
+            // Echo, backchannel, stop words and empty turns never become messages.
+            guard let id = frame["message_id"]?.string, state.liveTranscript?.messageID == id else { return }
+            state.liveTranscript = nil
+            await publish()
+        case "camera_state":
+            guard state.status == .live, frame["call_id"]?.string == state.callID,
+                  let enabled = frame["enabled"]?.bool else { return }
+            state.cameraEnabled = enabled
+            await publish()
+        case "camera_error":
+            guard state.status == .live, frame["call_id"]?.string == state.callID else { return }
+            state.cameraNotice = .cameraFailed
+            if frame["enabled"]?.bool == false { state.cameraEnabled = false }
+            await publish()
+        case "voice_source_frame":
+            // Apple has no call camera and no client-core path to persist a
+            // source frame as an encrypted embed. Refuse it explicitly so the
+            // broker never waits for an attachment that cannot be saved.
+            guard state.status == .live, let callID = state.callID, frame["call_id"]?.string == callID,
+                  let userID = frame["user_message_id"]?.string, !userID.isEmpty, userID.utf8.count <= 128,
+                  let frameID = frame["frame_id"]?.string, !frameID.isEmpty, frameID.utf8.count <= 128,
+                  (frame["data"]?.string?.utf8.count ?? .max) <= NativeVoiceCallWire.maximumSourceFrameCharacters,
+                  frame["captured_at"]?.number != nil, frame["created_at"]?.number != nil else { return }
+            try await input(["type": .string("source_frame_failed"), "call_id": .string(callID),
+                "user_message_id": .string(userID), "frame_id": .string(frameID)], token: token, scope: scope)
+            state.cameraNotice = .sourceFrameFailed
+            await publish()
+        case "text_input.accepted", "source", "waiting", "progress": break
         case "text_input_rejected":
             guard let id = frame["message_id"]?.string, pendingTyped.removeValue(forKey: id) != nil else { return }
             await event(.typedRejected(messageID: id))
@@ -500,8 +553,9 @@ actor NativeVoiceCallController {
         startup.removeAll(); startupBytes = 0; startupSpentBytes = 0
         pausedInputs.removeAll(); pausedBytes = 0; checkpointID = nil
         drainingStartup = false; streamOpen = false
-        state.status = error == nil ? .ended : .failed; state.error = error
+        state.status = error == nil || error == .endedInBackground ? .ended : .failed; state.error = error
         state.inputListening = false; state.processing = false; state.contextPaused = false
+        state.liveTranscript = nil; state.cameraEnabled = false; state.cameraAvailable = false
         assistantTaskID = nil; assistantMessageID = nil; assistantActive = false; providerProcessing = false
         // Keep unresolved typed ciphertext/drafts. Caller explicitly chooses retry.
         pendingTyped.removeAll()

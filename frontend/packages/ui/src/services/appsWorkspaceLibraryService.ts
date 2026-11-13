@@ -72,7 +72,8 @@ async function libraryRequest(appId: string, suffix: string, teamId?: string, bo
   if (owner !== ownerGeneration || get(userProfile).user_id !== userId || !get(authStore).isAuthenticated ||
       (get(activeTeamContext).teamId ?? undefined) !== teamId) throw new Error('account_context_changed');
   if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : 'library_unavailable');
-  return { ...result, recommendations: freshAppsRecommendations(result.recommendations ?? []) };
+  const { freshRustRecommendations } = await import('./rustCore/apps/rustAppsRetention');
+  return { ...result, recommendations: await freshRustRecommendations(result.recommendations ?? []) };
 }
 
 /** Expiry is checked in the server as well; sleeping tabs also filter on wake. */
@@ -89,7 +90,8 @@ export async function getPublicAppsRecommendations(appId: string, signal?: Abort
   });
   if (!response.ok) return [];
   const result = await response.json();
-  return freshAppsRecommendations(Array.isArray(result.recommendations) ? result.recommendations : []);
+  const recommendations: AppsRecommendation[] = Array.isArray(result.recommendations) ? result.recommendations : [];
+  return (await import('./rustCore/apps/rustAppsRetention')).freshRustRecommendations(recommendations);
 }
 export const saveAppsSearch = (appId: string, skillId: string, parameters: Record<string, unknown>, query: string, teamId?: string) =>
   libraryRequest(appId, '/saved-searches', teamId, { skill_id: skillId, parameters, query, title: query.slice(0, 200) });

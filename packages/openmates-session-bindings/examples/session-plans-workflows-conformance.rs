@@ -275,7 +275,12 @@ async fn run_vector(root: &Path, fixture: &Path, suite: &Value, vector: &Value) 
         }
         "scope" => {
             let team = json!({"team_id":suite["team"]["team_id"]});
-            error_code(bridge.plans_list(parse(&team)?).await, "unavailable")?;
+            error_code(
+                bridge
+                    .plans_create(parse(&suite["input"]["plan"])?, parse(&team)?)
+                    .await,
+                "unavailable",
+            )?;
             error_code(
                 bridge
                     .workflows_run(flow.clone(), parse(&suite["input"]["run"])?, parse(&team)?)

@@ -62,11 +62,29 @@ DEFAULT_TIER_MODEL_PROFILES: dict[RequestTier, dict[str, str]] = {
 
 LOW_FALLBACK_MODEL = "google/gemini-3.8-flash"
 MERCURY_MODEL = "inception/mercury-3"
+# Apps whose skills produce or change media through a strict tool contract. In
+# real chats Mercury answered such follow-ups itself (claimed the change, or
+# wrote the SVG as a code block) instead of calling the skill, so automatic
+# routing gives these turns to the Gemini route. The model is chosen right
+# after app selection, before the individual skills are known, so the app is
+# the signal; the skill names cover the late selection path.
+MEDIA_GENERATION_APPS = frozenset({"images"})
+MEDIA_GENERATION_SKILLS = frozenset({"images-generate", "images-generate_draft"})
 MERCURY_REASONING_BUDGETS = {
     "LOW": (5.0, 8192),
     "MEDIUM": (15.0, 16384),
     "HIGH": (60.0, 32768),
 }
+
+
+def selects_media_generation(selected_app_ids: object, relevant_app_skills: object = None) -> bool:
+    """True when this turn's selected apps or skills generate or change media."""
+    collections = (list, tuple, set, frozenset)
+    if isinstance(selected_app_ids, collections) and any(app in MEDIA_GENERATION_APPS for app in selected_app_ids):
+        return True
+    return isinstance(relevant_app_skills, collections) and any(
+        skill in MEDIA_GENERATION_SKILLS for skill in relevant_app_skills
+    )
 
 
 def mercury_reasoning_budget(requested_level: str | None) -> tuple[float, int]:

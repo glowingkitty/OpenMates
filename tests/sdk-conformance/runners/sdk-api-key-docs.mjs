@@ -30,7 +30,7 @@ if(!process.argv.includes('--case')){
  process.exitCode=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',(code,signal)=>resolve(signal?1:code??1));});
 }else{
  let stage='sdk_import';try{
- const {OpenMates,OpenMatesApiError,OpenMatesConfigError}=await import(new URL('../../../frontend/packages/openmates-cli/dist/sdk-entry.js',import.meta.url));
+ const {OpenMates,OpenMatesApiError,OpenMatesConfigError,OpenMatesInvalidInputError}=await import(new URL('../../../frontend/packages/openmates-cli/dist/sdk-entry.js',import.meta.url));
  stage='input_read';const raw=readFileSync(0);assert.ok(raw.length<=1024*1024);stage='input_decode';const c=JSON.parse(raw),u=new URL(c.endpoint),v=c.vector;stage='input_admission';
  assert.equal(u.protocol,'http:');assert.equal(u.hostname,'127.0.0.1');assert.ok(u.port);assert.equal(u.pathname,'/');assert.equal(u.search,'');assert.equal(u.hash,'');assert.equal(u.username,'');assert.equal(u.password,'');
  assert.equal(c.api_key,'sk-api-docsOwnerA.localSetupSuffix');assert.equal(c.device_id,'synthetic-docs-device');assert.ok([1,1024].includes(c.iterations??1));
@@ -39,7 +39,7 @@ if(!process.argv.includes('--case')){
  const ticks=()=>{const f=readFileSync('/proc/self/stat','utf8').split(') ')[1].split(/\s+/);return Number(f[11])+Number(f[12]);};
  let result;
  try{stage='invoke';const start=ticks(),wall=performance.now();let value;for(let i=0;i<(c.iterations??1);i++)value=await invoke();const cpu=ticks()-start,elapsed=performance.now()-wall;result={ok:true,value};if(c.iterations>1)result.performance={iterations:c.iterations,cpuTicks:cpu,wallMs:elapsed};}
- catch(e){stage='error_mapping';if(e instanceof OpenMatesConfigError)result={ok:false,error:'authentication'};else{assert.ok(e instanceof OpenMatesApiError);const n=e.status;result={ok:false,error:({401:'authentication',403:'forbidden',409:'conflict'})[n]??([400,404,410,422].includes(n)?'invalid':n===429||n>=500?'offline':'protocol'),http_status:n};}}
+ catch(e){stage='error_mapping';if(e instanceof OpenMatesConfigError)result={ok:false,error:'authentication'};else if(e instanceof OpenMatesInvalidInputError)result={ok:false,error:'invalid'};else{assert.ok(e instanceof OpenMatesApiError);const n=e.status;result={ok:false,error:({401:'authentication',403:'forbidden',409:'conflict'})[n]??([400,404,410,422].includes(n)?'invalid':n===429||n>=500?'offline':'protocol'),http_status:n};}}
  stage='emit_result';console.log(JSON.stringify(result));
  }catch(error){process.stderr.write(docsLine(stage,docsError(error)));process.exitCode=1;}
 }

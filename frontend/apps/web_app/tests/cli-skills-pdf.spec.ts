@@ -58,6 +58,7 @@ const {
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
 	: path.resolve(__dirname, '../../../packages/openmates-cli/dist/cli.js');
+const { CLI_LOGIN_SUCCESS, cliNativeEnv, cliSpawnArgs } = require('./helpers/cli-test-helpers');
 
 // 2-page test PDF with searchable text on both pages
 const TEST_PDF = path.join(__dirname, 'fixtures', 'test_document.pdf');
@@ -107,9 +108,10 @@ function spawnCliLogin(apiUrl: string) {
 		);
 	}
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
-	const child = spawn('node', [CLI_DIST, 'login'], {
+	const child = spawn(...cliSpawnArgs(['login']), {
 		env: {
 			...process.env,
+			...cliNativeEnv(),
 			OPENMATES_API_URL: apiUrl,
 			NODE_PATH: path.join(cliDir, 'node_modules'),
 			TERM: 'dumb'
@@ -194,9 +196,10 @@ async function runCli(
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	return new Promise((resolve) => {
-		const child = spawn('node', [CLI_DIST, ...args], {
+		const child = spawn(...cliSpawnArgs(args), {
 			env: {
 				...process.env,
+			...cliNativeEnv(),
 				OPENMATES_API_URL: apiUrl,
 				NODE_PATH: path.join(cliDir, 'node_modules')
 			},
@@ -277,6 +280,7 @@ async function collectPdfReadDiagnostics(page: any): Promise<string> {
 test.describe('CLI PDF Skills', () => {
 	test.setTimeout(420_000);
 
+	// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,cli.output.actionable-readable
 	test('pdf upload via web app → AI reads via CLI chats (pdf/read skill)', async ({
 		page
 	}: {
@@ -326,7 +330,7 @@ test.describe('CLI PDF Skills', () => {
 
 		cli.sendPin(pin);
 		const { code: loginCode, output: loginOutput } = await cli.waitForExit();
-		expect(loginOutput).toContain('Login successful');
+		expect(loginOutput).toContain(CLI_LOGIN_SUCCESS);
 		expect(loginCode).toBe(0);
 		logCheckpoint('CLI login complete.');
 

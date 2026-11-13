@@ -135,6 +135,10 @@ pub(in crate::client) fn decode_message_page_data(
     let mut mappings = Plain::new(Vec::<Value>::new());
     let mut per_message = Plain::new(std::collections::BTreeMap::<String, Vec<Value>>::new());
     for (raw, message) in encrypted.iter().zip(messages.iter()) {
+        // Memory responses carry the mappings of released Memory bodies.
+        if !stored {
+            mappings.extend(crate::client::memory_privacy::response_mappings(message)?);
+        }
         // Match bounded web viewing: only loaded user-message maps apply.
         if !stored && text(raw, "role") != "user" {
             continue;

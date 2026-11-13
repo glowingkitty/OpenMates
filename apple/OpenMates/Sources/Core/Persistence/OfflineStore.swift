@@ -433,7 +433,7 @@ final class PersistedEmbedKey {
 @Model
 final class PendingOfflineAction {
     @Attribute(.unique) var id: String
-    var actionType: String  // "send_message", "delete_message", "create_chat"
+    var actionType: String  // "delete_message", "create_chat"
     var payloadJSON: Data?
     var createdAt: Date
     var retryCount: Int
@@ -1421,14 +1421,6 @@ extension OfflineStore: ComposerDraftRepository {
         }
         let descriptor = FetchDescriptor<PersistedComposerDraft>()
         return try context.fetch(descriptor).filter { $0.isDraftTombstone != true }.map { $0.toRecord() }
-    }
-
-    func allDeletionVersions() async throws -> [String: Int] {
-        guard let context = modelContext else { throw OfflineStoreDraftError.persistenceUnavailable }
-        let descriptor = FetchDescriptor<PersistedComposerDraft>()
-        return Dictionary(uniqueKeysWithValues: try context.fetch(descriptor)
-            .filter { $0.isDraftTombstone == true }
-            .map { ($0.chatId, $0.clearedDraftVersion ?? 0) })
     }
 
     func apply(_ mutation: ComposerDraftMutation, knownVersion: Int, knownClearedVersion: Int,

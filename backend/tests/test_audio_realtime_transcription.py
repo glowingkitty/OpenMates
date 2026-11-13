@@ -3,7 +3,6 @@
 import asyncio
 import base64
 import json
-from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -16,8 +15,6 @@ from backend.apps.audio.pricing import (
     BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE,
     REALTIME_TRANSCRIPTION_CREDITS_PER_MINUTE,
     REALTIME_TRANSCRIPTION_MINIMUM_CREDITS,
-    REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER,
-    REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE,
     calculate_realtime_transcription_credits,
 )
 from backend.apps.audio.skills.transcribe_skill import VOXTRAL_MODEL
@@ -52,10 +49,9 @@ def test_message_input_realtime_pricing_is_separate_from_batch_skill() -> None:
         "voxtral-mini-transcribe-realtime-3-0"
     )
     assert VOXTRAL_MODEL != audio_realtime.MISTRAL_REALTIME_MODEL
-    assert BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE == 3
-    assert REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE == Decimal("0.008")
-    assert REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER == Decimal("1.20")
-    assert REALTIME_TRANSCRIPTION_CREDITS_PER_MINUTE == 10
+    # Cost + 50%: $0.003/min batch -> 4.5 -> 5 credits; $0.008/min realtime -> 12 -> 15 credits.
+    assert BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE == 5
+    assert REALTIME_TRANSCRIPTION_CREDITS_PER_MINUTE == 15
     assert REALTIME_TRANSCRIPTION_MINIMUM_CREDITS == 1
 
 
@@ -69,14 +65,14 @@ def test_batch_skill_and_realtime_model_metadata_keep_separate_prices() -> None:
         skill for skill in app_config["skills"] if skill["id"] == "transcribe"
     )
     assert transcribe_skill["full_model_reference"] == "mistral/voxtral-mini-2602"
-    assert transcribe_skill["pricing"]["per_minute"] == 3
+    assert transcribe_skill["pricing"]["per_minute"] == 5
 
     provider_config = yaml.safe_load(
         (backend_root / "providers/mistral.yml").read_text(encoding="utf-8")
     )
     models = {model["id"]: model for model in provider_config["models"]}
-    assert models["voxtral-mini-2602"]["pricing"]["per_minute"] == 3
-    assert models["voxtral-mini-transcribe-realtime-3-0"]["pricing"]["per_minute"] == 10
+    assert models["voxtral-mini-2602"]["pricing"]["per_minute"] == 5
+    assert models["voxtral-mini-transcribe-realtime-3-0"]["pricing"]["per_minute"] == 15
 
 
 # contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send,message-input.audio.realtime-voxtral3
@@ -173,16 +169,14 @@ async def test_realtime_audio_billing_prorates_seconds_and_rounds_credits_once(
         interrupted=interrupted,
     )
 
-    assert captured["credits_to_deduct"] == 11
+    assert captured["credits_to_deduct"] == 16
     assert captured["idempotency_key"] == "audio-realtime:provider-request-1"
     assert captured["usage_details"] == {
         "duration_seconds": 61.2,
         "billing_unit": "second",
         "requests_transcribed": 1,
         "model": audio_realtime.MISTRAL_REALTIME_MODEL,
-        "provider_cost_usd_per_minute": 0.008,
-        "price_markup_percent": 20,
-        "credits_per_minute": 10,
+        "credits_per_minute": 15,
         "minimum_credits": 1,
         "usage_type": (
             audio_realtime.INTERRUPTED_REALTIME_USAGE_TYPE
@@ -195,8 +189,8 @@ async def test_realtime_audio_billing_prorates_seconds_and_rounds_credits_once(
 # contract-test: supporting surface=gui.web assertions=message-input.audio.realtime-voxtral3
 @pytest.mark.parametrize(
     ("duration", "expected"),
-    [(0, 0), (-1, 0), (0.01, 1), (1, 1), (6, 1), (6.0001, 2),
-     (10, 2), (59, 10), (60, 10), (60.01, 11), (61.2, 11), (120, 20)],
+    [(0, 0), (-1, 0), (0.01, 1), (1, 1), (4, 1), (4.0001, 2),
+     (10, 3), (59, 15), (60, 15), (60.01, 16), (61.2, 16), (120, 30)],
 )
 def test_realtime_transcription_prices_measured_seconds(duration: float, expected: int) -> None:
     assert calculate_realtime_transcription_credits(duration_seconds=duration) == expected
@@ -224,7 +218,7 @@ async def test_realtime_audio_with_no_audio_has_no_charge(monkeypatch: pytest.Mo
 
 # contract-test: supporting surface=gui.web assertions=message-input.audio.realtime-voxtral3,billing.credits.idempotent-charge
 @pytest.mark.integration
-def test_authenticated_websocket_settles_ten_seconds_for_two_credits(
+def test_authenticated_websocket_settles_ten_seconds_for_three_credits(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Exercise the ASGI WebSocket and settlement with a provider-free fixture."""
@@ -278,7 +272,7 @@ def test_authenticated_websocket_settles_ten_seconds_for_two_credits(
             charges.append(kwargs)
 
     async def authenticate() -> dict[str, object]:
-        return {"user_id": "user-1", "user_data": {"credits": 2}}
+        return {"user_id": "user-1", "user_data": {"credits": 3}}
 
     async def secret(*_args: object) -> str:
         return "fixture-provider-key"
@@ -311,7 +305,7 @@ def test_authenticated_websocket_settles_ten_seconds_for_two_credits(
             assert websocket.receive_json()["type"] == "transcription.done"
             assert websocket.receive_json()["type"] == "correction.failed"
     assert len(charges) == 1
-    assert charges[0]["credits_to_deduct"] == 2
+    assert charges[0]["credits_to_deduct"] == 3
     assert charges[0]["idempotency_key"] == "audio-realtime:ten-second-request"
     assert charges[0]["usage_details"]["duration_seconds"] == 10
 

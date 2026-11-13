@@ -800,6 +800,131 @@ vectorize.how_to_use.3:
   he: המר את אייקון ה-PNG הזה ל-SVG כדי שייראה חד בכל גודל
   verified_by_human: [en, de]
 
+modify:
+  context: Skill name for exact editing and combining of pictures from the chat
+  en: Modify
+  de: Bearbeiten
+  zh: 编辑
+  es: Modificar
+  fr: Modifier
+  pt: Modificar
+  ru: Изменить
+  ja: 編集
+  ko: 편집
+  it: Modifica
+  tr: Düzenle
+  vi: Chỉnh sửa
+  id: Ubah
+  pl: Edytuj
+  nl: Bewerken
+  ar: تعديل
+  hi: संपादित करें
+  th: แก้ไข
+  cs: Upravit
+  sv: Redigera
+  he: עריכה
+  verified_by_human: []
+
+modify.description:
+  context: Description for the skill that edits and combines existing pictures exactly
+  en: Combine, place, crop, resize and adjust pictures from the chat exactly, without inventing new content.
+  de: Bilder aus dem Chat exakt kombinieren, platzieren, zuschneiden, skalieren und anpassen, ohne neue Inhalte zu erfinden.
+  zh: 精确地组合、放置、裁剪、缩放和调整聊天中的图片，不会凭空添加新内容。
+  es: Combina, coloca, recorta, redimensiona y ajusta imágenes del chat con exactitud, sin inventar contenido nuevo.
+  fr: Combinez, placez, recadrez, redimensionnez et ajustez précisément les images du chat, sans inventer de nouveau contenu.
+  pt: Combine, posicione, recorte, redimensione e ajuste imagens do chat com exatidão, sem inventar conteúdo novo.
+  ru: Точно объединяйте, размещайте, обрезайте, масштабируйте и настраивайте изображения из чата, не придумывая новое содержимое.
+  ja: チャット内の画像を、新しい内容を作り出すことなく、正確に合成・配置・切り抜き・サイズ変更・調整します。
+  ko: 새로운 내용을 만들어 내지 않고 채팅의 이미지를 정확하게 합성, 배치, 자르기, 크기 조정, 보정합니다.
+  it: Combina, posiziona, ritaglia, ridimensiona e regola con precisione le immagini della chat, senza inventare nuovi contenuti.
+  tr: Sohbetteki resimleri yeni içerik uydurmadan tam olarak birleştirin, yerleştirin, kırpın, boyutlandırın ve ayarlayın.
+  vi: Kết hợp, đặt, cắt, đổi kích thước và điều chỉnh chính xác hình ảnh trong cuộc trò chuyện mà không tạo thêm nội dung mới.
+  id: Gabungkan, tempatkan, potong, ubah ukuran, dan sesuaikan gambar dari chat secara tepat, tanpa mengarang konten baru.
+  pl: Dokładnie łącz, umieszczaj, przycinaj, skaluj i dostosowuj obrazy z czatu, bez wymyślania nowych treści.
+  nl: Combineer, plaats, snijd bij, schaal en pas afbeeldingen uit de chat exact aan, zonder nieuwe inhoud te verzinnen.
+  ar: ادمج صور المحادثة وضعها واقتصها وغيّر حجمها واضبطها بدقة، دون اختلاق محتوى جديد.
+  hi: चैट की तस्वीरों को बिना नई सामग्री गढ़े सटीक रूप से जोड़ें, रखें, काटें, आकार बदलें और समायोजित करें।
+  th: รวม วาง ครอบตัด ปรับขนาด และปรับแต่งรูปภาพจากแชทอย่างแม่นยำ โดยไม่สร้างเนื้อหาใหม่ขึ้นมา
+  cs: Přesně kombinujte, umisťujte, ořezávejte, měňte velikost a upravujte obrázky z chatu, aniž by se vymýšlel nový obsah.
+  sv: Kombinera, placera, beskär, skala och justera bilder från chatten exakt, utan att hitta på nytt innehåll.
+  he: שילוב, מיקום, חיתוך, שינוי גודל וכוונון מדויק של תמונות מהצ'אט, בלי להמציא תוכן חדש.
+  verified_by_human: []
+
+modify.how_to_use.1:
+  context: Example instruction for the modify skill - embroidery design on a garment photo
+  en: Put my embroidery design on the back of the jacket in this photo
+  de: Setze mein Stickmotiv auf den Rücken der Jacke auf diesem Foto
+  zh: 把我的刺绣图案放到这张照片里夹克的背面
+  es: Pon mi diseño de bordado en la espalda de la chaqueta de esta foto
+  fr: Place mon motif de broderie dans le dos de la veste sur cette photo
+  pt: Coloque meu bordado nas costas da jaqueta nesta foto
+  ru: Помести мой дизайн вышивки на спину куртки на этом фото
+  ja: この写真のジャケットの背中に私の刺しゅうデザインを配置して
+  ko: 이 사진 속 재킷 등에 내 자수 디자인을 넣어줘
+  it: Metti il mio ricamo sulla schiena della giacca in questa foto
+  tr: Nakış tasarımımı bu fotoğraftaki ceketin sırtına yerleştir
+  vi: Đặt mẫu thêu của tôi lên lưng áo khoác trong ảnh này
+  id: Letakkan desain bordir saya di punggung jaket pada foto ini
+  pl: Umieść mój wzór haftu na plecach kurtki na tym zdjęciu
+  nl: Zet mijn borduurontwerp op de rug van de jas op deze foto
+  ar: ضع تصميم التطريز الخاص بي على ظهر السترة في هذه الصورة
+  hi: इस फ़ोटो में जैकेट की पीठ पर मेरा कढ़ाई डिज़ाइन लगाएँ
+  th: วางลายปักของฉันบนด้านหลังของแจ็กเก็ตในรูปนี้
+  cs: Umísti můj vyšívaný motiv na záda bundy na této fotce
+  sv: Sätt mitt broderimotiv på ryggen av jackan på det här fotot
+  he: שים את עיצוב הרקמה שלי על הגב של הז'קט בתמונה הזו
+  verified_by_human: []
+
+modify.how_to_use.2:
+  context: Example instruction for the modify skill - collage
+  en: Make a collage of these five photos with equal white gaps
+  de: Mach aus diesen fünf Fotos eine Collage mit gleich breiten weißen Abständen
+  zh: 用这五张照片做一张拼贴，白色间隔宽度一致
+  es: Haz un collage con estas cinco fotos con espacios blancos iguales
+  fr: Fais un collage de ces cinq photos avec des espaces blancs égaux
+  pt: Faça uma colagem destas cinco fotos com espaços brancos iguais
+  ru: Сделай коллаж из этих пяти фото с одинаковыми белыми промежутками
+  ja: この5枚の写真で、白い余白が均等なコラージュを作って
+  ko: 이 사진 다섯 장으로 흰 간격이 같은 콜라주를 만들어줘
+  it: Crea un collage di queste cinque foto con spazi bianchi uguali
+  tr: Bu beş fotoğraftan eşit beyaz boşluklu bir kolaj yap
+  vi: Tạo ảnh ghép từ năm bức ảnh này với khoảng trắng đều nhau
+  id: Buat kolase dari lima foto ini dengan jarak putih yang sama
+  pl: Zrób kolaż z tych pięciu zdjęć z równymi białymi odstępami
+  nl: Maak een collage van deze vijf foto's met gelijke witte tussenruimtes
+  ar: اصنع مجمّعًا من هذه الصور الخمس بفواصل بيضاء متساوية
+  hi: इन पाँच फ़ोटो का बराबर सफ़ेद अंतराल वाला कोलाज बनाएँ
+  th: ทำภาพคอลลาจจากรูปทั้งห้านี้โดยมีช่องว่างสีขาวเท่ากัน
+  cs: Udělej z těchto pěti fotek koláž se stejně širokými bílými mezerami
+  sv: Gör ett collage av de här fem fotona med lika breda vita mellanrum
+  he: צור קולאז' מחמש התמונות האלה עם רווחים לבנים שווים
+  verified_by_human: []
+
+modify.how_to_use.3:
+  context: Example instruction for the modify skill - crop and colour adjustment
+  en: Crop this photo to a square around the lighthouse and make the colours a little warmer
+  de: Schneide dieses Foto quadratisch um den Leuchtturm zu und mach die Farben etwas wärmer
+  zh: 把这张照片裁成以灯塔为中心的正方形，并让颜色稍微暖一点
+  es: Recorta esta foto en un cuadrado alrededor del faro y haz los colores un poco más cálidos
+  fr: Recadre cette photo en carré autour du phare et rends les couleurs un peu plus chaudes
+  pt: Recorte esta foto em um quadrado ao redor do farol e deixe as cores um pouco mais quentes
+  ru: Обрежь это фото до квадрата вокруг маяка и сделай цвета немного теплее
+  ja: この写真を灯台を中心に正方形に切り抜いて、色を少し暖かくして
+  ko: 이 사진을 등대를 중심으로 정사각형으로 자르고 색을 조금 더 따뜻하게 해줘
+  it: Ritaglia questa foto a quadrato attorno al faro e rendi i colori un po' più caldi
+  tr: Bu fotoğrafı deniz fenerinin etrafında kare olarak kırp ve renkleri biraz daha sıcak yap
+  vi: Cắt ảnh này thành hình vuông quanh ngọn hải đăng và làm màu ấm hơn một chút
+  id: Potong foto ini menjadi persegi di sekitar mercusuar dan buat warnanya sedikit lebih hangat
+  pl: Przytnij to zdjęcie do kwadratu wokół latarni i zrób kolory trochę cieplejsze
+  nl: Snijd deze foto bij tot een vierkant rond de vuurtoren en maak de kleuren iets warmer
+  ar: اقتص هذه الصورة إلى مربع حول المنارة واجعل الألوان أدفأ قليلًا
+  hi: इस फ़ोटो को लाइटहाउस के चारों ओर वर्गाकार काटें और रंग थोड़े गर्म करें
+  th: ครอบตัดรูปนี้เป็นสี่เหลี่ยมจัตุรัสรอบประภาคารและทำให้สีอุ่นขึ้นเล็กน้อย
+  cs: Ořízni tuto fotku na čtverec kolem majáku a udělej barvy trochu teplejší
+  sv: Beskär det här fotot till en kvadrat runt fyren och gör färgerna lite varmare
+  he: חתוך את התמונה הזו לריבוע סביב המגדלור והפוך את הצבעים לחמימים מעט יותר
+  verified_by_human: []
+
 search:
   context: Skill name for image search
   en: Search

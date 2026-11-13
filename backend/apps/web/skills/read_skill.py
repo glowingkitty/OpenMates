@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Literal, Optional
 from pydantic import ValidationError
 from pydantic import BaseModel, Field
 
+from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_utils.public_web_reader import PublicWebReadError, read_public_web_page
@@ -19,7 +20,8 @@ from backend.shared.python_utils.app_skill_output_safety import (
 )
 
 logger = logging.getLogger(__name__)
-READ_CREDITS_PER_PAGE = 20
+# Catalog price per read page (web.read pricing.per_unit).
+READ_CREDITS_PER_PAGE = whole_credits(skill_price("web", "read", "per_unit"))
 MAX_READ_REQUESTS = 5
 DEFAULT_READ_TIMEOUT_MS = 20_000
 MAX_READ_TIMEOUT_MS = 30_000

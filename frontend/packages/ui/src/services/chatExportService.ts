@@ -13,9 +13,13 @@ import {
   loadEmbeds,
   decodeToonContent,
 } from "./embedResolver";
-import { restorePIIInText } from "../components/enter_message/services/piiDetectionService";
 import type { TipTapDoc } from "../message_parsing/types";
 import { copyToClipboard } from "../utils/clipboardUtils";
+import type * as RustChatExport from "./rustCore/transfer/rustChatExport";
+import type { TransferExportEmbed } from "./rustCore/transfer/transferProtocol";
+
+/** An embed as collected for export (decoded content, raw timestamps), before shaping. */
+type ChatExportEmbedRecord = TransferExportEmbed;
 
 /**
  * Options for controlling PII handling during export.
@@ -98,26 +102,6 @@ export async function hydrateChatForExport(
 }
 
 /**
- * Apply PII handling to message content based on export options.
- * Message content from DB has PLACEHOLDERS. When PII is revealed (piiHidden=false),
- * we restore original values for the export. When hidden, content keeps placeholders.
- */
-function applyPIIToContent(
-  content: string,
-  piiOptions?: PIIExportOptions,
-): string {
-  if (!piiOptions || piiOptions.piiMappings.length === 0) {
-    return content;
-  }
-  if (!piiOptions.piiHidden) {
-    // Revealed mode: restore placeholders → originals for export
-    return restorePIIInText(content, piiOptions.piiMappings);
-  }
-  // Hidden mode: content already has placeholders from DB, return as-is
-  return content;
-}
-
-/**
  * Downloads a chat as a YAML file
  * @param chat - The chat to download
  * @param messages - Array of messages in the chat
@@ -163,75 +147,9 @@ export async function generateChatFilename(
   chat: Chat,
   extension: string = "yaml",
 ): Promise<string> {
-  // Use chat's creation timestamp instead of current time
-  // Handle both seconds (regular chats) and milliseconds (demo chats) timestamps
-  // Timestamps in seconds are typically < 1e12 (before year ~2001 in ms)
-  const timestampMs =
-    chat.created_at < 1e12 ? chat.created_at * 1000 : chat.created_at;
-  const chatDate = new Date(timestampMs);
-  const dateStr = chatDate
-    .toISOString()
-    .slice(0, 19)
-    .replace(/[:-]/g, "-")
-    .replace("T", "_");
-
-  let title = "Untitled Chat";
-
-  // Try to get decrypted title from cache (handles both chat-key and master-key decryption)
-  const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
-  if (metadata?.title) {
-    // Sanitize title for filename (remove invalid characters)
-    title = metadata.title
-      .replace(/[<>:"/\\|?*]/g, "") // Remove invalid filename characters
-      .substring(0, 50) // Limit length
-      .trim();
-    console.debug(
-      "[ChatExportService] Using decrypted title from cache:",
-      title,
-    );
-  } else if (chat.title) {
-    // Fallback for demo/public chats which use plaintext title field
-    // Demo chats don't have encrypted_title - they have cleartext title
-    title = chat.title
-      .replace(/[<>:"/\\|?*]/g, "") // Remove invalid filename characters
-      .substring(0, 50) // Limit length
-      .trim();
-    console.debug(
-      "[ChatExportService] Using plaintext title (demo/public chat):",
-      title,
-    );
-  } else {
-    console.warn("[ChatExportService] Could not decrypt title, using default");
-  }
-
-  return `${dateStr}_${title}.${extension}`;
-}
-
-/**
- * Converts a timestamp to ISO string, handling both seconds and milliseconds
- * @param timestamp - Unix timestamp (in seconds or milliseconds)
- * @returns ISO string or null if invalid
- */
-function formatTimestamp(timestamp: number | undefined | null): string | null {
-  if (!timestamp) {
-    return null;
-  }
-
-  // Determine if timestamp is in seconds or milliseconds
-  // Timestamps in seconds are typically < 1e12 (year 2001)
-  // Timestamps in milliseconds are typically > 1e12
-  const timestampMs = timestamp < 1e12 ? timestamp * 1000 : timestamp;
-
-  try {
-    return new Date(timestampMs).toISOString();
-  } catch (error) {
-    console.warn(
-      "[ChatExportService] Error formatting timestamp:",
-      timestamp,
-      error,
-    );
-    return null;
-  }
+  const { rustGenerateChatFilename } = await import("./rustCore/transfer/rustChatExport");
+  const cached = await chatMetadataCache.getDecryptedMetadata(chat);
+  return rustGenerateChatFilename(chat.created_at, cached?.title, chat.title ?? undefined, extension);
 }
 
 /**
@@ -243,8 +161,8 @@ function formatTimestamp(timestamp: number | undefined | null): string | null {
 async function loadEmbedsRecursively(
   embedIds: string[],
   loadedEmbedIds: Set<string> = new Set(),
-): Promise<Record<string, unknown>[]> {
-  const embedsForExport: Record<string, unknown>[] = [];
+): Promise<ChatExportEmbedRecord[]> {
+  const embedsForExport: ChatExportEmbedRecord[] = [];
 
   // Filter out already loaded embeds
   const newEmbedIds = embedIds.filter((id) => !loadedEmbedIds.has(id));
@@ -287,10 +205,9 @@ async function loadEmbedsRecursively(
         );
         // Include embed with error indicator
         embedsForExport.push({
+          kind: "error",
           embed_id: embed.embed_id,
           type: embed.type,
-          status: "error",
-          content: null,
           error: "Embed content field is missing or invalid",
         });
         continue;
@@ -299,20 +216,18 @@ async function loadEmbedsRecursively(
       // Decode TOON content to get actual embed values
       const decodedContent = await decodeToonContent(embed.content);
 
-      // Create export object with embed metadata and decoded content
-      const embedExport: Record<string, unknown> = {
+      // Collect embed metadata and decoded content; timestamps and the final
+      // export object are shaped by Rust.
+      const embedExport: ChatExportEmbedRecord = {
+        kind: "ok",
         embed_id: embed.embed_id,
         type: embed.type,
         status: embed.status,
         content: decodedContent, // Decoded content (actual values, not TOON)
-        createdAt: formatTimestamp(embed.createdAt),
-        updatedAt: formatTimestamp(embed.updatedAt),
+        createdAt: embed.createdAt,
+        updatedAt: embed.updatedAt,
+        text_preview: embed.text_preview,
       };
-
-      // Add optional fields if present
-      if (embed.text_preview) {
-        embedExport.text_preview = embed.text_preview;
-      }
 
       // Handle nested embeds (composite embeds like app_skill_use)
       const childEmbedIds: string[] = [];
@@ -368,10 +283,9 @@ async function loadEmbedsRecursively(
       );
       // Include embed with error indicator
       embedsForExport.push({
+        kind: "error",
         embed_id: embed.embed_id,
         type: embed.type,
-        status: "error",
-        content: null,
         error: "Failed to decode embed content",
       });
     }
@@ -386,7 +300,7 @@ async function loadEmbedsRecursively(
  * @param messages - Array of messages in the chat
  * @returns Array of embed data with decoded content
  */
-async function getAllEmbedsForChat(messages: Message[]): Promise<Record<string, unknown>[]> {
+async function getAllEmbedsForChat(messages: Message[]): Promise<ChatExportEmbedRecord[]> {
   try {
     console.debug("[ChatExportService] Collecting embeds for chat export");
 
@@ -454,252 +368,70 @@ export async function convertChatToYaml(
   piiOptions?: PIIExportOptions,
   hydration?: ChatExportHydrationResult,
 ): Promise<string> {
-  const chatMeta: Record<string, unknown> = {
-    title: null as string | null,
-    exported_at: new Date().toISOString(),
-    message_count: messages.length,
-    draft: null as string | null,
-    summary: null as string | null,
-    export_completeness: hydration?.completeness ?? {
-      status: "complete",
-      requested_message_count: messages.length,
-      hydrated_message_count: messages.length,
-      checkpoint_count: 0,
-      warnings: [],
-    },
-  };
-  const yamlMessages: Record<string, unknown>[] = [];
-  const yamlData: Record<string, unknown> = {
-    chat: chatMeta,
-    messages: yamlMessages,
-    embeds: [], // Separate field for embeds with decoded content
-    compression_checkpoints: (hydration?.checkpoints || []).map((checkpoint) => ({
-      id: checkpoint.id,
-      created_at: safeTimestampToISO(checkpoint.created_at),
-      compressed_up_to: safeTimestampToISO(checkpoint.compressed_up_to_timestamp),
-      compressed_message_count: checkpoint.compressed_message_count,
-      summary_token_estimate: checkpoint.summary_token_estimate ?? null,
-      summary: checkpoint.summary ?? null,
-    })),
-  };
+  const { rustConvertChatToYaml } = await import("./rustCore/transfer/rustChatExport");
+  return rustConvertChatToYaml(
+    { chat, messages, includeLink, piiOptions, hydration },
+    chatExportPageIO,
+  );
+}
 
-  // Add chat link at the top if requested (for clipboard copy)
-  if (includeLink) {
-    chatMeta.link = generateChatLink(chat.chat_id);
+/**
+ * Thinking text of an assistant message: the already decrypted
+ * `thinking_content`, else `encrypted_thinking_content` decrypted with the chat
+ * key (page IO: key manager and crypto). Failures are logged and omit the text.
+ */
+async function resolveThinkingText(message: Message): Promise<string | undefined> {
+  // Try decrypted thinking_content first (if already decrypted)
+  if (message.thinking_content) {
     console.debug(
-      "[ChatExportService] Including chat link in YAML:",
-      chatMeta.link,
+      "[ChatExportService] Included decrypted thinking content in export",
     );
+    return message.thinking_content;
   }
-
-  // Try to get decrypted title and summary from cache
-  const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
-  if (metadata?.title) {
-    chatMeta.title = metadata.title;
-    console.debug("[ChatExportService] Using decrypted title:", metadata.title);
-  } else if (chat.title) {
-    // Fallback for demo chats which use plaintext title
-    chatMeta.title = chat.title;
-    console.debug(
-      "[ChatExportService] Using plaintext title (demo chat):",
-      chat.title,
-    );
-  } else {
-    console.warn("[ChatExportService] Could not decrypt title for YAML export");
-  }
-
-  if (metadata?.summary) {
-    chatMeta.summary = metadata.summary;
-    console.debug(
-      "[ChatExportService] Using decrypted summary:",
-      metadata.summary.substring(0, 50),
-    );
-  } else if (chat.chat_summary) {
-    // Fallback for demo chats which use plaintext summary
-    chatMeta.summary = chat.chat_summary;
-    console.debug(
-      "[ChatExportService] Using plaintext summary (demo chat):",
-      chat.chat_summary!.substring(0, 50),
-    );
-  }
-
-  // Add draft if present
-  // CRITICAL: Handle both encrypted drafts (authenticated users) and cleartext drafts (non-authenticated sessionStorage)
-  if (chat.encrypted_draft_md) {
+  // Fall back to encrypted_thinking_content and decrypt it
+  if (message.encrypted_thinking_content) {
     try {
-      // Check if this is a cleartext draft from sessionStorage (non-authenticated users)
-      // Cleartext drafts don't start with encryption markers and are shorter
-      // For sessionStorage drafts, encrypted_draft_md actually contains cleartext markdown
-      const isCleartextDraft =
-        !chat.encrypted_draft_md.includes("encrypted:") &&
-        !chat.encrypted_draft_md.startsWith("v1:") &&
-        chat.encrypted_draft_md.length < 1000; // Rough heuristic
-
-      if (isCleartextDraft) {
-        // This is a cleartext draft from sessionStorage - use it directly
-        chatMeta.draft = chat.encrypted_draft_md;
-        console.debug(
-          "[ChatExportService] Included cleartext draft from sessionStorage in export",
+      // Get chat key for this message's chat to decrypt thinking content
+      const chatKey = await chatKeyManager.getKey(message.chat_id);
+      if (chatKey) {
+        const { decryptWithChatKey } = await import("./cryptoService");
+        const decryptedThinking = await decryptWithChatKey(
+          message.encrypted_thinking_content,
+          chatKey,
         );
-      } else {
-        // This is an encrypted draft - decrypt it
-        const { decryptWithMasterKey } = await import("./cryptoService");
-        const decryptedDraft = await decryptWithMasterKey(
-          chat.encrypted_draft_md,
-        );
-        if (decryptedDraft) {
-          chatMeta.draft = decryptedDraft;
+        if (decryptedThinking) {
           console.debug(
-            "[ChatExportService] Successfully included encrypted draft in export",
+            "[ChatExportService] Decrypted and included thinking content in export",
           );
-        } else {
-          console.warn(
-            "[ChatExportService] Could not decrypt draft for YAML export",
-          );
+          return decryptedThinking;
         }
-      }
-    } catch (error) {
-      console.error("[ChatExportService] Error processing draft:", error);
-    }
-  }
-
-  // Get all embeds for the chat (with decoded content)
-  // This runs in parallel with message processing for better performance
-  const embedsPromise = getAllEmbedsForChat(messages);
-
-  // Add messages (embed placeholders remain unchanged in message content)
-  // When PII is hidden, original values in message content are replaced with placeholders
-  for (const message of messages) {
-    const messageData = await convertMessageToYaml(message, piiOptions);
-    yamlMessages.push(messageData);
-  }
-
-  // Add embeds with decoded content (separate field)
-  yamlData.embeds = await embedsPromise;
-
-  return convertToYamlString(yamlData);
-}
-
-/**
- * Safely converts a timestamp to ISO string
- * Handles undefined, null, NaN, and both seconds and milliseconds timestamps
- * @param timestamp - The timestamp to convert (may be seconds or milliseconds)
- * @returns ISO string or null if timestamp is invalid
- */
-function safeTimestampToISO(
-  timestamp: number | undefined | null,
-): string | null {
-  if (timestamp === undefined || timestamp === null || isNaN(timestamp)) {
-    return null;
-  }
-  // Timestamps in seconds are typically < 1e12 (before year ~2001 in ms)
-  const timestampMs = timestamp < 1e12 ? timestamp * 1000 : timestamp;
-  try {
-    return new Date(timestampMs).toISOString();
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Converts a single message to YAML format
- *
- * Includes thinking content for thinking models (Gemini, Anthropic Claude, etc.)
- * when available. Thinking content is decrypted from encrypted_thinking_content
- * if needed and included as a separate field in the exported message.
- *
- * @param message - The message to convert
- * @param piiOptions - Optional PII export options to control sensitive data handling
- */
-async function convertMessageToYaml(
-  message: Message,
-  piiOptions?: PIIExportOptions,
-): Promise<Record<string, unknown>> {
-  try {
-    const messageData: Record<string, unknown> = {
-      role: message.role,
-      completed_at:
-        safeTimestampToISO(message.created_at) ?? new Date().toISOString(), // Fallback to now if timestamp is invalid
-    };
-
-    // Add assistant category if available
-    if (message.role === "assistant") {
-      const category = message.category || (message as unknown as Record<string, unknown>).assistant_category;
-      if (category) {
-        messageData.assistant_category = category;
-      }
-    }
-
-    // Process message content
-    if (typeof message.content === "string") {
-      // Simple text content — apply PII handling if needed
-      messageData.content = applyPIIToContent(message.content, piiOptions);
-    } else if (message.content && typeof message.content === "object") {
-      // TipTap JSON content - convert to markdown for YAML, then apply PII handling
-      const markdown = await convertTiptapToMarkdown(message.content as unknown as TipTapDoc);
-      messageData.content = applyPIIToContent(markdown, piiOptions);
-    } else {
-      messageData.content = "";
-    }
-
-    // Include thinking content for thinking models (Gemini, Anthropic Claude, etc.)
-    // Thinking content is the model's internal reasoning process
-    if (message.role === "assistant") {
-      // Try decrypted thinking_content first (if already decrypted)
-      if (message.thinking_content) {
-        messageData.thinking = message.thinking_content;
-        console.debug(
-          "[ChatExportService] Included decrypted thinking content in export",
+      } else {
+        console.warn(
+          "[ChatExportService] Could not decrypt thinking content: chat key not available",
         );
       }
-      // Fall back to encrypted_thinking_content and decrypt it
-      else if (message.encrypted_thinking_content) {
-        try {
-          // Get chat key for this message's chat to decrypt thinking content
-          const chatKey = await chatKeyManager.getKey(message.chat_id);
-          if (chatKey) {
-            const { decryptWithChatKey } = await import("./cryptoService");
-            const decryptedThinking = await decryptWithChatKey(
-              message.encrypted_thinking_content,
-              chatKey,
-            );
-            if (decryptedThinking) {
-              messageData.thinking = decryptedThinking;
-              console.debug(
-                "[ChatExportService] Decrypted and included thinking content in export",
-              );
-            }
-          } else {
-            console.warn(
-              "[ChatExportService] Could not decrypt thinking content: chat key not available",
-            );
-          }
-        } catch (decryptError) {
-          console.error(
-            "[ChatExportService] Error decrypting thinking content:",
-            decryptError,
-          );
-        }
-      }
-      // Also include thinking metadata if available
-      if (message.has_thinking) {
-        messageData.has_thinking = true;
-      }
-      if (message.thinking_token_count) {
-        messageData.thinking_tokens = message.thinking_token_count;
-      }
+    } catch (decryptError) {
+      console.error(
+        "[ChatExportService] Error decrypting thinking content:",
+        decryptError,
+      );
     }
-
-    return messageData;
-  } catch (error) {
-    console.error("[ChatExportService] Error processing message:", error);
-    return {
-      role: message.role,
-      completed_at:
-        safeTimestampToISO(message.created_at) ?? new Date().toISOString(),
-      content: "[Error processing message]",
-    };
   }
+  return undefined;
+}
+
+/**
+ * Message body as export Markdown: string content as is, TipTap JSON through the
+ * canonical serializer, anything else empty. Page IO (the serializer stays TS).
+ */
+async function messageMarkdown(message: Message): Promise<string> {
+  if (typeof message.content === "string") {
+    return message.content;
+  }
+  if (message.content && typeof message.content === "object") {
+    return convertTiptapToMarkdown(message.content as unknown as TipTapDoc);
+  }
+  return "";
 }
 
 /**
@@ -725,165 +457,6 @@ async function convertTiptapToMarkdown(content: TipTapDoc): Promise<string> {
 }
 
 /**
- * Escapes a string for YAML double-quoted strings, handling special characters
- * @param str - String to escape
- * @returns Escaped string safe for YAML double quotes
- */
-function escapeYamlString(str: string): string {
-  // Escape backslashes first (must be first)
-  str = str.replace(/\\/g, "\\\\");
-  // Escape double quotes
-  str = str.replace(/"/g, '\\"');
-  // Escape newlines
-  str = str.replace(/\n/g, "\\n");
-  // Escape carriage returns
-  str = str.replace(/\r/g, "\\r");
-  // Escape tabs
-  str = str.replace(/\t/g, "\\t");
-  return str;
-}
-
-/**
- * Checks if a string needs to be quoted in YAML
- * For safety, we quote strings that contain any potentially problematic characters
- * @param str - String to check
- * @returns true if string needs quoting
- */
-function needsQuoting(str: string): boolean {
-  // Always quote empty strings
-  if (str === "") {
-    return true;
-  }
-
-  // Quote YAML keywords that could be confused with boolean/null
-  if (
-    str === "null" ||
-    str === "true" ||
-    str === "false" ||
-    str === "yes" ||
-    str === "no" ||
-    str === "on" ||
-    str === "off"
-  ) {
-    return true;
-  }
-
-  // Quote if contains special YAML characters that could cause parsing issues
-  // This includes: : # @ ` | > & * ! ? % { [ ] } , ' " \
-  const specialChars = /[:#@`|>&*!?%{}[\]\\,"']/;
-  if (specialChars.test(str)) {
-    return true;
-  }
-
-  // Quote if starts with special characters that could be confused with YAML syntax
-  if (/^[:\-+.#@`|>&*!?%{}[\]\\]/.test(str)) {
-    return true;
-  }
-
-  // Quote if looks like a number but might need to be a string (starts with digit or sign)
-  // But only if it's actually a valid number representation
-  if (/^[\d\-+.]/.test(str)) {
-    // Check if it's a valid number
-    const num = Number(str);
-    if (!isNaN(num) && isFinite(num) && str.trim() === String(num)) {
-      // It's a valid number, but we'll quote it anyway if it starts with + or has leading zeros
-      if (str.startsWith("+") || /^0\d/.test(str)) {
-        return true;
-      }
-      // For other numbers, don't quote (let YAML handle it)
-      return false;
-    }
-  }
-
-  // Quote if contains control characters (except newline which we handle separately)
-  // eslint-disable-next-line no-control-regex -- intentionally matches control characters for YAML quoting
-  if (/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/.test(str)) {
-    return true;
-  }
-
-  // Quote if contains HTML entities (like &#x27; or &amp;)
-  if (/&#?\w+;/.test(str)) {
-    return true;
-  }
-
-  // Quote if contains URLs (http:// or https://)
-  if (/https?:\/\//.test(str)) {
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * Converts JavaScript object to YAML string
- */
-function convertToYamlString(data: Record<string, unknown>): string {
-  // Simple YAML conversion - in production you might want to use a proper YAML library
-  const yamlLines: string[] = [];
-
-  function convertValue(key: string, value: unknown, indent: number = 0): void {
-    const spaces = "  ".repeat(indent);
-
-    if (value === null || value === undefined) {
-      yamlLines.push(`${spaces}${key}: null`);
-    } else if (typeof value === "string") {
-      // Handle multiline strings - use block scalar
-      if (value.includes("\n")) {
-        yamlLines.push(`${spaces}${key}: |`);
-        const lines = value.split("\n");
-        for (const line of lines) {
-          // Escape special characters in each line for block scalars
-          const escapedLine = line.replace(/\\/g, "\\\\").replace(/\$/g, "\\$");
-          yamlLines.push(`${spaces}  ${escapedLine}`);
-        }
-      } else {
-        // Single-line string - check if it needs quoting
-        if (needsQuoting(value)) {
-          const escaped = escapeYamlString(value);
-          yamlLines.push(`${spaces}${key}: "${escaped}"`);
-        } else {
-          // Safe to use unquoted
-          yamlLines.push(`${spaces}${key}: ${value}`);
-        }
-      }
-    } else if (typeof value === "number" || typeof value === "boolean") {
-      yamlLines.push(`${spaces}${key}: ${value}`);
-    } else if (Array.isArray(value)) {
-      yamlLines.push(`${spaces}${key}:`);
-      for (const item of value) {
-        if (typeof item === "object" && item !== null) {
-          yamlLines.push(`${spaces}  -`);
-          for (const [itemKey, itemValue] of Object.entries(item)) {
-            convertValue(itemKey, itemValue, indent + 2);
-          }
-        } else if (typeof item === "string") {
-          // Handle string items in arrays
-          if (needsQuoting(item)) {
-            const escaped = escapeYamlString(item);
-            yamlLines.push(`${spaces}  - "${escaped}"`);
-          } else {
-            yamlLines.push(`${spaces}  - ${item}`);
-          }
-        } else {
-          yamlLines.push(`${spaces}  - ${item}`);
-        }
-      }
-    } else if (typeof value === "object") {
-      yamlLines.push(`${spaces}${key}:`);
-      for (const [objKey, objValue] of Object.entries(value)) {
-        convertValue(objKey, objValue, indent + 1);
-      }
-    }
-  }
-
-  for (const [key, value] of Object.entries(data)) {
-    convertValue(key, value);
-  }
-
-  return yamlLines.join("\n");
-}
-
-/**
  * Generates a shareable link for a chat
  * Format: {domain}/#chat-id={id}
  * @param chatId - The chat ID
@@ -901,6 +474,22 @@ export function generateChatLink(chatId: string): string {
 
   return link;
 }
+
+/**
+ * Page-side inputs of the Rust export (metadata cache, crypto, serializers and
+ * embed loading); the Rust unit builds everything else.
+ */
+const chatExportPageIO: RustChatExport.ChatExportPageIO = {
+  decryptedMetadata: (chat) => chatMetadataCache.getDecryptedMetadata(chat),
+  decryptDraft: async (encrypted) => {
+    const { decryptWithMasterKey } = await import("./cryptoService");
+    return decryptWithMasterKey(encrypted);
+  },
+  thinkingText: resolveThinkingText,
+  messageMarkdown,
+  collectEmbeds: getAllEmbedsForChat,
+  chatLink: generateChatLink,
+};
 
 /**
  * Copies the chat to clipboard in YAML format wrapped in a markdown code block.

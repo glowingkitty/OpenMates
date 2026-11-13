@@ -1464,6 +1464,52 @@ test('chat diagram legacy writer finalizes a processing v1 but cannot rewrite a 
   assert.equal(db.rows.embed_diffs[0].encrypted_snapshot, 'encrypted-original-source');
 });
 
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent,slides.editor.save-checked-version
+for (const [appId, skillId] of [['slides', 'deck'], ['sheets', 'sheet']]) {
+  test(`user revision commit advances an assistant-created ${appId}/${skillId} head from v1 to v2`, async () => {
+    const { seed, body } = chatDiagramFixture();
+    Object.assign(seed.embeds[0], { app_id: appId, skill_id: skillId });
+    const db = fakeDatabase(seed);
+    const result = await commitChatDiagramRevision(db, body);
+    assert.equal(result.status, 'committed');
+    assert.equal(result.current_revision, 2);
+    assert.equal(result.current_content_hash, '2'.repeat(64));
+    assert.equal(db.rows.embeds[0].version_number, 2);
+    assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-v2');
+    assert.deepEqual(db.rows.embed_diffs.map((row) => row.version_number), [1, 2]);
+    assert.equal(db.rows.chat_diagram_revision_commits.length, 1);
+  });
+}
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent,slides.editor.save-checked-version
+test('user revision commit refuses a stale deck edit without overwriting the head', async () => {
+  const { seed, body } = chatDiagramFixture();
+  Object.assign(seed.embeds[0], { app_id: 'slides', skill_id: 'deck' });
+  const db = fakeDatabase(seed);
+  const stale = await commitChatDiagramRevision(db, { ...body, expected_content_hash: '0'.repeat(64) });
+  assert.equal(stale.status, 'conflict');
+  assert.equal(stale.current_revision, 1);
+  assert.equal(stale.current_content_hash, '1'.repeat(64));
+  assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-v1');
+  assert.equal(db.rows.embeds[0].version_number, 1);
+  assert.equal(db.rows.embed_diffs.length, 1);
+  assert.equal(db.rows.chat_diagram_revision_commits.length, 0);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
+test('user revision commit refuses embed types outside the allowlist', async () => {
+  for (const [appId, skillId] of [['diagrams', 'mermaid'], ['code', 'code'], ['docs', 'document'], ['slides', 'html']]) {
+    const { seed, body } = chatDiagramFixture();
+    Object.assign(seed.embeds[0], { app_id: appId, skill_id: skillId });
+    const db = fakeDatabase(seed);
+    await assert.rejects(commitChatDiagramRevision(db, body),
+      (error) => error instanceof ProtocolError && error.status === 403 && error.code === 'diagram_access_denied');
+    assert.equal(db.rows.embeds[0].encrypted_content, 'encrypted-v1');
+    assert.equal(db.rows.embed_diffs.length, 1);
+    assert.equal(db.rows.chat_diagram_revision_commits.length, 0);
+  }
+});
+
 // contract-test: supporting surface=rest_api assertions=apps.library.embeds-account-paginated,chats.persistence.client-encrypted
 for (const [appId, skillId] of [['reminder', 'set-reminder'], ['workflows', 'create-or-modify'], ['travel', 'search_connections']]) {
   test(`registered ${appId}/${skillId} persists and updates ciphertext atomically`, async () => {
@@ -2215,4 +2261,219 @@ test('message deletion fences distinguish exact owner, chat and message from unr
   const database = fakeDatabase(seed);
   assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
   assert.equal(database.rows.embeds[0].encrypted_content, body.payload.encrypted_content);
+});
+
+function childRevisionFixture() {
+  const hash = (value) => createHash('sha256').update(value).digest('hex');
+  const { seed, body, childId } = registeredChildFixture();
+  const chatId = 'registered-chat';
+  const revisionProducer = '55555555-5555-4555-8555-555555555555';
+  seed.embeds.push({
+    id: 'child-row', embed_id: childId, hashed_user_id: ACTOR, hashed_chat_id: hash(chatId),
+    hashed_message_id: hash('registered-message'), parent_embed_id: 'parent-embed',
+    root_embed_id: 'parent-embed', app_id: 'images', skill_id: 'generated_image',
+    encrypted_type: 'child-type', encrypted_content: 'cipher-child', version_number: 1,
+    status: 'finished', hashed_team_id: null,
+    s3_file_keys: JSON.stringify([{ bucket: 'chatfiles', key: 'v1/original.png' }]),
+  });
+  seed.chat_recovery_outputs[0].state = 'ACKNOWLEDGED';
+  seed.chat_recovery_outputs[0].canonical_digest = hash('cipher-child');
+  seed.chat_recovery_output_producers.push({
+    id: revisionProducer, hashed_user_id: ACTOR, hashed_team_id: null,
+    primary_embed_id: 'parent-embed-2', primary_message_id: 'registered-message-2',
+    target_chat_id: chatId, root_chat_id: chatId, state: 'PENDING', invalidated_at: null,
+  });
+  seed.chat_recovery_output_producer_children.push({
+    producer_intent_id: revisionProducer, ordinal: 1, subject_id: childId,
+    output_kind: 'embed', output_version: 2,
+  });
+  seed.chat_recovery_outputs.push({
+    id: 'recovery-child-v2', subject_id: childId, hashed_user_id: ACTOR, output_kind: 'embed',
+    output_version: 2, producer_intent_id: revisionProducer, producer_ordinal: 1,
+    target_chat_id: chatId, root_chat_id: chatId, root_hashed_team_id: null,
+    state: 'PENDING', deleted_at: null, sealed_payload_digest: 'e'.repeat(64),
+  });
+  seed.embed_diffs = [{ id: 'child-history-v1', embed_id: childId, hashed_user_id: ACTOR,
+    version_number: 1, encrypted_snapshot: 'cipher-child-snapshot-v1', encrypted_patch: null }];
+  seed.embed_keys = [
+    { id: 'parent-master', hashed_embed_id: hash('parent-embed'), hashed_user_id: ACTOR,
+      key_type: 'master', hashed_chat_id: null, encrypted_embed_key: 'parent-master-wrap' },
+    { id: 'parent-chat', hashed_embed_id: hash('parent-embed'), hashed_user_id: ACTOR,
+      key_type: 'chat', hashed_chat_id: hash(chatId), encrypted_embed_key: 'parent-chat-wrap' },
+  ];
+  const advance = { embed_id: childId, actor_user_hash: ACTOR, payload: {
+    ...body.payload, app_id: 'images', skill_id: 'generated_image', encrypted_type: 'child-type',
+    encrypted_content: 'cipher-child-v2', version_number: 2,
+    s3_file_keys: [{ bucket: 'chatfiles', key: 'v2/original.png' }],
+  } };
+  return { seed, advance, childId, hash };
+}
+
+// contract-test: direct surface=rest_api assertions=images-generate.revision.same-embed-new-version
+test('a later producer advances an acknowledged generated child under its original parent, keeping every file', async () => {
+  const { seed, advance, childId } = childRevisionFixture();
+  const database = fakeDatabase(seed);
+  assert.equal((await writeLegacyEmbed(database, advance)).status, 'updated');
+  const head = database.rows.embeds.find((row) => row.embed_id === childId);
+  assert.equal(head.version_number, 2);
+  assert.equal(head.encrypted_content, 'cipher-child-v2');
+  assert.equal(head.parent_embed_id, 'parent-embed');
+  assert.equal(head.hashed_message_id, seed.embeds.at(-1).hashed_message_id);
+  assert.deepEqual(JSON.parse(head.s3_file_keys), [
+    { bucket: 'chatfiles', key: 'v1/original.png' }, { bucket: 'chatfiles', key: 'v2/original.png' },
+  ]);
+  assert.deepEqual(database.rows.embed_diffs, seed.embed_diffs);
+  assert.deepEqual(database.rows.embed_keys, seed.embed_keys);
+});
+
+// contract-test: direct surface=rest_api assertions=images-generate.revision.same-embed-new-version
+test('a generated child revision is denied for another parent, message, version, missing base history or parent key', async () => {
+  for (const [mutation, code] of [
+    [({ advance }) => { advance.payload.parent_embed_id = 'parent-embed-2';
+      advance.payload.root_embed_id = 'parent-embed-2'; }, 'project_context_required'],
+    [({ advance, hash }) => { advance.payload.hashed_message_id = hash('registered-message-2'); },
+      'project_context_required'],
+    [({ advance }) => { advance.payload.version_number = 3; }, 'project_context_required'],
+    [({ seed }) => { seed.chat_recovery_output_producer_children.pop(); }, 'project_context_required'],
+    [({ seed }) => { seed.embed_diffs = []; }, 'acknowledged_embed_revision_immutable'],
+    [({ seed }) => { seed.embed_keys.pop(); }, 'acknowledged_embed_revision_immutable'],
+  ]) {
+    const fixture = childRevisionFixture();
+    mutation(fixture);
+    const database = fakeDatabase(fixture.seed);
+    await assert.rejects(writeLegacyEmbed(database, fixture.advance),
+      (error) => error instanceof ProtocolError && error.code === code);
+    assert.deepEqual(database.rows, fixture.seed);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=images-generate.revision.message-shows-its-version
+test('a generated child stores full-snapshot version rows; roots and unowned reserved IDs still cannot', async () => {
+  const { seed, childId } = childRevisionFixture();
+  const database = fakeDatabase(seed);
+  const row = { version_number: 2, encrypted_snapshot: 'cipher-child-snapshot-v2',
+    encrypted_patch: null, created_at: 20 };
+  const stored = await writeLegacyEmbedDiff(database, { embed_id: childId, actor_user_hash: ACTOR, row });
+  assert.equal(stored.idempotent, false);
+  assert.equal(database.rows.embed_diffs.at(-1).encrypted_snapshot, 'cipher-child-snapshot-v2');
+  assert.equal((await writeLegacyEmbedDiff(database, { embed_id: childId, actor_user_hash: ACTOR, row }))
+    .idempotent, true);
+
+  const orphan = childRevisionFixture();
+  orphan.seed.embeds = orphan.seed.embeds.filter((head) => head.embed_id !== childId);
+  await assert.rejects(writeLegacyEmbedDiff(fakeDatabase(orphan.seed), { embed_id: childId,
+    actor_user_hash: ACTOR, row }), (error) => error.code === 'project_context_required');
+  const root = childRevisionFixture();
+  root.seed.embeds.find((head) => head.embed_id === childId).parent_embed_id = null;
+  await assert.rejects(writeLegacyEmbedDiff(fakeDatabase(root.seed), { embed_id: childId,
+    actor_user_hash: ACTOR, row }), (error) => error.code === 'project_context_required');
+  const ordinary = existingSeed();
+  ordinary.project_items = [];
+  ordinary.embeds.push({ id: 'plain-row', embed_id: 'plain-root', hashed_user_id: ACTOR,
+    hashed_chat_id: createHash('sha256').update('chat-a').digest('hex'), version_number: 1 });
+  await assert.rejects(writeLegacyEmbedDiff(fakeDatabase(ordinary), { embed_id: 'plain-root',
+    actor_user_hash: ACTOR, row }), (error) => error.code === 'invalid_history');
+});
+
+/** Re-key the revision fixture onto another embed id (all rows that name the child). */
+function rekeyChild(fixture, newId) {
+  const { seed, advance, childId } = fixture;
+  for (const rows of [seed.embeds, seed.chat_recovery_outputs, seed.chat_recovery_output_producer_children,
+    seed.embed_diffs]) {
+    for (const row of rows) {
+      if (row.embed_id === childId) row.embed_id = newId;
+      if (row.subject_id === childId) row.subject_id = newId;
+    }
+  }
+  advance.embed_id = newId;
+  advance.payload.embed_id = newId;
+  return { ...fixture, childId: newId };
+}
+
+// contract-test: direct surface=rest_api assertions=videos-generate.change.same-video-next-version
+test('a videos-generate video child advances to its next version like a generated image', async () => {
+  const fixture = childRevisionFixture();
+  const head = fixture.seed.embeds.find((row) => row.embed_id === fixture.childId);
+  head.app_id = 'videos'; head.skill_id = 'generated_video';
+  head.s3_file_keys = JSON.stringify([{ bucket: 'chatfiles', key: 'v1/original.mp4' }]);
+  fixture.advance.payload.app_id = 'videos'; fixture.advance.payload.skill_id = 'generated_video';
+  fixture.advance.payload.s3_file_keys = [{ bucket: 'chatfiles', key: 'v2/original.mp4' }];
+  const database = fakeDatabase(fixture.seed);
+  assert.equal((await writeLegacyEmbed(database, fixture.advance)).status, 'updated');
+  const stored = database.rows.embeds.find((row) => row.embed_id === fixture.childId);
+  assert.equal(stored.version_number, 2);
+  assert.equal(stored.parent_embed_id, 'parent-embed');
+  assert.deepEqual(JSON.parse(stored.s3_file_keys), [
+    { bucket: 'chatfiles', key: 'v1/original.mp4' }, { bucket: 'chatfiles', key: 'v2/original.mp4' },
+  ]);
+});
+
+// contract-test: direct surface=rest_api assertions=images-generate.revision.same-embed-new-version
+test('only generated image and video children take the revision branches; other children and roots keep the old denials', async () => {
+  const cases = [
+    // A UUIDv5 child of another app (stored catalog marker is neither a generated image nor video).
+    [(fixture) => { const head = fixture.seed.embeds.find((row) => row.embed_id === fixture.childId);
+      head.app_id = 'audio'; head.skill_id = 'generated_audio';
+      fixture.advance.payload.app_id = 'audio'; fixture.advance.payload.skill_id = 'generated_audio';
+      return fixture; }, 'project_context_required'],
+    // A UUIDv5 image child without a stored catalog marker.
+    [(fixture) => { const head = fixture.seed.embeds.find((row) => row.embed_id === fixture.childId);
+      head.app_id = null; head.skill_id = null; return fixture; }, 'project_context_required'],
+    // A root head (no parent) that claims the images marker.
+    [(fixture) => { fixture.seed.embeds.find((row) => row.embed_id === fixture.childId).parent_embed_id = null;
+      return fixture; }, 'project_context_required'],
+    // An acknowledged ordinary (non-UUIDv5) child with the images marker.
+    [(fixture) => rekeyChild(fixture, 'ordinary-child'), 'acknowledged_embed_revision_immutable'],
+  ];
+  for (const [mutate, code] of cases) {
+    const fixture = mutate(childRevisionFixture());
+    const database = fakeDatabase(fixture.seed);
+    await assert.rejects(writeLegacyEmbed(database, fixture.advance),
+      (error) => error instanceof ProtocolError && error.code === code, code);
+    assert.deepEqual(database.rows, fixture.seed);
+    const row = { version_number: 2, encrypted_snapshot: 'cipher-snapshot-v2', encrypted_patch: null, created_at: 20 };
+    await assert.rejects(writeLegacyEmbedDiff(fakeDatabase(fixture.seed),
+      { embed_id: fixture.childId, actor_user_hash: ACTOR, row }),
+    (error) => error instanceof ProtocolError
+      && error.code === (UUID_V5.test(fixture.childId) ? 'project_context_required' : 'invalid_history'));
+  }
+});
+
+const UUID_V5 = /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+// contract-test: direct surface=rest_api assertions=images-generate.revision.same-embed-new-version
+test('a later write of the same image version with a stale key subset keeps the stored union', async () => {
+  const { seed, advance, childId } = childRevisionFixture();
+  const database = fakeDatabase(seed);
+  assert.equal((await writeLegacyEmbed(database, advance)).status, 'updated');
+  const replay = structuredClone(advance);
+  replay.payload.s3_file_keys = [{ bucket: 'chatfiles', key: 'v2/original.png' }];
+  replay.payload.status = 'finished';
+  await writeLegacyEmbed(database, replay);
+  const head = database.rows.embeds.find((row) => row.embed_id === childId);
+  assert.equal(head.version_number, 2);
+  assert.deepEqual(JSON.parse(head.s3_file_keys), [
+    { bucket: 'chatfiles', key: 'v1/original.png' }, { bucket: 'chatfiles', key: 'v2/original.png' },
+  ]);
+});
+
+// contract-test: direct surface=rest_api assertions=images-generate.revision.same-embed-new-version
+test('unparseable stored image keys fail as a protocol error, not a thrown SyntaxError', async () => {
+  const { seed, advance, childId } = childRevisionFixture();
+  seed.embeds.find((row) => row.embed_id === childId).s3_file_keys = '{not json';
+  const database = fakeDatabase(seed);
+  await assert.rejects(writeLegacyEmbed(database, advance),
+    (error) => error instanceof ProtocolError && error.status === 400 && error.code === 'invalid_s3_file_keys');
+  assert.deepEqual(database.rows, seed);
+});
+
+// contract-test: direct surface=rest_api assertions=images-generate.revision.message-shows-its-version
+test('an image version row may be at most one ahead of its head', async () => {
+  const { seed, childId } = childRevisionFixture();
+  const database = fakeDatabase(seed);
+  const row = (version) => ({ embed_id: childId, actor_user_hash: ACTOR,
+    row: { version_number: version, encrypted_snapshot: `cipher-snapshot-v${version}`, encrypted_patch: null, created_at: 20 } });
+  await assert.rejects(writeLegacyEmbedDiff(database, row(3)),
+    (error) => error instanceof ProtocolError && error.code === 'invalid_version');
+  assert.equal((await writeLegacyEmbedDiff(database, row(2))).idempotent, false);
 });

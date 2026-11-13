@@ -1,0 +1,26 @@
+schema_version: 2
+profile: concise
+id: live-collaboration-crdt
+title: Live collaboration for documents, sheets and slides with an encrypted CRDT
+status: implementing
+goal: "Let Team and Project members edit the same document, sheet or deck at the same time, with merged changes, visible presence and a server that only handles ciphertext."
+specifications:
+  - feature.live-collaboration@1
+scope:
+  - "Phase 0 spike, first and blocking for all three editors: compare the Yjs format with yrs in the Rust client core against Loro for rich text, a sheet grid and a slide element tree; wasm size and speed in the web worker; binding to the web editors; encrypted update log with snapshots; mapping to and from the text formats the assistant edits (docx_model, markdown table, slides markup). Deliver a written recommendation and a minimal two-client prototype."
+  - "Phase 1 single-user foundation: the chosen shared document model in the Rust core as the editors' source of truth, hydrated from and serialised to the existing embed content so previews, diffs, search and exports keep working."
+  - "Phase 2 transport and storage: client-encrypted change packets over the existing WebSocket sync, append-only ciphertext storage with client-made encrypted snapshots for compaction, write authorisation from Team and Project membership, refusal for share-link viewers and read-only or removed members."
+  - "Phase 3 multi-user: live merge in documents, sheets and slides, encrypted presence with names, colours, cursors and selections, offline edits merged on reconnect."
+  - "Phase 4 assistant and versions: an assistant diff applied as one change set against the current shared state, one undo step for the requester, named snapshots with contributors in the timeline, restore for all members."
+  - Out of scope - editing through share links, comments and suggestions, other embed types, Apple.
+checks:
+  - Rust unit and property tests for convergence, same-cell and same-property conflicts and offline merge.
+  - REST and WebSocket tests in isolated CI for ciphertext-only storage, authorisation refusals and removal of a member mid-session.
+  - Two-user web E2E in isolated CI for a document, a sheet and a deck - concurrent edits, presence, reconnect merge, assistant edit while another member types, restore for everyone.
+decisions:
+  - CRDT, not operational transform, because the server must not read content.
+  - Yjs format with yrs in the Rust core, confirmed by the Phase 0 spike (spike.md).
+  - "The Rust core holds the authoritative replica of each open item and owns structure, merge, assistant diffs, undo, versions, persistence, crypto and sync. Sheet and slides editors send typed operations to the core and render its view model; no TypeScript schema accessors for sheets or slides. A JS Yjs mirror on the main thread is allowed only for rich-text typing (document editor, slide text boxes) and only exchanges update bytes with the core. Apple calls the core directly without a mirror (user decision 2026-11-10; replaces spike architecture b for sheets and slides)."
+  - Sheet formulas are stored in id form inside the shared model and shown as A1; the markdown table the assistant edits stays A1 (spike recommendation, adopted as default).
+  - Editors are built on the shared model from the start and ship single-user first; multi-user is switched on in Phase 3 (user decision 2026-11-10).
+  - Live editing is for Team and Project members with write access; share links stay view-only (user decision 2026-11-10).

@@ -16,6 +16,16 @@ const {
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
 
+// Chat settings live in the header More menu once the chat offers several chat actions.
+async function openChatDetails(page: any): Promise<void> {
+	const detailsButton = page.getByTestId('chat-details-button');
+	if (!(await detailsButton.isVisible())) {
+		await page.getByTestId('chat-more-button').click();
+	}
+	await expect(detailsButton).toBeVisible({ timeout: 15000 });
+	await detailsButton.click();
+}
+
 async function ensureSidebarVisible(page: any): Promise<void> {
 	const history = page.getByTestId('activity-history-wrapper');
 	if (await history.isVisible().catch(() => false)) {
@@ -174,7 +184,7 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 	);
 	await expect(sharedChatItem.getByTestId('shared-chat-public-icon')).toBeVisible({ timeout: 15000 });
 
-	await page.getByTestId('chat-details-button').click();
+	await openChatDetails(page);
 	const settingsMenu = page.getByTestId('settings-menu');
 	await expect(settingsMenu).toBeVisible({ timeout: 15000 });
 	await expect(settingsMenu).toHaveAttribute('data-active-view', /^chats\/[a-zA-Z0-9-]+$/, {
@@ -232,8 +242,10 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 	await assertNoMissingTranslations(page);
 });
 
-// contract-test: direct surface=gui.web assertions=storage.cold.discoverable-bounded
-test('shared subchats reveal requested cursor pages and keep retry visible after a failed page', async ({ page }: { page: any }) => {
+async function runSharedSubchatPaging(page: any, testInfo: any): Promise<void> {
+	const pageConsole: string[] = [];
+	page.on('console', (msg: any) => pageConsole.push(`[${Date.now()}] [${msg.type()}] ${msg.text()}`));
+	try {
 	const sharedChatUrl = process.env.OPENMATES_CI_SHARED_CHAT_URL;
 	if (!sharedChatUrl) throw new Error('Fresh shared-chat archive fixture is required');
 	const childId = (suffix: string) => `00000000-0000-4000-8000-0000000000${suffix}`;
@@ -265,19 +277,31 @@ test('shared subchats reveal requested cursor pages and keep retry visible after
 	const rootId = new URL(page.url()).hash.match(/chat-id=([^&]+)/)?.[1];
 	expect(rootId).toBeTruthy();
 	const root = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${rootId}"]`);
-	await root.getByTestId('sub-chats-toggle').click();
+	const toggle = root.getByTestId('sub-chats-toggle');
+	await expect(toggle).toBeVisible({ timeout: 20000 });
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true', { timeout: 10000 });
 	const newestChild = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${childId('11')}"]`);
 	const olderChild = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${childId('22')}"]`);
-	await expect(newestChild).toBeVisible();
+	await expect(newestChild).toBeVisible({ timeout: 20000 });
 	const more = page.getByTestId('shared-auxiliary-load-more');
-	await expect(more).toBeVisible();
-	await more.click();
+	await expect(more).toBeVisible({ timeout: 15000 });
+	// The chat list re-renders while the page loads; retry the click if the button is replaced.
+	await expect(async () => { await more.click({ timeout: 3000 }); }).toPass({ timeout: 20000 });
 	await expect(page.getByTestId('shared-subchats-error')).toBeVisible();
 	await expect(olderChild).toHaveCount(0);
-	await more.click();
+	await expect(async () => { await more.click({ timeout: 3000 }); }).toPass({ timeout: 20000 });
 	await expect(olderChild).toBeVisible();
 	await expect(more).toHaveCount(0);
 	expect(olderAttempts).toBe(2);
+	} finally {
+		await testInfo.attach('console.log', { body: pageConsole.join('\n'), contentType: 'text/plain' });
+	}
+}
+
+// contract-test: direct surface=gui.web assertions=storage.cold.discoverable-bounded
+test('shared subchats reveal requested cursor pages and keep retry visible after a failed page', async ({ page }: { page: any }, testInfo: any) => {
+	await runSharedSubchatPaging(page, testInfo);
 });
 
 // contract-test: direct surface=gui.web assertions=storage.cold.discoverable-bounded
@@ -301,7 +325,7 @@ test('shared Plan settings shows a failed bounded page and retries only on reque
 	await page.goto(sharedChatUrl);
 	await expect(page.getByTestId('chat-header-banner').getByTestId('shared-chat-badge'))
 		.toHaveText('Shared chat', { timeout: 45000 });
-	await page.getByTestId('chat-details-button').click();
+	await openChatDetails(page);
 	const settings = page.getByTestId('settings-menu');
 	await expect(settings.getByTestId('chat-settings-page')).toBeVisible({ timeout: 15000 });
 	await settings.getByTestId('chat-settings-tab-plan').click();
@@ -309,5 +333,7 @@ test('shared Plan settings shows a failed bounded page and retries only on reque
 	expect(planRequests).toBe(1);
 	await settings.getByTestId('chat-settings-plan-retry').click();
 	await expect(settings.getByTestId('chat-settings-plan-retry')).toHaveCount(0, { timeout: 15000 });
-	expect(planRequests).toBe(2);
+	// The retry button is hidden while the request is still starting, so wait for the request itself.
+	await expect.poll(() => planRequests, { timeout: 15000 }).toBe(2);
+	await expect(settings.getByTestId('chat-settings-plan-retry')).toHaveCount(0);
 });

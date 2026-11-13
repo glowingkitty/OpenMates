@@ -15,7 +15,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { deriveApiUrl, CLI_DIST, runCli } = require('./cli-test-helpers');
+const { deriveApiUrl, CLI_DIST, CLI_LOGIN_SUCCESS, CLI_PIN_PROMPT, cliNativeEnv, cliSpawnArgs, cliStateDir, runCli } = require('./cli-test-helpers');
 const { loginToTestAccount } = require('./chat-test-helpers');
 
 type CliResult = { code: number | null; stdout: string; stderr: string };
@@ -38,7 +38,7 @@ function removeWorkflowCliHome(homeDir: string): void {
 
 function clearWorkflowCliSyncCache(homeDir: string): void {
 	if (!homeDir || !homeDir.startsWith(os.tmpdir())) return;
-	fs.rmSync(path.join(homeDir, '.openmates', 'sync_cache.json'), { force: true });
+	fs.rmSync(path.join(cliStateDir(homeDir), 'sync_cache.json'), { force: true });
 }
 
 function writeWorkflowYaml(homeDir: string, fileName: string, source: string): string {
@@ -52,7 +52,8 @@ function workflowCliEnv(apiUrl: string, homeDir: string): Record<string, string 
 	return {
 		...process.env,
 		HOME: homeDir,
-		OPENMATES_STATE_DIR: path.join(homeDir, '.openmates'),
+		...cliNativeEnv(),
+		OPENMATES_STATE_DIR: cliStateDir(homeDir),
 		OPENMATES_API_KEY: undefined,
 		OPENMATES_API_URL: apiUrl,
 		NODE_PATH: path.join(cliDir, 'node_modules'),
@@ -62,7 +63,7 @@ function workflowCliEnv(apiUrl: string, homeDir: string): Record<string, string 
 
 function spawnCliLogin(apiUrl: string, homeDir: string) {
 	// cli-e2e-recording: interactive-pair-login
-	const child = spawn('node', [CLI_DIST, 'login'], {
+	const child = spawn(...cliSpawnArgs(['login']), {
 		env: workflowCliEnv(apiUrl, homeDir),
 		stdio: ['pipe', 'pipe', 'pipe']
 	});
@@ -92,7 +93,7 @@ function spawnCliLogin(apiUrl: string, homeDir: string) {
 				const startedAt = Date.now();
 				const interval = setInterval(() => {
 					const output = stdout.join('') + stderr.join('');
-					if (output.includes('Enter 6-char pairing PIN:')) {
+					if (output.includes(CLI_PIN_PROMPT)) {
 						clearInterval(interval);
 						resolve();
 						return;
@@ -149,7 +150,7 @@ async function loginWorkflowCliViaPair(page: any, apiUrl: string, homeDir: strin
 	await cli.waitForPinPrompt();
 	cli.sendPin(pin);
 	const { code, output } = await cli.waitForExit();
-	expect(output).toContain('Login successful');
+	expect(output).toContain(CLI_LOGIN_SUCCESS);
 	expect(code).toBe(0);
 }
 

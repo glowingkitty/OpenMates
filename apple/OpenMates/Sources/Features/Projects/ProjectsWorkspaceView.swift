@@ -1422,14 +1422,14 @@ struct ProjectsWorkspaceView: View {
     }
 
     private var visibleItems: [ProjectWorkspaceItem] {
-        let values = store.childItems(parentID: currentFolderID).filter { item in
-            guard item.metadata["source"] == "hosted_project_file", let path = item.filePath,
-                  currentFolderID == nil else { return virtualPath == nil }
-            let prefix = virtualPath.map { $0 + "/" } ?? ""
-            guard path.hasPrefix(prefix) else { return false }
-            return !path.dropFirst(prefix.count).contains("/")
-        }
-        return filterAndSort(values, name: { $0.name }, timestamp: { $0.createdAt })
+        let children = store.childItems(parentID: currentFolderID)
+        let values = currentFolderID == nil
+            ? ProjectBrowserTree.view(items: children, virtualPath: virtualPath).items : children
+        let filtered = values.filter { fileSearch.isEmpty || $0.name.localizedCaseInsensitiveContains(fileSearch) }
+        // The application card stays ahead of files, as on web.
+        let apps = filtered.filter { ProjectBrowserTree.applicationFolder($0) != nil }
+        let rest = filtered.filter { ProjectBrowserTree.applicationFolder($0) == nil }
+        return apps + filterAndSort(rest, name: { $0.name }, timestamp: { $0.createdAt })
     }
 
     private struct VirtualFolder {
@@ -1439,19 +1439,9 @@ struct ProjectsWorkspaceView: View {
 
     private var visibleVirtualFolders: [VirtualFolder] {
         guard currentFolderID == nil else { return [] }
-        let prefix = virtualPath.map { $0 + "/" } ?? ""
-        var result: [String: VirtualFolder] = [:]
-        for item in store.items where item.folderHash == nil && item.metadata["source"] == "hosted_project_file" {
-            guard let path = item.filePath, path.hasPrefix(prefix) else { continue }
-            let remainder = String(path.dropFirst(prefix.count))
-            guard let component = remainder.split(separator: "/").first,
-                  remainder.contains("/") else { continue }
-            let name = String(component)
-            guard fileSearch.isEmpty || name.localizedCaseInsensitiveContains(fileSearch) else { continue }
-            let folderPath = prefix + name
-            result[folderPath] = VirtualFolder(name: name, path: folderPath)
-        }
-        return result.values.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        return ProjectBrowserTree.view(items: store.items, virtualPath: virtualPath).folders
+            .filter { fileSearch.isEmpty || $0.name.localizedCaseInsensitiveContains(fileSearch) }
+            .map { VirtualFolder(name: $0.name, path: $0.path) }
     }
 
     private var visibleEntryCount: Int {

@@ -6,6 +6,8 @@
  * Access at: /dev/preview/embeds/images/ImageGenerateEmbedPreview
  */
 
+import { MODIFY_PROMPT, SAMPLE_MODIFY_DRAFT, SAMPLE_MODIFY_RESULT_URL } from './imageModifyFixtures';
+
 /** Default props — shows a finished image generation (without actual image data) */
 const defaultProps = {
 	id: 'preview-image-gen-1',
@@ -17,6 +19,9 @@ const defaultProps = {
 	isMobile: false,
 	onFullscreen: () => {}
 };
+
+const sampleSvg =
+	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120"><rect width="200" height="120" fill="#bfe3ff"/><circle cx="150" cy="30" r="16" fill="#fcd34d"/><path d="M0 120 L0 80 Q 50 40 100 80 T 200 80 L200 120 Z" fill="#4ade80"/></svg>';
 
 export default defaultProps;
 
@@ -40,6 +45,97 @@ export const variants = {
 		isMobile: false
 	},
 
+	/** Vector author mid-drawing: partial SVG cut off inside a path. */
+	svgDrafting: {
+		id: 'preview-image-gen-svg-drafting',
+		skillId: 'generate' as const,
+		prompt: 'A flat illustration of a sun over two hills',
+		model: 'vector-author',
+		status: 'processing' as const,
+		svgDraft: sampleSvg.slice(0, sampleSvg.indexOf('Q 50 40') + 4),
+		draftStage: 'drawing' as const,
+		isMobile: false
+	},
+
+	/** Complete drawing while the automatic check runs. */
+	svgChecking: {
+		id: 'preview-image-gen-svg-checking',
+		skillId: 'generate' as const,
+		prompt: 'A flat illustration of a sun over two hills',
+		model: 'vector-author',
+		status: 'processing' as const,
+		svgDraft: sampleSvg,
+		draftStage: 'checking' as const,
+		isMobile: false
+	},
+
+	/** Generator script being written and run: no picture yet, only the stage label. */
+	svgScripting: {
+		id: 'preview-image-gen-svg-scripting',
+		skillId: 'generate' as const,
+		prompt: 'A precise geometric pattern of concentric circles',
+		model: 'vector-author',
+		status: 'processing' as const,
+		svgDraft: '',
+		draftStage: 'scripting' as const,
+		isMobile: false
+	},
+
+	/** images.modify: author is writing the editing steps. */
+	modifyWriting: {
+		id: 'preview-image-modify-writing',
+		skillId: 'modify' as const,
+		model: 'gpt-6.1-sol',
+		prompt: MODIFY_PROMPT,
+		status: 'processing' as const,
+		modifyProgress: { stage: 'writing' as const, attempt: 1, draft: '' },
+		isMobile: false
+	},
+
+	/** images.modify: first computed picture shown as draft while it is checked. */
+	modifyCheckingWithDraft: {
+		id: 'preview-image-modify-checking',
+		skillId: 'modify' as const,
+		model: 'gpt-6.1-sol',
+		prompt: MODIFY_PROMPT,
+		status: 'processing' as const,
+		modifyProgress: { stage: 'checking' as const, attempt: 1, draft: SAMPLE_MODIFY_DRAFT },
+		isMobile: false
+	},
+
+	/** images.modify: second attempt, correcting after an unmet requirement. */
+	modifyCorrecting: {
+		id: 'preview-image-modify-correcting',
+		skillId: 'modify' as const,
+		model: 'gpt-6.1-sol',
+		prompt: MODIFY_PROMPT,
+		status: 'processing' as const,
+		modifyProgress: { stage: 'correcting' as const, attempt: 2, draft: SAMPLE_MODIFY_DRAFT },
+		isMobile: false
+	},
+
+	/** images.modify: finished result is a normal image. */
+	modifyFinished: {
+		id: 'preview-image-modify-finished',
+		skillId: 'modify' as const,
+		model: 'gpt-6.1-sol',
+		prompt: MODIFY_PROMPT,
+		previewImageUrl: SAMPLE_MODIFY_RESULT_URL,
+		status: 'finished' as const,
+		isMobile: false
+	},
+
+	/** images.modify: failed without a picture. */
+	modifyFailed: {
+		id: 'preview-image-modify-failed',
+		skillId: 'modify' as const,
+		model: 'gpt-6.1-sol',
+		prompt: MODIFY_PROMPT,
+		status: 'error' as const,
+		error: 'The edit could not be completed',
+		isMobile: false
+	},
+
 	/** Draft generation variant */
 	draft: {
 		id: 'preview-image-gen-draft',
@@ -59,6 +155,14 @@ export const variants = {
 		status: 'error' as const,
 		error: 'Image generation failed: content policy violation',
 		isMobile: false
+	},
+
+	/** Version 2 of 3 with badge: the card of the message that made version 2 */
+	versionTwoOfThree: {
+		...defaultProps,
+		id: 'preview-image-gen-version-2-of-3',
+		version: 2,
+		versionCount: 3
 	},
 
 	/** Mobile view */

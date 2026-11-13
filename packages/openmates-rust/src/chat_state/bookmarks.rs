@@ -97,8 +97,9 @@ impl BookmarkIndex {
     }
 }
 
-/// A plain JSON object kept as ordered (key, original JSON text) pairs.
-struct OrderedObject(Vec<(String, Box<RawValue>)>);
+/// A plain JSON object kept as ordered (key, original JSON text) pairs. Also
+/// used by `client::memory_documents` for the same encrypted account settings.
+pub(crate) struct OrderedObject(Vec<(String, Box<RawValue>)>);
 
 impl<'de> serde::Deserialize<'de> for OrderedObject {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
@@ -124,16 +125,23 @@ impl<'de> serde::Deserialize<'de> for OrderedObject {
 }
 
 impl OrderedObject {
-    fn parse(json: &str) -> Result<Self> {
+    /// An empty object (no account settings yet).
+    pub(crate) fn empty() -> Self {
+        Self(Vec::new())
+    }
+    /// Parse a JSON object; anything else is the bookmark "unavailable" error.
+    pub(crate) fn parse(json: &str) -> Result<Self> {
         serde_json::from_str(json).map_err(|_| UNAVAILABLE)
     }
-    fn get(&self, key: &str) -> Option<&RawValue> {
+    /// Original JSON text of `key`, if present.
+    pub(crate) fn get(&self, key: &str) -> Option<&RawValue> {
         self.0
             .iter()
             .find(|(k, _)| k == key)
             .map(|(_, v)| v.as_ref())
     }
-    fn set(&mut self, key: &str, json: String) -> Result<()> {
+    /// Replace (in place) or append `key` with already serialized JSON.
+    pub(crate) fn set(&mut self, key: &str, json: String) -> Result<()> {
         let raw = RawValue::from_string(json).map_err(|_| Error::Protocol)?;
         if let Some(slot) = self.0.iter_mut().find(|(k, _)| k == key) {
             slot.1 = raw;
@@ -142,7 +150,8 @@ impl OrderedObject {
         }
         Ok(())
     }
-    fn to_json(&self) -> String {
+    /// `JSON.stringify` of the object in JavaScript property order.
+    pub(crate) fn to_json(&self) -> String {
         object_json(
             self.0
                 .iter()

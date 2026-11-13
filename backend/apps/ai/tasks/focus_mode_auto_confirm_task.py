@@ -263,7 +263,7 @@ async def _async_focus_mode_auto_confirm(
             "active_focus_id": focus_id,  # Focus mode is NOW active for this continuation
             **{key: pending_context.get(key, []) for key in (
                 "accepted_plan_context", "project_focus_documents", "project_focus_catalog", "custom_rule_documents",
-                "project_context_documents", "related_task_candidates", "project_focus_candidates",
+                "memory_catalog", "project_context_documents", "related_task_candidates", "project_focus_candidates",
             )},
             "recovery_inference_task_id": pending_context.get("recovery_inference_task_id"),
             "recovery_preflight_id": pending_context.get("recovery_preflight_id"),

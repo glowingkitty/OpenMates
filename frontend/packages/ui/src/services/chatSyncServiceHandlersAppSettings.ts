@@ -13,7 +13,12 @@
  * The request is stored in chat history so users can respond hours/days later.
  */
 
-import { buildMemoryRequestMessage, type MemoryRequestContent } from "../utils/appMemoryRequests";
+import { withAutoMemoryIds, type MemoryRequestContent } from "../utils/appMemoryRequests";
+import { formatDisplayName, getAppGradient } from "./appSettingsRequestPolicy";
+import {
+  decideConfirmOutcome, decideRequestAnswered, decideRequestCategories, decideRequestMessage, decideResponseCategories,
+  decideResponseContent, decideSelectedEntryIds, decideSelectedKeys,
+} from "./appSettingsRequestDecisions";
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -32,6 +37,13 @@ import type { Message } from "../types/chat";
 import { text } from "../i18n/translations";
 import { markDeviceReceivedFreeTestingCreditsFromNotification } from "../stores/serverStatusStore";
 import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import {
+  MEMORY_RESPONSE_APP_ID, decideMemoryRequest, isMemoryRequestKey, loadLocalMemoryDocuments, memoryDialogKey,
+  memoryIdsFromRequestedKeys, memoryResponseEntry,
+} from "./memoryDocumentRequest";
+import {
+  defaultReferenceReaders, lookupReferenceLabels, memoryEntryWithReferences, memoryReferencesOf, referenceEntryId,
+} from "./memoryReferences";
 
 /**
  * Pending system-message queue for cross-device sync.
@@ -95,6 +107,7 @@ interface RequestAppSettingsMemoriesPayload {
   requested_keys: string[]; // Array of "app_id-item_type" format (e.g., "code-preferred_technologies")
   yaml_content: string; // YAML structure for the request (for chat history storage)
   message_id?: string; // User message ID that triggered this request (for UI display)
+  memory_titles?: Record<string, string>; // {memory id: title}, fallback only
   response_transport?: "voice";
 }
 
@@ -131,6 +144,8 @@ export interface PendingPermissionRequest {
   chatId: string;
   messageId?: string; // User message ID that triggered this request (for UI display)
   categories: AppSettingsMemoriesCategory[];
+  /** Auto-include memory ids to answer with the decision; persisted so a recovered dialog can re-resolve them. */
+  autoMemoryIds?: string[];
   yamlContent: string;
   createdAt: number;
 }
@@ -138,9 +153,31 @@ export interface PendingPermissionRequest {
 // Store for pending permission requests (keyed by request_id)
 // This allows the dialog to be shown and the user to respond later
 const pendingPermissionRequests = new Map<string, PendingPermissionRequest>();
-export type MemoryPermissionResponse = Array<{ app_id: string; item_key: string; content: unknown }>;
+export type MemoryPermissionResponse = Array<{
+  app_id: string; item_key: string; content: unknown;
+  /** Memory references that could not be resolved or fit the budget (never an error). */
+  references_unavailable?: boolean;
+}>;
 // Call requests retain the ordinary consent dialog/history, but their answer
 // resumes the issuing call rather than starting a second normal AI response.
+// Auto-include memory documents resolved locally for a request that also needs
+// the consent dialog; they are answered together with the user's choices.
+const autoMemoryEntriesByRequest = new Map<string, MemoryPermissionResponse>();
+const answeredMemoryRequests = new Set<string>();
+
+/**
+ * Auto-include entries to answer with the user's decision. Fresh requests use the
+ * in-memory entries; a recovered dialog (reload, other device) re-resolves them
+ * from the persisted ids against the local documents (current load_mode/window).
+ */
+async function resolveAutoMemoryEntries(requestId: string, pending?: PendingPermissionRequest): Promise<MemoryPermissionResponse> {
+  const known = autoMemoryEntriesByRequest.get(requestId);
+  if (known) return known;
+  if (!pending?.autoMemoryIds?.length) return [];
+  const decision = decideMemoryRequest(pending.autoMemoryIds, await loadLocalMemoryDocuments(pending.chatId));
+  const readers = await defaultReferenceReaders();
+  return Promise.all(decision.auto.map((memory) => memoryEntryWithReferences(memoryResponseEntry(memory), readers)));
+}
 const permissionResponseTransports = new Map<string, (entries: MemoryPermissionResponse) => Promise<void>>();
 export function registerMemoryPermissionResponseTransport(requestId: string,
   transport: (entries: MemoryPermissionResponse) => Promise<void>): void {
@@ -222,134 +259,29 @@ export function removePendingPermissionRequest(requestId: string): void {
   permissionResponseTransports.delete(requestId);
 }
 
-/**
- * Generate a human-readable display name from an item_type
- * Converts "preferred_technologies" -> "Preferred technologies"
- */
-export function formatDisplayName(itemType: string): string {
-  return itemType
-    .split("_")
-    .map((word, index) =>
-      index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word,
-    )
-    .join(" ");
-}
-
-/**
- * Get CSS gradient for an app ID from theme variables
- */
-export function getAppGradient(appId: string): string {
-  const gradientMap: Record<string, string> = {
-    code: "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)",
-    travel: "linear-gradient(135deg, #059DB3 9.04%, #13DAF5 90.06%)",
-    finance: "linear-gradient(135deg, #119106 9.04%, #15780D 90.06%)",
-    health: "linear-gradient(135deg, #FD50A0 9.04%, #F42C2D 90.06%)",
-    news: "linear-gradient(135deg, #F53F5B 9.04%, #DD0B2B 90.06%)",
-    weather: "linear-gradient(135deg, #005BA5 9.04%, #00A7C9 90.06%)",
-    jobs: "linear-gradient(135deg, #049363 9.04%, #00C382 90.06%)",
-    legal: "linear-gradient(135deg, #239CFF 9.04%, #005BA5 90.06%)",
-    files: "linear-gradient(135deg, #1E3A8A 9.04%, #29BEFB 90.06%)",
-    ai: "linear-gradient(135deg, #CB7D5D 9.04%, #CB685D 90.06%)",
-    tv: "linear-gradient(135deg, #8B5CF6 9.04%, #6D28D9 90.06%)",
-    videos: "linear-gradient(135deg, #EF4444 9.04%, #DC2626 90.06%)",
-    maps: "linear-gradient(135deg, #10B981 9.04%, #059669 90.06%)",
-    study: "linear-gradient(135deg, #F59E0B 9.04%, #D97706 90.06%)",
-    plants: "linear-gradient(135deg, #22C55E 9.04%, #16A34A 90.06%)",
-  };
-  return (
-    gradientMap[appId] ||
-    "linear-gradient(135deg, #4A90D9 9.04%, #7B68EE 90.06%)"
-  );
-}
+export { formatDisplayName, getAppGradient };
 
 /**
  * Populate individual entry info for categories so the permission dialog
- * can show expandable entry-level selection. Uses the appSettingsMemoriesStore
- * which has already-decrypted entries in memory.
- *
- * Falls back gracefully if entries can't be loaded (dialog still works at category level).
+ * can show expandable entry-level selection. Only personal Memory documents
+ * (`openmates:memories`) carry entries; app-specific typed memories no longer exist,
+ * and dialog entries for `memory-<id>` requests are prepared by the memory request flow.
  */
 async function populateCategoryEntries(
   categories: AppSettingsMemoriesCategory[],
 ): Promise<void> {
-  try {
-    const { appSettingsMemoriesStore } =
-      await import("../stores/appSettingsMemoriesStore");
-    const { appSkillsStore } = await import("../stores/appSkillsStore");
-    const storeState = get(appSettingsMemoriesStore);
-
-    console.debug(
-      `[ChatSyncService:AppSettings] Populating entries for ${categories.length} categories. ` +
-        `Total decrypted entries in store: ${storeState.decryptedEntries.size}`,
-    );
-
-    for (const category of categories) {
-      // Find schema for is_title / is_subtitle fields
-      const app = appSkillsStore.apps[category.appId];
-      let titleField: string | null = null;
-      let subtitleField: string | null = null;
-
-      if (app) {
-        const memoryMeta = app.settings_and_memories.find(
-          (m) => m.id === category.itemType,
-        );
-        if (memoryMeta?.schema_definition?.properties) {
-          for (const [key, prop] of Object.entries(
-            memoryMeta.schema_definition.properties,
-          )) {
-            if (prop.is_title) titleField = key;
-            if (prop.is_subtitle) subtitleField = key;
-          }
-        }
+  for (const category of categories) {
+    // Memory documents list their referenced items (already prepared); nothing to load.
+    if (category.appId === MEMORY_RESPONSE_APP_ID) continue;
+    const entries: AppSettingsMemoriesEntryInfo[] = [];
+    if (category.appId === 'openmates' && category.itemType === 'memories') {
+      const { personalDocumentMemoryEntries } = await import('./ruleDocumentService');
+      for (const memory of await personalDocumentMemoryEntries()) {
+        entries.push({ id: memory.id, title: memory.item_key, selected: true });
       }
-
-      // Get decrypted entries for this category
-      const entries: AppSettingsMemoriesEntryInfo[] = [];
-      for (const decryptedEntry of Array.from(
-        storeState.decryptedEntries.values(),
-      )) {
-        if (
-          decryptedEntry.app_id === category.appId &&
-          decryptedEntry.settings_group === category.itemType
-        ) {
-          const title = titleField
-            ? String(
-                decryptedEntry.item_value[titleField] ||
-                  decryptedEntry.item_key,
-              )
-            : decryptedEntry.item_key;
-          const subtitle = subtitleField
-            ? String(decryptedEntry.item_value[subtitleField] || "")
-            : undefined;
-
-          entries.push({
-            id: decryptedEntry.id,
-            title,
-            subtitle,
-            selected: true, // Default to selected (same as category)
-          });
-        }
-      }
-
-      if (category.appId === 'openmates' && category.itemType === 'memories') {
-        const { personalDocumentMemoryEntries } = await import('./ruleDocumentService');
-        for (const memory of await personalDocumentMemoryEntries()) {
-          if (!entries.some(entry => entry.id === memory.id)) entries.push({ id: memory.id, title: memory.item_key, selected: true });
-        }
-        category.entryCount = entries.length;
-      }
-
-      category.entries = entries;
-      console.debug(
-        `[ChatSyncService:AppSettings] Populated ${entries.length} entries for category ${category.key} (${category.displayName})`,
-      );
+      category.entryCount = entries.length;
     }
-  } catch (error) {
-    console.error(
-      "[ChatSyncService:AppSettings] Error populating category entries:",
-      error,
-    );
-    throw error; // Re-throw so caller can handle it
+    category.entries = entries;
   }
 }
 
@@ -397,23 +329,12 @@ export async function handleRequestAppSettingsMemoriesImpl(
     if (payload.message_id) {
       try {
         const existingMessages = await chatDB.getMessagesForChat(chat_id);
-        const alreadyAnswered = existingMessages.some((msg) => {
-          if (
-            msg.role !== "system" ||
-            !msg.content ||
-            typeof msg.content !== "string"
-          )
-            return false;
-          try {
-            const parsed = JSON.parse(msg.content);
-            return (
-              parsed.type === "app_settings_memories_response" &&
-              parsed.user_message_id === payload.message_id
-            );
-          } catch {
-            return false;
-          }
-        });
+        const alreadyAnswered = await decideRequestAnswered(
+          existingMessages
+            .filter((msg) => msg.role === "system" && !!msg.content && typeof msg.content === "string")
+            .map((msg) => msg.content as string),
+          payload.message_id,
+        );
         if (alreadyAnswered) {
           console.info(
             `[ChatSyncService:AppSettings] Dropping request ${request_id}: a response already exists for ` +
@@ -430,6 +351,42 @@ export async function handleRequestAppSettingsMemoriesImpl(
       }
     }
 
+    // Memory documents (`memory:<id>`): decide from LOCAL load_mode, never from the server.
+    const memoryIds = memoryIdsFromRequestedKeys(requested_keys);
+    const memoryCategories: AppSettingsMemoriesCategory[] = [];
+    const autoMemoryIds: string[] = [];
+    if (memoryIds.length > 0) {
+      if (answeredMemoryRequests.has(request_id)) return;
+      const decision = decideMemoryRequest(memoryIds, await loadLocalMemoryDocuments(chat_id), Date.now(), payload.memory_titles);
+      const readers = await defaultReferenceReaders();
+      const autoEntries = await Promise.all(decision.auto.map((memory) => memoryEntryWithReferences(memoryResponseEntry(memory), readers)));
+      for (const memory of decision.ask) {
+        // Ask-first approval lists the referenced items by title (unavailable ones are marked).
+        const labels = await lookupReferenceLabels(memoryReferencesOf(memory.document), readers);
+        memoryCategories.push({
+          key: memoryDialogKey(memory.id), appId: MEMORY_RESPONSE_APP_ID, itemType: memory.id,
+          displayName: memory.title, entryCount: 1, iconGradient: getAppGradient(MEMORY_RESPONSE_APP_ID), selected: true,
+          ...(labels.length ? { entries: labels.map((label) => ({
+            id: referenceEntryId(label.reference), title: label.title, subtitle: label.reference.kind, selected: true,
+          })) } : {}),
+        });
+      }
+      autoMemoryIds.push(...decision.auto.map((memory) => memory.id));
+      if (autoEntries.length > 0) autoMemoryEntriesByRequest.set(request_id, autoEntries);
+      const needsDialog = memoryCategories.length > 0 || requested_keys.some((key) => !isMemoryRequestKey(key));
+      if (!needsDialog) {
+        answeredMemoryRequests.add(request_id);
+        autoMemoryEntriesByRequest.delete(request_id);
+        await sendPermissionResponse(serviceInstance, chat_id, autoEntries, responseTransport, !!responseTransportKind);
+        if (payload.message_id && autoEntries.length > 0) {
+          await saveAppSettingsMemoriesResponseMessage(serviceInstance, chat_id, payload.message_id, "included",
+            [{ appId: MEMORY_RESPONSE_APP_ID, itemType: "memories", entryCount: autoEntries.length }]);
+        }
+        removePendingPermissionRequest(request_id);
+        return;
+      }
+    }
+
     // Get entry counts from IndexedDB to show in the dialog
     const entryCounts = await chatDB.getAppSettingsMemoriesEntryCounts();
     if (requested_keys.includes('openmates-memories')) {
@@ -438,51 +395,12 @@ export async function handleRequestAppSettingsMemoriesImpl(
       entryCounts.set('openmates-memories', (entryCounts.get('openmates-memories') ?? 0) + count);
     }
 
-    // Build categories from requested keys
-    const categories: AppSettingsMemoriesCategory[] = [];
-    const validKeys: string[] = [];
+    // Categories for well-formed keys that have stored entries (memory-document keys are handled above).
+    const plan = await decideRequestCategories(requested_keys.filter((requested) => !isMemoryRequestKey(requested)), entryCounts);
+    const categories: AppSettingsMemoriesCategory[] = plan.categories;
+    const validKeys = plan.validKeys;
 
-    for (const key of requested_keys) {
-      // Parse "app_id-item_type" format
-      const dashIndex = key.indexOf("-");
-      if (dashIndex === -1) {
-        console.warn(
-          `[ChatSyncService:AppSettings] Invalid key format (missing hyphen): ${key}`,
-        );
-        continue;
-      }
-
-      const appId = key.substring(0, dashIndex);
-      const itemType = key.substring(dashIndex + 1);
-
-      if (!appId || !itemType) {
-        console.warn(
-          `[ChatSyncService:AppSettings] Invalid key format (empty parts): ${key}`,
-        );
-        continue;
-      }
-
-      // Check if this category exists in IndexedDB
-      const entryCount = entryCounts.get(key) || 0;
-
-      if (entryCount === 0) {
-        console.warn(
-          `[ChatSyncService:AppSettings] No entries found for key: ${key}, skipping`,
-        );
-        continue;
-      }
-
-      validKeys.push(key);
-      categories.push({
-        key,
-        appId,
-        itemType,
-        displayName: formatDisplayName(itemType),
-        entryCount,
-        iconGradient: getAppGradient(appId),
-        selected: true, // Default to selected
-      });
-    }
+    for (const category of memoryCategories) { categories.push(category); validKeys.push(category.key); }
 
     if (categories.length === 0) {
       console.warn(
@@ -611,6 +529,7 @@ export async function handleRequestAppSettingsMemoriesImpl(
             entryCount: cat.entryCount,
           })),
           responseTransportKind,
+          autoMemoryIds,
         );
         console.info(
           `[ChatSyncService:AppSettings] Persisted request ${request_id} as system message for message ${payload.message_id}`,
@@ -752,32 +671,38 @@ export async function handlePermissionDialogConfirm(
     );
 
     // Load and decrypt entries for selected categories
-    const appSettingsMemories: Array<{
-      app_id: string;
-      item_key: string;
-      content: unknown;
-    }> = [];
+    const appSettingsMemories: MemoryPermissionResponse = [];
 
     // Build metadata for selected categories (for UI display)
     const selectedCategories = categories.filter((cat) =>
       selectedKeys.includes(cat.key),
     );
 
-    for (const key of selectedKeys) {
-      const dashIndex = key.indexOf("-");
-      if (dashIndex === -1) continue;
-
-      const appId = key.substring(0, dashIndex);
-      const itemType = key.substring(dashIndex + 1);
+    for (const { key, appId, itemType, route } of await decideSelectedKeys(selectedKeys)) {
 
       // Check if specific entries were selected for this category
       // null means "all entries" (no entry-level filtering)
       const selectedEntryIds = selectedEntryIdsByCategory?.get(key) ?? null;
 
-      if (appId === 'openmates' && itemType === 'memories') {
+      const memoryId = route === "memory" ? itemType : null;
+      if (memoryId !== null) {
+        // Re-decide locally at response time: only ask_first, in-window memories may be released.
+        const decision = decideMemoryRequest([memoryId], await loadLocalMemoryDocuments(chatId));
+        const readers = await defaultReferenceReaders();
+        for (const memory of decision.ask) {
+          // Deselected references are neither resolved nor searchable.
+          appSettingsMemories.push(await memoryEntryWithReferences(memoryResponseEntry(memory), readers,
+            (reference) => selectedEntryIds === null || selectedEntryIds.includes(referenceEntryId(reference))));
+        }
+        continue;
+      }
+
+      if (route === "personal_memories") {
         const { personalDocumentMemoryEntries } = await import('./ruleDocumentService');
-        for (const entry of await personalDocumentMemoryEntries()) {
-          if (selectedEntryIds === null || selectedEntryIds.includes(entry.id)) {
+        const personalEntries = await personalDocumentMemoryEntries();
+        const releasedIds = new Set(await decideSelectedEntryIds(personalEntries.map((entry) => entry.id), selectedEntryIds));
+        for (const entry of personalEntries) {
+          if (releasedIds.has(entry.id)) {
             appSettingsMemories.push({ app_id: appId, item_key: itemType, content: entry.item_value });
           }
         }
@@ -789,9 +714,10 @@ export async function handlePermissionDialogConfirm(
         itemType,
       );
 
+      const releasedEntryIds = new Set(await decideSelectedEntryIds(entries.map((entry) => entry.id), selectedEntryIds));
       for (const entry of entries) {
-        // If entry-level selection is active, skip entries that weren't selected
-        if (selectedEntryIds !== null && !selectedEntryIds.includes(entry.id)) {
+        // Entry-level selection: skip entries that weren't selected
+        if (!releasedEntryIds.has(entry.id)) {
           continue;
         }
 
@@ -819,13 +745,17 @@ export async function handlePermissionDialogConfirm(
       }
     }
 
-    if (appSettingsMemories.length === 0) {
+    const autoMemoryEntries = await resolveAutoMemoryEntries(requestId, pendingRequest);
+    appSettingsMemories.push(...autoMemoryEntries);
+
+    const outcome = await decideConfirmOutcome(appSettingsMemories.length, voiceRequest, !!messageId);
+    if (outcome.kind === "empty") {
       console.warn(
         "[ChatSyncService:AppSettings] No entries to send after decryption",
       );
-      if (voiceRequest) {
+      if (outcome.sendEmpty) {
         await sendPermissionResponse(serviceInstance, chatId, [], responseTransport, true);
-        if (messageId) await saveAppSettingsMemoriesResponseMessage(serviceInstance, chatId, messageId, "rejected");
+        if (outcome.saveRejected && messageId) await saveAppSettingsMemoriesResponseMessage(serviceInstance, chatId, messageId, "rejected");
       }
       removePendingPermissionRequest(requestId);
       dismissPermissionNotification(requestId);
@@ -836,7 +766,12 @@ export async function handlePermissionDialogConfirm(
     console.info(
       `[ChatSyncService:AppSettings] About to send ${appSettingsMemories.length} entries to server...`,
     );
-    await sendPermissionResponse(serviceInstance, chatId, appSettingsMemories, responseTransport, voiceRequest);
+    // Decision D-5: every released body is anonymized by the core before it leaves.
+    const { anonymizeMemoryEntries } = await import("./rustCore/memory/memoryPrivacy");
+    const anonymized = await anonymizeMemoryEntries(chatId, appSettingsMemories);
+    await sendPermissionResponse(serviceInstance, chatId, anonymized.entries as MemoryPermissionResponse, responseTransport, voiceRequest);
+    autoMemoryEntriesByRequest.delete(requestId);
+    answeredMemoryRequests.add(requestId);
 
     console.info(
       `[ChatSyncService:AppSettings] Successfully sent ${appSettingsMemories.length} entries to server`,
@@ -848,11 +783,7 @@ export async function handlePermissionDialogConfirm(
     if (messageId) {
       try {
         const categoryMetadata: AppSettingsMemoriesResponseCategory[] =
-          selectedCategories.map((cat) => ({
-            appId: cat.appId,
-            itemType: cat.itemType,
-            entryCount: appSettingsMemories.filter(memory => memory.app_id === cat.appId && memory.item_key === cat.itemType).length,
-          }));
+          await decideResponseCategories(selectedCategories, appSettingsMemories);
 
         await saveAppSettingsMemoriesResponseMessage(
           serviceInstance,
@@ -860,6 +791,7 @@ export async function handlePermissionDialogConfirm(
           messageId,
           "included",
           categoryMetadata,
+          anonymized.addedMappings,
         );
         console.info(
           `[ChatSyncService:AppSettings] Created system message for 'included' action on message ${messageId}`,
@@ -941,7 +873,11 @@ export async function handlePermissionDialogExclude(
   // The server handler detects is_rejection=true when the array is empty and continues processing
   if (pendingRequest?.chatId) {
     try {
-      await sendPermissionResponse(serviceInstance, pendingRequest.chatId, [], responseTransport, voiceRequest);
+      // Rejected ask_first memories send no content; auto_include ones were already approved by their mode.
+      const autoEntries = await resolveAutoMemoryEntries(requestId, pendingRequest);
+      await sendPermissionResponse(serviceInstance, pendingRequest.chatId, autoEntries, responseTransport, voiceRequest);
+      autoMemoryEntriesByRequest.delete(requestId);
+      answeredMemoryRequests.add(requestId);
       console.info(
         `[ChatSyncService:AppSettings] Sent rejection (empty array) to server for chat ${pendingRequest.chatId}`,
       );
@@ -1097,6 +1033,8 @@ export interface AppSettingsMemoriesResponseContent {
   user_message_id: string;
   action: "included" | "rejected";
   categories?: AppSettingsMemoriesResponseCategory[];
+  /** Mappings of anonymized Memory bodies (restores placeholders the model echoes). */
+  pii_mappings?: Array<{ placeholder: string; original: string; type: string }>;
 }
 
 /**
@@ -1119,6 +1057,7 @@ async function saveAppSettingsMemoriesResponseMessage(
   userMessageId: string,
   action: "included" | "rejected",
   categories?: AppSettingsMemoriesResponseCategory[],
+  piiMappings: unknown[] = [],
 ): Promise<void> {
   // Import required utilities
   const { generateUUID } = await import("../message_parsing/utils");
@@ -1128,15 +1067,10 @@ async function saveAppSettingsMemoriesResponseMessage(
   const chatIdSuffix = chatId.slice(-10);
   const messageId = `${chatIdSuffix}-${generateUUID()}`;
 
-  // Create system message content
-  const responseContent: AppSettingsMemoriesResponseContent = {
-    type: "app_settings_memories_response",
-    user_message_id: userMessageId,
-    action,
-    categories: action === "included" ? categories : undefined,
-  };
-
-  const contentString = JSON.stringify(responseContent);
+  const decidedContent = await decideResponseContent(userMessageId, action, categories);
+  // Mappings of the anonymized Memory bodies travel inside the chat-key-encrypted content.
+  const contentString = piiMappings.length === 0 ? decidedContent
+    : JSON.stringify({ ...JSON.parse(decidedContent), pii_mappings: piiMappings });
 
   // Get chat key for encryption (zero-knowledge architecture)
   const chatKey = await chatKeyManager.getKey(chatId);
@@ -1280,9 +1214,10 @@ export async function saveAppSettingsMemoriesRequestMessage(
   requestedKeys: string[],
   categories: AppSettingsMemoriesRequestCategory[],
   responseTransport?: "voice",
+  autoMemoryIds: readonly string[] = [],
 ): Promise<void> {
   const { webSocketService } = await import("./websocketService");
-  const requestMessage = buildMemoryRequestMessage({
+  const requestMessage = await decideRequestMessage({
     requestId,
     userMessageId,
     requestedKeys,
@@ -1291,7 +1226,7 @@ export async function saveAppSettingsMemoriesRequestMessage(
     entryCounts: new Map(categories.map(category => [`${category.appId}-${category.itemType}`, category.entryCount])),
   });
   const messageId = requestMessage.message_id;
-  const contentString = requestMessage.content;
+  const contentString = withAutoMemoryIds(requestMessage.content, autoMemoryIds);
 
   // Get chat key for encryption (zero-knowledge architecture)
   const chatKey = await chatKeyManager.getKey(chatId);
@@ -1473,19 +1408,6 @@ export async function handleAppSettingsMemoriesSyncReadyImpl(
       `[ChatSyncService:AppSettings] Successfully synced ${entries.length} app settings/memories entries`,
     );
 
-    // Refresh the in-memory store so entries are immediately available for the
-    // @ mention dropdown. Without this, the dropdown reads stale (empty) store
-    // state even though IndexedDB now has the entries.
-    // Non-blocking: a failure here must never break the sync flow.
-    const { appSettingsMemoriesStore } =
-      await import("../stores/appSettingsMemoriesStore");
-    appSettingsMemoriesStore.loadEntries().catch((err) => {
-      console.warn(
-        "[ChatSyncService:AppSettings] Failed to refresh store after sync (non-fatal):",
-        err,
-      );
-    });
-
     // Dispatch custom event to notify Apps components that sync is complete
     // This allows the Apps UI to refresh if it's currently open
     if (typeof window !== "undefined") {
@@ -1631,18 +1553,6 @@ export async function handleAppSettingsMemoriesEntrySyncedImpl(
     console.info(
       `[ChatSyncService:AppSettings] Synced ${entries.length} entries from another device`,
     );
-
-    // Refresh the in-memory store so the new entry is immediately available for
-    // the @ mention dropdown on this device.
-    // Non-blocking: a failure here must never break the sync flow.
-    const { appSettingsMemoriesStore } =
-      await import("../stores/appSettingsMemoriesStore");
-    appSettingsMemoriesStore.loadEntries().catch((err) => {
-      console.warn(
-        "[ChatSyncService:AppSettings] Failed to refresh store after cross-device sync (non-fatal):",
-        err,
-      );
-    });
 
     // Dispatch custom event to notify Apps components to refresh
     // This allows the UI to show the new entry immediately

@@ -18,6 +18,9 @@ class DocsPeer:
             h = {k.lower(): v for k, v in headers.items()}
             key = self.suite["api_key"]
             assert not self.vector["anonymous"], "anonymous request forbidden"
+            assert self.vector["expected_request_count"] > 0, (
+                "locally refused slug reached transport"
+            )
             assert h.get("authorization") == "Bearer " + key.split(".")[0]
             assert h.get("x-openmates-device-identity") == self.suite["device_id"]
             assert (

@@ -39,13 +39,16 @@ async fn ideabucket_audio_routes_and_fails_locally_before_any_request() {
     assert!(supported(&parsed(&audio)));
     let (mut client, _server) = mock(vec![]).await;
     let missing = "/nonexistent-openmates-ideabucket-audio/memo.m4a";
-    for (args, message) in [
-        (vec!["openmates", "ideabucket", "audio", "memo.m4a", "--scheduled-at", "soon"], "Invalid --scheduled-at; expected Unix seconds.".to_owned()),
-        (vec!["openmates", "ideabucket", "audio", missing], format!("{missing}: File not found")),
-    ] {
-        match execute(&parsed(&args), &mut client).await {
-            Err(CliError::Invalid(actual)) => assert_eq!(actual, message, "{args:?}"),
-            _ => panic!("expected invalid input for {args:?}"),
+    match execute(&parsed(&["openmates", "ideabucket", "audio", "memo.m4a", "--scheduled-at", "soon"]), &mut client).await {
+        Err(CliError::Invalid(actual)) => assert_eq!(actual, "Invalid --scheduled-at; expected Unix seconds."),
+        _ => panic!("expected invalid --scheduled-at"),
+    }
+    // npm exits 1 for a missing file (runtime failure), not the usage exit 2.
+    match execute(&parsed(&["openmates", "ideabucket", "audio", missing]), &mut client).await {
+        Err(error @ CliError::Contract { .. }) => {
+            assert_eq!(error.to_string(), format!("{missing}: File not found"));
+            assert_eq!(error.exit_code(), 1);
         }
+        _ => panic!("expected a runtime file failure"),
     }
 }

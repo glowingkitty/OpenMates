@@ -26,6 +26,11 @@ import type {
   MessageHighlightPayload,
 } from "../types/chat";
 
+// Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === "1"): the chatState unit builds
+// and decodes the encrypted highlight payloads; no TypeScript fallback. Default builds keep the code below.
+const RUST_HIGHLIGHTS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_chatstate") === "ts");
+
 /**
  * Build the ciphertext + row metadata for a highlight, persist locally, push
  * to the store, and send the add_message_highlight WS op.
@@ -42,6 +47,12 @@ export async function sendAddMessageHighlightImpl(
     throw new Error(
       `[sendersMessageHighlights] No chat key for chat ${highlight.chat_id} — cannot encrypt highlight`,
     );
+  }
+
+  if (RUST_HIGHLIGHTS) {
+    const write = await (await import("./rustCore/chatState/rustHighlights")).rustAddHighlight(highlight, chatKey);
+    await persistAndSend(write.record ?? highlight, write.type, write.payload, true);
+    return;
   }
 
   const payload: MessageHighlightPayload = {
@@ -82,6 +93,27 @@ export async function sendAddMessageHighlightImpl(
   }
 }
 
+/** Flag-on tail of add/update: optimistic store + IndexedDB write, then the Rust-built socket frame. */
+async function persistAndSend(
+  row: MessageHighlight,
+  type: string,
+  payload: Record<string, unknown>,
+  mine: boolean,
+): Promise<void> {
+  storeUpsertHighlight(row);
+  if (mine) markHighlightAsMine(row.id);
+  try {
+    await idbUpsertHighlight(chatDB, row);
+  } catch (e) {
+    console.error("[sendersMessageHighlights] IDB write failed", e);
+  }
+  try {
+    await webSocketService.sendMessage(type, payload);
+  } catch (e) {
+    console.error("[sendersMessageHighlights] WS send failed", e);
+  }
+}
+
 /**
  * Update the comment (or any semantic field) on an existing highlight.
  */
@@ -97,6 +129,11 @@ export async function sendUpdateMessageHighlightImpl(
   }
 
   const now = Math.floor(Date.now() / 1000);
+  if (RUST_HIGHLIGHTS) {
+    const write = await (await import("./rustCore/chatState/rustHighlights")).rustUpdateHighlight(highlight, chatKey, now);
+    await persistAndSend(write.record ?? { ...highlight, updated_at: now }, write.type, write.payload, false);
+    return;
+  }
   const merged: MessageHighlight = { ...highlight, updated_at: now };
 
   const payload: MessageHighlightPayload = {
@@ -146,11 +183,10 @@ export async function sendRemoveMessageHighlightImpl(
     console.error("[sendersMessageHighlights] IDB delete failed", e);
   }
   try {
-    await webSocketService.sendMessage("remove_message_highlight", {
-      chat_id,
-      message_id,
-      id,
-    });
+    const frame = RUST_HIGHLIGHTS
+      ? await (await import("./rustCore/chatState/rustHighlights")).rustRemoveHighlight(chat_id, message_id, id)
+      : { type: "remove_message_highlight", payload: { chat_id, message_id, id } };
+    await webSocketService.sendMessage(frame.type, frame.payload);
   } catch (e) {
     console.error("[sendersMessageHighlights] WS remove failed", e);
   }

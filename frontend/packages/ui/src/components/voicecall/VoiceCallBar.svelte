@@ -24,6 +24,7 @@
   const activityActive = $derived(state.billingActivity === null || state.billingActivity.inputListening || state.billingActivity.processing);
   const duration = $derived(`${String(Math.floor(state.activeElapsedSeconds / 60)).padStart(2, '0')}:${String(state.activeElapsedSeconds % 60).padStart(2, '0')}`);
   const statusKey = $derived(state.status === 'connecting' ? 'connecting' :
+    state.connection === 'reconnecting' ? 'reconnecting' : state.connection === 'paused' ? 'paused' :
     state.userSpeaking ? 'live' : state.assistantSpeaking ? 'assistant_speaking' : state.billingActivity?.processing ? 'working' :
     state.muted ? 'muted' : state.inputIdle && state.billingActivity?.inputListening === false &&
       state.billingActivity.processing === false ? 'input_idle' : 'live');

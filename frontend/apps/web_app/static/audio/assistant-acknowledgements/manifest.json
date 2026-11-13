@@ -9794,6 +9794,58 @@
       "relative_path": "suki/fr-FR/reasoning-3.mp3",
       "sha256": "2f0cea6261c4b7ecc35f52e2931f3410a99ab399bbd406fb9e6332caf573dbb5",
       "duration_seconds": 3.892
+    },
+    {
+      "clip_id": "system-de-DE-chat_start-1",
+      "voice_profile_id": "system",
+      "voice_profile_version": 1,
+      "language": "de-DE",
+      "request_category": "chat_start",
+      "variant": 1,
+      "text": "Dein Chat startet…",
+      "relative_path": "system/de-DE/chat_start-1.mp3",
+      "sha256": "dc091d1233ddc19c1447ad2b4c286995e5ac5a183c5b603287ad73a517d915e1",
+      "duration_seconds": 2.1,
+      "provider_model_id": "eleven_v4_turbo"
+    },
+    {
+      "clip_id": "system-en-US-chat_start-1",
+      "voice_profile_id": "system",
+      "voice_profile_version": 1,
+      "language": "en-US",
+      "request_category": "chat_start",
+      "variant": 1,
+      "text": "Starting your chat…",
+      "relative_path": "system/en-US/chat_start-1.mp3",
+      "sha256": "7e1182027e3cbe85e7e07e7aba98be7e1cccaf4d31976005cf494a1316d57b38",
+      "duration_seconds": 1.865,
+      "provider_model_id": "eleven_v4_turbo"
+    },
+    {
+      "clip_id": "system-es-ES-chat_start-1",
+      "voice_profile_id": "system",
+      "voice_profile_version": 1,
+      "language": "es-ES",
+      "request_category": "chat_start",
+      "variant": 1,
+      "text": "Iniciando tu chat…",
+      "relative_path": "system/es-ES/chat_start-1.mp3",
+      "sha256": "c1c32e07e13cb71fd3fbe4b79a673861e9a798e9ee731538224d5c8e8c4f8f2b",
+      "duration_seconds": 2.022,
+      "provider_model_id": "eleven_v4_turbo"
+    },
+    {
+      "clip_id": "system-fr-FR-chat_start-1",
+      "voice_profile_id": "system",
+      "voice_profile_version": 1,
+      "language": "fr-FR",
+      "request_category": "chat_start",
+      "variant": 1,
+      "text": "Ton chat démarre…",
+      "relative_path": "system/fr-FR/chat_start-1.mp3",
+      "sha256": "6fadcef45ef003066cb7c1280448f57280e95dd754742ee95318dd5687063731",
+      "duration_seconds": 1.865,
+      "provider_model_id": "eleven_v4_turbo"
     }
   ]
 }

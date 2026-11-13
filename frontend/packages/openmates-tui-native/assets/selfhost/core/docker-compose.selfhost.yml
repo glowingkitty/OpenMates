@@ -24,6 +24,7 @@ x-openmates-worker-base: &openmates-worker-base
   volumes:
     - ../../config:/app_config
     - vault-setup-data:/vault-data
+    - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
     - api-logs:/app/logs
   networks: [openmates]
   depends_on:
@@ -65,6 +66,8 @@ services:
       - apps-recommendations-data:/app/data/apps-recommendations
       - ../../config:/app_config
       - vault-setup-data:/vault-data
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - app-packages-runner-socket:/run/app-packages-runner:ro
       - api-logs:/app/logs
     networks: [openmates]
     depends_on:
@@ -155,6 +158,7 @@ services:
       NOTIFICATION_EMAIL_MIGRATION_PATH: /usr/src/app/migrations/migrate_notification_email_preferences.sql
       USER_WORK_CONTROL_MIGRATION_PATH: /usr/src/app/migrations/migrate_user_work_control_indexes.sql
       AI_MEMORY_REMOVAL_MIGRATION_PATH: /usr/src/app/migrations/migrate_remove_ai_memories.sql
+      QUICK_TIPS_REMOVAL_MIGRATION_PATH: /usr/src/app/migrations/migrate_remove_quick_tips.sql
     networks: [openmates]
     depends_on: [cms]
     restart: "no"
@@ -218,6 +222,7 @@ services:
       - api-logs:/app/logs
       - ../../config:/app_config
       - vault-setup-data:/vault-data
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
       - apps-recommendations-data:/app/data/apps-recommendations
     command: >
       sh -c "mkdir -p /app/data/apps-recommendations && chmod 700 /app/data/apps-recommendations && chown -R celeryuser:celeryuser /app/data/apps-recommendations /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
@@ -277,6 +282,12 @@ services:
   workflow-worker:
     <<: *openmates-worker-base
     container_name: workflow-worker
+    volumes:
+      - ../../config:/app_config
+      - vault-setup-data:/vault-data
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - api-logs:/app/logs
+      - app-packages-runner-socket:/run/app-packages-runner:ro
     mem_limit: ${WORKFLOW_WORKER_MEMORY_LIMIT:-1536m}
     environment:
       <<: *openmates-worker-env
@@ -300,6 +311,12 @@ services:
   app-ai-worker:
     <<: *openmates-worker-base
     container_name: app-ai-worker
+    volumes:
+      - ../../config:/app_config
+      - vault-setup-data:/vault-data
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - api-logs:/app/logs
+      - app-packages-runner-socket:/run/app-packages-runner:ro
     mem_limit: ${APP_AI_WORKER_MEMORY_LIMIT:-2g}
     environment:
       <<: *openmates-worker-env
@@ -509,12 +526,64 @@ services:
         exec /bin/alertmanager --config.file=/tmp/alertmanager.runtime.yml --storage.path=/alertmanager
     networks: [openmates]
 
+  # Executes operator-installed app package providers in isolation: no env_file,
+  # no Vault/database/cache access, not on the openmates network, packages
+  # mounted read-only, non-root, no capabilities, read-only rootfs. Its HTTP API
+  # is served only on a Unix socket in the dedicated app-packages-runner-socket
+  # volume (mounted by api, app-ai-worker and workflow-worker); its only network
+  # is app-packages-egress for internet access.
+  # Architecture: docs/architecture/apps/instance-app-packages.md
+  app-packages-runner:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: app-packages-runner
+    restart: unless-stopped
+    user: "65534:65534"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      APP_PACKAGES_ROOT: /app-packages
+      APP_PACKAGES_RUNNER_SOCKET: /run/app-packages-runner/runner.sock
+    command: ["python3", "/app/backend/core/app_packages_runner/runner.py"]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=256m
+    volumes:
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - app-packages-runner-socket:/run/app-packages-runner
+    networks:
+      - app-packages-egress
+    healthcheck:
+      test: ["CMD", "python3", "/app/backend/core/app_packages_runner/runner.py", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 networks:
   openmates:
     external: true
     name: openmates
+  # Outbound internet access for installed providers (runner only).
+  app-packages-egress:
+    # Fixed name and subnet so operators can block private and link-local
+    # destinations from this subnet in DOCKER-USER (docs/self-hosting/app-packages.md).
+    name: openmates-app-packages-egress
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${OPENMATES_APP_PACKAGES_EGRESS_SUBNET:-10.250.71.0/24}
 
 volumes:
+  # Dedicated tmpfs volume holding only the app-packages-runner Unix socket.
+  # The runner (uid 65534) owns it; callers mount it read-only.
+  app-packages-runner-socket:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "uid=65534,gid=65534,mode=0755,size=1m,nosuid,nodev,noexec"
   apps-recommendations-data:
     labels:
       openmates.backup.exclude: "true"

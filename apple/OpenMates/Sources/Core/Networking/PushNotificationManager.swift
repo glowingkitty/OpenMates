@@ -688,10 +688,11 @@ final class PushNotificationManager: NSObject, ObservableObject {
             guard let self else { return }
             defer { if self.preferenceRefreshContext == context { self.preferenceRefreshTask = nil } }
             do {
-                let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session",
-                    serverProfile: context.profile, expectedAccountID: context.accountID, expectedScope: context.scope)
+                // The core's admitted profile replaces the /v1/auth/session read.
+                let user = try await AuthManager.admittedProfile()
                 guard !Task.isCancelled, self.preferenceRefreshContext == context,
-                      self.currentAuthenticatedNoticeContext() == context, response.success, let user = response.user else { return }
+                      self.currentAuthenticatedNoticeContext() == context, user.id == context.accountID,
+                      ServerProfile.current() == context.profile else { return }
                 AuthManager.notificationSession.applyAuthoritativePushNotificationPreference(user,
                     accountID: context.accountID, profile: context.profile, scope: context.scope)
                 NativeDiagnostics.event("push_preference_profile_refreshed", category: "push_notifications",
@@ -1011,15 +1012,15 @@ final class PushNotificationManager: NSObject, ObservableObject {
             let authManager = AuthManager.notificationSession
             if authManager.state == .initializing { await authManager.checkSession() }
             guard authManager.state == .authenticated, authManager.currentUser?.id == accountId else { return }
-            if !authManager.hasNetworkAuthority { await authManager.validateSessionAfterOfflineBootstrap() }
+            if !authManager.hasNetworkAuthority { await authManager.ensureAdmitted() }
             guard authManager.hasNetworkAuthority else { return }
             let runtime = AppSessionCoordinator.shared
             _ = runtime.prepareAuthenticatedRuntime(lastOpenedChatId: authManager.currentUser?.lastOpened)
             let socket = runtime.webSocketManager
             if socket.connectionState != .connected {
-                if authManager.webSocketToken == nil { await authManager.validateSessionAfterOfflineBootstrap() }
+                let grant = try await authManager.socketGrant()
                 guard authManager.state == .authenticated, authManager.currentUser?.id == accountId else { return }
-                socket.connect(sessionId: AuthManager.nativeSessionId, token: authManager.webSocketToken,
+                socket.connect(sessionId: grant.sessionId, token: grant.wsToken,
                                syncState: runtime.chatStore.makeSyncClientState(clientSuggestionsCount: 0))
                 let deadline = Date().addingTimeInterval(10)
                 while socket.connectionState != .connected, Date() < deadline, !Task.isCancelled {

@@ -1,5 +1,6 @@
 """Search documented official conference schedules; other discovery is unavailable."""
-from datetime import datetime
+import asyncio
+from datetime import datetime, timezone
 import logging
 import os
 import re
@@ -11,19 +12,31 @@ from celery import Celery
 from pydantic import BaseModel, Field
 from backend.apps.base_skill import BaseSkill
 from backend.apps.events.providers import pretalx as pretalx_provider
+from backend.apps.events.provider_aliases import PROVIDER_ALIASES, VALID_PROVIDERS
+from backend.shared.app_packages.contracts import events_search_input
+from backend.shared.app_packages.loader import get_installed_providers
+from backend.apps.skill_progress import SkillProgress
+from backend.shared.app_packages.contracts import validate_events_search_result
+from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
+from backend.shared.app_packages.web_source import KIND_EVENT, WEB_PROVIDER_ID, run_web_source
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS, normalize_url_for_deduplication,
     stable_deduplicate_candidates, normalize_relevance_criteria, rank_search_candidates,
     relevance_candidate_target,
 )
 logger = logging.getLogger(__name__)
-_VALID_PROVIDERS = {"auto", "pretalx"}
-_PROVIDER_ALIASES = {"none": "auto", "pretalx": "pretalx", "conference schedule": "pretalx",
-                     **{key: "pretalx" for key in pretalx_provider.CONFERENCES}}
+_VALID_PROVIDERS = VALID_PROVIDERS
+_PROVIDER_ALIASES = PROVIDER_ALIASES
 _PROVIDER_LABELS = {"pretalx": "Conference schedules"}
 _EVENT_TITLE_DEDUP_STOPWORDS = frozenset({"a", "an", "and", "at", "event", "events", "in", "of", "on", "the"})
 _DEFAULT_COUNT = 10
 _MIN_EVENT_RELEVANCE_SCORE = 1.0
+_APP_ID, _SKILL_ID, _BUILTIN_PROVIDER = "events", "search", "pretalx"
+
+
+def _installed_provider_labels() -> Dict[str, str]:
+    """Operator-installed providers for this skill from the server registry ({id: name})."""
+    return {p.provider_id: p.name for p in get_installed_providers(_APP_ID, _SKILL_ID)}
 
 class SearchRequestItem(BaseModel):
     """A single event search request."""
@@ -38,6 +51,8 @@ class SearchRequestItem(BaseModel):
         default=None,
         description="Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon', "
         "'startup', 'networking') within a known conference schedule. "
+        "Required for every request unless 'conference' names a known conference "
+        "(then omit it for the full schedule). Location or dates alone are not a query. "
         "Use the session topic without platform names."
     )
     location: Optional[str] = Field(
@@ -198,13 +213,14 @@ class SearchSkill(BaseSkill):
             provider_choice = str(request.get("provider", "auto")).lower().strip()
             provider_choice = _PROVIDER_ALIASES.get(provider_choice, provider_choice)
             if provider_choice == "auto":
-                provider_ids = list(_PROVIDER_LABELS)
-            elif provider_choice in _VALID_PROVIDERS:
+                provider_ids = [*_PROVIDER_LABELS, *_installed_provider_labels()]
+            elif provider_choice in _VALID_PROVIDERS or provider_choice in _installed_provider_labels():
                 provider_ids = [provider_choice]
             else:
                 provider_ids = []
 
-        providers = [provider_id for provider_id in provider_ids if provider_id in _PROVIDER_LABELS]
+        known = {**_PROVIDER_LABELS, **_installed_provider_labels()}
+        providers = [provider_id for provider_id in provider_ids if provider_id in known]
         provider = providers[0] if len(providers) == 1 else "auto"
         return {"provider": provider, "providers": providers}
 
@@ -657,7 +673,11 @@ class SearchSkill(BaseSkill):
                 return [], [], error
 
             if not req.get("query"):
-                error_message = f"Request {i + 1} (id: {request_id}) is missing required 'query' field"
+                error_message = (
+                    f"Request {i + 1} (id: {request_id}) is missing the required 'query' field. "
+                    "Retry with 'query' set to the event topic (for example 'AI' or 'hackathon'); "
+                    "'query' may be omitted only when 'conference' names a known conference schedule."
+                )
                 logger.warning("[events:search] %s; preserving as per-request error", error_message)
                 invalid_results.append({
                     "id": request_id,
@@ -815,49 +835,123 @@ class SearchSkill(BaseSkill):
         valid, groups, error = self._validate_event_requests(requests)
         if error:
             return SearchResponse(results=groups, error=error)
-        errors = []
-        providers = []
+        errors: List[str] = []
+        warnings: List[str] = []
+        providers: List[str] = []
+        progress = SkillProgress(self)
         for item in valid:
-            identity, events, message, total, dispatched = await self._process_single_search_request(
-                item, item["id"], secrets_manager)
-            if dispatched:
-                providers = dispatched
-            group = {"id": identity, "results": events, "total_available": total}
+            identity, events, message, total, dispatched, provider_warnings = await self._process_single_search_request(
+                item, item["id"], secrets_manager, progress=progress)
+            providers.extend(provider for provider in dispatched if provider not in providers)
+            # Provider ids that contributed results; billing re-checks them
+            # against the server's installation registry.
+            group = {"id": identity, "results": events, "total_available": total,
+                     "providers": list(dict.fromkeys(event.get("provider_id") or _BUILTIN_PROVIDER for event in events))}
             if message:
                 errors.append(message)
                 group["error"] = message
+            if provider_warnings:
+                group["warnings"] = provider_warnings
+                warnings.extend(provider_warnings)
             groups.append(group)
         order = {item["id"]: index for index, item in enumerate(requests)}
         groups.sort(key=lambda group: order.get(group["id"], len(order)))
-        return SearchResponse(results=groups, provider="pretalx" if providers else "Unavailable",
-                              providers=providers, error="; ".join(errors) or None)
+        provider = providers[0] if len(providers) == 1 else ("auto" if providers else "Unavailable")
+        return SearchResponse(results=groups, provider=provider, providers=providers,
+                              error="; ".join(errors) or None, warnings=warnings)
+
+    async def _search_web(self, req: Dict[str, Any], secrets_manager: Any, progress: Optional[SkillProgress],
+                          *, past_events: bool) -> InstalledProviderOutcome:
+        """Events found on public web pages, as contract-valid results labelled with their source page."""
+        outcome = await run_web_source(KIND_EVENT, req, secrets_manager)
+        today = datetime.now(timezone.utc).date().isoformat()
+        kept: List[Dict[str, Any]] = []
+        for row in outcome.results:
+            event = validate_events_search_result(row)
+            last_day = str(row.get("date_end") or row.get("date_start") or "")[:10]
+            if event is None or (not past_events and last_day < today):
+                continue
+            kept.append({**event, **{key: row[key] for key in
+                                     ("provider", "provider_id", "source_page_url", "source_page_title")}})
+        outcome.results = kept
+        if progress is not None:
+            await progress.source_done(len(kept))
+        return outcome
 
     async def _process_single_search_request(self, req: Dict[str, Any], request_id: Any,
-                                             secrets_manager: Any = None, **kwargs: Any) -> Tuple:
-        """Fetch and validate one bounded official schedule candidate pool."""
+                                             secrets_manager: Any = None, progress: Optional[SkillProgress] = None,
+                                             **kwargs: Any) -> Tuple:
+        """Fetch and validate one bounded candidate pool from built-in and installed providers.
+
+        ``progress`` counts the sources of this item (built-in conference source plus installed providers).
+        """
         choices = req.get("providers") or [req.get("provider") or "auto"]
         normalized = [_PROVIDER_ALIASES.get(str(value).lower().strip(), str(value).lower().strip())
                       for value in choices]
-        if any(value not in _VALID_PROVIDERS for value in normalized):
-            return request_id, [], "Event search provider is unavailable.", 0, []
+        installed_ids = list(_installed_provider_labels())
+        if any(value not in _VALID_PROVIDERS and value not in installed_ids for value in normalized):
+            return request_id, [], "Event search provider is unavailable.", 0, [], []
+        selected_installed = installed_ids if "auto" in normalized else [v for v in normalized if v in installed_ids]
         conference = pretalx_provider.resolve_conference(
             req.get("conference"), query=req.get("query") or "", location=req.get("location") or "")
         if not conference:
             conference = next((pretalx_provider.resolve_conference(value) for value in choices
                                if pretalx_provider.resolve_conference(value)), None)
-        if not conference:
-            return request_id, [], "Event discovery is unavailable: only known official conference schedules are configured.", 0, []
-        query = req.get("query") or conference
+        run_builtin = bool(conference) and any(value in _VALID_PROVIDERS for value in normalized)
+        if not run_builtin and not selected_installed:
+            return request_id, [], "Event discovery is unavailable: only known official conference schedules are configured.", 0, [], []
+        query = req.get("query") or conference or ""
         criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
-        topic = f"Events about {query}" if query.casefold() != conference.casefold() else None
+        topic = f"Events about {query}" if query and (not conference or query.casefold() != conference.casefold()) else None
         count = max(1, min(req.get("count") or _DEFAULT_COUNT, 50))
         target = relevance_candidate_target(count) if criteria else count
-        events, total, error = await self._search_pretalx(
-            query=query, location_str=req.get("location") or "", conference=conference,
-            start_date=req.get("start_date"), end_date=req.get("end_date"), count=target,
-            past_events=bool(req.get("past_events")))
-        if error:
-            return request_id, [], "Conference schedule search is unavailable.", 0, ["pretalx"]
+        events: List[Dict[str, Any]] = []
+        total = 0
+        dispatched: List[str] = []
+        failures: List[str] = []
+        # General discovery (no known conference) on a server with installed event providers also
+        # searches public web pages; the caller naming providers switches that off.
+        run_web = bool(query) and not conference and "auto" in normalized and bool(selected_installed)
+        if progress is not None:
+            await progress.add_sources(int(run_builtin) + len(selected_installed) + int(run_web))
+        web_search = asyncio.create_task(self._search_web(
+            {**req, "query": query}, secrets_manager, progress, past_events=bool(req.get("past_events")),
+        )) if run_web else None
+        if run_builtin:
+            dispatched.append(_BUILTIN_PROVIDER)
+            builtin_events, total, error = await self._search_pretalx(
+                query=query, location_str=req.get("location") or "", conference=conference,
+                start_date=req.get("start_date"), end_date=req.get("end_date"), count=target,
+                past_events=bool(req.get("past_events")))
+            if error:
+                failures.append("Conference schedule search is unavailable.")
+            events.extend(builtin_events)
+            if progress is not None:
+                await progress.source_done(len(builtin_events))
+        if selected_installed:
+            async def provider_done(outcome: InstalledProviderOutcome) -> None:
+                if progress is not None:
+                    await progress.source_done(len(outcome.results))
+
+            outcomes = await run_installed_providers(
+                _APP_ID, _SKILL_ID, selected_installed,
+                events_search_input({**req, "query": query or None, "count": target}), secrets_manager,
+                on_provider_done=provider_done)
+            for outcome in outcomes:
+                dispatched.append(outcome.provider_id)
+                events.extend(outcome.results)
+                total += len(outcome.results)
+                if outcome.error:
+                    failures.append(outcome.error)
+        if web_search is not None:
+            outcome = await web_search
+            dispatched.append(WEB_PROVIDER_ID)
+            events.extend(outcome.results)
+            total += len(outcome.results)
+            if outcome.error:
+                failures.append(outcome.error)
+        if failures and not events:
+            return request_id, [], " ".join(failures), 0, dispatched, []
         results = []
         for event in events:
             url = _event_result_url(event)
@@ -876,7 +970,7 @@ class SearchSkill(BaseSkill):
                     key: event.get(key) for key in ("title", "description", "date_start", "date_end",
                         "event_type", "venue", "organizer", "provider", "fee", "constraint_matches", "url")
                 } for event in results], relevance_criteria=criteria or topic,
-                search_parameters={"query": query, "conference": conference, "providers": ["pretalx"],
+                search_parameters={"query": query, "conference": conference, "providers": dispatched,
                                    "location": req.get("location"), "start_date": req.get("start_date"),
                                    "end_date": req.get("end_date"), "event_type": req.get("event_type")},
                 profile="events" if criteria else "events_topic", secrets_manager=secrets_manager)
@@ -887,7 +981,7 @@ class SearchSkill(BaseSkill):
                 if not criteria:
                     retained = {id(event) for event in results}
                     results = [event for event in original_order if id(event) in retained]
-        return request_id, results[:count], None, total, ["pretalx"]
+        return request_id, results[:count], None, total, dispatched, failures
 
 
 def _event_result_url(event: Dict[str, Any]) -> str:

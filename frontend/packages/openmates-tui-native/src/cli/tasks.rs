@@ -4,8 +4,7 @@ use crate::{client::Client, error::Error};
 use openmates_sdk::{
     OpenMates,
     work::{
-        DependencyTarget, RestoreState, TaskActivityInput, TaskActivityQuery, TaskAskOptions,
-        TaskCaller, TaskMove, Tasks, WorkKind,
+        TaskActivityInput, TaskActivityQuery, TaskAskOptions, TaskCaller, Tasks,
     },
 };
 use serde_json::{Value, json};
@@ -61,6 +60,9 @@ pub(super) async fn execute(
                 .map_err(CliError::from)
         })
         .transpose()?;
+    if let Some(journal) = journal.as_ref() {
+        super::task_legacy_outbox::drain(client, journal, &cancel).await?;
+    }
     let team = client
         .session()
         .and_then(|session| session.active_team_id.clone());
@@ -129,7 +131,7 @@ fn result(invocation: &Invocation, value: Value, human: String) -> Result<CliOut
         Ok(CliOutput::text(human))
     }
 }
-fn task_json(task: &Value) -> Value {
+pub(super) fn task_json(task: &Value) -> Value {
     let mut value = json!({});
     for field in [
         "task_id",
@@ -157,6 +159,10 @@ fn task_json(task: &Value) -> Value {
         "version",
     ] {
         value[field] = task[field].clone();
+    }
+    // npm tasksCli `queueState: record.queue_state ?? "none"`.
+    if value["queue_state"].is_null() {
+        value["queue_state"] = json!("none");
     }
     for field in ["slug", "blocked_reason"] {
         value[field] = task[field]
@@ -240,30 +246,6 @@ fn number(invocation: &Invocation, name: &str, default: u16, max: u16) -> Result
             .ok_or_else(|| CliError::Invalid(format!("--{name} must be from 1 to {max}."))),
     }
 }
-fn target(invocation: &Invocation) -> Result<DependencyTarget, CliError> {
-    let value = input::text(invocation, "target")?
-        .or(invocation.positionals.get(1).map(String::as_str))
-        .ok_or_else(|| CliError::Invalid("Provide --target task:<id> or plan:<id>.".into()))?;
-    let (kind, id) = value.split_once(':').ok_or_else(|| {
-        CliError::Invalid("Dependency target must be task:<id> or plan:<id>.".into())
-    })?;
-    let kind = match kind {
-        "task" => WorkKind::Task,
-        "plan" => WorkKind::Plan,
-        _ => {
-            return Err(CliError::Invalid(
-                "Dependency target must be task:<id> or plan:<id>.".into(),
-            ));
-        }
-    };
-    if id.trim().is_empty() {
-        return Err(CliError::Invalid("Dependency target is empty.".into()));
-    }
-    Ok(DependencyTarget {
-        kind,
-        id: id.into(),
-    })
-}
 pub(super) async fn verify_external(
     external: &mut Option<openmates_sdk::work::ExternalChat>,
     cancel: &CancellationToken,
@@ -295,9 +277,11 @@ fn ask_input(invocation: &Invocation) -> Result<(String, TaskAskOptions), CliErr
         .trim()
         .to_owned();
     if instruction.is_empty() {
-        return Err(CliError::Invalid(
-            "Provide a Task ask instruction with --text or positional text.".into(),
-        ));
+        // npm requiredAskInstruction: a runtime failure (exit 1), not a usage error.
+        return Err(CliError::Contract {
+            code: "command_failed",
+            message: "Missing ask instruction. Example: openmates tasks ask \"Prepare launch copy\"".into(),
+        });
     }
     let mut fields = invocation.flags.clone();
     fields.insert("title".into(), json!("Task proposal"));
@@ -493,6 +477,10 @@ async fn execute_service(
                 Ok(value) => value,
                 Err(error) => return super::task_queue::pending_output(invocation, error),
             };
+            let value = match super::task_queue_actions::render(&path, value) {
+                Ok((value, text)) => return result(invocation, value, text),
+                Err(value) => value,
+            };
             let text = if path == "tasks activity add" {
                 value["message"]
                     .as_str()
@@ -512,6 +500,13 @@ async fn execute_service(
                 json!({"entry":value})
             } else if path != "tasks delete" && !path.starts_with("tasks activity") {
                 json!({"task":task_json(&value)})
+            } else if path == "tasks activity flush" {
+                // npm reports only pending/attempted/rejected; `delivered` stays in the human text.
+                let mut value = value;
+                if let Some(object) = value.as_object_mut() {
+                    object.remove("delivered");
+                }
+                value
             } else {
                 value
             };
@@ -628,7 +623,13 @@ fn execute_command<'a>(
                     "tasks skip" => service.skip(id()?).await?,
                     _ => {
                         codex::guard_release(&mut service, id()?).await?;
-                        service.release(id()?).await?
+                        let current = service.show(id()?).await?;
+                        if current["primary_chat_id"].is_null() && current["external_chat"].is_null() {
+                            // npm returns an unlinked Task unchanged instead of writing a new version.
+                            current
+                        } else {
+                            service.release(id()?).await?
+                        }
                     }
                 };
                 task_result(invocation, task)
@@ -636,14 +637,8 @@ fn execute_command<'a>(
         }
         "tasks block" => Box::pin(async move {
             input::check_flags(invocation, &["reason-code", "reason", "reason-text"])?;
-            let reason = input::text(invocation, "reason-code")?
-                .or(input::text(invocation, "reason")?)
-                .ok_or_else(|| {
-                    CliError::Invalid("Blocking a Task requires --reason-code.".into())
-                })?;
-            let task = service
-                .block(id()?, reason, input::text(invocation, "reason-text")?)
-                .await?;
+            let (reason, text) = super::task_queue_actions::block_args(invocation)?;
+            let task = service.block(id()?, reason, text).await?;
             task_result(invocation, task)
         }),
         "tasks delete" => Box::pin(async move {
@@ -665,31 +660,13 @@ fn execute_command<'a>(
         }),
         "tasks restore" => Box::pin(async move {
             input::check_flags(invocation, &["entry", "entry-id", "state"])?;
-            let entry = super::history::entry(invocation)?;
-            let state = match input::text(invocation, "state")?.unwrap_or("before") {
-                "before" => RestoreState::Before,
-                "after" => RestoreState::After,
-                _ => return Err(CliError::Invalid("--state must be before or after.".into())),
-            };
+            let (entry, state) = super::task_queue_actions::restore_args(invocation)?;
             let value = service.restore(id()?, entry, state).await?;
             result(invocation, value, "Task restored.".into())
         }),
         "tasks reorder" => Box::pin(async move {
             input::check_flags(invocation, &["before", "after", "position"])?;
-            let movement = TaskMove {
-                before_task_id: input::text(invocation, "before")?.map(str::to_owned),
-                after_task_id: input::text(invocation, "after")?.map(str::to_owned),
-                status: input::text(invocation, "status")?
-                    .map(input::status)
-                    .transpose()?,
-                position: input::text(invocation, "position")?
-                    .map(|value| {
-                        value
-                            .parse::<i64>()
-                            .map_err(|_| CliError::Invalid("--position must be an integer.".into()))
-                    })
-                    .transpose()?,
-            };
+            let movement = super::task_queue_actions::task_move(invocation)?;
             let value = service.reorder(id()?, movement).await?;
             result(invocation, json!({"tasks":value}), "Task reordered.".into())
         }),
@@ -712,7 +689,7 @@ fn execute_command<'a>(
         }),
         "tasks dependencies add" | "tasks dependencies remove" => Box::pin(async move {
             input::check_flags(invocation, &["target"])?;
-            let target = target(invocation)?;
+            let target = super::task_queue_actions::target(invocation)?;
             let value = if path == "tasks dependencies add" {
                 service.dependencies().add(id()?, &target).await?
             } else {

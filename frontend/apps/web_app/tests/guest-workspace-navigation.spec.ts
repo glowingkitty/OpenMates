@@ -84,7 +84,7 @@ test.describe('Guest workspace navigation', () => {
       const guestCards = page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]');
       const guestChatIds = await guestCards.evaluateAll((cards: HTMLElement[]) => cards.map(card => card.dataset.chatId).filter(Boolean));
       await guestCards.first().click();
-      const chatPane = page.locator('.chat-wrapper').filter({ has: page.getByTestId('chat-close-button') });
+      const chatPane = page.getByTestId('chat-pane').filter({ has: page.getByTestId('chat-close-button') });
       const chatIncoming = await sample(chatPane);
       expect(chatIncoming.y).toBeGreaterThan(0);
       expect(chatIncoming.scale).toBe(1);
@@ -104,7 +104,7 @@ test.describe('Guest workspace navigation', () => {
         const replacementId = guestChatIds.find((id: string) => id !== chatId);
         expect(replacementId, 'guest examples provide a distinct replacement chat').toBeTruthy();
         await page.evaluate((id: string) => { window.location.hash = `chat-id=${id}`; }, chatId);
-        const reopenedPane = page.locator('.chat-wrapper').filter({ has: page.getByTestId('chat-close-button') });
+        const reopenedPane = page.getByTestId('chat-pane').filter({ has: page.getByTestId('chat-close-button') });
         await sample(reopenedPane);
         await finish(reopenedPane);
         await page.getByTestId('chat-close-button').click();

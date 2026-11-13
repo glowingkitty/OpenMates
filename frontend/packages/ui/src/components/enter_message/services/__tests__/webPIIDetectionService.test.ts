@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { createWebPIIScanContext, WEB_PII_MAX_ENHANCED_CHARS, WEB_PII_SCAN_BUDGET_MS, detectPIIForWeb, isWebPIIModelSupported, isWebPIIModelEnabled, preloadWebPIIDetector, resetWebPIIDetector, webPIIDetectorState } from '../webPIIDetectionService';
+import { createWebPIIDocumentScanContext, createWebPIIScanContext, WEB_PII_MAX_ENHANCED_CHARS, WEB_PII_SCAN_BUDGET_MS, detectPIIForWeb, isWebPIIModelSupported, isWebPIIModelEnabled, preloadWebPIIDetector, resetWebPIIDetector, webPIIDetectorState } from '../webPIIDetectionService';
 import * as basicDetector from '../piiDetectionService';
+import { buildWebPIIWindows } from '../webPIIWindows';
 
 const preferences = vi.hoisted(() => ({
   set: (_value: { masterEnabled: boolean; enhancedEnabled: boolean; categories?: Record<string, boolean> }) => {},
@@ -368,6 +369,71 @@ describe('browser PII runtime lifecycle', () => {
     worker.respond(1, { items: [{ label: 'GIVEN_NAME', original: 'Amina', start: 0, end: 5, confidence: 1 }] });
     expect((await refreshed!)[0].match).toBe('Amina');
     unsubscribe();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.web.local-bounded-inference
+  it('scans long text as overlapping windows and maps their offsets back to the full text', async () => {
+    const words = Array.from({ length: 40 }, (_, i) => i === 20 ? 'Amina' : `wort${i}`);
+    const text = words.join(' ');
+    const windows = buildWebPIIWindows(text);
+    const at = text.indexOf('Amina');
+    const scan = detectPIIForWeb(text);
+    const worker = FakeWorker.workers[0];
+    await tick(); worker.respond(0); await tick();
+    for (let index = 0; index < windows.length; index++) {
+      const window = windows[index];
+      expect(worker.messages[index + 1]).toMatchObject({ kind: 'scan', text: text.slice(window.start, window.end) });
+      const contains = window.start <= at && window.end >= at + 'Amina'.length;
+      // Both overlapping windows that contain the name report it; the merge must keep a single match.
+      const items = contains ? [{ label: 'GIVEN_NAME', original: 'Amina', start: at - window.start, end: at - window.start + 5, confidence: 1 }] : [];
+      worker.respond(index + 1, { items });
+      await tick();
+    }
+    const matches = await scan;
+    expect(matches.map(match => [match.type, match.match, match.startIndex])).toEqual([['PERSON_NAME', 'Amina', at]]);
+    expect(worker.messages.filter(message => message.kind === 'scan')).toHaveLength(windows.length);
+    expect(get(webPIIDetectorState).fallbackReason).toBeUndefined();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.web.local-bounded-inference
+  it('keeps finished windows and skips the rest instead of discarding enhancement near the deadline', async () => {
+    vi.useFakeTimers();
+    const text = ['Hallo', 'Amina', ...Array.from({ length: 38 }, (_, i) => `wort${i}`)].join(' ');
+    const scan = detectPIIForWeb(text);
+    const worker = FakeWorker.workers[0];
+    await tick(); worker.respond(0); await tick();
+    await vi.advanceTimersByTimeAsync(1_000);
+    worker.respond(1, { items: [{ label: 'GIVEN_NAME', original: 'Amina', start: 6, end: 11, confidence: 1 }] }); await tick();
+    await vi.advanceTimersByTimeAsync(1_000);
+    worker.respond(2); await tick();
+    // 2s elapsed and a window takes ~1s: the third window cannot finish in the 2.5s budget, so it is never posted.
+    const matches = await scan;
+    expect(worker.messages.filter(message => message.kind === 'scan')).toHaveLength(2);
+    expect(matches.map(match => match.match)).toEqual(['Amina']);
+    expect(worker.terminated).toBe(false);
+    expect(get(webPIIDetectorState)).toMatchObject({ status: 'ready', fallbackReason: 'timeout' });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.web.local-bounded-inference
+  it('scans documents beyond the typed-text size limit with the model under a larger shared budget', async () => {
+    const text = `Amina ${Array.from({ length: 400 }, (_, i) => `wort${i}`).join(' ')}`;
+    expect(text.length).toBeGreaterThan(WEB_PII_MAX_ENHANCED_CHARS);
+    const context = createWebPIIDocumentScanContext();
+    const scan = detectPIIForWeb(text, {}, context);
+    const worker = FakeWorker.workers[0];
+    await tick(); worker.respond(0); await tick();
+    const windows = buildWebPIIWindows(text);
+    for (let index = 0; index < windows.length; index++) {
+      const window = windows[index];
+      const items = window.start === 0 ? [{ label: 'GIVEN_NAME', original: 'Amina', start: 0, end: 5, confidence: 1 }] : [];
+      worker.respond(index + 1, { items });
+      await tick();
+    }
+    const matches = await scan;
+    expect(matches.map(match => match.match)).toEqual(['Amina']);
+    expect(worker.messages.filter(message => message.kind === 'scan')).toHaveLength(windows.length);
+    expect(get(webPIIDetectorState).fallbackReason).toBeUndefined();
+    expect(context.deadline! - Date.now()).toBeGreaterThan(WEB_PII_SCAN_BUDGET_MS);
   });
 
 });

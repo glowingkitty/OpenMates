@@ -144,7 +144,7 @@ embed_types:
 instructions:
   - instruction: |
       Once models3d-generate finishes, describe the actual generated model and
-      include the returned parent and successful child embed_ref inline.
+      include the successful child embed_ref inline (never the parent).
       Report failed output honestly. Do not expose raw task IDs, embed IDs,
       provider URLs, or encryption details.
 skills:
@@ -248,8 +248,11 @@ skills:
       - Hi3D
     pricing:
       per_unit:
-        credits: 25
+        credits: 40
         unit_name: model
+    supplier_costs:
+      per_unit:
+        model: hi3d/hitem3dv2.1-fast-pbr
     tool_schema:
       type: object
       properties:

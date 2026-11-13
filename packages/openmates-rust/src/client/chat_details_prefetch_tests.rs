@@ -246,3 +246,51 @@ fn list_equivalence_compares_rendered_output_key_versions_drafts_and_canonical_c
     string_clock_only["created_at"] = json!("1700000000");
     assert!(!equivalent(&string_clock_only, &server));
 }
+
+// contract-test: supporting surface=cli assertions=chat-unread.persistence.cross-device
+#[tokio::test]
+async fn show_keeps_the_server_unread_count_on_the_saved_row() {
+    let key = chat_key();
+    let mut unread = cached_row(CHAT, &key, "Synthetic unread");
+    unread["unread_count"] = json!(1);
+    let mut server = server_row(&unread);
+    server.as_object_mut().unwrap().remove("unread_count");
+    server["read_details"]["unread_count"] = json!(1);
+    let peer = Peer::start(server.clone()).await;
+    let ticks = Arc::new(AtomicU64::new(1_100));
+    let mut client = peer.client(&ticks, &key, &unread);
+    client.read_chat_details(CHAT, ChatDetailsOptions::default()).await.unwrap();
+    // Opening the chat neither drops the count nor invalidates the list.
+    assert_eq!(client.chats[CHAT]["unread_count"], 1);
+    assert!(client.try_cached_default_chat_list(false).unwrap().is_some());
+    // A count read on another device replaces the row with the server count.
+    server["read_details"]["unread_count"] = json!(0);
+    *peer.metadata.lock().unwrap() = server.clone();
+    let mut client = peer.client(&ticks, &key, &unread);
+    client.read_chat_details(CHAT, ChatDetailsOptions::default()).await.unwrap();
+    assert_eq!(client.chats[CHAT]["unread_count"], 0);
+    // A malformed count is a protocol error, never a silent default.
+    server["read_details"]["unread_count"] = json!("1");
+    *peer.metadata.lock().unwrap() = server;
+    let mut client = peer.client(&ticks, &key, &unread);
+    assert!(matches!(
+        client.read_chat_details(CHAT, ChatDetailsOptions::default()).await,
+        Err(Error::Protocol)
+    ));
+}
+
+// contract-test: supporting surface=cli assertions=chat-unread.persistence.cross-device
+#[tokio::test]
+async fn show_keeps_the_cached_unread_count_when_the_server_omits_it() {
+    let key = chat_key();
+    let mut unread = cached_row(CHAT, &key, "Synthetic unread");
+    unread["unread_count"] = json!(1);
+    let mut server = server_row(&unread);
+    server.as_object_mut().unwrap().remove("unread_count");
+    server["read_details"]["unread_count"] = Value::Null;
+    let peer = Peer::start(server).await;
+    let ticks = Arc::new(AtomicU64::new(1_100));
+    let mut client = peer.client(&ticks, &key, &unread);
+    client.read_chat_details(CHAT, ChatDetailsOptions::default()).await.unwrap();
+    assert_eq!(client.chats[CHAT]["unread_count"], 1);
+}

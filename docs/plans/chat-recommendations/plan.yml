@@ -1,0 +1,345 @@
+schema_version: 2
+profile: concise
+id: chat-recommendations
+title: Chat Recommendations (memories and workflows) replacing quick tips
+status: approved
+approved_by_user: true
+
+goal: >
+  (User decisions 2026-11-08/09.) The regular post-processing LLM call, not a
+  separate call, always recommends memories and workflows for the turn: at least
+  one, ideally up to three of each, as metadata only (title and summary). They
+  show in a "Recommendations" card that replaces the quick tip card, with
+  previous/next icon buttons and dots for the count. Only when the user clicks to
+  interact is a separate LLM request made to generate the full entry from the
+  title, summary, previous user message and last assistant response: a memory
+  opens as a draft in Settings > Memories, a workflow opens as a draft in the
+  workflow editor side by side (chat left, editor right). Quick tips are removed
+  entirely, including encrypted quick tip slugs. Recommendations are stored
+  encrypted per chat as chat metadata. Only when the user saves is the
+  recommendation removed; the chat history then shows a system event, like voice
+  call notices, saying a memory or workflow was created or updated, with a deep
+  link to the entry. Existing memories and workflows must not be duplicated: the
+  post-processor knows the relevant existing entries and recommends updating
+  them instead, without compromising privacy. Benchmark Gemini 3.5 Flash Lite vs
+  Mercury 3 vs Gemini 3.8 Flash on quality, response time and cost to decide
+  whether to stay on Flash Lite.
+  (User decisions 2026-11-09, approval.) The follow-up message suggestion chips
+  stay exactly as they are; only the quick tip container is replaced. The
+  Recommendations container is on by default and can be turned off in settings.
+  The old quick tip columns may be deleted. Implement, test and benchmark.
+
+contract: >
+  specifications/features/app-memories/specification.yml (draft): assertion
+  app-memories.suggestions.post-processor is rewritten (one transient suggestion
+  becomes the persisted Recommendations set). specifications/features/ai-model-routing/specification.yml
+  (draft) loses the Quick tips settings row. Both are draft, so they are updated
+  during the work and approval is requested once with the deployed result.
+
+scope:
+  in:
+    - Post-processing tool schema and prompt; deletion of the separate context suggestion call and of quick tips.
+    - Existing-entry awareness and duplicate prevention for memories and workflows.
+    - Encrypted per-chat recommendations metadata, sync and merge in the Rust client core.
+    - Recommendations card (web), on-click generation, memory draft in Settings, side-by-side workflow editor.
+    - Saved-entry system events in chat history with deep links.
+    - Settings toggle rename (Quick tips -> Recommendations) on web, Apple and CLI.
+    - Model benchmark Flash Lite vs Mercury 3 vs Gemini 3.8 Flash.
+  out:
+    - Follow-up message suggestion chips (unchanged; separate feature).
+    - Apple Recommendations card UI (follows web as an Apple UI parity Task after web ships).
+    - Embeddings or any new stored index derived from encrypted memory or workflow content.
+    - The authored-result embed fixes from the same conversation (separate Task).
+
+current_state:
+  - The separate generate_context_suggestion call (backend/apps/ai/processing/postprocessing_context_suggestions.py) returned "none" in all ~32 recent dev calls; it is optional, single-item, in-memory only on the client (contextSuggestionStore.ts) and hidden in public chats. That is why no memory/workflow suggestion appeared.
+  - QuickTipsCard.svelte occupies the slot between chat history and follow-up suggestions; slugs persist as encrypted_quick_tip_slugs (chats.yml, post_processing_metadata_handler.py, web_sync/merge.rs, rustChatSyncPolicy.ts).
+  - The client already sends memory_catalog (id, title, when_to_use, load_mode, source; Auto include and Ask first only, max 24) built by collectMemoryCatalog in ruleDocumentService.ts; Mention only memories never leave the device unless loaded in the chat.
+  - Workflows are server-side (Vault) encrypted; WorkflowService.list_discovery_metadata already decrypts title and description for discovery (limit 1..20).
+  - Workflow AI authoring exists on /workflows (routes/workflows/+page.svelte, 2372 lines, stream /v1/workflows/input/stream) and accepts an optional workflowId for edits.
+  - Voice call system events (voiceCallLifecycleEvent.ts, voiceCallMessages.ts, VoiceCallEventNotice.svelte) are the pattern for encrypted role:system chat events.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: The post-processing tool returns two required arrays, memory_recommendations and workflow_recommendations, 1..3 items each, every item {title <= 80 chars, summary <= 200 chars, action create|update, target_ref (only for update)}. quick_tip_slug is removed from the tool. One call; no extra latency in the response stream because post-processing already runs after the answer.
+  - id: D-2
+    status: active
+    decision: Recommendations are skipped deterministically (fields omitted from the tool for that call, not left to the model) for sub-chats, incognito, guests/anonymous chats, public/shared chat views, users with Recommendations off, and turns the preprocessor classifies as greeting/small talk. Elsewhere the minItems 1 rule applies.
+  - id: D-3
+    status: active
+    decision: Sources are the user's own messages and the assistant answer. Tool/external results are never a memory source (existing spec rule kept). Server sanitization (existing secret patterns in postprocessing_context_suggestions.py, moved) drops items containing secrets; a dropped item is not replaced by a fallback.
+  - id: D-4
+    status: active
+    decision: >
+      Memory awareness (privacy: no new data leaves the device). The post-processor
+      gets the memory_catalog the client already sends, with server-side short
+      aliases (m1..m24) instead of UUIDs; an update item references an alias and
+      the server maps it back to the memory id. A final reconcile step in the Rust
+      client core runs against all locally decrypted memories, including Mention
+      only ones that were never sent: a "create" whose normalized title or
+      title token overlap (Jaccard >= 0.6) or title vs when_to_use overlap matches an existing memory
+      becomes an "update" of that memory. So Mention only titles stay on device
+      and still cannot be duplicated.
+  - id: D-5
+    status: active
+    decision: >
+      Workflow awareness (workflows are already decrypted server-side for
+      discovery, so no new exposure to our server; only selected titles and
+      summaries go to the LLM provider). Per post-processing call the server
+      decrypts the user's workflow titles and descriptions in one batched Vault
+      call (extend list_discovery_metadata with a batch path and no hard 20 cap
+      for this internal use). If the user has <= 15 workflows all are included;
+      otherwise a deterministic lexical relevance filter picks the top 8:
+      BM25-style token overlap between workflow title+description and the
+      current user message, assistant answer, chat title and category, plus a
+      boost for shared app/skill ids used in the turn, plus the 2 most recently
+      edited workflows. Descriptions are truncated to 160 chars in the prompt
+      (~60 tokens per workflow, < 1k tokens total). Decrypted metadata lives
+      only in process memory for the request (no Redis, no disk, no logs). After
+      the model answers, the server checks every "create" against all of the
+      user's workflows (not only the prompt subset) with the same normalized
+      title / Jaccard rule and converts a match to "update" with that workflow id.
+  - id: D-6
+    status: active
+    decision: No embeddings. Embedding encrypted memory or workflow text would create a new plaintext-derived store and an extra provider call per turn; the lexical filter is enough at the expected scale (tens of workflows) and costs microseconds. Revisit only if the benchmark shows missed updates because of the filter.
+  - id: D-7
+    status: active
+    decision: Recommendations are stored as encrypted_recommendations on the chat (encrypted with the chat key by the client, like the old quick tip slugs) holding the latest turn's set plus a dismissed-titles list for that chat. Each completed turn replaces the open set; dismissed and saved titles are filtered by the Rust core reconcile step so they are not re-proposed in the same chat. The ciphertext field merges last-writer-wins like the other encrypted chat metadata fields (web_sync/merge.rs, chatSyncMerge.ts field rename). Reconcile policy (dedupe, dismissed/resolved filter, caps) lives only in the Rust core (client recommendations module, exposed through the shared Worker and the TUI). The web encrypt-and-persist step stays in the existing not-yet-migrated TypeScript post-processing path (chatSyncServiceHandlersAI.ts, capability streaming = ts-only) as a field swap, marked shell-only in the deploy message.
+  - id: D-8
+    status: active
+    decision: >
+      On click: memory create calls a new billed endpoint
+      POST /v1/memory-suggestions/create-draft (same auth, ownership check, rate
+      limit and billing as the existing update-preview) with the title, summary,
+      previous user message and last assistant response; it returns a memory
+      document with load_mode ask_first, opened as an unsaved draft in Settings >
+      Memories via the existing memoryDraftSuggestion flow. Memory update reuses
+      update-preview. Workflow create/update opens the side-by-side workflow panel
+      and runs the existing AI authoring stream with an instruction built from the
+      same four inputs (plus workflowId for updates). Nothing is saved until the
+      user saves. Clicking does not remove the recommendation.
+  - id: D-9
+    status: active
+    decision: On save the Rust core removes that recommendation from encrypted_recommendations and writes one encrypted role:system chat message {schema_version 1, type context_entry, kind memory|workflow, action created|updated, entry_id, title, created_at} with a stable id per save. Rendered by a ContextEntryEventNotice like VoiceCallEventNotice; clicking opens Settings memories/<id> or the workflow in the side panel. If the entry was later deleted the link shows "no longer exists". These events are not sent to the LLM as history and are not rendered in shared/public views (memory titles can be private).
+  - id: D-10
+    status: active
+    decision: The side-by-side workflow panel reuses the existing ActiveChat side-by-side layout (>= 1024px; chat column left, panel right; below 1024px the panel opens fullscreen). The editor is first extracted from routes/workflows/+page.svelte into a reusable WorkflowEditorWorkspace component used by both the route and the panel, so the 2372-line page shrinks instead of being duplicated.
+  - id: D-11
+    status: active
+    decision: Quick tips are removed completely (QuickTipsCard.svelte, data/quickTips.ts, processing/quick_tips.py, tool field, handler, sync policy, merge fields, account export, fingerprint, fixtures, specs). The user setting quick_tips_enabled is replaced by recommendations_enabled. Recommendations are on by default (recommendations_enabled default true for every user) with a settings toggle on web, Apple and CLI. The old columns encrypted_quick_tip_slugs (chats) and quick_tips_enabled (users) are dropped (user approved 2026-11-09).
+  - id: D-12
+    status: active
+    decision: >
+      Benchmark before the prompt is frozen: extend backend/scripts/benchmark_postprocessing_models.py
+      with arms gemini-lite (google_ai_studio gemini-3.5-flash-lite), mercury-low
+      (inception mercury-3) and gemini-flash (google gemini-3.8-flash), using the
+      new tool schema. About 20 labelled cases x 3 runs: conference search
+      (expects a memory like "interested in open source conferences in Europe"
+      and workflow ideas), coding, travel, recipe, a turn whose facts come only
+      from tool results (no memory), a turn with a secret (nothing), greeting
+      (skipped by D-2, checked in code), a case with a matching existing memory
+      (expects update with the right alias), one with a Mention-only duplicate
+      (reconcile test, model-independent), and a matching existing workflow
+      (expects update). Metrics: schema-valid rate, minItems compliance, regex
+      oracle pass rate, duplicate rate, a blind manual usefulness score on a
+      30-output sample, p50/p95 latency of the whole post-processing call,
+      input/output tokens and cost per 1,000 turns from provider pricing.
+      Decision rule: stay on Flash Lite unless another arm improves the oracle
+      pass rate by >= 10 points at <= 1.5x p95 latency and <= 2x cost, or Flash
+      Lite fails schema/minItems in > 5% of runs.
+  - id: D-13
+    status: active
+    decision: >
+      Benchmark result (2026-11-09, 20 cases x 3 runs x 3 arms, 180 live calls, 0
+      unavailable; benchmark.md / benchmark.json): post-processing stays on Flash Lite
+      (gemini-3.5-flash-lite). Lite: 100% schema/minItems valid, 96.7% oracle pass,
+      0% duplicate creates, p95 2.28 s, $2.79 per 1k turns. Mercury 3 (low): 93.3%,
+      33% duplicate creates (missed the German existing-memory update), p95 1.89x.
+      Gemini 3.8 Flash: 91.7%, p95 7.8x, cost 5.5x. Follow-up suggestions unchanged
+      (6 in 100% of runs). Known prompt effect of the user-required minItems 1: on
+      turns without durable user facts (weather lookup, questions about third
+      parties) all models propose low-value interest memories derived from the
+      request; no tool fact or secret leaked. Kept as specified; revisit only if the
+      user wants empty arrays allowed.
+  - id: D-14
+    status: active
+    decision: >
+      Card design (user review 2026-11-09): keep the former quick tips container with
+      its chat-category gradient. Inside it, top to bottom: a call-to-action heading
+      naming the kind and whether it is new or an update ("New memory recommended",
+      "Workflow update recommended"), the entry as an embed preview card
+      (RecommendationEmbedPreview on UnifiedEmbedPreview, presentation only; clicking it
+      does the same as the button), the Create/Update button, then previous/next and
+      dots. No dismiss/close control: the next completed turn replaces the open set and
+      saving removes an item. The stored `dismissed` list stays in the schema (always
+      empty from the web shell) so the encrypted state format is unchanged.
+
+wire_contract:
+  postprocess_tool: >
+    memory_recommendations and workflow_recommendations, required arrays (minItems 1,
+    maxItems 3) of {action: create|update, ref: alias string (m1.. for memories,
+    w1.. for workflows; only for update), title (<= 80 chars), summary (<= 200 chars)}.
+    Removed from the tool when D-2 skips recommendations.
+  server_output: >
+    PostProcessingResult.recommendations and the post_processing_completed WebSocket
+    payload field `recommendations`: list of {id, kind: memory|workflow,
+    action: create|update, target_id (memory/workflow id or null), title, summary}.
+    id = uuid derived from sha256(task_id:kind:index). quick_tip_slugs and
+    context_suggestion are removed from the payload.
+  client_storage: >
+    chats.encrypted_recommendations = chat-key encryption of JSON
+    ChatRecommendationsState {schema_version 1, items, dismissed, resolved, updated_at}
+    (frontend/packages/ui/src/types/recommendations.ts). Persisted with
+    update_post_processing_metadata, which also accepts a message carrying only
+    chat_id + encrypted_recommendations (dismiss/save updates).
+  reconcile: >
+    Rust core function reconcile_recommendations({incoming, dismissed, resolved,
+    local_memories[{id,title,when_to_use}]}) -> items. Normalize = Unicode lowercase,
+    every non-alphanumeric character of any script -> space, collapse; an empty
+    normalized title never matches anything. Drops items whose normalized title is in dismissed or
+    resolved; drops in-list duplicates; memory create whose title matches a local
+    memory (equal normalized title, or title-token Jaccard >= 0.6, or title tokens vs
+    when_to_use tokens Jaccard >= 0.6) becomes update with that memory id and the
+    memory's title kept as the visible title; caps 3 per kind; stable order.
+  system_event: >
+    Encrypted role:system chat message, content JSON ContextEntryHistoryEvent
+    {schema_version 1, type context_entry, kind, action created|updated, entry_id,
+    title, created_at}. Message id `context-entry-<recommendation id>`. Excluded from
+    AI request history like voice_call events; not rendered in shared/public views.
+  memory_create_draft_endpoint: >
+    POST /v1/memory-suggestions/create-draft, first-party session auth only, chat
+    ownership check, 20/minute, billed like update-preview. Body {chat_id, title,
+    summary, user_message, assistant_response}; returns {title, when_to_use, body
+    (canonical memory document, load_mode ask_first)}.
+  workflow_panel: >
+    frontend/packages/ui/src/stores/workflowSidePanelStore.ts (openWorkflowSidePanel /
+    reportWorkflowSidePanelSaved). The panel runs the existing AI authoring stream with
+    the instruction (title, summary, previous user message, last assistant response)
+    and workflowId for updates, in draft-only mode: WorkflowInputStartRequest.draft_only
+    (default false) returns session status 'draft' with preview_workflow and persists
+    nothing; the client body option draftOnly (Rust Worker workflowInputBody and the
+    flag-off TS body) sends draft_only:true without optimistic_save. Save then uses the
+    existing workflow create/patch calls.
+  settings: >
+    users.recommendations_enabled (bool, default true); REST settings field
+    recommendations_enabled; ask request user_preferences.recommendations_enabled.
+
+acceptance_criteria:
+  - id: AC-1
+    text: For a substantive turn (the FOSDEM / open source conference search) the card shows >= 1 memory and >= 1 workflow recommendation (<= 3 each) with title and summary, previous/next icon buttons and one dot per item; greeting turns, sub-chats, incognito, guests and public views show no card.
+    required: true
+  - id: AC-2
+    text: Recommendations survive reload and appear on a second device (encrypted_recommendations synced; server stores ciphertext only).
+    required: true
+  - id: AC-3
+    text: Clicking a memory recommendation makes one billed request and opens an unsaved draft in Settings > Memories; clicking a workflow recommendation opens the side-by-side editor and generates the draft visibly. Neither click removes the recommendation.
+    required: true
+  - id: AC-4
+    text: Saving removes that recommendation and inserts a system event in chat history (created/updated, memory/workflow, title) whose link opens the saved entry; the event survives reload.
+    required: true
+  - id: AC-5
+    text: With an existing memory (Auto include or Ask first) or workflow matching the turn, the recommendation is an update of it, not a new entry; with a matching Mention only memory, the Rust reconcile converts or drops the create without that memory having been sent to the server.
+    required: true
+  - id: AC-6
+    text: No quick tip code, slugs, setting, column, fixture or test remains (git grep quick_tip / QuickTip / quickTip returns only migration notes); the separate context suggestion call is gone; follow-up message suggestion chips behave as before.
+    required: true
+  - id: AC-7
+    text: The benchmark report (latency, cost, quality per arm) is committed and the model decision is recorded in this Plan.
+    required: true
+  - id: AC-9
+    text: Recommendations are on by default and the settings toggle turns the card off (no recommendations generated while off).
+    required: true
+  - id: AC-8
+    text: Draft Specifications app-memories and ai-model-routing match the deployed behavior and are presented once for approval.
+    required: true
+
+verifications:
+  - id: V-BENCH
+    kind: command
+    covers: [AC-7]
+    command: python3 scripts/heavy_slot.py run -- docker exec api python /app/backend/scripts/benchmark_postprocessing_models.py --arms gemini-lite,mercury-low,gemini-flash --runs 3 --out docs/plans/chat-recommendations/benchmark.json
+  - id: V-PYTEST
+    kind: command
+    covers: [AC-5, AC-6]
+    command: sessions.py ci-source, then ci_coordinator.py submit --mode pytest (postprocessor schema, skip rules, sanitization, alias mapping, workflow relevance filter, server-side create->update conversion)
+  - id: V-RUST
+    kind: command
+    covers: [AC-2, AC-5]
+    command: ci_coordinator.py submit --mode rust-check and --mode sdk-conformance (recommendations metadata encrypt/decrypt, merge, reconcile against local memories incl. Mention only, dismissed filter, system event write)
+  - id: V-CLI
+    kind: command
+    covers: [AC-1, AC-2, AC-4]
+    command: Real CLI chat in isolated CI against the real stack - conference prompt returns recommendations; greeting returns none; saved event appears in history
+  - id: V-E2E
+    kind: command
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    command: ci_coordinator.py submit --mode e2e for the new chat-recommendations-flow.spec.ts (card, arrows, dots, memory draft + save + event + deep link, workflow side panel + save + event, reload, existing-memory update case) and the updated chat-flow / follow-up-suggestions specs
+  - id: V-PREVIEW
+    kind: command
+    covers: [AC-1]
+    command: /verify-component-preview for RecommendationsCard and ContextEntryEventNotice (chrome=0; 1, 3 and 6 items; light/dark; mobile width)
+  - id: V-GREP
+    kind: command
+    covers: [AC-6]
+    command: git grep -n -i "quick_tip\|quicktip\|quick-tip\|generate_context_suggestion" returns only migration notes
+
+tasks:
+  - id: T-1
+    title: Benchmark harness and new tool schema (no product change)
+    do:
+      - Write the new postprocess tool schema (D-1) and prompt text as a module the benchmark and the postprocessor will share.
+      - Extend benchmark_postprocessing_models.py with the gemini-flash arm and the cases/metrics in D-12; commit benchmark.json and a short summary; record the model decision as D-13.
+    verification_ids: [V-BENCH]
+  - id: T-2
+    title: Backend - recommendations in post-processing, awareness, quick tip removal
+    depends_on: [T-1]
+    do:
+      - postprocessor.py and base_instructions.yml use the new schema; skip rules D-2; sanitization D-3; memory aliases D-4; workflow batch decrypt + relevance filter + create->update conversion D-5.
+      - Delete postprocessing_context_suggestions.py's generate_context_suggestion call (keep sanitize/build_memory_document helpers, moved to a recommendations module), quick_tips.py, quick_tip_slug handling, ask_skill_task.py quick_tips_enabled; websockets.py forwards recommendations instead of context_suggestion/quick_tip_slugs.
+      - chats.yml adds encrypted_recommendations; users.yml adds recommendations_enabled (old fields left in place, unused); post_processing_metadata_handler.py, account export and chat_ciphertext_fingerprint.py switch fields.
+      - POST /v1/memory-suggestions/create-draft (D-8) with tests.
+    verification_ids: [V-PYTEST]
+  - id: T-3
+    title: Rust client core - recommendations capability
+    depends_on: [T-2]
+    do:
+      - New client recommendations module - decrypt/encrypt encrypted_recommendations, merge in web_sync/merge.rs (replace the quick tip slug fields), reconcile (D-4 local memory dedupe, dismissed/saved filter), save transition (remove item + write context_entry system message, D-9), wrappers for create-draft and update-preview calls.
+      - Expose through the shared Worker unit (web), the TUI, and the UniFFI surface; CLI/TUI shows recommendations as a short list after a turn and supports the settings toggle.
+      - Remove quick tip fields from rustChatSyncPolicy.ts and the TS sync path.
+    verification_ids: [V-RUST, V-CLI]
+  - id: T-4
+    title: Web - Recommendations card, drafts, side-by-side workflow editor, system events
+    depends_on: [T-3]
+    do:
+      - RecommendationsCard.svelte (replaces QuickTipsCard in ChatHistory.svelte; chat-category gradient container, kind/new-or-update heading, RecommendationEmbedPreview card (UnifiedEmbedPreview, presentation only; click = same action), Create/Update button below it, prev/next icon buttons, dots; no dismiss control, see D-14) with .preview.ts; delete QuickTipsCard, quickTips.ts, ContextSuggestionContainer, contextSuggestionStore/Service/Wire (logic now in the core).
+      - Extract WorkflowEditorWorkspace from routes/workflows/+page.svelte; mount it as the right panel in the ActiveChat side-by-side layout (D-10).
+      - ContextEntryEventNotice.svelte rendered for type context_entry, with deep links.
+      - Settings toggle renamed to Recommendations; i18n keys added, quick tip keys removed.
+      - New chat-recommendations-flow.spec.ts; update chat-flow.spec.ts, follow-up-suggestions-flow.spec.ts and fixtures (remove chat_flow_quick_tip.json).
+    verification_ids: [V-PREVIEW, V-E2E, V-GREP]
+  - id: T-5
+    title: Apple - settings rename and quick tip removal
+    depends_on: [T-3]
+    do:
+      - SettingsAIFull.swift shows the Recommendations toggle; quick tip references removed; card UI is a follow-up Apple parity Task after web ships.
+  - id: T-6
+    title: Specifications and close-out
+    depends_on: [T-4]
+    do:
+      - Rewrite app-memories.suggestions.post-processor and add assertions for persistence, save event and duplicate prevention; remove the Quick tips row from ai-model-routing; present both once for approval with the deployed commit.
+
+risks:
+  - id: R-1
+    risk: Mandatory recommendations push a small model into low-value or repetitive items.
+    mitigation: Deterministic skip rules (D-2), sanitization, per-chat dismissed/saved filter, benchmark usefulness score; tune the prompt before freezing.
+  - id: R-2
+    risk: Larger post-processing output slows follow-up suggestions appearing.
+    mitigation: About +250 output tokens; measured in V-BENCH p95; the answer stream itself is unaffected.
+  - id: R-3
+    risk: Workflow titles/descriptions reach the LLM provider.
+    mitigation: Only the relevant subset (<= 15 or top 8), truncated, same provider and retention as the existing post-processing call; never logged; no stored derivative.
+  - id: R-4
+    risk: Extracting the workflow editor from a 2372-line route breaks the existing /workflows page.
+    mitigation: Extraction is its own deploy with the existing workflows E2E suite green before the side panel uses it.
+

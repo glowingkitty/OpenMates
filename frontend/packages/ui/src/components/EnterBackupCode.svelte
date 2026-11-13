@@ -266,7 +266,8 @@
             
             // Check if user is in signup flow based on last_opened path
             // Import isSignupPath helper for checking signup paths
-            const { isSignupPath } = await import('../stores/signupState');
+            const { isSignupPath, primeSignupLocation } = await import('../stores/signupState');
+            if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(data.user?.last_opened);
             const inSignupFlow = isSignupPath(data.user?.last_opened) || false;
             console.debug('[EnterBackupCode] Login success (backup code), in signup flow:', inSignupFlow);
             

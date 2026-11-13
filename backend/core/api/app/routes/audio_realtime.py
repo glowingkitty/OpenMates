@@ -23,8 +23,6 @@ from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect,
 from backend.apps.audio.pricing import (
     REALTIME_TRANSCRIPTION_CREDITS_PER_MINUTE,
     REALTIME_TRANSCRIPTION_MINIMUM_CREDITS,
-    REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER,
-    REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE,
     calculate_realtime_transcription_credits,
 )
 from backend.core.api.app.models.user import User
@@ -178,12 +176,6 @@ async def _bill_realtime_usage(
         "billing_unit": "second",
         "requests_transcribed": 1,
         "model": MISTRAL_REALTIME_MODEL,
-        "provider_cost_usd_per_minute": float(
-            REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE
-        ),
-        "price_markup_percent": int(
-            (REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER - 1) * 100
-        ),
         "credits_per_minute": REALTIME_CREDITS_PER_MINUTE,
         "minimum_credits": REALTIME_TRANSCRIPTION_MINIMUM_CREDITS,
         "usage_type": (

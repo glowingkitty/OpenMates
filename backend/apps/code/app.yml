@@ -14,138 +14,6 @@ icon_image: |
   coding.svg
 category: work
 last_updated: "2025-11-12"
-settings_and_memories:
-  # Preferred technologies: Languages, frameworks, tools the user prefers
-  - id: preferred_tech
-    name_translation_key: code.preferred_tech
-    description_translation_key: code.preferred_tech.description
-    icon_image: coding.svg
-    type: list
-    example_translation_keys:
-      - "code.preferred_tech.example_1"
-      - "code.preferred_tech.example_2"
-    example_entries:
-      - name: "code.preferred_tech.example_1.name"
-        proficiency: "advanced"
-      - name: "code.preferred_tech.example_2.name"
-        proficiency: "intermediate"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Technology name (e.g., Python, React, Docker)
-          is_title: true
-        proficiency:
-          type: string
-          description: Your proficiency level
-          enum: ["beginner", "intermediate", "advanced", "expert"]
-          is_subtitle: true
-      required:
-        - name
-  # Projects: All projects with status to indicate current state
-  - id: projects
-    name_translation_key: code.projects
-    description_translation_key: code.projects.description
-    icon_image: project.svg
-    type: list
-    example_translation_keys:
-      - "code.projects.example_1"
-      - "code.projects.example_2"
-    example_entries:
-      - name: "code.projects.example_1.name"
-        status: "active"
-        description: "code.projects.example_1.description"
-        git_repo_url: "https://github.com/user/portfolio"
-      - name: "code.projects.example_2.name"
-        status: "completed"
-        description: "code.projects.example_2.description"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Project name
-          is_title: true
-        status:
-          type: string
-          description: Project status
-          enum: ["active", "planned", "completed"]
-          is_subtitle: true
-        description:
-          type: string
-          description: Brief description of the project
-          multiline: true
-        git_repo_url:
-          type: string
-          description: Git repository URL (e.g., https://github.com/user/repo)
-      required:
-        - name
-  # Technologies to learn: Things the user wants to learn
-  - id: want_to_learn
-    name_translation_key: code.want_to_learn
-    description_translation_key: code.want_to_learn.description
-    icon_image: library.svg
-    type: list
-    example_translation_keys:
-      - "code.want_to_learn.example_1"
-      - "code.want_to_learn.example_2"
-    example_entries:
-      - name: "code.want_to_learn.example_1.name"
-      - name: "code.want_to_learn.example_2.name"
-    schema:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Technology or skill you want to learn
-          is_title: true
-      required:
-        - name
-  # Coding setup: capture preferred environment and amount of AI support
-  - id: coding_setup
-    name_translation_key: code.coding_setup
-    description_translation_key: code.coding_setup.description
-    icon_image: library.svg
-    type: list
-    example_translation_keys:
-      - "code.coding_setup.example_1"
-      - "code.coding_setup.example_2"
-    example_entries:
-      - workspace: "terminal"
-        ai_level: "low"
-        input_style: "free_text"
-        notes: "code.coding_setup.example_1.notes"
-      - workspace: "web_ui"
-        ai_level: "high"
-        input_style: "guided_choices"
-        notes: "code.coding_setup.example_2.notes"
-    schema:
-      type: object
-      properties:
-        workspace:
-          type: string
-          description: Main coding workspace used most often
-          enum: ["ide", "terminal", "web_ui", "mixed"]
-          is_title: true
-        ai_level:
-          type: string
-          description: Amount of AI support preferred while coding
-          enum: ["off", "low", "medium", "high"]
-          is_subtitle: true
-        input_style:
-          type: string
-          description: Preferred balance between guided choices and free input
-          enum: ["guided_choices", "free_text", "mixed"]
-        notes:
-          type: string
-          description: Optional details about tools or workflow preferences
-          multiline: true
-      required:
-        - workspace
-        - ai_level
-        - input_style
-
 # IMPORTANT lerning:
 # if we let ai code for too long extensive code changes and then start to test it, it becomes a huge broken mess. instead we need to find other ways. Maybe by reminding llm to break tasks down into smaller steps (that also allows for placebolder code), and build it up so that we can test individual steps better if they work and if so we continue to the next step.
 
@@ -464,6 +332,69 @@ embed_types:
         type: string
       - name: latest_screenshot
         type: object
+  # Test result — written by the worker when a Code Run test run finishes.
+  # Evidence (video, terminal cast, preview frame) stays in encrypted assets and is
+  # referenced by asset_id. Contract: docs/plans/agentic-tests-and-git-sync/contracts/test-run.md
+  - id: test_result
+    category: direct
+    frontend_type: code-test-result
+    backend_type: test_result
+    has_children: false
+    groupable: false
+    icon: coding
+    gradient_var: "--color-app-code"
+    preview_component: code/TestResultEmbedPreview.svelte
+    fullscreen_component: code/TestResultEmbedFullscreen.svelte
+    i18n_namespace: embeds.code.test_result
+    content_fields:
+      - name: kind
+        type: string
+        required: true
+      - name: target
+        type: string
+        required: true
+      - name: run_status
+        type: string
+        required: true
+      - name: exit_code
+        type: number
+      - name: duration_ms
+        type: number
+      - name: passed
+        type: number
+        required: true
+      - name: failed
+        type: number
+        required: true
+      - name: skipped
+        type: number
+        required: true
+      - name: error
+        type: string
+      - name: preview_step_index
+        type: number
+      - name: execution_id
+        type: string
+      - name: project_id
+        type: string
+      - name: tested_embed_ids
+        type: array
+      - name: revisions
+        type: array
+        required: true
+      - name: tests
+        type: array
+      - name: steps
+        type: array
+        required: true
+      - name: evidence
+        type: array
+        required: true
+      - name: is_current
+        type: boolean
+        required: true
+      - name: stale_reason
+        type: string
 instructions:
   - instruction: |
       When code.image_to_html finishes, include its returned code or application
@@ -487,7 +418,11 @@ skills:
     class_path: backend.apps.code.skills.search_repos_skill.SearchReposSkill
     pricing:
       per_unit:
-        credits: 10
+        credits: 1
+    supplier_costs:
+      per_unit:
+        none: true
+        note: GitHub public API
     providers:
       - name: GitHub
         no_api_key: true
@@ -592,7 +527,17 @@ skills:
       unprompted reruns. The sandbox installs supported dependency manifests,
       executes the selected file, streams terminal status, and returns safe
       artifact metadata. The inline files are saved as code embeds and executed
-      automatically; no separate auto-execute flag is needed. A processing result
+      automatically; no separate auto-execute flag is needed. Test runs
+      (test_run) are the exception: their files are the Project snapshot and are
+      never saved as new code embeds. After creating or changing a hosted web app
+      Project, write one Playwright test under web-app/tests/ covering the main
+      user action, run it with test_run (target e2b, kind browser). For hosted
+      Projects omit files and revisions: the Project snapshot is fetched from the
+      client automatically. If the result says the snapshot is being collected,
+      wait for it and call code-run again with the same test_run. Then fix and
+      rerun until it is green within the per-turn budget. Only when it is green call project_commit
+      with a one-line message describing the change; never commit while tests fail.
+      A processing result
       only acknowledges dispatch. Use the completed execution's checked terminal
       output, exit code, and artifacts to explain the actual result; never claim
       success or invent output while the execution is pending. Pricing is 5
@@ -601,7 +546,13 @@ skills:
     providers:
       - name: E2B
     pricing:
-      per_minute: 5
+      per_minute: 3
+    supplier_costs:
+      per_minute:
+        price: 0.00182
+        currency: USD
+        source_url: https://e2b.dev/pricing
+        note: E2B 2 vCPU, 512 MiB
     api_config:
       expose_post: false
     sdk_exposed: true
@@ -863,6 +814,89 @@ skills:
           items:
             type: string
           description: Exact user-enabled credential profile ids; never include credential values.
+        test_run:
+          type: object
+          description: >
+            Test-run mode. Runs a Project's tests instead of one entry file and returns a
+            structured result (status, per-test results, ordered steps, evidence references).
+            For hosted Projects omit files and revisions: the Project snapshot is fetched from
+            the client automatically. If the result says the snapshot is being collected, call
+            code-run again with the same test_run once it is ready. target is optional: it defaults to remote_source when
+            the active Project focus has a connected source with run_command, otherwise e2b.
+            Remote test runs accept only test_command for now. Files are not saved as
+            chat code embeds; the test result records their paths and revisions.
+            Hosted web apps: one Playwright test under web-app/tests/, kind browser,
+            green before project_commit.
+          properties:
+            kind:
+              type: string
+              enum: [unit, browser, cli]
+            target:
+              type: string
+              enum: [e2b, remote_source]
+            revisions:
+              type: array
+              maxItems: 500
+              items:
+                type: object
+                properties:
+                  path:
+                    type: string
+                  revision:
+                    type: string
+                required: [path, revision]
+            setup_commands:
+              type: array
+              maxItems: 20
+              description: Commands run in order before the tests, each as {argv, cwd, timeout_seconds}.
+              items:
+                type: object
+                properties:
+                  argv:
+                    type: array
+                    items:
+                      type: string
+                  cwd:
+                    type: string
+                  timeout_seconds:
+                    type: integer
+                required: [argv]
+            server:
+              type: object
+              description: Optional server started before the tests (browser kind); the tests run once ready_url answers.
+              properties:
+                command:
+                  type: object
+                  properties:
+                    argv:
+                      type: array
+                      items:
+                        type: string
+                    cwd:
+                      type: string
+                  required: [argv]
+                ready_url:
+                  type: string
+                  description: http://localhost:<port>/ or http://127.0.0.1:<port>/ only.
+                ready_timeout_seconds:
+                  type: integer
+              required: [command, ready_url]
+            test_command:
+              type: object
+              properties:
+                argv:
+                  type: array
+                  items:
+                    type: string
+                cwd:
+                  type: string
+                timeout_seconds:
+                  type: integer
+              required: [argv]
+            preview_step:
+              type: string
+              description: Name of the test step whose frame is used as the preview.
+          required: [kind, test_command]
   - id: image_to_html
     anonymous_access: authenticated
     name_translation_key: app_skills.code.image_to_html
@@ -886,10 +920,18 @@ skills:
     pricing:
       tokens:
         input:
-          per_credit_unit: 200
+          per_credit_unit: 445
         output:
-          per_credit_unit: 45
-      per_minute: 5
+          per_credit_unit: 90
+      per_minute: 3
+    supplier_costs:
+      tokens:
+        model: google/gemini-3.7-flash
+      per_minute:
+        price: 0.00195
+        currency: USD
+        source_url: https://e2b.dev/pricing
+        note: E2B 2 vCPU, 1 GiB
     tool_schema:
       type: object
       properties:

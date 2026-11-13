@@ -194,6 +194,10 @@ ai_check_billing:
   when: He Tests, then runs the saved Workflow and retries an accepted decision; Jev returns Unsure on one execution.
   then: Each new dispatched Test or run Jev call both validates and decides for one credit, including Unsure or provider failure after dispatch; no fallback or typing-time call occurs, and a distributed lock prevents the owner-scoped retry from being charged twice. With insufficient credits, provider work never starts or charges.
 ask_ai_execution:
+- id: ask-ai-explicit-memory-snapshot
+  given: The author mentions the memory Writing style in an Ask AI step and saves.
+  when: The workflow runs while no client is online.
+  then: Ask AI uses the saved Vault snapshot of that memory only; other memories and chat history stay unavailable.
 - id: ask-ai-summarizes-existing-events
   given: Alice has added an Events search whose typed output contains event results.
   when: She adds Ask AI with "Summarize [Events Search · Results] and explain what makes each event special", Tests it, then sends [Ask AI · Answer] to chat in a full run.

@@ -1,0 +1,160 @@
+schema_version: 1
+id: feature.app-skill.images-generate
+version: 1
+status: draft
+title: Images Generate Skill — Vector Graphics
+summary: >
+  Images Generate creates and modifies vector graphics (SVG) inside the skill:
+  the chat model only makes a short tool call and chooses how the graphic is
+  made (an author model writes the SVG, an author model writes a deterministic
+  generator script that runs in a sandbox, or Recraft draws it). When the call
+  states requirements, the result is checked against them and clearly unmet
+  ones are corrected automatically within a fixed limit. The drawing is shown
+  while it is made, and the user pays exactly for what was used.
+
+inherits:
+  - architecture.app-skill-execution@1
+
+scope:
+  includes:
+    - images.generate calls with output_filetype svg from first-party chats, for new vector graphics and for changes to an existing SVG or pixel image passed as reference_images.
+    - Choice of the vector engine per request (llm, script, recraft), the author model order with fallbacks, sandbox execution of generator scripts, validation, requirement review and bounded correction.
+    - Draft updates of the generated image embed while the drawing is written, checked and corrected.
+    - Billing of vector authoring from reported token usage, sandbox run time and flat provider fees.
+  excludes:
+    - Raster image generation and editing, image search, viewing and bitmap-to-vector tracing (images.vectorize).
+    - SVG source that a user explicitly asks to see as code in the answer; that stays a code embed.
+    - General code execution (code.run); the script engine only runs a generator whose single output is the SVG.
+    - A guarantee that a drawing matches subjective taste; the review judges only the stated requirements.
+
+models:
+  VectorRequest:
+    prompt:
+      type: string
+      required: true
+    output_filetype:
+      type: enum
+      required: true
+      values: [svg]
+    vector_engine:
+      type: enum
+      required: false
+      values: [llm, script, recraft]
+      default: llm
+    requirements:
+      type: string_list
+      required: false
+      constraints: {natural_language: true, max_items: 8, max_chars_each: 300, absent_means_no_review: true}
+    quality:
+      type: enum
+      required: false
+      values: [default, max]
+      default: default
+    reference_images:
+      type: embed_ref_list
+      required: false
+      constraints: {accepts: [svg_source, generator_script, pixel_image], used_by_engines: [llm, script]}
+
+  VectorAuthoring:
+    author_models:
+      type: ordered_model_list
+      required: true
+      values: [google/gemini-3.8-flash, openai/gpt-6.1-sol, anthropic/claude-haiku-5-5]
+    review_model:
+      type: decision_model
+      required: true
+      values: [typesafe/jev-1.14]
+    max_correction_rounds:
+      type: integer
+      required: true
+      constraints: {value: 2}
+    draft_stages:
+      type: enum
+      required: true
+      values: [drawing, scripting, checking, correcting]
+    sandbox:
+      type: isolated_runtime
+      required: true
+      constraints: {internet: false, run_limit_seconds: 60, credits_per_started_minute: 5, python_standard_library_only: true}
+
+assertions:
+  - id: images-generate.vector.skill-authors-svg
+    type: behavior
+    must: A vector graphic is created or changed through images.generate with output_filetype svg, not by the chat model writing SVG in its answer, so the chat model stays the ordinary routed model. vector_engine selects how it is made; llm (the default) has a dedicated author call write the SVG, script has it write a generator script, recraft uses the Recraft vector models at their flat prices. An author call receives only a compact instruction, the request, the canvas size, the requirements and any references; the author models are tried in their configured order and a later model is used only when an earlier one fails or cannot produce a valid SVG.
+    depends_on: [models.VectorRequest, models.VectorAuthoring.author_models, examples.create]
+  - id: images-generate.vector.script-engine
+    type: behavior
+    must: With vector_engine script the author writes one deterministic Python module (standard library only, fixed seeds) whose build_svg() returns the SVG. The module runs once per attempt in an isolated sandbox without internet access and never in a worker process; a run is stopped after 60 seconds. A script that fails, runs too long or returns no valid SVG is corrected from its error within the same attempt limit as any other draft. The generator is stored with the finished graphic, is not shown to the chat model, and a later script change starts from that generator instead of the generated SVG.
+    depends_on: [models.VectorAuthoring.sandbox, examples.script]
+  - id: images-generate.vector.references-vector-and-pixel
+    type: behavior
+    must: reference_images given with an llm or script vector request are handed to the author in their native form; an SVG reference (a generated vector graphic or an SVG code embed) as its source text to be modified in place, a script-made graphic always as its stored generator (the change is then made with the script engine whichever engine was asked for), a pixel image as an image to redraw or use as visual reference. Parts of an existing graphic that the request does not mention stay unchanged. An SVG too large to edit as source fails that attempt explicitly instead of being cut off. A generated graphic stays readable as a reference for 24 hours after it was made, also after the chat stored it encrypted. When any named reference cannot be loaded the request fails explicitly without a charge; it is never drawn without its reference.
+    depends_on: [models.VectorRequest.reference_images, examples.modify]
+  - id: images-generate.vector.requirements-review
+    type: behavior
+    must: requirements are optional natural-language conditions on the finished graphic. Without requirements no review call is made and the first valid drawing is delivered. With requirements the rendered result of every engine, including Recraft, is judged by the review model against each requirement; only a requirement that is clearly not met counts, an unsure answer never does. A clearly unmet requirement triggers an automatic follow-up by the author model that names the unmet requirements; for a Recraft drawing the author edits its SVG source, or redraws from its rendering when the source is too large. When the limit is reached the last valid drawing is delivered together with the requirements it still misses, and an unavailable review never blocks delivery.
+    depends_on: [models.VectorRequest.requirements, models.VectorAuthoring, examples.correction]
+  - id: images-generate.vector.validated-reviewed-corrected
+    type: invariant
+    must: Only a well-formed standalone SVG with a viewBox, visible shapes and no scripts, event attributes, embedded images, foreign content or external references is ever delivered, whichever engine produced it. An invalid draft triggers a correction that names the problem. At most two correction rounds follow the first draft, counting invalid drafts, failed scripts and unmet requirements alike. When no author model produces a valid SVG the request fails explicitly without a charge.
+    depends_on: [models.VectorAuthoring, examples.correction]
+  - id: images-generate.vector.progressive-drafts
+    type: behavior
+    must: While the author writes SVG, the generated image embed receives processing updates carrying the SVG written so far in complete lines, a stage (drawing, checking or correcting) and the attempt number, so the client shows the picture building up instead of an empty placeholder followed by the finished image. While a generator script is written and run the embed shows the stage scripting, and the computed picture appears as soon as it exists when it is being checked. The finished embed replaces the draft with the stored file.
+    depends_on: [models.VectorAuthoring.draft_stages, examples.create]
+  - id: images-generate.preview.whole-picture
+    type: invariant
+    must: The preview file stored for a generated picture or vector graphic shows the whole picture in its own aspect ratio; it is scaled down to fit the preview size and never cropped or enlarged. A card that is wider or taller than the picture leaves empty space beside it instead of cutting it off.
+    depends_on: [examples.create]
+  - id: images-generate.provenance.ai-label
+    type: invariant
+    must: Every finished generated or modified picture shows a small "AI generated" icon over the picture in its preview and in its fullscreen view. It expands on hover, focus or click to the label and the model name. It is an overlay of the interface, never drawn into the picture, and it does not cover the preview's buttons or version badge.
+    depends_on: [examples.create]
+  - id: images-generate.revision.same-embed-new-version
+    type: behavior
+    must: A change to a generated picture or vector graphic of the same chat does not create a second image embed. The existing image embed gains the next version, and every earlier version, including its files, stays stored and viewable until the embed is deleted. A reference to an uploaded image or to an image of another chat creates a new image as before.
+    depends_on: [models.VectorRequest.reference_images, examples.modify]
+  - id: images-generate.revision.message-shows-its-version
+    type: behavior
+    must: Every message shows the version of the image that was valid at that message; the display rule of embed-user-edits.display.latest-follows-user-versions applies, so a message follows later user-made versions until the next assistant-made version and keeps its picture when tied to an earlier assistant-made version, also after a reload and on another device. The image fullscreen offers the version history with each version's picture.
+    depends_on: [examples.modify]
+  - id: images-generate.revision.each-version-billed-once
+    type: invariant
+    must: Each version of an image is charged exactly once for what that version used; a change is never free because the image was charged before, and a retried delivery of the same version is never charged twice. A change that fails leaves the image at its previous version without a charge.
+    depends_on: [examples.billing]
+  - id: images-generate.vector.token-metered-billing
+    type: invariant
+    must: A vector drawing is charged for everything it used and nothing else. Every author draft, correction and review call is priced from that call's reported input and output tokens at that model's price, and the exact sum is rounded down once to whole credits. Every sandbox run adds the Code Run price per started minute. A Recraft drawing costs its flat price, plus the review and follow-up calls when requirements were given. The platform minimum charge applies. A call without reported usage or without a price fails the request instead of being free or estimated.
+    depends_on: [models.VectorAuthoring, examples.billing]
+  - id: images-generate.draft.flash-text-only
+    type: behavior
+    must: A draft picture requested with a text prompt only is generated with the Recraft V4.1 Flash model and charged that model's price, whatever quality setting the request carries. A draft that names reference images is generated and charged with the image-editing draft model instead, because the Flash model takes no image input. The image shows the name of the model that actually produced it.
+    depends_on: [examples.billing]
+  - id: images-generate.safety.named-person-review
+    type: behavior
+    must: A picture request that names someone is not refused on the name alone. When the fixed safety rules find a name without an explicit request to imitate, the safeguard model decides who the name refers to. A private person the user plausibly knows, a fictional character, an animal or a thing that is not a person is generated when the picture is harmless. A real public figure, a harmful or deceptive depiction of any real person, an unclear answer, a missing or failed safeguard model all end in the same refusal as before. A request that explicitly asks to imitate, clone or deepfake a person is refused by the fixed rules without asking the model. The model call happens once, before the picture is queued, and only for requests that contain a name.
+    depends_on: [examples.named_person]
+
+applies_to:
+  rest_api:
+    required: true
+    role: The skill and its task own engine choice, authoring, review, correction, draft updates and billing.
+  cli:
+    required: true
+    role: CLI chats trigger the same skill and receive the finished vector file.
+  sdks:
+    required: true
+    role: SDK chats trigger the same skill and receive the finished vector file.
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [create, script, modify, correction, billing, named_person, named_person_limits]

@@ -3,7 +3,6 @@ description_translation_key: tasks.description
 icon_image: task.svg
 category: productivity
 last_updated: "2026-07-15"
-settings_and_memories: []
 embed_types:
   - id: create
     category: app-skill-use

@@ -16,7 +16,8 @@ from typing import Any
 
 from backend.apps.ai.processing.jev_decisions import evaluate_jev_decisions, noul_value
 from backend.apps.ai.processing.rule_context import (
-    authorized_project_memory_documents, eligible_rule_catalog, parse_custom_rule_documents, select_rules_with_jev,
+    authorized_project_memory_documents, eligible_rule_catalog, parse_custom_rule_documents,
+    select_rules_with_jev,
 )
 
 logger = logging.getLogger(__name__)

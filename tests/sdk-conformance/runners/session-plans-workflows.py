@@ -139,7 +139,10 @@ async def run_vector(suite, vector):
             await rejected(client.workflows.create(bad, filters=filters))
         elif mode == "scope":
             team = {"team_id": suite["team"]["team_id"]}
-            await rejected(client.plans.list(filters=team), "unavailable")
+            await rejected(
+                client.plans.create(suite["input"]["plan"], filters=team),
+                "unavailable",
+            )
             await rejected(
                 client.workflows.run(workflow, suite["input"]["run"], filters=team),
                 "unavailable",

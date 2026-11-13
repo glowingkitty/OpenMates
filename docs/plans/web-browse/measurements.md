@@ -855,3 +855,54 @@ retain its controller-safe read-only readiness behavior. Combining navigation
 with its first observation can remove another round trip, but requires a new
 runtime/template and direct isolation/privacy qualification. Measure crawler
 policy and browser navigation separately before changing navigation waits.
+
+## Browse v2 real chat flows on dev, 12 November
+
+Six chat flows ran through the real web-app chat path on dev with the personal
+dev account and Gemini 3.8 Flash: a two-page public catalogue, an online-shop
+search for a product that is legal only in some countries, a site search form,
+a JavaScript-rendered page, a fact the page does not contain, and the
+OpenMates start page. Shop names and page contents stay out of this record.
+
+| Run | Source | Passed | Notes |
+|-----|--------|--------|-------|
+| 2 | `16499ca` | 4/6 | Large lists rejected as a whole by verification. |
+| 3 | `f4e59ea` | 5/6 | Answer review and partial results; shop search returned nothing. |
+| 4 | `6165347` | 4/6 | Safety threshold 0.9 stopped plain navigation at scores 0.87, 0.80 and 0.69. |
+| 5 | 0.6 threshold, simple age dialogs | 4/6 | Shop flow stopped on no progress; search form refused by the three-browser cap. |
+| 6 | `6c3a3da` | 5/6 | Search form passes with the cap fix; shop flow reached the product category but ended `needs_user`. |
+| 7 | `b22835a` | 5/6 | Shop answer: 15 values matched, 0 unmatched, pruned answer invalid (schema keyword `type`). |
+| 9 | `65cc40a` | 5/6 | Shown prices now become numbers, but the shop answer still failed `type`. |
+| 10 | `3f05217` | 6/6 | Shop flow completed: 19 matched values, five kits with prices, legal notice in the reply, 39 credits. |
+
+Run 5 per-flow cost and time (one browse run each unless noted):
+
+| Flow | Outcome | Total s | Planner s | Credits |
+|------|---------|---------|-----------|---------|
+| Catalogue, 2 pages (2 runs) | completed; completed partial | 48.9; 54.6 | 22.6; 32.0 | 72; 83 |
+| JavaScript page | completed | 15.2 | 2.4 | 5 |
+| Missing fact | needs_user (truthful) | 11.0 | 3.2 | 0 |
+| Own site (3 runs) | partial; partial; needs_user | 40.0; 18.2; 7.3 | 14.6; 4.6; 3.4 | 35; 47; 47 |
+| Shop | needs_user, no progress | 39.0 | 16.6 | 0 |
+
+Findings and fixes:
+
+- The shop flow opened a guessed deep URL that was a not-found page. A region
+  chooser and a cookie banner covered it, every click was refused as covered,
+  and the planner only saw `rejected`. The planner now receives the runtime's
+  fixed refusal reason, closes covering overlays first and uses site search,
+  navigation or the start page after an error page.
+- A fourth browser in one chat history was refused while three earlier
+  browsers were idle but still held by the AI (`needs_user` sessions stay active
+  until the idle sweep). A fourth browser now pauses the least recently used
+  idle AI-held browser; browsers under the user's control are never paused.
+- The runtime offers the first 150 visible controls in document order. On shop
+  pages with large menus, product links lower on the page can fall outside that
+  window. Prioritising controls near the viewport needs a runtime template
+  rebuild and is not done yet.
+- The shop answer matched every value on the page but broke its schema
+  (keyword `type`): a field held a value of another type, such as a price shown
+  as text or a missing value as `null`. Shown prices are now converted to the
+  number the schema asks for, and rows or optional fields that still break the
+  schema are dropped and listed as missing, so the remaining rows reach the
+  answer review. Metrics now also record the JSON type of the offending value.

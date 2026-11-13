@@ -57,6 +57,16 @@ export const variants = {
     carriers: ['Example Rail'], carrierCodes: [], arrivalDelayMinutes: 12,
     optimization: { optimized_by: 'openmates', badge: 'Optimized by OpenMates' },
   },
+  busStopCodes: {
+    ...defaultProps, transportMethod: 'bus', bookingProvider: 'Example Bus', carriers: ['Example Bus'], carrierCodes: [],
+    airlineLogo: '/icons/server.svg',
+    origin: 'Munich central bus station', destination: 'Vienna Erdberg (VIB)',
+    departure: '2026-11-18T05:20:00+01:00', arrival: '2026-11-18T11:00:00+01:00', duration: '5h 40m',
+    connection: { legs: [{
+      origin: 'Munich central bus station', destination: 'Vienna Erdberg (VIB)',
+      departure: '2026-11-18T05:20:00+01:00', arrival: '2026-11-18T11:00:00+01:00', duration: '5h 40m',
+    }] },
+  },
   baggageExcluded: { ...defaultProps, connection: { ...defaultProps.connection, baggage_included: false } },
   baggageIncluded: { ...defaultProps, connection: { ...defaultProps.connection, baggage_included: true } },
   baggageConflicting: { ...defaultProps, connection: { ...defaultProps.connection, baggage_included: true, checked_baggage_included: false } },

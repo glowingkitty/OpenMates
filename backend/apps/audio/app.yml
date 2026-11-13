@@ -172,7 +172,10 @@ skills:
       - Mistral
     full_model_reference: mistral/voxtral-mini-2602
     pricing:
-      per_minute: 3 # Existing batch skill price; 1-minute minimum enforced in skill
+      per_minute: 5
+    supplier_costs:
+      per_minute:
+        model: mistral/voxtral-mini-2602
     api_config:
       expose_get: true # Expose GET so REST API callers can query skill metadata + use for uploaded audio
       expose_post: false # Custom POST registered by _register_audio_custom_routes() — uses session+API key auth
@@ -237,12 +240,16 @@ skills:
       confirmation ticks, gentle alerts, transitions, and product sounds. Do not
       use this for spoken words, narration, vocals, voice cloning, scams, public
       figures, or deceptive media; use audio.speak for explicit speech generation.
+      Not for the sound of a video: videos.generate makes a video's voice-over, sound effects and music itself.
     class_path: backend.apps.audio.skills.generate_skill.GenerateSkill
     providers:
       - name: ElevenLabs
     full_model_reference: elevenlabs/eleven_text_to_sound_v2
     pricing:
-      per_second: 20
+      per_second: 15
+    supplier_costs:
+      per_second:
+        model: elevenlabs/eleven_text_to_sound_v2
     tool_schema:
       type: object
       properties:
@@ -337,12 +344,16 @@ skills:
       OpenMates voice preset after a required GPT OSS safeguard approval. Do not
       use this for automatic assistant voice replies, long narration, voice
       cloning, raw provider voice IDs, impersonation, scams, or deceptive speech.
+      Not for the sound of a video: videos.generate makes a video's voice-over, sound effects and music itself.
     class_path: backend.apps.audio.skills.speak_skill.SpeakSkill
     providers:
       - name: ElevenLabs
     full_model_reference: elevenlabs/eleven_v3
     pricing:
-      per_second: 2
+      per_second: 2.51
+    supplier_costs:
+      per_second:
+        model: elevenlabs/eleven_v3
     tool_schema:
       type: object
       properties:

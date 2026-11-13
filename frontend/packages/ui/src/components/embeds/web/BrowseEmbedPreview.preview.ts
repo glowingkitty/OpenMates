@@ -10,6 +10,7 @@ export const variants = {
   processing: { ...defaults, content: { status: 'processing', task: 'Find the documentation' } },
   processingReady: { ...defaults, content: { status: 'processing', task: 'Find the documentation', session_id: '11111111-1111-4111-8111-111111111111' } },
   completed: { ...defaults, content: { ...content, results: [{ ...content.results[0], status: 'completed' }] } },
+  partial: { ...defaults, content: { ...content, results: [{ ...content.results[0], status: 'completed', missing: ['items[0].price', 'items[1].rating', 'purpose'] }] } },
   error: { ...defaults, content: { status: 'error', results: [{ status: 'failed', reason: 'Website unavailable' }] } },
   cancelled: { ...defaults, content: { status: 'cancelled', results: [{ status: 'cancelled' }] } },
   mobile: { ...defaults, isMobile: true },

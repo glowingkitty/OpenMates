@@ -13,7 +13,7 @@ import { writable } from 'svelte/store';
 /**
  * Available capability filter types:
  * - 'all'               — no filter (show every app)
- * - 'settings_memories' — apps with settings_and_memories defined
+ * - 'settings_memories' — apps that publish Memories
  * - 'focus_modes'       — apps with focus_modes defined
  * - 'skills'            — apps with skills defined
  */

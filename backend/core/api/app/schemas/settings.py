@@ -180,9 +180,9 @@ class AiModelDefaultsRequest(BaseModel):
         default=None,
         description="Whether AI chat follow-up suggestion chips and proactive next-step prompts are enabled. Omit to leave unchanged."
     )
-    quick_tips_enabled: Optional[bool] = Field(
+    recommendations_enabled: Optional[bool] = Field(
         default=None,
-        description="Whether AI chat product quick tip cards are enabled. Omit to leave unchanged."
+        description="Whether AI chat Recommendations (memory and workflow suggestions) are enabled. Default true. Omit to leave unchanged."
     )
     default_app_skill_models: Optional[dict[str, Optional[str]]] = Field(
         default=None,
@@ -196,10 +196,10 @@ class AiModelDefaultsRequest(BaseModel):
                 "default_ai_model_complex": "anthropic/claude-fable-5",
                 "default_ai_model_most_demanding": "google/gemini-3.7-flash-high",
                 "follow_up_suggestions_enabled": True,
-                "quick_tips_enabled": True,
+                "recommendations_enabled": True,
                 "default_app_skill_models": {
                     "images.generate": "recraft/recraftv4_1_pro",
-                    "images.generate_draft": "bfl/flux-2-klein"
+                    "images.generate_draft": "recraft/recraftv4_1_flash"
                 }
             }
         }

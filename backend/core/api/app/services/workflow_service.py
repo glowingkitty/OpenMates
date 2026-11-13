@@ -1591,14 +1591,20 @@ class WorkflowService:
 
     def list_discovery_metadata(
         self, user_id: str, vault_key_id: str | None = None, team_id: str | None = None,
-        limit: int = 20,
+        limit: int = 20, *, include_all: bool = False,
     ) -> list[dict[str, Any]]:
-        """Preserve library order while loading only shortlisted title/description blobs."""
+        """Preserve library order while loading only shortlisted title/description blobs.
+
+        include_all lifts the 20-row cap for internal in-memory use (chat
+        Recommendations awareness); the decrypted rows must never be cached or logged.
+        """
         self.ensure_enabled()
-        if not 1 <= limit <= 20:
+        if not include_all and not 1 <= limit <= 20:
             raise ValueError("Workflow discovery limit is invalid")
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
-        records = self._list_persisted_workflow_records(user_id, team_id)[:limit]
+        records = self._list_persisted_workflow_records(user_id, team_id)
+        if not include_all:
+            records = records[:limit]
         refs = list(dict.fromkeys(ref for record in records
             for ref in (record.get("encrypted_title_ref"), record.get("encrypted_description_ref")) if ref))
         owners_by_ref = {ref: record.get("owner_hash") for record in records
@@ -1641,7 +1647,8 @@ class WorkflowService:
                  "description": str(decoded[record["encrypted_description_ref"]])[:1000]
                     if record.get("encrypted_description_ref") else "",
                  "enabled": bool(record["enabled"]), "status": record["status"],
-                 "current_version_id": record["current_version_id"]} for record in records
+                 "current_version_id": record["current_version_id"],
+                 "updated_at": int(record.get("updated_at") or 0)} for record in records
                 if record.get("encrypted_title_ref") in decoded
                 and (not record.get("encrypted_description_ref") or record["encrypted_description_ref"] in decoded)]
 

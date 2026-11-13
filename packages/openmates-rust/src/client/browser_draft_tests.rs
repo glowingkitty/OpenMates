@@ -293,3 +293,101 @@ fn local_draft_scope_refuses_stale_admission_owner_generation_and_actual_master(
         assert!(OwnedOperationScope::capture_local_draft(&c,&admission).is_err(),"stale actual local draft admission must refuse: {mutation}");
     }
 }
+// contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,sync.client.shared-rust-policy
+#[tokio::test]
+async fn local_profile_write_has_no_platform_payload_or_transport_ack() {
+    let mut c = client();
+    let s = store();
+    let prepared = c
+        .prepare_browser_draft_with_preview_io_json(
+            OWNER,
+            CHAT,
+            "Body",
+            Some("Body"),
+            SCOPE,
+            20,
+            io(s.clone()),
+        )
+        .await
+        .unwrap();
+    // A local-only profile has no server authority: no payload, no transport ack.
+    assert!(matches!(prepared.remote_payload(&c), Err(Error::Forbidden)));
+    assert!(matches!(
+        prepared.acknowledge_transport(&mut c, io(s.clone())).await,
+        Err(Error::Forbidden)
+    ));
+    assert!(!s.borrow().change.is_null());
+}
+// contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,sync.client.shared-rust-policy
+#[tokio::test]
+async fn display_preview_is_encrypted_and_platform_transport_ack_removes_only_this_intent() {
+    let mut c = client();
+    // Server-checked browser session (the web history admission), not a local profile.
+    c.browser_local_read_only = false;
+    let s = store();
+    let prepared = c
+        .prepare_browser_draft_with_preview_io_json(
+            OWNER,
+            CHAT,
+            "Hello [@Claude](mate:claude) body",
+            Some("Hello @Claude body"),
+            SCOPE,
+            20,
+            io(s.clone()),
+        )
+        .await
+        .unwrap();
+    let preview = s.borrow().row["encrypted_draft_preview"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert_eq!(
+        &*c.master_capability()
+            .unwrap()
+            .decrypt_bytes(&preview)
+            .await
+            .unwrap(),
+        "Hello @Claude body".as_bytes()
+    );
+    let payload: Value = serde_json::from_str(&prepared.remote_payload(&c).unwrap()).unwrap();
+    assert_eq!(payload["chat_id"], CHAT);
+    assert_eq!(payload["draft_v"], 10);
+    assert_eq!(payload["encrypted_draft_preview"], preview);
+    assert_eq!(
+        payload["encrypted_draft_md"],
+        s.borrow().row["encrypted_draft_md"]
+    );
+    assert!(!payload.to_string().contains("Hello"));
+    assert!(!s.borrow().change.is_null());
+    let synced = prepared
+        .acknowledge_transport(&mut c, io(s.clone()))
+        .await
+        .unwrap();
+    let synced: Value = serde_json::from_str(&synced.take(&c).unwrap()).unwrap();
+    assert_eq!(synced["remoteSynced"], true);
+    assert_eq!(synced["pending"], false);
+    assert!(s.borrow().change.is_null());
+    assert_eq!(s.borrow().plans.last().unwrap(), "ack_draft");
+}
+// contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
+#[tokio::test]
+async fn empty_or_oversized_display_preview_refuses_before_any_io() {
+    for preview in ["   ".to_owned(), "x".repeat(4 * 1024 + 1)] {
+        let mut c = client();
+        let s = store();
+        assert!(matches!(
+            c.prepare_browser_draft_with_preview_io_json(
+                OWNER,
+                CHAT,
+                "Body",
+                Some(&preview),
+                SCOPE,
+                20,
+                io(s.clone())
+            )
+            .await,
+            Err(Error::Invalid(_))
+        ));
+        assert!(s.borrow().plans.is_empty());
+    }
+}

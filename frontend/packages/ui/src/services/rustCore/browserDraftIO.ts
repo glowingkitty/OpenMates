@@ -9,6 +9,16 @@ import type {BrowserDraftEffectHandler} from './browserDraftProtocol';
  */
 export function createBrowserDraftEffectHandler(ports:RustChatIOPorts,current:()=>void):BrowserDraftEffectHandler{
  assertRustChatIOPorts(ports);
+ return createDraftEffectHandler(ports,current);
+}
+/** IndexedDB surface the closed draft plan executor needs. */
+export interface DraftIDBPorts{current():void;open():IDBOpenDBRequest;transaction(database:IDBDatabase,stores:string|string[],mode:IDBTransactionMode):IDBTransaction}
+/** The same closed plan executor over a plain IndexedDB port. Used by the shared
+ * Rust core Worker's `drafts` unit, which opens the existing chats_db in its
+ * own realm (no page routing lease exists there). Page callers use
+ * createBrowserDraftEffectHandler, which also asserts the original page lease.
+ */
+export function createDraftEffectHandler(ports:DraftIDBPorts,current:()=>void):BrowserDraftEffectHandler{
  const usedEvents=new WeakSet<Event>();
  const native=(event:Event,target:EventTarget)=>{if(!isNativeChatIOEvent(event,target)||usedEvents.has(event))throw Error('draft_native_event_required');usedEvents.add(event);};
  const same=(a:unknown,b:unknown):boolean=>{

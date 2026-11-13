@@ -17,6 +17,7 @@ const { parse, stringify } = require('yaml');
 const { randomUUID } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { copyRemoteHostSession, waitForFixtureEvent, stopFixtureProcess } = require('./helpers/project-remote-fixture');
+const { naturalProjectName } = require('./helpers/project-names');
 const { email, password, otpKey } = getTestAccount();
 
 test.describe('Workflow YAML files through CLI and REST', () => {
@@ -115,7 +116,7 @@ test.describe('Workflow YAML files through CLI and REST', () => {
     let workflowId: string | null = null;
     try {
       await loginWorkflowCliViaPair(page, apiUrl, cliHome, 'CLI_WORKFLOW_PENDING_FILE');
-      const created = await runWorkflowCliJson(apiUrl, cliHome, ['projects', 'create', `Portable ${Date.now()}`, '--write-policy', 'apply_and_show'], 'create Project');
+      const created = await runWorkflowCliJson(apiUrl, cliHome, ['projects', 'create', naturalProjectName('Shared workflows'), '--write-policy', 'apply_and_show'], 'create Project');
       projectId = created.projectId ?? created.project_id ?? created.project?.project_id;
       expect(projectId).toBeTruthy();
       const now = Math.floor(Date.now() / 1000);

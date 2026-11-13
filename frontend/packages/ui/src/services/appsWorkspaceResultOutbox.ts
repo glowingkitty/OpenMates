@@ -77,15 +77,6 @@ function openOutboxDb(): Promise<IDBDatabase> {
   });
 }
 
-function validateRecord(record: PendingAppsResult): void {
-  if (!record.userId || !record.rootEmbedId || !record.revision ||
-      record.id !== makePendingAppsResultId(record.userId, record.teamId, record.rootEmbedId) ||
-      record.graph.root_embed_id !== record.rootEmbedId ||
-      (record.graph.team_id ?? null) !== record.teamId) {
-    throw new Error("Invalid Apps result outbox scope");
-  }
-}
-
 /** Copy only encrypted fields so accidental plaintext additions never reach disk. */
 function storedRecord(record: PendingAppsResult): StoredPendingAppsResult {
   const graph = record.graph;
@@ -147,7 +138,7 @@ async function withTransaction<T>(mode: IDBTransactionMode, operation: (store: I
 }
 
 export async function stagePendingAppsResult(record: PendingAppsResult): Promise<void> {
-  validateRecord(record);
+  await (await import('./rustCore/apps/rustAppsRetention')).assertRustOutboxScope(record);
   await withTransaction<void>("readwrite", (store) => { store.put(storedRecord(record)); });
 }
 
@@ -171,7 +162,7 @@ export async function listPendingAppsResults(userId: string, teamId: string | nu
 
 /** An upload acknowledgement may only clear the revision it actually uploaded. */
 export async function deletePendingAppsResult(record: PendingAppsResult): Promise<void> {
-  validateRecord(record);
+  await (await import('./rustCore/apps/rustAppsRetention')).assertRustOutboxScope(record);
   await withTransaction<void>("readwrite", (store) => {
     const request = store.get(record.id);
     request.onsuccess = () => {

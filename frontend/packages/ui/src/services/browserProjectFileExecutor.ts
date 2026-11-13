@@ -38,6 +38,8 @@ import {
 import type { ProjectFileMutation } from "../utils/projectFileMutationProtocol";
 import { broadcastProjectFilesChanged } from "./projectBrowserEvents";
 import { chatDB } from "./db";
+import { PROJECT_RUST_CORE } from "./projectState/decide";
+import { decideProjectFile } from "./projectState/projectFileDecide";
 import { personalDataStore } from "../stores/personalDataStore";
 import { loadProjectFilePrivacy, PROJECT_FILE_PRIVACY_PREFIX } from "./projectFilePrivacyStorage";
 import type { ProjectFilePrivacy } from "./projectFilePrivacy";
@@ -200,6 +202,7 @@ export function createBrowserProjectFileExecutor(options: BrowserProjectFileExec
             chatKey,
             teamId: focus.team_id,
             privatePaths,
+            decidePolicy: PROJECT_RUST_CORE ? decideProjectFile : undefined,
             isIgnoredReadApproved: (path, approvalJob) => Boolean(
               approvedIgnoredRead
               && approvedIgnoredRead.path === path

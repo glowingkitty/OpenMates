@@ -150,3 +150,49 @@ def test_bind_task_cli_keeps_hidden_codex_aliases(monkeypatch):
                             "--expected-worktree", "/tmp/w", "--previous-owner-stopped"])
         sessions.main()
     assert [call[0][1] for call in calls] == [TASK, TASK]
+
+
+def _stale_start_env(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    data = {"sessions": {"afb6": {"task": "old", "worktree": {"path": str(tmp_path)},
+                                  "agent_task_id": TASK}}}
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_resolve_repo_id", lambda value: "openmates")
+    monkeypatch.setattr(sessions, "_repo_metadata", lambda value: {"repo_id": value, "repo_kind": "control_plane"})
+    monkeypatch.setattr(sessions, "_validate_session_repo", lambda repo: None)
+    monkeypatch.setattr(sessions, "_agent_task_identity", lambda: TASK)
+    monkeypatch.setattr(sessions, "session_for_agent_task", lambda d, t, repo_id=None: ("afb6", d["sessions"]["afb6"]))
+    monkeypatch.setattr(sessions, "_worktree_commits_behind_dev", lambda path: 300)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda cb: cb(data))
+    monkeypatch.setattr(sessions, "ensure_session_worktree", lambda sid: None)
+    monkeypatch.setattr(sessions, "_session_checkout_root", lambda record: tmp_path)
+    monkeypatch.setattr(sessions, "_refuse_new_session_when_host_overloaded", lambda: None)
+    monkeypatch.setattr(sessions, "register_session_record",
+                        lambda rec: ("new1", None, None, None, True))
+    return data, SimpleNamespace
+
+
+def test_stale_binding_allows_read_only_start(monkeypatch, tmp_path, capsys):
+    # The signature default of _binding_problem captured the original fn, so
+    # patch it directly to report staleness.
+    data, NS = _stale_start_env(monkeypatch, tmp_path)
+    monkeypatch.setattr(sessions, "_binding_problem", lambda record: "stale")
+    sessions.cmd_start(NS(mode="bug", task="x", full=False, json=True, skip_binding_guard=True))
+    assert json.loads(capsys.readouterr().out)["session_id"] == "afb6"
+
+
+def test_stale_binding_still_refuses_start(monkeypatch, tmp_path):
+    data, NS = _stale_start_env(monkeypatch, tmp_path)
+    monkeypatch.setattr(sessions, "_binding_problem", lambda record: "stale")
+    with pytest.raises(SystemExit) as exc:
+        sessions.cmd_start(NS(mode="bug", task="x", full=False, json=True))
+    assert exc.value.code == 2
+
+
+def test_start_new_detaches_stale_binding(monkeypatch, tmp_path, capsys):
+    data, NS = _stale_start_env(monkeypatch, tmp_path)
+    monkeypatch.setattr(sessions, "_binding_problem", lambda record: "stale")
+    data["sessions"]["new1"] = {"task": "x", "worktree": {"path": str(tmp_path)}}
+    sessions.cmd_start(NS(mode="bug", task="x", full=False, json=True, new=True))
+    assert data["sessions"]["afb6"]["agent_task_id"] is None
+    assert json.loads(capsys.readouterr().out)["session_id"] == "new1"

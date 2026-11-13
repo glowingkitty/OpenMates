@@ -180,15 +180,30 @@ docs = om.docs.search("API keys")
 
 ```python
 overview = om.billing.overview()
-invoices = om.billing.invoices()
+invoices = om.billing.list_invoices()
+pdf = om.billing.download_invoice(invoice_id)  # openmates.RawDownload
+open(pdf.filename or "invoice.pdf", "wb").write(pdf.data)
 ```
+
+`download_invoice`, `download_credit_note` and `usage_export` return a typed,
+immutable `openmates.RawDownload` (`content_type`, `filename`, `data`), matching
+the npm `RawDownload` and Rust `sdk_ops::RawDownload`. `filename` is the last
+path component of the server's `Content-Disposition` name (`filename*` UTF-8
+wins over `filename`); it is `None` for missing, malformed, `.` or `..` names.
+Compatibility: 0.30.0 returned a plain `dict`; `RawDownload` keeps read-only
+mapping access (`download["data"]`, `.get()`, `.keys()`, `dict(download)`), so
+existing callers keep working, but it can no longer be mutated.
 
 ### Work with memories
 
 ```python
-memory_types = om.memories.types()
-saved_memories = om.memories.list(app_id="web")
+published = om.memories.published(app_id="web")  # read-only app guidance
+legacy_entries = om.memories.list()  # deprecated: legacy typed entries (read/delete only)
 ```
+
+Each listed entry is decrypted locally; `data` is the decoded JSON or TOON
+plaintext (like npm), the plain text when neither applies, or `None` when the
+entry is empty or cannot be decrypted with this API key.
 
 ### Create reminders
 
@@ -208,7 +223,7 @@ reminder = om.reminders.create({
 | `om.docs.*` | Search OpenMates documentation. |
 | `om.billing.*` | Usage overview, invoices, and billing metadata. |
 | `om.account.*` | Account info, interests, storage, export helpers. |
-| `om.memories.*` | List, create, update, and delete encrypted memory entries when your API key has memory scopes. |
+| `om.memories.*` | Read published app guidance; deprecated read/delete of legacy typed entries. Typed memories were replaced by Memories, managed in the web app under Settings > Memories. |
 | `om.reminders.*` | Create, list, and manage reminders. |
 | `om.connected_accounts.*` | Import connected-account data with explicit user approval flows. |
 | `om.embeds.*` | Inspect and share embed data when available to the API key. |
@@ -297,11 +312,11 @@ it yet; from a source checkout run
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.29`, in the web app.
+OpenMates shows the short product line, for example `v0.30`, in the web app.
 Python package artifacts use exact release-line versions:
 
-- `0.29.0aN` is an alpha prerelease from the `dev` branch.
-- `0.29.0` is a stable release from `main`.
+- `0.30.0aN` is an alpha prerelease from the `dev` branch.
+- `0.30.0` is a stable release from `main`.
 
 Install stable releases with `pip install openmates`. Install prereleases with
 `pip install --pre openmates`.

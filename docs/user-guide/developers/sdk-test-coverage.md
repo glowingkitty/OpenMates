@@ -121,15 +121,13 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `ideabucket` | `om.ideabucket.settings()` | `om.ideabucket.settings()` | direct | direct |
 | `ideabucket` | `om.ideabucket.status()` | `om.ideabucket.status()` | direct | direct |
 | `inspirations` | `om.inspirations.list()` | `om.inspirations.list()` | direct | direct |
+| `learning_mode` | `om.learningMode.collaborative()` | `om.learning_mode.collaborative()` | direct | direct |
 | `learning_mode` | `om.learningMode.disable()` | `om.learning_mode.disable()` | direct | direct |
 | `learning_mode` | `om.learningMode.enable()` | `om.learning_mode.enable()` | direct | direct |
 | `learning_mode` | `om.learningMode.status()` | `om.learning_mode.status()` | direct | direct |
-| `memories` | `om.memories.create()` | `om.memories.create()` | direct | direct |
 | `memories` | `om.memories.delete()` | `om.memories.delete()` | direct | direct |
 | `memories` | `om.memories.list()` | `om.memories.list()` | direct | direct |
 | `memories` | `om.memories.published()` | `om.memories.published()` | direct | direct |
-| `memories` | `om.memories.types()` | `om.memories.types()` | direct | direct |
-| `memories` | `om.memories.update()` | `om.memories.update()` | direct | direct |
 | `new_chat_suggestions` | `om.newChatSuggestions.list()` | `om.new_chat_suggestions.list()` | direct | direct |
 | `notifications` | `om.notifications.list()` | `om.notifications.list()` | direct | direct |
 | `notifications` | `om.notifications.status()` | `om.notifications.status()` | direct | direct |

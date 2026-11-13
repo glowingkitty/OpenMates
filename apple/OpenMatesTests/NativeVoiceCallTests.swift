@@ -1,8 +1,10 @@
 // Specification: specifications/features/video-call/specification.yml
 // Deterministic protocol evidence only: these tests do not prove microphone,
 // speaker, physical Watch networking, provider inference or foreground eligibility.
+import AVFoundation
 import Foundation
 import CryptoKit
+import UIKit
 import XCTest
 @testable import OpenMates
 
@@ -240,6 +242,7 @@ final class NativeVoiceCallTests: XCTestCase {
         let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
         let submitted = VoiceCallSubmittedFixture()
         let live = expectation(description: "Voxtral ready"), drained = expectation(description: "All frames consumed")
+        live.assertForOverFulfill = false  // the live state is republished when turn state changes
         let accepted = expectation(description: "Canonical user send accepted")
         let controller = makeController(transport: transport, audio: audio, submit: { _, value in
             await submitted.append(value)
@@ -266,6 +269,247 @@ final class NativeVoiceCallTests: XCTestCase {
         XCTAssertEqual(values.count, 1); XCTAssertEqual(values.first?.messageID, "user-turn")
         XCTAssertEqual(values.first?.role, .user)
         await controller.hangup()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.provider.boundary,video-call.audio.startup-buffer
+    func testStartAndReadyPinSpeechOutputTransportWithoutMateEcho() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let live = expectation(description: "STT-only ready without mate echo goes live")
+        let controller = makeController(transport: transport, audio: audio, event: { event in
+            if case .state(let state) = event, state.status == .live { live.fulfill() }
+        })
+        live.assertForOverFulfill = false
+        try await controller.start(scope: scope)
+        let start = try await transport.frames().first
+        XCTAssertEqual(start?["speech_output_transport"]?.string, "mp3_turn_stream_v2")
+        var frame = ready(); frame["mate_category"] = nil; frame["mate_name"] = nil
+        frame["camera_available"] = .bool(true)
+        try await transport.push(frame)
+        await fulfillment(of: [live], timeout: 2)
+        let state = await controller.snapshot()
+        XCTAssertTrue(state.cameraAvailable)
+        await controller.hangup()
+
+        let staleTransport = VoiceCallTransportFixture()
+        let failed = expectation(description: "Ready without the pinned transport is refused")
+        let stale = makeController(transport: staleTransport, audio: VoiceCallAudioFixture(), event: { event in
+            if case .state(let state) = event, state.status == .failed { failed.fulfill() }
+        })
+        try await stale.start(scope: scope)
+        var old = ready(); old["speech_output_transport"] = nil
+        try await staleTransport.push(old)
+        await fulfillment(of: [failed], timeout: 2)
+        let refused = await stale.snapshot()
+        XCTAssertEqual(refused.error, .invalidResponse)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.transcripts,video-call.audio.complete-turn-admission
+    func testPartialTranscriptShowsLiveLineHeldByPendingAndClearedAfterAdmission() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let live = expectation(description: "Ready")
+        let held = expectation(description: "Held frames consumed"), settled = expectation(description: "Later frames consumed")
+        let controller = makeController(transport: transport, audio: audio, event: { event in
+            if case .state(let state) = event, state.status == .live, state.liveTranscript == nil { live.fulfill() }
+            if case .usage(let frame) = event {
+                if frame["marker"]?.string == "held" { held.fulfill() } else { settled.fulfill() }
+            }
+        })
+        live.assertForOverFulfill = false
+        try await controller.start(scope: scope); try await transport.push(ready())
+        await fulfillment(of: [live], timeout: 2)
+        var frame: NativeVoiceCallFrame = ["type": .string("transcript"), "call_id": .string("fixture-call"),
+            "message_id": .string("held-turn"), "role": .string("user"), "text": .string("I was thinking about"),
+            "created_at": .number(100), "final": .bool(false)]
+        try await transport.push(frame)
+        try await transport.push(["type": .string("transcript.pending"), "call_id": .string("fixture-call"),
+            "message_id": .string("held-turn"), "reason": .string("incomplete")])
+        try await transport.push(["type": .string("usage"), "marker": .string("held")])
+        await fulfillment(of: [held], timeout: 2)
+        var state = await controller.snapshot()
+        XCTAssertEqual(state.status, .live, "transcript.pending must never end the call")
+        XCTAssertEqual(state.liveTranscript, .init(messageID: "held-turn", text: "I was thinking about", submitted: false, held: true))
+        frame["final"] = .bool(true); frame["text"] = .string("I was thinking about a trip")
+        try await transport.push(frame)
+        frame["message_id"] = .string("echo-turn"); frame["final"] = .bool(false); frame["text"] = .string("echo")
+        try await transport.push(frame)
+        try await transport.push(["type": .string("transcript.discarded"), "call_id": .string("fixture-call"),
+            "message_id": .string("echo-turn"), "reason": .string("echo")])
+        try await transport.push(["type": .string("usage"), "marker": .string("settled")])
+        await fulfillment(of: [settled], timeout: 2)
+        state = await controller.snapshot()
+        XCTAssertNil(state.liveTranscript, "Admitted and discarded turns leave no live line")
+        await controller.hangup()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.provider.boundary
+    func testCameraFramesUpdateStateAndSourceFrameIsRefusedWithoutEndingCall() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let live = expectation(description: "Ready"), drained = expectation(description: "Frames consumed")
+        let controller = makeController(transport: transport, audio: audio, event: { event in
+            if case .state(let state) = event, state.status == .live { live.fulfill() }
+            if case .usage = event { drained.fulfill() }
+        })
+        live.assertForOverFulfill = false
+        try await controller.start(scope: scope); try await transport.push(ready())
+        await fulfillment(of: [live], timeout: 2)
+        try await transport.push(["type": .string("camera_state"), "call_id": .string("fixture-call"), "enabled": .bool(true)])
+        try await transport.push(["type": .string("camera_error"), "call_id": .string("fixture-call"),
+            "code": .string("camera_input_rejected"), "enabled": .bool(false)])
+        try await transport.push(["type": .string("voice_source_frame"), "call_id": .string("fixture-call"),
+            "user_message_id": .string("user-turn"), "frame_id": .string("frame-1"), "data": .string("AAAA"),
+            "captured_at": .number(99), "created_at": .number(100), "source": .string("camera")])
+        try await transport.push(["type": .string("usage")])
+        await fulfillment(of: [drained], timeout: 2)
+        let state = await controller.snapshot()
+        XCTAssertEqual(state.status, .live)
+        XCTAssertFalse(state.cameraEnabled)
+        XCTAssertEqual(state.cameraNotice, .sourceFrameFailed)
+        let refusal = try await transport.frames().last
+        XCTAssertEqual(refusal?["type"]?.string, "source_frame_failed")
+        XCTAssertEqual(refusal?["user_message_id"]?.string, "user-turn")
+        XCTAssertEqual(refusal?["frame_id"]?.string, "frame-1")
+        await controller.hangup()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.background-resume
+    func testInterruptionPolicyEndsOnlyWhenSystemKeepsMicrophone() {
+        XCTAssertEqual(NativeVoiceCallInterruptionPolicy.action(for: .interruptionBegan), .suspend)
+        XCTAssertEqual(NativeVoiceCallInterruptionPolicy.action(for: .interruptionEnded(shouldResume: true)), .resume)
+        XCTAssertEqual(NativeVoiceCallInterruptionPolicy.action(for: .interruptionEnded(shouldResume: false)), .end(.endedInBackground))
+        XCTAssertEqual(NativeVoiceCallInterruptionPolicy.action(for: .mediaServicesReset), .end(.endedInBackground))
+        XCTAssertEqual(NativeVoiceCallInterruptionPolicy.action(for: .inputDeviceLost(otherInputAvailable: false)), .end(.endedInBackground))
+        XCTAssertEqual(NativeVoiceCallInterruptionPolicy.action(for: .inputDeviceLost(otherInputAvailable: true)), .end(.audioUnavailable))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=video-call.audio.background-resume
+    func testEnteringBackgroundKeepsLiveCallRunningWithoutHangup() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let controller = try await startLiveCall(transport: transport, audio: audio)
+        let center = NotificationCenter(), session = VoiceCallAudioSessionFixture(), recorder = VoiceCallSessionRecorder()
+        let lifecycle = try activateSessionLifecycle(session: session, center: center, recorder: recorder, audio: audio)
+        center.post(name: UIApplication.willResignActiveNotification, object: nil)
+        center.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        center.post(name: UIApplication.willEnterForegroundNotification, object: nil)
+        center.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        await Task.yield()
+        let state = await controller.snapshot()
+        XCTAssertEqual(state.status, .live)
+        XCTAssertNil(state.error)
+        let frames = try await transport.frames()
+        XCTAssertFalse(frames.contains { $0["type"]?.string == "hangup" })
+        let stops = await audio.stops
+        XCTAssertEqual(stops, 0)
+        XCTAssertTrue(lifecycle.isActive)
+        XCTAssertFalse(lifecycle.isSuspended)
+        XCTAssertEqual(session.deactivations, 0)
+        XCTAssertEqual(recorder.ends, [])
+        XCTAssertEqual(recorder.resumes, 0)
+        await controller.hangup()
+        lifecycle.deactivate()
+    }
+
+    // contract-test: direct surface=gui.apple assertions=video-call.audio.background-resume
+    func testInterruptionThatEndsWithResumeContinuesCall() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let controller = try await startLiveCall(transport: transport, audio: audio)
+        let center = NotificationCenter(), session = VoiceCallAudioSessionFixture(), recorder = VoiceCallSessionRecorder()
+        let lifecycle = try activateSessionLifecycle(session: session, center: center, recorder: recorder, audio: audio)
+        postInterruption(center, began: true)
+        XCTAssertTrue(lifecycle.isSuspended)
+        postInterruption(center, began: false, shouldResume: true)
+        XCTAssertFalse(lifecycle.isSuspended)
+        XCTAssertEqual(recorder.resumes, 1)
+        XCTAssertEqual(session.activations, 2) // call start + reactivation after the interruption
+        XCTAssertEqual(recorder.ends, [])
+        await Task.yield()
+        let state = await controller.snapshot()
+        XCTAssertEqual(state.status, .live)
+        let stops = await audio.stops
+        XCTAssertEqual(stops, 0)
+        await controller.hangup()
+        lifecycle.deactivate()
+    }
+
+    // contract-test: direct surface=gui.apple assertions=video-call.audio.background-resume,video-call.lifecycle.recovery-and-billing
+    func testInterruptionWithoutResumeEndsCallWithEndedInBackgroundNotice() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let ended = expectation(description: "Ended cleanly")
+        let controller = try await startLiveCall(transport: transport, audio: audio, ended: ended)
+        let center = NotificationCenter(), session = VoiceCallAudioSessionFixture(), recorder = VoiceCallSessionRecorder()
+        let lifecycle = try activateSessionLifecycle(session: session, center: center, recorder: recorder, audio: audio)
+        postInterruption(center, began: true)
+        postInterruption(center, began: false, shouldResume: false)
+        await fulfillment(of: [ended], timeout: 2)
+        XCTAssertEqual(recorder.ends, [.endedInBackground])
+        XCTAssertEqual(recorder.resumes, 0)
+        let state = await controller.snapshot()
+        XCTAssertEqual(state.status, .ended)
+        XCTAssertEqual(state.error, .endedInBackground)
+        let frames = try await transport.frames()
+        XCTAssertEqual(frames.last?["type"]?.string, "hangup")
+        let stops = await audio.stops
+        XCTAssertEqual(stops, 1)
+        XCTAssertEqual(AppStrings.nativeCallError(.endedInBackground), AppStrings.nativeCall("ended_in_background"))
+        lifecycle.deactivate()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.background-resume
+    func testMediaResetLostInputAndFailedReactivationEndOnce() throws {
+        let center = NotificationCenter(), session = VoiceCallAudioSessionFixture(), recorder = VoiceCallSessionRecorder()
+        let reset = try activateSessionLifecycle(session: session, center: center, recorder: recorder)
+        center.post(name: AVAudioSession.mediaServicesWereResetNotification, object: nil)
+        center.post(name: AVAudioSession.mediaServicesWereResetNotification, object: nil)
+        XCTAssertEqual(recorder.ends, [.endedInBackground]) // one terminal report
+        reset.deactivate()
+
+        session.isInputAvailable = false
+        let noInput = VoiceCallSessionRecorder()
+        let lost = try activateSessionLifecycle(session: session, center: center, recorder: noInput)
+        center.post(name: AVAudioSession.routeChangeNotification, object: nil,
+                    userInfo: [AVAudioSessionRouteChangeReasonKey: AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue])
+        XCTAssertEqual(noInput.ends, [.endedInBackground])
+        lost.deactivate()
+
+        let refused = VoiceCallSessionRecorder()
+        let interrupted = try activateSessionLifecycle(session: session, center: center, recorder: refused)
+        postInterruption(center, began: true)
+        session.failActivation = true
+        postInterruption(center, began: false, shouldResume: true)
+        XCTAssertEqual(refused.ends, [.endedInBackground]) // the system did not give the audio back
+        XCTAssertEqual(refused.resumes, 0)
+        interrupted.deactivate()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.background-resume
+    func testHangupDeactivatesAudioSessionAndStopsObserving() throws {
+        let center = NotificationCenter(), session = VoiceCallAudioSessionFixture(), recorder = VoiceCallSessionRecorder()
+        let lifecycle = try activateSessionLifecycle(session: session, center: center, recorder: recorder)
+        XCTAssertTrue(lifecycle.isActive)
+        XCTAssertEqual(session.activations, 1)
+        lifecycle.deactivate()
+        lifecycle.deactivate()
+        XCTAssertFalse(lifecycle.isActive)
+        XCTAssertEqual(session.deactivations, 1)
+        center.post(name: AVAudioSession.mediaServicesWereResetNotification, object: nil)
+        postInterruption(center, began: false, shouldResume: true)
+        XCTAssertEqual(recorder.ends, [])
+        XCTAssertEqual(recorder.resumes, 0)
+        XCTAssertEqual(session.activations, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.background-resume
+    func testBackgroundAnnouncementWaitsForRunningCall() {
+        let presence = NativeVoiceCallBackgroundPresence(), recorder = VoiceCallSessionRecorder()
+        XCTAssertFalse(presence.deferWhileCallRuns(callRunning: false) { recorder.resumes += 1 })
+        XCTAssertTrue(presence.deferWhileCallRuns(callRunning: true) { recorder.resumes += 1 })
+        XCTAssertEqual(recorder.resumes, 0)
+        presence.callEnded(appIsActive: false)
+        XCTAssertEqual(recorder.resumes, 1)
+        presence.callEnded(appIsActive: false)
+        XCTAssertEqual(recorder.resumes, 1)
+        XCTAssertTrue(presence.deferWhileCallRuns(callRunning: true) { recorder.resumes += 1 })
+        presence.callEnded(appIsActive: true) // back on screen: the foreground path owns the state
+        XCTAssertEqual(recorder.resumes, 1)
     }
 
     // contract-test: supporting surface=gui.apple assertions=video-call.audio.intentional-interruption
@@ -350,6 +594,7 @@ final class NativeVoiceCallTests: XCTestCase {
          "provider": .string("mistral"), "model": .string("voxtral-mini-transcribe-realtime-3-0"), "mate_category": .string("general"),
          "mate_name": .string("Fixture"), "input_sample_rate": .number(16_000),
          "output_sample_rate": .number(24_000), "billing_basis": .string("speech_duration_and_chat_usage"),
+         "speech_output_transport": .string(NativeVoiceCallWire.speechOutputTransport),
          "rates": .object(["stt_credits_per_started_minute": .number(10)])]
     }
     private func transcript(text: String, final: Bool) -> NativeVoiceCallTranscript {
@@ -357,6 +602,39 @@ final class NativeVoiceCallTests: XCTestCase {
             final: final, interrupted: false, userMessageID: "fixture-user", createdAt: 100,
             modelName: "fixture-model", mateCategory: "general", mateName: "Fixture")
     }
+    private func startLiveCall(transport: VoiceCallTransportFixture, audio: VoiceCallAudioFixture,
+                               ended: XCTestExpectation? = nil) async throws -> NativeVoiceCallController {
+        let live = expectation(description: "Ready")
+        live.assertForOverFulfill = false
+        let controller = makeController(transport: transport, audio: audio, event: { event in
+            if case .state(let state) = event, state.status == .live { live.fulfill() }
+            if case .state(let state) = event, state.status == .ended { ended?.fulfill() }
+        })
+        try await controller.start(scope: scope); try await transport.push(ready())
+        await fulfillment(of: [live], timeout: 2)
+        return controller
+    }
+
+    /// The real notification parsing on a private center; `audio` receives the
+    /// terminal report exactly like the iOS call audio adapter forwards it.
+    private func activateSessionLifecycle(session: VoiceCallAudioSessionFixture, center: NotificationCenter,
+                                          recorder: VoiceCallSessionRecorder,
+                                          audio: VoiceCallAudioFixture? = nil) throws -> NativeVoiceCallAudioSessionLifecycle {
+        let lifecycle = NativeVoiceCallAudioSessionLifecycle(session: session, center: center, queue: nil)
+        try lifecycle.activate(.init(resume: { recorder.resumes += 1 }, end: { error in
+            recorder.ends.append(error)
+            if let audio { Task { await audio.report(error) } }
+        }, isRunning: { true }))
+        return lifecycle
+    }
+
+    private func postInterruption(_ center: NotificationCenter, began: Bool, shouldResume: Bool = false) {
+        var info: [AnyHashable: Any] = [AVAudioSessionInterruptionTypeKey:
+            (began ? AVAudioSession.InterruptionType.began : .ended).rawValue]
+        if !began, shouldResume { info[AVAudioSessionInterruptionOptionKey] = AVAudioSession.InterruptionOptions.shouldResume.rawValue }
+        center.post(name: AVAudioSession.interruptionNotification, object: nil, userInfo: info)
+    }
+
     private func makeController(transport: VoiceCallTransportFixture, audio: VoiceCallAudioFixture,
         persistence: VoiceCallPersistenceFixture = .init(),
         consent: @escaping @Sendable () async throws -> Void = {},
@@ -404,16 +682,37 @@ private actor VoiceCallTransportFixture: NativeVoiceCallTransport {
 
 private actor VoiceCallAudioFixture: NativeVoiceCallAudio {
     private var input: (@Sendable (Data) async -> Void)?
+    private var failure: (@Sendable (NativeVoiceCallError) async -> Void)?
     private(set) var reservations = 0
     private(set) var stops = 0
     func reserve(scope: NativeVoiceCallScope) { reservations += 1 }
     func start(input: @escaping @Sendable (Data) async -> Void,
-               failure: @escaping @Sendable (NativeVoiceCallError) async -> Void) { self.input = input }
+               failure: @escaping @Sendable (NativeVoiceCallError) async -> Void) { self.input = input; self.failure = failure }
+    func report(_ error: NativeVoiceCallError) async { await failure?(error) }
     func setMicrophoneEnabled(_ enabled: Bool) {}
     func play(_ pcm16: Data, sampleRate: Int) {}
     func interruptPlayback() {}
     func stop() { stops += 1 }
     func emit(_ data: Data) async { await input?(data) }
+}
+
+@MainActor
+private final class VoiceCallAudioSessionFixture: NativeVoiceCallAudioSessionControlling {
+    private(set) var activations = 0
+    private(set) var deactivations = 0
+    var isInputAvailable = true
+    var failActivation = false
+    func activate() throws {
+        if failActivation { throw NativeVoiceCallError.audioUnavailable }
+        activations += 1
+    }
+    func deactivate() { deactivations += 1 }
+}
+
+@MainActor
+private final class VoiceCallSessionRecorder {
+    var resumes = 0
+    var ends: [NativeVoiceCallError] = []
 }
 
 private actor VoiceCallPersistenceFixture: NativeVoiceCallPersistence {

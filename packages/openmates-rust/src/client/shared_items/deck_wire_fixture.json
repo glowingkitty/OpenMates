@@ -1,0 +1,367 @@
+{
+  "error_codes": [
+    "slides_markup_not_normalised",
+    "slides_deck_has_no_slide",
+    "slides_slide_not_found",
+    "slides_element_not_found",
+    "slides_wrong_element_kind",
+    "slides_unknown_attribute",
+    "slides_invalid_value",
+    "slides_limit_reached",
+    "slides_last_slide",
+    "slides_item_out_of_range",
+    "shared_item_invalid_update",
+    "shared_item_unknown_handle",
+    "slides_invalid_operation"
+  ],
+  "operation_names": [
+    "set_text_content",
+    "set_text_style",
+    "set_geometry",
+    "set_image_source",
+    "add_element",
+    "delete_element",
+    "duplicate_element",
+    "move_element",
+    "add_slide",
+    "duplicate_slide",
+    "delete_slide",
+    "move_slide",
+    "set_slide_layout",
+    "set_speaker_notes",
+    "set_notepad_text",
+    "set_todo_items",
+    "set_todo_item_done",
+    "clear_interactive_element",
+    "clear_all_interactive",
+    "set_interactive_hidden",
+    "set_all_interactive_hidden"
+  ],
+  "operations": [
+    {
+      "element_id": "e1",
+      "markup": "<b>x</b>",
+      "op": "set_text_content",
+      "slide_id": "s1"
+    },
+    {
+      "element_id": "e1",
+      "op": "set_text_style",
+      "slide_id": "s1",
+      "style": {
+        "align": "center",
+        "color": "#112233",
+        "font": "heading",
+        "remove": [
+          "role"
+        ],
+        "size": 32,
+        "weight": "bold"
+      }
+    },
+    {
+      "element_id": "e1",
+      "h": 4,
+      "op": "set_geometry",
+      "slide_id": "s1",
+      "w": 3,
+      "x": 1,
+      "y": 2
+    },
+    {
+      "alt": null,
+      "element_id": "e1",
+      "op": "set_image_source",
+      "slide_id": "s1",
+      "src": "embed:a"
+    },
+    {
+      "element": {
+        "attributes": {
+          "role": "body"
+        },
+        "content": {
+          "type": "rich_text",
+          "value": "Hi"
+        },
+        "h": null,
+        "kind": "text",
+        "w": 400,
+        "x": 10,
+        "y": null
+      },
+      "index": 0,
+      "op": "add_element",
+      "slide_id": "s1"
+    },
+    {
+      "element_id": "e1",
+      "op": "delete_element",
+      "slide_id": "s1"
+    },
+    {
+      "element_id": "e1",
+      "op": "duplicate_element",
+      "slide_id": "s1"
+    },
+    {
+      "element_id": "e1",
+      "op": "move_element",
+      "slide_id": "s1",
+      "to_index": 1
+    },
+    {
+      "index": null,
+      "layout": "title",
+      "op": "add_slide"
+    },
+    {
+      "op": "duplicate_slide",
+      "slide_id": "s1"
+    },
+    {
+      "op": "delete_slide",
+      "slide_id": "s1"
+    },
+    {
+      "op": "move_slide",
+      "slide_id": "s1",
+      "to_index": 2
+    },
+    {
+      "layout": null,
+      "op": "set_slide_layout",
+      "slide_id": "s1"
+    },
+    {
+      "notes": "Notes",
+      "op": "set_speaker_notes",
+      "slide_id": "s1"
+    },
+    {
+      "element_id": "e1",
+      "op": "set_notepad_text",
+      "slide_id": "s1",
+      "text": "Idea"
+    },
+    {
+      "element_id": "e1",
+      "items": [
+        {
+          "done": false,
+          "text": "Do"
+        }
+      ],
+      "op": "set_todo_items",
+      "slide_id": "s1"
+    },
+    {
+      "done": true,
+      "element_id": "e1",
+      "index": 0,
+      "op": "set_todo_item_done",
+      "slide_id": "s1"
+    },
+    {
+      "element_id": "e1",
+      "op": "clear_interactive_element",
+      "slide_id": "s1"
+    },
+    {
+      "op": "clear_all_interactive"
+    },
+    {
+      "element_id": "e1",
+      "hidden": true,
+      "op": "set_interactive_hidden",
+      "slide_id": "s1"
+    },
+    {
+      "hidden": false,
+      "op": "set_all_interactive_hidden"
+    }
+  ],
+  "outcomes": [
+    {
+      "outcome": "applied"
+    },
+    {
+      "outcome": "unchanged"
+    },
+    {
+      "outcome": "slide_created",
+      "slide_id": "s3"
+    },
+    {
+      "element_id": "e9",
+      "outcome": "element_created"
+    },
+    {
+      "elements": 2,
+      "outcome": "cleared"
+    }
+  ],
+  "view": {
+    "aspect": "16:9",
+    "can_redo": false,
+    "can_undo": false,
+    "canvas_height": 1080,
+    "canvas_width": 1920,
+    "slides": [
+      {
+        "elements": [
+          {
+            "attributes": {
+              "align": "center",
+              "animate": "fade",
+              "color": "#ff8800",
+              "font": "Georgia",
+              "role": "title",
+              "size": "64",
+              "step": "1",
+              "weight": "bold"
+            },
+            "content": {
+              "type": "rich_text",
+              "value": "Q3 <b>results</b> &amp; <i>more</i><br/><ul><li>one</li><li>two &lt;3</li></ul>"
+            },
+            "h": 120,
+            "id": "e1",
+            "kind": "text",
+            "w": 1200,
+            "x": 80,
+            "y": 60
+          },
+          {
+            "attributes": {
+              "alt": "Revenue chart",
+              "fit": "cover",
+              "src": "embed:revenue-chart"
+            },
+            "content": {
+              "type": "empty"
+            },
+            "h": 500,
+            "id": "e2",
+            "kind": "image",
+            "w": 800,
+            "x": 1000,
+            "y": 220
+          },
+          {
+            "attributes": {
+              "src": "youtube:abc123"
+            },
+            "content": {
+              "type": "empty"
+            },
+            "h": 484,
+            "id": "e3",
+            "kind": "video",
+            "w": 860,
+            "x": 80,
+            "y": 220
+          },
+          {
+            "attributes": {
+              "fill": "accent",
+              "kind": "rect",
+              "stroke": "#000"
+            },
+            "content": {
+              "type": "empty"
+            },
+            "h": 80,
+            "id": "e4",
+            "kind": "shape",
+            "w": 1920,
+            "x": 0,
+            "y": 1000
+          },
+          {
+            "attributes": {
+              "title": "Ideas"
+            },
+            "content": {
+              "type": "plain",
+              "value": ""
+            },
+            "h": 260,
+            "id": "e5",
+            "kind": "notepad",
+            "w": 860,
+            "x": 80,
+            "y": 740
+          },
+          {
+            "attributes": {
+              "title": "Next"
+            },
+            "content": {
+              "type": "items",
+              "value": [
+                {
+                  "done": false,
+                  "text": "Book venue"
+                },
+                {
+                  "done": true,
+                  "text": "Send <invite>"
+                }
+              ]
+            },
+            "h": 240,
+            "id": "e6",
+            "kind": "todo",
+            "w": 800,
+            "x": 1000,
+            "y": 760
+          },
+          {
+            "attributes": {
+              "href": "https://example.com/a?b=1"
+            },
+            "content": {
+              "type": "label",
+              "value": "Source"
+            },
+            "h": null,
+            "id": "e7",
+            "kind": "link",
+            "w": null,
+            "x": null,
+            "y": null
+          },
+          {
+            "attributes": {
+              "title": "Demo"
+            },
+            "content": {
+              "type": "verbatim",
+              "value": "<div class=\"x\">\n  <script>let a = 1 < 2;</script>\n</div>"
+            },
+            "h": 240,
+            "id": "e8",
+            "kind": "block",
+            "w": 800,
+            "x": 1000,
+            "y": 760
+          }
+        ],
+        "id": "s1",
+        "layout": "title-and-content",
+        "notes": "Speaker notes\nsecond line & more.",
+        "transition": "fade"
+      },
+      {
+        "elements": [],
+        "id": "s2",
+        "layout": null,
+        "notes": "",
+        "transition": null
+      }
+    ],
+    "template": "builtin:plain",
+    "title": "Q3 & \"results\" '26"
+  }
+}

@@ -26,31 +26,29 @@ generate:
     - de
 
 generate.description:
-  context: Description for generated video skill
-  en: Generate a short AI video from a text prompt.
-  de: Erstelle ein kurzes KI-Video aus einer Texteingabe.
-  zh: 根据文本提示词生成一段 AI 短视频。
-  es: Genera un video corto de IA a partir de un mensaje de texto.
-  fr: "Génère une courte vidéo par IA à partir d'une invite textuelle."
-  pt: Gera um vídeo curto de IA a partir de um comando de texto.
-  ru: Создавай короткие ИИ-видео по текстовому описанию.
-  ja: テキストプロンプトから短いAI動画を生成します。
-  ko: 텍스트 프롬프트로 짧은 AI 비디오를 생성합니다.
-  it: Genera un breve video AI da un prompt di testo.
-  tr: Metin isteminden kısa bir yapay zeka videosu oluştur.
-  vi: Tạo video AI ngắn từ lời nhắc văn bản.
-  id: Buat video AI pendek dari perintah teks.
-  pl: Generuj krótkie wideo AI na podstawie opisu tekstowego.
-  nl: Genereer een korte AI-video op basis van een tekstprompt.
-  ar: إنشاء فيديو قصير بالذكاء الاصطناعي من مطالبة نصية.
-  hi: टेक्स्ट प्रॉम्प्ट से एक छोटा AI वीडियो जनरेट करें।
-  th: สร้างวิดีโอ AI สั้นๆ จากข้อความพรอมต์
-  cs: Generuj krátké AI video z textového zadání.
-  sv: Generera en kort AI-video från en textprompt.
-  he: יצירת סרטון AI קצר מהנחיית טקסט.
-  verified_by_human:
-    - en
-    - de
+  context: Description for the video skill that makes generative clips or composed videos from an instruction and chat pictures
+  en: Make a short video from your description and pictures in the chat, as AI footage or as an exact composed video.
+  de: Erstelle ein kurzes Video aus deiner Beschreibung und Bildern im Chat, als KI-Aufnahme oder als exakt gestaltetes Video.
+  zh: 根据你的描述和聊天中的图片制作短视频，可以是 AI 生成画面，也可以是精确排版的合成视频。
+  es: Crea un video corto a partir de tu descripción y de imágenes del chat, como metraje de IA o como video compuesto exacto.
+  fr: "Crée une courte vidéo à partir de ta description et des images du chat, en images IA ou en vidéo composée précise."
+  pt: Cria um vídeo curto a partir da tua descrição e das imagens do chat, como filmagem de IA ou como vídeo composto exato.
+  ru: Создавай короткие видео по описанию и картинкам из чата — как ИИ-съёмку или как точно собранное видео.
+  ja: 説明とチャット内の画像から、AI映像または正確に構成された動画として短い動画を作成します。
+  ko: 설명과 채팅 속 이미지로 AI 영상 또는 정확하게 구성된 영상 형태의 짧은 비디오를 만듭니다.
+  it: Crea un breve video dalla tua descrizione e dalle immagini della chat, come riprese AI o come video composto preciso.
+  tr: Açıklamandan ve sohbetteki görsellerden yapay zeka çekimi ya da birebir oluşturulmuş kısa bir video yap.
+  vi: Tạo video ngắn từ mô tả của bạn và hình ảnh trong cuộc trò chuyện, dưới dạng cảnh quay AI hoặc video dựng chính xác.
+  id: Buat video pendek dari deskripsimu dan gambar di obrolan, sebagai rekaman AI atau video susunan yang tepat.
+  pl: Twórz krótkie wideo z opisu i obrazów z czatu, jako ujęcia AI lub dokładnie złożone wideo.
+  nl: Maak een korte video van je beschrijving en afbeeldingen in de chat, als AI-beelden of als exact samengestelde video.
+  ar: أنشئ فيديو قصيرًا من وصفك والصور في المحادثة، كلقطات بالذكاء الاصطناعي أو كفيديو مركّب بدقة.
+  hi: अपने विवरण और चैट की तस्वीरों से छोटा वीडियो बनाएं, AI फ़ुटेज या सटीक रूप से बने वीडियो के रूप में।
+  th: สร้างวิดีโอสั้นจากคำอธิบายและรูปภาพในแชต เป็นฟุตเทจ AI หรือวิดีโอที่จัดองค์ประกอบอย่างแม่นยำ
+  cs: Vytvoř krátké video z popisu a obrázků v chatu, jako AI záběry nebo přesně sestavené video.
+  sv: Skapa en kort video från din beskrivning och bilder i chatten, som AI-filmklipp eller som exakt sammansatt video.
+  he: יצירת סרטון קצר מהתיאור שלך ומתמונות בצ'אט, כצילומי AI או כסרטון מורכב מדויק.
+  verified_by_human: []
 
 create:
   context: Skill name for Remotion video creation
@@ -709,4 +707,29 @@ search.how_to_use.3:
   cs: Najdi videa o vaření domácích těstovin
   sv: Hitta matlagningsvideor för hemgjord pasta
   he: "**מצא** סרטוני בישול להכנת פסטה ביתית"
+  verified_by_human: [en, de]
+
+generate.pricing_note:
+  context: "Pricing note on the Videos generate skill settings page (per-resolution clip prices, composed video pricing, how changes are charged, no charge without a delivered video)"
+  en: "Generated clips: 35 (360p), 105 (720p), 160 (1080p) or 315 (4K) credits per second. Composed videos: the tokens the writing model uses plus 10 credits per started minute of rendering. Changes are charged only for what they add. You are not charged when no video is delivered. Sound in composed videos: 2 credits per second of narration, 15 credits per second of sound effect and 120 credits per music track; only clips newly made for a version are charged."
+  de: "Generierte Clips: 35 (360p), 105 (720p), 160 (1080p) oder 315 (4K) Credits pro Sekunde. Komponierte Videos: die Tokens des schreibenden Modells plus 10 Credits pro angefangener Render-Minute. Änderungen werden nur für das berechnet, was sie hinzufügen. Wird kein Video geliefert, fallen keine Kosten an. Ton in komponierten Videos: 2 Credits pro Sekunde Sprecherstimme, 15 Credits pro Sekunde Soundeffekt und 120 Credits pro Musikstück; berechnet werden nur die für eine Version neu erzeugten Clips."
+  zh: "生成的片段:每秒 35(360p)、105(720p)、160(1080p)或 315(4K)积分。合成视频:编写模型使用的 token,加上每开始一分钟渲染 10 积分。修改只按新增的部分计费。如果没有交付视频,则不收费。合成视频中的声音:旁白每秒 2 积分,音效每秒 15 积分,每首音乐 120 积分;只对某个版本新生成的音频收费。"
+  es: "Clips generados: 35 (360p), 105 (720p), 160 (1080p) o 315 (4K) créditos por segundo. Vídeos compuestos: los tokens que usa el modelo de redacción más 10 créditos por minuto de renderizado iniciado. Los cambios solo se cobran por lo que añaden. No se cobra si no se entrega ningún vídeo. Sonido en vídeos compuestos: 2 créditos por segundo de narración, 15 créditos por segundo de efecto de sonido y 120 créditos por pista de música; solo se cobran los clips creados de nuevo para una versión."
+  fr: "Clips générés : 35 (360p), 105 (720p), 160 (1080p) ou 315 (4K) crédits par seconde. Vidéos composées : les tokens du modèle rédacteur plus 10 crédits par minute de rendu commencée. Les modifications ne sont facturées que pour ce qu'elles ajoutent. Aucun frais si aucune vidéo n'est livrée. Son des vidéos composées : 2 crédits par seconde de narration, 15 crédits par seconde d'effet sonore et 120 crédits par morceau de musique ; seuls les clips nouvellement créés pour une version sont facturés."
+  pt: "Clipes gerados: 35 (360p), 105 (720p), 160 (1080p) ou 315 (4K) créditos por segundo. Vídeos compostos: os tokens do modelo de escrita mais 10 créditos por minuto de renderização iniciado. As alterações são cobradas apenas pelo que acrescentam. Nada é cobrado quando nenhum vídeo é entregue. Som em vídeos compostos: 2 créditos por segundo de narração, 15 créditos por segundo de efeito sonoro e 120 créditos por faixa de música; só são cobrados os clipes criados de novo para uma versão."
+  ru: "Сгенерированные клипы: 35 (360p), 105 (720p), 160 (1080p) или 315 (4K) кредита в секунду. Составные видео: токены модели-автора плюс 10 кредитов за каждую начатую минуту рендеринга. Изменения оплачиваются только за то, что они добавляют. Если видео не доставлено, плата не взимается. Звук в составных видео: 2 кредита за секунду озвучки, 15 кредитов за секунду звукового эффекта и 120 кредитов за музыкальный трек; оплачиваются только заново созданные для версии клипы."
+  ja: "生成クリップ:1秒あたり 35(360p)、105(720p)、160(1080p)、315(4K)クレジット。構成動画:執筆モデルが使うトークンに加え、レンダリング開始した1分ごとに10クレジット。変更は追加分のみ課金されます。動画が届かなかった場合は課金されません。構成動画の音声:ナレーションは1秒あたり2クレジット、効果音は1秒あたり15クレジット、音楽は1曲あたり120クレジット。バージョンのために新しく作られたクリップのみ課金されます。"
+  ko: "생성된 클립: 초당 35(360p), 105(720p), 160(1080p) 또는 315(4K) 크레딧. 구성형 영상: 작성 모델이 사용한 토큰에 더해 렌더링 시작한 1분마다 10크레딧. 변경은 추가된 부분에 대해서만 청구됩니다. 영상이 전달되지 않으면 청구되지 않습니다.구성형 영상의 사운드: 내레이션 초당 2크레딧, 효과음 초당 15크레딧, 음악 트랙당 120크레딧. 해당 버전을 위해 새로 만든 클립만 청구됩니다."
+  it: "Clip generate: 35 (360p), 105 (720p), 160 (1080p) o 315 (4K) crediti al secondo. Video composti: i token usati dal modello di scrittura più 10 crediti per ogni minuto di rendering iniziato. Le modifiche vengono addebitate solo per ciò che aggiungono. Nessun addebito se non viene consegnato alcun video. Audio nei video composti: 2 crediti al secondo di narrazione, 15 crediti al secondo di effetto sonoro e 120 crediti per brano musicale; vengono addebitate solo le clip create ex novo per una versione."
+  tr: "Üretilen klipler: saniye başına 35 (360p), 105 (720p), 160 (1080p) veya 315 (4K) kredi. Oluşturulan videolar: yazan modelin kullandığı token'lar artı başlanan her render dakikası için 10 kredi. Değişiklikler yalnızca ekledikleri kadar ücretlendirilir. Video teslim edilmezse ücret alınmaz. Oluşturulan videolarda ses: anlatım için saniyede 2 kredi, ses efekti için saniyede 15 kredi ve müzik parçası başına 120 kredi; yalnızca bir sürüm için yeni üretilen klipler ücretlendirilir."
+  vi: "Clip được tạo: 35 (360p), 105 (720p), 160 (1080p) hoặc 315 (4K) credit mỗi giây. Video dựng bằng mã: token mà mô hình viết sử dụng cộng 10 credit cho mỗi phút kết xuất đã bắt đầu. Thay đổi chỉ bị tính phí cho phần được thêm. Không bị tính phí nếu không có video nào được giao. Âm thanh trong video dựng bằng mã: 2 credit mỗi giây lời thuyết minh, 15 credit mỗi giây hiệu ứng âm thanh và 120 credit mỗi bản nhạc; chỉ các clip mới được tạo cho một phiên bản mới bị tính phí."
+  id: "Klip yang dihasilkan: 35 (360p), 105 (720p), 160 (1080p) atau 315 (4K) kredit per detik. Video komposisi: token yang dipakai model penulis ditambah 10 kredit per menit rendering yang dimulai. Perubahan hanya dikenai biaya untuk yang ditambahkannya. Tidak ada biaya jika tidak ada video yang dikirim. Suara dalam video komposisi: 2 kredit per detik narasi, 15 kredit per detik efek suara, dan 120 kredit per lagu musik; hanya klip yang baru dibuat untuk suatu versi yang dikenai biaya."
+  pl: "Generowane klipy: 35 (360p), 105 (720p), 160 (1080p) lub 315 (4K) kredytu za sekundę. Wideo komponowane: tokeny modelu piszącego plus 10 kredytów za każdą rozpoczętą minutę renderowania. Zmiany są rozliczane tylko za to, co dodają. Nie pobieramy opłaty, jeśli nie dostarczono wideo. Dźwięk w wideo komponowanym: 2 kredyty za sekundę narracji, 15 kredytów za sekundę efektu dźwiękowego i 120 kredytów za utwór muzyczny; rozliczane są tylko klipy nowo utworzone dla danej wersji."
+  nl: "Gegenereerde clips: 35 (360p), 105 (720p), 160 (1080p) of 315 (4K) credits per seconde. Samengestelde video's: de tokens van het schrijvende model plus 10 credits per begonnen minuut renderen. Wijzigingen worden alleen berekend voor wat ze toevoegen. Er worden geen kosten berekend als er geen video wordt geleverd. Geluid in samengestelde video's: 2 credits per seconde voice-over, 15 credits per seconde geluidseffect en 120 credits per muziekstuk; alleen voor een versie nieuw gemaakte clips worden berekend."
+  ar: "المقاطع المولّدة: 35 (360p) أو 105 (720p) أو 160 (1080p) أو 315 (4K) رصيد في الثانية. الفيديوهات المركّبة: رموز النموذج الكاتب مضافًا إليها 10 رصيد عن كل دقيقة عرض بدأت. تُحتسب التعديلات فقط على ما تضيفه. لا يتم خصم أي رصيد إذا لم يتم تسليم فيديو. الصوت في الفيديوهات المركّبة: 2 رصيد لكل ثانية من التعليق الصوتي، و15 رصيدًا لكل ثانية من المؤثرات الصوتية، و120 رصيدًا لكل مقطوعة موسيقية؛ تُحتسب فقط المقاطع التي أُنشئت حديثًا لإصدار ما."
+  hi: "जनरेट किए गए क्लिप: प्रति सेकंड 35 (360p), 105 (720p), 160 (1080p) या 315 (4K) क्रेडिट। कंपोज़ किए गए वीडियो: लिखने वाले मॉडल के टोकन और रेंडरिंग के हर शुरू हुए मिनट के 10 क्रेडिट। बदलावों पर केवल उतना ही शुल्क लगता है जितना वे जोड़ते हैं। वीडियो न मिलने पर कोई शुल्क नहीं लगता। कंपोज़ किए गए वीडियो में ध्वनि: नैरेशन के प्रति सेकंड 2 क्रेडिट, साउंड इफ़ेक्ट के प्रति सेकंड 15 क्रेडिट और प्रति संगीत ट्रैक 120 क्रेडिट; केवल किसी संस्करण के लिए नए बनाए गए क्लिप पर शुल्क लगता है।"
+  th: "คลิปที่สร้าง: 35 (360p), 105 (720p), 160 (1080p) หรือ 315 (4K) เครดิตต่อวินาที วิดีโอที่ประกอบขึ้น: โทเคนที่โมเดลผู้เขียนใช้ บวก 10 เครดิตต่อทุกนาทีของการเรนเดอร์ที่เริ่มต้น การแก้ไขคิดค่าบริการเฉพาะส่วนที่เพิ่มเข้ามา หากไม่มีการส่งมอบวิดีโอ จะไม่มีการเรียกเก็บเงิน เสียงในวิดีโอที่ประกอบขึ้น: เสียงบรรยาย 2 เครดิตต่อวินาที เอฟเฟกต์เสียง 15 เครดิตต่อวินาที และเพลงประกอบ 120 เครดิตต่อเพลง คิดค่าบริการเฉพาะคลิปที่สร้างใหม่สำหรับเวอร์ชันนั้น"
+  cs: "Generované klipy: 35 (360p), 105 (720p), 160 (1080p) nebo 315 (4K) kreditu za sekundu. Složená videa: tokeny, které použije píšící model, plus 10 kreditů za každou započatou minutu renderování. Změny se účtují jen za to, co přidávají. Pokud není doručeno žádné video, nic se neúčtuje. Zvuk ve složených videích: 2 kredity za sekundu vyprávění, 15 kreditů za sekundu zvukového efektu a 120 kreditů za hudební skladbu; účtují se jen klipy nově vytvořené pro danou verzi."
+  sv: "Genererade klipp: 35 (360p), 105 (720p), 160 (1080p) eller 315 (4K) krediter per sekund. Komponerade videor: de tokens som skrivmodellen använder plus 10 krediter per påbörjad renderingsminut. Ändringar debiteras bara för det de lägger till. Ingen debitering sker om ingen video levereras. Ljud i komponerade videor: 2 krediter per sekund berättarröst, 15 krediter per sekund ljudeffekt och 120 krediter per musikspår; bara klipp som nyskapats för en version debiteras."
+  he: "קליפים שנוצרו: 35 (360p), 105 (720p), 160 (1080p) או 315 (4K) קרדיטים לשנייה. סרטונים מורכבים: הטוקנים שמודל הכתיבה משתמש בהם ועוד 10 קרדיטים לכל דקת רינדור שהתחילה. שינויים מחויבים רק על מה שהם מוסיפים. אין חיוב כאשר לא נמסר סרטון. צליל בסרטונים מורכבים: 2 קרדיטים לשנייה של קריינות, 15 קרדיטים לשנייה של אפקט קולי ו-120 קרדיטים לכל קטע מוזיקה; מחויבים רק קליפים שנוצרו מחדש עבור גרסה."
   verified_by_human: [en, de]

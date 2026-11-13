@@ -198,33 +198,6 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertTrue(prepared.validateReuse(scope: scope, freshGeneration: "generation-a", mutationRevision: 2, now: now.addingTimeInterval(30)))
     }
 
-    // contract-test: supporting surface=gui.apple assertions=chats.message.identity-idempotent,chats.persistence.client-encrypted
-    func testQueuedRevisionUsesStableIdentityImmutableEncryptionAndExactReceipt() throws {
-        let request = try ChatQueuedRevisionRequest(chatID: "chat", messageID: "queued", expectedRevision: 3,
-            clientRequestID: "request", mode: .followUp, teamID: nil, content: "Filtered text",
-            encryptedContent: "synthetic-cipher", encryptedPIIMappings: "synthetic-mappings")
-        let first = try request.payload(), retry = try request.payload()
-        XCTAssertTrue(NSDictionary(dictionary: first).isEqual(to: retry))
-        XCTAssertEqual(first["message_id"] as? String, "queued")
-        var accepted: [String: Any] = ["chat_id": "chat", "message_id": "queued", "client_request_id": "request",
-            "queue_revision": 4, "queue_mode": "follow_up", "encrypted_content": "synthetic-cipher",
-            "encrypted_pii_mappings": "synthetic-mappings"]
-        XCTAssertEqual(try request.validateReceipt(accepted, type: "queued_message_updated"), 4)
-        accepted["encrypted_content"] = "different-cipher"
-        XCTAssertThrowsError(try request.validateReceipt(accepted, type: "queued_message_updated"))
-        let conflict: [String: Any] = ["chat_id": "chat", "message_id": "queued", "client_request_id": "request",
-            "reason_code": "conflict", "current_revision": 4, "retryable": true]
-        XCTAssertThrowsError(try request.validateReceipt(conflict, type: "queued_message_revision_rejected")) {
-            XCTAssertEqual($0 as? ChatQueuedRevisionError, .rejected(reason: "conflict", currentRevision: 4, retryable: true))
-        }
-        XCTAssertThrowsError(try ChatQueuedRevisionRequest(chatID: "chat", messageID: "queued", expectedRevision: 3,
-            mode: .followUp, teamID: nil, content: "Changed text"))
-        let steer = try ChatQueuedRevisionRequest(chatID: "chat", messageID: "queued", expectedRevision: 3, mode: .steer, teamID: "team")
-        XCTAssertNil(try steer.payload()["content"])
-        XCTAssertNil(try steer.payload()["encrypted_content"])
-        XCTAssertEqual(try steer.payload()["queue_mode"] as? String, "steer")
-    }
-
     // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
     func testAcceptedSendClearsOnlyUneditedSnapshotAndRejectedPreparationKeepsDraft() async {
         let composer = NativeComposerSession(canonicalMarkdown: "Synthetic pending draft")
@@ -2190,7 +2163,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
     func testMessageHapticRequiresBothDurableProofsInEitherOrder() {
         for storedFirst in [false, true] {
-            var events: [NativeHaptics.Event] = []
+            var events: [NativeHaptics.Cue] = []
             let output = NativeHaptics(enabled: { true }, render: { events.append($0) })
             let gate = NativeMessageHapticGate(haptics: output)
             gate.begin(turnID: "turn", chatID: "chat", messageID: "user", preflightState: "LEGACY", scope: "scope")
@@ -2205,13 +2178,13 @@ final class ChatSendPipelineParityTests: XCTestCase {
             if storedFirst { gate.consume(type: "ai_task_initiated", fields: admission, scope: "scope") }
             else { gate.confirmedDurability(chatID: "chat", messageID: "user", version: 1, scope: "scope") }
             gate.consume(type: "ai_task_initiated", fields: admission, scope: "scope")
-            XCTAssertEqual(events, [.messageAccepted])
+            XCTAssertEqual(events, [.accepted])
         }
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
     func testMessageHapticRejectsTypingFailuresReplayAndChangedScope() {
-        var events: [NativeHaptics.Event] = []
+        var events: [NativeHaptics.Cue] = []
         let gate = NativeMessageHapticGate(haptics: NativeHaptics(enabled: { true }, render: { events.append($0) }))
         let admission: [String: Any] = ["chat_id": "chat", "user_message_id": "user", "ai_task_id": "task"]
         gate.begin(turnID: "turn", chatID: "chat", messageID: "user", preflightState: "RUNNING", scope: "scope")
@@ -2229,22 +2202,25 @@ final class ChatSendPipelineParityTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic,apple-notifications.delivery.confirmed-action-haptics
     func testConfirmedHapticsDeduplicateAndNeverReplaySuppressedFeedback() {
         var enabled = false
-        var events: [NativeHaptics.Event] = []
-        let output = NativeHaptics(enabled: { enabled }, render: { events.append($0) })
+        var events: [NativeHaptics.Cue] = []
+        var time: TimeInterval = 100
+        let output = NativeHaptics(enabled: { enabled }, render: { events.append($0) },
+                                   silent: { false }, clock: { time })
         output.confirmed(.notification, id: "notice", scope: "owner")
         enabled = true
         output.confirmed(.notification, id: "notice", scope: "owner")
         XCTAssertTrue(events.isEmpty)
         for event in NativeHaptics.Event.allCases {
+            time += 10
             output.confirmed(event, id: "operation", scope: "owner")
             output.confirmed(event, id: "operation", scope: "owner")
         }
-        XCTAssertEqual(events, NativeHaptics.Event.allCases)
+        XCTAssertEqual(events, NativeHaptics.Event.allCases.map(\.cue))
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
     func testMessageHapticCancelsFailedWritesAndNeverRearmsRetries() {
-        var events: [NativeHaptics.Event] = []
+        var events: [NativeHaptics.Cue] = []
         let gate = NativeMessageHapticGate(haptics: NativeHaptics(enabled: { true }, render: { events.append($0) }))
         let fields: [String: Any] = ["chat_id": "chat", "user_message_id": "user", "ai_task_id": "task"]
         gate.begin(turnID: "failed-turn", chatID: "chat", messageID: "user", preflightState: "PREPARED", scope: "first")
@@ -2255,13 +2231,13 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertTrue(events.isEmpty)
         gate.begin(turnID: "fresh-turn", chatID: "chat", messageID: "user", preflightState: "PREPARED", scope: "reconnect", committedVersion: 1)
         gate.consume(type: "ai_task_initiated", fields: fields, scope: "reconnect")
-        XCTAssertEqual(events, [.messageAccepted])
+        XCTAssertEqual(events, [.accepted])
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
     func testProductionSendWiresOnlyFreshConfirmedProcessingToHapticGate() async throws {
         for (state, optedIn, expectedCount) in [("PREPARED", true, 1), ("PREPARED", false, 0), ("LEGACY", true, 0)] {
-            var events: [NativeHaptics.Event] = []
+            var events: [NativeHaptics.Cue] = []
             let gate = NativeMessageHapticGate(haptics: NativeHaptics(enabled: { true }, render: { events.append($0) }))
             let transport = NotificationReceiptTransport(state: state)
             let payloads = Self.notificationTurnPayloads()

@@ -153,7 +153,8 @@ final class NativeVoiceCallArtifactAssociationTests: XCTestCase {
             })
         try await controller.start(scope: scope)
         try await transport.push(["type": .string("ready"), "call_id": .string("artifact-call"), "provider": .string("mistral"), "model": .string("voxtral-mini-transcribe-realtime-3-0"),
-            "mate_category": .string("general"), "input_sample_rate": .number(16_000), "output_sample_rate": .number(24_000), "billing_basis": .string("speech_duration_and_chat_usage"), "rates": .object(["stt_credits_per_started_minute": .number(10)])])
+            "mate_category": .string("general"), "input_sample_rate": .number(16_000), "output_sample_rate": .number(24_000), "billing_basis": .string("speech_duration_and_chat_usage"),
+            "speech_output_transport": .string(NativeVoiceCallWire.speechOutputTransport), "rates": .object(["stt_credits_per_started_minute": .number(10)])])
         await fulfillment(of: [live], timeout: 2)
         do {
             try await controller.associateCommittedArtifact(scope: scope, callID: "artifact-call", functionCallID: "function", assistantMessageID: "assistant", userMessageID: "user", reference: reference())

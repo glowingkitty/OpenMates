@@ -163,7 +163,8 @@ def test_deep_research_child_executes_its_angle_without_more_delegation() -> Non
     ) is False
 
 
-def _focus_prompt_scope(active_focus_id="jobs-career_insights", *, language="en", inline=None, translation_available=True):
+def _focus_prompt_scope(active_focus_id="jobs-career_insights", *, language="en", inline=None, translation_available=True,
+                        active_project_focus=None):
     """Execute the production prompt-assembly slice without importing providers.
 
     This is supporting unit evidence only; real authenticated inference tests
@@ -186,7 +187,7 @@ def _focus_prompt_scope(active_focus_id="jobs-career_insights", *, language="en"
     # The production slice records setup timing; its enclosing helper is outside
     # this prompt-only test. Preserve all prompt assertions while supplying it.
     scope["mark_project_reference_setup"] = lambda stage: None
-    scope.update(Optional=Optional, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id=active_focus_id), discovered_apps_metadata={"jobs": SimpleNamespace(focuses=[SimpleNamespace(id="career_insights", phases=None, system_prompt=inline, systemprompt_translation_key="focus_modes.jobs_career_insights.systemprompt")])}, prompt_parts=["Base instructions"], preprocessing_results=SimpleNamespace(output_language=language), translation_service=translator, TranslationService=lambda: translator, chat_depth=0)
+    scope.update(active_project_focus=active_project_focus, Optional=Optional, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id=active_focus_id), discovered_apps_metadata={"jobs": SimpleNamespace(focuses=[SimpleNamespace(id="career_insights", phases=None, system_prompt=inline, systemprompt_translation_key="focus_modes.jobs_career_insights.systemprompt")])}, prompt_parts=["Base instructions"], preprocessing_results=SimpleNamespace(output_language=language), translation_service=translator, TranslationService=lambda: translator, chat_depth=0)
     import asyncio
     run_slice = ast.AsyncFunctionDef(name="run_focus_slice",
         args=ast.arguments(posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[], defaults=[]),
@@ -263,6 +264,24 @@ def test_missing_active_focus_instruction_does_not_silently_answer_unfocused():
     import pytest
     with pytest.raises(ValueError, match="Active focus instructions are unavailable"):
         _focus_prompt_scope(translation_available=False)
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_bound_project_focus_id_is_not_resolved_as_an_app_focus():
+    """An assistant-created Project's default focus is a bare id; the binding supplies its instruction."""
+    focus_id = "eceef9d4-dd19-408e-bef4-ef41199b623e"
+    binding = {"project_id": "project-1", "focus_id": focus_id, "instruction": "Help with Recipe Manager."}
+    scope, instruction = _focus_prompt_scope(focus_id, active_project_focus=binding)
+    assert scope["active_focus_prompt_text"] is None
+    assert instruction not in "\n".join(scope["prompt_parts"])
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_unbound_bare_focus_id_still_fails_closed():
+    import pytest
+    with pytest.raises(ValueError, match="Active focus instructions are unavailable"):
+        _focus_prompt_scope("eceef9d4-dd19-408e-bef4-ef41199b623e",
+                            active_project_focus={"project_id": "project-1", "focus_id": "other"})
 
 
 # contract-test: supporting surface=rest_api assertions=focus-modes.history-events

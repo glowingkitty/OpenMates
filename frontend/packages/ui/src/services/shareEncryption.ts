@@ -17,6 +17,9 @@
  * Architecture reference: /docs/architecture/share_chat.md
  */
 
+import { rustWebCrypto } from "./rustCore/crypto/webCryptoClient";
+import { rustDecryptShareKeyBlob, rustGenerateShareKeyBlob } from "./rustCore/crypto/webCryptoFacades";
+
 // Duration options in seconds
 // 0 = no expiration, 60 = 1 minute, 3600 = 1 hour, 86400 = 24 hours,
 // 604800 = 7 days, 1209600 = 14 days, 2592000 = 30 days, 7776000 = 90 days
@@ -147,7 +150,7 @@ async function encryptAESGCM(
   const ciphertext = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv: iv },
     key,
-    data,
+    data as BufferSource, // lib.dom types Uint8Array<ArrayBufferLike>; runtime value unchanged
   );
 
   // Combine IV + ciphertext
@@ -285,6 +288,12 @@ export async function generateShareKeyBlob(
     durationSeconds,
     hasPassword: !!password,
   });
+  // Compile-time flag: default builds fold this to null and drop the Rust branch.
+  const rust = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+  if (rust) {
+    const keyValue = new TextEncoder().encode(chatEncryptionKey);
+    return rustGenerateShareKeyBlob(rust, "chat", chatId, keyValue, durationSeconds, password);
+  }
 
   const encoder = new TextEncoder();
 
@@ -356,6 +365,9 @@ export async function decryptShareKeyBlob(
     | "invalid_password"
     | "decryption_failed";
 }> {
+  // Compile-time flag: default builds fold this to null and drop the Rust branch.
+  const rust = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? rustWebCrypto() : null;
+  if (rust) return rustDecryptShareKeyBlob(rust, "chat", chatId, encryptedBlob, serverTime, password);
   const decoder = new TextDecoder();
 
   try {
@@ -422,59 +434,5 @@ export async function decryptShareKeyBlob(
       error,
     );
     return { success: false, error: "decryption_failed" };
-  }
-}
-
-/**
- * Validate if a share link is expired (without full decryption)
- * This is useful for quick checks before attempting full decryption.
- *
- * Note: This only works if you know the chat ID (to derive the key).
- * The actual validation happens on the client after decrypting the blob.
- *
- * @param chatId - The chat ID from the URL path
- * @param encryptedBlob - The encrypted blob from the URL fragment
- * @param serverTime - Current server time (Unix timestamp in seconds)
- * @returns Object with validation result
- */
-async function validateShareLinkExpiration(
-  chatId: string,
-  encryptedBlob: string,
-  serverTime: number,
-): Promise<{
-  valid: boolean;
-  requiresPassword: boolean;
-  expiresAt?: number;
-}> {
-  const decoder = new TextDecoder();
-
-  try {
-    // Decrypt the blob with chat-ID-derived key
-    const chatIdKey = await deriveKeyFromChatId(chatId);
-    const decryptedBlobBytes = await decryptAESGCM(encryptedBlob, chatIdKey);
-    const serialized = decoder.decode(decryptedBlobBytes);
-
-    // Parse the blob parameters
-    const blob = deserializeKeyBlob(serialized);
-
-    // Check expiration
-    const expiresAt =
-      blob.duration_seconds > 0
-        ? blob.generated_at + blob.duration_seconds
-        : undefined;
-
-    const isExpired = expiresAt !== undefined && serverTime > expiresAt;
-
-    return {
-      valid: !isExpired,
-      requiresPassword: blob.pwd === 1,
-      expiresAt,
-    };
-  } catch (error) {
-    console.error("[ShareEncryption] Error validating share link:", error);
-    return {
-      valid: false,
-      requiresPassword: false,
-    };
   }
 }

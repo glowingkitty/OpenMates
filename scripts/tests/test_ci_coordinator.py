@@ -10,6 +10,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 from concurrent.futures import ThreadPoolExecutor
 import datetime as dt
 
+import pytest
 from scripts.ci_coordinator import Queue, GitHub, GitHubError, enqueue_submission
 
 
@@ -862,6 +863,27 @@ def test_environment_overrides_daily_cap(tmp_path, monkeypatch):
     assert len(remote.sent) == 2
 
 
+def test_daily_cap_is_larger_overnight_and_shrinks_in_the_morning(tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+
+    monkeypatch.delenv("OPENMATES_CI_DAILY_MAX_ACTIVE", raising=False)
+    monkeypatch.delenv("OPENMATES_CI_DAILY_NIGHT_MAX_ACTIVE", raising=False)
+    queue = _daily_queue(tmp_path, monkeypatch)
+    night = datetime(2026, 11, 13, 3, 5, tzinfo=timezone.utc).timestamp()
+    morning = datetime(2026, 11, 13, 7, 0, tzinfo=timezone.utc).timestamp()
+    assert queue.daily_cap(night) == 14
+    assert queue.daily_cap(morning) == 6
+    for n in range(30):
+        queue.enqueue("daily", "a" * 40, [f"daily-{n}.spec.ts"])
+    other = queue.enqueue("dev", "b" * 40, ["dev.spec.ts"])
+    remote = Remote()
+    queue.tick(remote, night)
+    sent = [job["owner"] for job in remote.sent]
+    assert sent.count("daily") == 14
+    assert "dev" in sent  # the night cap still leaves slots for chats
+    assert other["owner"] == "dev"
+
+
 def test_cancel_owner_only_cancels_undispatched_jobs_of_that_owner(tmp_path, monkeypatch):
     queue = _daily_queue(tmp_path, monkeypatch, daily_max_active=1)
     for n in range(3):
@@ -938,6 +960,10 @@ def test_rust_check_plan_matches_rust_workflow_exclusions():
     ((_, single),) = plan("openmates-sdk::chat::tests")
     assert single[:4] == ["cargo", "test", "-p", "openmates-sdk"]
     assert single[-2:] == ["--", "chat::tests"]
+    # The SDK is tested with the features the CLI ships, or the host modules never compile.
+    assert single[single.index("--features") + 1] == "workflow-yaml"
+    ((_, other),) = plan("openmates")
+    assert "--features" not in other
 
 
 def test_rust_check_receipt_shows_first_failures_concisely():
@@ -971,3 +997,103 @@ def test_vitest_accepts_exact_test_file_filters(tmp_path):
     path = "frontend/packages/ui/src/services/foo.test.ts"
     jobs = enqueue_submission(queue, "owner", "a" * 40, [path], "vitest")
     assert [json.loads(job["specs"]) for job in jobs] == [[path]]
+
+
+def _attention_job(tmp_path, sent=100):
+    q = Queue(tmp_path / "queue.db", max_active=4)
+    job = q.enqueue("owner", "a" * 40, ["x.spec.ts"])
+    with q.connect() as db:
+        db.execute(
+            "UPDATE jobs SET state='attention',sent=? WHERE id=?", (sent, job["id"])
+        )
+    return q, job
+
+
+def test_attention_job_without_remote_run_is_released_after_window(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    q, job = _attention_job(tmp_path)
+    remote = Remote()
+    q.tick(remote, 100 + 3600)
+    assert q.status(job["id"])[0]["state"] == "attention"
+    q.tick(remote, 100 + 7 * 3600)
+    row = q.status(job["id"])[0]
+    assert row["state"] == "failure"
+    assert "released after remote reconciliation" in row["error"]
+    assert not remote.sent
+
+
+def test_attention_job_whose_run_appears_is_adopted(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    q, job = _attention_job(tmp_path)
+    full = q.status(job["id"])[0]
+    remote = Remote()
+    remote.visible = [
+        dict(
+            display_title=full["token"],
+            status="completed",
+            conclusion="success",
+            id=9,
+            html_url="https://example.test/9",
+        )
+    ]
+    q.tick(remote, 100 + 7 * 3600)
+    assert q.status(job["id"])[0]["state"] == "success"
+
+
+def test_release_attention_refuses_when_run_exists_and_releases_otherwise(tmp_path):
+    q, job = _attention_job(tmp_path)
+    token = q.status(job["id"])[0]["token"]
+    remote = Remote()
+    remote.visible = [dict(display_title=token, status="queued", id=3, html_url="u")]
+    with pytest.raises(ValueError, match="remote run exists"):
+        q.release_attention(remote, job["id"], "operator")
+    assert q.status(job["id"])[0]["state"] == "attention"
+    remote.visible = []
+    assert q.release_attention(remote, job["id"], "operator")["state"] == "failure"
+    with pytest.raises(ValueError, match="attention"):
+        q.release_attention(remote, job["id"], "operator")
+
+
+def test_web_rust_core_is_e2e_or_component_only_distinct_and_dispatched(tmp_path):
+    q = Queue(tmp_path / "queue.db")
+    ordinary = q.enqueue("a", "a" * 40, ["x.spec.ts"])
+    rust = q.enqueue("a", "a" * 40, ["x.spec.ts"], web_rust_core=True)
+    assert ordinary["id"] != rust["id"]
+    assert not ordinary["web_rust_core"] and rust["web_rust_core"] == 1
+    assert q.enqueue("a", "a" * 40, ["x.spec.ts"], web_rust_core=True)["id"] == rust["id"]
+    with pytest.raises(ValueError, match="requires --mode e2e or component"):
+        q.enqueue("a", "a" * 40, ["x.spec.ts"], mode="pytest", web_rust_core=True)
+    with pytest.raises(ValueError, match="requires --mode e2e or component"):
+        enqueue_submission(q, "a", "a" * 40, ["x.spec.ts"], "visual-smoke", web_rust_core=True)
+    component = q.enqueue("a", "a" * 40, ["components/x.spec.ts"], mode="component", web_rust_core=True)
+    assert component["web_rust_core"] == 1
+    github = GitHub.__new__(GitHub)
+    github.repo = "example/repo"
+    requests = []
+    github.request = lambda endpoint, payload=None: requests.append(payload)
+    github.dispatch(rust)
+    github.dispatch(ordinary)
+    github.dispatch(component)
+    assert requests[0]["inputs"]["web_rust_core"] == "true"
+    assert "web_rust_core" not in requests[1]["inputs"]
+    assert requests[2]["inputs"]["web_rust_core"] == "true"
+    assert requests[2]["inputs"]["mode"] == "component"
+
+
+def test_web_rust_core_supersede_keeps_flag_variants_separate(tmp_path):
+    q = Queue(tmp_path / "queue.db")
+    plain = q.enqueue("a", "a" * 40, ["x.spec.ts"])
+    rust = q.enqueue("a", "a" * 40, ["x.spec.ts"], web_rust_core=True)
+    newer = q.enqueue("a", "b" * 40, ["x.spec.ts"], web_rust_core=True)
+    assert q.supersede_pending(newer) == 1
+    states = {r["id"]: r["state"] for r in q.status()}
+    assert states[rust["id"]] == "cancelled" and states[plain["id"]] == "queued"
+
+
+def test_apple_test_lanes_need_no_separate_compile_job(tmp_path):
+    # Each Apple test job compiles first (all Swift errors listed) and tests on that build.
+    queue = Queue(tmp_path / "queue.db")
+    source = "a" * 40
+    assert queue.enqueue("owner", source, ["OpenMatesTests/A"], mode="apple-unit")["id"]
+    assert queue.enqueue("owner", source, ["OpenMatesUITests/A"], mode="apple-ui")["id"]
+    assert queue.enqueue("owner", source, ["all"], mode="apple-build")["id"]

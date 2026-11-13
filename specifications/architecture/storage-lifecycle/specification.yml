@@ -28,7 +28,7 @@ scope:
     - Bucket inventory, checksums, replication lag, deletion completion, orphan detection, and visible operational failure state.
     - Temporary buffer/review media upload fallback without cross-region replication.
     - Architecture capacity verification with synthetic model outputs and real isolated processing and storage, with zero real inference requests.
-    - Shared Rust client persistence policy behind thin platform adapters, retaining existing IndexedDB and SwiftData stores and user data during client migration.
+    - Shared Rust client persistence policy and the Rust-owned encrypted local cache (architecture.client-core) behind thin platform byte adapters, preserving user data when shell-owned stores are retired.
   excludes:
     - A custom media.openmates.org domain, CDN origin failover, or initial replication of openmates-product-media.
     - Cross-provider disaster recovery outside Hetzner.
@@ -312,7 +312,7 @@ models:
 assertions:
   - id: storage.client.shared-policy-existing-adapters
     type: invariant
-    must: Shared Rust owns reusable client persistence policy, including owner/Team partitioning, encryption boundaries, revisions, deletion and recovery decisions; thin explicit adapters perform platform IO. Browser IndexedDB and Apple SwiftData may remain the initial persistence engines, preserving existing data and behavior rather than forcing SQLite or OPFS migration. Migrating client code never resets credentials, drops caches or user data, weakens durable logout/deletion fencing, or changes server hot/cold and authorization authority merely to fit a new adapter. A future storage-engine change requires its own safe data migration and verification.
+    must: Shared Rust owns reusable client persistence policy, including owner/Team partitioning, encryption boundaries, revisions, deletion and recovery decisions; thin explicit adapters perform platform IO. Browser IndexedDB stays the web byte store behind the Worker; the core owns the cache model and stores only ciphertext there. Retiring a shell-owned store such as Apple SwiftData ChatStore/OfflineStore in favour of the Rust-owned cache follows client-core.cache.safe-store-retirement. Migrating client code never resets credentials, drops unsynced local state or user data, weakens durable logout/deletion fencing, or changes server hot/cold and authorization authority merely to fit a new adapter.
     depends_on: [examples.client_persistence_adapters]
   - id: storage.regions.configurable-redundancy
     type: invariant

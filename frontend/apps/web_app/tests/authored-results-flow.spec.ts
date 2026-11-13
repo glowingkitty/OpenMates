@@ -26,13 +26,16 @@ async function expectPrivateFieldsHidden(surface: Locator) {
 }
 async function expectOrderedGroup(surface: Locator, carrier: Carrier) {
   const cards = surface.getByTestId('embeds-map-view-card');
-  await expect(cards).toHaveCount(25, { timeout: 60_000 });
+  await expect(cards).toHaveCount(carrier.items.length, { timeout: 60_000 });
   expect(await cards.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-entry-ref')))).toEqual(carrier.embed_ids);
   for (const item of carrier.items) {
     const card = surface.locator(`[data-testid="embed-preview"][data-embed-id="${item.embed_id}"]`);
     await expect(card).toHaveCount(1);
     const expected = authoredDocument.items.find(record => record.kind === item.kind)!;
-    await expect(card.getByTestId('authored-result-context')).toHaveAttribute('data-origin', expected.origin);
+    // A user-provided card carries no origin label in its preview; its details view lists the origin.
+    const context = card.getByTestId('authored-result-context');
+    if (expected.origin === 'user_provided') await expect(context).toHaveCount(0);
+    else await expect(context).toHaveAttribute('data-origin', expected.origin);
   }
   await expectPrivateFieldsHidden(surface);
 }
@@ -199,31 +202,96 @@ test('saved authored web records survive cold cache recovery and individual/grou
     });
 
     collection = await openSavedChat(page, ownChat, chatId!, carrier);
-    await collection.getByTestId('authored-results-expand').click();
-    const group = page.getByTestId('embed-fullscreen-overlay').last();
-    await expect(group).toBeVisible();
-    await expect.poll(() => activeEmbedId(page)).toBe(carrierId);
-    await expectOrderedGroup(group, carrier);
-    const groupUrl = await createBrowserEmbedShare(page, group, carrierId);
-    await recipient(browser, info, 'authored-group', baseUrl!, apiUrl, async guest => {
-      await guest.goto(groupUrl);
-      const overlay = guest.getByTestId('embed-fullscreen-overlay').last();
-      await expect(overlay).toBeVisible({ timeout: 60_000 });
-      await expect.poll(() => activeEmbedId(guest)).toBe(carrierId);
-      await expectOrderedGroup(overlay, carrier);
-      const draft = carrier.items.find(item => item.kind === 'nutrition.recipe')!;
-      const draftCard = overlay.locator(`[data-testid="embed-preview"][data-embed-id="${draft.embed_id}"]`);
-      await draftCard.scrollIntoViewIfNeeded();
-      await expect(draftCard.getByTestId('authored-result-origin')).toHaveText('Draft');
-      await draftCard.focus();
-      await draftCard.press('Enter');
-      await expect.poll(() => activeEmbedId(guest)).toBe(draft.embed_id);
-      const leaf = guest.getByTestId('embed-fullscreen-overlay').last();
-      await expect(leaf.getByTestId('embed-header-title')).toHaveText(draft.title);
-      await expect(leaf).toContainText('Red lentils');
-      await expect(leaf.getByTestId('authored-result-context')).toHaveAttribute('data-origin', 'draft');
-      await expectPrivateFieldsHidden(leaf);
-    });
+    // The group is the normal results view: no custom title row, expand button or own fullscreen layer.
+    await expect(collection.getByTestId('authored-results-expand')).toHaveCount(0);
+    await expect(collection.getByTestId('embeds-map-view')).toBeVisible();
+    await expectOrderedGroup(collection, carrier);
+    await page.reload();
+    collection = await openSavedChat(page, ownChat, chatId!, carrier, false);
+    await expect(collection.getByTestId('authored-results-expand')).toHaveCount(0);
+    // Each member opens its own fullscreen; a draft member keeps its provenance.
+    const draft = carrier.items.find(item => item.kind === 'nutrition.recipe')!;
+    const leaf = await openChild(page, collection, draft);
+    await expect(leaf).toContainText('Red lentils');
+    await expect(leaf.getByTestId('authored-result-context')).toHaveAttribute('data-origin', 'draft');
+    await closeFullscreen(page, leaf);
+  } finally {
+    try {
+      if (chatId) {
+        const deleted = await runWorkflowCli(apiUrl, home, ['chats', 'delete', chatId, '--yes', '--json'], 30_000);
+        expect(deleted.code, 'disposable source chat cleanup must be acknowledged').toBe(0);
+      }
+    }
+    finally { removeWorkflowCliHome(home); }
+  }
+});
+
+// contract-test: direct surface=gui.web assertions=authored-results.groups.same-response-and-reuse,authored-results.presentation.standard-results-view,authored-results.surfaces.shared-semantics
+// CI dependency: ai_committed_fixtures/default, paired CLI build + ordinary core/AI worker.
+// The saved group holds two dated, geolocated events without images, so both tabs are offered.
+test('saved authored group shows Calendar and Map tabs, opens each card own fullscreen and keeps members after reload', async ({ page }: {
+  page: Page;
+}) => {
+  test.setTimeout(600_000);
+  const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL;
+  expect(baseUrl, 'isolated runner base URL required').toBeTruthy();
+  expect(['localhost', '127.0.0.1'], 'this disposable fixture runs only in isolated CI').toContain(new URL(baseUrl!).hostname);
+  const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL || deriveApiUrl(baseUrl!);
+  const home = createWorkflowCliHome('authored-group-view');
+  let chatId: string | undefined;
+  try {
+    await blockAuthoredFixtureImageEgress(page, baseUrl!, apiUrl);
+    await loginWorkflowCliViaPair(page, apiUrl, home, 'AUTHORED_GROUP');
+    const created = parseCliJson(await runWorkflowCli(apiUrl, home, ['chats', 'new',
+      'Show my two supplied conference days as cards. <<<TEST_MOCK:authored_event_group>>>', '--json'], 120_000),
+    'create saved authored group chat');
+    expect(created.status).toBe('completed');
+    chatId = created.chatId;
+    expect(chatId).toMatch(/^[a-f0-9-]{36}$/);
+    const refs = [...String(created.assistant).matchAll(/"embed_id"\s*:\s*"([a-f0-9-]+)"/g)];
+    expect(refs).toHaveLength(1);
+    const carrier = parseCliJson(await runWorkflowCli(apiUrl, home,
+      ['embeds', 'show', refs[0][1], '--chat', chatId!, '--json'], 60_000), 'read saved authored carrier').content as Carrier;
+    const ownChat = new URL(`/#chat-id=${chatId}`, baseUrl).href;
+    expect(carrier.items.map(item => item.kind)).toEqual(['events.event', 'events.event']);
+    let collection = await openSavedChat(page, ownChat, chatId!, carrier);
+    // Without an image each card shows its venue map, and no card carries an origin label.
+    await expect(collection.getByTestId('event-preview-map')).toHaveCount(2);
+    await expect(collection.getByText('User-provided')).toHaveCount(0);
+
+    // Both tabs exist; Map is the default and switching works in both directions.
+    const mapTab = collection.getByTestId('embeds-results-view-tab-map');
+    const calendarTab = collection.getByTestId('embeds-results-view-tab-calendar');
+    await expect(mapTab).toBeVisible();
+    await expect(calendarTab).toBeVisible();
+    await expect(mapTab).toHaveAttribute('aria-selected', 'true');
+    await calendarTab.click();
+    await expect(calendarTab).toHaveAttribute('aria-selected', 'true');
+    await expect(mapTab).toHaveAttribute('aria-selected', 'false');
+    await expect(collection.getByRole('tabpanel', { name: 'Calendar results' })).toBeVisible();
+    await expect(collection.getByTestId('embeds-map-view-map')).toHaveCount(0);
+    await mapTab.click();
+    await expect(mapTab).toHaveAttribute('aria-selected', 'true');
+    await expect(collection.getByTestId('embeds-map-view-map')).toBeVisible();
+
+    // A card opens its own fullscreen; closing returns to the chat with the group intact.
+    const event = carrier.items.find(item => item.kind === 'events.event')!;
+    const fullscreen = await openChild(page, collection, event);
+    await closeFullscreen(page, fullscreen);
+    await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', chatId!);
+    await expect(collection).toBeVisible();
+
+    // Reload keeps the same members, order and embed ids.
+    const snapshot = async (surface: Locator) => surface.getByTestId('embeds-map-view-card').evaluateAll(nodes => nodes.map(node => ({
+      ref: node.getAttribute('data-entry-ref'),
+      id: node.getAttribute('data-embed-id')
+        ?? node.querySelector('[data-testid="embed-preview"]')?.getAttribute('data-embed-id') ?? null,
+    })));
+    const before = await snapshot(collection);
+    expect(before.map(row => row.ref)).toEqual(carrier.embed_ids);
+    await page.reload();
+    collection = await openSavedChat(page, ownChat, chatId!, carrier, false);
+    expect(await snapshot(collection)).toEqual(before);
   } finally {
     try {
       if (chatId) {

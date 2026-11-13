@@ -156,20 +156,7 @@ for case in fixture["error_cases"]:
     )
     assert error.status_code == case["status"] and len(io.calls) == 1
     results.append({"id": case["id"], "status": "passed"})
-limits = []
-for limit in fixture["open_parity_limits"]:
-    c = client(api_key=fixture["credential"])
-    decoded = run_io(
-        IO(limit["draft"]), lambda: c.drafts.get(limit["draft"]["chat_id"])
-    )
-    assert decoded["preview"] == limit["previews"]["python"]
-    limits.append(
-        {
-            "id": limit["id"],
-            "status": "open-existing-sdk-divergence",
-            "observed": "Unicode scalar slice",
-        }
-    )
+assert not fixture.get("open_parity_limits"), "drafts parity limits are retired"
 assert {v["id"] for v in fixture["vectors"]} == {r["id"] for r in results}
 print(
     json.dumps(
@@ -179,7 +166,6 @@ print(
             "status": "passed",
             "fixtureSha256": hashlib.sha256(source).hexdigest(),
             "results": results,
-            "openParityLimits": limits,
         }
     )
 )

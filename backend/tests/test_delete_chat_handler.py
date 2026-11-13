@@ -6,8 +6,9 @@ kept or removed when a chat is manually deleted.
 
 # contract-test-file: infrastructure
 
+import hashlib
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, call
 
 import pytest
 
@@ -44,7 +45,9 @@ class _CacheService:
         self.remove_chat_from_ids_versions = AsyncMock(return_value=True)
         self.delete_chat_app_settings_memories = AsyncMock(return_value=0)
         self.delete_chat_embed_cache = AsyncMock(return_value=0)
+        self.delete_ai_messages_history = AsyncMock(return_value=True)
         self.delete = AsyncMock(return_value=True)
+        self.increment_and_tombstone_user_draft = AsyncMock(return_value=4)
 
     @property
     def client(self):
@@ -100,6 +103,8 @@ async def test_delete_chat_handler_forwards_remove_project_embeds(monkeypatch) -
     queue_delete_chat_task.assert_called_once_with("user-1", "chat-1", True)
     delete_chat_handler.invalidate_recovery_jobs_for_chat_deletion.assert_awaited_once()
     cache_service.mark_chat_deleted.assert_awaited_once_with("chat-1")
+    # The deleted chat's AI context leaves the LRU so it cannot block admission.
+    cache_service.delete_ai_messages_history.assert_awaited_once_with("user-1", "chat-1")
     assert cache_service.delete.await_count == 2
 
 
@@ -164,10 +169,11 @@ async def test_delete_unpersisted_draft_shell_cleans_cache_when_no_saved_chat_fe
         user_id="user-1", device_fingerprint_hash="device-1", payload={"chatId": "draft-1"},
     )
 
-    directus_service.get_items.assert_awaited_once_with(
+    assert directus_service.get_items.await_args_list[0] == call(
         "chats", params={"filter[id][_eq]": "draft-1", "fields": "id", "limit": 1},
         no_cache=True, admin_required=True, raise_on_error=True,
     )
+    cache_service.increment_and_tombstone_user_draft.assert_awaited_once_with("user-1", "draft-1")
     invalidation.assert_awaited_once()
     queue_delete_chat_task.assert_not_called()
     cache_service.mark_chat_deleted.assert_awaited_once_with("draft-1")
@@ -213,6 +219,87 @@ async def test_draft_shell_cleanup_fails_closed_without_confirmed_absence(
     queue_delete_chat_task.assert_not_called()
     cache_service.mark_chat_deleted.assert_not_awaited()
     cache_service.remove_chat_from_ids_versions.assert_not_awaited()
+    manager.broadcast_to_user.assert_not_awaited()
+    assert manager.send_personal_message.await_args.kwargs["message"]["type"] == "error"
+
+
+def _draft_shell_directus(draft_rows, *, bulk_delete_result=True):
+    """Directus double: no chat row for the shell, `draft_rows` in `drafts`."""
+    async def get_items(collection, **_kwargs):
+        return [] if collection == "chats" else draft_rows
+
+    return SimpleNamespace(
+        chat=SimpleNamespace(
+            check_chat_ownership=AsyncMock(return_value=False),
+            get_chat_metadata=AsyncMock(return_value=None),
+        ),
+        get_items=AsyncMock(side_effect=get_items),
+        bulk_delete_items=AsyncMock(return_value=bulk_delete_result),
+    )
+
+
+async def _delete_draft_shell(monkeypatch, directus_service, cache_service, manager) -> Mock:
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+
+    queue_delete_chat_task = Mock()
+    monkeypatch.setattr(delete_chat_handler, "_queue_delete_chat_task", queue_delete_chat_task)
+    monkeypatch.setattr(
+        delete_chat_handler, "invalidate_recovery_jobs_for_chat_deletion",
+        AsyncMock(side_effect=ChatRecoveryProtocolError(404, "chat_not_found")),
+    )
+    await delete_chat_handler.handle_delete_chat(
+        websocket=SimpleNamespace(), manager=manager, cache_service=cache_service,
+        directus_service=directus_service, encryption_service=SimpleNamespace(),
+        user_id="user-1", device_fingerprint_hash="device-1", payload={"chatId": "draft-1"},
+    )
+    return queue_delete_chat_task
+
+
+# contract-test: supporting surface=rest_api assertions=drafts.draft-only.lifecycle,chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_deleting_draft_shell_deletes_only_the_owners_persisted_draft_rows(monkeypatch) -> None:
+    """Regression: delete_chat on a draft-only chat left its encrypted Directus draft behind."""
+    directus_service = _draft_shell_directus([{"id": "draft-row-1"}, {"id": "draft-row-2"}])
+    manager = SimpleNamespace(send_personal_message=AsyncMock(), broadcast_to_user=AsyncMock())
+    cache_service = _CacheService()
+
+    queue_delete_chat_task = await _delete_draft_shell(monkeypatch, directus_service, cache_service, manager)
+
+    assert directus_service.get_items.await_args_list[1] == call(
+        "drafts",
+        params={
+            "filter[hashed_user_id][_eq]": hashlib.sha256(b"user-1").hexdigest(),
+            "filter[chat_id][_eq]": "draft-1",
+            "fields": "id",
+            "limit": -1,
+        },
+        no_cache=True, admin_required=True, raise_on_error=True,
+    )
+    directus_service.bulk_delete_items.assert_awaited_once_with(
+        collection="drafts", item_ids=["draft-row-1", "draft-row-2"],
+    )
+    queue_delete_chat_task.assert_not_called()
+    manager.send_personal_message.assert_not_awaited()
+    assert manager.broadcast_to_user.await_args.args[0]["type"] == "chat_deleted"
+
+
+# contract-test: supporting surface=rest_api assertions=drafts.draft-only.lifecycle,chats.persistence.client-encrypted
+@pytest.mark.anyio
+@pytest.mark.parametrize("failure", ["tombstone", "bulk_delete"])
+async def test_draft_shell_deletion_fails_closed_when_draft_removal_fails(monkeypatch, failure) -> None:
+    directus_service = _draft_shell_directus(
+        [{"id": "draft-row-1"}], bulk_delete_result=failure != "bulk_delete",
+    )
+    manager = SimpleNamespace(send_personal_message=AsyncMock(), broadcast_to_user=AsyncMock())
+    cache_service = _CacheService()
+    if failure == "tombstone":
+        cache_service.increment_and_tombstone_user_draft = AsyncMock(return_value=None)
+
+    await _delete_draft_shell(monkeypatch, directus_service, cache_service, manager)
+
+    if failure == "tombstone":
+        directus_service.bulk_delete_items.assert_not_awaited()
+    cache_service.mark_chat_deleted.assert_not_awaited()
     manager.broadcast_to_user.assert_not_awaited()
     assert manager.send_personal_message.await_args.kwargs["message"]["type"] == "error"
 

@@ -53,6 +53,7 @@ const { submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat
 const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
 	: path.resolve(__dirname, '../../../packages/openmates-cli/dist/cli.js');
+const { CLI_LOGIN_SUCCESS, cliNativeEnv, cliSpawnArgs } = require('./helpers/cli-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const CLI_SYNC_CACHE_FILE = path.join(os.homedir(), '.openmates', 'sync_cache.json');
@@ -95,9 +96,10 @@ function deriveApiUrl(baseUrl: string): string {
 
 function spawnCliLogin(apiUrl: string) {
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
-	const child = spawn('node', [CLI_DIST, 'login'], {
+	const child = spawn(...cliSpawnArgs(['login']), {
 		env: {
 			...process.env,
+			...cliNativeEnv(),
 			OPENMATES_API_URL: apiUrl,
 			NODE_PATH: path.join(cliDir, 'node_modules'),
 			TERM: 'dumb'
@@ -167,9 +169,10 @@ async function runCli(
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	return new Promise((resolve) => {
-		const child = spawn('node', [CLI_DIST, ...args], {
+		const child = spawn(...cliSpawnArgs(args), {
 			env: {
 				...process.env,
+			...cliNativeEnv(),
 				OPENMATES_API_URL: apiUrl,
 				NODE_PATH: path.join(cliDir, 'node_modules')
 			},
@@ -378,7 +381,7 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 
 	cli.sendPin(pin);
 	const { code, output } = await cli.waitForExit();
-	expect(output).toContain('Login successful');
+	expect(output).toContain(CLI_LOGIN_SUCCESS);
 	expect(code).toBe(0);
 	logCheckpoint('CLI login complete.');
 }
@@ -390,6 +393,7 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 test.describe('CLI Images', () => {
 	test.setTimeout(300_000);
 
+	// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,cli.output.actionable-readable
 	test('image generation via chat: zero-knowledge pipeline create → embed show (JSON)', async ({
 		page
 	}: {
@@ -593,6 +597,49 @@ test.describe('CLI Images', () => {
 		logCheckpoint('Logged out. Test complete.');
 	});
 
+	// contract-test: direct surface=cli assertions=images-generate.draft.flash-text-only
+	test('a text-only draft image is made with the Flash draft model', async ({ page }: { page: any }) => {
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+		const logCheckpoint = createSignupLogger('CLI_IMAGES_DRAFT');
+		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+		await loginViaPair(page, apiUrl, logCheckpoint);
+
+		const chatResult = await runCli(
+			apiUrl,
+			[
+				'chats', 'new',
+				'Use the draft image skill to make a quick rough draft image of a red bicycle leaning on a wall.',
+				'--json'
+			],
+			120_000
+		);
+		consoleLogs.push(`[draft chats new stderr] ${chatResult.stderr.slice(0, 200)}`);
+		expect(chatResult.code).toBe(0);
+		const chatId = String(JSON.parse(chatResult.stdout).chatId || '');
+		expect(chatId).toBeTruthy();
+
+		// The draft is produced asynchronously; wait until one embed of the chat is the finished draft.
+		let draft: Record<string, unknown> | null = null;
+		await expect(async () => {
+			for (const embedId of await collectChatEmbedIds(apiUrl, chatId)) {
+				const shown = await runCli(apiUrl, ['embeds', 'show', embedId, '--json'], 30_000);
+				if (shown.code !== 0) continue;
+				const content = readEmbedContent(JSON.parse(shown.stdout));
+				if (content.app_id === 'images' && content.skill_id === 'generate_draft' && content.model) {
+					draft = content;
+				}
+			}
+			expect(draft).not.toBeNull();
+		}).toPass({ timeout: 120_000, intervals: [3000] });
+		logCheckpoint(`Draft embed model: ${String(draft!.model)}`);
+		expect(String(draft!.model)).toBe('recraftv4_1_flash');
+
+		expect((await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 20_000)).code).toBe(0);
+		await runCli(apiUrl, ['logout']);
+	});
+
+	// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,cli.output.actionable-readable
 	test('reverse image search via chat identifies a classic car model', async ({
 		page
 	}: {

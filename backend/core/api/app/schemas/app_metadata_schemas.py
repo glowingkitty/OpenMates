@@ -6,7 +6,7 @@
 # of metadata provided by individual app services.
 
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, validator, root_validator, model_validator, Field
+from pydantic import BaseModel, validator, root_validator, Field
 
 class IconColorGradient(BaseModel):
     """Defines the start and end colors for an icon gradient."""
@@ -15,11 +15,11 @@ class IconColorGradient(BaseModel):
 
 class AppPricing(BaseModel):
     """Defines pricing structure for a skill if it's self-contained."""
-    tokens: Optional[Dict[str, Dict[str, int]]] = None # e.g., {"input": {"per_credit_unit": 1000}}
+    tokens: Optional[Dict[str, Dict[str, float]]] = None # e.g., {"input": {"per_credit_unit": 166.66}}
     per_unit: Optional[Dict[str, Any]] = None # e.g., {"credits": 1, "unit_name": "image"}
     per_minute: Optional[float] = None # Display rate; metering can accumulate fractional credits.
-    per_second: Optional[int] = None # credits per second
-    fixed: Optional[int] = None # fixed credits per call
+    per_second: Optional[float] = None # credits per second; under 5 credits may be fractional
+    fixed: Optional[float] = None # fixed credits per call
 
 class AppSkillDefinition(BaseModel):
     """Defines the structure for a skill within an app's metadata."""
@@ -38,31 +38,6 @@ class AppFocusDefinition(BaseModel):
     description: str
     system_prompt: str = Field(alias="systemprompt") # Allow 'systemprompt' in YAML
 
-class AppMemoryFieldDefinition(BaseModel):
-    """Defines the structure for a memory field within an app's metadata."""
-    id: str
-    name: str
-    description: str
-    type: str # e.g., "string", "number", "boolean", "json_object", "list_of_strings"
-    schema_definition: Optional[Dict[str, Any]] = Field(default=None, alias="schema") # Optional JSON schema
-
-    @model_validator(mode='after')
-    def inject_added_date(self):
-        """
-        Automatically injects 'added_date' into every settings/memories schema.
-        See shared/python_schemas/app_metadata_schemas.py for full documentation.
-        """
-        if self.schema_definition is not None:
-            properties = self.schema_definition.get("properties", {})
-            if "added_date" not in properties:
-                properties["added_date"] = {
-                    "type": "integer",
-                    "description": "Unix timestamp when added",
-                    "auto_generated": True
-                }
-                self.schema_definition["properties"] = properties
-        return self
-
 class AppYAML(BaseModel):
     """
     Pydantic model representing the structure of an app.yml file.
@@ -75,7 +50,6 @@ class AppYAML(BaseModel):
     icon_colorgradient: Optional[IconColorGradient] = None
     skills: List[AppSkillDefinition] = []
     focuses: List[AppFocusDefinition] = Field(default=[], alias="focus_modes") # Allow 'focus_modes' as alias
-    memory_fields: List[AppMemoryFieldDefinition] = Field(default=[], alias="memory") # Allow 'memory' as alias
 
     @validator('focuses', pre=True, always=True)
     def set_focuses_default(cls, v, values):
@@ -83,22 +57,11 @@ class AppYAML(BaseModel):
         return v if v is not None else values.get('focus_modes', [])
 
     @root_validator(pre=True)
-    def map_settings_and_memories(cls, values):
-        """
-        Maps 'settings_and_memories' from app.yml to 'memory_fields' for compatibility.
-        Supports multiple field names: 'memory', 'memory_fields', and 'settings_and_memories'.
-        """
-        if isinstance(values, dict):
-            # If 'settings_and_memories' exists and 'memory_fields'/'memory' don't, map it
-            if 'settings_and_memories' in values and 'memory_fields' not in values and 'memory' not in values:
-                values['memory'] = values['settings_and_memories']
+    def reject_removed_typed_memories(cls, values):
+        """App-specific typed memories were removed; app.yml must not declare them."""
+        if isinstance(values, dict) and any(k in values for k in ('settings_and_memories', 'memory', 'memory_fields')):
+            raise ValueError("app-specific typed memories were removed; use Memory documents")
         return values
-
-
-    @validator('memory_fields', pre=True, always=True)
-    def set_memory_fields_default(cls, v, values):
-        """Ensures memory_fields list is initialized even if 'memory' is missing or None."""
-        return v if v is not None else values.get('memory', [])
     
     class Config:
         validate_by_name = True # Allows using 'system_prompt' for 'systemprompt' etc.

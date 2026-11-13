@@ -214,9 +214,9 @@ async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
     assert stored["status"] == "timeout"
     assert stored["stop_reason"] == "auto_unopened_timeout"
     assert stored["sandbox_stopped_at"] == stored["sandbox_stop_requested_at"]
-    assert stored["billing_state"]["charged_credits"] == 5
+    assert stored["billing_state"]["charged_credits"] == 3
     assert stopped == [{"sandbox_id": "sandbox-1", "api_key": "e2b-key"}]
-    assert charges and charges[0]["credits"] == 5
+    assert charges and charges[0]["credits"] == 3
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.artifacts.encrypted-indexed,storage.privacy.ciphertext-boundary
@@ -620,7 +620,7 @@ async def test_stop_application_preview_sandbox_charges_usage_once(monkeypatch) 
 
     charged = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
     assert charges[0]["session_id"] == "session-1"
-    assert charges[0]["credits"] == 10
+    assert charges[0]["credits"] == 6
     assert charges[0]["usage_details"] == {
         "billing_phase": "stopped",
         "duration_seconds": 61.0,
@@ -629,7 +629,7 @@ async def test_stop_application_preview_sandbox_charges_usage_once(monkeypatch) 
     }
     assert charges[0]["session"]["viewer_user_id"] == "alice-user"
     assert charges[0]["session"]["usage_context"] == {"chat_id": "chat-1", "application_embed_id": "app-embed-1"}
-    assert charged["billing_state"]["charged_credits"] == 10
+    assert charged["billing_state"]["charged_credits"] == 6
     assert charged["billing_state"]["charged_minutes"] == 2
 
     await worker.stop_application_preview_sandbox(
@@ -700,7 +700,7 @@ async def test_charge_preview_credits_posts_internal_billing_payload(monkeypatch
                     "preview_session_id": "session-1",
                     "application_embed_id": "app-embed-1",
                     "chat_id": "chat-1",
-                    "credits_per_minute": 5,
+                    "credits_per_minute": 3,
                     "billing_phase": "stopped",
                     "duration_seconds": 61.0,
                     "charged_minutes": 2,
@@ -861,7 +861,7 @@ async def test_startup_preserves_unopened_deadline_even_when_cleanup_queue_is_bu
     assert elapsed[0] == {'immediately': 0, 'next_check': 1, 'never': 60}[opened]
     assert stored['status'] == ('timeout' if opened == 'never' else 'running')
     assert stopped == ([('sandbox-1', 60)] if opened == 'never' else [])
-    assert charges == ([5] if opened == 'never' else [])
+    assert charges == ([3] if opened == 'never' else [])
     assert len(dispatches) == (0 if opened == 'immediately' else 1)
 
 

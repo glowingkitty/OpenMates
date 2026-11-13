@@ -147,6 +147,9 @@ async def _generate_lyria_3_interaction(prompt: str, model_id: str) -> tuple[byt
                 "input": [{"type": "text", "text": prompt}],
             },
         )
+    if response.is_error:
+        # The 400 body names the refusal reason (for example a prompt naming an artist); keep it for debugging.
+        logger.warning("Lyria 3 interaction failed with %s: %s", response.status_code, response.text[:500])
     response.raise_for_status()
     payload = response.json()
     outputs = payload.get("outputs") or []

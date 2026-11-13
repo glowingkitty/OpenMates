@@ -65,18 +65,13 @@ rate_limits:
 # Pricing information
 # Cost per request in credits (user-facing pricing, independent of Google's pricing)
 #
-# Pricing calculation based on Text Search Enterprise SKU ($0.032 per request):
-# - Base cost: $0.032 per search request (for fields: displayName, formattedAddress, location, types, rating)
-# - Converting to OpenMates credits (1 credit = $0.001 USD):
-# - $0.032 / $0.001 = 32 credits (exact break-even cost)
-#
-# We round up to 40 credits per request to cover:
-# - Currency conversion buffer (USD to EUR fluctuations)
-# - Small operational overhead
-# - Rounding to a clean number
-# - Maximum 20 results per request (pricing is per API request, not per result)
-#
-# Users are always charged 40 credits per search request
-# If a user makes 5 parallel search requests, they are charged 200 credits total (5 * 40)
+# Cost-plus: supplier_costs below x 1.5, rounded up to 5-credit steps
+# (Maximum 20 results per request; pricing is per API request, not per result).
 pricing:
-  per_request_credits: 40 # Always 40 credits per search request for users
+  per_request_credits: 55
+supplier_costs:
+  per_request_credits:
+    price: 0.035
+    currency: USD
+    source_url: https://developers.google.com/maps/billing-and-pricing/pricing
+    note: Places Text Search Enterprise SKU (field mask includes rating)

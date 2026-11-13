@@ -92,8 +92,7 @@ struct RecoveryKeyView: View {
             do {
                 try await authManager.loginWithRecoveryKey(
                     email: email,
-                    recoveryKey: recoveryKey,
-                    userEmailSalt: userEmailSalt
+                    recoveryKey: recoveryKey
                 )
             } catch let error as APIError {
                 errorMessage = error.localizedDescription

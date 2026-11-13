@@ -180,8 +180,8 @@ describe("parse_message grouped bare embed refs", () => {
     expect(serialized).not.toContain("[-Ur6]");
   });
 
-  // contract-test: supporting surface=gui.web assertions=events-search.surface-parity
-  it("repairs bracketed embed-prefixed refs without leaking protocol text", () => {
+  // contract-test: supporting surface=gui.web assertions=events-search.surface-parity,app-skills.answer.only-result-embeds-in-body
+  it("drops bracketed embed-prefixed refs to an app skill invocation without leaking protocol text", () => {
     registerEmbedRefIndex("else-x-home-dsBI", {
       embedId: "embed-1",
       appId: "events",
@@ -193,12 +193,9 @@ describe("parse_message grouped bare embed refs", () => {
     const inlineEmbeds = findInlineEmbeds(doc.content || []);
     const serialized = JSON.stringify(doc);
 
-    expect(inlineEmbeds).toHaveLength(1);
-    expect(inlineEmbeds[0].attrs).toMatchObject({
-      embedRef: "else-x-home-dsBI",
-      embedId: "embed-1",
-      appId: "events",
-    });
-    expect(serialized).not.toContain("[embed:else-x-home-dsBI]");
+    // The invocation is shown only in the "Used the app" container.
+    expect(inlineEmbeds).toHaveLength(0);
+    expect(serialized).toContain("Event Options Comparison");
+    expect(serialized).not.toContain("else-x-home-dsBI");
   });
 });

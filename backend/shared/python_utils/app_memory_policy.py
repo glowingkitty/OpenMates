@@ -19,3 +19,14 @@ def is_removed_app_memory_key(key: object) -> bool:
     value = str(key or "").strip()
     app_id = value.split(":", 1)[0].split("-", 1)[0]
     return is_removed_app_memory(app_id)
+
+TYPED_MEMORY_REMOVED_ERROR = "App-specific typed memories were removed; create a Memory instead."
+
+# The collection still stores first-party non-memory data (privacy personal-data and PII settings).
+# Every other owner is a removed app-specific typed memory.
+NON_MEMORY_PERSISTED_APP_IDS = frozenset({"privacy"})
+
+
+def is_typed_memory_write_rejected(app_id: object) -> bool:
+    """True when a write targets an app-specific typed memory (removed; create a Memory instead)."""
+    return str(app_id or "").strip().lower() not in NON_MEMORY_PERSISTED_APP_IDS

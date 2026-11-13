@@ -1,0 +1,81 @@
+schema_version: 1
+id: feature.chat-unread
+version: 1
+status: draft
+title: Chat Unread State
+summary: >
+  A finished assistant reply stays unread until its last line has been visible
+  in the user's viewport. Unread chats show a counter on their chat list row and
+  on their "Continue where you left off" entry in the web app and the terminal
+  UI, and the state persists across reloads and the user's devices.
+
+scope:
+  includes:
+    - When an authenticated saved chat's assistant reply counts as unread or read.
+    - Unread counters on web sidebar chat rows and Continue carousel chat cards.
+    - The same unread rules and counters in the OpenMates terminal UI (TUI) chat list and home screen.
+    - Server persistence and cross-device synchronization of the unread count.
+    - Explicit Mark unread and Mark read actions from chat menus.
+  excludes:
+    - Push, email and in-app notification delivery for finished replies.
+    - Sub-chat replies, which notify only when they request user input.
+    - Public example, demo, anonymous and incognito chats.
+    - Apple app unread presentation (planned separately).
+    - Non-interactive CLI commands and SDKs, which only carry the count.
+
+models:
+  ChatUnreadState:
+    unread_count:
+      type: integer
+      required: true
+      constraints: {minimum: 0}
+    counted_reply_ids:
+      type: list
+      required: true
+      description: Replies already counted, so one reply never increments the count twice.
+
+assertions:
+  - id: chat-unread.reply.read-at-last-line
+    type: behavior
+    must: A finished assistant reply in an authenticated saved chat counts as unread until the last line of the chat's newest message has been visible in the chat viewport (the web chat history or the terminal UI transcript) while that client is visible to the user. Opening the chat, or seeing only the first lines of the reply, does not mark it read; closing the chat before reaching the end keeps it unread.
+    depends_on: [models.ChatUnreadState, examples.read_position]
+  - id: chat-unread.followup.implies-read
+    type: behavior
+    must: Sending a follow-up message in a chat marks its earlier replies read even if the user never reached their last line, so the next finished reply makes the counter exactly one rather than adding to the earlier count.
+    depends_on: [examples.follow_up]
+  - id: chat-unread.surfaces.sidebar-and-continue
+    type: behavior
+    must: Every unread chat shows the same unread counter (capped as 9+) on its chat list row and on its "Continue where you left off" entry, in the web app (sidebar row and Continue carousel card) and in the terminal UI (chat list row and home-screen continue entry), including while that chat is open; the counter disappears from both when the chat is marked read.
+    depends_on: [examples.surfaces]
+  - id: chat-unread.persistence.cross-device
+    type: invariant
+    must: The server increments a chat's unread count once per finished top-level assistant reply and persists it, so the count survives reloads and reaches the user's other devices; local and server signals for the same reply count it once, and marking read on one device clears it on the others.
+    depends_on: [models.ChatUnreadState, examples.persistence]
+  - id: chat-unread.manual.mark-unread
+    type: behavior
+    must: Mark unread from a chat menu sets the chat's count to exactly one and keeps it unread while the user remains in that chat, even if its last line is visible; Mark read clears it immediately.
+    depends_on: [examples.manual]
+
+applies_to:
+  rest_api:
+    required: false
+    role: The first-party WebSocket read-status messages carry the count; no public REST surface is added.
+  cli:
+    required: true
+    parity: semantic
+    role: The interactive terminal UI applies the same read rules and shows the counters; one-shot CLI commands only carry the count.
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+
+examples:
+  file: examples.yml
+  required_groups: [read_position, follow_up, surfaces, persistence, manual]

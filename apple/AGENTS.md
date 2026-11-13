@@ -49,7 +49,40 @@ Before touching native product UI, inspect the rendered web component and record
 
 If an interaction state is needed, drive the existing `*.spec.ts` test or a temporary browser/scripted flow based on existing tests to reach that state, then inspect the computed values. Svelte and CSS source files explain intent, but the browser-computed output is the final parity target.
 
+## Core logic lives in Rust
+
+Non-UI logic does not belong in Swift. The shared Rust client core
+(`packages/openmates-rust`, crate `openmates-sdk`) owns transport and reconnect,
+sync, keys and crypto, the encrypted local cache, drafts, send, streaming,
+completion recovery, search and settings/project policies. The Apple app reaches
+it through UniFFI (`packages/openmates-apple-bindings`): the "Build OpenMatesCore"
+script phase builds one static library per build (`build-xcframework.sh
+--xcode-phase`), and the generated Swift, C header and modulemap are committed in
+`apple/OpenMatesCore` and compiled into the app targets (regenerate with
+`build-xcframework.sh --update-bindings`; CI `apple-core` fails when they are
+stale). Swift keeps SwiftUI/UIKit
+views and view state, platform APIs (APNs, widgets, Live Activities, Spotlight,
+StoreKit, media, haptics, pickers, passkeys, background tasks) and Keychain
+storage of the core's credential snapshots.
+
+- Do not add or change protocol, sync, crypto, cache or retry/deletion policy in
+  `Sources/Core/**` or `OpenMatesShared/**`; add it to the core and bind to it.
+  A defect fix in not-yet-migrated Swift logic is allowed and is marked
+  `shell-only: bugfix-in-frozen-code <capability>` in the deploy message.
+- Migration order and per-capability status: `docs/plans/client-core-one-core-three-shells/plan.yml`
+  (bridge, crypto+keys, sync+cache, send/stream/recovery, drafts/search/settings/projects).
+  Each step deletes the Swift it replaces and the web-parity tests of that subject.
+- `apple-unit` and `apple-ui` jobs compile first (all Swift errors of the app and test
+  targets listed when the build fails) and test on that build; submit them together.
+  `ci_coordinator.py submit --mode apple-build --spec all` is the build alone.
+- XCTest/XCUITest run on GitHub `macos-26` (`ci_coordinator.py --mode apple-unit`,
+  `--mode apple-core`). The Mac is for TestFlight, device/APNs and real-account tests.
+- Rules: `.claude/rules/client-core.md`; contract: `specifications/architecture/client-core/`.
+  The UI rules in this file are unchanged.
+
 ## Apple/Web Parity Program
+
+Parity here means UI and user-visible behavior. Logic parity between Swift and web TypeScript is no longer a goal: logic moves into the Rust core and its parity tests are deleted with it (see "Core logic lives in Rust").
 
 For broad Apple UI parity work, use the program Plan in `docs/plans/apple-ui-parity-program/plan.yml` and the matrix in `docs/architecture/apple/parity-matrix.md` before adding one-off native UI tests.
 
@@ -186,11 +219,17 @@ Diagnostics must remain privacy-safe: never log message plaintext, encryption ke
 
 ## Remote Mac Verification
 
-When the active coding session runs on a Linux/dev server, attempt Apple
-verification through the redacted wrapper in `scripts/apple_remote.py` before
-saying Mac/Xcode verification is unavailable. This is mandatory for changes that
-affect Apple-backed surfaces such as chat, sync, auth, settings, embeds,
-billing, shared UI, app chrome, or provider result rendering.
+XCTest and XCUITest suites run first on GitHub `macos-26` runners
+(`ci_coordinator.py submit --mode apple-unit|apple-core|apple-ui`). Use the Mac below for
+TestFlight, physical-device/APNs and real-account tests, or while those CI modes
+are unavailable.
+
+When the active coding session runs on a Linux/dev server, verify Apple-backed
+surfaces (chat, sync, auth, settings, embeds, billing, shared UI, app chrome,
+provider result rendering) first through the CI modes
+(`ci_coordinator.py submit --mode apple-core|apple-unit|apple-ui`). Use the redacted
+wrapper in `scripts/apple_remote.py` only for the exceptions: TestFlight,
+physical device/APNs and real-account tests.
 
 Use only operator-provided connection details from local runtime configuration,
 such as `~/.ssh/config`, environment variables, or the current chat. Never commit
@@ -248,8 +287,8 @@ Remote verification flow:
     `ssh_failed`, `project_not_found`, or `xcode_build_failed`. Keep private
     connection details in local shell history or operator notes, not repo files.
 
-For cross-client work, prefer the parity wrapper from the repo root so Apple
-verification is sequenced after CLI/SDK and web evidence:
+For cross-client work, the parity wrapper from the repo root can run Mac checks
+for the exceptions above (CI modes `apple-core|apple-unit` come first):
 
 ```bash
 python3 scripts/verify_parity.py --run --web-spec <name>.spec.ts --apple build

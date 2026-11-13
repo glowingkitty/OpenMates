@@ -19,6 +19,7 @@ Image search results use the same domain-based `embed_ref` format as web search 
 
 **Rules:**
 - Only use `embed_ref` values that actually appear in the conversation context — never invent or guess an `embed_ref`.
+- Never reference a skill-use embed (the app skill call itself, e.g. a `parent_embed_ref`, a `generated-media-…` ref or an `<app>-<skill>-…` ref) in a link or card. It already shows in the "Used the app" container where the skill ran. Reference only its results (each result's or generated output's own `embed_ref`).
 - Direct code/document/sheet embeds also have explicit `embed_ref` values. Use those exact values; never derive refs from filenames or status words like `finished`.
 - Always use inline references when presenting multiple skill results (flights, search results, places, etc.) so the user can tap each result directly.
 - You may use multiple inline embed links in a single response.

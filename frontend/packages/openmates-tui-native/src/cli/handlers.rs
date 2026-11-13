@@ -34,6 +34,7 @@ fn supported(invocation: &Invocation) -> bool {
         return super::goal_chat::supported(invocation);
     }
     if invocation.command_path()=="embeds share" || super::embed_commands::supported(invocation)
+        || super::embed_user_edit_cmd::supported(invocation)
         || super::drafts::supported(invocation)
         || super::global_history::supported(invocation)
         || super::tasks::supported(invocation)
@@ -41,6 +42,7 @@ fn supported(invocation: &Invocation) -> bool {
         || super::projects::supported(invocation)
         || super::workflows::supported(invocation)
         || super::account::supported(invocation)
+        || super::teams_message::supported(invocation)
         || super::mentions_cmd::supported(invocation)
         || super::group_help::is_root(invocation)
         || super::chat_work::supported(invocation)
@@ -51,6 +53,8 @@ fn supported(invocation: &Invocation) -> bool {
         || super::parity_extras::supported(invocation)
         || super::utility::supported(invocation)
         || super::parity_chat_recovery::supported(invocation)
+        || super::extra_ports::supported(invocation)
+        || remote_access_supported(invocation)
         || matches!(
             invocation.command_path().as_str(),
             "wiki search" | "wiki show"
@@ -63,6 +67,17 @@ fn supported(invocation: &Invocation) -> bool {
             invocation.path.first().map(String::as_str),
             Some("login" | "server" | "signup" | "tui")
         )
+}
+/// The Rust filesystem host exists only on unix targets.
+fn remote_access_supported(invocation: &Invocation) -> bool {
+    #[cfg(unix)]
+    return super::remote_access::supported(invocation)
+        || super::remote_access_folder::supported(invocation);
+    #[cfg(not(unix))]
+    {
+        let _ = invocation;
+        false
+    }
 }
 pub fn requirements(invocation: &Invocation) -> Requirements {
     let local = matches!(
@@ -78,6 +93,7 @@ pub fn requirements(invocation: &Invocation) -> Requirements {
         || super::parity_extras::is_public(invocation)
         || super::parity_chat_recovery::is_public(invocation)
         || super::group_help::is_root(invocation)
+        || invocation.command_path().starts_with("remote-access new-projects-folder ")
         || !supported(invocation)
         || invocation.path.first().is_some_and(|v| v == "server");
     Requirements {
@@ -92,6 +108,10 @@ pub fn requirements(invocation: &Invocation) -> Requirements {
 /// Run before opening credential storage. Help is handled directly by Clap.
 pub fn execute_public(invocation: &Invocation) -> Option<Result<CliOutput, CliError>> {
     if invocation.command_path()=="embeds share" { if let Some(result)=super::embed_share::preflight(invocation){return Some(result);} }
+    #[cfg(unix)]
+    if let Some(output) = super::remote_access::preflight(invocation) { return Some(output); }
+    #[cfg(unix)]
+    if let Some(output) = super::remote_access_folder::public(invocation) { return Some(output); }
     if let Some(output) = super::apps_run::public(invocation) { return Some(output); }
     if let Some(output) = super::utility::public(invocation) { return Some(output); }
     if let Some(output) = super::group_help::public(invocation) { return Some(output); }
@@ -329,7 +349,14 @@ fn bounded_show_text(read:&openmates_sdk::client::saved_chat_read::SavedChatRead
 }
 fn chat_text(chat: &Chat) -> String {
     let mut out = format!("{}\nChat: {}\n", chat.title, chat.id);
-    for message in &chat.messages {
+    for item in super::embed_update_notice::transcript_items(&chat.messages) {
+        let message = match item {
+            super::embed_update_notice::TranscriptItem::Notice(line) => {
+                out.push_str(&format!("\n· {line}\n"));
+                continue;
+            }
+            super::embed_update_notice::TranscriptItem::Message(message) => message,
+        };
         out.push_str(&format!(
             "\n{}\n{}\n",
             if message.role == "user" {
@@ -946,7 +973,10 @@ async fn execute_inner(
     if invocation.command_path() == "embeds share" {
         return Box::pin(super::embed_share::execute(invocation,client,cancel)).await;
     }
-    if invocation.command_path() == "embeds versions show" {
+    if super::embed_user_edit_cmd::supported(invocation) {
+        return super::embed_user_edit_cmd::execute_boxed(invocation, client, cancel).await;
+    }
+    if matches!(invocation.command_path().as_str(), "embeds versions show" | "embeds test-result") {
         return Box::pin(super::embed_commands::execute_cookie_version(invocation, client, cancel)).await;
     }
     if super::drafts::supported(invocation) {
@@ -1061,8 +1091,14 @@ async fn execute_context_with_inventory(
         return Box::pin(super::parity_extras::execute(invocation, client)).await;
     }
     if super::utility::supported(invocation) { return Box::pin(super::utility::execute(invocation, client)).await; }
+    if super::extra_ports::supported(invocation) { return Box::pin(super::extra_ports::execute(invocation, client)).await; }
+    #[cfg(unix)]
+    if super::remote_access::supported(invocation) { return Box::pin(super::remote_access::execute(invocation, client, cancel, store)).await; }
     if super::parity_chat_recovery::supported(invocation) {
         return Box::pin(super::parity_chat_recovery::execute(invocation, client, cancel)).await;
+    }
+    if super::teams_message::supported(invocation) {
+        return Box::pin(super::teams_message::execute(invocation, client, cancel)).await;
     }
     if super::account::supported(invocation) {
         return Box::pin(super::account::execute(invocation, client)).await;
@@ -1131,6 +1167,9 @@ async fn execute_context_with_inventory(
             let results = client.search_chats(&query).await?;
             super::history::chat_search_output(invocation, results)
         }
+        _ if super::apps_metadata::handles(invocation) => {
+            Box::pin(super::apps_metadata::execute(invocation, client)).await
+        }
         "chats list" | "projects list" | "workflows list" | "apps list" => {
             flags(invocation, &["limit", "page", "status", "personal", "team"])?;
             let command = invocation.path[0].as_str();
@@ -1167,7 +1206,14 @@ async fn execute_context_with_inventory(
                     content_mode:openmates_sdk::client::saved_chat_read::SavedChatContentMode::Stored,
                     ..Default::default()
                 }).await?;
-                return Ok(CliOutput::text(bounded_show_text(&read)));
+                // Render and drop the page before the next await, and box the
+                // reconcile: keeps this dispatch future within its stack bound.
+                let (text, chat_id) = (bounded_show_text(&read), read.window.chat.id.clone());
+                drop(read);
+                if let Some(read) = super::embed_update_notice::bounded_read_after_reconcile_boxed(client, id, &chat_id).await? {
+                    return Ok(CliOutput::text(bounded_show_text(&read)));
+                }
+                return Ok(CliOutput::text(text));
             }
             if super::full_chat_read::is_full_json(invocation) {
                 let (output, _admission) = super::full_chat_read::execute_admitted(
@@ -1183,6 +1229,9 @@ async fn execute_context_with_inventory(
                 }
                 None => client.open_chat(id).await?,
             };
+            // embed-user-edits.event.project-edit-reaches-chat: opening a chat
+            // writes pending embed events; show them in this same output.
+            let chat = super::embed_update_notice::chat_after_reconcile_boxed(client, chat).await?;
             let text = chat_text(&chat);
             output(
                 invocation,
@@ -1402,24 +1451,7 @@ async fn execute_context_with_inventory(
             // Draft commands retain their legacy unconditional JSON contract.
             CliOutput::json(&json!({"success":true,"chat_id":id}))
         }
-        "drafts create" | "drafts update" => {
-            flags(invocation, &["chat"])?;
-            let (update, offset) = if path == "drafts update" {
-                (Some(positional(invocation, 0, "chat ID")?), 1)
-            } else {
-                (invocation.text("chat"), 0)
-            };
-            let text = invocation
-                .positionals
-                .get(offset..)
-                .unwrap_or(&[])
-                .join(" ");
-            if text.trim().is_empty() {
-                return Err(CliError::Invalid("Provide draft text.".into()));
-            }
-            let id = client.save_draft(update, &text).await?;
-            CliOutput::json(&json!({"chat_id":id,"saved":true}))
-        }
+        "drafts create" | "drafts update" => Box::pin(draft_write(invocation, client, &path)).await,
         "settings interface language set"
         | "settings interface dark-mode set"
         | "settings account timezone set"
@@ -1988,7 +2020,7 @@ mod tests {
     }
     #[test]
     fn unsupported_is_explicit_before_credentials() {
-        let command = invocation(&["e2e", "provision-auth-accounts"], &[], &[]);
+        let command = invocation(&["benchmark", "model"], &[], &[]);
         assert!(!requirements(&command).authenticated);
         let error = execute_public(&command).unwrap().err().unwrap();
         assert_eq!(error.exit_code(), 1);
@@ -2041,6 +2073,43 @@ mod tests {
 #[cfg(test)]
 #[path = "saved_read_recovery_tests.rs"]
 mod saved_read_recovery_tests;
+
+/// Save a draft (`drafts create`/`drafts update`) in its own boxed future so the
+/// large `execute` state machine does not grow with the encryption call frames.
+async fn draft_write(
+    invocation: &Invocation,
+    client: &mut Client,
+    path: &str,
+) -> Result<CliOutput, CliError> {
+    flags(invocation, &["chat", "preview"])?;
+    let (update, offset) = if path == "drafts update" {
+        (Some(positional(invocation, 0, "chat ID")?), 1)
+    } else {
+        (invocation.text("chat"), 0)
+    };
+    let text = invocation
+        .positionals
+        .get(offset..)
+        .unwrap_or(&[])
+        .join(" ");
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(CliError::Invalid("Provide draft text.".into()));
+    }
+    // The preview defaults to the first 160 characters like the npm CLI.
+    let preview = invocation
+        .text("preview")
+        .map_or_else(|| text.chars().take(160).collect::<String>(), str::to_owned);
+    let draft = client.save_draft_record(update, text, Some(&preview)).await?;
+    CliOutput::json(&json!({
+        "chatId": draft.encrypted.chat_id,
+        "encryptedDraftMd": draft.encrypted.encrypted_draft_md,
+        "encryptedDraftPreview": draft.encrypted.encrypted_draft_preview,
+        "draftV": draft.encrypted.draft_v,
+        "markdown": draft.markdown,
+        "preview": draft.preview,
+    }))
+}
 
 fn paginated_list_output(
     invocation: &Invocation,

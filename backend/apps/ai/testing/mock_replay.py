@@ -25,6 +25,7 @@ from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.chat_unread_counter import increment_and_publish_unread
 from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_job_data
 
 if TYPE_CHECKING:
@@ -285,6 +286,56 @@ def _split_response_into_chunks(response: str) -> List[str]:
     return chunks
 
 
+async def _dispatch_fixture_memory_writes(
+    fixture_data: Dict[str, Any],
+    request_data: AskSkillRequest,
+    cache_service: CacheService,
+) -> None:
+    """Run the fixture's `memory_writes` (save_memory arguments) through the real job protocol.
+
+    Mock replay skips the main processor, so without this no client could ever
+    receive a memory_write_job. Each entry is dispatched exactly like a model
+    tool call; only capable, eligible requests (save_memory_enabled) get them.
+    """
+    writes = fixture_data.get("memory_writes") or []
+    if not writes:
+        return
+    from backend.apps.ai.processing.memory_write_tool import dispatch_save_memory, save_memory_enabled
+    if not save_memory_enabled(request_data):
+        logger.info("[MOCK] Fixture declares memory_writes but the client lacks memory_write_jobs")
+        return
+    for arguments in writes:
+        result = await dispatch_save_memory(
+            arguments=arguments, request=request_data, approved_memories=[],
+            cache_service=cache_service, log_prefix="[MOCK]",
+        )
+        logger.info("[MOCK] Fixture memory write status=%s", result.get("status"))
+
+
+def _fixture_memory_request_key(
+    fixture_data: Dict[str, Any], request_data: AskSkillRequest,
+) -> Optional[str]:
+    """Return the `memory:<id>` key a fixture's `memory_request` asks to load.
+
+    None when the fixture declares none or this turn is the continuation after
+    the user answered the request (it then replays the reply). Raises when the
+    named personal Memory is absent from the client's catalog: a test that
+    expects a permission request must never silently get the reply instead.
+    """
+    declared = fixture_data.get("memory_request")
+    if not declared or getattr(request_data, "is_app_settings_memories_continuation", False):
+        return None
+    from backend.apps.ai.processing.rule_context import personal_catalog, request_memory_catalog
+    title = declared.get("title")
+    for entry in personal_catalog(request_memory_catalog(request_data)):
+        if entry.title == title:
+            return f"memory:{entry.id}"
+    raise RuntimeError(
+        f"[MOCK] Fixture memory_request title {title!r} is not a personal Memory in the "
+        "request's memory_catalog; the client must send the catalog with this Memory."
+    )
+
+
 async def replay_fixture(
     fixture_id: str,
     task_id: str,
@@ -313,6 +364,17 @@ async def replay_fixture(
     use instead of provider inference; fixtures without it keep the normal stage.
     """
     fixture_data = load_fixture(fixture_id)
+    if fixture_data.get("memory_request") and getattr(request_data, "client_context_pending", False):
+        # Web clients deliver the Memory catalog in the second ("details")
+        # context phase after admission; the real pipeline waits for it before
+        # preprocessing, so the mock must not read the catalog earlier.
+        from backend.core.api.app.services.client_context_continuation import await_client_context_phase
+        for phase in ("routing", "details"):
+            await await_client_context_phase(
+                cache_service=cache_service, request=request_data, phase=phase,
+                encryption_service=encryption_service,
+            )
+    memory_request_key = _fixture_memory_request_key(fixture_data, request_data)
     preprocessing_result = build_preprocessing_result(fixture_data)
     postprocessing_result = build_fixture_postprocessing_result(fixture_data)
 
@@ -414,6 +476,33 @@ async def replay_fixture(
     initial_delay = get_fixture_initial_delay_seconds(fixture_data)
     if initial_delay > 0:
         await asyncio.sleep(initial_delay)
+
+    if memory_request_key:
+        from backend.apps.ai.processing.memory_permission_request import issue_memory_permission_request
+        request_id = await issue_memory_permission_request(
+            request_data=request_data, missing_keys=[memory_request_key], task_id=task_id,
+            cache_service=cache_service, encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id, log_prefix=f"[MOCK fixture={fixture_id}]",
+        )
+        if not request_id:
+            raise RuntimeError("[MOCK] The Memory permission request message could not be created")
+        logger.info("[MOCK] Fixture '%s' awaits Memory permission (request %s); no reply", fixture_id, request_id)
+        # Same outcome as the stream consumer for the awaiting-permission marker:
+        # empty response, blocked task, nothing saved.
+        return {
+            "preprocessing_result": preprocessing_result,
+            "aggregated_final_response": "",
+            "thinking_content": [],
+            "main_processor_debug_metadata": {
+                "mocked": True, "fixture_id": fixture_id,
+                "user_task_blocked_reason_code": "permission_required",
+            },
+            "revoked_in_consumer": False,
+            "soft_limited_in_consumer": False,
+        }
+
+    # --- 2b. Assistant Memory writes (save_memory) the fixture declares ---
+    await _dispatch_fixture_memory_writes(fixture_data, request_data, cache_service)
 
     # --- 3. Build skill event schedule ---
     skill_events_by_fraction = _build_skill_event_schedule(fixture_data)
@@ -531,6 +620,16 @@ async def replay_fixture(
                 skill_event, task_id, request_data, cache_service
             )
 
+    # Same unread step as the stream consumer's _update_chat_metadata, which
+    # fixture replay skips: a finished top-level reply stays unread until seen.
+    if directus_service is not None and not request_data.is_external and not request_data.parent_id:
+        await increment_and_publish_unread(
+            cache_service, directus_service,
+            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+            chat_id=request_data.chat_id,
+            message_id=_assistant_message_id(task_id, request_data),
+        )
+
     # --- 5. Publish thinking content (if any) ---
     thinking_content_text = fixture_data.get("thinking_content")
     thinking_content_list: List[str] = []
@@ -637,6 +736,13 @@ async def _publish_fixture_postprocessing_metadata(
     if not chat_summary:
         return
 
+    # Fixtures obey the live Recommendations gate (setting off, sub-chat, incognito).
+    recommendations_allowed = (
+        (request_data.user_preferences or {}).get("recommendations_enabled", True) is not False
+        and not getattr(request_data, "is_sub_chat", False)
+        and not getattr(request_data, "is_incognito", False)
+    )
+
     payload = {
         "type": "post_processing_completed",
         "event_for_client": "post_processing_completed",
@@ -657,7 +763,7 @@ async def _publish_fixture_postprocessing_metadata(
         "top_recommended_apps_for_user": postprocessing.get(
             "top_recommended_apps_for_user", []
         ),
-        "quick_tip_slugs": postprocessing.get("quick_tip_slugs", []),
+        "recommendations": postprocessing.get("recommendations", []) if recommendations_allowed else [],
         "task_proposals": postprocessing.get("task_proposals", []),
         "task_update_proposals": postprocessing.get("task_update_proposals", []),
     }

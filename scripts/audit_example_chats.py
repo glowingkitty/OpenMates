@@ -19,7 +19,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import quote, unquote
+from urllib.parse import quote
 
 import yaml
 
@@ -84,11 +84,6 @@ CODE_IMAGE_TO_HTML_APP_SKILL = "code.image_to_html"
 
 
 @dataclass(frozen=True)
-class MemoryCategoryContract:
-    fields: set[str]
-
-
-@dataclass(frozen=True)
 class ExampleMessage:
     role: str
     content: str
@@ -149,24 +144,6 @@ def load_content_catalog() -> dict[str, dict[str, str]]:
                 "skillId": embed_type.get("skill_id") or "",
             }
     return catalog
-
-
-def load_memory_category_contracts() -> dict[str, dict[str, MemoryCategoryContract]]:
-    contracts: dict[str, dict[str, MemoryCategoryContract]] = {}
-    for path in sorted(APP_DIR.glob("*/app.yml")):
-        app_id = path.parent.name
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        categories: dict[str, MemoryCategoryContract] = {}
-        for category in data.get("settings_and_memories") or []:
-            category_id = category.get("id")
-            if not isinstance(category_id, str):
-                continue
-            schema = category.get("schema") or category.get("schema_definition") or {}
-            properties = schema.get("properties") if isinstance(schema, dict) else {}
-            fields = set(properties.keys()) if isinstance(properties, dict) else set()
-            categories[category_id] = MemoryCategoryContract(fields=fields)
-        contracts[app_id] = categories
-    return contracts
 
 
 def unescape_ts_string(value: str) -> str:
@@ -341,56 +318,15 @@ def normalize_settings_path(href: str) -> str | None:
     return path
 
 
-def extract_prefill(href: str) -> tuple[dict[str, object] | None, bool]:
-    hash_index = href.find("#settings")
-    if hash_index < 0:
-        return None, False
-    query_index = href.find("?", hash_index)
-    if query_index < 0:
-        return None, False
-    query = href[query_index + 1:]
-    prefix = "prefill="
-    prefill_index = query.find(prefix)
-    if prefill_index < 0:
-        return None, False
-    raw = query[prefill_index + len(prefix):].split("&", 1)[0]
-    if not raw:
-        return None, True
-    try:
-        decoded = unquote(raw).replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
-        parsed = json.loads(decoded)
-    except (json.JSONDecodeError, ValueError):
-        return None, True
-    if not isinstance(parsed, dict):
-        return None, True
-    return parsed, True
-
-
-def settings_link_is_valid(href: str, contracts: dict[str, dict[str, MemoryCategoryContract]]) -> bool:
+def settings_link_is_valid(href: str) -> bool:
     path = normalize_settings_path(href)
     if path is None:
         return False
-    memory_match = re.match(
-        r"^apps/([^/]+)/settings_memories/([^/]+)/(?:create|entry/[^/]+/edit)$",
-        path,
-    )
-    if not memory_match:
-        return True
-    app_id, category_id = memory_match.groups()
-    category = contracts.get(app_id, {}).get(category_id)
-    if category is None:
-        return False
-    prefill, has_prefill = extract_prefill(href)
-    if not has_prefill:
-        return True
-    if prefill is None:
-        return False
-    if not category.fields:
-        return True
-    return all(key in category.fields for key in prefill)
+    # Typed app memory create/edit routes were removed; such links are invalid.
+    return not re.match(r"^apps/[^/]+/settings_memories/[^/]+/(?:create|entry/)", path)
 
 
-def audit_settings_deep_links(contracts: dict[str, dict[str, MemoryCategoryContract]]) -> list[str]:
+def audit_settings_deep_links() -> list[str]:
     issues: list[str] = []
     for path in sorted(EXAMPLE_I18N_DIR.glob("*.yml")):
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -406,7 +342,7 @@ def audit_settings_deep_links(contracts: dict[str, dict[str, MemoryCategoryContr
                     if not label:
                         issues.append(f"{path.name}: {key}.{locale} has a #settings link with empty label")
                         continue
-                    if settings_link_is_valid(href, contracts):
+                    if settings_link_is_valid(href):
                         continue
                     fallback = f"#message={quote(label, safe='')}"
                     if not fallback:
@@ -692,46 +628,6 @@ def has_generic_preview_content(content: str) -> bool:
     return any(toon_value(content, key) for key in GENERIC_PREVIEW_KEYS)
 
 
-def has_visible_mail_memory_draft(source: str) -> bool:
-    user_mentions_saved_style = False
-    for message in parse_messages(source):
-        resolved, _ = resolve_message_content(message.content)
-        lowered = resolved.lower()
-        if message.role == "user" and "saved" in lowered and "style" in lowered:
-            user_mentions_saved_style = True
-            continue
-        if message.role != "assistant":
-            continue
-        if (
-            user_mentions_saved_style
-            and ("subject:" in lowered or "subject line" in lowered)
-            and ("best," in lowered or "regards," in lowered or "alex" in lowered)
-        ):
-            return True
-    return False
-
-
-def has_memory_system_artifacts(source: str) -> bool:
-    has_request = False
-    has_accepted_response = False
-    for message in parse_messages(source):
-        if message.role != "system":
-            continue
-        resolved, _ = resolve_message_content(message.content)
-        try:
-            payload = json.loads(resolved)
-        except json.JSONDecodeError:
-            continue
-        if payload.get("type") == "app_settings_memories_request":
-            has_request = True
-        if (
-            payload.get("type") == "app_settings_memories_response"
-            and payload.get("action") == "included"
-        ):
-            has_accepted_response = True
-    return has_request and has_accepted_response
-
-
 def has_non_empty_toon_field(content: str, key: str) -> bool:
     value = toon_value(content, key)
     return bool(value and value.strip() and value.strip().lower() not in {"null", "none", "[]"})
@@ -763,8 +659,7 @@ def audit() -> list[str]:
     valid_categories = load_canonical_categories()
     registry_keys = load_registry_keys()
     content_catalog = load_content_catalog()
-    memory_contracts = load_memory_category_contracts()
-    issues.extend(audit_settings_deep_links(memory_contracts))
+    issues.extend(audit_settings_deep_links())
     content_example_counts = dict.fromkeys(content_catalog, 0)
 
     for path in sorted(EXAMPLE_DIR.glob("*.ts")):
@@ -774,7 +669,6 @@ def audit() -> list[str]:
         source_embed_ids = embed_ids_in_source(source)
         source_known_embed_refs = known_embed_refs(source)
         visible_app_skills = visible_app_skill_use_keys(source)
-        settings_memory_examples = parse_ts_string_array_field(source, "app_settings_memory_examples")
         issues.extend(audit_static_source(chat_id, source))
 
         if category not in valid_categories:
@@ -818,11 +712,6 @@ def audit() -> list[str]:
             focus_examples = parse_ts_string_array_field(source, "app_focus_mode_examples")
             issues.append(
                 f"{chat_id}: focus-mode example {focus_examples or [active_focus_id]} has sub_chats without assistant messages"
-            )
-
-        if settings_memory_examples and not has_memory_system_artifacts(source):
-            issues.append(
-                f"{chat_id}: memory example {settings_memory_examples} is missing memory request/accepted system messages"
             )
 
         for index, message in enumerate(parse_messages(source), start=1):
@@ -881,10 +770,6 @@ def audit() -> list[str]:
                     f"{chat_id}: {registry_key} has no registry preview and no generic preview fields"
                 )
 
-        if "mail.writing_styles" in settings_memory_examples:
-            visible_mail_memory_draft = has_visible_mail_memory_draft(source)
-            if not visible_mail_memory_draft and not has_embed_type(source, {"mail-email"}):
-                issues.append(f"{chat_id}: mail writing memory example is missing a mail-email embed")
 
     for content_key, count in sorted(content_example_counts.items()):
         if count == 0:

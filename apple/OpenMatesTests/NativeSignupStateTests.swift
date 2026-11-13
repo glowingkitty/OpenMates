@@ -3,6 +3,14 @@ import XCTest
 @testable import OpenMates
 
 @MainActor final class NativeSignupStateTests: XCTestCase {
+    // Web signupFlow.ts ends at password -> completion; recovery key, 2FA,
+    // backup codes and credits live in Settings, so signup must not add them.
+    // contract-test: supporting surface=gui.apple assertions=auth.signup.current-flow
+    func testSignupStepsMatchWebShortFlowWithoutLegacySecurityOrPaymentSteps() {
+        XCTAssertEqual(SignupViewModel.SignupStep.allCases,
+                       [.alphaDisclaimer, .basics, .confirmEmail, .secureAccount, .password, .passkeyPRFError, .complete])
+    }
+
     // contract-test: supporting surface=gui.apple assertions=auth.surface.first-party-boundary
     func testCloudSignupRequiresConfirmedEmailAndPasswordChoiceBeforeCreation() async throws {
         let runtime = RecordingNativeSignupRuntime()

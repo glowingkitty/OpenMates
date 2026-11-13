@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { browseContent, canViewBrowseSession } from './browseContent';
+import { browseContent, browsePhaseKey, browseStepKey, browseStepShowsLabel, canViewBrowseSession } from './browseContent';
 
 // contract-test: supporting surface=gui.web assertions=web-browse.private-storage-and-api,web-browse.exclusive-takeover
 describe('Browse live owner boundary', () => {
@@ -37,5 +37,30 @@ describe('saved Browse result boundary', () => {
   // contract-test: supporting surface=gui.web assertions=web-browse.structured-data,web-browse.truthful-completion
   it('keeps malformed JSON unavailable rather than inventing a result', () => {
     expect(browseContent({ data_json: '{invalid', data_a_b: 'text' }).data).toBe(null);
+  });
+});
+
+// contract-test: supporting surface=gui.web assertions=web-browse.truthful-completion,web-browse.structured-data
+describe('Browse partial verification and step helpers', () => {
+  it('reads the unverified paths from the result and ignores malformed entries', () => {
+    const output = browseContent({ status: 'finished', results: [{ status: 'completed', missing: ['items[0].price', ' purpose ', '', 4, null] }] });
+    expect(output.missing).toEqual(['items[0].price', 'purpose']);
+  });
+  // contract-test: supporting surface=gui.web assertions=web-browse.truthful-completion
+  it('treats absent, empty or non-array missing as complete', () => {
+    expect(browseContent({ status: 'finished', results: [{ status: 'completed' }] }).missing).toEqual([]);
+    expect(browseContent({ status: 'finished', results: [{ status: 'completed', missing: [] }] }).missing).toEqual([]);
+    expect(browseContent({ status: 'finished', results: [{ status: 'completed', missing: 'purpose' }] }).missing).toEqual([]);
+  });
+  // contract-test: supporting surface=gui.web assertions=web-browse.embed-and-observation
+  it('maps step kinds to translated verbs and shows labels only for element actions', () => {
+    expect(browseStepKey('click')).toBe('embeds.browse.step_click');
+    expect(browseStepKey('back')).toBe('embeds.browse.step_back');
+    expect(browseStepKey('unknown')).toBe('embeds.browse.step_goto');
+    expect(browseStepShowsLabel('type')).toBe(true);
+    expect(browseStepShowsLabel('scroll')).toBe(false);
+    expect(browsePhaseKey('starting')).toBe('embeds.browse.phase_starting');
+    expect(browsePhaseKey('idle')).toBe('');
+    expect(browsePhaseKey(undefined)).toBe('');
   });
 });

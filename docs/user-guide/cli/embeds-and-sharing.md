@@ -79,6 +79,20 @@ Displays the full decrypted content of an embed in the terminal. The embed ID ca
 
 `videos/create` embeds render as terminal-native status cards. While a Remotion render is `processing`, `rendering`, or `needs_rerender`, the CLI refreshes the embed content from the video status endpoint before printing it. Run the command again after rendering finishes to get the rendered video link and QR code.
 
+## Enhancing and Restoring Versions
+
+```
+openmates embeds enhance <embed-id> [--chat <chat-id> | --project <project-id>] [--json]
+openmates embeds enhance <embed-id> --resume <operation-id>
+openmates embeds restore <embed-id> --version <n> [--chat <chat-id> | --project <project-id>] [--json]
+```
+
+`embeds enhance` re-renders an image at higher quality (about 2K, same picture) and saves it as the next version of the same image. It costs 63 credits and is charged only when a result was produced. If it takes longer than three minutes, the command prints the operation ID; run it again with `--resume <operation-id>` to save the finished result (a result stays saveable for 24 hours and is never charged twice). Enhance is not available for Team images yet.
+
+`embeds restore` copies an earlier version as a new version; nothing is deleted. Both commands need a signed-in session (not an API key). Use `--project` for a file that belongs to a Project; by default the embed's chat is used.
+
+Each change adds a quiet line to the embed's chat, for example `· Image updated · version 3 (enhanced)`. Several changes in a row show as one line (`Image updated, 3 changes · …`). `openmates chats show` writes the lines for changes made from Projects the next time the chat is opened. `openmates embeds versions list` shows who made each version and how.
+
 ## Sharing an Embed
 
 ```

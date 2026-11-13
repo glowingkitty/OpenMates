@@ -5,6 +5,7 @@ mod embeds;
 mod markdown;
 mod questions;
 mod settings_catalog;
+mod unread;
 use crate::model::{Chat, Item, Message, Mutation, StreamUpdate, Workspace};
 use crossterm::event::{
     KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -56,6 +57,8 @@ pub enum UiCommand {
         vault_passphrase: Option<Zeroizing<String>>,
     },
     Cancel,
+    /// Mark a chat read on every device (feature.chat-unread@1).
+    MarkRead(String),
     OpenUrl(String),
     Copy(String),
     SelectionMode(bool),
@@ -297,6 +300,12 @@ pub struct Ui {
     settings: Option<Settings>,
     palette_query: Editor,
     chat_layout: Option<(u16, Vec<Row>)>,
+    /// First and last painted row of the newest message in `chat_layout`.
+    latest_reply_rows: Option<(usize, usize)>,
+    /// An unread chat was opened: start at its newest reply, not the tail.
+    open_at_latest_reply: bool,
+    /// Commands produced while drawing; drained by the runtime after paint.
+    deferred_commands: Vec<UiCommand>,
     embed_offsets: std::collections::HashMap<String, usize>,
     content_action: usize,
     detail_links: Vec<Link>,
@@ -447,6 +456,9 @@ impl Ui {
             content_action: 0,
             detail_links: vec![],
             chat_layout: None,
+            latest_reply_rows: None,
+            open_at_latest_reply: false,
+            deferred_commands: vec![],
             embed_offsets: std::collections::HashMap::new(),
         }
     }
@@ -601,18 +613,26 @@ impl Ui {
     /// effects. Composer text, selection, scroll, focus and own-send state stay
     /// owned by this terminal. Recent-list absence alone never closes a chat.
     pub fn apply_live_chat_models(&mut self, models: crate::client::ChatModels) {
+        self.apply_live_chat_items(models.items);
+        self.apply_live_selection(models.selection);
+    }
+    /// The live chat list; the selected row stays selected by id.
+    pub fn apply_live_chat_items(&mut self, items: Vec<Item>) {
         let index = index(Workspace::Chats);
         let selected = self.items[index]
             .get(self.selected[index])
             .map(|item| item.id.clone());
-        self.set_items(Workspace::Chats, models.items);
+        self.set_items(Workspace::Chats, items);
         if let Some(id) = selected
             && let Some(position) = self.items[index].iter().position(|item| item.id == id)
         {
             self.selected[index] = position;
         }
-        let cached_settlement = matches!(&models.selection, crate::client::ChatSelectionUpdate::CacheSettled(_));
-        match models.selection {
+    }
+    /// The live update of the open chat (from the core's live window).
+    pub fn apply_live_selection(&mut self, selection: crate::client::ChatSelectionUpdate) {
+        let cached_settlement = matches!(&selection, crate::client::ChatSelectionUpdate::CacheSettled(_));
+        match selection {
             crate::client::ChatSelectionUpdate::Updated(chat)
             | crate::client::ChatSelectionUpdate::CacheSettled(chat) => {
                 if let Some((saved, _, _, cached)) = self.chat_origin.as_mut()
@@ -713,6 +733,7 @@ impl Ui {
             }
         }
         self.workspace = Workspace::Chats;
+        let chat_id = chat.id.clone();
         self.chat = Some(chat);
         self.cached_chat_state = Some(CachedChatState::Refreshing);
         self.detail = None;
@@ -726,6 +747,10 @@ impl Ui {
             self.scroll = 0;
             self.follow_tail = true;
             self.focus = Focus::Composer;
+            // Cached chats open first; the refresh keeps this view, so the
+            // unread anchor must be armed here (feature.chat-unread@1).
+            self.latest_reply_rows = None;
+            self.arm_unread_anchor(&chat_id);
         }
         self.hits.clear();
     }
@@ -841,8 +866,11 @@ impl Ui {
         self.follow_tail = true;
         self.focus = Focus::Composer;
         self.streaming = other_send_streaming;
+        self.latest_reply_rows = None;
         if let Some((scroll, follow, focus)) = retained_view {
             self.scroll = scroll; self.follow_tail = follow; self.focus = focus;
+        } else if let Some(id) = self.chat.as_ref().map(|chat| chat.id.clone()) {
+            self.arm_unread_anchor(&id);
         }
         self.hits.clear();
         if cached_handoff { self.set_status("Chat refreshed"); }
@@ -1082,7 +1110,8 @@ impl Ui {
                     form.context = Some(context);
                 }
             }
-            StreamUpdate::Content { .. } | StreamUpdate::Status(_) => {}
+            // The TUI shows no Task badge yet; the assignment needs no state here.
+            StreamUpdate::Content { .. } | StreamUpdate::Status(_) | StreamUpdate::TaskAssigned { .. } => {}
         }
     }
     pub fn stream(&mut self, update: StreamUpdate) {
@@ -1289,6 +1318,7 @@ impl Ui {
                 self.hits.clear();
             }
             StreamUpdate::Status(status) => self.set_status(&status),
+            StreamUpdate::TaskAssigned { .. } => {}
         }
     }
     fn selected_item(&self) -> Option<&Item> {
@@ -1997,10 +2027,16 @@ impl Ui {
         self.delivery = Delivery::Staged;
         self.follow_tail = true;
         self.status = "Sending…".into();
-        vec![UiCommand::Send {
-            chat_id: self.chat.as_ref().map(|c| c.id.clone()),
-            text,
-        }]
+        let chat_id = self.chat.as_ref().map(|c| c.id.clone());
+        // Answering implies the previous reply was read (feature.chat-unread@1),
+        // so the follow-up reply alone makes the counter 1, never 2.
+        let mut commands: Vec<UiCommand> = chat_id
+            .as_deref()
+            .and_then(|id| self.mark_chat_read(id))
+            .into_iter()
+            .collect();
+        commands.push(UiCommand::Send { chat_id, text });
+        commands
     }
     fn command(&mut self, input: &str) -> Vec<UiCommand> {
         let (name, value) = input.trim().split_once(' ').unwrap_or((input.trim(), ""));
@@ -3220,8 +3256,9 @@ impl Ui {
                 frame,
                 rect,
                 &format!(
-                    "{} {}",
+                    "{} {}{}",
                     if self.selected[0] == i { "›" } else { " " },
+                    unread::badge_prefix(item),
                     item.title
                 ),
                 HitAction::SidebarItem(i),
@@ -3445,7 +3482,7 @@ impl Ui {
             };
             frame.render_widget(
                 panel(
-                    format!(" {} ", heading),
+                    format!(" {}{} ", unread::badge_prefix(item), heading),
                     active && self.focus == Focus::Content,
                 ),
                 rect,
@@ -3773,7 +3810,18 @@ impl Ui {
             let selected_embed = self.selected_embed().map(|found| found.id);
             let chat = self.chat.as_ref().unwrap();
             let mut rows: Vec<Row> = vec![];
-            for message in &chat.messages {
+            let mut latest = None;
+            for item in crate::cli::embed_update_notice::transcript_items(&chat.messages) {
+                // embed-user-edits.event.collapse: a run of embed edits is one quiet line.
+                let message = match item {
+                    crate::cli::embed_update_notice::TranscriptItem::Notice(line) => {
+                        rows.push(markdown::styled(format!("· {line}"), Style::default().fg(MUTED).italic()));
+                        rows.push(vec![]);
+                        continue;
+                    }
+                    crate::cli::embed_update_notice::TranscriptItem::Message(message) => message,
+                };
+                let start = rows.len();
                 let user = message.role == "user";
                 let label = if user {
                     "You"
@@ -3802,9 +3850,11 @@ impl Ui {
                 let (message_rows, at) = embeds::message_rows(message, body.width as usize, selected_embed.as_deref());
                 selected_row = selected_row.or(at.map(|at| rows.len() + at));
                 rows.extend(message_rows);
+                latest = Some((start, rows.len().saturating_sub(1)));
                 rows.push(vec![]);
                 rows.push(vec![]);
             }
+            self.latest_reply_rows = latest;
             if self.visible_chat_streaming() {
                 rows.push(markdown::styled(
                     "● Responding…",
@@ -3814,7 +3864,9 @@ impl Ui {
             rows
         };
         self.follow_selected_embed(selected_row, &rows);
+        self.apply_unread_anchor();
         self.paint_rows(frame, body, &rows, self.follow_tail);
+        self.observe_read_position(body.height as usize);
         self.chat_layout = Some((body.width, rows));
     }
     fn paint_rows(&mut self, frame: &mut Frame, area: Rect, rows: &[Row], tail: bool) {

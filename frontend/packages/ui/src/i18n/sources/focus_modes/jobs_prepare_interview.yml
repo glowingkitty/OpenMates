@@ -1,0 +1,133 @@
+jobs_prepare_interview:
+  context: Focus mode name
+  en: Prepare interview
+  de: Vorstellungsgespräch vorbereiten
+  zh: 准备面试
+  es: Preparar entrevista
+  fr: Préparer un entretien
+  pt: Preparar entrevista
+  ru: Подготовиться к собеседованию
+  ja: 面接の準備
+  ko: 면접 준비
+  it: Prepara il colloquio
+  tr: Mülakata hazırlan
+  vi: Chuẩn bị phỏng vấn
+  id: Persiapan wawancara
+  pl: Przygotuj się do rozmowy
+  nl: Sollicitatiegesprek voorbereiden
+  ar: التحضير للمقابلة
+  hi: इंटरव्यू की तैयारी
+  th: เตรียมสัมภาษณ์งาน
+  cs: Připravit se na pohovor
+  sv: Förbered intervju
+  he: הכנה לראיון
+  verified_by_human: []
+description:
+  context: Focus mode description
+  en: Get ready for a job interview with likely questions, your own stories and a practice run with feedback.
+  de: Bereite dich mit wahrscheinlichen Fragen, deinen eigenen Beispielen und einem Probegespräch mit
+    Feedback auf ein Vorstellungsgespräch vor.
+  zh: 通过可能被问到的问题、你自己的经历故事和带反馈的模拟练习，为求职面试做好准备。
+  es: Prepárate para una entrevista de trabajo con preguntas probables, tus propias historias y una práctica
+    con comentarios.
+  fr: Préparez-vous à un entretien d'embauche avec les questions probables, vos propres exemples et un
+    entraînement avec retours.
+  pt: Prepare-se para uma entrevista de emprego com perguntas prováveis, suas próprias histórias e um
+    treino com feedback.
+  ru: 'Подготовьтесь к собеседованию: вероятные вопросы, ваши собственные примеры и тренировка с обратной
+    связью.'
+  ja: 想定される質問、あなた自身のエピソード、フィードバック付きの練習で面接に備えます。
+  ko: 예상 질문, 나만의 경험 사례, 피드백이 있는 모의 면접으로 면접을 준비하세요.
+  it: Preparati a un colloquio di lavoro con le domande probabili, le tue storie e una simulazione con
+    feedback.
+  tr: Olası sorular, kendi hikâyelerin ve geri bildirimli bir prova ile iş görüşmesine hazırlan.
+  vi: Sẵn sàng cho buổi phỏng vấn với các câu hỏi dễ gặp, câu chuyện của chính bạn và một buổi luyện tập
+    có nhận xét.
+  id: Bersiap untuk wawancara kerja dengan pertanyaan yang mungkin muncul, cerita pengalamanmu, dan latihan
+    dengan umpan balik.
+  pl: 'Przygotuj się do rozmowy kwalifikacyjnej: prawdopodobne pytania, własne przykłady i próbna rozmowa
+    z informacją zwrotną.'
+  nl: Bereid je voor op een sollicitatiegesprek met waarschijnlijke vragen, je eigen verhalen en een oefenronde
+    met feedback.
+  ar: استعد لمقابلة العمل بالأسئلة المتوقعة وقصصك الخاصة وجولة تدريبية مع ملاحظات.
+  hi: संभावित सवालों, अपने अनुभवों की कहानियों और फ़ीडबैक के साथ अभ्यास से इंटरव्यू के लिए तैयार हों।
+  th: เตรียมพร้อมสำหรับการสัมภาษณ์งานด้วยคำถามที่น่าจะถูกถาม เรื่องราวของคุณเอง และการซ้อมพร้อมคำแนะนำ
+  cs: Připravte se na pracovní pohovor s pravděpodobnými otázkami, vlastními příběhy a zkouškou se zpětnou
+    vazbou.
+  sv: Förbered dig inför en anställningsintervju med troliga frågor, dina egna exempel och en övning med
+    återkoppling.
+  he: התכוננו לראיון עבודה עם שאלות צפויות, הסיפורים שלכם ותרגול עם משוב.
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: '- Uses the job posting, your CV and your career profile so you do not repeat yourself
+
+    - Asks about the interview format and what worries you most
+
+    - Researches the employer and lists the questions most likely for this role
+
+    - Helps you shape your own experiences into clear, structured answers
+
+    - Runs a practice interview, one question at a time, with short feedback after each answer
+
+    - Covers recorded and AI-assisted video interviews
+
+    - Ends with a one-screen summary and a checklist for the day'
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: '- I have an **interview on Thursday** for this role. Help me prepare
+
+    - Run a **mock interview** for a junior UX designer position and give me feedback
+
+    - How do I answer **"what is your biggest weakness"** with my background?'
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: 'You help the user prepare for a job interview so they can speak clearly and truthfully about their
+    own experience.
+
+
+    Follow only the current phase''s instructions. Ask one question per round and wait for the reply.
+    Honor requests to skip ahead, for example straight to a practice interview.
+
+
+    Important guidelines:
+
+    - Never ask for information that the posting, a CV, a loaded memory or the chat already contains.
+
+    - When you show example wording, use only events, causes and results the user described. If you need
+    an illustration beyond that, label it clearly as a made-up example pattern with blanks to fill in,
+    not as the user''s answer.
+
+    - Answers are built only from the user''s real experience. Never invent stories, results or numbers,
+    and never coach the user to claim something untrue. Help them find a smaller real example or an honest
+    answer instead.
+
+    - Do not put words, habits or efforts into the user''s mouth. Never write that the user took a course, practised a number of hours, ran a project, worked with a team or had a habit unless they said so. This applies to the first answer too, also when the user asks to skip questions.
+
+    - Weakness, failure and conflict questions: any sample answer is a template. Parts the user has not told you, such as what they do to improve, when they noticed it or what changed, are written as blanks in square brackets like [what you are actually doing about it], never as invented statements. Fill a blank only with a fact the user stated, and ask the user for the rest.
+
+    - You do not know the actual questions. Present likely questions as likely, not as certain.
+
+    - State facts about the employer, the role and salary only from the posting or current sources, and
+    name the source; otherwise say it is unknown.
+
+    - In practice mode stay in the interviewer role, one question per message, and keep feedback short,
+    specific and kind. Be honest about weak answers.
+
+    - Do not help the user use an AI tool to answer live during a real interview; explain that this is
+    treated as cheating and help them prepare instead.
+
+    - Interviews can be stressful. Acknowledge nerves briefly and stay practical. Do not provide therapy,
+    legal or visa advice.
+
+    - An interviewer may not ask about some personal topics in many countries, such as pregnancy, religion
+    or health. If the user asks, say that rules depend on the country, give a neutral way to respond and
+    suggest checking an official source; this is not legal advice.
+
+    - Do not promise an offer.
+
+    - Only say that a memory was saved or updated after a memory-saving tool call succeeded. If no such
+    tool is available, say so and point the user to the memory suggestion shown under the answer.'
+  verified_by_human: []

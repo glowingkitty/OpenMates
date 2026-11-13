@@ -25,6 +25,7 @@ import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 import { userDB } from "./userDB";
 import { chatKeyManager, computeKeyFingerprint } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
+import { messagePreview, recoveredThinkingFields, RUST_UPDATES_POLICY, rustUpdatesPolicy } from "./chatSyncUpdatesPolicy";
 import { webSocketService } from "./websocketService";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { notificationStore } from "../stores/notificationStore";
@@ -40,7 +41,15 @@ import { computeSHA256 } from "../message_parsing/utils";
 import { reconstructEncryptedVersionRows, type EmbedVersionMeta } from "./embedDiffStore";
 import { catalogContextFromSealedEmbed, historySourceFromSealedEmbed, isUnwrittenInitialDiffRead } from "./recoveryEmbedSource";
 import { refreshRecoveryChatVersion } from "./chatRecoveryVersionRefresh";
+import { recoveredChildRevisionReceipt } from "./rustCore/embeds/rustRecoveredChildRevision";
 import { chatAfterRecoveredReply } from "./chatRecoveryVersionApply";
+/** Opt-in shared Rust core build: the decision runs in the shared Worker `sync` unit. */
+// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+function rustRecoveryPolicy() {
+  return import("./rustCore/sync/rustRecoveryPolicy");
+}
 import { clearRecoveryFinalTimestamps, recoveryFinalTimestamp, waitForRecoveryFinalTimestamp } from "./recoveryAssistantTimestamp";
 import { clearPersonalChatTurnBarriers, completePersonalChatTurn, failMatchingPersonalChatTurn } from "./personalChatTurnBarrier";
 import {
@@ -57,7 +66,9 @@ const INITIAL_SYNC_POLL_MS = 100;
 const RECOVERY_PREREQUISITE_POLL_MS = 250;
 const RECOVERY_PREREQUISITE_TIMEOUT_MS = 120_000;
 const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
-const RECOVERY_STALE_TERMINAL_ERROR_CODES = new Set(["recovery_job_not_found"]);
+// Another open client (tab or device) can claim and acknowledge the same job or
+// output first; the late reader is told it no longer exists. Nothing was lost.
+const RECOVERY_STALE_TERMINAL_ERROR_CODES = new Set(["recovery_job_not_found", "recovery_output_not_found"]);
 const recoveryJobsInProgress = new Set<string>();
 const recoveryJobSettlements = new Map<string, Promise<boolean>>();
 const metadataJobsInProgress = new Set<string>();
@@ -75,23 +86,6 @@ function rememberAcknowledgedRecoveryOutput(output: AvailableRecoveryOutput, gen
   if (acknowledgedRecoveryOutputs.size > MAX_ACKNOWLEDGED_RECOVERY_OUTPUTS) {
     acknowledgedRecoveryOutputs.delete(acknowledgedRecoveryOutputs.keys().next().value!);
   }
-}
-
-function buildRecoveryMessagePreview(content: string): string {
-  const plainText = content
-    .replace(/#{1,6}\s+/g, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
-    .replace(/`{1,3}[^`]*`{1,3}/g, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
-    .replace(/>\s+/g, "")
-    .replace(/[-*+]\s+/g, "")
-    .replace(/\n+/g, " ")
-    .trim();
-
-  if (!plainText) return "New AI response ready";
-  return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText;
 }
 
 class RecoveryEventTimeoutError extends Error {}
@@ -493,6 +487,7 @@ export async function sendEmbedStoreWithReceipt(
 ): Promise<RecoveredEmbedReceipt> {
   const requestId = crypto.randomUUID();
   let stop = () => {};
+  let releaseErrorOwnership = () => {};
   const confirmation = new Promise<RecoveredEmbedReceipt>((resolve, reject) => {
     const timer = window.setTimeout(() => {
       stop();
@@ -519,10 +514,12 @@ export async function sendEmbedStoreWithReceipt(
     stop = () => {
       window.clearTimeout(timer);
       webSocketService.off(confirmedType, onConfirmed);
-      webSocketService.off("error", onError);
+      releaseErrorOwnership();
     };
     webSocketService.on(confirmedType, onConfirmed);
-    webSocketService.on("error", onError);
+    // This request owns its rejection: recovery handles it, so the default
+    // handler must not also show it as a "Server error" notification.
+    releaseErrorOwnership = webSocketService.ownEmbedProtocolRequest(requestId, onError);
   });
   try {
     await webSocketService.sendMessage(eventType, {
@@ -743,7 +740,9 @@ async function readRecoveredCanonicalDiff(
   if (!response.ok) {
     if ([502, 503, 504].includes(response.status)) throw canonicalReadError("Canonical diff read failed", response.status);
     const error = await response.json().catch(() => null) as { detail?: unknown } | null;
-    if (isUnwrittenInitialDiffRead(response.status, error?.detail, output.output_version)) return null;
+    if (RUST_SYNC_BUILD
+      ? await (await rustRecoveryPolicy()).isUnwrittenInitialDiffRead(response.status, error?.detail, output.output_version)
+      : isUnwrittenInitialDiffRead(response.status, error?.detail, output.output_version)) return null;
     const detail = typeof error?.detail === "string" ? error.detail.slice(0, 80) : "unknown";
     throw new Error(`Canonical diff read failed (${response.status}: ${detail}).`);
   }
@@ -1122,29 +1121,6 @@ async function requestRecoveryEvent(
   throw lastTimeout ?? new Error(`Recovery request failed for job ${jobId}`);
 }
 
-// Only observed thinking fields cross the sealed-recovery boundary. Plaintext
-// content/signatures are passed to getEncryptedFields, never to the server.
-function recoveredThinkingFields(payload: Record<string, unknown>): Partial<Message> {
-  const fields: Partial<Message> = {};
-  for (const key of ["thinking_content", "thinking_signature"] as const) {
-    if (payload[key] !== undefined) {
-      if (typeof payload[key] !== "string") throw new Error("Recovery thinking content was invalid.");
-      fields[key] = payload[key];
-    }
-  }
-  if (payload.has_thinking !== undefined) {
-    if (typeof payload.has_thinking !== "boolean") throw new Error("Recovery thinking flag was invalid.");
-    fields.has_thinking = payload.has_thinking;
-  }
-  if (payload.thinking_token_count !== undefined) {
-    if (!Number.isSafeInteger(payload.thinking_token_count) || (payload.thinking_token_count as number) < 0) {
-      throw new Error("Recovery thinking token count was invalid.");
-    }
-    fields.thinking_token_count = payload.thinking_token_count as number;
-  }
-  return fields;
-}
-
 function encryptedRecoveryThinkingFields(
   message: Message,
   encrypted: Awaited<ReturnType<typeof chatDB.getEncryptedFields>>,
@@ -1229,7 +1205,9 @@ export async function handleRecoveryJobsAvailableImpl(
           : null;
         if (terminalChat) {
           const currentChat = await chatDB.getChat(job.chat_id);
-          await chatDB.updateChat(chatAfterRecoveredReply(currentChat, terminalChat, terminalChat.messages_v, Math.floor(Date.now() / 1000)));
+          await chatDB.updateChat(RUST_SYNC_BUILD
+            ? await (await rustRecoveryPolicy()).chatAfterRecoveredReply(currentChat, terminalChat, terminalChat.messages_v, Math.floor(Date.now() / 1000))
+            : chatAfterRecoveredReply(currentChat, terminalChat, terminalChat.messages_v, Math.floor(Date.now() / 1000)));
           completePersonalChatTurn(job.chat_id, job.turn_id, terminalChat.messages_v);
           if (generation === recoveryLifecycleGeneration) noteHydratedRecoveryTurn(serviceInstance, job.chat_id, job.turn_id);
           success = true;
@@ -1316,7 +1294,9 @@ export async function handleRecoveryJobsAvailableImpl(
         chat_id: job.chat_id,
         role: "assistant",
         content: recovered.content,
-        ...recoveredThinkingFields(recovered),
+        ...(RUST_UPDATES_POLICY
+          ? await (await rustUpdatesPolicy()).recoveredThinkingFields(recovered)
+          : recoveredThinkingFields(recovered)),
         category: recovered.category ?? undefined,
         model_name: recovered.model_name ?? undefined,
         status: "synced",
@@ -1402,7 +1382,9 @@ export async function handleRecoveryJobsAvailableImpl(
       const committedVersion = typeof persistedResult.committed_messages_v === "number"
         ? persistedResult.committed_messages_v : persistBaseChat.messages_v;
       const currentChat = await chatDB.getChat(job.chat_id);
-      const updatedChat = chatAfterRecoveredReply(currentChat, persistBaseChat, committedVersion, now);
+      const updatedChat = RUST_SYNC_BUILD
+        ? await (await rustRecoveryPolicy()).chatAfterRecoveredReply(currentChat, persistBaseChat, committedVersion, now)
+        : chatAfterRecoveredReply(currentChat, persistBaseChat, committedVersion, now);
       await chatDB.updateChat(updatedChat);
       completePersonalChatTurn(job.chat_id, job.turn_id, committedVersion);
       if (generation === recoveryLifecycleGeneration) noteHydratedRecoveryTurn(serviceInstance, job.chat_id, job.turn_id);
@@ -1413,11 +1395,13 @@ export async function handleRecoveryJobsAvailableImpl(
       }
       aiTypingStore.clearTyping(job.chat_id, job.assistant_message_id);
       if (!isChatVisiblyActive(job.chat_id) && !updatedChat.is_sub_chat && !updatedChat.parent_id) {
-        unreadMessagesStore.incrementUnread(job.chat_id);
+        unreadMessagesStore.incrementUnread(job.chat_id, job.assistant_message_id);
         notificationStore.chatMessage(
           job.chat_id,
           updatedChat.title || "New message",
-          buildRecoveryMessagePreview(recovered.content),
+          RUST_UPDATES_POLICY
+            ? await (await rustUpdatesPolicy()).messagePreview(recovered.content)
+            : messagePreview(recovered.content),
           undefined,
           (recovered.category as string | null) || updatedChat.category || undefined,
         );
@@ -1585,7 +1569,9 @@ async function processRecoveryOutputsAvailable(
       if (output.output_kind === "embed" || output.output_kind === "diff") {
         canonicalRetryContext = { ownerId, keyFingerprint: computeKeyFingerprint(rootKey) };
         await withCanonicalEmbedWrite(output.subject_id, async (lease) => {
-          const canonicalReceipt = await persistRecoveredEmbed(output, content, rootKey, ownerId);
+          // Image child revisions (version N+1) are verified by the Rust core.
+          const canonicalReceipt = await recoveredChildRevisionReceipt(serviceInstance, lease, output, content)
+            ?? await persistRecoveredEmbed(output, content, rootKey, ownerId);
           const acknowledged = await requestRecoveryEvent(
             "recovery_output_embed_acknowledged", "recovery_output_ack_embed", output.record_id,
             { protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION, record_id: output.record_id,
@@ -1704,7 +1690,11 @@ async function processRecoveryOutputsAvailable(
         ? content.created_at as number : now;
       const aiMessage = {
         message_id: output.subject_id, chat_id: output.target_chat_id, role: output.message_role,
-        content: content.content, ...recoveredThinkingFields(content), category: content.category ?? undefined,
+        content: content.content,
+        ...(RUST_UPDATES_POLICY
+          ? await (await rustUpdatesPolicy()).recoveredThinkingFields(content)
+          : recoveredThinkingFields(content)),
+        category: content.category ?? undefined,
         model_name: content.model_name ?? undefined, status: "synced", created_at: messageCreatedAt,
       } as Message;
       const encryptedFields = await chatDB.getEncryptedFields(aiMessage, output.target_chat_id);
@@ -1753,6 +1743,7 @@ async function processRecoveryOutputsAvailable(
         deferredRecoveryOutputs.set(output.record_id, output);
         return;
       }
+      let waitsForParent = false;
       if ((error instanceof RecoveryCanonicalTransientError || error instanceof RecoveryParentVisibilityDeferredError) && canonicalRetryContext
         && !consumedCanonicalRetries.has(output.record_id)
         && pendingCanonicalRetries.size < MAX_PENDING_CANONICAL_RETRIES
@@ -1760,8 +1751,14 @@ async function processRecoveryOutputsAvailable(
         pendingCanonicalRetries.set(output.record_id, { output, ...canonicalRetryContext, generation,
           ...(error instanceof RecoveryParentVisibilityDeferredError ? { parentEmbedId: error.parentEmbedId } : {}),
         });
+        waitsForParent = error instanceof RecoveryParentVisibilityDeferredError;
       }
-      if (!(error instanceof RecoveryStaleJobError)) console.error("[ChatSyncService:Recovery] Output recovery failed:", {
+      // A child embed that arrived before its parent is queued and retried once the
+      // parent is acknowledged: an expected order, not a failed recovery.
+      if (waitsForParent) console.debug("[ChatSyncService:Recovery] Child output waits for its parent:", {
+        record_id: output.record_id, root_chat_id: output.root_chat_id, turn_id: output.turn_id,
+      });
+      else if (!(error instanceof RecoveryStaleJobError)) console.error("[ChatSyncService:Recovery] Output recovery failed:", {
         record_id: output.record_id, root_chat_id: output.root_chat_id, turn_id: output.turn_id,
       }, error);
     } finally {

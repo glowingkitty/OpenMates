@@ -41,11 +41,12 @@ enum Call {
     CatalogueProjectCipher(Plain<Value>),
     CatalogueTeamKey {team:String,expected:TeamCacheStamp,wrapped:zeroize::Zeroizing<String>,key:Key},
     Subchat {socket:Socket,event:Plain<Value>,chat:String,task:String,updates:mpsc::Sender<StreamUpdate>,policy:SendConsentPolicy},
-    Memory {socket:Socket,event:Plain<Value>,chat:String,message:String,key:Key,memories:Plain<Vec<Value>>,updates:mpsc::Sender<StreamUpdate>,policy:SendConsentPolicy},
+    Memory {socket:Socket,event:Plain<Value>,chat:String,message:String,key:Key,memories:Plain<Vec<Value>>,mappings:Plain<Vec<Value>>,updates:mpsc::Sender<StreamUpdate>,policy:SendConsentPolicy},
     Replay {socket:Socket,outputs:Plain<BTreeMap<String,Value>>,root:Option<(String,Key)>},
     Artifacts {socket:Socket,chat:String,message:String,key:Key,task:String,embeds:Plain<BTreeMap<String,Value>>,checkpoints:Plain<Vec<Value>>},
     CanonicalOpen {chat:String},
     Tasks {socket:Socket,observed:Plain<SendObservations>,chat:String,message:String,key:Key,options:Arc<SendOptions>},
+    ProjectCreate {socket:Socket,kind:String,event:Plain<Value>,chat:String,state:super::super::project_create_request::ProjectCreateState},
     Owner,
     VersionBegin(String),
     VersionKey {chat:String,stamp:VersionStamp,detail:Plain<Value>,wrapping:MasterCapability},
@@ -59,9 +60,10 @@ enum Reply {
     CataloguePrepared(PreparedOwnedRead),CatalogueBody(OwnedReadBody),CatalogueValue(Plain<Value>),
     CatalogueWrapping(CatalogueWrappingPlan),CatalogueCipher {detail:Plain<Value>,cipher:zeroize::Zeroizing<String>},
     CatalogueTeamWrapping(MasterCapability),Frames(Plain<Vec<(String,Value)>>),
-    Memory(Plain<(Vec<(String,Value)>,SendMemoryRequest)>),
+    Memory(Plain<(Vec<(String,Value)>,SendMemoryRequest,Vec<Value>)>),
     Count(usize),Items(Plain<Vec<Item>>),Chat(Plain<Chat>),
     Tasks {result:Result<()>,observed:Plain<SendObservations>},
+    ProjectCreate {result:Result<()>,state:super::super::project_create_request::ProjectCreateState},
     Owner(Plain<String>),Version(u64),VersionStamp(VersionStamp),VersionKey(PreparedVersionKey),
 }
 struct Envelope {
@@ -102,7 +104,7 @@ impl OwnedTurnPhases {
         self.sender.send(Envelope{context:self.context.clone(),call:Some(call),reply:Some(reply),completed:Arc::new(false.into())}).await.map_err(|_|Error::Cancelled)?;
         receive.await.map_err(|_|Error::Cancelled)?
     }
-    async fn check_now(&self)->Result<()> {match self.exchange(Call::Check).await?{Reply::Unit=>Ok(()),_=>Err(Error::Protocol)}}
+    async fn check_now(&self)->Result<()> {match self.exchange(Call::Check).await?{Reply::Unit=>Ok(()),_=>Err(crate::client::send::refusal_trace::protocol_at!())}}
     async fn deliver(&self,updates:&mpsc::Sender<StreamUpdate>,cancel:&CancellationToken,update:StreamUpdate)->Result<()> {
         let update=Plain::new(update);let guard=self.context.guard();
         let marker=matches!(&*update,StreamUpdate::Started{..}|StreamUpdate::Submitted{..}|StreamUpdate::Admitted{..}|StreamUpdate::Status(_));
@@ -147,7 +149,7 @@ impl SavedTurnClientPhases for OwnedTurnPhases {
         Box::pin(async move{
             self.chat(chat)?;bound(&(event,&*previous))?;let socket=self.socket(ws)?;
             let(stamp,team)=match self.exchange(Call::FocusBegin{socket,chat:chat.into()}).await?{
-                Reply::FocusBoundary{stamp,team}=>(stamp,team),_=>return Err(Error::Protocol),
+                Reply::FocusBoundary{stamp,team}=>(stamp,team),_=>return Err(crate::client::send::refusal_trace::protocol_at!()),
             };
             // Defer the pure Team lookup Result until this selected kind needs
             // it; activation never consumes it. The shared plan preserves the
@@ -175,7 +177,7 @@ impl SavedTurnClientPhases for OwnedTurnPhases {
             }
             let update=plan.into_update()?;let old=Plain::new(std::mem::take(previous));
             match self.exchange(Call::FocusCommit{chat:chat.into(),stamp,update,previous:old}).await?{
-                Reply::Focus{result,previous:after}=>{previous.wipe();*previous=after.into_inner();result},_=>Err(Error::Protocol)
+                Reply::Focus{result,previous:after}=>{previous.wipe();*previous=after.into_inner();result},_=>Err(crate::client::send::refusal_trace::protocol_at!())
             }
         })
     }
@@ -184,31 +186,38 @@ impl SavedTurnClientPhases for OwnedTurnPhases {
     }
     fn subchat_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,task:&'a str,updates:&'a mpsc::Sender<StreamUpdate>,_cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,Vec<(String,Value)>>{
         Box::pin(async move{self.chat(chat)?;bound(event)?;let socket=self.socket(ws)?;
-            match self.exchange(Call::Subchat{socket,event:Plain::new(event.clone()),chat:chat.into(),task:task.into(),updates:updates.clone(),policy}).await?{Reply::Frames(frames)=>Ok(frames.into_inner()),_=>Err(Error::Protocol)}})
+            match self.exchange(Call::Subchat{socket,event:Plain::new(event.clone()),chat:chat.into(),task:task.into(),updates:updates.clone(),policy}).await?{Reply::Frames(frames)=>Ok(frames.into_inner()),_=>Err(crate::client::send::refusal_trace::protocol_at!())}})
     }
-    fn memory_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,message:&'a str,key:&'a [u8;32],memories:&'a [Value],updates:&'a mpsc::Sender<StreamUpdate>,_cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,(Vec<(String,Value)>,SendMemoryRequest)>{
-        Box::pin(async move{self.chat(chat)?;bound(&(event,memories))?;let socket=self.socket(ws)?;
-            match self.exchange(Call::Memory{socket,event:Plain::new(event.clone()),chat:chat.into(),message:message.into(),key:zeroize::Zeroizing::new(*key),memories:Plain::new(memories.to_vec()),updates:updates.clone(),policy}).await?{Reply::Memory(value)=>Ok(value.into_inner()),_=>Err(Error::Protocol)}})
+    fn memory_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,message:&'a str,key:&'a [u8;32],memories:&'a [Value],mappings:&'a [Value],updates:&'a mpsc::Sender<StreamUpdate>,_cancel:&'a CancellationToken,policy:SendConsentPolicy)->TurnPhaseFuture<'a,(Vec<(String,Value)>,SendMemoryRequest,Vec<Value>)>{
+        Box::pin(async move{self.chat(chat)?;bound(&(event,memories,mappings))?;let socket=self.socket(ws)?;
+            match self.exchange(Call::Memory{socket,event:Plain::new(event.clone()),chat:chat.into(),message:message.into(),key:zeroize::Zeroizing::new(*key),memories:Plain::new(memories.to_vec()),mappings:Plain::new(mappings.to_vec()),updates:updates.clone(),policy}).await?{Reply::Memory(value)=>Ok(value.into_inner()),_=>Err(crate::client::send::refusal_trace::protocol_at!())}})
     }
     fn replay_outputs<'a>(&'a mut self,ws:&'a mut Socket,outputs:&'a BTreeMap<String,Value>,hint:Option<(&'a str,&'a [u8;32])>)->TurnPhaseFuture<'a,usize>{
         Box::pin(async move{bound(outputs)?;let socket=self.socket(ws)?;let root=match hint{Some((chat,key))=>{self.chat(chat)?;Some((chat.into(),zeroize::Zeroizing::new(*key)))},None=>None};
-            match self.exchange(Call::Replay{socket,outputs:Plain::new(outputs.clone()),root}).await?{Reply::Count(count)=>Ok(count),_=>Err(Error::Protocol)}})
+            match self.exchange(Call::Replay{socket,outputs:Plain::new(outputs.clone()),root}).await?{Reply::Count(count)=>Ok(count),_=>Err(crate::client::send::refusal_trace::protocol_at!())}})
     }
     fn persist_stream_artifacts<'a>(&'a mut self,ws:&'a mut Socket,chat:&'a str,message:&'a str,key:&'a [u8;32],task:&'a str,embeds:&'a BTreeMap<String,Value>,checkpoints:&'a [Value])->TurnPhaseFuture<'a,Vec<Item>>{
         Box::pin(async move{self.chat(chat)?;bound(&(embeds,checkpoints))?;let socket=self.socket(ws)?;
-            match self.exchange(Call::Artifacts{socket,chat:chat.into(),message:message.into(),key:zeroize::Zeroizing::new(*key),task:task.into(),embeds:Plain::new(embeds.clone()),checkpoints:Plain::new(checkpoints.to_vec())}).await?{Reply::Items(items)=>Ok(items.into_inner()),_=>Err(Error::Protocol)}})
+            match self.exchange(Call::Artifacts{socket,chat:chat.into(),message:message.into(),key:zeroize::Zeroizing::new(*key),task:task.into(),embeds:Plain::new(embeds.clone()),checkpoints:Plain::new(checkpoints.to_vec())}).await?{Reply::Items(items)=>Ok(items.into_inner()),_=>Err(crate::client::send::refusal_trace::protocol_at!())}})
     }
     fn open_chat_live<'a>(&'a mut self,id:&'a str)->TurnPhaseFuture<'a,Chat>{
-        Box::pin(async move{self.chat(id)?;match self.exchange(Call::CanonicalOpen{chat:id.into()}).await?{Reply::Chat(chat)=>Ok(chat.into_inner()),_=>Err(Error::Protocol)}})
+        Box::pin(async move{self.chat(id)?;match self.exchange(Call::CanonicalOpen{chat:id.into()}).await?{Reply::Chat(chat)=>Ok(chat.into_inner()),_=>Err(crate::client::send::refusal_trace::protocol_at!())}})
     }
     fn finish_task_jobs<'a>(&'a mut self,ws:&'a mut Socket,observed:&'a mut SendObservations,id:&'a str,message:&'a str,key:&'a [u8;32],_cancel:&'a CancellationToken,options:&'a SendOptions)->TurnPhaseFuture<'a,()>{
         Box::pin(async move{self.chat(id)?;let socket=self.socket(ws)?;let old=Plain::new(std::mem::take(observed));
             match self.exchange(Call::Tasks{socket,observed:old,chat:id.into(),message:message.into(),key:zeroize::Zeroizing::new(*key),options:Arc::new(options.clone())}).await?{
-                Reply::Tasks{result,observed:after}=>{observed.wipe();*observed=after.into_inner();result},_=>Err(Error::Protocol)
+                Reply::Tasks{result,observed:after}=>{observed.wipe();*observed=after.into_inner();result},_=>Err(crate::client::send::refusal_trace::protocol_at!())
             }
         })
     }
-    fn owner_id(&mut self)->TurnPhaseFuture<'_,String>{Box::pin(async move{match self.exchange(Call::Owner).await?{Reply::Owner(owner)=>Ok(owner.into_inner()),_=>Err(Error::Protocol)}})}
+    fn project_create<'a>(&'a mut self,ws:&'a mut Socket,kind:&'a str,event:&'a Value,chat:&'a str,state:&'a mut super::super::project_create_request::ProjectCreateState)->TurnPhaseFuture<'a,()>{
+        Box::pin(async move{self.chat(chat)?;bound(event)?;let socket=self.socket(ws)?;let old=std::mem::take(state);
+            match self.exchange(Call::ProjectCreate{socket,kind:kind.into(),event:Plain::new(event.clone()),chat:chat.into(),state:old}).await?{
+                Reply::ProjectCreate{result,state:after}=>{*state=after;result},_=>Err(crate::client::send::refusal_trace::protocol_at!())
+            }
+        })
+    }
+    fn owner_id(&mut self)->TurnPhaseFuture<'_,String>{Box::pin(async move{match self.exchange(Call::Owner).await?{Reply::Owner(owner)=>Ok(owner.into_inner()),_=>Err(crate::client::send::refusal_trace::protocol_at!())}})}
     fn current_messages_version<'a>(&'a mut self,id:&'a str,key:&'a [u8;32],minimum:u64)->TurnPhaseFuture<'a,u64>{
         Box::pin(async move{self.chat(id)?;self.owned_current_messages_version(id,key,minimum).await})
     }
@@ -293,21 +302,21 @@ impl Client {
                         Ok(Reply::Focus{result,previous})
                     },
                     Call::CataloguePrepare(route)=>Ok(Reply::CataloguePrepared(catalogue::prepare_read(&mut active,route)?)),
-                    Call::CatalogueBody(completed)=>Ok(Reply::CatalogueValue(Plain::new(active.finish_owned_read(completed)?.ok_or(Error::Protocol)?))),
+                    Call::CatalogueBody(completed)=>Ok(Reply::CatalogueValue(Plain::new(active.finish_owned_read(completed)?.ok_or_else(|| crate::client::send::refusal_trace::protocol_at!())?))),
                     Call::CatalogueWrapping=>Ok(Reply::CatalogueWrapping(catalogue::prepare_wrapping(&active)?)),
                     Call::CatalogueProjectCipher(detail)=>{
                         let cipher=zeroize::Zeroizing::new(active.object_key_ciphertext(Workspace::Projects,&detail["project"])?.to_owned());
                         Ok(Reply::CatalogueCipher{detail,cipher})
                     },
                     Call::CatalogueTeamKey{team,expected,wrapped,key}=>Ok(Reply::CatalogueTeamWrapping(catalogue::apply_team_key(&mut active,team,expected,wrapped,key)?)),
-                    Call::CatalogueHeaders(_)=>Err(Error::Protocol),
+                    Call::CatalogueHeaders(_)=>Err(crate::client::send::refusal_trace::protocol_at!()),
                     Call::Subchat{mut socket,event,chat,task,updates,policy}=>{
                         context.check_socket(&socket)?;let child=context.admission.scope.child();
                         Ok(Reply::Frames(Plain::new(active.subchat_consent(&mut socket,&event,&chat,&task,&updates,&child,policy).await?)))
                     },
-                    Call::Memory{mut socket,event,chat,message,key,memories,updates,policy}=>{
+                    Call::Memory{mut socket,event,chat,message,key,memories,mappings,updates,policy}=>{
                         context.check_socket(&socket)?;let child=context.admission.scope.child();
-                        Ok(Reply::Memory(Plain::new(active.memory_consent(&mut socket,&event,&chat,&message,&key,&memories,&updates,&child,policy).await?)))
+                        Ok(Reply::Memory(Plain::new(active.memory_consent(&mut socket,&event,&chat,&message,&key,&memories,&mappings,&updates,&child,policy).await?)))
                     },
                     Call::Replay{mut socket,outputs,root}=>{
                         context.check_socket(&socket)?;let hint=root.as_ref().map(|(chat,key)|(chat.as_str(),&**key));
@@ -324,11 +333,16 @@ impl Client {
                         let result=borrowed.finish_task_jobs(&mut socket,&mut observed,&chat,&message,&key,&child,&options).await;
                         Ok(Reply::Tasks{result,observed})
                     },
+                    Call::ProjectCreate{mut socket,kind,event,chat,mut state}=>{
+                        context.check_socket(&socket)?;
+                        let result=active.project_create_event(&mut socket,&kind,&event,&chat,&mut state).await;
+                        Ok(Reply::ProjectCreate{result,state})
+                    },
                     Call::Owner=>{let owner=text(&active.user,"id");let owner=if owner.is_empty(){required(&active.user,"user_id")?}else{owner};Ok(Reply::Owner(Plain::new(owner.into())))},
                     Call::VersionBegin(chat)=>Ok(Reply::VersionStamp(version::stamp(&active,&chat)?)),
                     Call::VersionKey{chat,stamp,detail,wrapping}=>Ok(Reply::VersionKey(version::prepare_key(&active,&chat,stamp,detail,&wrapping)?)),
                     Call::VersionCommit{chat,key,minimum,completed}=>Ok(Reply::Version(version::commit(&mut active,&chat,&key,minimum,completed)?)),
-                    Call::Withdraw{..}=>Err(Error::Protocol),
+                    Call::Withdraw{..}=>Err(crate::client::send::refusal_trace::protocol_at!()),
                 }
             }.await;
             drop(active);
@@ -438,7 +452,7 @@ impl OwnedSavedSendDriver {
                     if !self.context.resources_returned(){return Err(Error::Cancelled)}
                     let observation=self.context.observation.clone();
                     let observed=match observation.lock(){Ok(value)=>value,Err(_)=>{self.refuse_returned(OwnedSavedSendRefusalReason::ObservationUnavailable);return Err(Error::Cancelled)}};
-                    if observed.attempted&&observed.admission.is_none(){drop(observed);self.refuse_returned(OwnedSavedSendRefusalReason::AdmissionUnverifiable);return Err(Error::Protocol)}
+                    if observed.attempted&&observed.admission.is_none(){drop(observed);self.refuse_returned(OwnedSavedSendRefusalReason::AdmissionUnverifiable);return Err(crate::client::send::refusal_trace::protocol_at!())}
                     let outcome=match &result{
                         Ok(chat) if self.context.admission.chat.as_deref().is_none_or(|id|chat.id==id)=>SavedSendOutcome::Completed,
                         Ok(_)=>SavedSendOutcome::SessionExpired,
@@ -490,7 +504,7 @@ async fn run_protocol(context:Arc<OwnedSendContext>,sender:mpsc::Sender<Envelope
         let child=context.admission.scope.child();
         if child.is_cancelled()||context.admission.request.is_cancelled(){return Err(Error::Cancelled)}
         let bundle=match phases.exchange(Call::Prepare{text:text.clone(),options:options.clone(),updates:updates.clone()}).await?{
-            Reply::Prepared(value)=>value,_=>return Err(Error::Protocol),
+            Reply::Prepared(value)=>value,_=>return Err(crate::client::send::refusal_trace::protocol_at!()),
         };
         let PreparedBundle{transport,context:prepared}=*bundle;
         let PreparedTurnTransport{generation,id,turn,message,mut chat,new_chat,key,wrapped,baseline,existing:_,team_preparation:_,mut ws,release_scope:_}=transport;
@@ -514,7 +528,8 @@ async fn run_protocol(context:Arc<OwnedSendContext>,sender:mpsc::Sender<Envelope
         else if let Some(socket)=context.socket.get(){let mut original=socket.original_phase_handle();close_original_socket(&mut original).await}
         else{context.transport_resources_tracked.load(std::sync::atomic::Ordering::Acquire)};
     context.socket_returned.store(socket_returned,std::sync::atomic::Ordering::Release);
-    if matches!(&result,Err(Error::Protocol))&&context.socket.get().is_some(){trace.report_protocol_error();}
+    if matches!(&result,Err(Error::Protocol | Error::Offline))&&context.socket.get().is_some(){trace.report_protocol_error();}
+    if matches!(&result,Err(Error::Forbidden)){trace.report_refusal();}
     result
 }
 impl Client {

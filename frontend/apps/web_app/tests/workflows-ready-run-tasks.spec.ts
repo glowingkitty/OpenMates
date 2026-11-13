@@ -14,12 +14,12 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { naturalProjectName } = require('./helpers/project-names');
 
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_DEVICE = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10) === 390 ? 'web-phone' : 'web-laptop';
 const PROOF_VIEWPORT = PROOF_DEVICE === 'web-phone' ? { width: 390, height: 844 } : { width: 1440, height: 900 };
 const VIEWPORTS = IS_PROOF_CAPTURE ? [PROOF_VIEWPORT] : [{ width: 1440, height: 900 }, { width: 390, height: 844 }];
-const PRESERVED_BOARD_SCROLL_LEFT = 72;
 const TERMINAL_RUN_STATUS = /^(completed|failed|cancelled)$/;
 const TERMINAL_NODE_STATUS = /^(completed|failed|skipped)$/;
 const VISIBLE_RUN_DETAIL_STATUS = /^(queued|running|completed|failed|cancelled)$/;
@@ -129,6 +129,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 		const createdWorkflowIds = new Set<string>();
+		const createdProjectUrls = new Set<string>();
 		const suffix = `${Date.now()}-${testInfo.workerIndex}`;
 		const proof = IS_PROOF_CAPTURE
 			? createVideoProofRuntime(READY_RUN_TASKS_PROOF, {
@@ -145,10 +146,27 @@ test.describe('Ready Workflow run Tasks projection', () => {
 			for (const viewport of VIEWPORTS) {
 				const workflowTitle = `Ready run Tasks contract ${suffix}-${viewport.width}`;
 				await page.setViewportSize(viewport);
-				await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+				await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
 				await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30_000 });
 
-				await page.getByTestId('create-blank-workflow').click();
+				// The blank creator opens from a project's create menu.
+				const projectCreated = page.waitForResponse(
+					(response: any) => new URL(response.url()).pathname === '/v1/projects' && response.request().method() === 'POST' && response.ok(),
+					{ timeout: 30_000 }
+				);
+				await page.goto(getE2EDebugUrl('/projects'), { waitUntil: 'domcontentloaded' });
+				await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30_000 });
+				await page.getByTestId('project-input-textarea').fill(naturalProjectName('Weekly report automation'));
+				await page.getByTestId('project-input-submit').click();
+				await page.getByTestId('project-write-policy-apply-and-show').check();
+				await page.getByTestId('project-write-policy-confirm').click();
+				const projectResponse = await projectCreated;
+				createdProjectUrls.add(`${new URL(projectResponse.url()).origin}/v1/projects/${encodeURIComponent((await projectResponse.json()).project.project_id)}`);
+				await expect(page.getByTestId('project-workspace-header')).toBeVisible({ timeout: 30_000 });
+				await page.getByTestId('project-tab-folders').click();
+				await page.getByTestId('project-folder-create-menu-button').click();
+				await page.getByTestId('project-create-workflow').click();
+				await expect(page.getByTestId('workflow-blank-creator')).toBeVisible({ timeout: 30_000 });
 				await page.getByTestId('workflow-blank-title-input').fill(workflowTitle);
 				const createResponse = page.waitForResponse(
 					(response: any) => new URL(response.url()).pathname === '/v1/workflows' && response.request().method() === 'POST' && response.ok(),
@@ -158,29 +176,46 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				const workflow = (await (await createResponse).json()).workflow;
 				createdWorkflowIds.add(workflow.id);
 
-				await expect(page.getByTestId('workflow-readiness-trigger-count')).toHaveText('0');
-				await expect(page.getByTestId('workflow-readiness-step-count')).toHaveText('0');
+				await expect(page.getByTestId('workflow-action-palette')).toBeVisible({ timeout: 30_000 });
 				await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
 				if (proof) {
 					await proof.assert('blank-draft-visible.assertion', async () => {
-						await expect(page.getByTestId('workflow-blank-draft')).toBeVisible();
-						await expect(page.getByTestId('workflow-readiness-trigger-count')).toHaveText('0');
+						await expect(page.getByTestId('workflow-action-palette')).toBeVisible();
+						await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
 					});
 					await proof.checkpoint('blank-draft-visible');
 					await holdProofCheckpoint(page);
 				}
 
+				// Author the trigger through the graph editor, then complete the steps through the API.
 				await page.getByTestId('workflow-add-time-trigger').click();
+				await page.getByTestId('workflow-trigger-date-time').click();
 				await page.getByTestId('workflow-time-trigger-schedule').selectOption('daily');
-				await page.getByTestId('workflow-add-step').click();
-				await page.getByTestId('workflow-step-app-skill-action').click();
-				await page.getByTestId('workflow-add-step').click();
-				await page.getByTestId('workflow-step-create-chat-report').click();
-				await expect(page.getByTestId('workflow-readiness-trigger-count')).toHaveText('1');
-				await expect(page.getByTestId('workflow-readiness-step-count')).toHaveText('2');
-				await expect(page.getByTestId('workflow-reachable-qualifying-side-effect')).toHaveAttribute('data-reachable', 'true');
-
-				await page.getByTestId('save-workflow').click();
+				const triggerSaved = page.waitForResponse(
+					(response: any) => response.url().endsWith(`/v1/workflows/${workflow.id}`) && response.request().method() === 'PATCH' && response.ok(),
+					{ timeout: 30_000 }
+				);
+				await page.getByTestId('workflow-node-save').click();
+				const savedGraph = (await (await triggerSaved).json()).workflow.graph;
+				expect(savedGraph.nodes.some((node: any) => node.type === 'schedule_trigger')).toBe(true);
+				const lastNode = savedGraph.nodes[savedGraph.nodes.length - 1];
+				const stepped = await page.request.patch(`${apiUrl}/v1/workflows/${encodeURIComponent(workflow.id)}`, {
+					data: {
+						graph: {
+							...savedGraph,
+							nodes: [
+								...savedGraph.nodes,
+								{ id: 'weather', type: 'app_skill_action', title: 'Weather forecast', config: { app_id: 'weather', skill_id: 'forecast', input: { location: 'Berlin', latitude: 52.52, longitude: 13.405, days: 1 } } },
+								{ id: 'message', type: 'send_chat_message', config: { title: 'Daily report', message: 'Forecast: {{steps.weather.forecast_day}}', blocks: [{ id: 'weather', source: '$nodes.weather.output.forecast_day' }] } }
+							],
+							edges: [...savedGraph.edges, { from: lastNode.id, to: 'weather' }, { from: 'weather', to: 'message' }]
+						}
+					}
+				});
+				expect(stepped.ok()).toBe(true);
+				await page.reload({ waitUntil: 'domcontentloaded' });
+				await expect(page.locator('[data-node-id="weather"]')).toBeVisible({ timeout: 30_000 });
+				await expect(page.locator('[data-node-id="message"]')).toBeVisible();
 				await expect(page.getByTestId('toggle-workflow')).toBeEnabled();
 				await page.getByTestId('toggle-workflow').click();
 				await expect(page.getByTestId('workflow-enabled-state')).toHaveAttribute('data-enabled', 'true');
@@ -188,7 +223,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 					(response: any) => response.url().endsWith(`/v1/workflows/${workflow.id}/run`) && response.request().method() === 'POST' && response.ok(),
 					{ timeout: 30_000 }
 				);
-				await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
+				await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More', exact: true }).click();
 				await page.getByTestId('run-workflow').click();
 				const run = (await (await runResponse).json()).run;
 				if (proof) {
@@ -204,16 +239,28 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
 				const taskBoard = page.getByTestId('task-board');
 				await expect(taskBoard).toBeVisible();
-				const preservedBoardScrollLeft = await taskBoard.evaluate((board: HTMLElement, target: number) => {
-					board.scrollLeft = Math.min(target, board.scrollWidth - board.clientWidth);
-					return board.scrollLeft;
-				}, PRESERVED_BOARD_SCROLL_LEFT);
-				expect(preservedBoardScrollLeft).toBeGreaterThan(0);
 				const boardNode = await taskBoard.elementHandle();
 				const boardState = await taskBoard.getAttribute('data-board-state');
 				const projection = await expectExactRunProjection(page, run.id);
+				const boardOverflows = await taskBoard.evaluate((board: HTMLElement) => board.scrollWidth > board.clientWidth);
+				if (viewport.width < 1440) {
+					// Narrow boards scroll horizontally with column snapping. Rest on the run's own
+					// column (a snap position) and prove that offset is kept while the detail opens and closes.
+					const preservedBoardScrollLeft = await projection.evaluate(async (card: HTMLElement) => {
+						const board = card.closest<HTMLElement>('[data-testid="task-board"]')!;
+						card.closest<HTMLElement>('[data-testid^="task-column-"]')!.scrollIntoView({ inline: 'start', block: 'nearest' });
+						await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+						return board.scrollLeft;
+					});
+					expect(preservedBoardScrollLeft).toBeGreaterThan(0);
+				} else {
+					// The redesigned board fits all five columns at desktop width, so there is no offset to keep.
+					expect(boardOverflows).toBe(false);
+				}
+				// The split detail narrows the board while open (it may scroll and snap then); closing must
+				// return the board to the offset it had before the detail opened.
+				const boardScrollLeftBeforeOpen = await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft);
 				await projection.click();
-				const detailOpenBoardScrollLeft = await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft);
 
 				const detail = page.getByTestId('workflow-run-projection-detail');
 				await expect(detail).toBeVisible();
@@ -259,13 +306,13 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				await expect(detail).toHaveCount(0);
 				await expect(taskBoard).toBeVisible();
 				expect(await taskBoard.evaluate((node: HTMLElement, original: HTMLElement | null) => node === original, boardNode)).toBe(true);
-				expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft)).toBe(detailOpenBoardScrollLeft);
+				expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft)).toBe(boardScrollLeftBeforeOpen);
 				await expect(taskBoard).toHaveAttribute('data-board-state', boardState);
 				await expectNotCoveredByTaskComposer(page, projection);
 				if (proof) {
 					await proof.assert('responsive-close-visible.assertion', async () => {
 						await expect(taskBoard).toBeVisible();
-						expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft)).toBe(detailOpenBoardScrollLeft);
+						expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft)).toBe(boardScrollLeftBeforeOpen);
 					});
 					await proof.checkpoint('responsive-close-visible');
 					await holdProofCheckpoint(page);
@@ -276,6 +323,9 @@ test.describe('Ready Workflow run Tasks projection', () => {
 		} finally {
 			for (const workflowId of createdWorkflowIds) {
 				await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
+			}
+			for (const projectUrl of createdProjectUrls) {
+				await page.request.delete(projectUrl).catch(() => null);
 			}
 		}
 	});

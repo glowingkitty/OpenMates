@@ -23,6 +23,7 @@ const {
 const { closeFullscreen } = require('./helpers/embed-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
+const { naturalProjectName } = require('./helpers/project-names');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
@@ -162,7 +163,7 @@ async function sendWithProjectMention(
   const editor = page.getByTestId('message-editor');
   await page.bringToFront();
   await focusMessageEditor(editor);
-  // A space ends mention search, so use the fixture's unique suffix to find
+  // A space ends mention search, so use the last word of the fixture name (its nickname) to find
   // multiword Project names through the same keystrokes a user emits.
   const projectQuery = projectName.trim().split(/\s+/).at(-1);
   expect(projectQuery).toBeTruthy();
@@ -290,7 +291,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
   // contract-test: direct surface=gui.web assertions=projects.files.hosted-ciphertext-commit,projects.files.expected-base,projects.files.exact-patch,projects.files.chat-focus-required,projects.files.write-policy-enforcement,projects.focus.mention-activation,projects.focus.inferred-consent,projects.focus.mention-history
   test('creates and updates an encrypted hosted file through explicit Project focus and approval', async ({ page }: { page: Page }) => {
     test.setTimeout(900_000);
-    const projectName = `Browser hosted ${randomUUID().slice(0, 8)}`;
+    const projectName = naturalProjectName('Recipe collection');
     const path = 'proofs/browser-hosted-proof.txt';
     const marker = syntheticMarker('hosted');
     const sentWebSocketMessages: Array<Record<string, unknown>> = [];

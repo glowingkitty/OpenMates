@@ -159,6 +159,8 @@ test.describe('Streaming render performance metrics', () => {
 		const renderingTriggeredRequests = runtimeRequests.filter((requestUrl) => {
 			const url = new URL(requestUrl);
 			if (url.hostname === 'm.stripe.com') return false;
+			// The Rust client core loads its wasm once per page load; that is startup, not rendering.
+			if (url.pathname.startsWith('/_app/immutable/workers/assets/') && url.pathname.endsWith('.wasm')) return false;
 			return url.pathname !== '/v1/settings/server-status';
 		});
 		expect(renderingTriggeredRequests).toEqual([]);

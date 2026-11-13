@@ -61,3 +61,12 @@ async def test_invalid_cache_and_missing_disk_section_fail_without_recaching(mon
     with pytest.raises(RuntimeError, match="base_ethics_instruction"):
         await loader.load_validated_base_instructions(cache)
     cache.set_base_instructions.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.instructions.required-safety
+def test_ethics_prose_keeps_lawful_in_some_places_research_with_a_legal_notice():
+    ethics = loader.load_base_instructions()["base_ethics_instruction"]
+    assert "legal in some countries or regions" in ethics
+    assert "are not refused by default" in ethics
+    assert "check and follow the laws that apply to them" in ethics
+    assert "Still decline concrete help with clearly illegal acts" in ethics

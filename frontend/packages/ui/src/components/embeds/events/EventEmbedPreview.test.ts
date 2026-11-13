@@ -15,9 +15,6 @@ vi.mock('../../../services/chatSyncService', () => ({ chatSyncService: new Event
 vi.mock('../../../services/directChatService', () => ({ startDirectChatIdentityEnrollment: vi.fn() }));
 vi.mock('../BasicInfosBar.svelte', () => ({ default: () => {} }));
 vi.mock('../../Icon.svelte', () => ({ default: () => {} }));
-vi.mock('../../../stores/appSettingsMemoriesStore', () => ({ appSettingsMemoriesStore: {
-  subscribe: (run: (value: unknown) => void) => { run({ entriesByApp: new Map() }); return () => {}; },
-} }));
 
 const eventId = 'deferred-event-reference';
 const event = { type: 'event_result', title: 'Community AI Hack', date_start: '2026-11-14T09:00:00Z',
@@ -86,6 +83,9 @@ it('does not show the source domain on a researched event card but keeps the dra
   expect(target.textContent).toContain(event.title);
   expect(target.textContent).not.toContain('fosdem.org');
   expect(target.querySelector('[data-testid="authored-result-provenance"]')).toBeNull();
+  await mountCard('user_provided');
+  expect(target.querySelector('[data-testid="authored-result-provenance"]')).toBeNull();
+  expect(target.textContent).not.toContain('User-provided');
   await mountCard('draft');
   expect(target.querySelector('[data-testid="authored-result-origin"]')?.textContent).toBe('Draft');
 });

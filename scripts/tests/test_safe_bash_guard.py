@@ -118,7 +118,6 @@ def test_blocks_destructive_git_cleanup() -> None:
 def test_allows_scoped_static_frontend_checks() -> None:
     commands = [
         "pnpm --dir frontend/apps/web_app lint",
-        "pnpm --dir frontend/apps/web_app check",
         "pnpm --dir frontend/apps/web_app check-types",
         "pnpm exec tsc --noEmit",
         "pnpm exec tsc --watch=false --noEmit",
@@ -127,6 +126,13 @@ def test_allows_scoped_static_frontend_checks() -> None:
     for command in commands:
         result = run_guard(command)
         assert result.returncode == 0, (command, result.stderr)
+
+
+def test_whole_package_type_check_script_needs_the_heavy_slot() -> None:
+    # The `check` script runs the whole-package type-check (several GB per run).
+    result = run_guard("pnpm --dir frontend/apps/web_app check")
+    assert result.returncode == 2, result.stderr
+    assert "heavy_slot.py" in json.loads(result.stderr)["reason"]
 
 
 def test_local_unit_tests_and_builds_go_to_ci() -> None:
@@ -198,3 +204,44 @@ def test_chained_commands_are_all_checked_but_quoted_data_is_not_executed() -> N
     assert quoted_substitution.returncode == 0
     quoted_shell = run_guard("printf '%s' \"sh -c 'git reset --hard HEAD'\"")
     assert quoted_shell.returncode == 0
+
+
+def test_worktree_may_cd_to_canonical_checkout_and_sibling_worktrees(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """Session worktrees run scripts/sessions.py from the canonical checkout via cd."""
+    guard = load_guard()
+    canonical = tmp_path / "OpenMates"
+    worktree = canonical / ".openmates-agent-worktrees" / "agent-aaaa"
+    sibling = canonical / ".openmates-agent-worktrees" / "agent-bbbb"
+    gitdir = canonical / ".git" / "worktrees" / "agent-aaaa"
+    for directory in (gitdir, worktree, sibling, canonical / "test-results"):
+        directory.mkdir(parents=True)
+    (worktree / ".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    monkeypatch.setattr(guard, "REPO_ROOT", worktree)
+
+    assert guard._canonical_root() == canonical.resolve()
+    for allowed in (canonical, sibling, canonical / "test-results"):
+        assert guard._resolved_repo_path(worktree, str(allowed)) == allowed.resolve()
+    assert guard._resolved_repo_path(worktree, str(outside)) is None
+    assert guard._resolved_repo_path(worktree, "/tmp") is None
+
+
+def test_cd_outside_repository_is_still_blocked() -> None:
+    assert run_guard("cd /tmp && ls").returncode == 2
+    assert run_guard(f"cd {PROJECT_ROOT} && ls").returncode == 0
+
+
+def test_block_messages_name_the_working_alternative() -> None:
+    """A refused command says what to run instead, so agents do not retry blindly."""
+    cases = {
+        "cd /tmp && ls": "absolute paths",
+        "bash scripts/lint_changed.sh": "Run the script file directly",
+        "git stash": "sessions.py deploy --only",
+    }
+    for command, hint in cases.items():
+        result = run_guard(command)
+        assert result.returncode == 2, command
+        assert hint in json.loads(result.stderr)["reason"], command

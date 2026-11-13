@@ -22,8 +22,11 @@ from typing import Any
 
 import httpx
 
+from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.tasks.celery_config import app, get_worker_cache_service
+from backend.apps.code.tasks.test_result_embed import persist_test_result_embed, run_result_embed_id
+from backend.apps.code.tasks.test_run_execution import execute_test_run, final_test_result
 from backend.shared.providers.e2b_code_runner import (
     CodeRunCancelled,
     CodeRunDependencyInstall,
@@ -62,7 +65,8 @@ except Exception:  # pragma: no cover - deployment image dependency guard
 logger = logging.getLogger(__name__)
 
 EXECUTION_TTL_SECONDS = 3600
-RUN_CREDITS_PER_MINUTE = 5
+# Catalog price per started sandbox minute (code.run pricing.per_minute).
+RUN_CREDITS_PER_MINUTE = whole_credits(skill_price("code", "run", "per_minute"))
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 CODE_RUN_CHANNEL_PREFIX = "code_run_stream"
@@ -141,8 +145,15 @@ def _public_api_base_url() -> str:
 
 
 def _artifact_asset_id(execution_id: str, payload: dict[str, Any]) -> str:
+    """Embed the stored run outputs belong to: the target embed, else, for a
+    chat-bound test run, its test result embed (so the download-url route finds
+    an owned embed), else the execution itself (direct API runs)."""
     target_embed_id = payload.get("target_embed_id")
-    return target_embed_id if isinstance(target_embed_id, str) and target_embed_id else execution_id
+    if isinstance(target_embed_id, str) and target_embed_id:
+        return target_embed_id
+    if payload.get("test_run") and payload.get("chat_id"):
+        return run_result_embed_id(execution_id)
+    return execution_id
 
 
 def _artifact_variant_name(normalized_path: str, used_variants: set[str]) -> str:
@@ -416,6 +427,11 @@ def _build_code_run_completion_result(
         # result is available, expose them only through its checked output.
         "error": final_status.get("error") if output_safety is None else None,
     }
+    if isinstance(final_status.get("test_result"), dict):
+        # Structured and size-bounded by the TestRunResult schema; no artifact bytes.
+        result["test_result"] = final_status["test_result"]
+        if final_status.get("test_result_embed_id"):
+            result["test_result_embed_id"] = final_status["test_result_embed_id"]
     if output_safety is not None:
         result["output_safety_receipt"] = output_safety.receipt.to_dict()
         if output_safety.model_text is not None:
@@ -681,15 +697,19 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             for item in payload.get("dependency_installs", [])
             if isinstance(item, dict) and isinstance(item.get("packages"), list)
         ]
-        result = run_code_in_e2b(
-            files,
-            payload["target_path"],
-            on_output,
-            api_key,
-            dependency_installs,
-            should_cancel,
-            bool(payload.get("enable_internet", True)),
-        )
+        test_outcome = None
+        if payload.get("test_run"):
+            result, test_outcome = execute_test_run(payload, on_output, api_key, should_cancel)
+        else:
+            result = run_code_in_e2b(
+                files,
+                payload["target_path"],
+                on_output,
+                api_key,
+                dependency_installs,
+                should_cancel,
+                bool(payload.get("enable_internet", True)),
+            )
         duration = result.duration_seconds
         status = "finished" if result.exit_code in (None, 0) else "failed"
         charged_minutes = max(1, math.ceil(duration / 60))
@@ -724,6 +744,19 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             "skipped_artifacts": _safe_skipped_artifacts(result.skipped_artifacts),
             "finished_at": time.time(),
         }
+        if test_outcome is not None:
+            final_status["test_result"] = final_test_result(test_outcome, stored_artifacts)
+            final_status["status"] = "finished" if test_outcome.result.status == "passed" else "failed"
+            try:
+                embed_ref = run_async(persist_test_result_embed(
+                    payload, final_status["test_result"], execution_id, cache_service,
+                ))
+            except (RuntimeError, ValueError) as embed_exc:
+                logger.error("Test result embed for %s failed: %s", execution_id, embed_exc, exc_info=True)
+                final_status["test_result_embed_error"] = redact_execution_output(str(embed_exc))
+            else:
+                if embed_ref:
+                    final_status["test_result_embed_id"] = embed_ref["embed_id"]
         run_async(_store_execution(
             execution_id,
             final_status,

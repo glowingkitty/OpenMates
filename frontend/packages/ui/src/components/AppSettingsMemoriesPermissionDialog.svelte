@@ -23,6 +23,7 @@
      */
     import Toggle from './Toggle.svelte';
     import Icon from './Icon.svelte';
+    import { MEMORY_RESPONSE_APP_ID } from '../services/memoryDocumentRequest';
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { slide } from 'svelte/transition';
@@ -196,7 +197,8 @@
                             ariaLabel={`Toggle ${category.displayName}`}
                         />
                         
-                        <!-- App icon with proper styling -->
+                        <!-- App icon; a personal Memory belongs to no app and has no app icon -->
+                        {#if category.appId !== MEMORY_RESPONSE_APP_ID}
                         <div class="app-icon-wrapper">
                             <Icon 
                                 name={category.appId} 
@@ -204,6 +206,7 @@
                                 size="38px"
                             />
                         </div>
+                        {/if}
                         
                         <div class="category-info">
                             <span class="category-name" data-testid={previewMode ? 'landing-memory-category-name' : undefined}>{category.displayName}</span>

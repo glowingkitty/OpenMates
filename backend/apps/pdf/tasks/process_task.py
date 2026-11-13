@@ -7,17 +7,11 @@
 #   has been uploaded and stored in S3. This task:
 #
 #   1. Downloads and decrypts the PDF from S3.
-#   2. Runs Mistral OCR 3 (mistral-ocr-2512) to extract per-page markdown + images.
-#   3. Renders page screenshots at 150 DPI using pymupdf.
-#   4. Detects TOC (Groq gpt-oss-20b, batches of 3, up to 12 pages).
-#   5. Detects legend (Groq gpt-oss-20b, last 5 pages).
-#   6. Encrypts and uploads:
-#      - Page screenshots (one S3 object per page).
-#      - Extracted OCR images (one S3 object each).
-#      - Full OCR JSON blob (all per-page markdown + metadata).
-#   7. Builds per-page token counts (len(markdown) // 4).
-#   8. Constructs the embed TOON content structure (visible to LLM).
-#   9. Updates the embed via WebSocket (embed_update event).
+#   2. Runs the v2 pipeline (services/pdf_pipeline.py): per-page triage, text layer or chunked
+#      OCR, Jev prompt-injection scores and image decisions, outline/Jev table of contents,
+#      encrypted page blob, page-1 preview. Other page renders happen on demand.
+#   3. Constructs the embed TOON content (visible to the LLM) and delivers it only when every
+#      page is final (the assistant is held until then).
 #
 # Retry policy:
 #   - Retries up to 3 times with exponential backoff.
@@ -43,7 +37,6 @@ import base64
 import json
 import logging
 import os
-import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
@@ -95,6 +88,56 @@ def process_pdf_task(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
     return asyncio.run(_async_process_pdf(self, arguments))
 
 
+PDF_PROCESS_LOCK_TTL_SECONDS = 900  # above the 660s Celery hard limit
+
+
+async def _claim_pdf_processing(cache_service: Any, embed_id: str, task_id: str) -> bool:
+    """Single-flight per embed. A Celery retry keeps its task id and may re-enter.
+
+    Without a reachable cache the claim cannot be arbitrated; processing then
+    proceeds, because losing a user's PDF is worse than a duplicate OCR run.
+    """
+    client = await cache_service.client
+    if client is None:
+        return True
+    key = f"pdf:{embed_id}:process:lock"
+    if await client.set(key, task_id, nx=True, ex=PDF_PROCESS_LOCK_TTL_SECONDS):
+        return True
+    holder = await client.get(key)
+    if isinstance(holder, bytes):
+        holder = holder.decode("utf-8")
+    return holder == task_id
+
+
+async def _load_upload_billing(cache_service: Any, embed_id: str, user_id: str) -> Dict[str, Any]:
+    """The charge and page routes recorded when the PDF was uploaded, or {} when none exist.
+
+    The upload route and the message handler can both dispatch processing; only the upload route
+    knows what was charged. The record is trusted only for the user who uploaded the embed.
+    """
+    client = await cache_service.client
+    if client is None:
+        return {}
+    raw = await client.get(f"pdf:{embed_id}:billing")
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8")
+    if not raw:
+        return {}
+    try:
+        record = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("[pdf.process] [embed:%s] Ignoring unreadable upload billing record", embed_id[:8])
+        return {}
+    if not isinstance(record, dict) or record.get("user_id") != user_id:
+        return {}
+    credits = record.get("credits_charged")
+    routes = record.get("page_routes")
+    return {
+        "credits_charged": credits if isinstance(credits, int) and credits >= 0 else 0,
+        "page_routes": routes if isinstance(routes, list) else None,
+    }
+
+
 async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -> Dict[str, Any]:
     """
     Main async implementation of the PDF processing pipeline.
@@ -123,6 +166,22 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
 
     try:
         await task.initialize_services()
+
+        # The upload route and the message handler can both dispatch this task
+        # for one embed. A second concurrent run would repeat the paid OCR calls
+        # and race the first run's writes, so only one run per embed proceeds.
+        if not await _claim_pdf_processing(task._cache_service, embed_id, task_id):
+            logger.info(f"{log_prefix} Another task already processes this embed — skipping duplicate dispatch")
+            return {"embed_id": embed_id, "status": "duplicate_skipped"}
+
+        # A dispatch from the message handler carries no charge or routes; take what the upload
+        # recorded so the refund and price adjustment do not depend on which dispatch won.
+        if not credits_charged and not arguments.get("page_routes"):
+            recorded = await _load_upload_billing(task._cache_service, embed_id, user_id)
+            if recorded:
+                credits_charged = recorded["credits_charged"]
+                arguments = {**arguments, "credits_charged": credits_charged, "page_routes": recorded["page_routes"]}
+                logger.info(f"{log_prefix} Upload billing record applied: {credits_charged} credits charged")
 
         # -----------------------------------------------------------------------
         # Dedup shortcut: if source_embed_id is provided, try to copy the OCR
@@ -191,289 +250,67 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
         logger.info(f"{log_prefix} Output AES key generated and Vault-wrapped")
 
         # -----------------------------------------------------------------------
-        # Step 3: Run OCR with fallback chain (Mistral → Gemini Flash → pymupdf)
+        # Step 3: PDF processing v2 pipeline (triage → text/OCR/images → Jev safety + TOC →
+        # encrypted artefacts). The embed only becomes "finished" below, after every page is
+        # final, so the assistant is held until then (readiness.complete-before-answer).
         # -----------------------------------------------------------------------
-        logger.info(f"{log_prefix} Step 3: Running OCR (Mistral → Gemini Flash → pymupdf)")
-        from backend.apps.pdf.services.ocr_service import run_ocr_with_fallback, sanitize_ocr_pages_for_ascii_smuggling
+        logger.info(f"{log_prefix} Step 3: Running v2 pipeline")
+        from backend.apps.pdf.services.pdf_pipeline import run_pipeline
 
-        ocr_pages, ocr_provider = await run_ocr_with_fallback(
+        pipeline = await run_pipeline(
             pdf_bytes=pdf_bytes,
             secrets_manager=task._secrets_manager,
+            s3_service=task._s3_service,
+            output_aesgcm=output_aesgcm,
+            user_id=user_id,
+            embed_id=embed_id,
+            page_routes=arguments.get("page_routes"),
+            created_s3_keys=created_s3_keys,
             log_prefix=log_prefix,
         )
-        ocr_pages = sanitize_ocr_pages_for_ascii_smuggling(
-            ocr_pages,
-            log_prefix=f"{log_prefix} [post-ocr] ",
-        )
-        logger.info(f"{log_prefix} OCR complete via {ocr_provider}: {len(ocr_pages)} pages")
-
-        # -----------------------------------------------------------------------
-        # Step 4: Render page screenshots via pymupdf (in thread to avoid blocking)
-        # -----------------------------------------------------------------------
-        logger.info(f"{log_prefix} Step 4: Rendering page screenshots")
-        from backend.apps.pdf.services.screenshot_service import render_pdf_pages
-
-        screenshots: Dict[int, bytes] = await asyncio.to_thread(
-            render_pdf_pages, pdf_bytes, log_prefix
-        )
-        logger.info(f"{log_prefix} Rendered {len(screenshots)} page screenshots")
-
-        # -----------------------------------------------------------------------
-        # Step 5: Detect TOC and legend (parallel calls to Groq)
-        # -----------------------------------------------------------------------
-        # Legend detection is skipped for PDFs with fewer than 10 pages because
-        # short documents almost never contain a dedicated legend section, and the
-        # extra Groq call wastes credits on last-page analysis.
-        logger.info(f"{log_prefix} Step 5: Detecting TOC and legend")
-        from backend.apps.pdf.services.toc_detector import detect_toc, detect_legend
-
-        if page_count >= 10:
-            toc_result, legend_result = await asyncio.gather(
-                detect_toc(ocr_pages, task._secrets_manager, log_prefix),
-                detect_legend(ocr_pages, task._secrets_manager, log_prefix),
-            )
-        else:
-            logger.info(
-                f"{log_prefix} Skipping legend detection (page_count={page_count} < 10)"
-            )
-            toc_result = await detect_toc(ocr_pages, task._secrets_manager, log_prefix)
-            legend_result = {"detected": False, "source_pages": [], "content": "", "chapters": []}
-
-        logger.info(
-            f"{log_prefix} TOC detected={toc_result['detected']}, "
-            f"legend detected={legend_result['detected']}"
-        )
-
-        # -----------------------------------------------------------------------
-        # Step 5.5: SightEngine content safety scan on rendered page screenshots
-        #
-        # We scan every page screenshot for harmful/illegal/AI-generated content
-        # before storing them in S3. This mirrors the scan done for user-uploaded
-        # images in the upload service.
-        #
-        # Behaviour:
-        #   - If SightEngine is not configured (no credentials in Vault) → scan skipped,
-        #     screenshots proceed as normal (same as upload service behaviour).
-        #   - If SightEngine API returns an error (service down) → upload is REJECTED
-        #     (fail-closed policy, same as upload service post-fix).
-        #   - If any page fails the content safety threshold → the entire PDF
-        #     processing is aborted and the embed is marked as failed.
-        # -----------------------------------------------------------------------
-        logger.info(f"{log_prefix} Step 5.5: SightEngine safety scan of page screenshots")
-        try:
-            from backend.upload.services.sightengine_service import SightEngineService
-            _se = SightEngineService()
-            await _se.initialize_from_vault(
-                vault_url=os.getenv("VAULT_ADDR", "http://vault:8200"),
-                vault_token_path=os.getenv("VAULT_TOKEN_PATH", "/vault-data/api.token"),
-            )
-
-            if not _se.is_enabled:
-                logger.info(
-                    f"{log_prefix} Step 5.5: SightEngine SKIPPED "
-                    "(credentials not configured — set SECRET__SIGHTENGINE__* to enable)"
+        total_tokens = pipeline.total_tokens
+        page_count = pipeline.embed_fields["page_count"]
+        # Pages billed as OCR at upload that the decision model proved to be text-layer are refunded,
+        # so the final price is exactly 2 + 2 per page that really went through OCR.
+        if arguments.get("page_routes") and credits_charged > pipeline.price_credits:
+            try:
+                await _refund_credits(
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    credits=credits_charged - pipeline.price_credits,
+                    reason=f"PDF price adjusted to {pipeline.price_credits} credits for embed {embed_id}",
+                    idempotency_key=f"pdf:{embed_id}:process:price-adjust",
+                    log_prefix=log_prefix,
                 )
-            else:
-                rejected_page: int | None = None
-                for page_num, png_bytes in sorted(screenshots.items()):
-                    filename_hint = f"pdf_{embed_id[:8]}_p{page_num}.png"
-                    safety_result, _ = await _se.check_all(png_bytes, filename=filename_hint)
-                    if not safety_result.is_safe:
-                        if safety_result.reason == "safety_service_unavailable":
-                            logger.error(
-                                f"{log_prefix} Step 5.5: SightEngine service unavailable "
-                                f"while scanning page {page_num}. Aborting PDF processing."
-                            )
-                            raise RuntimeError(
-                                "Safety processing failed. Try again later. "
-                                "(SightEngine service unavailable during PDF scan)"
-                            )
-                        logger.warning(
-                            f"{log_prefix} Step 5.5: Page {page_num} REJECTED — "
-                            f"reason: {safety_result.reason}"
-                        )
-                        rejected_page = page_num
-                        break
-
-                if rejected_page is not None:
-                    raise RuntimeError(
-                        f"PDF contains content that violates community guidelines "
-                        f"(detected on page {rejected_page})"
-                    )
-
-                logger.info(
-                    f"{log_prefix} Step 5.5: All {len(screenshots)} page screenshots "
-                    "passed SightEngine safety scan ✓"
-                )
-        except RuntimeError:
-            raise  # Re-raise safety/service errors so the task retries/fails cleanly
-        except Exception as _se_err:
-            # Non-fatal import or init error: log and continue (do not block PDF processing)
-            logger.warning(
-                f"{log_prefix} Step 5.5: SightEngine scan skipped due to unexpected error: {_se_err}"
-            )
+            except (httpx.HTTPError, RuntimeError) as refund_err:
+                # The PDF is processed; losing it over a refund hiccup would be worse. The
+                # idempotency key makes a manual or later retry safe.
+                logger.error(f"{log_prefix} Price-adjustment refund failed: {refund_err}", exc_info=True)
+        screenshot_s3_keys = pipeline.embed_fields["screenshot_s3_keys"]
+        extracted_image_s3_keys = pipeline.embed_fields["extracted_image_s3_keys"]
 
         # -----------------------------------------------------------------------
-        # Step 6: Encrypt and upload page screenshots to S3
+        # Step 4: Build embed TOON content and send to client via WebSocket
         # -----------------------------------------------------------------------
-        logger.info(f"{log_prefix} Step 6: Uploading {len(screenshots)} page screenshots")
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        unique_id = uuid.uuid4().hex[:8]
-        screenshot_s3_keys: Dict[str, str] = {}
-
-        for page_num, png_bytes in sorted(screenshots.items()):
-            # Each artefact gets its own fresh 96-bit nonce to prevent AES-GCM
-            # nonce reuse across multiple plaintexts with the same key.
-            # The nonce is prepended to the ciphertext (first 12 bytes) so
-            # decryptors can recover it without a separate metadata field.
-            # See: docs/architecture/pdf-encryption.md
-            page_nonce = os.urandom(12)
-            encrypted = page_nonce + output_aesgcm.encrypt(page_nonce, png_bytes, None)
-            s3_screenshot_key = (
-                f"chatfiles/{user_id}/{timestamp}_{unique_id}_pdf_{embed_id[:8]}_p{page_num}.png.bin"
-            )
-            await task._s3_service.upload_file(
-                bucket_key=PDF_S3_BUCKET,
-                file_key=s3_screenshot_key,
-                content=encrypted,
-                content_type="application/octet-stream",
-            )
-            screenshot_s3_keys[str(page_num)] = s3_screenshot_key
-            created_s3_keys.append(s3_screenshot_key)
-
-        logger.info(f"{log_prefix} All screenshots uploaded")
-
-        # -----------------------------------------------------------------------
-        # Step 7: Encrypt and upload extracted OCR images
-        # -----------------------------------------------------------------------
-        logger.info(f"{log_prefix} Step 7: Uploading extracted OCR images")
-        extracted_image_s3_keys: List[str] = []
-
-        for page in ocr_pages:
-            page_num = page["page_num"]
-            for img_idx, img in enumerate(page.get("images", [])):
-                img_b64 = img.get("base64", "")
-                if not img_b64:
-                    continue
-                try:
-                    img_bytes = base64.b64decode(img_b64)
-                    # Fresh nonce per extracted image — see step 6 comment.
-                    img_nonce = os.urandom(12)
-                    encrypted_img = img_nonce + output_aesgcm.encrypt(img_nonce, img_bytes, None)
-                    img_s3_key = (
-                        f"chatfiles/{user_id}/{timestamp}_{unique_id}_"
-                        f"pdf_{embed_id[:8]}_p{page_num}_img{img_idx}.bin"
-                    )
-                    await task._s3_service.upload_file(
-                        bucket_key=PDF_S3_BUCKET,
-                        file_key=img_s3_key,
-                        content=encrypted_img,
-                        content_type="application/octet-stream",
-                    )
-                    extracted_image_s3_keys.append(img_s3_key)
-                    created_s3_keys.append(img_s3_key)
-                except Exception as e:
-                    logger.warning(
-                        f"{log_prefix} Failed to upload extracted image p{page_num}/img{img_idx}: {e}"
-                    )
-
-        logger.info(f"{log_prefix} Uploaded {len(extracted_image_s3_keys)} extracted images")
-
-        # -----------------------------------------------------------------------
-        # Step 8: Build per-page token estimates + OCR JSON blob, upload to S3
-        # -----------------------------------------------------------------------
-        logger.info(f"{log_prefix} Step 8: Building OCR JSON blob")
-
-        per_page_tokens: Dict[str, int] = {}
-        ocr_blob_pages: Dict[str, Any] = {}
-
-        for page in ocr_pages:
-            pn = page["page_num"]
-            md = page.get("markdown", "")
-            # Rough token estimate: 1 token ≈ 4 characters
-            token_count = max(1, len(md) // 4)
-            per_page_tokens[str(pn)] = token_count
-
-            ocr_blob_pages[str(pn)] = {
-                "markdown": md,
-                "header": page.get("header"),
-                "footer": page.get("footer"),
-                "tables": page.get("tables", []),
-                "image_count": len(page.get("images", [])),
-                "width": page.get("width", 0),
-                "height": page.get("height", 0),
-            }
-
-        total_tokens = sum(per_page_tokens.values())
-
-        ocr_blob = {"pages": ocr_blob_pages}
-        ocr_blob_bytes = json.dumps(ocr_blob, ensure_ascii=False).encode("utf-8")
-        # Fresh nonce for the OCR JSON blob — see step 6 comment.
-        ocr_nonce = os.urandom(12)
-        encrypted_ocr_blob = ocr_nonce + output_aesgcm.encrypt(ocr_nonce, ocr_blob_bytes, None)
-
-        ocr_s3_key = (
-            f"chatfiles/{user_id}/{timestamp}_{unique_id}_pdf_{embed_id[:8]}_ocr.json.bin"
-        )
-        await task._s3_service.upload_file(
-            bucket_key=PDF_S3_BUCKET,
-            file_key=ocr_s3_key,
-            content=encrypted_ocr_blob,
-            content_type="application/octet-stream",
-        )
-        created_s3_keys.append(ocr_s3_key)
-        logger.info(
-            f"{log_prefix} OCR blob uploaded: {len(ocr_blob_bytes)} bytes → {ocr_s3_key}"
-        )
-
-        # -----------------------------------------------------------------------
-        # Step 9: Build embed TOON content and send to client via WebSocket
-        # -----------------------------------------------------------------------
-        logger.info(f"{log_prefix} Step 9: Building embed TOON content")
+        logger.info(f"{log_prefix} Step 4: Building embed TOON content")
 
         embed_content = {
             "type": "pdf",
             "filename": filename,
             "embed_ref": arguments.get("embed_ref") or filename,
-            "page_count": page_count,
-            "total_tokens_estimated": total_tokens,
-            "per_page_tokens": per_page_tokens,
-            "toc": {
-                "detected": toc_result["detected"],
-                "source_pages": toc_result["source_pages"],
-                "chapters": toc_result["chapters"],
-            },
-            "legend": {
-                "detected": legend_result["detected"],
-                "source_pages": legend_result["source_pages"],
-                "content": legend_result["content"],
-            },
-            # S3 keys for skills to access artefacts
-            "ocr_data_s3_key": ocr_s3_key,
-            "screenshot_s3_keys": screenshot_s3_keys,
-            "extracted_image_s3_keys": extracted_image_s3_keys,
-            # Plaintext AES key for CLIENT-SIDE decryption of screenshots.
-            # The embed TOON content is itself encrypted with the chat's master key
-            # (stored only in IndexedDB), so storing the plaintext key here is safe —
-            # it follows the same pattern as images.generate (generate_task.py line 768).
-            # This allows PDFEmbedPreview and PDFEmbedFullscreen to decrypt and render
-            # page screenshots directly in the browser without a server round-trip.
-            #
-            # NOTE: aes_nonce is intentionally omitted for output artefacts (screenshots,
-            # OCR images, OCR blob). Each S3 object has its own unique nonce prepended as
-            # the first 12 bytes of the ciphertext — fetch and extract [:12] as the nonce,
-            # then decrypt [12:] with AES-256-GCM. This prevents nonce reuse across artefacts.
-            # The frontend should pass aesNonce="" to fetchAndDecryptImage for PDF screenshots;
-            # the function will extract the nonce from the blob prefix.
+            **pipeline.embed_fields,
+            # Plaintext AES key for CLIENT-SIDE decryption of screenshots. The embed TOON content is
+            # itself encrypted with the chat's master key (stored only in IndexedDB), so storing the
+            # plaintext key here is safe (same pattern as images.generate). aes_nonce is omitted: each
+            # S3 artefact carries its own nonce in its first 12 bytes.
             "aes_key": output_aes_key_b64,
-            "aes_nonce": "",  # Nonce is embedded in each artefact's ciphertext — see note above
+            "aes_nonce": "",
             # Vault-wrapped key for SERVER-SIDE skill decryption (pdf.read / pdf.view / pdf.search).
             "vault_wrapped_aes_key": output_vault_wrapped_key,
             "s3_base_url": s3_base_url,
-            # OCR provider used to process this PDF (for analytics/debugging).
-            # Possible values: "mistral", "gemini_flash", "pymupdf".
-            "ocr_provider": ocr_provider,
-            # Embed status
+            # The original PDF, so pages can be rendered on demand (pdf.view, fullscreen).
+            "original_s3_key": s3_key,
+            "original_vault_wrapped_aes_key": vault_wrapped_aes_key,
+            "original_aes_nonce": aes_nonce,
             "app_id": "pdf",
             "status": "finished",
         }
@@ -580,7 +417,10 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
     except Exception as exc:
         logger.error(f"{log_prefix} PDF processing failed: {exc}", exc_info=True)
 
-        retries_remaining = MAX_RETRIES - task.request.retries
+        from backend.apps.pdf.services.pdf_pipeline import PdfRejectedError
+
+        rejected = isinstance(exc, PdfRejectedError)
+        retries_remaining = 0 if rejected else MAX_RETRIES - task.request.retries
         if retries_remaining > 0:
             countdown = RETRY_BACKOFF_BASE * (2 ** task.request.retries)
             logger.warning(
@@ -602,6 +442,7 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
                 created_s3_keys=created_s3_keys,
                 s3_base_url=s3_base_url,
                 error_msg=str(exc),
+                rejected=rejected,
                 task=task,
                 arguments=arguments,
                 log_prefix=log_prefix,
@@ -801,6 +642,30 @@ async def _wrap_key_via_vault(
     return resp.json()["data"]["ciphertext"]
 
 
+async def _refund_credits(
+    *, user_id: str, user_id_hash: str, credits: int, reason: str, idempotency_key: str, log_prefix: str
+) -> bool:
+    """Refund credits through the internal billing API. Returns True when the refund was booked."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            f"{INTERNAL_API_BASE_URL}/internal/billing/refund",
+            json={
+                "user_id": user_id,
+                "user_id_hash": user_id_hash,
+                "credits": credits,
+                "reason": reason[:300],
+                "app_id": "pdf",
+                "skill_id": "process",
+                "idempotency_key": idempotency_key,
+            },
+            headers={"Content-Type": "application/json", "X-Internal-Service-Token": INTERNAL_API_SHARED_TOKEN},
+        )
+    if resp.status_code in (200, 201):
+        logger.info(f"{log_prefix} Refunded {credits} credits ({reason[:80]})")
+        return True
+    raise RuntimeError(f"Credit refund failed: HTTP {resp.status_code} {resp.text[:200]}")
+
+
 async def _handle_final_failure(
     embed_id: str,
     user_id: str,
@@ -812,6 +677,7 @@ async def _handle_final_failure(
     task: BaseServiceTask,
     arguments: Dict[str, Any],
     log_prefix: str,
+    rejected: bool = False,
 ) -> None:
     """
     On final task failure after all retries:
@@ -869,7 +735,12 @@ async def _handle_final_failure(
             "status": "error",
             "filename": arguments.get("filename", "document.pdf"),
             "page_count": arguments.get("page_count", 0),
-            "error": "PDF processing failed after multiple retries. Your credits have been refunded.",
+            "error": (
+                "This PDF was rejected because it contains content that violates the community guidelines. "
+                "Your credits have been refunded."
+                if rejected
+                else "PDF processing failed after multiple retries. Your credits have been refunded."
+            ),
         }
         content_toon = toon_encode(error_content)
         now_ts = int(datetime.now(timezone.utc).timestamp())
@@ -879,6 +750,25 @@ async def _handle_final_failure(
             directus_service=task._directus_service,
             encryption_service=task._encryption_service,
         )
+
+        # Mark the cached embed as failed so a held chat turn ends with an explicit failure
+        # message instead of waiting (readiness.complete-before-answer).
+        encrypted_error, _ = await task._encryption_service.encrypt_with_user_key(
+            content_toon, arguments["vault_key_id"]
+        )
+        if encrypted_error:
+            await embed_service._cache_embed(
+                embed_id=embed_id,
+                embed_data={
+                    "embed_id": embed_id, "type": "pdf", "status": "error",
+                    "encrypted_content": encrypted_error, "vault_key_id": arguments["vault_key_id"],
+                    "user_id": user_id,
+                },
+                chat_id=arguments.get("chat_id") or "",
+                user_id_hash=user_id_hash,
+                user_vault_key_id=arguments["vault_key_id"],
+                user_id=user_id,
+            )
 
         await embed_service.send_embed_data_to_client(
             embed_id=embed_id,

@@ -129,7 +129,7 @@ test.describe('AI settings breadcrumb & detail pages', () => {
 	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-	// contract-test: direct surface=gui.web assertions=app-memories.catalog.declared-types-only
+	// contract-test: direct surface=gui.web assertions=app-memories.catalog.no-typed-types
 	test('model and provider detail pages use banner shell and back returns to AI settings', async ({ page }, testInfo: any) => {
 		const logCheckpoint = createSignupLogger('AI_SETTINGS_BREADCRUMB');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -261,13 +261,11 @@ test.describe('AI settings breadcrumb & detail pages', () => {
 			await page.waitForLoadState('networkidle');
 		});
 		const booksSettings = page.locator('[data-testid="settings-menu"].visible');
-		const memoryCards = booksSettings.getByTestId('settings-memory-cards-scroll');
-		await proof.assert('app-memories-preserved', async () => {
+		await proof.assert('typed-memories-removed', async () => {
 			await expect(booksSettings).toHaveAttribute('data-active-view', 'apps/books', { timeout: 10000 });
-			await expect(memoryCards).toBeVisible({ timeout: 10000 });
-			await expect(memoryCards.getByTestId('app-card-name').filter({ hasText: /^Currently reading$/i })).toBeVisible();
+			await expect(booksSettings.getByTestId('app-card-name').filter({ hasText: /^Currently reading$/i })).toHaveCount(0);
 		});
-		logCheckpoint('Books app memory categories remain visible.');
+		logCheckpoint('Books app shows no typed memory categories.');
 		await takeStepScreenshot(page, '08-books-memories');
 		await proof.checkpoint('books-memories-visible');
 		await proof.attach();

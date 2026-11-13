@@ -13,6 +13,9 @@ import os from "node:os";
 import path from "node:path";
 
 const FAKE_COOKIE = "cli-login-cookie-must-never-leave-the-cli";
+const requiredVectors = JSON.parse(fs.readFileSync(new URL("../../../../tests/sdk-conformance/fixtures/sdk-api-key-required.json", import.meta.url), "utf8")) as {
+  code: string; message_contains: string; vectors: Array<{ id: string; api_key: string | null; expected_code: string | null }>;
+};
 
 function plantCliLogin(root: string): { home: string; state: string; cliPaths: string[] } {
   const home = path.join(root, "home");
@@ -67,6 +70,18 @@ test("root OpenMatesClient requires an explicit API key and never uses the CLI l
         error instanceof sdk.OpenMatesApiKeyRequiredError && error instanceof OpenMatesConfigError
         && error.code === "OPENMATES_SDK_API_KEY_REQUIRED" && /Settings → Developers/.test(error.message));
       assert.throws(() => sdk.OpenMatesClient.load(options as never), sdk.OpenMatesApiKeyRequiredError);
+    }
+    // Shared cross-SDK vectors (Python and Rust read the same file); read before fs is recorded.
+    assert.equal(requiredVectors.code, sdk.SDK_API_KEY_REQUIRED_CODE);
+    for (const vector of requiredVectors.vectors) {
+      const options = vector.api_key === null ? {} : { apiKey: vector.api_key, apiUrl: "https://api.example.invalid", deviceIdPath: path.join(root, "vectors", "device-id") };
+      if (vector.expected_code === null) {
+        assert.ok(new sdk.OpenMatesClient(options as never), vector.id);
+        continue;
+      }
+      assert.throws(() => new sdk.OpenMatesClient(options as never), (error: unknown) =>
+        error instanceof sdk.OpenMatesApiKeyRequiredError && error.code === vector.expected_code
+        && error.message.includes(requiredVectors.message_contains), vector.id);
     }
     for (const legacy of [{ session: {} }, { loadStoredSession: true }, { apiKey: "sk-api-x", loadStoredSession: false }]) {
       assert.throws(() => new sdk.OpenMatesClient(legacy as never), sdk.OpenMatesApiKeyRequiredError);

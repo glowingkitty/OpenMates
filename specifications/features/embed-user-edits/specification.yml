@@ -1,0 +1,98 @@
+schema_version: 1
+id: feature.embed-user-edits
+version: 1
+status: draft
+title: Embed User Edits and Image Enhance
+summary: >
+  When a user edits an image, diagram, slide deck, sheet or document, the edit is
+  saved as the next version of the same embed, in one version history that is the
+  same in the chat and in the Projects workspace. The chat the embed belongs to
+  shows a small "<Type> updated" event, the assistant knows the current version,
+  and earlier versions stay viewable and restorable. The image fullscreen offers
+  a round Enhance button that re-renders the picture faithfully at higher quality
+  as the next version.
+
+scope:
+  includes:
+    - User edits of images, diagrams, slide decks, sheets and documents as new versions of the same embed.
+    - The "<Type> updated" chat event, its folding, and its delivery for edits made in the Projects workspace.
+    - What the assistant is told after a user edit, and which version each message shows.
+    - Restoring an earlier version and the image Enhance action with its billing.
+    - Versions made from a file the client produced itself.
+  excludes:
+    - Assistant-made image revisions (owned by the images-generate Specification).
+    - The editing tools themselves, such as the document editor or the image editor with crop.
+
+assertions:
+  - id: embed-user-edits.history.one-per-embed
+    type: invariant
+    must: An embed has exactly one version history. It is the same history whether the embed is opened in its chat or in the Projects workspace.
+    depends_on: [examples.history]
+  - id: embed-user-edits.edit.next-version
+    type: behavior
+    must: Every edit a user makes to an image, diagram, slide deck, sheet or document is saved as the next version of the same embed. Earlier versions stay stored and viewable. A save that was based on an outdated version is refused instead of overwriting the newer version.
+    depends_on: [examples.edit]
+  - id: embed-user-edits.event.chat-notice
+    type: behavior
+    must: The chat the embed belongs to shows one small system event "<Type> updated" for each user edit, for example "Image updated". The server never learns the content of the event.
+    depends_on: [examples.event]
+  - id: embed-user-edits.event.project-edit-reaches-chat
+    type: behavior
+    must: An edit made from the Projects workspace also shows that event in the embed's own chat the next time that chat syncs. An embed that lives only in a Project has no chat and gets no chat event, only the entry in the Project timeline.
+    depends_on: [examples.event]
+  - id: embed-user-edits.event.collapse
+    type: behavior
+    must: Several edits in a row to the same embed with no message in between show as one line with the number of changes, for example "Image updated, 3 changes".
+    depends_on: [examples.event]
+  - id: embed-user-edits.assistant.knows-current-version
+    type: behavior
+    must: The assistant's next turn in that chat knows that the user changed the embed and which version is current.
+    depends_on: [examples.assistant]
+  - id: embed-user-edits.display.latest-follows-user-versions
+    type: behavior
+    must: A message shows the version that was valid at that message and follows later user-made versions until the next assistant-made version. A message tied to an earlier assistant-made version keeps its picture.
+    depends_on: [examples.display]
+  - id: embed-user-edits.restore.creates-version
+    type: behavior
+    must: Restoring an earlier version creates a new version that equals it. Nothing is deleted.
+    depends_on: [examples.display]
+  - id: embed-user-edits.enhance.button
+    type: behavior
+    must: The image fullscreen has a round Enhance button in the top bar that matches the other round buttons. When the bar has no room it appears under More. While an Enhance is running the button shows progress and cannot be started a second time.
+    depends_on: [examples.enhance]
+  - id: embed-user-edits.enhance.faithful-2k
+    type: behavior
+    must: Enhance re-renders the same picture at higher quality, about 2K on the long side with the same aspect ratio, without adding, removing or moving anything. The result becomes the new default version of the same image.
+    depends_on: [examples.enhance]
+  - id: embed-user-edits.enhance.billed-once-refunded-on-failure
+    type: invariant
+    must: Each Enhance is charged exactly once, 63 credits, and only when a result was produced. A failed Enhance costs nothing. A retried request is never charged twice. A result that never reached the user's device is refunded. A result that reached the device but was not saved stays charged and can still be saved for 24 hours.
+    depends_on: [examples.enhance_billing]
+  - id: embed-user-edits.files.client-made-version
+    type: behavior
+    must: A version can also be made from a file the client produced itself, as the foundation for a later image editor with crop.
+    depends_on: [examples.client_file]
+
+applies_to:
+  rest_api:
+    required: true
+    role: One commit for user versions and one Enhance request.
+  cli:
+    required: true
+    role: Enhance and restore of an image version.
+  sdks:
+    required: true
+    role: The same commit and Enhance through the client core.
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [history, edit, event, assistant, display, enhance, enhance_billing, client_file]

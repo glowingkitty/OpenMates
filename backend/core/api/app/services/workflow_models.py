@@ -346,6 +346,26 @@ class WorkflowTemplateSharePayload(BaseModel):
     import_enabled: bool = False
 
 
+def _prune_ask_ai_memory_snapshots(node: "WorkflowNode") -> None:
+    """Snapshots exist only for memories the Ask AI instruction explicitly mentions."""
+    authored = node.config.get("input") if (node.config.get("app_id"), node.config.get("skill_id")) == ("ai", "ask") else None
+    if not isinstance(authored, dict) or not ({"memory_snapshots", "memory_attention"} & authored.keys()):
+        return
+    from backend.core.api.app.services.workflow_memory_snapshots import normalize_step_snapshots, normalize_attention
+    attention = normalize_attention(str(authored.get("prompt") or ""), authored.get("memory_attention"))
+    if attention:
+        authored["memory_attention"] = attention
+    else:
+        authored.pop("memory_attention", None)
+    if "memory_snapshots" not in authored:
+        return
+    kept = normalize_step_snapshots(str(authored.get("prompt") or ""), authored["memory_snapshots"])
+    if kept:
+        authored["memory_snapshots"] = kept
+    else:
+        authored.pop("memory_snapshots")
+
+
 def validate_workflow_graph(graph: WorkflowGraph) -> None:
     node_ids = [node.id for node in graph.nodes]
     if len(node_ids) != len(set(node_ids)):
@@ -367,6 +387,7 @@ def validate_workflow_graph(graph: WorkflowGraph) -> None:
         raise WorkflowValidationError("trigger_node_id must point to the only trigger node")
 
     for node in graph.nodes:
+        _prune_ask_ai_memory_snapshots(node)
         if graph.version < 2 and (node.type == WorkflowNodeType.FOR_EACH or
                                   node.type == WorkflowNodeType.CHECK and node.config.get("result_type") == "options"):
             raise WorkflowValidationError("Option Checks and For each require a typed V2 workflow graph")
@@ -1159,7 +1180,7 @@ def _validate_node_config(node: WorkflowNode) -> None:
                 model_config = ConfigManager().get_model_pricing(provider_id, model_id)
                 if not model_config or model_config.get("id") != model_id or model_config.get("for_app_skill") != "ai.ask" or "text" not in (model_config.get("output_types") or []):
                     raise WorkflowValidationError("Ask AI model is unavailable")
-            unsupported = set(authored) - {"prompt", "model"}
+            unsupported = set(authored) - {"prompt", "model", "memory_snapshots", "memory_attention"}
             if unsupported:
                 raise WorkflowValidationError("Ask AI accepts only its instruction and model; tools and conversation are unavailable")
     elif node.type in {WorkflowNodeType.DECISION, WorkflowNodeType.CHECK}:

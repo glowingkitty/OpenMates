@@ -3,7 +3,7 @@
   
   A wrapper component for rendering demo chat message content that handles
   special placeholders like [[example_chats_group]], [[app_store_group]],
-  [[skills_group]], [[focus_modes_group]], [[settings_memories_group]],
+  [[skills_group]], [[focus_modes_group]], 
   and their developer-specific variants ([[dev_app_store_group]], etc.).
   
   This component:
@@ -18,7 +18,6 @@
   import AppStoreGroup from './embeds/AppStoreGroup.svelte';
   import SkillsGroup from './embeds/SkillsGroup.svelte';
   import FocusModesGroup from './embeds/FocusModesGroup.svelte';
-  import SettingsMemoriesGroup from './embeds/SettingsMemoriesGroup.svelte';
   import AiModelsGroup from './embeds/AiModelsGroup.svelte';
   
   /**
@@ -62,12 +61,10 @@
   const APP_STORE_PLACEHOLDER = '[[app_store_group]]';
   const SKILLS_PLACEHOLDER = '[[skills_group]]';
   const FOCUS_MODES_PLACEHOLDER = '[[focus_modes_group]]';
-  const SETTINGS_MEMORIES_PLACEHOLDER = '[[settings_memories_group]]';
   // Developer-specific variants: show ONLY developer app content
   const DEV_APP_STORE_PLACEHOLDER = '[[dev_app_store_group]]';
   const DEV_SKILLS_PLACEHOLDER = '[[dev_skills_group]]';
   const DEV_FOCUS_MODES_PLACEHOLDER = '[[dev_focus_modes_group]]';
-  const DEV_SETTINGS_MEMORIES_PLACEHOLDER = '[[dev_settings_memories_group]]';
   // AI models group: horizontal scrollable list of available AI Ask models
   const AI_MODELS_PLACEHOLDER = '[[ai_models_group]]';
   
@@ -78,11 +75,9 @@
     APP_STORE_PLACEHOLDER,
     SKILLS_PLACEHOLDER,
     FOCUS_MODES_PLACEHOLDER,
-    SETTINGS_MEMORIES_PLACEHOLDER,
     DEV_APP_STORE_PLACEHOLDER,
     DEV_SKILLS_PLACEHOLDER,
     DEV_FOCUS_MODES_PLACEHOLDER,
-    DEV_SETTINGS_MEMORIES_PLACEHOLDER,
     AI_MODELS_PLACEHOLDER,
   ] as const;
   
@@ -93,15 +88,13 @@
     [APP_STORE_PLACEHOLDER]: 'app_store_group',
     [SKILLS_PLACEHOLDER]: 'skills_group',
     [FOCUS_MODES_PLACEHOLDER]: 'focus_modes_group',
-    [SETTINGS_MEMORIES_PLACEHOLDER]: 'settings_memories_group',
     [DEV_APP_STORE_PLACEHOLDER]: 'dev_app_store_group',
     [DEV_SKILLS_PLACEHOLDER]: 'dev_skills_group',
     [DEV_FOCUS_MODES_PLACEHOLDER]: 'dev_focus_modes_group',
-    [DEV_SETTINGS_MEMORIES_PLACEHOLDER]: 'dev_settings_memories_group',
     [AI_MODELS_PLACEHOLDER]: 'ai_models_group',
   };
   
-  type PartType = 'markdown' | 'example_chats_group' | 'dev_example_chats_group' | 'app_store_group' | 'skills_group' | 'focus_modes_group' | 'settings_memories_group' | 'dev_app_store_group' | 'dev_skills_group' | 'dev_focus_modes_group' | 'dev_settings_memories_group' | 'ai_models_group';
+  type PartType = 'markdown' | 'example_chats_group' | 'dev_example_chats_group' | 'app_store_group' | 'skills_group' | 'focus_modes_group' | 'dev_app_store_group' | 'dev_skills_group' | 'dev_focus_modes_group' | 'ai_models_group';
   
   /**
    * Split content at all placeholder tokens into typed parts.
@@ -164,9 +157,6 @@
       {:else if part.type === 'focus_modes_group'}
         <!-- For-everyone: exclude developer-focused app focus modes -->
         <FocusModesGroup excludeAppIds={DEVELOPER_APP_IDS} />
-      {:else if part.type === 'settings_memories_group'}
-        <!-- For-everyone: exclude developer-focused app memories -->
-        <SettingsMemoriesGroup excludeAppIds={DEVELOPER_APP_IDS} />
       {:else if part.type === 'dev_app_store_group'}
         <!-- For-developers: show ONLY developer-focused apps -->
         <AppStoreGroup onlyAppIds={DEVELOPER_APP_IDS} />
@@ -176,9 +166,6 @@
       {:else if part.type === 'dev_focus_modes_group'}
         <!-- For-developers: show ONLY developer-focused app focus modes -->
         <FocusModesGroup onlyAppIds={DEVELOPER_APP_IDS} />
-      {:else if part.type === 'dev_settings_memories_group'}
-        <!-- For-developers: show ONLY developer-focused app memories -->
-        <SettingsMemoriesGroup onlyAppIds={DEVELOPER_APP_IDS} />
       {:else if part.type === 'ai_models_group'}
         <!-- AI Ask models horizontal scrollable list -->
         <AiModelsGroup />

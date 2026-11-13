@@ -90,10 +90,17 @@ fn record(team: &Value, active: Option<&str>) -> String {
 }
 /// Legacy publicTeamMember.
 fn public_member(member: &Value) -> Value {
-    json!({"user_id":member["user_id"],"hashed_user_id":member["hashed_user_id"],
+    let mut out = json!({"user_id":member["user_id"],
         "display_name":member["profile"]["display_name"].as_str().unwrap_or(""),
-        "avatar":member["profile"]["avatar"],"role":member["role"],
-        "status":member["status"].as_str().unwrap_or(""),"joined_at":member["joined_at"]})
+        "avatar":member["profile"]["avatar"],
+        "status":member["status"].as_str().unwrap_or(""),"joined_at":member["joined_at"]});
+    // JSON.stringify drops undefined: the profile-update response carries no hash or role.
+    for key in ["hashed_user_id", "role"] {
+        if let Some(value) = member.get(key) {
+            out[key] = value.clone();
+        }
+    }
+    out
 }
 fn member_line(member: &Value, with_status: bool) -> String {
     let name = member["display_name"]

@@ -77,8 +77,29 @@ async function existingDatabase(factory: IDBFactory, name: string, signal: Abort
     if (signal.aborted) abort();
   });
 }
+type IssueRead<T> = (transaction: IDBTransaction, fail: (error: unknown) => void) => () => T;
+/** One readonly transaction on an already opened existing database; settles only
+ * on the transaction's own complete/abort terminal. */
+function transactExisting<T>(database: IDBDatabase, stores: readonly string[], lifetime: AbortSignal, current: () => void,
+  issue: IssueRead<T>, routingLease?: RustChatIORoutingLease): { result: Promise<T>; terminal: Promise<void> | null } {
+  if (stores.some(store => !database.objectStoreNames.contains(store))) throw new Error("unavailable");
+  const transaction = routingLease ? createRustChatReadonlyCursorTransaction(routingLease, database, stores) : database.transaction([...stores], "readonly");
+  const terminal = routingLease ? rustChatReadonlyCursorTerminal(routingLease, transaction) : null;
+  const result = new Promise<T>((resolve, reject) => {
+    let failure: unknown = null, read: (() => T) | null = null;
+    const fail = (error: unknown) => { failure ??= error; try { transaction.abort(); } catch { /* Terminal handler owns settlement. */ } };
+    const cancelled = () => fail(new Error("cancelled"));
+    const cleanup = () => lifetime.removeEventListener("abort", cancelled);
+    transaction.onabort = () => { cleanup(); reject(failure ?? new Error("storage_failed")); };
+    transaction.onerror = () => { failure ??= new Error("storage_failed"); };
+    transaction.oncomplete = () => { cleanup(); try { current(); if (failure) throw failure; if (!read) throw new Error("unavailable"); resolve(read()); } catch (error) { reject(error); } };
+    lifetime.addEventListener("abort", cancelled, { once: true });
+    try { current(); read = issue(transaction, fail); } catch (error) { fail(error); }
+  });
+  return { result, terminal };
+}
 export async function readExisting<T>(factory: IDBFactory, name: string, stores: readonly string[], signal: AbortSignal,
-  guard: () => void, issue: (transaction: IDBTransaction, fail: (error: unknown) => void) => () => T, routingLease?:RustChatIORoutingLease): Promise<T> {
+  guard: () => void, issue: IssueRead<T>, routingLease?:RustChatIORoutingLease): Promise<T> {
   const lifetime = new AbortController();
   const abort = () => lifetime.abort();
   signal.addEventListener("abort", abort, { once: true });
@@ -88,29 +109,73 @@ export async function readExisting<T>(factory: IDBFactory, name: string, stores:
   try {
     current(); database = await existingDatabase(factory, name, lifetime.signal, current,routingLease); current();
     database.onversionchange = () => { database?.close(); abort(); };
-    if (stores.some(store => !database!.objectStoreNames.contains(store))) throw new Error("unavailable");
-    return await new Promise<T>((resolve, reject) => {
-      const transaction = routingLease?createRustChatReadonlyCursorTransaction(routingLease,database!,stores):database!.transaction([...stores], "readonly");
-      if(routingLease)originalCursorTerminal=rustChatReadonlyCursorTerminal(routingLease,transaction);
-      let failure: unknown = null, result: (() => T) | null = null;
-      const fail = (error: unknown) => { failure ??= error; try { transaction.abort(); } catch { /* Terminal handler owns settlement. */ } };
-      const cancelled = () => fail(new Error("cancelled"));
-      const cleanup = () => lifetime.signal.removeEventListener("abort", cancelled);
-      transaction.onabort = () => { cleanup(); reject(failure ?? new Error("storage_failed")); };
-      transaction.onerror = () => { failure ??= new Error("storage_failed"); };
-      transaction.oncomplete = () => { cleanup(); try { current(); if (failure) throw failure; if (!result) throw new Error("unavailable"); resolve(result()); } catch (error) { reject(error); } };
-      lifetime.signal.addEventListener("abort", cancelled, { once: true });
-      try { current(); result = issue(transaction, fail); } catch (error) { fail(error); }
-    });
+    const transaction = transactExisting(database, stores, lifetime.signal, current, issue, routingLease);
+    originalCursorTerminal = transaction.terminal;
+    return await transaction.result;
   } finally { try{if(originalCursorTerminal){await originalCursorTerminal;current();}}finally{clearTimeout(timer); signal.removeEventListener("abort", abort); lifetime.abort(); database?.close();} }
 }
+/**
+ * One existing database connection held for a platform lifetime, so repeated
+ * readonly checks do not each pay `databases()` + open (both serialize on the
+ * origin's IndexedDB backend and delay the TS boot's own IDB work).
+ * Opened like `readExisting` (existing version only, no create/upgrade). Any
+ * `versionchange` (TS upgrade, deleteDatabase on logout) or forced close closes
+ * it at once and invalidates it for good: every later read rejects
+ * `invalidated_snapshot`; it never reopens. Not for routed (lease) cursor IO.
+ */
+export interface HeldExistingDatabase {
+  read<T>(stores: readonly string[], signal: AbortSignal, guard: () => void, issue: IssueRead<T>): Promise<T>;
+  close(): void;
+}
+export function holdExistingDatabase(factory: IDBFactory, name: string): HeldExistingDatabase {
+  const lifetime = new AbortController();
+  let opening: Promise<IDBDatabase> | null = null, database: IDBDatabase | null = null, lost = false;
+  const lose = () => { lost = true; database?.close(); database = null; lifetime.abort(); };
+  // The shared open belongs to the holder, not to its first caller: each caller
+  // re-checks its own guard after the await.
+  const open = (signal: AbortSignal): Promise<IDBDatabase> => {
+    opening ??= existingDatabase(factory, name, lifetime.signal, () => { if (lost) throw new Error("invalidated_snapshot"); }).then((opened) => {
+      if (lost) { opened.close(); throw new Error("invalidated_snapshot"); }
+      opened.onversionchange = lose;
+      opened.onclose = lose;
+      database = opened;
+      return opened;
+    });
+    // A failed open is not retried: fail closed.
+    opening.catch(() => { lost = true; });
+    return awaitBrowserRead(opening, signal);
+  };
+  return {
+    async read(stores, signal, guard, issue) {
+      if (lost) throw new Error("invalidated_snapshot");
+      const operation = new AbortController();
+      const abort = () => operation.abort();
+      for (const source of [signal, lifetime.signal]) { source.addEventListener("abort", abort, { once: true }); if (source.aborted) abort(); }
+      const timer = setTimeout(abort, MAX_REQUEST_MS);
+      const current = () => { if (lost) throw new Error("invalidated_snapshot"); if (operation.signal.aborted) throw new Error("cancelled"); guard(); };
+      try {
+        current(); const opened = await open(operation.signal); current();
+        return await transactExisting(opened, stores, operation.signal, current, issue).result;
+      } finally {
+        clearTimeout(timer); signal.removeEventListener("abort", abort); lifetime.signal.removeEventListener("abort", abort);
+      }
+    },
+    close: lose,
+  };
+}
+function issueProfileOwner(transaction: IDBTransaction): () => unknown {
+  let owner: unknown;
+  const request = transaction.objectStore(USER_STORE).get("id");
+  request.onsuccess = () => { owner = request.result; };
+  return () => owner;
+}
 export async function readExistingProfileOwner(factory: IDBFactory, signal: AbortSignal, guard: () => void): Promise<unknown> {
-  return readExisting(factory, USER_DATABASE, [USER_STORE], signal, guard, transaction => {
-    let owner: unknown;
-    const request = transaction.objectStore(USER_STORE).get("id");
-    request.onsuccess = () => { owner = request.result; };
-    return () => owner;
-  });
+  return readExisting(factory, USER_DATABASE, [USER_STORE], signal, guard, issueProfileOwner);
+}
+/** Same read on a platform-held `user_db` connection (see holdExistingDatabase). */
+export function holdExistingProfileDatabase(factory: IDBFactory): HeldExistingDatabase { return holdExistingDatabase(factory, USER_DATABASE); }
+export async function readHeldProfileOwner(held: HeldExistingDatabase, signal: AbortSignal, guard: () => void): Promise<unknown> {
+  return held.read([USER_STORE], signal, guard, issueProfileOwner);
 }
 /** Transfer all matching rows. Current Rust may refuse >20 input rows or legacy
  * ID shapes; this adapter must not hide that capability gap by rewriting them.

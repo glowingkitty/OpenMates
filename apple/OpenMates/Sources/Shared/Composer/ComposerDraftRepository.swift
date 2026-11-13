@@ -1,7 +1,8 @@
-// Shared encrypted composer draft persistence contract.
+// Encrypted composer read-back copy: persistence contract.
 // Durable records contain Format D ciphertext and revision metadata only.
 // The SwiftData model intentionally has no plaintext or editor-state fields.
-// DraftService owns encryption while repositories own ciphertext persistence.
+// DraftService owns encryption while repositories own ciphertext persistence;
+// the server draft, its versions and tombstones live in the Rust core.
 // This boundary remains injectable for production-container verification.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.drafts.preview-persistence
@@ -50,8 +51,7 @@ protocol ComposerDraftRepository: Sendable {
     func remove(chatId: String) async throws
     func removeAll() async throws
     func allRecords() async throws -> [ComposerDraftRecord]
-    func allDeletionVersions() async throws -> [String: Int]
-    /// Atomically compare remote versions and write in the captured account cache.
+    /// Atomically compare the stored copy and write in the captured account cache.
     func apply(_ mutation: ComposerDraftMutation, knownVersion: Int, knownClearedVersion: Int,
                expectedScope: UUID?) async throws -> ComposerDraftApplication
 }
@@ -89,7 +89,7 @@ enum ComposerDraftContentPolicy {
     }
 }
 
-/// The same monotonic draft/deletion decision is used for ciphertext and chat metadata.
+/// The monotonic draft/deletion decision of the legacy chat-store metadata.
 /// A deletion is draft_v=0 plus a retained cleared_draft_v, never a reset of history.
 enum ComposerDraftVersionPolicy {
     static func acceptsContent(version: Int, currentVersion: Int, hasDraft: Bool,
@@ -109,20 +109,17 @@ struct ComposerDraftApplication: Sendable {
     let applied: Bool
 }
 
+/// Local compare-and-write changes of the composer copy.
 enum ComposerDraftMutation: Sendable {
-    case content(ComposerDraftRecord)
     case previewRepair(ComposerDraftRecord)
     /// Cleanup may only clear the exact ciphertext snapshot verified empty after unlock.
     case verifiedEmptyDeletion(ComposerDraftRecord)
-    case acknowledgement(chatId: String, version: Int)
-    case deletion(chatId: String, version: Int?)
     case localDeletion(chatId: String)
-    case chatDeletion(chatId: String)
 
     var chatId: String {
         switch self {
-        case .content(let record), .previewRepair(let record), .verifiedEmptyDeletion(let record): return record.chatId
-        case .acknowledgement(let id, _), .deletion(let id, _), .localDeletion(let id), .chatDeletion(let id): return id
+        case .previewRepair(let record), .verifiedEmptyDeletion(let record): return record.chatId
+        case .localDeletion(let id): return id
         }
     }
 
@@ -130,27 +127,8 @@ enum ComposerDraftMutation: Sendable {
                   knownClearedVersion: Int = 0) -> ComposerDraftApplication {
         let currentVersion = max(local?.draftVersion ?? 0, knownVersion)
         let clearedVersion = max(local?.clearedDraftVersion ?? 0, knownClearedVersion)
-        let hasDraft = local.map { !$0.isDeleted && !$0.encryptedMarkdown.isEmpty } ?? false
         let unchanged = ComposerDraftApplication(record: local, applied: false)
         switch self {
-        case .content(var record):
-            // Sync may already have recreated stale chat metadata before this
-            // encrypted row is processed. That metadata cannot cancel a durable fence.
-            guard !(local?.isDeleted == true && clearedVersion >= record.draftVersion),
-                  record.draftVersion > 0,
-                  ComposerDraftVersionPolicy.acceptsContent(version: record.draftVersion,
-                    currentVersion: currentVersion, hasDraft: hasDraft, clearedVersion: clearedVersion)
-            else { return unchanged }
-            record.clearedDraftVersion = clearedVersion
-            record.isDeleted = false
-            // The companion is local-only. Server echoes carry the same markdown
-            // ciphertext and preserve it; a genuine remote replacement clears it.
-            if record.encryptedRecordingPayload == nil,
-               let local,
-               record.encryptedMarkdown == local.encryptedMarkdown {
-                record.encryptedRecordingPayload = local.encryptedRecordingPayload
-            }
-            return ComposerDraftApplication(record: record, applied: true)
         case .previewRepair(var record):
             // Preview derivation awaits decryption/encryption. It may only fill
             // the exact still-active row, never reopen a cleared/replaced draft.
@@ -160,37 +138,12 @@ enum ComposerDraftMutation: Sendable {
             record.clearedDraftVersion = clearedVersion
             record.encryptedRecordingPayload = local.encryptedRecordingPayload
             return ComposerDraftApplication(record: record, applied: true)
-        case .acknowledgement(_, let version):
-            guard let local, !local.isDeleted, version >= currentVersion else { return unchanged }
-            return ComposerDraftApplication(record: ComposerDraftRecord(chatId: local.chatId,
-                encryptedMarkdown: local.encryptedMarkdown, encryptedPreview: local.encryptedPreview,
-                encryptedRecordingPayload: local.encryptedRecordingPayload,
-                revision: local.revision, draftVersion: version, clearedDraftVersion: clearedVersion), applied: true)
-        case .deletion(_, let version):
-            guard ComposerDraftVersionPolicy.acceptsDeletion(version: version, currentVersion: currentVersion)
-            else { return unchanged }
-            let deletion = deleted(version: max(clearedVersion, version ?? currentVersion), revision: local?.revision ?? 0)
-            // Repeated sync pages need no durable write once the exact normalized
-            // tombstone exists. First-use zero-version clears and higher known
-            // fences still write; malformed tombstones must clear their companion.
-            if let local, let record = deletion.record,
-               local.isDeleted, local.draftVersion == record.draftVersion,
-               local.revision == record.revision,
-               local.clearedDraftVersion == record.clearedDraftVersion,
-               local.encryptedMarkdown == record.encryptedMarkdown,
-               local.encryptedPreview == record.encryptedPreview,
-               local.encryptedRecordingPayload == record.encryptedRecordingPayload {
-                return unchanged
-            }
-            return deletion
         case .verifiedEmptyDeletion(let record):
             guard let local, !local.isDeleted, local == record,
                   knownVersion <= record.draftVersion else { return unchanged }
             return deleted(version: max(clearedVersion, currentVersion), revision: local.revision)
         case .localDeletion:
             return deleted(version: max(clearedVersion, currentVersion), revision: local?.revision ?? 0)
-        case .chatDeletion:
-            return ComposerDraftApplication(record: nil, applied: true)
         }
     }
 
@@ -201,24 +154,10 @@ enum ComposerDraftMutation: Sendable {
     }
 }
 
-protocol LegacyComposerDraftStore: Sendable {
-    func drafts() async -> [String: String]
-    func removeDraft(chatId: String) async
-}
-
-extension LegacyComposerDraftStore {
-    func removeAllDrafts() async {
-        for chatId in await drafts().keys {
-            await removeDraft(chatId: chatId)
-        }
-    }
-}
-
 enum ComposerDraftError: Error, Equatable {
     case masterKeyUnavailable
     case encryptedWriteFailed
     case verificationFailed
-    case migrationConflict
     case versionConflict
 }
 

@@ -37,7 +37,8 @@ export type AuthCall =
 	| { op: 'logout_server_step'; captured: number; current: number; skipServerLogout: boolean; policyViolation: boolean }
 	| { op: 'logout_may_delete_cookies'; captured: number; current: number }
 	| { op: 'logout_frame'; tabId: string }
-	| { op: 'accept_logout_frame'; frame: string; ownTabId: string };
+	| { op: 'accept_logout_frame'; frame: string; ownTabId: string }
+	| { op: 'flow'; name: string; args: string };
 
 /** page → worker */
 export type AuthToWorker =
@@ -76,4 +77,12 @@ export function isAuthFromWorker(value: unknown): value is AuthFromWorker {
 	if (!Number.isSafeInteger(value.id)) return false;
 	if ('http' in value) return isAuthHttpRequest(value.http);
 	return value.ok === true ? 'value' in value : value.ok === false && typeof value.code === 'string';
+}
+
+/** page → auth unit: release this unit port only; the shared Worker keeps running. Never a valid call. */
+export const AUTH_UNIT_CLOSE = /* @__PURE__ */ Object.freeze({ v: AUTH_PROTOCOL_VERSION, authUnitClose: true as const });
+/** True only for the exact `AUTH_UNIT_CLOSE` frame shape. */
+export function isAuthUnitClose(value: unknown): boolean {
+	return record(value) && Object.getPrototypeOf(value) === Object.prototype && Object.keys(value).length === 2
+		&& value.v === AUTH_PROTOCOL_VERSION && value.authUnitClose === true;
 }

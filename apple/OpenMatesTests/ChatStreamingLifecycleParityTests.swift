@@ -15,7 +15,7 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         let fixture = try terminalSyncFixture()
         let user = Message(id: "queued-user", chatId: fixture.chat.id, role: .user, content: "Synthetic queued request",
             encryptedContent: "synthetic-cipher", createdAt: "2026-10-19T00:00:00Z", updatedAt: nil, appId: nil,
-            isStreaming: false, embedRefs: nil)
+            isStreaming: false, embedRefs: nil, queueRevision: 1, queueMode: "follow_up", queueDispatchStatus: "queued")
         fixture.model.seedIsolatedHistory(chat: fixture.chat, messages: [user], embeds: [])
         await fixture.model.applyQueuedFollowupEvent(type: "queued_messages_snapshot", fields: ["chat_id": fixture.chat.id,
             "messages": [["message_id": user.id, "queue_revision": 1, "queue_mode": "follow_up"]]])

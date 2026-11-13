@@ -104,7 +104,8 @@ asyncio.run(main())
 		],
 		{ cwd: root, input: JSON.stringify(input), encoding: 'utf8', timeout: 60_000 }
 	);
-	return JSON.parse(output.trim());
+	// The exec can print warnings before the fixture's single JSON line.
+	return JSON.parse(output.trim().split('\n').pop() ?? '');
 }
 
 export function seedTeamUsage(teamId: string, ownerId: string, items: UsageItem[]): string {

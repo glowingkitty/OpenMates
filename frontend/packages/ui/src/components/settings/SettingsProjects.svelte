@@ -243,11 +243,17 @@
             {/if}
 
             <SettingsSectionHeading title="Connected sources" icon="project" />
-            <SettingsButton variant="secondary" dataTestid="project-settings-rules" onClick={() => { rulesExpanded = !rulesExpanded; }}>
-                {$text('memories.manage')}
-            </SettingsButton>
-            {#if rulesExpanded}<RuleDocumentManager projectId={selectedProjectId} onClose={() => { rulesExpanded = false; }} />{/if}
-            {#if sources.length === 0}
+            <SettingsButtonGroup align="left">
+                <SettingsButton variant={rulesExpanded ? 'secondary' : 'primary'} dataTestid="project-settings-tab-sources" onClick={() => { rulesExpanded = false; }}>
+                    {$text('settings.projects.tab_sources')}
+                </SettingsButton>
+                <SettingsButton variant={rulesExpanded ? 'primary' : 'secondary'} dataTestid="project-settings-rules" onClick={() => { rulesExpanded = true; }}>
+                    {$text('memories.project_memories')}
+                </SettingsButton>
+            </SettingsButtonGroup>
+            {#if rulesExpanded}
+                <RuleDocumentManager projectId={selectedProjectId} onClose={() => { rulesExpanded = false; }} />
+            {:else if sources.length === 0}
                 <SettingsInfoBox type="info">
                     <p><strong>No remote sources connected</strong></p>
                     <p>Use the OpenMates CLI remote-access bridge to attach a folder or repository.</p>

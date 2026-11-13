@@ -1,0 +1,330 @@
+schema_version: 2
+profile: concise
+id: backend-rust-migration
+title: Backend Python to Rust, one unit at a time
+status: draft
+
+# Parked by user decision 2026-11-12. Nothing in this Plan is to be implemented
+# until the start trigger is met and the user approves the Plan.
+parked:
+  since: 2026-11-12
+  reason: Two migrations at once is the main risk; the client core migration finishes first.
+  start_trigger: The web app runs on the Rust client core by default and the old Swift files listed in docs/plans/client-core-one-core-three-shells/plan.yml are deleted. This matches the approved SDK Specification, which stays unchanged.
+  first_step_then: TASK-1 (baseline), then the scheduler and the reminder queue behind a flag.
+  until_then:
+    - Backend work continues in Python. No "new code in Rust" rule is in force; agent_instructions stages A to D start only with TASK-2.
+    - A truly standalone new service (own container, no need for auth, Directus, cache or billing internals) may be written in Rust when one comes up. No Rust foundation is built ahead of a consumer.
+    - New Python follows the three portability habits in .claude/rules/backend.md.
+
+goal: >
+  (User request 2026-11-11.) Move the Python backend to Rust step by step,
+  replacing existing parts one at a time the way the client core replaced
+  TypeScript and Swift. Main hopes: lower memory use, and better performance for
+  certain tasks, for example remote access and voice calling. First decide where
+  to start: the FastAPI server or other areas.
+
+# ---------------------------------------------------------------------------
+# Findings (measured or read on 2026-11-11, dev server, commit 0ad0c4f7f8).
+# They decide the order below.
+# ---------------------------------------------------------------------------
+findings:
+  memory:
+    - Python holds about 9 GB resident on dev while almost idle. About 8 GB of it
+      is 15 Celery worker containers plus beat (390-870 MB each); the FastAPI
+      process is one uvicorn worker at about 570 MB.
+    - About 84 long-lived Python processes on dev (53 on selfhost, worker caps
+      summing to about 25 GB). Every prefork child loads the whole skill
+      registry (backend/apps/base_app.py, services/skill_registry.py).
+    - Workers that only do I/O (core 867 MB, user-tasks 513, reminder 511,
+      task/email 493, workflow 418, user-init 403, beat 264) hold about 3.5 GB.
+      Skill workers (ai, ai-routing, code, social-media, images, docs, music,
+      videos, pdf) hold about 4.3 GB.
+    - So the FastAPI server is not where the memory is. Rewriting it first would
+      free about 0.5 GB at the cost of 282k lines and about 750 endpoints.
+  remote_access:
+    - The server only routes opaque envelopes that the two clients encrypt
+      between themselves (services/project_remote_access_service.py 985 lines,
+      websocket_handlers/project_remote_access_handlers.py 311,
+      remote_command_handlers.py 378). No Python CPU work worth naming.
+    - The requester polls REST every 250 ms for the result
+      (REMOTE_ACCESS_POLL_INTERVAL_MS). Each operation also does about seven
+      Redis round trips under a lock plus Directus reads. That is the latency.
+    - Rust alone would change little. Pushing the result instead of polling
+      removes up to 250 ms per operation (about 125 ms on average); that is a
+      protocol change, done as part of moving the unit.
+  voice:
+    - Audio is relayed through FastAPI over WebSocket as base64 JSON
+      (routes/voice_call.py 1002 lines, routes/audio_realtime.py 797). No
+      transcoding or VAD on the server. Latency is dominated by the providers
+      (Voxtral streaming delay, LLM turn, TTS first audio).
+    - Per chunk the server awaits a credit lookup and a billing call. Speech
+      output takes an extra hop, AI worker to Redis to the API process to socket.
+    - Expected gain from Rust - steadier tail latency, because audio no longer
+      shares one Python event loop with all chat sockets, plus binary frames and
+      billing moved off the per-chunk path. Not a large drop in mean latency.
+  chat_streaming:
+    - Token delivery costs 32-72 ms from server first text to paint
+      (docs/plans/chat-latency-improvements/critical-path-2026-10-13.md). The
+      2.6 s before the first token is serial I/O (admission, routing, Jev,
+      setup), not Python CPU.
+    - Known problem that Rust does address - WebSocket handlers run one after
+      another per socket in one process (delete_draft blocked for 325-394 ms).
+  client_core_status:
+    - TUI/CLI is rust-only. Web has 18 Worker units, all still rust-twin, and no
+      capability at rust-only. Apple has the UniFFI bridge and exported calls;
+      every Swift file listed for deletion still exists.
+    - Reusable for the backend - root cargo workspace, tokio/reqwest/tungstenite/
+      serde stack, crypto and pairing code (OPAQUE server role is already in
+      pairing.rs), remote_access_crypto.rs, tests/sdk-conformance fixtures and
+      their Python mock servers, PyO3 in openmates-session-bindings.
+    - Wire types live inside the client crate, not in a shared crate.
+
+scope:
+  in:
+    - A unit inventory with one status per backend unit, and the order of moves.
+    - New Rust server crates in the root cargo workspace.
+    - Moving background jobs, realtime sockets, REST route groups and finally
+      the AI pipeline, each with the Python deleted on flip.
+    - Protocol improvements that are the actual speed-up for remote access and
+      voice (result push, binary audio frames), delivered with those units.
+  out:
+    - Replacing Directus, Postgres, Dragonfly, Vault or OpenObserve.
+    - Rewriting the 33 app skills in Rust (they stay Python behind a host; see D-6).
+    - backend/scripts, backend/tests tooling, engineering control plane.
+    - Client core work (owned by client-core-one-core-three-shells).
+    - Product behavior changes other than the two protocol improvements above.
+
+decisions:
+  - id: D-1
+    status: proposed
+    decision: Order is measure, background jobs, realtime gateway, REST route groups, AI pipeline. The FastAPI REST surface is not first. Reason - memory is in the workers; the features named as slow sit on WebSocket paths; REST is the largest and least rewarding part.
+  - id: D-2
+    status: proposed
+    decision: Strangler at two seams only. HTTP and WebSocket paths move by Caddy route (deployment/*/Caddyfile) from the Python api to the Rust service. Background work moves queue by queue from Celery to a Rust job runner. No Rust-inside-Python twins as the main strategy, because the interpreter and its memory stay loaded.
+  - id: D-3
+    status: proposed
+    decision: Same completion rule as the client core. A unit is done only when its Python code and its container are deleted and the existing E2E suite is green on the deployed commit. Status steps are python-only, rust-twin, rust-default, rust-only. Parity vectors are debugging aids, not a gate.
+  - id: D-4
+    status: proposed
+    decision: Stack is axum on tokio, reqwest with rustls, tokio-tungstenite, serde, the redis crate against Dragonfly - the stack the client core already uses. New crates - packages/openmates-wire (message and API types shared by client core and server, extracted from the client crate), backend/rust/server (gateway and REST), backend/rust/jobs (job runner and scheduler). Server crates never depend on client-only modules.
+  - id: D-5
+    status: proposed
+    decision: Every unit records a before and after number in its deploy message - resident memory of the containers it replaces, and p50/p95 of the one latency it claims to improve. A unit that shows no gain is still finished (deletion is the goal) but the claim is dropped from the docs.
+  - id: D-6
+    status: proposed
+    decision: App skills stay Python. The Rust job runner starts Python skill hosts on demand (one warm host kept, others started per queue and stopped when idle), replacing the nine always-on skill workers. This is where about 4 GB can be freed without rewriting skills. The operator app-package runner (core/app_packages_runner) is the existing model for this.
+  - id: D-7
+    status: proposed
+    decision: PyO3 is used only for a function both sides need during a transition (for example sanitization or TOON encoding called from Python skills). It is not a migration step and counts toward nothing.
+  - id: D-8
+    status: proposed
+    decision: Client-encrypted data stays opaque to the Rust server exactly as today. Auth, session, billing and Vault transit code is ported with its existing tests before any route that depends on it moves.
+  - id: D-9
+    status: proposed
+    decision: (User direction 2026-11-12.) Rust and Python run side by side during the transition. They are separate processes that meet only at Dragonfly (queues, pub/sub), Directus, Vault, S3 and internal HTTP; no Python import of backend Rust and no Rust embedding of Python. Rust is the default for backend code; Python remains only where the stays_python list gives a reason.
+  - id: D-10
+    status: proposed
+    decision: The agent rule "backend code is Rust" comes into force in stages, each tied to what Rust can actually do at that point (see agent_instructions). A blanket rule today would block bug fixes in the 480k lines that have no Rust counterpart yet.
+
+# ---------------------------------------------------------------------------
+# How the migration stays out of the way of other running work.
+# ---------------------------------------------------------------------------
+isolation:
+  - New code lives only in new directories (backend/rust/, packages/openmates-wire). No existing file is edited until a unit flips.
+  - Rust services ship dark - present in the compose files and running, but receiving no traffic and no jobs until their unit flips.
+  - One flag per unit (OPENMATES_RUST_<UNIT>), off by default. Isolated CI runs the unit's E2E and pytest set with the flag on; dev flips after that is green; the flag and the Python path are deleted in the same deploy. Flag off stays byte-identical, so every other chat's tests see the Python backend unchanged.
+  - One backend migration lane at a time until the web core is rust-default. Each lane checks scripts/agent_peers.py first and does not start a unit whose old paths another chat is editing.
+  - Shared hot files (backend/core/docker-compose*.yml, deployment/*/Caddyfile, tasks/celery_config.py, routes/websockets.py) get only small additive edits, one deploy each, never mixed with a refactor.
+  - packages/openmates-rust is not touched at the start. openmates-wire begins with new server-side types only; pulling types out of the client crate waits until the web flips land.
+  - A unit is frozen while it is rust-twin. The freeze is announced on its OpenMates Task and in docs/migration/rust/backend-units.yml, lasts days, and a deploy guard warns on edits to its old paths.
+  - Server crates join the root cargo workspace but build and test in their own CI mode (cargo -p), so client rust-check time does not grow. Local builds go through scripts/heavy_slot.py like all others.
+  - Production follows the normal dev to main release. A unit flips on production only after it has run on dev for one release.
+
+# ---------------------------------------------------------------------------
+# Where Python stays, and why. Everything else is in scope for Rust.
+# ---------------------------------------------------------------------------
+stays_python:
+  - what: App skills and their provider clients (backend/apps/* except ai core, backend/shared/providers)
+    why: They depend on Python libraries with no equal in Rust (pymupdf, reportlab, python-docx, Pillow, cairosvg, sympy, vendor SDKs), change weekly and are I/O bound. Operator-installed app packages are Python by contract. They run in on-demand hosts (D-6), so they cost memory only while used.
+  - what: Code the model writes and runs in E2B sandboxes (design, images.modify, code execution payloads)
+    why: The sandbox language is Python by product design.
+  - what: backend/scripts, evaluation scripts, one-off data migrations, pytest suites and CI tooling
+    why: Not part of the running server; no memory or latency to gain.
+  - what: Email rendering (mjml, premailer) until the email lane decides
+    why: Template tooling; ported only if the template tests pass with a Rust renderer.
+  - what: AI pipeline (backend/apps/ai) until its own re-plan
+    why: Not a permanent exception - it moves last because it is the most changed code and provider streaming behavior is tuned per provider.
+
+# ---------------------------------------------------------------------------
+# Agent instructions. Each stage lands in the same deploy as the capability it
+# points to, so no chat is told to use something that does not exist yet.
+# ---------------------------------------------------------------------------
+agent_instructions:
+  files:
+    - .claude/rules/backend-rust.md (new; paths backend/**, packages/openmates-wire/**; modelled on .claude/rules/client-core.md)
+    - CLAUDE.md (Repository line and a short "Backend core" section pointing to the rule)
+    - .claude/rules/cli-sdk.md line 61 and docs/architecture/platforms/README.md line 53 (remove "begins only after every client")
+    - specifications/surfaces/sdk/examples.yml line 39 (approved; changed only with the user's confirmation, Q-1)
+  stages:
+    - stage: A
+      lands_with: TASK-2
+      rule: New backend services, new background job queues and new realtime endpoints are written in Rust. No new Python container, Celery queue or Celery worker. Existing Python may still be fixed and extended where no Rust counterpart exists.
+    - stage: B
+      lands_with: each unit flip
+      rule: For a unit at rust-twin or later, changes go to Rust only. A fix that must touch the frozen Python carries "python-only - bugfix-in-frozen-code <unit>" in the deploy message.
+    - stage: C
+      lands_with: svc-foundation having auth, Directus, cache and billing in Rust (during TASK-8)
+      rule: New REST routes and new WebSocket message types are written in Rust.
+    - stage: D
+      lands_with: the ai-pipeline re-plan
+      rule: New non-skill backend logic is Rust without exception; Python edits are limited to the stays_python list.
+  guard: A deploy guard (warn-only for two weeks, then blocking) checks added Python files and new Celery routes against the stage in force; pure deletions always pass.
+
+# ---------------------------------------------------------------------------
+# Unit inventory. Status enum: python-only | rust-twin | rust-default |
+# rust-only | stays-python. Snapshot 2026-11-11; all units are python-only.
+# ---------------------------------------------------------------------------
+unit_inventory:
+  - id: jobs-scheduler
+    what: celery beat schedule
+    old: [backend/core/api/app/tasks/celery_config.py (beat part), task-scheduler container]
+    expected: about 260 MB freed
+  - id: jobs-io
+    what: email, push, persistence, health_check, server_stats, user_init, reminder, user tasks queues
+    old: [backend/core/api/app/tasks/ (43 modules), task-worker, core-worker, user-init-worker, user-tasks-worker, reminder-worker containers]
+    expected: about 2.8 GB freed
+  - id: jobs-workflow
+    what: workflow queue
+    old: [workflow-worker container, services/workflow_*]
+    expected: about 400 MB freed; depends on skill-hosts
+  - id: skill-hosts
+    what: on-demand Python skill hosts started by the Rust job runner
+    old: [nine app-*-worker containers]
+    expected: about 3-4 GB freed when idle; skills themselves are stays-python
+  - id: rt-remote-access
+    what: remote access relay with result push instead of 250 ms polling
+    old: [services/project_remote_access_service.py, websocket_handlers/project_remote_access_handlers.py, websocket_handlers/remote_command_handlers.py, remote access routes in routes/projects.py]
+    expected: up to 250 ms less per operation
+  - id: rt-voice
+    what: voice call and dictation relay with binary audio frames
+    old: [routes/voice_call.py, routes/voice_call_support.py, routes/audio_realtime.py, backend/shared/providers/voxtral_voice.py]
+    expected: steadier p95; measured, not promised
+  - id: rt-chat-stream
+    what: Redis chat_stream fan-out to sockets and assistant speech audio routing
+    old: [listener part of routes/websockets.py (lines 1339-1600)]
+    expected: no head-of-line blocking between sockets
+  - id: rt-chat-ws
+    what: main WebSocket endpoint, about 128 message types, phased sync
+    old: [routes/websockets.py (5453 lines), routes/handlers/websocket_handlers/ (81 files, 26.8k lines)]
+    expected: per-socket handler concurrency; moved handler group by handler group
+  - id: rt-code-exec
+    what: code and notebook execution sockets
+    old: [routes/code_execution.py, routes/code_notebook_execution.py]
+  - id: svc-foundation
+    what: Directus client, cache layer, Vault transit, S3, auth and session, billing primitives as Rust libraries
+    old: [services/directus/, services/cache_*, utils/encryption.py, services/s3/, auth and payment services]
+    note: grows with each unit that needs it; never ported ahead of a consumer
+  - id: rest-routes
+    what: about 750 REST endpoints in 94 route modules, moved by route group
+    old: [backend/core/api/app/routes/, routers/]
+    expected: api container (about 570 MB) removed at the end
+  - id: side-services
+    what: preview (4 uvicorn workers, about 1.2 GB), upload, status, admin sidecar
+    old: [backend/preview, backend/upload, backend/status, backend/admin_sidecar]
+    note: independent of the core order; preview is the best standalone candidate
+  - id: ai-pipeline
+    what: preprocessing, routing, main processor, stream consumer, provider clients
+    old: [backend/apps/ai (86k lines), main_processor.py, stream_consumer.py]
+    note: last; most changed code in the repo and the highest risk
+
+tasks:
+  - id: TASK-1
+    title: Baseline and unit status file
+    create:
+      - scripts/backend_rust_baseline.py - prints resident memory per Python container, the Python process count, and p50/p95 for one remote access list_directory round trip, voice mic chunk to provider send, and WebSocket handler queue wait. Reads existing metrics where they exist.
+      - docs/migration/rust/backend-units.yml - this Plan's unit_inventory with status; authoritative after this task.
+    done: Baseline numbers for dev and one selfhost-sized run are recorded in docs/migration/rust/backend-baseline.md.
+  - id: TASK-2
+    title: Workspace crates, dark services, agent rule stage A
+    create: [packages/openmates-wire (new server-side types only), backend/rust/server (health endpoint only), backend/rust/jobs (empty runner), Dockerfile and compose service for each, a ci_coordinator mode that builds and tests only the server crates, .claude/rules/backend-rust.md and the CLAUDE.md lines for stage A]
+    not_in_this_task: Moving types out of packages/openmates-rust. That is a later task, after the web flips land, so the client lanes are not disturbed.
+    done: Both services build in CI, start in the isolated stack with no traffic and report memory under 30 MB idle; no existing test changes result; stage A rule is live.
+    dependencies: [TASK-1, Q-1]
+  - id: TASK-3
+    title: jobs-scheduler and the first I/O queue (reminder)
+    note: Smallest end-to-end proof of the job runner - queue format on Dragonfly, retries, idempotency keys, tracing, a Python enqueue helper for producers that are still Python.
+    delete: task-scheduler and reminder-worker containers, their Celery routes and task modules.
+    verify: existing reminder E2E specs and pytest for the moved tasks in isolated CI.
+    done: Both containers are gone from every compose file; memory delta recorded.
+    dependencies: [TASK-2]
+  - id: TASK-4
+    title: Remaining jobs-io queues, one queue per lane
+    order: [user_init, push, email, health_check and server_stats, persistence, user tasks]
+    note: Email rendering (mjml, premailer) is ported or kept behind a skill host call; decide in the email lane with the template tests as the gate.
+    dependencies: [TASK-3]
+  - id: TASK-5
+    title: skill-hosts - on-demand Python skill hosts replace the nine skill workers
+    note: Measure cold start first. If a cold skill start costs more than 1 s, keep one warm host per busy queue (ai) and start the rest on demand.
+    verify: skill-*.spec.ts and the AI chat E2E set in isolated CI.
+    dependencies: [TASK-3]
+  - id: TASK-6
+    title: rt-remote-access on the Rust gateway with result push
+    read: [docs/plans/cli-remote-access-live-bridge/plan.yml, docs/plans/cli-remote-access-cross-device-requester/plan.yml, packages/openmates-rust/src/remote_access_crypto.rs, the owning Specification]
+    note: Protocol change (push replaces polling) goes API, then CLI/SDK, then web. Update the owning Specification as a draft first. First unit on the gateway, so it also delivers gateway auth and the Caddy route split.
+    done: Python files in the unit's old list are deleted; p50/p95 before and after recorded.
+    dependencies: [TASK-2]
+  - id: TASK-7
+    title: rt-voice on the Rust gateway
+    read: [docs/plans/integrated-voice-video-calling/plan.yml, docs/plans/voice-call-progressive-speech/]
+    note: Binary audio frames and batched billing are separate deploys after the like-for-like move, so a regression can be attributed.
+    dependencies: [TASK-6]
+  - id: TASK-8
+    title: rt-chat-stream, then rt-chat-ws by handler group, then rt-code-exec
+    note: The gateway owns the socket; handler groups not yet moved are forwarded to Python over an internal channel until their turn. Order handler groups by traffic.
+    dependencies: [TASK-7]
+  - id: TASK-9
+    title: rest-routes by route group, side-services, then ai-pipeline
+    note: Not broken down yet. Re-plan after TASK-8 with the numbers from TASK-3 to TASK-8.
+    dependencies: [TASK-8]
+
+checks:
+  - id: V-DELETE
+    required: true
+    check: For a unit marked rust-only, git grep finds none of its old paths and its containers are absent from backend/core/docker-compose*.yml.
+  - id: V-E2E
+    required: true
+    check: The unit's existing E2E and pytest coverage is green in isolated CI on the deployed commit.
+  - id: V-NUMBERS
+    required: true
+    check: The deploy message carries the before and after numbers from scripts/backend_rust_baseline.py for that unit.
+
+risks:
+  - id: R-1
+    risk: Two migrations at once. Web has no capability at rust-only and Apple still has every old Swift file; backend lanes compete for attention, CI and Claude usage.
+    mitigation: Backend lanes touch disjoint files except TASK-2 (transport.rs). Run at most one backend lane at a time until the web flips land. See Q-1.
+  - id: R-2
+    risk: Much of the worker memory could be cut in Python (lower dev concurrency, lazy skill registry) without any Rust.
+    mitigation: Stated openly. TASK-1 records what a config-only change saves so each unit's gain is credited correctly.
+  - id: R-3
+    risk: Double implementation during a move - a behavior fix lands in Python while the Rust twin exists.
+    mitigation: A unit is frozen while it is rust-twin; twins live for days, not weeks; one unit per lane.
+  - id: R-4
+    risk: Celery semantics lost in the new runner (retries, acks late, time limits, max-memory restarts, beat catch-up).
+    mitigation: TASK-3 lists the semantics each moved queue relies on and tests each one before the queue moves.
+  - id: R-5
+    risk: Skill host cold start adds latency to the first skill call.
+    mitigation: Measure in TASK-5 before deleting any always-on worker; warm host for the ai queue.
+  - id: R-6
+    risk: Auth, billing or encryption regressions in ported foundation code.
+    mitigation: D-8 - port with existing tests first; security review per foundation module; no route moves before its dependencies pass.
+  - id: R-7
+    risk: Self-hosters get a changed compose layout on every unit.
+    mitigation: Each flip updates docker-compose.selfhost.yml and the release notes in the same deploy.
+
+open_questions:
+  - id: Q-1
+    question: Resolved 2026-11-12 - the Plan is parked until the clients are finished, so the approved SDK Specification sentence (backend Rust begins only after every client and its cleanup is complete) stays as it is.
+  - id: Q-2
+    question: Approve the order in D-1 (jobs first, realtime second, REST and AI last)?
+  - id: Q-3
+    question: Approve the staged agent rule (D-10) instead of an immediate blanket "Rust only" rule?

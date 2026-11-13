@@ -7,7 +7,6 @@ vi.mock('../../../services/embedResolver', () => ({resolveEmbed: mocks.resolve, 
 vi.mock('../../../services/chatSyncService', () => ({chatSyncService: new EventTarget()}));
 vi.mock('../BasicInfosBar.svelte', () => ({default: () => {}}));
 vi.mock('../../Icon.svelte', () => ({default: () => {}}));
-vi.mock('../../../stores/appSettingsMemoriesStore', () => ({appSettingsMemoriesStore: {subscribe: (run: (value: unknown) => void) => {run({entriesByApp: new Map()}); return () => {};}}}));
 import HomeSearchEmbedPreview from './HomeSearchEmbedPreview.svelte';
 const mounted: Array<{component: ReturnType<typeof mount>; target: HTMLElement}> = [];
 beforeEach(() => {vi.clearAllMocks(); mocks.resolve.mockResolvedValue(null); mocks.decode.mockResolvedValue(null); mocks.request.mockResolvedValue(true);});

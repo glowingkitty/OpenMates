@@ -598,9 +598,9 @@ async def test_full_execute_flow_with_gemini_correction(monkeypatch):
         "duration_seconds": 5.2,
     }
 
-    # Verify user was charged (1 billed minute minimum = 3 credits)
+    # Verify user was charged (1 billed minute minimum = 5 credits)
     app.charge_user_credits.assert_called_once()
     _, kwargs = app.charge_user_credits.call_args
-    assert kwargs["credits_to_charge"] == 3
+    assert kwargs["credits_to_charge"] == 5
     assert kwargs["usage_details"]["duration_seconds"] == 5.2
     assert skill._transcribe_with_mistral.await_args.kwargs["timestamps"] == "word"

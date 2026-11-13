@@ -51,7 +51,6 @@ import {
 } from "./accountImport.js";
 import {
   deriveChatCompletionRecoveryKeypair,
-  hashItemKey,
   openChatCompletionRecoveryEnvelope,
   splitApiKeyCredential,
   type ChatCompletionRecoveryEnvelope,
@@ -218,6 +217,18 @@ function normalizeOptionalGoal(value: string | undefined): string | null {
   const trimmed = value.trim();
   if (!trimmed) throw new OpenMatesConfigError("Chat goal must not be empty");
   return trimmed;
+}
+
+/**
+ * Raw file response (invoice PDFs, credit notes, usage exports); the body is never
+ * interpreted. Same fields as Rust `sdk_ops::RawDownload` and Python `RawDownload`
+ * (`content_type`, `filename`, `data`). Structurally identical to the previous
+ * inline return shape, so existing callers are unaffected.
+ */
+export interface RawDownload {
+  contentType: string;
+  filename?: string;
+  data: ArrayBuffer;
 }
 
 export interface OpenMatesOptions {
@@ -740,6 +751,41 @@ export class OpenMatesUnavailableError extends Error {
   }
 }
 
+/**
+ * Typed local refusal of malformed input before any request is sent. Mirrors the
+ * shared Rust `Error::Invalid` (same message); never an HTTP error.
+ */
+export class OpenMatesInvalidInputError extends Error {
+  readonly code = "OPENMATES_SDK_INVALID_INPUT";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "OpenMatesInvalidInputError";
+  }
+}
+
+/**
+ * Same document-slug policy as shared Rust `validate_doc_slug`
+ * (packages/openmates-rust/src/client/docs.rs): refuse empty, >4096 UTF-8 bytes,
+ * `..`, backslash, colon, NUL, leading/trailing `/`, empty or `.` segments and
+ * control characters before transport.
+ */
+function validateDocSlug(slug: string): void {
+  if (
+    typeof slug !== "string"
+    || slug === ""
+    || Buffer.byteLength(slug, "utf8") > 4096
+    || slug.includes("..")
+    || /[\\:\0]/.test(slug)
+    || slug.startsWith("/")
+    || slug.endsWith("/")
+    || /\p{Cc}/u.test(slug)
+    || slug.split("/").some((part) => part === "" || part === ".")
+  ) {
+    throw new OpenMatesInvalidInputError("Invalid document slug.");
+  }
+}
+
 export class OpenMates {
   readonly apps: GeneratedAppSkills;
   readonly anonymous: OpenMatesAnonymous;
@@ -845,8 +891,9 @@ export class OpenMates {
     return this.request<T>(`/v1/sdk/connected-account-skills/${encodeURIComponent(appId)}/${encodeURIComponent(skillId)}`, {
       input: withAppSkillRunOptions(input, options),
       connected_account_token_ref_inputs: options.connectedAccountTokenRefInputs ?? [],
-      chat_id: options.chatId,
-      message_id: options.messageId,
+      // Explicit nulls match the Rust/Python wire (sdk-api-key-domains-b.json finance vectors).
+      chat_id: options.chatId ?? null,
+      message_id: options.messageId ?? null,
     });
   }
 
@@ -887,7 +934,7 @@ export class OpenMates {
     return this.parseResponse<T>(response);
   }
 
-  async getRaw(path: string): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> {
+  async getRaw(path: string): Promise<RawDownload> {
     if (!this.apiKey) {
       throw new OpenMatesConfigError("OpenMates API key is required");
     }
@@ -2092,11 +2139,29 @@ function unsupportedSdkFeature(feature: string): never {
   throw new OpenMatesConfigError(`${feature} is not available through the API-key SDK yet`);
 }
 
+/**
+ * Shared download filename contract (Rust `sdk_ops::filename`, Python
+ * `raw_download.filename_from_disposition`; vectors in sdk-api-key-wire.json):
+ * `filename*=UTF-8''` (percent-decoded) wins over `filename=`, a malformed encoded
+ * name yields no filename, and only the last path component is kept so a server
+ * cannot steer a caller that saves by filename outside its directory.
+ */
 function extractFilename(contentDisposition: string | null): string | undefined {
   if (!contentDisposition) return undefined;
   const encoded = contentDisposition.match(/filename\*=UTF-8''([^;]+)/)?.[1];
-  if (encoded) return decodeURIComponent(encoded);
-  return contentDisposition.match(/filename="?([^";]+)"?/)?.[1];
+  let name: string | undefined;
+  if (encoded !== undefined) {
+    try {
+      name = decodeURIComponent(encoded);
+    } catch (error) {
+      if (!(error instanceof URIError)) throw error;
+      return undefined;
+    }
+  } else {
+    name = contentDisposition.match(/filename="?([^";]+)"?/)?.[1];
+  }
+  const base = name?.split(/[/\\]/).pop();
+  return base === undefined || base === "" || base === "." || base === ".." ? undefined : base;
 }
 
 function normalizeHistory(history: ChatSendOptions["history"]): Array<Record<string, unknown>> {
@@ -2907,21 +2972,8 @@ export class OpenMatesIdeaBucket {
     );
   }
 
-  async saveSettings(input: IdeaBucketSettingsInput): Promise<IdeaBucketSettings> {
-    const current = await this.settings();
-    const settings = this.normalizeSettings({
-      processing_prompt: input.processingPrompt ?? current.processingPrompt,
-      processing_times: input.processingTimes ?? current.processingTimes,
-    }, current.entryId, current.itemVersion);
-    const data = this.settingsToMemoryValue(settings);
-    const result = await this.client.memories.create({
-      id: settings.entryId,
-      appId: IDEABUCKET_APP_ID,
-      itemType: IDEABUCKET_SETTINGS_ITEM_TYPE,
-      itemVersion: settings.itemVersion ? settings.itemVersion + 1 : 1,
-      data,
-    });
-    return { ...settings, entryId: String(result.id ?? settings.entryId ?? ""), itemVersion: settings.itemVersion ? settings.itemVersion + 1 : 1, source: "account" };
+  async saveSettings(_input: IdeaBucketSettingsInput): Promise<IdeaBucketSettings> {
+    throw new Error("Typed app memories were replaced by Memories; Idea Bucket settings are no longer stored as a typed memory.");
   }
 
   async add(input: IdeaBucketAddInput): Promise<IdeaBucketResult> {
@@ -2961,13 +3013,6 @@ export class OpenMatesIdeaBucket {
       entryId,
       itemVersion,
       source: entryId ? "account" : "default",
-    };
-  }
-
-  private settingsToMemoryValue(settings: IdeaBucketSettings): Record<string, unknown> {
-    return {
-      processing_prompt: settings.processingPrompt,
-      processing_times: settings.processingTimes.join(","),
     };
   }
 
@@ -3103,9 +3148,11 @@ export class OpenMatesDrafts {
     const masterKey = await this.client.masterKey();
     const markdown = await decryptWithAesGcmCombined(draft.encryptedDraftMd, masterKey);
     if (markdown === null) throw new OpenMatesConfigError("Unable to decrypt draft markdown");
-    const preview = draft.encryptedDraftPreview
+    // Python/Rust parity: any supplied preview (even "") is decrypted or absent,
+    // never replaced; the markdown fallback counts Unicode scalars, not UTF-16 units.
+    const preview = draft.encryptedDraftPreview !== null
       ? await decryptWithAesGcmCombined(draft.encryptedDraftPreview, masterKey)
-      : markdown.slice(0, 160);
+      : Array.from(markdown).slice(0, 160).join("");
     return { ...draft, markdown, preview };
   }
 }
@@ -3477,7 +3524,11 @@ export class OpenMatesSettings {
   }
 
   async setModelDefaults(defaults: AiModelDefaults): Promise<Record<string, unknown>> {
-    return this.client.request<Record<string, unknown>>("/v1/sdk/settings/ai-model-defaults", defaults);
+    return this.client.request<Record<string, unknown>>("/v1/sdk/settings/ai-model-defaults", {
+      default_ai_model_simple: defaults.default_ai_model_simple ?? null,
+      default_ai_model_complex: defaults.default_ai_model_complex ?? null,
+      default_ai_model_most_demanding: defaults.default_ai_model_most_demanding ?? null,
+    });
   }
 
   async setChatAutoDelete(period: string): Promise<Record<string, unknown>> {
@@ -3560,6 +3611,7 @@ export class OpenMatesMemories {
     return { memories: Object.values(metadata.apps).flatMap(app => app.memories ?? []) };
   }
 
+  /** @deprecated Legacy typed entries; read-only transitional path. */
   async list(options: RequestOptions = {}): Promise<Record<string, unknown>> {
     const data = await this.client.get<{ memories?: Array<Record<string, unknown>> }>(withQuery("/v1/sdk/memories", options.query));
     const memories = await Promise.all((data.memories ?? []).map(async (memory) => {
@@ -3573,49 +3625,10 @@ export class OpenMatesMemories {
     return { memories };
   }
 
-  async types(options: RequestOptions = {}): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/memories/types", options.query));
-  }
-
-  async create(input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return this.storeMemory(input);
-  }
-
-  async update(id: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return this.storeMemory({ ...input, id });
-  }
-
+  /** @deprecated Legacy typed entries; transitional delete only. */
   async delete(id: string, options: ConfirmedMutationOptions): Promise<Record<string, unknown>> {
     requireConfirmed(options, "Deleting a memory");
     return this.client.delete<Record<string, unknown>>(`/v1/sdk/memories/${encodeURIComponent(id)}`);
-  }
-
-  private async storeMemory(input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const appId = String(input.appId ?? input.app_id ?? "");
-    const itemType = String(input.itemType ?? input.item_type ?? "");
-    const rawItemValue = input.itemValue ?? input.item_value ?? input.data ?? {};
-    const itemValue = rawItemValue && typeof rawItemValue === "object" && !Array.isArray(rawItemValue)
-      ? rawItemValue as Record<string, unknown>
-      : { value: rawItemValue };
-    if (!appId || !itemType) {
-      throw new OpenMatesConfigError("Memory create/update requires appId and itemType");
-    }
-    const now = Math.floor(Date.now() / 1000);
-    const entry = {
-      id: String(input.id ?? randomUUID()),
-      app_id: appId,
-      item_key: hashItemKey(appId, itemType),
-      item_type: itemType,
-      encrypted_item_json: await encryptWithAesGcmCombined(
-        JSON.stringify({ ...itemValue, settings_group: appId, _original_item_key: itemType, added_date: now }),
-        await this.client.masterKey(),
-      ),
-      encrypted_app_key: "",
-      created_at: Number(input.created_at ?? now),
-      updated_at: now,
-      item_version: Number(input.itemVersion ?? input.item_version ?? 1),
-    };
-    return this.client.request<Record<string, unknown>>("/v1/sdk/memories", { entry });
   }
 }
 
@@ -3635,17 +3648,17 @@ export class OpenMatesBilling {
   async chatTotal(chatId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/billing/usage/chat-total", { chat_id: chatId })); }
   async usageSummaries(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/summaries"); }
   async usageDaily(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/daily"); }
-  async usageExport(options: { months?: number } = {}): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(withQuery("/v1/sdk/billing/usage/export", { months: options.months })); }
-  async createBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) }); }
+  async usageExport(options: { months?: number } = {}): Promise<RawDownload> { return this.client.getRaw(withQuery("/v1/sdk/billing/usage/export", { months: options.months })); }
+  async createBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey ?? null, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) }); }
   async bankTransferStatus(orderId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/billing/bank-transfer-orders/${encodeURIComponent(orderId)}`); }
   async listBankTransferOrders(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders"); }
   async listInvoices(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/invoices"); }
-  async downloadInvoice(invoiceId: string): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(`/v1/sdk/billing/invoices/${encodeURIComponent(invoiceId)}/download`); }
-  async downloadCreditNote(invoiceId: string): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(`/v1/sdk/billing/invoices/${encodeURIComponent(invoiceId)}/credit-note/download`); }
-  async requestRefund(invoiceId: string, options: ConfirmedMutationOptions & { emailEncryptionKey?: string }): Promise<Record<string, unknown>> { requireConfirmed(options, "Requesting an invoice refund"); return this.client.request<Record<string, unknown>>("/v1/sdk/billing/refund", { invoice_id: invoiceId, email_encryption_key: options.emailEncryptionKey }); }
+  async downloadInvoice(invoiceId: string): Promise<RawDownload> { return this.client.getRaw(`/v1/sdk/billing/invoices/${encodeURIComponent(invoiceId)}/download`); }
+  async downloadCreditNote(invoiceId: string): Promise<RawDownload> { return this.client.getRaw(`/v1/sdk/billing/invoices/${encodeURIComponent(invoiceId)}/credit-note/download`); }
+  async requestRefund(invoiceId: string, options: ConfirmedMutationOptions & { emailEncryptionKey?: string }): Promise<Record<string, unknown>> { requireConfirmed(options, "Requesting an invoice refund"); return this.client.request<Record<string, unknown>>("/v1/sdk/billing/refund", { invoice_id: invoiceId, email_encryption_key: options.emailEncryptionKey ?? null }); }
   async redeemGiftCard(code: string): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/redeem", { code }); }
   async listRedeemedGiftCards(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/gift-cards/redeemed"); }
-  async createGiftCardBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) }); }
+  async createGiftCardBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey ?? null, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) }); }
   async giftCardPurchaseStatus(orderId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/billing/gift-cards/purchases/${encodeURIComponent(orderId)}`); }
   async listPurchasedGiftCards(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/gift-cards/purchased"); }
   async setLowBalanceAutoTopup(input: Record<string, unknown>): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/auto-topup/low-balance", input); }
@@ -5354,8 +5367,10 @@ export class OpenMatesDocs {
 
   async list(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/docs"); }
   async search(query: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/docs/search", { q: query })); }
-  async show(slug: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/docs/${encodeURIComponent(slug)}`); }
-  async download(slug: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/docs/${encodeURIComponent(slug)}/download`); }
+  /** @throws OpenMatesInvalidInputError for a malformed slug, before any request. */
+  async show(slug: string): Promise<Record<string, unknown>> { validateDocSlug(slug); return this.client.get<Record<string, unknown>>(`/v1/sdk/docs/${encodeURIComponent(slug)}`); }
+  /** @throws OpenMatesInvalidInputError for a malformed slug, before any request. */
+  async download(slug: string): Promise<Record<string, unknown>> { validateDocSlug(slug); return this.client.get<Record<string, unknown>>(`/v1/sdk/docs/${encodeURIComponent(slug)}/download`); }
 }
 
 export class OpenMatesWikipedia {
@@ -5365,17 +5380,19 @@ export class OpenMatesWikipedia {
     this.client = client;
   }
 
+  // An omitted or empty language means "en" in every SDK: the backend proxy
+  // rejects an empty language (min_length=2), matching Python and Rust.
   async search(query: string, options: { language?: string; limit?: number } = {}): Promise<Record<string, unknown>> {
     return this.client.get<Record<string, unknown>>(withQuery("/v1/wikipedia/search", {
       query,
-      language: options.language ?? "en",
+      language: options.language || "en",
       limit: options.limit,
     }));
   }
 
   async learning(title: string, options: { language?: string } = {}): Promise<WikipediaLearningBundle> {
     return this.client.get<WikipediaLearningBundle>(withQuery("/v1/wikipedia/learning", {
-      title, language: options.language ?? "en",
+      title, language: options.language || "en",
     }));
   }
 
@@ -5393,7 +5410,7 @@ export class OpenMatesWikipedia {
   async summary(title: string, options: { language?: string } = {}): Promise<Record<string, unknown>> {
     return this.client.get<Record<string, unknown>>(withQuery("/v1/wikipedia/summary", {
       title,
-      language: options.language ?? "en",
+      language: options.language || "en",
     }));
   }
 }
@@ -5761,7 +5778,7 @@ export class OpenMatesTeams {
   async createBankTransferOrder(teamId: string, credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> {
     return this.client.request<Record<string, unknown>>(
       `/v1/teams/${encodeURIComponent(teamId)}/billing/bank-transfer-orders`,
-      { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) },
+      { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey ?? null, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) },
     );
   }
 
@@ -5795,7 +5812,16 @@ export class OpenMatesLearningMode {
   }
 
   async status(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/learning-mode"); }
-  async enable(input: { ageGroup: string; passcode: string }): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/learning-mode/enable", { age_group: input.ageGroup, passcode: input.passcode }); }
+  async enable(input: { ageGroup: string; passcode: string; collaborativeBuild?: boolean }): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = { age_group: input.ageGroup, passcode: input.passcode };
+    if (input.collaborativeBuild !== undefined) body.collaborative_build = input.collaborativeBuild;
+    return this.client.request<Record<string, unknown>>("/v1/sdk/learning-mode/enable", body);
+  }
+  async collaborative(input: { enabled: boolean; passcode?: string }): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = { enabled: input.enabled };
+    if (input.passcode !== undefined) body.passcode = input.passcode;
+    return this.client.request<Record<string, unknown>>("/v1/sdk/learning-mode/collaborative", body);
+  }
   async disable(passcode: string): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/learning-mode/disable", { passcode }); }
 }
 

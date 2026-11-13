@@ -30,9 +30,12 @@ class Directus:
 
     async def get_items(self, collection, *, params, **_kwargs):
         assert collection == state.COLLECTION
-        digest = params["filter"]["token_hash"]["_eq"]
-        row = self.rows.get(digest)
-        return [deepcopy(row)] if row else []
+        conditions = params["filter"]
+        if "token_hash" in conditions:
+            row = self.rows.get(conditions["token_hash"]["_eq"])
+            return [deepcopy(row)] if row else []
+        return [deepcopy(row) for row in self.rows.values()
+                if all(row.get(field) == condition["_eq"] for field, condition in conditions.items())]
 
     async def create_item(self, collection, payload, **_kwargs):
         assert collection == state.COLLECTION
@@ -296,5 +299,47 @@ def test_verified_password_v1_login_binding_survives_refresh_without_renewal(mon
                 verified_login_method="password", verified_credential_version=1,
                 verified_lookup_digest="accepted-lookup-hash",
             )
+
+    asyncio.run(run())
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.authoritative-enforcement,auth.session.lifecycle
+def test_socket_lineage_follows_rotation_but_not_revocation_or_foreign_chains(monkeypatch):
+    """A socket opened on a rotated-away hash keeps its own logical session only."""
+    async def run():
+        monkeypatch.setattr(state.time, "time", lambda: 1000)
+        directus, cache = Directus(), Cache()
+        await state.register_session_state(directus, cache, "opening", "u1", ttl_seconds=86400)
+        await state.register_session_state(directus, cache, "sibling", "u1", ttl_seconds=86400)
+        opening = state.token_hash("opening")
+        current, row = await state.get_session_lineage_state(directus, cache, opening, user_id="u1")
+        assert current == opening and row["user_id"] == "u1"
+
+        # Two reload rotations retire the socket's opening hash.
+        await state.transfer_session_state(directus, cache, "opening", "second")
+        await state.transfer_session_state(directus, cache, "second", "third")
+        with pytest.raises(HTTPException):
+            await state.get_session_state_cached(directus, cache, opening, user_id="u1")
+        current, row = await state.get_session_lineage_state(directus, cache, opening, user_id="u1")
+        assert current == state.token_hash("third")
+        assert row["logical_session_id"] == directus.rows[opening]["logical_session_id"]
+
+        # Never another owner, and never the owner's sibling session.
+        with pytest.raises(HTTPException) as foreign:
+            await state.get_session_lineage_state(directus, cache, opening, user_id="u2")
+        assert foreign.value.status_code == 401
+        assert directus.rows[state.token_hash("sibling")]["logical_session_id"] != row["logical_session_id"]
+
+        # Risk on the live member is still enforced for strict readers.
+        directus.rows[state.token_hash("third")]["risk_pending"] = True
+        with pytest.raises(HTTPException):
+            await state.get_session_lineage_state(directus, cache, opening, user_id="u1", allow_risk=False)
+        directus.rows[state.token_hash("third")]["risk_pending"] = False
+
+        # Logout of the live member (or the whole chain) ends the old socket too.
+        await state.revoke_session_state(directus, cache, state.token_hash("third"), "u1")
+        with pytest.raises(HTTPException) as revoked:
+            await state.get_session_lineage_state(directus, cache, opening, user_id="u1")
+        assert revoked.value.status_code == 401
 
     asyncio.run(run())

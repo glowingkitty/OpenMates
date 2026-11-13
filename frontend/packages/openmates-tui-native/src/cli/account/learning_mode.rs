@@ -4,12 +4,17 @@ use super::settings_more::text_output;
 use super::{CliError, CliOutput, Invocation, handlers};
 use crate::client::Client;
 use openmates_sdk::client::learning_mode::{LearningModeError, learning_mode_age_group};
+use openmates_sdk::sdk::OpenMates;
 use serde_json::Value;
+use tokio_util::sync::CancellationToken;
 
 pub(super) fn supported(invocation: &Invocation) -> bool {
     matches!(
         invocation.command_path().as_str(),
-        "learning-mode status" | "learning-mode enable" | "learning-mode disable"
+        "learning-mode status"
+            | "learning-mode enable"
+            | "learning-mode collaborative"
+            | "learning-mode disable"
     )
 }
 fn failed(message: impl Into<String>) -> CliError {
@@ -25,6 +30,44 @@ fn passcode(i: &Invocation) -> Result<&str, CliError> {
         .and_then(Value::as_str)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| failed("Provide --passcode."))
+}
+/// `--collaborative-build` / `--no-collaborative-build`; neither => `None`
+/// so the backend default (on, except forced off for `under_10`) applies.
+fn collaborative_build_flag(i: &Invocation) -> Result<Option<bool>, CliError> {
+    match (
+        i.boolean("collaborative-build"),
+        i.boolean("no-collaborative-build"),
+    ) {
+        (true, true) => Err(failed(
+            "Use only one of --collaborative-build and --no-collaborative-build.",
+        )),
+        (true, false) => Ok(Some(true)),
+        (false, true) => Ok(Some(false)),
+        (false, false) => Ok(None),
+    }
+}
+/// `learning-mode collaborative <on|off>`: returns the target state and the
+/// passcode, which is mandatory only when turning it on (the server refuses
+/// an unauthenticated enable, disabling needs no proof).
+fn collaborative_args(i: &Invocation) -> Result<(bool, Option<&str>), CliError> {
+    let enabled = match i.positionals.first().map(String::as_str) {
+        Some("on") => true,
+        Some("off") => false,
+        _ => {
+            return Err(failed(
+                "Provide on or off: openmates learning-mode collaborative on|off [--passcode <passcode>].",
+            ));
+        }
+    };
+    let passcode = i
+        .flags
+        .get("passcode")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty());
+    if enabled && passcode.is_none() {
+        return Err(failed("Provide --passcode."));
+    }
+    Ok((enabled, passcode))
 }
 fn request_error(action: &str, error: LearningModeError) -> CliError {
     match error.http_status {
@@ -75,6 +118,14 @@ fn status_text(status: &Value) -> String {
             super::super::terminal_text(&group)
         ));
     }
+    if truthy(&status["enabled"]) {
+        if let Some(on) = status["collaborative_build"].as_bool() {
+            out.push_str(&format!(
+                "Collaborative build: {}\n",
+                if on { "on" } else { "off" }
+            ));
+        }
+    }
     if let Some(attempts) = status["failed_attempts"].as_f64().filter(|n| *n > 0.0) {
         out.push_str(&format!(
             "Failed disable attempts: {}\n",
@@ -103,14 +154,31 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
                 .map_err(|error| request_error("status", error))?
         }
         "learning-mode enable" => {
-            handlers::flags(i, &["age-group", "passcode"])?;
+            handlers::flags(
+                i,
+                &[
+                    "age-group",
+                    "passcode",
+                    "collaborative-build",
+                    "no-collaborative-build",
+                ],
+            )?;
             let group = learning_mode_age_group(i.flags.get("age-group").and_then(Value::as_str))
                 .map_err(failed)?;
             let passcode = passcode(i)?;
+            let collaborative_build = collaborative_build_flag(i)?;
             client
-                .activate_learning_mode(group, passcode)
+                .activate_learning_mode(group, passcode, collaborative_build)
                 .await
                 .map_err(|error| request_error("activation", error))?
+        }
+        "learning-mode collaborative" => {
+            handlers::flags(i, &["passcode"])?;
+            let (enabled, passcode) = collaborative_args(i)?;
+            client
+                .set_learning_mode_collaborative(enabled, passcode)
+                .await
+                .map_err(|error| request_error("collaborative build update", error))?
         }
         _ => {
             handlers::flags(i, &["passcode"])?;
@@ -121,56 +189,69 @@ pub(super) async fn execute(i: &Invocation, client: &mut Client) -> Result<CliOu
                 .map_err(|error| request_error("deactivation", error))?
         }
     };
+    render(i, &status)
+}
+fn render(i: &Invocation, status: &Value) -> Result<CliOutput, CliError> {
     if i.boolean("json") {
-        CliOutput::json(&status)
+        CliOutput::json(status)
     } else {
-        Ok(text_output(status_text(&status)))
+        Ok(text_output(status_text(status)))
     }
+}
+
+/// Explicit API-key variant: the same flags, validation and rendering over the
+/// shared SDK `/v1/sdk/learning-mode` routes. No session or profile is read.
+/// HTTP failures surface as typed SDK errors.
+pub(super) async fn execute_key(
+    i: &Invocation,
+    client: &mut OpenMates,
+    cancel: CancellationToken,
+) -> Result<CliOutput, CliError> {
+    let status = match i.command_path().as_str() {
+        "learning-mode status" => {
+            handlers::flags(i, &[])?;
+            client.set_operation_cancel(cancel);
+            client.learning_mode().status().await?
+        }
+        "learning-mode enable" => {
+            handlers::flags(
+                i,
+                &[
+                    "age-group",
+                    "passcode",
+                    "collaborative-build",
+                    "no-collaborative-build",
+                ],
+            )?;
+            let group = learning_mode_age_group(i.flags.get("age-group").and_then(Value::as_str))
+                .map_err(failed)?;
+            let passcode = passcode(i)?;
+            let collaborative_build = collaborative_build_flag(i)?;
+            client.set_operation_cancel(cancel);
+            client
+                .learning_mode()
+                .enable(group, passcode, collaborative_build)
+                .await?
+        }
+        "learning-mode collaborative" => {
+            handlers::flags(i, &["passcode"])?;
+            let (enabled, passcode) = collaborative_args(i)?;
+            client.set_operation_cancel(cancel);
+            client
+                .learning_mode()
+                .collaborative(enabled, passcode)
+                .await?
+        }
+        _ => {
+            handlers::flags(i, &["passcode"])?;
+            let passcode = passcode(i)?;
+            client.set_operation_cancel(cancel);
+            client.learning_mode().disable(passcode).await?
+        }
+    };
+    render(i, &status)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    // contract-test: supporting surface=cli assertions=cli.runtime.native-rust
-    #[test]
-    fn status_text_matches_the_legacy_lines() {
-        assert_eq!(
-            status_text(&json!({"enabled":false,"age_group":null,"failed_attempts":0})),
-            "Learning Mode: disabled\n"
-        );
-        assert_eq!(
-            status_text(
-                &json!({"enabled":true,"age_group":"13_15","failed_attempts":2,
-                "deactivation_blocked_until":1_700_000_000})
-            ),
-            "Learning Mode: enabled\nAge group: 13_15\nFailed disable attempts: 2\nDisable blocked until: 2023-11-14T22:13:20.000Z\n"
-        );
-    }
-
-    // contract-test: supporting surface=cli assertions=cli.runtime.native-rust
-    #[test]
-    fn errors_keep_the_legacy_codes_and_messages() {
-        let err = request_error(
-            "activation",
-            LearningModeError {
-                source: openmates_sdk::Error::Protocol,
-                http_status: Some(403),
-            },
-        );
-        assert!(
-            matches!(err, CliError::Contract { code: "command_failed", ref message }
-            if message == "Learning Mode activation failed with HTTP 403")
-        );
-        let i = Invocation {
-            path: vec!["learning-mode".into(), "disable".into()],
-            positionals: vec![],
-            flags: [("passcode".to_owned(), json!(""))].into_iter().collect(),
-        };
-        assert!(
-            matches!(passcode(&i), Err(CliError::Contract { ref message, .. })
-            if message == "Provide --passcode.")
-        );
-    }
-}
+#[path = "learning_mode_tests.rs"]
+mod tests;

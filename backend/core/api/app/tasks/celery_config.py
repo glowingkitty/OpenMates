@@ -203,6 +203,7 @@ TASK_CONFIG = [
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
     {'name': 'app_images',  'module': 'backend.apps.models3d.tasks'},  # 3D generation tasks share media worker resources
+    {'name': 'app_images',  'module': 'backend.apps.design.tasks'},  # design.embroidery shares media worker resources
     {'name': 'app_music',   'module': 'backend.apps.music.tasks'},  # Music generation tasks
     {'name': 'app_music',   'module': 'backend.apps.audio.tasks'},  # Audio generate/speak tasks share music worker resources
     {'name': 'app_music',   'module': 'backend.apps.audio.assistant_speech.segment_task'},
@@ -1484,6 +1485,13 @@ app.conf.beat_schedule = {
         'task': 'web.browse.sweep',
         'schedule': timedelta(minutes=1),
         'options': {'queue': 'persistence', 'expires': 50},
+    },
+    # Image Enhance: refund and delete charged results never saved as a version
+    # within 24 hours; reconcile charges whose outcome was unknown.
+    'sweep-image-enhance-jobs': {
+        'task': 'apps.images.tasks.enhance_sweep',
+        'schedule': timedelta(minutes=10),
+        'options': {'queue': 'app_images', 'expires': 540},
     },
     'sweep-assistant-speech-billing': {
         'task': 'apps.audio.tasks.assistant_speech_billing_sweep',

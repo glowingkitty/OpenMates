@@ -1,3 +1,5 @@
+> **Historical.** Swift storage/receipt/retry logic is frozen and moves to the Rust core per the client-core specification (`specifications/architecture/client-core/specification.yml`). This document is history, not an instruction.
+
 # Native storage compatibility audit — 2026-10-03
 
 Task: TASK-8137. Apple session: `6dc7`. Backend owner: session `2f80`.

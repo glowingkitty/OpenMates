@@ -56,16 +56,17 @@ enum NativeVoiceCallAppleEnvironment {
             else { throw NativeVoiceCallError.consentUnavailable }
         }, authentication: { @MainActor [weak authManager] scope in
             guard let authManager, await current(scope) else { throw NativeVoiceCallError.scopeChanged }
-            if AudioRealtimeTranscriptionClient.tokenNeedsRefresh(authManager.webSocketToken) ||
-                authManager.sessionValidationState != .onlineAuthenticated {
-                await authManager.validateSessionAfterOfflineBootstrap()
-            }
+            let grant: LegacySocketGrantRecord
+            do {
+                grant = try await authManager.socketGrant(
+                    needsRefresh: { AudioRealtimeTranscriptionClient.tokenNeedsRefresh($0) })
+            } catch { throw NativeVoiceCallError.callUnavailable }
             guard await current(scope), authManager.sessionValidationState == .onlineAuthenticated,
-                  let token = authManager.webSocketToken,
+                  let token = grant.wsToken,
                   !AudioRealtimeTranscriptionClient.tokenNeedsRefresh(token)
             else { throw NativeVoiceCallError.callUnavailable }
             return NativeVoiceCallAuthentication(apiBaseURL: profile.apiBaseURL,
-                webOrigin: profile.webBaseURL.absoluteString, sessionID: AuthManager.nativeSessionId,
+                webOrigin: profile.webBaseURL.absoluteString, sessionID: grant.sessionId,
                 webSocketToken: token, nativeHeaders: APIClient.nativeClientHeaders)
         }, context: context)
     }

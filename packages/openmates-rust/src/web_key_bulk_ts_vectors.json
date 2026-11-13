@@ -1,0 +1,268 @@
+{
+  "batchSize": 20,
+  "retryDelayMs": 500,
+  "maxRetries": 6,
+  "batches": [
+    {
+      "count": 0,
+      "ranges": []
+    },
+    {
+      "count": 1,
+      "ranges": [
+        [
+          0,
+          1
+        ]
+      ]
+    },
+    {
+      "count": 19,
+      "ranges": [
+        [
+          0,
+          19
+        ]
+      ]
+    },
+    {
+      "count": 20,
+      "ranges": [
+        [
+          0,
+          20
+        ]
+      ]
+    },
+    {
+      "count": 21,
+      "ranges": [
+        [
+          0,
+          20
+        ],
+        [
+          20,
+          21
+        ]
+      ]
+    },
+    {
+      "count": 39,
+      "ranges": [
+        [
+          0,
+          20
+        ],
+        [
+          20,
+          39
+        ]
+      ]
+    },
+    {
+      "count": 40,
+      "ranges": [
+        [
+          0,
+          20
+        ],
+        [
+          20,
+          40
+        ]
+      ]
+    },
+    {
+      "count": 41,
+      "ranges": [
+        [
+          0,
+          20
+        ],
+        [
+          20,
+          40
+        ],
+        [
+          40,
+          41
+        ]
+      ]
+    },
+    {
+      "count": 100,
+      "ranges": [
+        [
+          0,
+          20
+        ],
+        [
+          20,
+          40
+        ],
+        [
+          40,
+          60
+        ],
+        [
+          60,
+          80
+        ],
+        [
+          80,
+          100
+        ]
+      ]
+    },
+    {
+      "count": 257,
+      "ranges": [
+        [
+          0,
+          20
+        ],
+        [
+          20,
+          40
+        ],
+        [
+          40,
+          60
+        ],
+        [
+          60,
+          80
+        ],
+        [
+          80,
+          100
+        ],
+        [
+          100,
+          120
+        ],
+        [
+          120,
+          140
+        ],
+        [
+          140,
+          160
+        ],
+        [
+          160,
+          180
+        ],
+        [
+          180,
+          200
+        ],
+        [
+          200,
+          220
+        ],
+        [
+          220,
+          240
+        ],
+        [
+          240,
+          257
+        ]
+      ]
+    }
+  ],
+  "retries": [
+    {
+      "retryCount": 0,
+      "masterKeyAvailable": false,
+      "step": "retry"
+    },
+    {
+      "retryCount": 0,
+      "masterKeyAvailable": true,
+      "step": "decrypt"
+    },
+    {
+      "retryCount": 1,
+      "masterKeyAvailable": false,
+      "step": "retry"
+    },
+    {
+      "retryCount": 1,
+      "masterKeyAvailable": true,
+      "step": "decrypt"
+    },
+    {
+      "retryCount": 2,
+      "masterKeyAvailable": false,
+      "step": "retry"
+    },
+    {
+      "retryCount": 2,
+      "masterKeyAvailable": true,
+      "step": "decrypt"
+    },
+    {
+      "retryCount": 3,
+      "masterKeyAvailable": false,
+      "step": "retry"
+    },
+    {
+      "retryCount": 3,
+      "masterKeyAvailable": true,
+      "step": "decrypt"
+    },
+    {
+      "retryCount": 4,
+      "masterKeyAvailable": false,
+      "step": "retry"
+    },
+    {
+      "retryCount": 4,
+      "masterKeyAvailable": true,
+      "step": "decrypt"
+    },
+    {
+      "retryCount": 5,
+      "masterKeyAvailable": false,
+      "step": "retry"
+    },
+    {
+      "retryCount": 5,
+      "masterKeyAvailable": true,
+      "step": "decrypt"
+    },
+    {
+      "retryCount": 6,
+      "masterKeyAvailable": false,
+      "step": "give_up"
+    },
+    {
+      "retryCount": 6,
+      "masterKeyAvailable": true,
+      "step": "decrypt"
+    },
+    {
+      "retryCount": 7,
+      "masterKeyAvailable": false,
+      "step": "give_up"
+    },
+    {
+      "retryCount": 7,
+      "masterKeyAvailable": true,
+      "step": "decrypt"
+    },
+    {
+      "retryCount": 8,
+      "masterKeyAvailable": false,
+      "step": "give_up"
+    },
+    {
+      "retryCount": 8,
+      "masterKeyAvailable": true,
+      "step": "decrypt"
+    }
+  ]
+}

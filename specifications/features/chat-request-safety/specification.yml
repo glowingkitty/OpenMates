@@ -46,7 +46,7 @@ models:
 assertions:
   - id: chat-request-safety.intent-over-topic
     type: behavior
-    must: Requests for news, history, biography, legal or ethical analysis, criticism, harm reduction, defensive security, or other information about harmful or illegal people, events, or material proceed to the answer model when the requested assistance does not meaningfully facilitate wrongdoing; sensitive names and topic words alone never cause a block, and doubt about intent resolves to allow.
+    must: Requests for news, history, biography, legal or ethical analysis, criticism, harm reduction, defensive security, or other information about harmful or illegal people, events, or material proceed to the answer model when the requested assistance does not meaningfully facilitate wrongdoing; sensitive names and topic words alone never cause a block, and doubt about intent resolves to allow. Finding, comparing or buying openly sold products that are legal in some countries or regions but not others is not clear facilitation; it proceeds, and the answer tells the user to check the law where they are.
     depends_on: [models.RequestSafetyDecision.basis, examples.intent_over_topic]
 
   - id: chat-request-safety.block-clear-facilitation

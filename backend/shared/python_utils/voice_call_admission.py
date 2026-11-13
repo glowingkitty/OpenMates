@@ -98,3 +98,48 @@ def queued_voice_delivery(members: list[dict[str, Any]]) -> dict[str, Any]:
             "voice_heard_boundary": first.get("voice_heard_boundary") if voice else None,
             "auto_speak_response": voice or first.get("auto_speak_response") is True,
             "assistant_speech_lazy_dispatch": False if voice else first.get("assistant_speech_lazy_dispatch") is True}
+
+
+def paused_voice_delivery(request: Any) -> dict[str, Any]:
+    """Delivery mode of a turn that pauses for a permission, kept for its continuation.
+
+    The continuation is a new task built from the pending context. Without these
+    identities it would answer a call turn as a silent text turn.
+    """
+    boundary = _value(request, "voice_heard_boundary")
+    if hasattr(boundary, "model_dump"):
+        boundary = boundary.model_dump(mode="json")
+    return {
+        "auto_speak_response": _value(request, "auto_speak_response") is True,
+        "voice_mode": _value(request, "voice_mode") is True,
+        "voice_call_id": _value(request, "voice_call_id"),
+        "voice_turn_id": _value(request, "voice_turn_id"),
+        "voice_heard_boundary": boundary,
+        "assistant_speech_lazy_dispatch": _value(request, "assistant_speech_lazy_dispatch") is True,
+        "assistant_response_source_revision": _value(request, "assistant_response_source_revision") or 1,
+    }
+
+
+async def resumed_voice_delivery(
+    cache: Any, pending_context: Mapping[str, Any], *, user_id: str, chat_id: str,
+) -> dict[str, Any]:
+    """Delivery mode for the continuation of a paused turn.
+
+    A permission can be answered long after the call ended. Then the turn
+    continues as an ordinary text turn instead of failing its call recheck.
+    """
+    delivery = paused_voice_delivery(pending_context)
+    if not delivery["voice_mode"]:
+        return delivery | {"voice_call_id": None, "voice_turn_id": None, "voice_heard_boundary": None}
+    try:
+        await require_active_voice_dispatch(cache, {
+            **delivery, "user_id": user_id, "chat_id": chat_id,
+            "message_id": pending_context.get("message_id"),
+            "is_incognito": pending_context.get("is_incognito"),
+        })
+    except ValueError:
+        return delivery | {
+            "auto_speak_response": False, "voice_mode": False, "voice_call_id": None,
+            "voice_turn_id": None, "voice_heard_boundary": None,
+        }
+    return delivery

@@ -971,6 +971,8 @@ test('oversized encrypted sync cursor opens one authenticated message without fu
 			start_cursor: null, end_cursor: null, anchor_found: true,
 			oversized_message: true,
 			oversized_message_cursor: { created_at: selectedTimestamp, message_id: selectedId },
+			// The real bounded window always reports its kept-row bytes (0 here).
+			payload_bytes: 0,
 			server_message_count: baseline.server_message_count
 		})
 	}), { times: 1 });

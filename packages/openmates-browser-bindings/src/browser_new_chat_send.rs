@@ -22,6 +22,7 @@ impl CreationIdentity {
             StreamUpdate::Completed{chat_id,message_id,..}=>!self.chat.is_empty()&&self.chat==*chat_id&&uuid::Uuid::parse_str(message_id).is_ok(),
             StreamUpdate::Content{..}|StreamUpdate::Consent{..}=>!self.chat.is_empty(),
             StreamUpdate::Status(_)=>true,
+            StreamUpdate::TaskAssigned{chat_id,message_id,..}=>self.matches(chat_id,message_id),
         }
     }
 }

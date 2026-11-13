@@ -14,7 +14,7 @@ import SwiftUI
 final class NativeVoiceCallMemoryPermission: ObservableObject {
     typealias Validation = @MainActor @Sendable () async throws -> Void
     struct Choice: Identifiable {
-        let category: SettingsMemoryCategory
+        let category: NativeVoiceCallMemoryPolicy.Category
         let entry: SettingsMemoryEntry
         var id: String { category.id + ":" + entry.id }
     }
@@ -24,25 +24,19 @@ final class NativeVoiceCallMemoryPermission: ObservableObject {
         let callID: String
         let request: NativeVoiceCallMemoryPolicy.Request
         let choices: [Choice]
-        let categories: [SettingsMemoryCategory]
+        let categories: [NativeVoiceCallMemoryPolicy.Category]
         var selectedIDs: Set<String> = []
         var deciding = false
     }
     @Published private(set) var prompt: Prompt?
-    private let service: SettingsMemoryService
     private var operationID: UUID?
     private var continuation: CheckedContinuation<NativeVoiceCallArtifactDisposition, any Error>?
     private var validation: Validation?
-
-    init(service: SettingsMemoryService? = nil) {
-        self.service = service ?? SettingsMemoryService(observesSync: false, liveActivitySnapshot: { _ in })
-    }
 
     /// Root invalidates synchronously on owner change, call termination or teardown.
     /// Cancellation never manufactures a broker answer or preserves plaintext.
     func invalidate() {
         operationID = nil; prompt = nil; validation = nil
-        service.cancel()
         let waiting = continuation; continuation = nil
         waiting?.resume(throwing: CancellationError())
     }
@@ -52,7 +46,7 @@ final class NativeVoiceCallMemoryPermission: ObservableObject {
         guard operationID == nil else { throw NativeVoiceCallError.invalidState }
         let request = try NativeVoiceCallMemoryPolicy.Request(scope: scope, callID: callID, frame: frame)
         let keys = request.keys
-        // Native SettingsMemoryService does not load personal document memories.
+        // Personal Memory documents are not offered to calls on this client.
         // Reject the whole unsupported request instead of approving a partial set.
         guard !request.requestsPersonalDocuments else { throw NativeVoiceCallError.unsupportedTransport }
         #if DEBUG
@@ -64,23 +58,11 @@ final class NativeVoiceCallMemoryPermission: ObservableObject {
         defer { if operationID == id { invalidate() } }
         return try await withTaskCancellationHandler {
             try await validate(); try check(id)
-            await service.load()
-            try await validate(); try check(id)
-            guard service.isAuthenticated else { throw NativeVoiceCallError.contextUnavailable }
-            switch service.state {
-            case .loaded, .empty: break
-            default: throw NativeVoiceCallError.contextUnavailable
-            }
-            var categories: [SettingsMemoryCategory] = []
-            for key in keys {
-                // Match the complete catalog identity; never use broad app matches.
-                guard let category = service.categories.first(where: { $0.appId + "-" + $0.categoryId == key })
-                else { throw NativeVoiceCallError.unsupportedTransport }
-                if !categories.contains(where: { $0.id == category.id }) { categories.append(category) }
-            }
-            let choices = categories.flatMap { category in
-                service.entries(in: category).filter { !$0.isExample }.map { Choice(category: category, entry: $0) }
-            }
+            // Typed app memories were removed (app-memories.typed.removed), so no
+            // catalog category can match a requested key: refuse the whole request.
+            guard keys.isEmpty else { throw NativeVoiceCallError.unsupportedTransport }
+            let categories: [NativeVoiceCallMemoryPolicy.Category] = []
+            let choices: [Choice] = []
             try NativeVoiceCallMemoryPolicy.validateBounds(choices.map { $0.entry.value })
             validation = validate
             return try await withCheckedThrowingContinuation { waiting in
@@ -113,19 +95,19 @@ final class NativeVoiceCallMemoryPermission: ObservableObject {
             try await validate(); try check(promptID)
             let entries: [NativeVoiceCallJSON] = try (includeSelected ? selected : []).map { choice in
                 var fields = choice.entry.fields
-                // Restore the metadata stripped by SettingsMemoryService.decodePayload;
-                // web shares this original decrypted object, never the hashed item key.
+                // Restore the original item key and settings group; the web shares
+                // this original decrypted object, never the hashed item key.
                 fields["_original_item_key"] = .string(choice.entry.key)
-                fields["settings_group"] = .string(choice.category.categoryId)
+                fields["settings_group"] = .string(choice.category.categoryID)
                 let content = try JSONDecoder().decode(NativeVoiceCallJSON.self,
                     from: JSONEncoder().encode(SettingsMemoryValue.object(fields)))
-                return .object(["app_id": .string(choice.category.appId),
-                                "item_key": .string(choice.category.categoryId), "content": content])
+                return .object(["app_id": .string(choice.category.appID),
+                                "item_key": .string(choice.category.categoryID), "content": content])
             }
             let reply = try NativeVoiceCallMemoryPolicy.response(current.request, entries: entries)
             try check(promptID)
             let waiting = continuation; continuation = nil
-            prompt = nil; validation = nil; service.cancel()
+            prompt = nil; validation = nil
             waiting?.resume(returning: .response(reply))
         } catch {
             // Fail closed, including stale owner/call validation and encoding errors.
@@ -152,16 +134,16 @@ struct NativeVoiceCallMemoryPermissionOverlay: View {
                         VStack(alignment: .leading, spacing: .spacing6) {
                             ForEach(prompt.categories) { category in
                                 VStack(alignment: .leading, spacing: .spacing4) {
-                                    Text(category.appName + " / " + category.categoryName).font(.omP.weight(.semibold))
+                                    Text(category.title).font(.omP.weight(.semibold))
                                     ForEach(prompt.choices.filter { $0.category.id == category.id }) { choice in
                                         HStack(alignment: .top, spacing: .spacing4) {
                                             OMToggle(isOn: Binding(get: { prompt.selectedIDs.contains(choice.id) },
                                                 set: { runtime.setSelected($0, choiceID: choice.id, promptID: prompt.id) }),
                                                 disabled: prompt.deciding,
                                                 accessibilityIdentifier: "voice-memory-entry-" + choice.id)
-                                                .accessibilityLabel(choice.entry.title(in: category))
+                                                .accessibilityLabel(choice.entry.key)
                                             VStack(alignment: .leading, spacing: .spacing2) {
-                                                Text(choice.entry.title(in: category)).font(.omP.weight(.semibold))
+                                                Text(choice.entry.key).font(.omP.weight(.semibold))
                                                 Text(choice.entry.value).font(.omSmall).foregroundStyle(Color.fontSecondary)
                                             }
                                         }

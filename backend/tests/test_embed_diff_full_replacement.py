@@ -275,8 +275,14 @@ class _FakeDirectusEmbedService:
 
 
 class _FakeDirectusService:
+    """Chat-only embeds: no Project link rows exist for any target."""
+
     def __init__(self) -> None:
         self.embed = _FakeDirectusEmbedService()
+
+    async def get_items(self, collection: str, **_kwargs: object) -> list[dict[str, object]]:
+        assert collection == "project_items"
+        return []
 
 
 class _FakeEncryptionService:

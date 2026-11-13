@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -56,18 +55,18 @@ class CreateSkill(BaseSkill):
             project_name = str(name or "").strip()
             if not project_name:
                 raise ValueError("Project create requires a name")
+            # Same payload contract as assistant-inferred creation
+            # (openmates.project_create_request v1); origin "skill" resumes no turn.
+            from backend.core.api.app.services.project_create_request_service import (
+                build_project_create_action, new_project_create_request_id,
+            )
             return CreateProjectResponse(
                 success=True,
-                pending_client_action={
-                    "request_id": f"project-create-request-{uuid.uuid4()}",
-                    "action": "create",
-                    "name": project_name,
-                    "description": str(description or ""),
-                    "chat_id": chat_id,
-                    "message_id": message_id,
-                    "team_id": team_id,
-                    "notification_queued": False,
-                },
+                pending_client_action=build_project_create_action(
+                    request_id=new_project_create_request_id(), name=project_name,
+                    description=str(description or ""), chat_id=chat_id, message_id=message_id,
+                    team_id=team_id, origin="skill",
+                ),
             )
         except Exception as exc:
             logger.error("Project create skill failed: %s", exc, exc_info=True)

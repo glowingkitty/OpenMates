@@ -53,7 +53,11 @@
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>OpenMates uses the microphone to record voice messages you choose to send in chat.</string>
+	<string>OpenMates uses the microphone to record voice messages you choose to send in chat and for voice calls you start.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSUserActivityTypes</key>

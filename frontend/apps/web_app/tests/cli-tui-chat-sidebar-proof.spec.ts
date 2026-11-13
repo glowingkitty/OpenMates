@@ -12,6 +12,7 @@ const {execFileSync} = require('node:child_process');
 const {randomUUID} = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { naturalProjectName } = require('./helpers/project-names');
 
 const ROOT = path.resolve(__dirname, '../../../..');
 const COMPOSE = path.join(ROOT, 'test-results/ci-private/compose.json');
@@ -198,11 +199,11 @@ test('records web-matched chat sidebar, nested folders, draft and deep history i
 				process.stdout.write(JSON.stringify({chatId:draft.chatId}));
 			`, {id: fixture.ids.draft, title: fixture.names.draft, oldestId: fixture.ids.oldest});
 			const project = (await runWorkflowCliJson(apiUrl, home,
-				['projects', 'create', '--name', 'SB nested proof ' + randomUUID().slice(0, 4), '--write-policy', 'always_ask'],
+				['projects', 'create', '--name', naturalProjectName('Nested sidebar notes'), '--write-policy', 'always_ask'],
 				'create sidebar proof Project')).project;
 			fixture.projectId = project.project_id; projects.push(project.project_id);
 			const archived = (await runWorkflowCliJson(apiUrl, home,
-				['projects', 'create', '--name', 'SB archived proof ' + randomUUID().slice(0, 4), '--write-policy', 'always_ask'],
+				['projects', 'create', '--name', naturalProjectName('Archived sidebar notes'), '--write-policy', 'always_ask'],
 				'create archived proof Project')).project;
 			fixture.archivedId = archived.project_id; projects.push(archived.project_id);
 			await runWorkflowCliJson(apiUrl, home, ['projects', 'archive', archived.project_id], 'archive proof Project');

@@ -76,4 +76,17 @@ describe('voiceCallSpokenProgress', () => {
     expect(unspokenRange(root, 0)?.startContainer.textContent).toBe('Hello ');
     expect(unspokenRange(root, 5)).toBeNull();
   });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.spoken-rich-response
+  it('does not count the unspoken skill activity group, so later words stay aligned', () => {
+    const root = document.createElement('div');
+    root.innerHTML = '<div class="ProseMirror" contenteditable="false"><p>Let me check.</p></div>'
+      + '<div class="assistant-activity-group" data-speech-skip><button><span>Used web search</span></button>'
+      + '<span aria-hidden="true">Used web search</span></div>'
+      + '<div class="ProseMirror" contenteditable="false"><p>It is sunny today.</p></div>';
+    // Spoken words: Let(0) me(1) check.(2) It(3) is(4) sunny(5) today.(6)
+    expect(unspokenRange(root, 3)?.toString()).toBe('It is sunny today.');
+    expect(unspokenRange(root, 5)?.toString()).toBe('sunny today.');
+    expect(unspokenRange(root, 7)).toBeNull();
+  });
 });

@@ -1,0 +1,121 @@
+business_find_business_angels:
+  context: Focus mode name
+  en: Find business angels
+  de: Business Angels finden
+  zh: 寻找商业天使
+  es: Encontrar business angels
+  fr: Trouver des business angels
+  pt: Encontrar investidores-anjo
+  ru: Найти бизнес-ангелов
+  ja: ビジネスエンジェルを探す
+  ko: 비즈니스 엔젤 찾기
+  it: Trova business angel
+  tr: Melek yatırımcı bul
+  vi: Tìm nhà đầu tư thiên thần
+  id: Temukan angel investor
+  pl: Znajdź business angels
+  nl: Business angels vinden
+  ar: العثور على مستثمرين ملائكة
+  hi: बिज़नेस एंजेल खोजें
+  th: หานักลงทุนเทวดา
+  cs: Najít byznys anděly
+  sv: Hitta affärsänglar
+  he: מציאת משקיעי אנג'ל
+  verified_by_human: []
+description:
+  context: Focus mode description
+  en: Build a ranked list of business angels for your round, with evidence of fit and a way to reach each
+    one.
+  de: Erstelle eine gerankte Liste von Business Angels für deine Runde, mit Belegen für die Passung und
+    einem Weg zum Kontakt.
+  zh: 为你的融资轮次建立天使投资人排序清单，附契合依据和联系方式。
+  es: Crea una lista ordenada de business angels para tu ronda, con pruebas de encaje y una vía de contacto.
+  fr: Établissez une liste classée de business angels pour votre levée, avec preuves d'adéquation et moyen
+    de les contacter.
+  pt: Monte uma lista ranqueada de investidores-anjo para sua rodada, com evidências de afinidade e como
+    contatá-los.
+  ru: Составьте ранжированный список бизнес-ангелов для вашего раунда с подтверждением соответствия и
+    способом связи.
+  ja: ラウンドに合うビジネスエンジェルを順位付きでリスト化し、適合の根拠と連絡方法を示します。
+  ko: 라운드에 맞는 비즈니스 엔젤을 순위별로 정리하고 적합성 근거와 연락 방법을 제공합니다.
+  it: Crea un elenco ordinato di business angel per il tuo round, con prove di affinità e come contattarli.
+  tr: Turunuz için sıralı bir melek yatırımcı listesi oluşturun; uyum kanıtı ve ulaşma yolu ile.
+  vi: Lập danh sách nhà đầu tư thiên thần được xếp hạng cho vòng gọi vốn, kèm bằng chứng phù hợp và cách
+    liên hệ.
+  id: Susun daftar angel investor berperingkat untuk putaran kamu, lengkap dengan bukti kecocokan dan
+    cara menghubungi.
+  pl: Stwórz uszeregowaną listę business angels dla swojej rundy, z dowodami dopasowania i sposobem kontaktu.
+  nl: Maak een gerangschikte lijst van business angels voor je ronde, met bewijs van match en een manier
+    om ze te bereiken.
+  ar: أنشئ قائمة مرتبة بالمستثمرين الملائكة لجولتك مع أدلة الملاءمة وطريقة الوصول إلى كل منهم.
+  hi: अपने राउंड के लिए रैंक की गई एंजेल निवेशकों की सूची बनाएँ, उपयुक्तता के प्रमाण और संपर्क के तरीके
+    के साथ।
+  th: สร้างรายชื่อนักลงทุนเทวดาจัดอันดับสำหรับรอบของคุณ พร้อมหลักฐานความเหมาะสมและช่องทางติดต่อ
+  cs: Sestavte seřazený seznam byznys andělů pro své kolo, s důkazy o shodě a způsobem, jak je oslovit.
+  sv: Bygg en rankad lista över affärsänglar för din runda, med belägg för passform och ett sätt att nå
+    dem.
+  he: בנו רשימה מדורגת של משקיעי אנג'ל לסבב שלכם, עם ראיות להתאמה ודרך ליצור קשר.
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: '- Asks what your company does, its stage, the amount you seek and the ticket size you want.
+
+    - Asks which regions to search and what kind of angel should help beyond money.
+
+    - Searches the investor directory, funding news on comparable rounds and company registers for people
+    who invested.
+
+    - Searches only the regions you name and asks before looking anywhere else.
+
+    - Builds an editable ranked sheet with evidence, a source link, how to reach each person and a warm-intro
+    idea.
+
+    - Tells you plainly which sources were unavailable or skipped.'
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: '- Find **business angels** in Germany for my B2B software startup. We seek 500k EUR pre-seed.
+
+    - Who **invested in comparable rounds** to mine in the UK? I build tools for dentists.
+
+    - I need **angels** who know climate hardware, in France and Germany only.'
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: "Help a founder find business angels who could realistically back their round. Work only with public\
+    \ business information and cite a source link for every factual claim about a person or firm. Never\
+    \ present an unverified claim about a person as fact: mark it as inference.\n\n1. FIRST TURN: if the\
+    \ user has not yet given the basics, your whole reply is only the compact questions below, with no\
+    \ research yet. Ask at most one or two compact questions with an example answer so the user can reply\
+    \ once: what the company does (one or two sentences), stage and traction in words, amount sought,\
+    \ ticket size wanted per angel, the target regions (countries), and what kind of angel helps beyond\
+    \ money (industry experience, customers, hiring, follow-on funding). Skip the questions only if the\
+    \ user asks to skip or gives all of it already. If the user does not name regions, ask for them; do\
+    \ not guess.\n2. REGIONS: search only the regions the user names. Pass them as the `regions` (investor\
+    \ search) or `country` (ownership) parameter. Never widen to other countries without asking first;\
+    \ offer it at the end instead. Ownership lookups cover only DE, GB and FR; say so when a named region\
+    \ is not covered.\n3. RESEARCH, using the skills that exist in this chat and in this order of usefulness:\n\
+    \   - business search_investors with the user's topic and regions. This skill may be unavailable on\
+    \ a server or return no data: say so plainly and continue with the other sources.\n   - news search\
+    \ and web search for funding announcements of comparable startups (same sector and stage) in the named\
+    \ regions that name angels or syndicates.\n   - business company_ownership on those comparable startups\
+    \ to find the people who actually hold shares or are listed as officers. Use it only for DE, GB and\
+    \ FR and only with the minimum fields.\n   - web read to verify a person's role and investments on\
+    \ a primary page. events search and social media search may help find angel meetups or public statements;\
+    \ use them only for public business activity.\n4. Never infer that a person invests from a single\
+    \ weak mention. Prefer evidence of an actual investment or a stated angel activity. Drop people who\
+    \ are inactive, retired from investing or who invest in clear competitors of the user.\n5. OUTPUT:\
+    \ a ranked sheet as ONE Markdown table in the reply, preceded by a title comment line such as <!--\
+    \ title: \"Angel candidates\" -->. OpenMates converts Markdown tables into editable sheet embeds.\
+    \ Do not wrap the table in a code block. Columns: Rank | Name | Type | Region | Typical ticket | Evidence\
+    \ of fit | How to reach | Warm-intro idea | Status. Put the source link inside Evidence of fit as\
+    \ a Markdown link. Type is angel, syndicate, angel network or small fund. Status starts as \"Not contacted\"\
+    . Use \"Unknown\" instead of guessing a ticket size or contact route. Rank by fit to the user's sector,\
+    \ stage, ticket and regions.\n6. After the table, write under 120 words: how the ranking works, which\
+    \ sources were unavailable or skipped (name each one), which regions were searched, and what is inference\
+    \ rather than verified. Offer the next steps: research one candidate in depth, or write outreach.\n\
+    \nPublic business information only: no private addresses, family details, birth dates or personal\
+    \ social media accounts. Contact routes are limited to public business channels, a firm's website,\
+    \ a network's application form, or an introduction path. You do not contact anyone. Do not give legal,\
+    \ tax or investment advice."
+  verified_by_human: []

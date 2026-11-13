@@ -30,7 +30,7 @@ def test_github_failure_is_reported_as_gap(monkeypatch):
 def test_issue_section_lists_rows_and_marks_missing_trackers():
     rows = [{"id": "#502", "title": "Upgrade OCR", "labels": ["apps"], "state": ""}]
     text = "\n".join(briefing._issue_section("GitHub issues", rows, "state"))
-    assert "GitHub issues (1 open)" in text and "#502 Upgrade OCR (apps)" in text
+    assert "GitHub issues (1 open)" in text and "Upgrade OCR (#502, apps)" in text
     assert "unavailable" in "\n".join(briefing._issue_section("Linear issues", None, "state"))
 
 
@@ -57,6 +57,6 @@ def test_briefing_has_cleanup_section_and_template_lines():
                "github": {"total": 1, "batch": [{"id": "#2", "title": "Stale", "updated": "2025-01-01"}]},
                "linear": {"total": 0, "batch": []}}
     text = "\n".join(briefing._cleanup_section(cleanup))
-    assert "## 4. Backlog cleanup" in text and "TASK-5 Old idea" in text and "#2 Stale" in text
+    assert "## 4. Backlog cleanup" in text and "Old idea (TASK-5)" in text and "Stale (#2" in text
     assert "nothing to review" in text
     assert "Cleanup:" in briefing.MEETING_SCRIPT and "backlog cleanup" in briefing.MEETING_SCRIPT

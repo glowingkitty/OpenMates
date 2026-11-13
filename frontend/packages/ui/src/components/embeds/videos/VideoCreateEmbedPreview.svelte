@@ -13,6 +13,8 @@
   import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import VideoTimeline from './VideoTimeline.svelte';
+  import { timelineFromManifest } from './videoTimelineModel';
+  import { text } from '../../../i18n/translations';
   import { parseRemotionTimeline, type VideoManifest } from '../../../utils/remotionTimelineParser';
   import { createAudioUrlOwner } from '../audio/audioEmbedCrypto';
   const audioUrlOwner = createAudioUrlOwner();
@@ -117,11 +119,11 @@
   }
 
   function statusText(): string {
-    if (currentStatus === 'rendering') return 'Rendering video...';
-    if (currentStatus === 'processing') return 'Preparing Remotion source...';
-    if (currentStatus === 'cancelled') return 'Render stopped';
-    if (currentStatus === 'needs_rerender') return 'Needs rerender';
-    if (currentStatus === 'error') return currentError || 'Render failed';
+    if (currentStatus === 'rendering') return $text('embeds.video_create.status_rendering');
+    if (currentStatus === 'processing') return $text('embeds.video_create.status_processing');
+    if (currentStatus === 'cancelled') return $text('embeds.video_create.status_cancelled');
+    if (currentStatus === 'needs_rerender') return $text('embeds.video_create.status_needs_rerender');
+    if (currentStatus === 'error') return currentError || $text('embeds.video_create.status_error');
     return `${durationLabel} · ${resolutionLabel}`;
   }
 </script>
@@ -132,7 +134,7 @@
   skillId="create"
   skillIconName="videos"
   status={unifiedStatus}
-  skillName="Video Create"
+  skillName={$text('app_skills.videos.create')}
   {taskId}
   {isMobile}
   {onFullscreen}
@@ -155,11 +157,11 @@
           <span class="duration-badge">{durationLabel}</span>
         </div>
       {:else if currentStatus === 'error'}
-        <div class="error-area"><span class="error-icon">&#9888;</span><span class="error-text">{currentError || 'Render failed'}</span></div>
+        <div class="error-area"><span class="error-icon">&#9888;</span><span class="error-text">{currentError || $text('embeds.video_create.status_error')}</span></div>
       {:else}
         <div class="timeline-wrapper">
           <div class="title-row"><span class="video-title">{currentFilename}</span><span class="meta-badge">{statusText()}</span></div>
-          <VideoTimeline manifest={currentManifest} compact />
+          <VideoTimeline timeline={timelineFromManifest(currentManifest)} compact />
         </div>
       {/if}
     </div>

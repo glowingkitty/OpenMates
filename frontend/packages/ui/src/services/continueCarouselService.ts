@@ -238,6 +238,42 @@ function getSavedItemPresentation(
   };
 }
 
+/** Minimal shape of a saved embed (see savedEmbedService.SavedEmbed). */
+export interface SavedEmbedFlagLike {
+  embedId: string;
+  appId: string;
+  title: string;
+  itemValue: Record<string, unknown>;
+}
+
+/**
+ * Continue candidates from embeds carrying the encrypted `saved` flag.
+ * Same upcoming/ongoing priority rules as legacy saved entries.
+ */
+export function getSavedFlagContinueCandidates(
+  saved: SavedEmbedFlagLike[],
+  nowMs: number = Date.now(),
+): SavedEmbedContinueCandidate[] {
+  const candidates: SavedEmbedContinueCandidate[] = [];
+  for (const item of saved) {
+    const presentation = getSavedItemPresentation(item.appId, '', item.itemValue);
+    const priority = getSavedItemPriority(item.itemValue, nowMs, presentation.itemLabel);
+    if (!priority) continue;
+    candidates.push({
+      kind: 'embed',
+      embedId: item.embedId,
+      appId: item.appId,
+      title: item.title || presentation.itemLabel,
+      summary: presentation.summary,
+      icon: presentation.icon,
+      category: presentation.category,
+      itemValue: item.itemValue,
+      priority,
+    });
+  }
+  return sortContinuePriorityItems(candidates, nowMs);
+}
+
 export function getReminderByTargetChatId(
   reminders: ActiveReminderForContinue[],
   nowMs: number = Date.now(),

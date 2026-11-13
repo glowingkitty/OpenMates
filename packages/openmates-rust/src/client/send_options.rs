@@ -13,10 +13,13 @@
 //! - `pii_detection`: controls local privacy preparation, never a model option.
 //! - `task_update_jobs`: controls socket capabilities and encrypted job execution;
 //!   disabling it must not report received jobs as successfully persisted.
-//! - `response_timeout_ms`: positive timeout up to one day for response and
-//!   confirmation waits. Bounded to prevent timer overflow/unbounded waits.
+//! - `response_timeout_ms`: positive idle timeout up to one day for response and
+//!   confirmation waits; each received turn frame restarts it, and a whole turn
+//!   is capped at one day. Bounded to prevent timer overflow/unbounded waits.
 //! - consent policies: `--auto-approve` / `--auto-approve-memories` explicitly
 //!   approve only fresh server-requested categories or the proposed batch.
+//! - `embeds`, `pii_exclusions`, `pii_mappings`: native-shell composer state
+//!   (attachments, un-redacted values, shell-made placeholders); never JSON.
 //!
 //! CLI-only work remains outside these options: JSON/human presentation,
 //! `--followup` selection, `--accept-task-proposals` post-actions, Team/personal
@@ -62,6 +65,67 @@ pub enum SendConsentPolicy {
     ApproveRequested,
 }
 
+/// The heard part of the assistant reply a voice call interrupted: which
+/// segments were fully spoken and how far the active one got.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VoiceHeardBoundary {
+    /// The assistant message that was being spoken.
+    pub assistant_message_id: String,
+    /// Sequence numbers (0..=255) of the fully spoken segments.
+    pub completed_sequences: Vec<u32>,
+    /// The segment being spoken when the user spoke (0..=255), if any.
+    pub active_sequence: Option<u32>,
+    /// Milliseconds of the active segment that were heard (0..=3_600_000).
+    pub active_offset_ms: u32,
+}
+
+/// Marks a turn as the user's utterance of a live voice call
+/// (`voice_call_admission.py` binds it to the authenticated call session).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VoiceCallTurn {
+    /// The call's id.
+    pub call_id: String,
+    /// The turn id of the transcript (the user message id).
+    pub turn_id: String,
+    /// What the user heard of the previous reply, if it was interrupted.
+    pub heard_boundary: Option<VoiceHeardBoundary>,
+}
+
+impl VoiceCallTurn {
+    /// The message fields of the turn, as the Swift `NativeVoiceCallTurn`.
+    pub(crate) fn message_fields(&self) -> serde_json::Map<String, Value> {
+        let mut fields = serde_json::Map::new();
+        fields.insert("voice_call_id".into(), Value::from(self.call_id.as_str()));
+        fields.insert("voice_turn_id".into(), Value::from(self.turn_id.as_str()));
+        fields.insert("voice_mode".into(), Value::Bool(true));
+        fields.insert("auto_speak_response".into(), Value::Bool(true));
+        fields.insert("assistant_speech_lazy_dispatch".into(), Value::Bool(false));
+        fields.insert("assistant_response_source_revision".into(), Value::from(1));
+        if let Some(heard) = &self.heard_boundary {
+            let mut completed = heard
+                .completed_sequences
+                .iter()
+                .copied()
+                .filter(|n| *n <= 255)
+                .collect::<Vec<_>>();
+            completed.sort_unstable();
+            completed.dedup();
+            let active = heard.active_sequence.filter(|n| *n <= 255);
+            let offset = if active.is_some() {
+                heard.active_offset_ms.min(3_600_000)
+            } else {
+                0
+            };
+            fields.insert(
+                "voice_heard_boundary".into(),
+                serde_json::json!({"assistant_message_id":heard.assistant_message_id,
+                    "completed_sequences":completed,"active_sequence":active,"active_offset_ms":offset}),
+            );
+        }
+        fields
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct SendOptions {
@@ -71,9 +135,54 @@ pub struct SendOptions {
     pub incognito: bool,
     pub pii_detection: bool,
     pub task_update_jobs: bool,
+    /// Opt in to assistant-initiated Project creation: the socket and the turn
+    /// advertise `project_create_requests` and the core executes the request.
+    /// Only a shell that renders the created-Project card may set this.
+    pub project_create_requests: bool,
+    /// The shell's answer to a machine Project confirmation card, applied during
+    /// the turn (the server accepts the report only from the live turn socket).
+    /// `None` leaves the card pending. Not part of the SDK JSON options.
+    #[serde(skip)]
+    pub machine_project: Option<crate::client::MachineProjectDecision>,
+    /// Opt in to assistant Project file jobs: the socket and the turn advertise
+    /// `project_file_jobs` and the core executes hosted file tool calls. Native
+    /// shells only; always-ask writes follow `approve_project_file_writes`.
+    pub project_file_jobs: bool,
+    /// Approve always-ask Project file writes without asking (CLI
+    /// `--auto-approve`); otherwise they are declined with a notice.
+    pub approve_project_file_writes: bool,
+    /// Opt in to assistant Memory writes (`save_memory`): the socket and the
+    /// turn advertise `memory_write_jobs` and the core stores the Memory and its
+    /// history notice. Only a shell that shows the notice may set this.
+    pub memory_write_jobs: bool,
+    /// The device's server region preference, sent as the turn's
+    /// `model_routing_restrictions` when it is not the EU default.
+    pub server_region: crate::client::server_region::ServerRegionPreference,
     pub response_timeout_ms: Option<u64>,
     pub sub_chat_consent: SendConsentPolicy,
     pub memory_consent: SendConsentPolicy,
+    /// Chat and user-message ids the shell reserved for this turn (native
+    /// view-model shells only; `Client::turn_identity` validates them). Not
+    /// part of the SDK JSON options.
+    #[serde(skip)]
+    pub reserved_ids: Option<crate::client::ReservedTurnIds>,
+    /// Embeds the composer attaches (native shells only; not part of the SDK
+    /// JSON options). They become reference blocks in the message, the
+    /// cleartext inference `embeds` and the encrypted `encrypted_embeds`.
+    #[serde(skip)]
+    pub embeds: Vec<crate::client::SendEmbed>,
+    /// Values the user un-redacted in the composer; applied wherever
+    /// `pii_detection` prepares the text (saved and volatile turns).
+    #[serde(skip)]
+    pub pii_exclusions: crate::privacy::PiiExclusions,
+    /// Placeholders the shell already wrote (text or attachments) with their
+    /// originals; stored encrypted with the message so they restore.
+    #[serde(skip)]
+    pub pii_mappings: Vec<crate::client::SendPiiMapping>,
+    /// The turn is the user's utterance of a live voice call (native shells
+    /// only; not part of the SDK JSON options). Saved personal turns only.
+    #[serde(skip)]
+    pub voice_call: Option<VoiceCallTurn>,
 }
 impl Default for SendOptions {
     fn default() -> Self {
@@ -83,14 +192,32 @@ impl Default for SendOptions {
             incognito: false,
             pii_detection: true,
             task_update_jobs: true,
+            project_create_requests: false,
+            machine_project: None,
+            project_file_jobs: false,
+            approve_project_file_writes: false,
+            memory_write_jobs: false,
+            server_region: crate::client::server_region::ServerRegionPreference::Eu,
             response_timeout_ms: None,
             sub_chat_consent: SendConsentPolicy::Caller,
             memory_consent: SendConsentPolicy::Caller,
+            reserved_ids: None,
+            embeds: Vec::new(),
+            pii_exclusions: crate::privacy::PiiExclusions::default(),
+            pii_mappings: Vec::new(),
+            voice_call: None,
         }
     }
 }
 impl SendOptions {
+    /// Refuse invalid options before any network effect.
+    ///
+    /// # Errors
+    /// `Invalid` for an out-of-range timeout, a non-canonical Project id, or
+    /// malformed attachments, PII exclusions or PII mappings.
     pub fn validate(&self) -> crate::Result<()> {
+        super::send_attachments::validate(&self.embeds, &self.pii_mappings, self.incognito)?;
+        self.pii_exclusions.validate()?;
         if self
             .response_timeout_ms
             .is_some_and(|value| !(1..=86_400_000).contains(&value))
@@ -105,6 +232,17 @@ impl SendOptions {
                 .unwrap_or(true)
         {
             return Err(Error::Invalid("Project ID must be a canonical UUID."));
+        }
+        if let Some(call) = &self.voice_call
+            && (self.incognito
+                || call.call_id.is_empty()
+                || call.call_id.len() > 255
+                || call.turn_id.is_empty()
+                || call.turn_id.len() > 255)
+        {
+            return Err(Error::Invalid(
+                "A voice call turn needs call and turn ids and a saved chat.",
+            ));
         }
         Ok(())
     }
@@ -161,6 +299,9 @@ pub struct SendOutcome {
     pub model_name: Option<String>,
     pub mate_name: Option<String>,
     pub follow_up_suggestions: Vec<String>,
+    /// Memory/workflow recommendations of the completed turn (`ChatRecommendation` objects, at most 6).
+    #[serde(default)]
+    pub recommendations: Vec<Value>,
     /// None = omitted; Some(None) = explicitly observed null.
     #[serde(
         default,
@@ -176,6 +317,17 @@ pub struct SendOutcome {
     pub app_settings_memory_requests: Vec<SendMemoryRequest>,
     pub token_usage: Option<Value>,
     pub prompt_budget: Option<Value>,
+    /// "Created project" cards of assistant-initiated Project creation in this turn.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub project_creations: Vec<Value>,
+    /// Embed adoptions into the focused Project after this turn: one row per
+    /// adoption (`embed_id`, `kind`, `path`, `status` adopted/failed, `code`).
+    /// A failed adoption never fails the turn; it is reported here.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub project_embed_adoptions: Vec<Value>,
+    /// Assistant Memory writes of this turn (`MemoryWriteRecord` objects).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub memory_writes: Vec<Value>,
 }
 fn nullable<'de, D, T>(deserializer: D) -> std::result::Result<Option<Option<T>>, D::Error>
 where
@@ -194,7 +346,7 @@ mod tests {
         json!({"status":"queued","chatId":"chat","messageId":null,
             "userMessageId":"human","queueMode":"follow_up","queueRevision":4,
             "assistant":"","category":null,"modelName":null,"mateName":null,
-            "followUpSuggestions":[],"taskProposals":[],"taskUpdateProposals":[],
+            "followUpSuggestions":[],"recommendations":[],"taskProposals":[],"taskUpdateProposals":[],
             "taskEvents":[],"pendingTaskUpdateJobs":[{"job_id":"job","revision":3}],
             "subChatEvents":[{"type":"sub_chat_progress","payload":{"status":"running"}}],
             "appSettingsMemoryRequests":[{"requestId":null,"requestedKeys":["health-medications"],"approvedKeys":[],"entryCount":2}],
@@ -259,5 +411,61 @@ mod tests {
             outcome.chat.id = "private-native-chat".into();
             assert_eq!(serde_json::to_value(outcome).unwrap(), expected);
         }
+    }
+
+    #[test]
+    fn voice_call_fields_match_the_native_turn_and_clamp_the_heard_boundary() {
+        let turn = VoiceCallTurn {
+            call_id: "call-1".into(),
+            turn_id: "turn-1".into(),
+            heard_boundary: Some(VoiceHeardBoundary {
+                assistant_message_id: "a-1".into(),
+                completed_sequences: vec![3, 1, 300, 1],
+                active_sequence: Some(4),
+                active_offset_ms: 9_000_000,
+            }),
+        };
+        assert_eq!(
+            Value::Object(turn.message_fields()),
+            json!({"voice_call_id":"call-1","voice_turn_id":"turn-1","voice_mode":true,
+                "auto_speak_response":true,"assistant_speech_lazy_dispatch":false,
+                "assistant_response_source_revision":1,
+                "voice_heard_boundary":{"assistant_message_id":"a-1","completed_sequences":[1,3],
+                    "active_sequence":4,"active_offset_ms":3_600_000}})
+        );
+        let bare = VoiceCallTurn {
+            heard_boundary: None,
+            ..turn.clone()
+        };
+        assert!(!bare.message_fields().contains_key("voice_heard_boundary"));
+        let idle = VoiceCallTurn {
+            heard_boundary: Some(VoiceHeardBoundary {
+                assistant_message_id: "a".into(),
+                completed_sequences: vec![],
+                active_sequence: None,
+                active_offset_ms: 500,
+            }),
+            ..turn
+        };
+        assert_eq!(
+            idle.message_fields()["voice_heard_boundary"]["active_offset_ms"],
+            0
+        );
+    }
+
+    #[test]
+    fn voice_call_needs_ids_and_a_saved_chat() {
+        let call = |call_id: &str, incognito: bool| SendOptions {
+            incognito,
+            voice_call: Some(VoiceCallTurn {
+                call_id: call_id.into(),
+                turn_id: "t".into(),
+                heard_boundary: None,
+            }),
+            ..SendOptions::default()
+        };
+        assert!(call("c", false).validate().is_ok());
+        assert!(call("", false).validate().is_err());
+        assert!(call("c", true).validate().is_err());
     }
 }

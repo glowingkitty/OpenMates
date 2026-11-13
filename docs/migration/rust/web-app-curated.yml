@@ -1,0 +1,342 @@
+# Hand-curated facts for web-app.yml that cannot be derived from code: the E2E
+# specs and shared vector files that prove each Worker unit, and its open gaps, plus the specification links (spec_assertions from
+# specifications/generated/assertion-index.yml, spec_gaps = Rust behavior no assertion covers; specification files
+# are never edited here) and rust_paths (globs of Rust files counted by scripts/report_rust_spec_headers.py).
+# scripts/rust_migration_yaml.py checks that every namespace, spec and vector
+# path exists. Edit this file when a unit gains proof or a gap is closed/found.
+schema_version: 1
+units:
+  core:
+    specs: [web-rust-core-chat.spec.ts, web-rust-core-bench.spec.ts]
+    vectors: []
+    open_gaps:
+    - web-rust-core-chat send-admission gate compares unpaired samples and is red; see performance-history.yml sendToAdmit.
+    spec_assertions:
+    - sdk.web.before-after-performance
+    - sdk.client.thin-platform-boundary
+    - chats.send.immediate-admission
+    - chats.message.identity-idempotent
+    - chats.local-state.precedence
+    spec_gaps:
+    - Shared Worker host lifecycle (single worker, single WASM instance, supervisor retire/respawn) has no assertion;
+      only the performance rule in .claude/rules/cli-sdk.md covers it.
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser.rs
+    - packages/openmates-browser-bindings/src/browser_cache.rs
+    - packages/openmates-browser-bindings/src/browser_metadata.rs
+    - packages/openmates-browser-bindings/src/browser_first_session_restore.rs
+    - packages/openmates-browser-bindings/src/browser_initial_sync.rs
+    - packages/openmates-browser-bindings/src/browser_new_chat_send.rs
+    - packages/openmates-browser-bindings/src/browser_send.rs
+    - packages/openmates-browser-bindings/src/browser_owned_*.rs
+    - packages/openmates-browser-bindings/src/browser_draft.rs
+    - packages/openmates-rust/src/client/browser*.rs
+  crypto:
+    specs: [web-rust-core-crypto.spec.ts]
+    vectors:
+    - packages/openmates-rust/src/crypto/signup_vectors.json
+    open_gaps: []
+    spec_assertions:
+    - auth.keys.client-wrapped
+    - auth.keys.independent-unlock
+    - chats.persistence.client-encrypted
+    - sdk.encryption.local-only
+    - drafts.persistence.local-first-encrypted
+    spec_gaps:
+    - AES-GCM combined format with legacy OM header decrypt fallback has no assertion.
+    - Share-link and short-URL encryption has no assertion.
+    rust_paths:
+    - packages/openmates-rust/src/crypto.rs
+    - packages/openmates-rust/src/crypto/*.rs
+    - packages/openmates-browser-bindings/src/browser_crypto*.rs
+    - packages/openmates-browser-bindings/src/browser_web_crypto.rs
+  auth:
+    specs: [web-rust-core-auth.spec.ts]
+    vectors: []
+    open_gaps: []
+    spec_assertions:
+    - auth.signup.current-flow
+    - auth.keys.client-wrapped
+    - auth.login.method-convergence
+    - auth.passkey.origin-prf-bound
+    - auth.pair-login.single-use-zk
+    - auth.pair-login.session-grant
+    - auth.session.lifecycle
+    - owner-consistency.ws.dual-principal
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-rust/src/web_auth*.rs
+    - packages/openmates-browser-bindings/src/browser_auth.rs
+    - packages/openmates-rust/src/client/auth*.rs
+    - packages/openmates-rust/src/pairing.rs
+  apps:
+    specs: [web-rust-core-apps.spec.ts]
+    vectors:
+    - packages/openmates-rust/src/web_apps_ts_vectors.json
+    - packages/openmates-rust/src/web_apps/request_ts_vectors.json
+    - packages/openmates-rust/src/web_apps/results_ts_vectors.json
+    - packages/openmates-rust/src/web_apps/schema_ts_vectors.json
+    open_gaps: []
+    spec_assertions:
+    - apps.execution.direct-shared-contract
+    - apps.forms.metadata-driven
+    - apps.results.web-retained-graph
+    - apps.library.embeds-account-paginated
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-rust/src/web_apps.rs
+    - packages/openmates-rust/src/web_apps/*.rs
+    - packages/openmates-browser-bindings/src/browser_apps.rs
+    - packages/openmates-rust/src/client/apps*.rs
+  embedData:
+    specs: [web-rust-core-embeds.spec.ts]
+    vectors:
+    - packages/openmates-rust/src/toon_decode_ts_vectors.json
+    open_gaps:
+    - Embed RSS +1..+77 MB vs TypeScript in the embeds bench (noisy); see performance-history.yml.
+    spec_assertions:
+    - chats.persistence.client-encrypted
+    - chats.rendering.assistant-document-convergence
+    spec_gaps:
+    - Embed resolve, version reconstruction and TOON decode behavior have no assertion.
+    rust_paths:
+    - packages/openmates-rust/src/toon_decode.rs
+    - packages/openmates-rust/src/toon_decode/*.rs
+    - packages/openmates-browser-bindings/src/browser_toon.rs
+    - packages/openmates-browser-bindings/src/browser_embed_keys.rs
+    - packages/openmates-rust/src/sdk_embeds.rs
+  embedWrite:
+    specs: [web-rust-core-embeds.spec.ts]
+    vectors: []
+    open_gaps:
+    - Streamed write is wired for send_embed_data only.
+    spec_assertions: [chats.persistence.client-encrypted, chats.streaming.ordered-final]
+    spec_gaps:
+    - Streamed embed write ordering and key resolution (master/chat wrapper, legacy child inheritance) have no assertion.
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_embed_write.rs
+  embedEdit:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No flag-on web-rust-core spec yet; image-enhance.spec.ts (image fullscreen Enhance and restore) and cli-native-embed-user-edits.spec.ts cover the flow outside the web-rust-core set.
+    - Personal chat and Project content edits of the diagram, slides and sheet editors save through the unit (commitContentRevision) with the flag on; with the flag off, and for Team chats and Team Projects, they keep the TypeScript paths (embedUserRevision.ts commit_chat_diagram_revision, embedDiffStore.commitEmbedContentRevision), so that code cannot be deleted before the flip and a Team-scope core save.
+    - The web app has no document editor yet (docs embeds only restore through EmbedVersionTimeline); EmbedVersionTimeline restore still uses the TypeScript embedDiffStore path.
+    - slides-manual-edit.spec.ts (always --web-rust-core) and diagram-html-editing.spec.ts (chat-row checks only with --web-rust-core) cover the edit chat row; sheet-edit-real.spec.ts checks it only on a Rust core dev build.
+    spec_assertions:
+    - embed-user-edits.edit.next-version
+    - embed-user-edits.restore.creates-version
+    - embed-user-edits.enhance.button
+    - embed-user-edits.event.chat-notice
+    - embed-user-edits.event.project-edit-reaches-chat
+    - embed-user-edits.event.collapse
+    spec_gaps:
+    - The Worker's Enhance run (one run per image in the Worker realm, frame wake-up, rejoin after a page reload) has no assertion.
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_embed_user_edit.rs
+    - packages/openmates-rust/src/client/embed_user_revision.rs
+    - packages/openmates-rust/src/client/embed_user_restore.rs
+    - packages/openmates-rust/src/client/embed_user_edit_client.rs
+    - packages/openmates-rust/src/client/embed_updated_event.rs
+    - packages/openmates-rust/src/client/image_enhance*.rs
+  search:
+    specs: [web-rust-core-search.spec.ts]
+    vectors:
+    - packages/openmates-rust/src/web_search_ts_vectors.json
+    - packages/openmates-rust/src/web_search_chats_ts_vectors.json
+    - packages/openmates-rust/src/web_search_query_ts_vectors.json
+    open_gaps:
+    - Search wall-time gate is inconclusive (12-pair CIs reach 1.149 and 1.215); see performance-history.yml.
+    spec_assertions: [chat-awareness.search.device-executed]
+    spec_gaps:
+    - Local chat/embed/settings search ranking, snippets and catalog filters have no assertion.
+    rust_paths:
+    - packages/openmates-rust/src/web_search*.rs
+    - packages/openmates-browser-bindings/src/browser_search_pii.rs
+  transfer:
+    specs: [web-rust-core-transfer.spec.ts]
+    vectors:
+    - packages/openmates-rust/src/web_transfer_ts_vectors.json
+    - packages/openmates-rust/src/web_transfer_export_ts_vectors.json
+    open_gaps:
+    - ZIP assembly and account export (scope 3) are not moved.
+    - import-chats.spec is red on the CI stack (import scanner needs provider credentials).
+    spec_assertions:
+    - account-import.source.explicit-selection
+    - account-import.review.confirmed-results
+    - account-import.persistence.client-encrypted
+    - pii.message.owner-local-reveal
+    spec_gaps:
+    - Chat export (YAML layout, filenames, PII restore, draft kind) and ZIP assembly have no assertion.
+    - Import ZIP/batch planning and cost estimate have no assertion.
+    rust_paths:
+    - packages/openmates-rust/src/web_transfer*.rs
+    - packages/openmates-browser-bindings/src/browser_transfer.rs
+  sync:
+    specs: [web-rust-core-sync.spec.ts]
+    vectors:
+    - packages/openmates-rust/src/web_sync/ts_vectors.json
+    open_gaps:
+    - chatKeyWriteGuard, chatKeyConsistency and the ChatUpdates/Recovery helpers are not moved.
+    spec_assertions:
+    - sync.client.shared-rust-policy
+    - sync.access.first-party-authenticated
+    - sync.status.startup-window-ready
+    - sync.status.incomplete-window-rewarms
+    - sync.startup.bounded-phases
+    - sync.phase2.metadata-only
+    - sync.phase2.drafts.authoritative-encrypted
+    - sync.deletion.partial-window-not-authoritative
+    - sync.delta.cursor-gap-free
+    - sync.delta.metadata-only
+    - sync.delta.reset
+    - sync.delta.scope-revocation
+    - sync.delta.live-hint
+    - sync.open.not-gated
+    - sync.overview.priority-order
+    - sync.overview.cross-device
+    - sync.overview.ready-fast
+    - sync.surface.semantic-parity
+    - drafts.sync.version-authoritative
+    - chats.sync.key-gated-recovery
+    spec_gaps:
+    - Message key-mismatch guard and chat key write guard behavior has no assertion beyond key-gated recovery.
+    rust_paths:
+    - packages/openmates-rust/src/web_sync/*.rs
+    - packages/openmates-browser-bindings/src/browser_sync.rs
+    - packages/openmates-browser-bindings/src/browser_phased_monitor.rs
+    - packages/openmates-browser-bindings/src/browser_recovery_*.rs
+    - packages/openmates-browser-bindings/src/browser_owned_recovery.rs
+  drafts:
+    specs: [web-rust-core-drafts.spec.ts]
+    vectors: []
+    open_gaps:
+    - Curated entry added by the chatState lane to unblock the generator; the drafts lane owns the proof and gap text.
+    spec_assertions:
+    - drafts.persistence.local-first-encrypted
+    - drafts.sync.version-authoritative
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_draft.rs
+    - packages/openmates-rust/src/client/browser_draft.rs
+  parse:
+    specs: []
+    vectors: []
+    open_gaps:
+    - Curated entry added by the chatState lane to unblock the generator; the parse lane owns the details.
+    spec_assertions:
+    - sync.client.shared-rust-policy
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-rust/src/web_parse/*.rs
+  chatState:
+    specs: [web-rust-core-chatstate.spec.ts]
+    vectors:
+    - packages/openmates-rust/src/web_chat_state/ts_vectors.json
+    open_gaps:
+    - Installed with the chat-list ordering and grouping slice only; unread decisions, chat metadata derivation, message-list transitions and typing/streaming indicator logic are not moved.
+    - The encrypted bookmark, highlight, hidden-chat and project state in chat_state/ is served by the core dispatcher, not by this unit.
+    - Performance gate red on 2 of 3 runs (reload to sidebar rendered, 3 pairs: +354, +24, +306 ms); see performance-history.yml chatRendered. The first sort waits for the shared Worker.
+    spec_assertions:
+    - sync.client.shared-rust-policy
+    - sync.overview.priority-order
+    - chat-unread.reply.read-at-last-line
+    - chat-unread.followup.implies-read
+    - chat-unread.surfaces.sidebar-and-continue
+    - chat-unread.persistence.cross-device
+    - chat-unread.manual.mark-unread
+    - chat-message-timeline.bookmarks
+    spec_gaps:
+    - Message highlights, chat deletion queue and project placement have no assertion.
+    - Hidden chats (PIN-derived key wrapping) have no assertion.
+    - Sidebar time-group buckets (today, yesterday, previous 7/30 days, month) have no assertion.
+    rust_paths:
+    - packages/openmates-rust/src/chat_state/*.rs
+    - packages/openmates-rust/src/web_chat_state/*.rs
+    - packages/openmates-browser-bindings/src/browser_chat_state*.rs
+  ws:
+    specs: [web-rust-core-ws.spec.ts]
+    vectors:
+    - packages/openmates-rust/src/web_ws/ts_vectors.json
+    open_gaps:
+    - Only the connection lifecycle policy moved (close codes incl. 1008 and repeated 1006 auth detection, reconnect backoff, pong timeout, online/resume, periodic retry).
+    - Frame envelope parse/route, the outgoing queue with ack/retry and the socket itself in the Worker are not moved; the send path (sendOperation, sendProtocol, browserWsLink) belongs to the send-latency lane (TASK-1968).
+    spec_assertions: [owner-consistency.ws.dual-principal, sync.access.first-party-authenticated, chats.send.immediate-admission]
+    spec_gaps:
+    - WebSocket link state machine, router and feedback have no assertion.
+    rust_paths:
+    - packages/openmates-rust/src/web_ws/*.rs
+    - packages/openmates-browser-bindings/src/browser_ws.rs
+    - packages/openmates-rust/src/ws_link.rs
+    - packages/openmates-rust/src/ws_link/*.rs
+    - packages/openmates-browser-bindings/src/browser_ws_link.rs
+  sendPrep:
+    specs: []
+    vectors: []
+    open_gaps:
+    - Curated entry added by the ws lane so the status generator runs; the sendPrep lane owns the details.
+    spec_assertions: []
+    spec_gaps:
+    - Unit assertions are not yet mapped.
+    rust_paths:
+    - packages/openmates-rust/src/web_send*
+  persist:
+    specs: [web-rust-core-persist.spec.ts]
+    vectors:
+    - packages/openmates-rust/src/web_persist/ts_vectors.json
+    open_gaps:
+    - IndexedDB row-version compatibility and quota recovery have no assertion beyond the policy vectors.
+    spec_assertions:
+    - chats.persistence.client-encrypted
+    - chats.local-state.precedence
+    - sync.status.incomplete-window-rewarms
+    - storage.client.shared-policy-existing-adapters
+    spec_gaps:
+    - Message status priority and duplicate detection have no assertion; parity rests on TS-generated vectors.
+    rust_paths:
+    - packages/openmates-rust/src/web_persist/*.rs
+    - packages/openmates-browser-bindings/src/browser_persist.rs
+  settings:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No flag-on e2e spec exists for the settings unit yet.
+    spec_assertions: []
+    spec_gaps:
+    - App settings/memories permission request and response/confirm decisions have no assertion.
+    rust_paths:
+    - packages/openmates-rust/src/web_settings*
+    - packages/openmates-browser-bindings/src/browser_settings*.rs
+  composer:
+    specs:
+    - web-rust-core-composer.spec.ts
+    vectors:
+    - packages/openmates-rust/src/web_composer/ts_vectors.json
+    - packages/openmates-rust/src/web_composer/suggestion_ts_vectors.json
+    open_gaps:
+    - Slices 1-2 only (PII, paste, mention/saved-embed ranking, ghost-suggestion validation); sync mention search, extractMentionQuery and code/URL/upload/xlsx/image helpers are not moved.
+    - Sync PII call sites (restorePIIInText in derived values, preparedPrivacyForSend, projectFilePrivacy) stay TypeScript until their callers are async.
+    - The flag-on composer spec records one unpaired keystroke-to-highlight sample; no paired TS arm yet.
+    spec_assertions:
+    - pii.composer.detect-redact-exclude
+    - pii.outbound.known-original-rewrite
+    - pii.message.owner-local-reveal
+    spec_gaps:
+    - Paste classification, code/URL embed services and upload privacy have no assertion.
+    rust_paths:
+    - packages/openmates-rust/src/web_composer/*.rs
+    - packages/openmates-browser-bindings/src/browser_composer.rs
+  deckDocument:
+    specs: []
+    vectors:
+    - packages/openmates-rust/src/client/shared_items/deck_wire_fixture.json
+    open_gaps:
+    - Foundation only; no editor UI calls the unit yet, so no flag-on browser spec proves the real wasm path (added with the slides editor lane).
+    - No join-from-peer open (empty replica + applyUpdate); collaboration transport is a later live-collaboration phase.
+    spec_assertions:
+    - live-collab.core.one-shared-model
+    spec_gaps:
+    - The slides editor direct-manipulation assertions are not exercised on web until the editor binds the unit.
+    rust_paths:
+    - packages/openmates-rust/src/client/shared_items/deck_handles.rs
+    - packages/openmates-browser-bindings/src/browser_deck_document.rs

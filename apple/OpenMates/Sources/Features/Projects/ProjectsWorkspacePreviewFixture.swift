@@ -125,6 +125,19 @@ enum ProjectsWorkspacePreviewFixture {
                     "path": "guides/needle-stored-nested.md"], folderHash: nil,
                 position: 109, createdAt: now - 210))
         }
+        if variant == "applicationFolder" {
+            // The application card leads its folder, ahead of the hosted files.
+            items.append(contentsOf: [
+                ProjectWorkspaceItem(id: "kitchen-app-file", kind: "embed", targetID: "kitchen-app-file-target",
+                    name: "index.html",
+                    metadata: ["embed_type": "code-code", "source": "hosted_project_file",
+                               "path": "kitchen-app/index.html"], folderHash: nil, position: 0, createdAt: now),
+                ProjectWorkspaceItem(id: "kitchen-app-card", kind: "embed", targetID: "kitchen-app-target",
+                    name: "Kitchen planner",
+                    metadata: ["embed_type": "code-application", "source": "project_application",
+                               "path": "kitchen-app"], folderHash: nil, position: 1, createdAt: now - 500),
+            ])
+        }
         if variant == "chats" {
             items = (0..<27).map { index in
                 ProjectWorkspaceItem(id: "chat-link-\(index)", kind: "chat", targetID: "project-preview-chat-\(index)",

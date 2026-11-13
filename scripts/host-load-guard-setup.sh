@@ -29,6 +29,7 @@ Description=Sample OpenMates dev host load every minute
 
 [Timer]
 OnBootSec=1min
+OnActiveSec=1min
 OnUnitActiveSec=1min
 AccuracySec=5s
 
@@ -38,4 +39,5 @@ UNIT
 
 systemctl --user daemon-reload
 systemctl --user enable --now openmates-host-load-guard.timer
+systemctl --user restart openmates-host-load-guard.timer
 systemctl --user status openmates-host-load-guard.timer --no-pager | head -5

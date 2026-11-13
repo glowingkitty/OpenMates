@@ -13,7 +13,9 @@
 	import { chatDB } from '../../services/db';
 	import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
 	import { getSharedChatUrl, saveSharedChatKey } from '../../services/sharedChatKeyStorage';
-	import { loadSharedSubChatPage, type SharedChatCursor, type SharedSubChatRow } from '../../services/sharedChatDetailsService';
+	import { sharedSubChatForList, rustGlobalSelectedPlan, rustSkipDraftActivation, RUST_CHAT_VIEW } from './utils/chatViewForList';
+	import { planGlobalSelected, skipDraftActivation } from './utils/chatSelectionPlan';
+	import { loadSharedSubChatPage, type SharedChatCursor } from '../../services/sharedChatDetailsService';
 	import SharedAuxiliaryLoadButton from '../SharedAuxiliaryLoadButton.svelte';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
 	import { isPersistedDraftOnlyChat } from '../../utils/chatDraftState';
@@ -26,6 +28,7 @@
 	import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
 	import { sortChats } from './utils/chatSortUtils'; // Refactored sorting logic
 	import { groupChats, getLocalizedGroupTitle } from './utils/chatGroupUtils'; // Refactored grouping logic
+	import { buildGroupInput, buildSortInput } from './utils/chatListInput'; // Opt-in Rust chat-list policy input (flag-on only)
 	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle and reactivity in visiblePublicChats
 	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
 	import { chatListCache } from '../../services/chatListCache'; // Global cache for chat list
@@ -48,7 +51,7 @@
 	// --- Search imports ---
 	import SearchBar from './search/SearchBar.svelte';
 	import SearchResults from './search/SearchResults.svelte';
-	import { search as performSearch, warmUpSearchIndex, invalidateChatSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
+	import { search as performSearch, prepareSearchBackend, warmUpSearchIndex, invalidateChatSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
 	import { searchStore, openSearch, closeSearch, setSearchQuery, setSearching } from '../../stores/searchStore';
 	import { navigateToSettings } from '../../stores/settingsNavigationStore';
 	import { messageHighlightStore, searchTextHighlightStore } from '../../stores/messageHighlightStore';
@@ -233,32 +236,6 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	};
 	let sharedSubChatLoads = $state<Record<string, SharedSubChatLoadState>>({});
 
-	function sharedSubChatToChat(row: SharedSubChatRow, parent: ChatType): ChatType {
-		const createdAt = row.created_at;
-		return {
-			chat_id: row.id,
-			encrypted_title: row.encrypted_title ?? null,
-			messages_v: row.messages_v ?? 0,
-			title_v: row.title_v ?? 0,
-			metadata_v: row.metadata_v,
-			last_edited_overall_timestamp: row.last_edited_overall_timestamp ?? row.updated_at ?? createdAt,
-			unread_count: row.unread_count ?? 0,
-			created_at: createdAt,
-			updated_at: row.updated_at ?? createdAt,
-			encrypted_chat_summary: row.encrypted_chat_summary ?? null,
-			encrypted_icon: row.encrypted_icon ?? null,
-			encrypted_category: row.encrypted_category ?? null,
-			parent_id: parent.chat_id,
-			is_sub_chat: true,
-			is_shared_by_others: true,
-			share_pii: parent.share_pii ?? false,
-			share_highlights: parent.share_highlights ?? true,
-			group_key: 'shared_by_others',
-			budget_limit: row.budget_limit ?? null,
-			budget_spent: row.budget_spent ?? 0
-		};
-	}
-
 	async function loadSharedSubChats(parent: ChatType): Promise<void> {
 		const chatId = parent.chat_id;
 		const current = sharedSubChatLoads[chatId];
@@ -281,7 +258,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 					upsertLocalChatList(existing);
 					continue;
 				}
-				const child = sharedSubChatToChat(row, parent);
+				const child = await sharedSubChatForList(row, parent);
 				await saveSharedChatKey(row.id, key, originalShareUrl);
 				await chatDB.addChat(child);
 				upsertLocalChatList(child);
@@ -344,6 +321,11 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	// --- Search State ---
 	// Reactive subscription to search store for template rendering
 	let searchState = $derived($searchStore);
+	// Opening the search bar starts loading the search backend while the user types.
+	let searchBarOpen = $derived($searchStore.isActive);
+	$effect(() => {
+		if (searchBarOpen) prepareSearchBackend();
+	});
 	// Search results from the last completed search
 	let searchResults: SearchResultsType | null = $state(null);
 	// Reference to the SearchResults component for keyboard navigation
@@ -824,7 +806,25 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	});
 
 	// Sort all chats (demo + real) using the utility function
-	let sortedAllChats = $derived(sortChats(allChats, currentServerSortOrder));
+	// Measurement-only opt-out (`openmates_rust_core_chatstate` = 'ts'), read once per page load.
+	const RUST_CHAT_LIST: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+	  && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
+	// Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === '1'): the chatState unit
+	// decides the order and grouping; the result arrives one render after its inputs change.
+	let rustSortedAllChats = $state.raw<ChatType[]>([]);
+	if (RUST_CHAT_LIST) {
+		$effect(() => {
+			const chats = allChats;
+			const input = buildSortInput(chats, currentServerSortOrder);
+			let stale = false;
+			void import('../../services/rustCore/chatState/rustChatList')
+				.then((rust) => rust.rustSortChats(chats, input))
+				.then((sorted) => { if (!stale) rustSortedAllChats = sorted; })
+				.catch((error) => console.error('[Chats] Rust chat-list sort failed', error));
+			return () => { stale = true; };
+		});
+	}
+	let sortedAllChats = $derived(RUST_CHAT_LIST ? rustSortedAllChats : sortChats(allChats, currentServerSortOrder));
 
 	// CRITICAL CHANGE: Show all chats immediately, even those waiting for metadata
 	// Chats with waiting_for_metadata will display with status indicators (Sending/Processing)
@@ -857,7 +857,20 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	})());
 
 	// Group hidden chats for display
-	let groupedHiddenChats = $derived(groupChats(hiddenChats));
+	let rustGroupedHiddenChats = $state.raw<Record<string, ChatType[]>>({});
+	if (RUST_CHAT_LIST) {
+		$effect(() => {
+			const chats = hiddenChats;
+			const input = buildGroupInput(chats);
+			let stale = false;
+			void import('../../services/rustCore/chatState/rustChatList')
+				.then((rust) => rust.rustGroupChats(chats, input))
+				.then((groups) => { if (!stale) rustGroupedHiddenChats = groups; })
+				.catch((error) => console.error('[Chats] Rust chat-list grouping failed', error));
+			return () => { stale = true; };
+		});
+	}
+	let groupedHiddenChats = $derived(RUST_CHAT_LIST ? rustGroupedHiddenChats : groupChats(hiddenChats));
 	let orderedGroupedHiddenChats = $derived((() => {
 		const groups = groupedHiddenChats;
 		const orderedEntries: [string, ChatType[]][] = [];
@@ -952,7 +965,20 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
-	let groupedChatsForDisplay = $derived(groupChats(chatsForDisplay));
+	let rustGroupedChatsForDisplay = $state.raw<Record<string, ChatType[]>>({});
+	if (RUST_CHAT_LIST) {
+		$effect(() => {
+			const chats = chatsForDisplay;
+			const input = buildGroupInput(chats);
+			let stale = false;
+			void import('../../services/rustCore/chatState/rustChatList')
+				.then((rust) => rust.rustGroupChats(chats, input))
+				.then((groups) => { if (!stale) rustGroupedChatsForDisplay = groups; })
+				.catch((error) => console.error('[Chats] Rust chat-list grouping failed', error));
+			return () => { stale = true; };
+		});
+	}
+	let groupedChatsForDisplay = $derived(RUST_CHAT_LIST ? rustGroupedChatsForDisplay : groupChats(chatsForDisplay));
 	
 	// Get ordered group entries for display
 	// Split grouped chats into user groups (time-based) and static groups (intro, examples, legal).
@@ -2060,7 +2086,10 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 				console.debug(`[Chats] draftEditorUIState signals new chat to select: ${persistedChatId}`);
 				draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null })); // Use renamed store; Reset trigger
 				const selectedChatId = activeChatStore.get();
-				if (selectedChatId && selectedChatId !== persistedChatId) {
+				const skipStaleDraft = RUST_CHAT_VIEW
+					? await rustSkipDraftActivation(selectedChatId, persistedChatId)
+					: skipDraftActivation(selectedChatId, persistedChatId);
+				if (skipStaleDraft) {
 					recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'chat_list', result: 'skipped' });
 					console.debug('[Chats] Skipping stale persisted draft activation because another chat is selected:', {
 						persistedChatId,
@@ -2090,24 +2119,31 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			const customEvent = event as CustomEvent<{ chat: ChatType }>;
 			if (customEvent.detail?.chat?.chat_id) {
 				const newChatId = customEvent.detail.chat.chat_id;
-				if (selectedChatId !== newChatId) {
+				const applyPlan = (plan: { setSelected: boolean; writeStore: boolean }) => {
+					if (!plan.setSelected) return;
 					console.debug(`[Chats] Global chat selected event received, updating selectedChatId to: ${newChatId}`);
 					selectedChatId = newChatId;
 					setLastActiveChatIdForDisplay(newChatId);
-					
+
 					// Update the persistent store so the selection survives component unmount/remount.
 					// CRITICAL: Skip if activeChatStore is already null — that means the user
 					// navigated to "new chat" mode AFTER the globalChatSelected event was dispatched
 					// (async race). Writing the old chat ID back here would trigger hashchange →
 					// handleChatDeepLink → loadChat, auto-reopening the previous chat.
-					const activeChatId = activeChatStore.get();
 					// This event mirrors an already committed selection. Rewriting
 					// the same chat would erase its pending embed/message deep link.
-					if (activeChatId !== null && activeChatId !== newChatId) {
+					if (plan.writeStore) {
 						activeChatStore.setActiveChat(newChatId);
-					} else if (activeChatId === null) {
+					} else if (activeChatStore.get() === null) {
 						console.debug(`[Chats] Skipping activeChatStore.setActiveChat — user is in new-chat mode (store is null)`);
 					}
+				};
+				const facts = { selected: selectedChatId, newId: newChatId, active: activeChatStore.get() };
+				if (RUST_CHAT_VIEW) {
+					void rustGlobalSelectedPlan(facts).then(applyPlan)
+						.catch((error) => console.error('[Chats] Rust selection plan failed', error));
+				} else {
+					applyPlan(planGlobalSelected(facts));
 				}
 			}
 		};
@@ -4210,6 +4246,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 						></button>
 						<button
 							class="clickable-icon icon_close top-button right"
+							data-testid="chats-close-button"
 							aria-label={$text('common.close')}
 							onclick={handleClose}
 							use:tooltip

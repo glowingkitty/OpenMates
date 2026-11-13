@@ -215,11 +215,11 @@ test.describe('Native Rust CLI/TUI core flows', () => {
 			// titles only the first message), so the decrypted title is one of the
 			// fixture titles.
 			const title = String(listedChat!.title);
-			expect(['Capital of Germany', 'Kyoto and Osaka Weekend Plan', 'Test Greeting']).toContain(title);
+			expect(['Capital of Germany', 'Open Source Conference Plan', 'Test Greeting']).toContain(title);
 			const titleMarker = title.slice(0, 16);
 
 			// --- TUI: open the chat list, open the chat, send, watch it stream, quit. ---
-			const tuiPrompt = 'Plan a weekend trip please';
+			const tuiPrompt = 'Plan my open source conference visit please';
 			const tui = record([], 'tui', {
 				timeoutSeconds: 180,
 				steps: [
@@ -230,9 +230,9 @@ test.describe('Native Rust CLI/TUI core flows', () => {
 					// The cached view paints first; sending waits for the current read. An
 					// opened chat shows the follow-up composer placeholder.
 					{ name: 'canonical', wait_for: 'Ask a follow-up', wait_for_absent: 'Cached chat', wait_timeout_ms: 30_000, hold_ms: 300 },
-					{ name: 'draft', text: marked(tuiPrompt, 'chat_flow_quick_tip'), hold_ms: 300 },
-					{ name: 'streaming', key: 'Return', wait_for: 'Kyoto and Osaka quick tip test', wait_timeout_ms: 30_000, hold_ms: 300 },
-					{ name: 'complete', wait_for: 'balance meals', wait_timeout_ms: 30_000, hold_ms: 1_000 },
+					{ name: 'draft', text: marked(tuiPrompt, 'chat_recommendations'), hold_ms: 300 },
+					{ name: 'streaming', key: 'Return', wait_for: 'Open source conference recommendations test', wait_timeout_ms: 30_000, hold_ms: 300 },
+					{ name: 'complete', wait_for: 'balance talks', wait_timeout_ms: 30_000, hold_ms: 1_000 },
 					{ name: 'exit-command', text: '/exit' },
 					{ name: 'exit', key: 'Return' }
 				]
@@ -251,8 +251,8 @@ test.describe('Native Rust CLI/TUI core flows', () => {
 			expect(at('complete')).toBeGreaterThan(at('streaming'));
 			const transcript = fs.readFileSync(`${tui.outputDir}/transcript.txt`);
 			const streamingScreen = transcript.subarray(0, checkpoint('streaming').transcript_offset).toString('utf8');
-			expect(streamingScreen).toContain('Kyoto and Osaka quick tip test');
-			expect(streamingScreen).not.toContain('balance meals');
+			expect(streamingScreen).toContain('Open source conference recommendations test');
+			expect(streamingScreen).not.toContain('balance talks');
 
 			// --- Unknown mentions are refused before anything is sent. ---
 			const unknown = await cli(['chats', 'send', '--chat', chatId!, '@Nonexistent-Model hello there']);
@@ -274,7 +274,7 @@ test.describe('Native Rust CLI/TUI core flows', () => {
 			expect(againId).toMatch(/^[0-9a-f-]{36}$/);
 			expect(againId).not.toBe(chatId);
 			expect(String(again.assistant ?? '')).toContain('Berlin');
-			expect(afterTui.filter((m) => m.role === 'assistant').map((m) => m.content).join('\n')).toContain('balance meals, transit, and rest.');
+			expect(afterTui.filter((m) => m.role === 'assistant').map((m) => m.content).join('\n')).toContain('balance talks, hallway time, and rest.');
 			expect(String(json(await cli(['whoami', '--json']), 'whoami after TUI').id)).toBe(userId);
 
 			// --- Saved-chat history edits and chat media (npm parity). ---

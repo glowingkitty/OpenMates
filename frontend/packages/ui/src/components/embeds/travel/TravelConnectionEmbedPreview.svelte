@@ -221,11 +221,12 @@
   });
   
   /**
-   * Extract airport/station code from formatted string like "Munich (MUC)"
-   * Returns the code if found, otherwise the full string
+   * Short route label. Flights show the airport code from "Munich (MUC)"; ground
+   * transport shows the place, since bus and rail stops also carry codes such as
+   * "Vienna Erdberg (VIB)" that travellers do not recognise.
    */
   function extractCode(location: string): string {
-    const match = location.match(/\(([A-Z0-9]{2,5})\)/);
+    const match = effectiveTransportMethod === 'airplane' ? location.match(/\(([A-Z0-9]{2,5})\)/) : null;
     if (match) return match[1];
     // Station qualifiers like "(tief)" are not useful route labels.
     return location.replace(/\s*\([^)]*\)/g, '').split(' ')[0] || location;
