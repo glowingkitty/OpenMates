@@ -32044,7 +32044,7 @@ assertions:
       surface: rest_api
     - &id4101
       path: frontend/apps/web_app/tests/cli-native-press-release-project-memory-real.spec.ts
-      line: 52
+      line: 68
       name: native CLI saves a press style in Project Memories and a new chat reuses
         it
       surface: cli
@@ -154348,7 +154348,7 @@ assertions:
       surface: rest_api
     - &id19632
       path: frontend/apps/web_app/tests/cli-native-press-release-project-memory-real.spec.ts
-      line: 52
+      line: 68
       name: native CLI saves a press style in Project Memories and a new chat reuses
         it
       surface: cli
@@ -158949,7 +158949,7 @@ assertions:
     direct_tests:
     - &id20220
       path: frontend/apps/web_app/tests/cli-native-press-release-project-memory-real.spec.ts
-      line: 52
+      line: 68
       name: native CLI saves a press style in Project Memories and a new chat reuses
         it
       surface: cli

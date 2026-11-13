@@ -9,7 +9,8 @@
  */
 import { test, expect, chromium, type Page, type TestInfo } from '@playwright/test';
 import fs from 'node:fs';
-import { spawn } from 'node:child_process';
+import path from 'node:path';
+import { spawn, spawnSync } from 'node:child_process';
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { generateTotp, getTestAccount } = require('./signup-flow-helpers');
@@ -24,6 +25,21 @@ const NEWS = "All synthetic test data. Company: Example Solar GmbH, Leipzig, fou
 const SAVE_PROMPT = `@Gemini-3.8-Flash Set up our press style for press releases and save it to this project's Memories so that you ask me before using it (load mode ask first). ${STYLE} Media contact: Jonas Example, press officer, press@example.org. Mara Example, CEO, is usually quoted.`;
 const CONFIRM_PROMPT = "@Gemini-3.8-Flash Thanks. If you already saved the press style to this project's Memories in this chat, just confirm and do not save it again; only if it is not saved yet, save it now.";
 const REUSE_PROMPT = `@Gemini-3.8-Flash Write a press release as a Word document about our app launch. ${NEWS} Skip all questions and the fact check, use your recommended headline and write it now. In your chat reply, also quote the release's About paragraph word for word.`;
+
+/** Real terminal recording (zutty + Xvfb) of one native CLI command; the recorder accepts only the openmates binary. */
+async function recordTerminal(info: TestInfo, binary: string, env: Record<string, string | undefined>, label: string, args: string[]): Promise<void> {
+  const outputDir = info.outputPath(`cli-terminal-${label}`);
+  const result = spawnSync('python3', [
+    path.resolve(__dirname, '../../../../scripts/cli_video_capture.py'),
+    '--output-dir', outputDir, '--target-environment', API, '--display-number', '231',
+    '--timeout-seconds', '120', '--no-response-media', '--', binary, ...args,
+  ], { env: env as NodeJS.ProcessEnv, encoding: 'utf8', timeout: 180_000 });
+  expect(result.status, `terminal capture ${label} failed: ${String(result.stdout).slice(-300)} ${String(result.stderr).slice(-300)}`).toBe(0);
+  const video = path.join(outputDir, 'raw-terminal.mp4');
+  expect(fs.existsSync(video), `${label} has a real terminal recording`).toBe(true);
+  await info.attach(`openmates-cli-real-terminal-${label}-video`, { path: video, contentType: 'video/mp4' });
+  await info.attach(`openmates-cli-real-terminal-${label}-transcript`, { path: path.join(outputDir, 'transcript.txt'), contentType: 'text/plain' });
+}
 
 test.describe.configure({ mode: 'serial', retries: 0, timeout: 2_400_000 });
 
@@ -200,6 +216,8 @@ test('native CLI saves a press style in Project Memories and a new chat reuses i
     const replyHas3000 = /3,000/.test(JSON.stringify(turn2));
     evidence.cliReplyHas3000 = replyHas3000;
     expect(replyHas3000, 'saved style fact "3,000" in the native CLI reply of the reuse turn').toBe(true);
+    await recordTerminal(info, binary, env, 'project-memory', ['projects', 'items', 'list', projectId, '--personal']);
+    await recordTerminal(info, binary, env, 'reuse-chat', ['chats', 'show', reuseChat, '--personal']);
 
     // Web proof frames of the CLI-created chat.
     await page.goto(`${APP}/`);
