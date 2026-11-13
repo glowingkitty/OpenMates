@@ -31,9 +31,13 @@ What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
 3. **Meeting:** download the PDF from the Discord link, attach it in the
    daily-meeting chat in the Claude app and start a voice call. Claude asks
    exactly one question at a time, with a recommendation, then waits. The meeting
-   has 6 blocks and is built for ADHD: Block 1 is a check-in in the founder's own
-   words (what have you been up to, how happy with the progress 1-5, largest
-   priorities, energy today 1-5) and ends with the daily drift check (below), then
+   has 6 blocks and is built for ADHD: Block 1 is a check-in. Claude first sums up
+   in plain words what the commits and chats since the last meeting show
+   (Appendix E and B), then asks what else the founder did that is not shown
+   there, with the open reminders and Tasks (overdue and recent) as grouped
+   memory prompts ("Did you get to X?"), never read one by one. Then: how happy
+   with the progress 1-5, largest priorities, energy today 1-5. Block 1 ends
+   with the daily drift check (below), then
    safety net (production alerts, chats waiting),
    focus (max 3 tasks, each with a 5-minute first step, time slot and stop rule; the
    task that serves the current milestone gets the first work slot of the day),

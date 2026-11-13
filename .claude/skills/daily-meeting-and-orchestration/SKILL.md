@@ -140,6 +140,9 @@ The briefing's "Alerts" section (production and dev reported issues, repeating e
 - Always ask about yesterday's tasks (done / not done / moved). Skip the question only when
   git commits make the answer obvious, and even then ask for a one-line confirmation.
 - Keep Claude usage low: Sonnet for most work, Rust work excepted.
+- Check-in, question 1 (permanent, from 13 Nov): no open "what have you been up to?". Claude
+  first sums up what the commits and chats since the last meeting show, then asks what else
+  was done, using open reminders and Tasks as grouped memory prompts ("Did you get to X?").
 - Mentor stance: the meeting is run as a critical mentor (honest, constructive, evidence only). Block 1
   ends with the daily drift check: share of the commits and chats since the last meeting that served
   the current milestone, drift named plainly, exactly one question, approved background migrations

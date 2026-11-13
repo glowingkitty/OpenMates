@@ -39,7 +39,19 @@ def test_reminders_banner_only_when_not_live():
 def test_meeting_script_starts_with_the_check_in_and_has_adhd_rules():
     script = briefing.MEETING_SCRIPT
     assert script.index("Block 1 — Check-in") < script.index("Block 2 — Safety net") < script.index("Block 3 — Focus")
-    for question in ("What have you been up to", "How happy are you", "largest priorities", "energy today"):
+    for question in ("How happy are you", "largest priorities", "energy today"):
         assert question in script
+    assert "Do not open with an open \"what have you been up to?\"" in script
+    assert "(1) What have you been up to" not in script
+
+
+def test_check_in_opens_with_visible_work_then_grouped_memory_prompts():
+    script = briefing.MEETING_SCRIPT.replace("\\\n", "").replace("\n", " ")
+    block1 = script[script.index("Block 1 — Check-in"):script.index("Block 2 — Safety net")]
+    summary, ask_else, prompts = (block1.index("Appendix E"), block1.index("what else the founder did"),
+                                  block1.index("grouped and summarized, never read one by one"))
+    assert "Appendix B" in block1 and summary < ask_else < prompts < block1.index("How happy are you")
+    assert "reminders" in block1 and "Appendix C" in block1
+    assert "daily drift check" in block1  # rest of Block 1 unchanged
     assert "never more than **3** commitments" in script.replace("\\\n", "").replace("\n", " ") or "**3** commitments" in script
     assert "Check-in: progress" in script

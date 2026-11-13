@@ -25,7 +25,9 @@ def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps()
         "claude_usage": {"weekly": {"used_percent": 62.0, "resets": "Fri 06 Nov 11:00",
                                     "week_elapsed_percent": 60, "runs_out": "Fri 06 Nov 04:12"},
                          "five_hour": None},
-        "reminders": {}, "tasks": {}, "nightly": {}, "git": {}, "claude_chats": [],
+        "reminders": {}, "nightly": {}, "git": {}, "claude_chats": [],
+        "tasks": {"changed_since_last_meeting": [{"id": "TASK-1", "title": "Send the journalist emails",
+                                                  "from": "todo", "to": "in_progress"}]},
         "gaps": ["Mac offline"],
     }
     text = briefing.render(evidence, {"themes": [], "loose_ends": [], "chats": []},
@@ -39,6 +41,8 @@ def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps()
     assert "- **Apps inside chat:** search" in text
     assert "record videos" in text
     assert "Mac offline" in text
+    assert "**Changed since the last meeting, still open (1):**" in text
+    assert "- TASK-1 Send the journalist emails (todo → in_progress)" in text
 
 
 def test_discord_text_carries_link_not_document():

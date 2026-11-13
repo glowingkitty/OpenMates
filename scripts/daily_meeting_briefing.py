@@ -176,14 +176,25 @@ back in one sentence and ask the next question; (e) if energy is low (1–2), pl
 win first and drop the backlog cleanup; (f) add a stop rule to each task ("if X is not \
 working after 45 minutes, park it and tell me"); (g) end with a three-line read-back.
 - **Flow (6 blocks):**
-  - **Block 1 — Check-in (the founder talks, you listen).** Ask these four, one at a time, \
-and do not use the briefing yet: (1) What have you been up to since the last meeting — what \
-did you work on? (2) How happy are you with that progress, 1–5, and why? (3) What do you \
-currently see as the largest priorities? (4) How is your energy today, 1–5? Then reflect \
-back in two sentences and compare gently with the facts in the briefing (commits, Task \
-changes, yesterday's decisions): name any mismatch ("you said X, but I see no commits for \
-it — blocked, or moved?"). Ask about yesterday's tasks (done, not done, moved?) unless the \
-git commits make it obvious — then still ask for a one-line confirmation. \
+  - **Block 1 — Check-in (the founder talks, you listen).** Four questions, one at a time. \
+(1) **What you can see, then what else.** Do not open with an open "what have you been up to?". \
+First review the commits since the last meeting (Appendix E) and the chats that were started or \
+active (Appendix B, with "Since the last meeting") and give a short plain-language summary of \
+what you can see was worked on: two to four sentences, grouped by theme, no IDs and no list read \
+aloud ("I can see work on the voice calls, the Apple app and the Rust core, and two fixes for \
+the press page"). Then ask what else the founder did that is not shown there. To help their \
+memory, use the concrete open reminders (section 3: still open from the past 7 days, due today) \
+and Tasks (Appendix C: changed since the last meeting, in progress, blocked; yesterday's \
+decisions) as prompts, **grouped and summarized, never read one by one** ("Did you get to the \
+journalist emails and the two press reminders?", "Anything on the job search?"). At most three \
+grouped prompts; skip items the commits already show as done. Then ask the remaining three, one \
+at a time and without more briefing facts: (2) How happy are you with that progress, 1–5, and \
+why? (3) What do you currently see as the largest priorities? (4) How is your energy today, \
+1–5? Then reflect back in two sentences and compare gently with the facts in the briefing \
+(commits, Task changes, yesterday's decisions): name any mismatch ("you said X, but I see no \
+commits for it — blocked, or moved?"). Ask about yesterday's tasks (done, not done, moved?) \
+unless the git commits or the founder's answer to (1) make it obvious — then still ask for a \
+one-line confirmation. \
 Then the **daily drift check** (every meeting, about one minute, in the mentor stance): compare \
 what was actually done since the last meeting — the commits (Appendix E) and the chats that were \
 started or active (Appendix B) — with the current milestone ("Goals and milestones"). State the \
@@ -555,6 +566,12 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     if ts.get("fetched_at"):
         out += [f"_Tasks as of {ts['fetched_at'][:16]} UTC ({ts.get('source')}"
                 f"{'' if ts.get('fresh') else ', NOT up to date'})._", ""]
+    changed = tasks.get("changed_since_last_meeting") or []
+    out.append(f"**Changed since the last meeting, still open ({len(changed)}):**")
+    out += [f"- {t.get('id')} {t.get('title')} ({t.get('from')} → {t.get('to')})" for t in changed[:25]]
+    if len(changed) > 25:
+        out.append(f"- … {len(changed) - 25} more")
+    out.append("")
     for label, key in (("In progress", "in_progress"), ("Blocked", "blocked"), ("Top todo", "todo_top")):
         rows = (tasks.get("open") or {}).get(key, [])
         out.append(f"**{label} ({len(rows)}):**")
