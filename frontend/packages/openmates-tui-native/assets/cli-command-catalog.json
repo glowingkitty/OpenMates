@@ -5,7 +5,7 @@
   "source_snapshots": [
     {
       "path": "frontend/packages/openmates-cli/src/cli.ts",
-      "sha256": "9368b48ab3a1eda82362f1a2cbde894bd9dfe7a08c3484fd74766a3bcfbac6ec"
+      "sha256": "019c5baecc7732edf356b8098f51bf0fd10c87befe5e9e2498ed747670d1d0b6"
     },
     {
       "path": "frontend/packages/openmates-cli/src/server.ts",
@@ -21,7 +21,7 @@
     },
     {
       "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-      "sha256": "618923a9a6fa843a888a5db26a2d192822144f054d05d0f298ff2ee15ef1c53d"
+      "sha256": "8993c430744313b3a19be5a7f099b8aa65d4255f0422d4f1451f2af11eb53d46"
     },
     {
       "path": "frontend/packages/openmates-cli/src/generatedFiles.ts",
