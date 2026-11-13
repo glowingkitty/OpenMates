@@ -127,6 +127,24 @@ async function waitForTurn(page: Page): Promise<void> {
 }
 
 /**
+ * Chat 1's confirmation turn may offer the just-saved Ask first style (it is relevant);
+ * the style is already in this chat, so the offer is declined and the turn finishes.
+ */
+async function waitForTurnDecliningMemoryOffer(page: Page, testInfo: any): Promise<void> {
+  const consent = page.getByTestId('app-settings-memories-permission-dialog');
+  const assistant = page.getByTestId('message-assistant');
+  const before = await assistant.count();
+  await expect.poll(async () => await consent.isVisible() || await assistant.count() > before,
+    { timeout: TURN_TIMEOUT, intervals: [1_000] }).toBe(true);
+  if (await consent.isVisible()) {
+    await testInfo.attach('01a-save-turn-offer', { body: await page.screenshot(), contentType: 'image/png' });
+    await consent.getByTestId('btn-reject').click();
+    await expect(consent).not.toBeVisible({ timeout: 30_000 });
+  }
+  await waitForTurn(page);
+}
+
+/**
  * The turn is over when the stop button and typing indicator stay hidden for 5 s; a
  * Project file operation briefly hides them between the paused and resumed phases.
  */
@@ -178,7 +196,7 @@ test.describe('Press style saved in Project Memories is reused (real inference, 
       );
       await waitForTurn(page);
       await sendMessage(page, "Thanks. If you already saved the press style to this project's Memories in this chat, just confirm and do not save it again; only if it is not saved yet, save it now.");
-      await waitForTurn(page);
+      await waitForTurnDecliningMemoryOffer(page, testInfo);
       await testInfo.attach('01-style-saved', { body: await page.screenshot(), contentType: 'image/png' });
       await page.screenshot({ path: testInfo.outputPath('01-style-saved.png') });
       await deleteActiveChat(page);

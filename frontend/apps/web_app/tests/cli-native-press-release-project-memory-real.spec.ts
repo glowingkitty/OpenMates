@@ -146,7 +146,8 @@ test('native CLI saves a press style in Project Memories and a new chat reuses i
     const saveChat = pickString(turn1, ['chatId', 'chat_id']);
     expect(saveChat).toMatch(/^[0-9a-f-]{36}$/);
     chatIds.push(saveChat);
-    const turn1b = await run(['chats', 'send', '--chat', saveChat, CONFIRM_PROMPT, '--personal', '--auto-approve', '--response-timeout-seconds', '420', '--json'], 600_000);
+    // The confirmation may already offer the just-saved Ask first style; approve it so the turn completes.
+    const turn1b = await run(['chats', 'send', '--chat', saveChat, CONFIRM_PROMPT, '--personal', '--auto-approve', '--auto-approve-memories', '--response-timeout-seconds', '420', '--json'], 600_000);
     Object.assign(evidence, { saveStatus: turn1.status, confirmStatus: turn1b.status });
 
     // Memories folder: soft-checked because the listing shape may differ.
