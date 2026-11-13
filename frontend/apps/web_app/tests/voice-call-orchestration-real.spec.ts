@@ -7,10 +7,10 @@
  *
  * A typed request in a new chat starts a spawned main chat that searches the web and reports back
  * (speech-to-text dropped or split a spoken start-chat request too often for a reliable proof).
- * Then a voice call starts in that chat; one WAV is the fake microphone: a capital-of-France
- * question, then a long silence.
+ * Then a voice call starts in that chat; one WAV is the fake microphone: a question about
+ * penguins and 20 s of silence, looped by Chromium until the spec mutes the microphone.
  * Checked: the spawned chat appears with its started notice in the creator chat; the question is
- * answered (Paris) and spoken; the report/finished notices arrive during the call; exactly one
+ * answered and spoken; the report/finished notices arrive during the call; exactly one
  * automatic interpreting assistant message follows them, is spoken without overlapping any earlier
  * speech, and nothing answers the same events a second time within 30 s.
  * Held out of isolated CI: real provider inference with the personal dev account.
@@ -147,7 +147,7 @@ test.describe(`real voice call orchestration: ${SLUG}`, () => {
         await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now', { timeout: 45_000 });
 
         // The spoken question arrives while the spawned chat works.
-        const heardB = page.getByTestId('message-user').filter({ hasText: /capital of France/i });
+        const heardB = page.getByTestId('message-user').filter({ hasText: /penguin/i });
         await expect(heardB).toHaveCount(1, { timeout: 120_000 });
                 log(`heard: ${(await heardB.first().textContent())?.trim()}`);
         const mute = page.getByTestId('voice-call-mute');
@@ -155,9 +155,9 @@ test.describe(`real voice call orchestration: ${SLUG}`, () => {
           await mute.click();  // the looped file must not repeat the requests
           await expect(mute).toHaveAttribute('aria-pressed', 'true');
         }
-        const paris = page.getByTestId('message-assistant').filter({ hasText: /Paris/i });
-        await expect(paris.first()).toBeVisible({ timeout: 150_000 });
-        await snap(page, testInfo, `${SLUG}-02-paris-answer`);
+        const answer = page.getByTestId('message-assistant').filter({ hasText: /penguin/i });
+        await expect(answer.first()).toBeVisible({ timeout: 150_000 });
+        await snap(page, testInfo, `${SLUG}-02-question-answer`);
 
         // The spawned chat's report / finished event arrives in the creator chat.
         await expect(page.locator(`${NOTICE}[data-action="report"], ${NOTICE}[data-action="finished"]`).first())
@@ -172,7 +172,7 @@ test.describe(`real voice call orchestration: ${SLUG}`, () => {
         await expect.poll(async () => {
           const speech = (await recorded(page)).played.filter((e) => e.playing && e.startedAt >= tCallStart && !e.src.includes(ACK_ROOT));
           return speech.length >= 2 && speech.every((e) => e.endedAt > e.startedAt);
-        }, { timeout: 240_000, message: 'Paris answer and interpretation audio played to the end' }).toBe(true);
+        }, { timeout: 240_000, message: 'question answer and interpretation audio played to the end' }).toBe(true);
         const shape = await chatShape(page);
         expect(shape.assistantAfterEvents, 'exactly one automatic interpreting turn').toBe(1);
         await snap(page, testInfo, `${SLUG}-03-events-and-interpretation`);
