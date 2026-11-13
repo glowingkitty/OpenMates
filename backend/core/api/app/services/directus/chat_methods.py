@@ -75,8 +75,8 @@ def _validate_client_encrypted_message_content(message_id: str, encrypted_conten
 # Define metadata fields to fetch (exclude large content fields)
 # NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
 # Use hashed_user_id for ownership verification instead
-CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,title_is_manual,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,archived_message_count,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_suggested_followup_message,encrypted_top_recommended_apps_for_chat,encrypted_recommendations,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
-CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,title_is_manual,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_suggested_followup_message,encrypted_top_recommended_apps_for_chat,encrypted_recommendations,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,title_is_manual,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,archived_message_count,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_suggested_followup_message,encrypted_top_recommended_apps_for_chat,encrypted_recommendations,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,creator_chat_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,title_is_manual,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_suggested_followup_message,encrypted_top_recommended_apps_for_chat,encrypted_recommendations,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,creator_chat_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION = ",".join(
     field for field in CHAT_METADATA_FIELDS.split(",") if field != "metadata_v"
 )
@@ -85,11 +85,11 @@ CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS = ",".join
     for field in CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS.split(",")
     if field != "metadata_v"
 )
-CHAT_LIST_ITEM_FIELDS = "id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_LIST_ITEM_FIELDS = "id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,creator_chat_id,is_sub_chat,budget_limit,budget_spent"
 
 # Fallback field sets for when encrypted fields are not accessible due to permissions
-CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
-CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,encrypted_slug,slug_lookup_hash,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,creator_chat_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,encrypted_slug,slug_lookup_hash,unread_count,parent_id,creator_chat_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELD_SETS = (
     CHAT_METADATA_FIELDS,
     CHAT_METADATA_FIELDS.replace(",title_is_manual", ""),
@@ -137,6 +137,7 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "share_pii,"
     "share_highlights,"
     "parent_id,"
+    "creator_chat_id,"
     "is_sub_chat,"
     "budget_limit,"
     "budget_spent"
@@ -177,6 +178,7 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "share_pii,"
     "share_highlights,"
     "parent_id,"
+    "creator_chat_id,"
     "is_sub_chat,"
     "budget_limit,"
     "budget_spent"

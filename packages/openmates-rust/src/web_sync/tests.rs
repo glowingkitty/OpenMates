@@ -281,3 +281,24 @@ fn deletion_plan_matches_typescript() {
         Err("protocol".to_string())
     );
 }
+
+// contract-test: supporting surface=sdks.rust assertions=chat-orchestration.spawn.main-chat-is-normal
+#[test]
+fn merge_keeps_the_creator_link_of_a_spawned_main_chat() {
+    let merged = |server: Value, local: Value| {
+        let input = json!({
+            "server": server, "serverUndefined": [], "local": local, "keyMismatch": false, "now": 1_700_000_000,
+        });
+        parse(&merge::merge_json(&input.to_string()).unwrap())["chat"].clone()
+    };
+    let creator = "11111111-1111-4111-8111-111111111111";
+    let fresh = merged(json!({"id": "c1", "creator_chat_id": creator}), Value::Null);
+    assert_eq!(fresh["creator_chat_id"], creator);
+    let plain = merged(json!({"id": "c2"}), Value::Null);
+    assert!(plain.get("creator_chat_id").is_none());
+    let kept = merged(
+        json!({"id": "c1"}),
+        json!({"chat_id": "c1", "creator_chat_id": creator}),
+    );
+    assert_eq!(kept["creator_chat_id"], creator);
+}

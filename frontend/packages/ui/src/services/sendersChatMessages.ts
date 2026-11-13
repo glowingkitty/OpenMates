@@ -1472,6 +1472,7 @@ async function dispatchFastPersonalTurn(input: {
 			encrypted_chat_key: encryptedChatKey,
 			created_at: chat.created_at ?? message.created_at,
 			updated_at: chat.updated_at ?? message.created_at,
+			...orchestrationMetadata(chat, message),
 		};
 	}
 	assertCurrentAdmissionScope();
@@ -1617,6 +1618,17 @@ async function dispatchFastPersonalTurn(input: {
 		const status = await recordMessageDispatchFailure(serviceInstance, message, true);
 		if (status !== "waiting_for_internet") throw error;
 	}
+}
+
+/** Creator link fields the server stores for a chat spawned by another chat. */
+function orchestrationMetadata(
+	chat: { creator_chat_id?: string | null } | null | undefined,
+	message: { orchestration_job_id?: string },
+): Record<string, string> {
+	return {
+		...(chat?.creator_chat_id ? { creator_chat_id: chat.creator_chat_id } : {}),
+		...(chat?.creator_chat_id && message.orchestration_job_id ? { orchestration_job_id: message.orchestration_job_id } : {}),
+	};
 }
 
 export async function sendNewMessageImpl(
@@ -2457,6 +2469,7 @@ export async function sendNewMessageImpl(
 			team_member_mentions?: string[];
 			created_at: number;
 			sender_name?: string;
+			orchestration_job_id?: string;
 			category?: string;
 			model_name?: string;
 			chat_has_title?: boolean;
@@ -2520,6 +2533,7 @@ export async function sendNewMessageImpl(
 			content: contentForServer,
 			created_at: message.created_at,
 			sender_name: message.sender_name, // Include for cache but not critical for AI
+			...(message.orchestration_job_id ? { orchestration_job_id: message.orchestration_job_id } : {}),
 			chat_has_title: chatHasTitle, // ZERO-KNOWLEDGE: Send true if chat already has a title (title_v > 0), false if new
 			current_chat_title_v: chat?.title_v || 0,
 			current_chat_metadata_v: chat?.metadata_v ?? chat?.title_v ?? 0,
@@ -3269,7 +3283,8 @@ export async function sendNewMessageImpl(
 				encrypted_title: chat?.encrypted_title ?? (await encryptWithChatKey("", chatKey)),
 				encrypted_chat_key: encryptedChatKey,
 				created_at: chat?.created_at ?? message.created_at,
-				updated_at: chat?.updated_at ?? message.created_at
+				updated_at: chat?.updated_at ?? message.created_at,
+				...orchestrationMetadata(chat, message)
 			};
 		}
 

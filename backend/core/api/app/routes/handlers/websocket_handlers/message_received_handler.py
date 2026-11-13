@@ -46,6 +46,8 @@ from backend.shared.python_utils.native_cache_history import (
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
 
+from backend.shared.python_utils.chat_orchestration_jobs import OrchestrationError, classify_chat_message
+
 logger = logging.getLogger(__name__)
 
 
@@ -2736,6 +2738,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         ) or 1
 
         db_parent_id = chat_metadata_from_db.get("parent_id") if chat_metadata_from_db else None
+        creator_chat_id_for_ai = None
+        try:
+            creator_chat_id_for_ai = await classify_chat_message(
+                cache_service=cache_service, encryption_service=encryption_service, user_id=user_id,
+                chat_id=chat_id, message_id=str(message_payload_from_client.get("message_id")),
+                job_id=payload.get("orchestration_job_id"),
+                creator_chat_id=(chat_metadata_from_db or {}).get("creator_chat_id"),
+            )
+        except OrchestrationError as orchestration_error:
+            # Side effect of a message in a spawned chat; the message itself must still be processed.
+            logger.warning(f"Chat orchestration classification failed for chat {chat_id}: {orchestration_error.code}")
         db_budget_limit = chat_metadata_from_db.get("budget_limit") if chat_metadata_from_db else None
         db_budget_spent = chat_metadata_from_db.get("budget_spent", 0) if chat_metadata_from_db else 0
 
@@ -2816,6 +2829,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
             has_image_upload_embed=_has_image_upload_embed,
             parent_id=db_parent_id,
+            creator_chat_id=creator_chat_id_for_ai,
             is_sub_chat=False,
             budget_limit=db_budget_limit,
             budget_spent=db_budget_spent,

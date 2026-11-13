@@ -423,6 +423,31 @@ import { storageArchiveFetch } from "../config/api";
   let messages = $state<InternalMessage[]>([]);
   // Image cards show the version valid at their message (core rule; no-op without the Rust core).
   $effect(() => publishChatMessageOrder(currentChatId, messages));
+
+  // Chat orchestration: a chat another chat started links back to its creator.
+  let creatorChatId = $state<string | null>(null);
+  let creatorChatTitle = $state<string | null>(null);
+  $effect(() => {
+    const chatId = currentChatId;
+    // Re-read when messages change: the creator link and its title sync in after the chat opens.
+    void messages.length;
+    let cancelled = false;
+    if (!chatId) { creatorChatId = null; return; }
+    void (async () => {
+      const link = (await chatDB.getChat(chatId))?.creator_chat_id ?? null;
+      const { localChatTitle } = await import('../services/chatOrchestrationNavigation');
+      const title = link ? await localChatTitle(link) : null;
+      if (cancelled) return;
+      creatorChatId = link;
+      creatorChatTitle = title;
+    })().catch(() => { if (!cancelled) creatorChatId = null; });
+    return () => { cancelled = true; };
+  });
+  async function openCreatorChat(): Promise<void> {
+    if (!creatorChatId) return;
+    const { openLinkedChat } = await import('../services/chatOrchestrationNavigation');
+    await openLinkedChat(creatorChatId);
+  }
   type ScheduledAssistantRender = {
     message: GlobalMessage;
     piiMappings: Map<string, PIIMapping>;
@@ -3418,6 +3443,12 @@ import { storageArchiveFetch } from "../config/api";
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
 
+            {#if creatorChatId}
+              <button type="button" class="chat-creator-link" data-testid="chat-creator-link" onclick={() => void openCreatorChat()}>
+                {$text('chat_orchestration_events.creator_link', { values: { title: creatorChatTitle ?? '' } })}
+              </button>
+            {/if}
+
             {#if $activeTeamId && !isExampleChat && !isSharedChat}
               <div class="message-wrapper system" data-testid="team-reminder-wrapper">
                 <TeamChatReminder />
@@ -3748,6 +3779,11 @@ import { storageArchiveFetch } from "../config/api";
 </div>
 
 <style>
+  .chat-creator-link {
+    display: block; margin: var(--spacing-3, 12px) auto; padding: 0; background: none; border: 0; font: inherit;
+    font-size: var(--font-size-small, 14px); color: var(--color-grey-60); cursor: pointer;
+  }
+  .chat-creator-link:hover { text-decoration: underline; }
   /* Wrapper provides positioning context for the AI processing overlay.
      Takes the same absolute positioning the container previously had. */
   .chat-history-wrapper {

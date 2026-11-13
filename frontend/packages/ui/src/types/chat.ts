@@ -89,6 +89,8 @@ export interface Message {
   auto_speak?: boolean;
   /** Separate submission, such as a wiki question, that retains the encrypted composer draft. */
   preserve_draft?: boolean;
+  /** Transient: marks a message sent by another chat (orchestration); sent on chat_message_added only. */
+  orchestration_job_id?: string;
   message_id: string; // Unique message identifier (Format: {last_10_chars_of_chat_id}-{uuid_v4})
   chat_id: string; // Identifier of the chat this message belongs to
   hashed_user_id?: string; // Server-assigned author hash in authorized chat envelopes
@@ -609,6 +611,8 @@ export interface Chat {
 
   // Sub-chat fields
   parent_id?: string | null; // ID of the parent chat
+  /** Chat that spawned this chat (chat orchestration); server-synced. */
+  creator_chat_id?: string | null;
   is_sub_chat?: boolean; // True if this is a sub-chat
   sub_chat_settings?: { wait_for_completion: boolean; report_trigger: "each" | "all" } | null; // Settings for sub-chat orchestration
   budget_limit?: number | null; // Optional credit budget limit for this sub-chat subtree

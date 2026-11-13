@@ -42,6 +42,9 @@
   import type { MessageStatus, MessageRole, Message } from '../types/chat';
   import FocusPhaseNotice from './FocusPhaseNotice.svelte';
   import VoiceCallEventNotice from './VoiceCallEventNotice.svelte';
+  import ChatOrchestrationEventNotice from './ChatOrchestrationEventNotice.svelte';
+  import { localChatTitle, openLinkedChat } from '../services/chatOrchestrationNavigation';
+  import type { OrchestrationEvent } from '../services/rustCore/crypto/orchestrationOps';
   import { parseVoiceCallHistoryEvent } from '../services/voiceCallLifecycleEvent';
   import SystemMessageNotice from './SystemMessageNotice.svelte';
   import { parseFocusPhaseEvent } from '../types/focusPhases';
@@ -1251,6 +1254,42 @@
 
   let phaseEvent = $derived(parseFocusPhaseEvent(systemRawContent()));
   let voiceCallEvent = $derived(parseVoiceCallHistoryEvent(systemRawContent()));
+  // Chat orchestration events are parsed by the Rust core (async); the notice renders once parsed.
+  let orchestrationEvent = $state<OrchestrationEvent | null>(null);
+  let orchestrationTitle = $state<string | null>(null);
+  $effect(() => {
+    const raw = role === 'system' ? systemRawContent() : '';
+    let cancelled = false;
+    if (!raw.startsWith('{') || import.meta.env.VITE_OPENMATES_RUST_CORE !== '1') { orchestrationEvent = null; return; }
+    void import('../services/rustCore/crypto/orchestrationOps')
+      .then(({ orchestrationParseEvent }) => orchestrationParseEvent(raw))
+      .then(async (event) => {
+        if (cancelled) return;
+        orchestrationEvent = event;
+        const title = event ? await localChatTitle(event.chat_id) : null;
+        if (!cancelled) orchestrationTitle = title;
+      })
+      .catch(() => { if (!cancelled) orchestrationEvent = null; });
+    return () => { cancelled = true; };
+  });
+  // User messages sent by another chat carry the sender name `chat:<creator_chat_id>`.
+  let creatorSenderId = $state<string | null>(null);
+  let creatorSenderTitle = $state<string | null>(null);
+  $effect(() => {
+    const name = role === 'user' ? sender_name : undefined;
+    let cancelled = false;
+    if (!name?.startsWith('chat:') || import.meta.env.VITE_OPENMATES_RUST_CORE !== '1') { creatorSenderId = null; return; }
+    void import('../services/rustCore/crypto/orchestrationOps')
+      .then(({ orchestrationCreatorFromSenderName }) => orchestrationCreatorFromSenderName(name))
+      .then(async (creatorId) => {
+        if (cancelled) return;
+        creatorSenderId = creatorId;
+        const title = creatorId ? await localChatTitle(creatorId) : null;
+        if (!cancelled) creatorSenderTitle = title;
+      })
+      .catch(() => { if (!cancelled) creatorSenderId = null; });
+    return () => { cancelled = true; };
+  });
   let systemMessageText = $derived.by(() => {
     const rawContent = systemRawContent();
     return connectedAccountReceipt ? connectedAccountReceiptText(connectedAccountReceipt) : rawContent;
@@ -3319,6 +3358,7 @@
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
         {#if voiceCallEvent}<VoiceCallEventNotice event={voiceCallEvent} />
+        {:else if orchestrationEvent}<ChatOrchestrationEventNotice event={orchestrationEvent} title={orchestrationTitle} onOpen={(id) => void openLinkedChat(id)} />
         {:else if phaseEvent}<FocusPhaseNotice event={phaseEvent} />
         {:else if anonymousFeatureNotice}
           <span class="system-message-text" data-testid="anonymous-feature-notice">
@@ -3414,6 +3454,11 @@
         {#if remoteHumanAvatarUrl}<img src={remoteHumanAvatarUrl} alt="" data-testid="remote-human-avatar-image" />{:else}{remoteHumanName.slice(0, 1).toLocaleUpperCase()}{/if}
       </div>
     {/if}
+  {/if}
+
+  {#if role === 'user' && creatorSenderId}
+    <button type="button" class="creator-sent-label" data-testid="creator-sent-label"
+      onclick={() => void openLinkedChat(creatorSenderId!)}>{$text('chat_orchestration_events.creator_sent_label', { values: { title: creatorSenderTitle ?? '' } })}</button>
   {/if}
 
   <div class="message-align-{role === 'user' && !isRemoteHuman ? 'right' : 'left'}" class:mobile-full-width={(role === 'assistant' || isRemoteHuman) && shouldStackMobile} class:mobile-compact={role === 'user' && !isRemoteHuman && shouldStackMobile} class:transient-assistant-lane={isTransientResponse}>
@@ -3989,6 +4034,13 @@
 {/if}
 
 <style>
+  .creator-sent-label {
+    display: block; margin: 0 var(--spacing-4, 16px) var(--spacing-1, 4px) auto; padding: 0; width: fit-content;
+    background: none; border: 0; font: inherit; font-size: var(--font-size-xs, 12px);
+    color: var(--color-grey-60); cursor: pointer;
+  }
+  .creator-sent-label:hover { text-decoration: underline; }
+
   .assistant-response-active {
     position: relative;
     padding-bottom: var(--spacing-5);

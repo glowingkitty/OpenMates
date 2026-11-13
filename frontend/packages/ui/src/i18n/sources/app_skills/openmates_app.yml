@@ -97,3 +97,53 @@ get_docs.description:
   sv: Hämta en specifik OpenMates-dokumentationssida.
   he: אחזר דף תיעוד ספציפי של OpenMates.
   verified_by_human: []
+
+start_chat:
+  context: Skill name for chat orchestration (start_chat)
+  en: Start Chat
+  verified_by_human: []
+
+start_chat.description:
+  context: Skill description for chat orchestration (start_chat)
+  en: Start a new separate chat with a brief.
+  verified_by_human: []
+
+list_spawned_chats:
+  context: Skill name for chat orchestration (list_spawned_chats)
+  en: List Started Chats
+  verified_by_human: []
+
+list_spawned_chats.description:
+  context: Skill description for chat orchestration (list_spawned_chats)
+  en: List the chats this chat started.
+  verified_by_human: []
+
+read_spawned_chat:
+  context: Skill name for chat orchestration (read_spawned_chat)
+  en: Read Started Chat
+  verified_by_human: []
+
+read_spawned_chat.description:
+  context: Skill description for chat orchestration (read_spawned_chat)
+  en: Read the latest messages of a chat this chat started.
+  verified_by_human: []
+
+send_to_spawned_chat:
+  context: Skill name for chat orchestration (send_to_spawned_chat)
+  en: Message Started Chat
+  verified_by_human: []
+
+send_to_spawned_chat.description:
+  context: Skill description for chat orchestration (send_to_spawned_chat)
+  en: Send a message into a chat this chat started.
+  verified_by_human: []
+
+report_to_creator:
+  context: Skill name for chat orchestration (report_to_creator)
+  en: Report to Creator
+  verified_by_human: []
+
+report_to_creator.description:
+  context: Skill description for chat orchestration (report_to_creator)
+  en: Report a result back to the chat that started this one.
+  verified_by_human: []

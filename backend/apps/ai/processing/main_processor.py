@@ -211,6 +211,7 @@ from backend.apps.ai.processing.audio_recording_guard import (
 from backend.apps.ai.processing.connected_account_receipts import (
     attach_connected_account_action_metadata,
 )
+from backend.apps.ai.processing.chat_orchestration_hooks import orchestration_skill_additions
 from backend.apps.ai.processing.focus_mode_routing import (
     brand_naming_research_skill_scope,
     DelegatedPrimaryReadState,
@@ -4637,6 +4638,15 @@ async def handle_main_processing(
         # The search verb describes the future workflow, not a request to use
         # an Events/News search tool in the clarification chat now.
         user_requested_skills_only = False
+    orchestration_skills, orchestration_instruction = await orchestration_skill_additions(
+        cache_service=cache_service, encryption_service=encryption_service, request_data=request_data,
+    )
+    if orchestration_skills:
+        preselected_skills = (preselected_skills or set()) | orchestration_skills
+        if selected_app_ids is not None:
+            selected_app_ids.add("openmates")
+    if orchestration_instruction:
+        prompt_parts.append(orchestration_instruction)
     if preselected_skills and "workflows-create-or-modify" in preselected_skills:
         prompt_parts.append(WORKFLOW_AUTHORING_TOOL_INSTRUCTION)
 

@@ -135,6 +135,12 @@
         "description": {
           "text": "Bepaal hoeveel je ophaalt, welk instrument past, de verwatering en een tijdlijn, met een bewerkbare cap-tablesheet."
         }
+      },
+      "write_press_release": {
+        "text": "Persbericht schrijven",
+        "description": {
+          "text": "Schrijf een persbericht dat journalisten kunnen gebruiken, in de eigen perstoon van je bedrijf, als Word-document of in een ander gewenst formaat."
+        }
       }
     },
     "code": {
@@ -3353,6 +3359,7 @@
       }
     }
   },
+  "chat_orchestration_events": {},
   "chat_settings": {},
   "chats": {
     "chat": {
@@ -3941,6 +3948,12 @@
     },
     "download": {
       "text": "Downloaden"
+    },
+    "download_pdf": {
+      "text": "PDF downloaden"
+    },
+    "download_word": {
+      "text": "Word downloaden"
     },
     "loading": {
       "text": "Laden..."
@@ -10733,6 +10746,21 @@
       "text": "Investeerdersbericht schrijven",
       "description": {
         "text": "Schrijf een korte e-mail aan één investeerder, een doorstuurbare introductie voor een gemeenschappelijk contact en twee follow-ups."
+      }
+    },
+    "business_write_press_release": {
+      "text": "Persbericht schrijven",
+      "description": {
+        "text": "Schrijf een persbericht dat journalisten kunnen gebruiken, in de eigen perstoon van je bedrijf, als Word-document of in een ander gewenst formaat."
+      },
+      "process": {
+        "text": "- Gebruikt je opgeslagen perstoon (namen, bedrijfsomschrijving, woordvoerders, contact, toon) of stelt eerst een toon op uit eerdere persberichten, een paar vragen of neutrale standaarden\n\n- Biedt aan de stijl in je project op te slaan, zodat elk volgend persbericht hetzelfde klinkt\n\n- Vraagt alleen wat er over het nieuws nog ontbreekt, één vraag per keer, en zegt eerlijk als de nieuwswaarde zwak is\n\n- Toont kopopties, de lead en de feiten die gebruikt worden, zodat je ze kunt corrigeren voordat er iets geschreven wordt\n\n- Schrijft het persbericht met kop, plaats en datum, lead, citaten, bedrijfsomschrijving en perscontact, standaard als Word-document of op verzoek als PDF, HTML of React\n\n- Gebruikt alleen feiten die jij hebt bevestigd, verzint nooit citaten en markeert elk citaat ter goedkeuring\n\n- Controleert het resultaat en biedt een pitchmail voor journalisten, een socialmediabericht of een vertaling aan"
+      },
+      "how_to_use": {
+        "text": "- Schrijf een **persbericht** over de lancering van onze app op 18 november. Hier zijn onze laatste twee persberichten\n\n- Stel onze **perstoon** samen vanaf onze website en sla die op in dit project\n\n- Maak van deze aankondiging een **persbericht als PDF** en een korte pitchmail voor journalisten"
+      },
+      "systemprompt": {
+        "text": "Je helpt de gebruiker een persbericht te schrijven dat een journalist zo kan gebruiken: eerst echt nieuws, controleerbare feiten, een stem met naam en een contactpersoon die antwoordt. De perstoon van het bedrijf en de uitdrukkelijke wensen van de gebruiker gaan voor op algemene conventies.\n\nVolg alleen de instructies van de huidige fase. Stel per ronde één vraag met een concreet voorbeeld en een aanbeveling en wacht op het antwoord. Honoreer verzoeken om vragen over te slaan, alles in één keer te beantwoorden of meteen een concept te maken.\n\nBelangrijke richtlijnen:\n\n- Vraag nooit naar informatie die een geladen herinnering, een upload of de chat al bevat. Ga ervan uit en laat het bevestigen.\n\n- De feiten van de gebruiker zijn de enige bron. Verbeter formulering, volgorde en nadruk; verzin of overdrijf nooit cijfers, data, klanten, partners, prijzen, resultaten of namen. Vraagt de gebruiker je iets te verzinnen, weiger dan en bied een waarheidsgetrouw alternatief.\n\n- Presenteer een citaat nooit als definitief. Schrijf citaten als concepten die de genoemde persoon moet goedkeuren, en leg nooit woorden in de mond van een echte persoon buiten de organisatie van de gebruiker zonder bron.\n\n- Schrijf eenvoudig en concreet. Haal lege superlatieven en buzzwoorden weg of vervang ze door een feit.\n\n- Houd embargo- of onuitgebrachte informatie in deze chat en het project van de gebruiker; publiceer, verstuur of deel haar nooit en neem nooit contact op met journalisten of anderen. Jij schrijft concepten; de gebruiker verstuurt ze.\n\n- Word is het standaardformaat. Maak PDF, HTML of React alleen op verzoek, volgens de formaatregels van de conceptfase.\n\n- Een perstoon hoort bij één bedrijf. Raad aan hem op te slaan in de Herinneringen van het actieve project; zonder actief project bied je een persoonlijke herinnering aan die alleen wordt geladen als hij genoemd wordt. Sla pas op nadat de gebruiker akkoord is.\n\n- Zeg pas dat een herinnering is opgeslagen of bijgewerkt nadat de aanroep van het opslaan-hulpmiddel is geslaagd. Kan het beschikbare hulpmiddel niet in het project opslaan, zeg dat dan, bied een persoonlijke herinnering aan of laat weten dat de gebruiker de stijl in het tabblad Herinneringen van het project kan plakken.\n\n- Geef geen juridisch advies over openbaarmakingsplichten, beursregels of merkenrecht; zeg wanneer de gebruiker een jurist of het investor-relationsteam moet raadplegen.\n\n- Houd chatantwoorden kort. Het document draagt de inhoud.\n\n- Waarden zoals [EMAIL_1_org] of [PHONE_1_000] zijn privacyplaatshouders. De app toont op hun plek de echte gegevens van de gebruiker op het scherm en in het document. Gebruik ze ongewijzigd als de echte waarde; noem ze nooit plaatshouders, ontbrekend of ongeldig en vraag de gebruiker nooit ze te vervangen."
       }
     },
     "code_analyze_logs": {
@@ -20716,7 +20744,7 @@
       "text": "Gratis testen"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "E-maildomein niet toegestaan."

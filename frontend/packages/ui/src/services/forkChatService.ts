@@ -225,7 +225,20 @@ async function runRustForkAsync(
   });
 }
 
-async function sendBackgroundExplanationPrompt(chatId: string, prompt: string): Promise<void> {
+/** Options of a background chat whose first message is sent through the normal send path. */
+export interface BackgroundChatPromptOptions {
+  chatId: string;
+  prompt: string;
+  senderName?: string;
+  /** Chat that spawned this chat (chat orchestration). */
+  creatorChatId?: string;
+  /** Transient server classification of a creator-sent message. */
+  orchestrationJobId?: string;
+}
+
+async function sendBackgroundExplanationPrompt(
+  chatId: string, prompt: string, options: Pick<BackgroundChatPromptOptions, "senderName" | "orchestrationJobId"> = {},
+): Promise<void> {
   const nowTimestamp = Math.floor(Date.now() / 1000);
   const message: Message = {
     message_id: `${chatId.slice(-10)}-${crypto.randomUUID()}`,
@@ -234,8 +247,9 @@ async function sendBackgroundExplanationPrompt(chatId: string, prompt: string): 
     content: prompt,
     status: get(websocketStatus).status === "connected" ? "sending" : "waiting_for_internet",
     created_at: nowTimestamp,
-    sender_name: "user",
+    sender_name: options.senderName ?? "user",
     encrypted_content: null,
+    ...(options.orchestrationJobId ? { orchestration_job_id: options.orchestrationJobId } : {}),
   };
 
   await chatDB.saveMessage(message);
@@ -256,6 +270,16 @@ async function sendBackgroundExplanationPrompt(chatId: string, prompt: string): 
 
 async function createCleanExplanationChat(prompt: string): Promise<string> {
   const chatId = crypto.randomUUID();
+  await createBackgroundChatWithPrompt({ chatId, prompt });
+  return chatId;
+}
+
+/**
+ * Creates a chat with a NEW key locally and sends `prompt` as its first user
+ * message through the normal send path, without opening it.
+ */
+export async function createBackgroundChatWithPrompt(options: BackgroundChatPromptOptions): Promise<void> {
+  const { chatId, prompt } = options;
   const nowTimestamp = Math.floor(Date.now() / 1000);
   const { encryptedChatKey } = await chatKeyManager.createAndPersistKey(chatId);
 
@@ -275,16 +299,22 @@ async function createCleanExplanationChat(prompt: string): Promise<string> {
     processing_metadata: false,
     waiting_for_metadata: true,
     is_incognito: false,
+    ...(options.creatorChatId ? { creator_chat_id: options.creatorChatId } : {}),
   };
 
   await chatDB.addChat(chat);
   window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: chatId } }));
-  await sendBackgroundExplanationPrompt(chatId, prompt);
-
-  return chatId;
+  await sendBackgroundExplanationPrompt(chatId, prompt, options);
 }
 
-async function openChatWhenAvailable(chatId: string): Promise<void> {
+/** Sends `text` as a user message of an existing chat through the normal send path. */
+export async function sendBackgroundChatMessage(
+  chatId: string, text: string, options: Pick<BackgroundChatPromptOptions, "senderName" | "orchestrationJobId">,
+): Promise<void> {
+  await sendBackgroundExplanationPrompt(chatId, text, options);
+}
+
+export async function openChatWhenAvailable(chatId: string): Promise<void> {
   for (let attempt = 0; attempt < 60; attempt += 1) {
     const chat = await chatDB.getChat(chatId);
     if (chat) {

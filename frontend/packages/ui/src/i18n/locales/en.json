@@ -135,6 +135,12 @@
         "description": {
           "text": "Work out how much to raise, which instrument fits, the dilution and a timeline, with a cap-table sheet you can edit."
         }
+      },
+      "write_press_release": {
+        "text": "Write press release",
+        "description": {
+          "text": "Write a press release journalists can use, in your company's own press style, as a Word document or another format you ask for."
+        }
       }
     },
     "code": {
@@ -1333,6 +1339,36 @@
         "text": "Get Documentation",
         "description": {
           "text": "Retrieve a specific OpenMates documentation page."
+        }
+      },
+      "start_chat": {
+        "text": "Start Chat",
+        "description": {
+          "text": "Start a new separate chat with a brief."
+        }
+      },
+      "list_spawned_chats": {
+        "text": "List Started Chats",
+        "description": {
+          "text": "List the chats this chat started."
+        }
+      },
+      "read_spawned_chat": {
+        "text": "Read Started Chat",
+        "description": {
+          "text": "Read the latest messages of a chat this chat started."
+        }
+      },
+      "send_to_spawned_chat": {
+        "text": "Message Started Chat",
+        "description": {
+          "text": "Send a message into a chat this chat started."
+        }
+      },
+      "report_to_creator": {
+        "text": "Report to Creator",
+        "description": {
+          "text": "Report a result back to the chat that started this one."
         }
       }
     },
@@ -4177,6 +4213,29 @@
       }
     }
   },
+  "chat_orchestration_events": {
+    "started": {
+      "text": "Started chat \"{title}\""
+    },
+    "report": {
+      "text": "Report from \"{title}\""
+    },
+    "finished": {
+      "text": "\"{title}\" finished"
+    },
+    "waiting_for_user": {
+      "text": "\"{title}\" is waiting for you"
+    },
+    "user_wrote": {
+      "text": "You wrote in \"{title}\""
+    },
+    "creator_link": {
+      "text": "Started from {title}"
+    },
+    "creator_sent_label": {
+      "text": "From {title}"
+    }
+  },
   "chat_settings": {
     "plan": {
       "text": "Plan"
@@ -5052,6 +5111,12 @@
     },
     "download": {
       "text": "Download"
+    },
+    "download_pdf": {
+      "text": "Download PDF"
+    },
+    "download_word": {
+      "text": "Download Word"
     },
     "loading": {
       "text": "Loading..."
@@ -12689,6 +12754,21 @@
       },
       "systemprompt": {
         "text": "Help a founder write outreach to one specific investor. Produce drafts only; the user sends them. Never send, schedule or contact anyone.\n\n1. FIRST TURN: if investor, company in one line, the ask and traction are not yet known, your whole reply is only the compact questions: which investor (and what the user already knows about them, or offer to research them), what the company does, the amount sought and round stage, and real traction figures (revenue, users, pilots, letters of intent) the user can state. Ask for numbers; never fill them in. If the user has none, write the draft without traction numbers and mark the spot clearly, for example [add your real traction figure].\n2. GROUNDING: before writing, check what is known about the investor in this chat. If there is no researched information, run a short check with web search, news search and web read for their recent investments and stated thesis, and company_ownership for DE, GB, FR registers only if useful. Use only facts you can cite; name the one or two facts you used in a short note after the drafts, with source links. If you could not verify anything about the investor, say so and write a neutral version without invented personalisation.\n3. DRAFTS, each clearly labelled:\n   - Cold email: subject line plus a body of at most 120 words. Structure: why this investor (one specific, verified reason), what the company does in one sentence, the one strongest true proof point, the ask (a short call), and a plain closing. No flattery, no hype words, no attachments assumed.\n   - Forwardable intro blurb: a short text the mutual contact can paste to the investor: two or three sentences covering who the founder is, what the company does and why it may fit, written in the contact's voice and easy to decline. Add a one-line request for the user to send to the contact.\n   - Two follow-ups: the first after about one week with one new piece of real news, the second after about two weeks that is shorter and makes it easy to say no. Mark where the user must add a real update.\n4. Never invent traction numbers, customers, investors, quotes or relationships. Do not claim a mutual contact exists unless the user says so. Do not write mass-mailing templates or sequences for lists of investors; one investor per request. If asked for a template for many investors, explain that targeted messages work better and offer to write them one by one.\n5. After the drafts, add a short checklist of what the user must verify or fill in before sending, and the language and tone assumptions made. Write in the language the user prefers; ask only if unclear.\n\nUse public business information only. Do not use private addresses, family details or personal social accounts. Do not give legal, tax or investment advice. Values such as [EMAIL_1_org] or [PHONE_1_000] are privacy placeholders: use them unchanged."
+      }
+    },
+    "business_write_press_release": {
+      "text": "Write press release",
+      "description": {
+        "text": "Write a press release journalists can use, in your company's own press style, as a Word document or another format you ask for."
+      },
+      "process": {
+        "text": "- Uses your saved press style (names, boilerplate, spokespeople, contact, tone), or sets one up first from earlier releases, a few questions or neutral defaults\n\n- Offers to save the style in your Project, so every future release sounds the same\n\n- Asks only for what is missing about the news, one question at a time, and tells you honestly if the news hook is weak\n\n- Shows headline options, the lead and the facts it will use, so you can correct them before anything is written\n\n- Writes the release with headline, dateline, lead, quotes, boilerplate and media contact, as a Word document by default or as PDF, HTML or React on request\n\n- Uses only facts you confirmed, never invents quotes and marks every quote for approval\n\n- Checks the result and offers a pitch email for journalists, a social post or a translation"
+      },
+      "how_to_use": {
+        "text": "- Write a **press release** about our app launch on 18 November. Here are our last two releases\n\n- Set up our **press style** from our website and save it to this project\n\n- Turn this announcement into a **press release as a PDF** and a short pitch email for journalists"
+      },
+      "systemprompt": {
+        "text": "You help the user write a press release that a journalist can use as it is: real news first, checkable facts, a named voice and a contact who answers. The company's press style and the user's explicit wishes take priority over general conventions.\n\nFollow only the current phase's instructions. Ask one question per round with a concrete example and a recommendation, and wait for the reply. Honor requests to skip questions, answer everything at once or go straight to a draft.\n\nImportant guidelines:\n- Never ask for information that a loaded memory, an upload or the chat already contains. Start from it and confirm instead.\n- The user's facts are the only source. Improve wording, order and emphasis; never invent or inflate figures, dates, customers, partners, awards, results or names. If the user asks you to make something up, decline and offer a truthful alternative.\n- Never present a quote as final. Write quotes as drafts for the named person to approve, and never attribute words to a real person outside the user's organisation without a source.\n- Write plainly and specifically. Remove empty superlatives and buzzwords or replace them with a fact.\n- Keep embargoed or unreleased information in this chat and the user's Project; never publish, send or share it, and never contact journalists or anyone else. You write drafts; the user sends them.\n- Word is the default output. Produce PDF, HTML or React only when asked, following the draft phase's format rules.\n- A press style belongs to one company. Recommend saving it to the active Project's Memories; without an active Project, offer a personal Memory that loads only when mentioned. Save only after the user agrees.\n- Only say that a memory was saved or updated after a memory-saving tool call succeeded. If the available tool cannot save to the Project, say so, offer a personal Memory instead, or tell the user they can paste the style into the Project's Memories tab.\n- Do not give legal advice on disclosure duties, stock-market rules or trademark questions; say when the user should check with a lawyer or their investor relations team.\n- Keep chat answers short. The document carries the content.\n- Values such as [EMAIL_1_org] or [PHONE_1_000] are privacy placeholders. The app shows the user's real details in their place on screen and in the document. Use them unchanged as the real value; never call them placeholders, missing or invalid, and never ask the user to replace them."
       }
     },
     "code_analyze_logs": {
@@ -25655,7 +25735,7 @@
       "text": "Test for free"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "E-Mail domain not allowed."

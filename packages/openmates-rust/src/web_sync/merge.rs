@@ -250,6 +250,8 @@ fn new_chat(server: &Server, now: f64, current_user_id: Option<&Value>) -> Map<S
     ] {
         out.set(key, Some(nullish(s(key)).cloned().unwrap_or(fallback)));
     }
+    // Creator link of a spawned main chat (chat orchestration); absent on other chats.
+    out.set("creator_chat_id", nullish(s("creator_chat_id")).cloned());
     out.set(
         "last_edited_overall_timestamp",
         Some(
@@ -479,6 +481,10 @@ fn merge_existing(
                 .cloned()
                 .unwrap_or(json!(0)),
         ),
+    );
+    out.set(
+        "creator_chat_id",
+        first(&[s("creator_chat_id"), l("creator_chat_id")]).cloned(),
     );
 
     if key_mismatch {

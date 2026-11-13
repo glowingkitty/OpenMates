@@ -213,6 +213,7 @@ class AskSkillRequest(BaseModel):
     
     # Sub-chat orchestration fields
     parent_id: Optional[str] = Field(default=None, description="The ID of the parent chat.")
+    creator_chat_id: Optional[str] = Field(default=None, description="Chat that started this main chat (chat orchestration), set only from the verified server-side link.")
     is_sub_chat: bool = Field(default=False, description="Whether this is a sub-chat.")
     orchestration_id: Optional[str] = Field(default=None, description="Server-issued durable identity for the complete sub-chat tree.")
     root_chat_id: Optional[str] = Field(default=None, description="Immutable root chat identity for orchestration and usage attribution.")

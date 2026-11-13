@@ -381,6 +381,29 @@ impl OpenmatesSkills<'_> {
     pub async fn get_docs(&self, input: Value) -> Result<Value> {
         self.sdk.run_skill("openmates", "get-docs", input).await
     }
+    pub async fn start_chat(&self, input: Value) -> Result<Value> {
+        self.sdk.run_skill("openmates", "start-chat", input).await
+    }
+    pub async fn list_spawned_chats(&self, input: Value) -> Result<Value> {
+        self.sdk
+            .run_skill("openmates", "list-spawned-chats", input)
+            .await
+    }
+    pub async fn read_spawned_chat(&self, input: Value) -> Result<Value> {
+        self.sdk
+            .run_skill("openmates", "read-spawned-chat", input)
+            .await
+    }
+    pub async fn send_to_spawned_chat(&self, input: Value) -> Result<Value> {
+        self.sdk
+            .run_skill("openmates", "send-to-spawned-chat", input)
+            .await
+    }
+    pub async fn report_to_creator(&self, input: Value) -> Result<Value> {
+        self.sdk
+            .run_skill("openmates", "report-to-creator", input)
+            .await
+    }
 }
 #[derive(Clone, Copy)]
 pub struct PdfSkills<'a> {

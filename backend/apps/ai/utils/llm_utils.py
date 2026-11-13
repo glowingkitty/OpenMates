@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import response types (these are shared types, not provider-specific)
+from backend.apps.ai.processing.chat_orchestration_hooks import orchestration_event_text
 from backend.apps.ai.llm_providers.mistral_client import (
     MISTRAL_THINKING_STATE_KEY,
     UnifiedMistralResponse as UnifiedMistralResponse,
@@ -966,6 +967,10 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
             role = "user"
         if "role" in msg:
             role = msg["role"]
+        event_text = orchestration_event_text(msg.get("content"))
+        if event_text is not None:
+            transformed_messages.append({"role": "system", "content": event_text})
+            continue
 
         # Handle tool role messages (tool results from skill execution)
         # OpenAI-compatible APIs require: {"role": "tool", "tool_call_id": str, "content": str}

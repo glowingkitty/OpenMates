@@ -78,6 +78,30 @@ function initMemoryWriteJobLifecycle(): void {
   });
 }
 
+let removeChatOrchestrationJobRunner: (() => void) | null = null;
+let unsubscribeChatOrchestrationAuth: (() => void) | null = null;
+
+/** Chat orchestration jobs run through the Rust core, so only flag-on builds install the runner. */
+function initChatOrchestrationJobLifecycle(): void {
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE !== "1" || unsubscribeChatOrchestrationAuth) return;
+  let installing = false;
+  unsubscribeChatOrchestrationAuth = authStore.subscribe(({ isAuthenticated }) => {
+    if (!isAuthenticated) {
+      removeChatOrchestrationJobRunner?.();
+      removeChatOrchestrationJobRunner = null;
+      return;
+    }
+    if (removeChatOrchestrationJobRunner || installing) return;
+    installing = true;
+    void import("./services/rustCore/orchestration/chatOrchestrationJobRunner")
+      .then(({ installChatOrchestrationJobRunner }) => {
+        if (get(authStore).isAuthenticated) removeChatOrchestrationJobRunner = installChatOrchestrationJobRunner();
+      })
+      .catch((error) => console.error("[App] Could not install the chat orchestration job runner", error))
+      .finally(() => { installing = false; });
+  });
+}
+
 /**
  * Initialize all application services
  * @param {Object} options - Configuration options
@@ -98,6 +122,7 @@ export async function initializeApp(
     // delay their capability registration while the composer is already usable.
     initProjectFileExecutorLifecycle();
     initMemoryWriteJobLifecycle();
+    initChatOrchestrationJobLifecycle();
 
     // Initialize debug utilities for browser console access
     // These allow inspecting IndexedDB data via window.debugChat(), etc.

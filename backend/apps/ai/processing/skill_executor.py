@@ -106,6 +106,15 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
 # Default number of retry attempts for skill execution
 # 1 retry = 2 total attempts (initial + 1 retry)
 DEFAULT_SKILL_MAX_RETRIES = 1
+# Skills that must run exactly once per call (own fallback or non-idempotent side effects).
+NO_RETRY_SKILLS = frozenset({
+    ("ai", "decide"),
+    ("web", "browse"),
+    ("openmates", "start-chat"),
+    ("openmates", "read-spawned-chat"),
+    ("openmates", "send-to-spawned-chat"),
+    ("openmates", "report-to-creator"),
+})
 
 # Delay between retry attempts (in seconds)
 # Bound the delay between retryable execution failures.
@@ -366,7 +375,9 @@ async def execute_skill(
     last_exception: Optional[Exception] = None
     # The public decision quote includes exactly one attempt per provider.
     # Jev already owns its bounded outage fallback; never retry the whole skill.
-    total_attempts = 1 if (app_id, skill_id) in {("ai", "decide"), ("web", "browse")} else max_retries + 1
+    # Chat orchestration skills enqueue device-claimed jobs (start a chat, send a
+    # message); a retry would start or send twice.
+    total_attempts = 1 if (app_id, skill_id) in NO_RETRY_SKILLS else max_retries + 1
     successful_result: Any = None
     skill_succeeded = False
 

@@ -1,0 +1,291 @@
+schema_version: 1
+id: feature.chat-orchestration
+version: 1
+status: draft
+title: Chat Orchestration of Spawned Main Chats
+summary: 'Any chat can start and coordinate other full main chats for heavy multitasking, for example one voice call that
+  manages work across many chats. One spawn mechanism has two kinds: sub_chat (the existing nested sub-chat behaviour)
+  and main_chat (new). A spawned main chat is an ordinary sidebar chat with its own key, history and billing that only
+  stores a link to the chat that created it. The creator chat shows compact system events for starts, reports and
+  status changes; the spawned chat can report back. All chat content stays client-encrypted: the user''s own device
+  creates, reads and writes spawned chats, and the server only relays bounded plaintext for the live request.
+
+  '
+scope:
+  includes:
+  - One spawn mechanism with a spawn kind (sub_chat or main_chat) on the existing sub-chat orchestration records.
+  - Starting a spawned main chat with a brief from any eligible chat through the OpenMates app's start-chat skill.
+  - The creator link stored on the spawned chat and the small link back to the creator in the spawned chat.
+  - Creator-chat system events (started, report, finished, waiting for the user, user wrote) that open the spawned chat.
+  - OpenMates app skills to list spawned chats, read a spawned chat's recent messages, send a message into a spawned
+    chat and report to the creator.
+  - Automatic platform status events to the creator when a spawned chat finishes or waits for the user.
+  - Separate billing and usage history per spawned main chat.
+  - Awareness in the creator chat when the user writes in a spawned chat, and a send guard against talking over the
+    user.
+  - Device-claimed orchestration jobs that keep all chat keys and encryption on the user's client.
+  excludes:
+  - Changes to existing sub-chat behaviour, its carousel, its parent-rolled billing or its result rollup.
+  - Showing spawned main chats in the sub-chat carousel.
+  - Starting AI inference in the creator chat automatically when a report or status event arrives.
+  - Server-side decryption of any chat, server-held chat keys, or persisting chat titles or content in server-readable
+    form beyond the bounded Vault-encrypted job and state records.
+  - Spawning from incognito, anonymous, shared/external or public example chats, and Team chats beyond the same-user
+    access the creator chat already has.
+  - Apple-native rendering of orchestration events (Apple parity follows the web as a separate increment).
+relationships:
+  related_specifications:
+  - feature.chats
+  - feature.chat-awareness
+  - feature.billing
+  - feature.video-call
+  - feature.app-skills
+  - feature.chat-unread
+actors:
+- id: chat_owner
+  role: Authenticated user who owns the creator chat and every chat it spawns.
+- id: creator_assistant
+  role: The assistant in the creator chat that starts, lists, reads and messages spawned chats.
+- id: spawned_assistant
+  role: The assistant in a spawned main chat that works on the brief and reports back to the creator.
+- id: owning_device
+  role: One of the user's online clients that claims an orchestration job and performs it with local chat keys.
+models:
+  SpawnKind:
+    value:
+      type: enum
+      values:
+      - sub_chat
+      - main_chat
+      required: true
+      constraints:
+        default: sub_chat
+        stored_on: sub_chat_orchestration_children.spawn_kind
+  ChatCreatorLink:
+    creator_chat_id:
+      type: chat_id
+      required: true
+      constraints:
+        stored_on: chats.creator_chat_id
+        plaintext_identifier_only: true
+        same_owner_as_spawned_chat: true
+    spawned_chat_id:
+      type: chat_id
+      required: true
+  OrchestrationJob:
+    job_id:
+      type: uuid
+      required: true
+    kind:
+      type: enum
+      values:
+      - start_chat
+      - creator_event
+      - read_chat
+      - send_message
+      required: true
+    state:
+      type: enum
+      values:
+      - available
+      - claimed
+      - done
+      - failed
+      - expired
+      required: true
+    claimed_by:
+      type: device_connection
+      required: false
+      constraints:
+        exactly_one_claimant: true
+    pending_ttl:
+      type: duration
+      required: true
+      constraints:
+        value: 24h
+        storage: Vault-encrypted pending record, deleted after done, failed or expired
+  OrchestrationEvent:
+    event_id:
+      type: stable_id
+      required: true
+    action:
+      type: enum
+      values:
+      - started
+      - report
+      - finished
+      - waiting_for_user
+      - user_wrote
+      required: true
+    spawned_chat_id:
+      type: chat_id
+      required: true
+    title:
+      type: decrypted_text
+      required: false
+    text:
+      type: decrypted_text
+      required: false
+      constraints:
+        only_for: report
+        max_chars: 2000
+    storage:
+      type: literal
+      required: true
+      constraints:
+        value: client-encrypted role system message in the creator chat with JSON type chat_orchestration
+  SpawnedChatState:
+    value:
+      type: enum
+      values:
+      - starting
+      - working
+      - finished
+      - waiting_for_user
+      - user_active
+      - failed
+      required: true
+assertions:
+- id: chat-orchestration.spawn.unified-kind
+  type: invariant
+  must: Sub-chats and spawned main chats use one spawn mechanism and the same orchestration records, distinguished by
+    spawn kind. Existing sub-chat creation, carousel, result rollup and parent billing are unchanged and default to kind
+    sub_chat. A main_chat child never sets parent_id or is_sub_chat, never appears in the sub-chat carousel, and never
+    triggers the sub-chat parent continuation.
+  depends_on:
+  - models.SpawnKind
+  - examples.unified_kind
+- id: chat-orchestration.spawn.main-chat-is-normal
+  type: behavior
+  must: The start-chat skill starts a full main chat with the given title and brief. It appears in the sidebar like
+    any chat; the brief is its first user message and runs through the normal send path, pipeline, focus and skill
+    rules. The user can open it and type in it. The spawned chat stores only the creator link, and opening it shows a
+    small link back to the creator chat that opens the creator chat.
+  depends_on:
+  - models.ChatCreatorLink
+  - examples.start_chat
+- id: chat-orchestration.spawn.eligibility-and-limits
+  type: security
+  must: Only an authenticated user's own non-incognito, non-anonymous, non-shared chat may spawn main chats; any such
+    chat may spawn, including a spawned chat. A creator chain is at most three links deep, one turn starts at most five
+    main chats, and a creator has at most twenty spawned main chats that are not finished. Requests over a limit fail
+    with a clear tool error and start nothing.
+  depends_on:
+  - models.ChatCreatorLink
+  - examples.limits
+- id: chat-orchestration.events.creator-system-events
+  type: behavior
+  must: Each start, report and status change shows as one timestamped system event in the creator chat in the same
+    compact style as voice call started and ended events, for example "Started chat Kitchen quotes", "Report from
+    Kitchen quotes" with the report text, "Kitchen quotes finished", "Kitchen quotes is waiting for you" and "You wrote
+    in Kitchen quotes". Tapping an event opens the spawned chat. Events use stable identities, normal client-encrypted
+    history synchronization and survive reload; repeated delivery never duplicates an event, and an event never starts
+    AI inference in the creator chat.
+  depends_on:
+  - models.OrchestrationEvent
+  - examples.creator_events
+- id: chat-orchestration.events.context-for-creator
+  type: behavior
+  must: Orchestration events in the creator chat are part of the creator assistant's next-turn context as untrusted
+    data with the spawned chat id, title, action and report text, so the creator assistant can answer "what is the
+    status of my chats" without guessing.
+  depends_on:
+  - models.OrchestrationEvent
+  - examples.creator_context
+- id: chat-orchestration.report.creator-skill
+  type: behavior
+  must: Every chat with a creator link automatically has the report-to-creator skill and an instruction to report its
+    result. A report stores one report event with the text in the creator chat. Chats without a creator link do not
+    expose the skill, and calling it there fails without effect.
+  depends_on:
+  - models.ChatCreatorLink
+  - examples.report
+- id: chat-orchestration.status.automatic
+  type: behavior
+  must: The platform itself adds a finished event when a spawned chat's assistant turn completes and a waiting-for-you
+    event when it pauses for user input, independent of whether the spawned assistant reported. A failed turn adds no
+    finished event; the list skill shows it as failed.
+  depends_on:
+  - models.SpawnedChatState
+  - examples.automatic_status
+- id: chat-orchestration.skills.list-read-send
+  type: behavior
+  must: The OpenMates app offers the creator assistant list-spawned-chats (id, title, state and last activity of chats
+    this chat spawned), read-spawned-chat (the last messages of one spawned chat, at most twenty, bounded text) and
+    send-to-spawned-chat (a message that the spawned assistant answers). These skills act only on chats spawned by the
+    current chat and refuse any other chat id.
+  depends_on:
+  - models.SpawnedChatState
+  - examples.list_read_send
+- id: chat-orchestration.privacy.device-executed
+  type: privacy
+  must: Chat keys never leave the user's devices. Creating a spawned chat, encrypting its brief, storing creator events,
+    reading a spawned chat and writing into it are orchestration jobs that exactly one online device of the user claims
+    and performs with local keys. The server relays only the bounded plaintext the live job needs, keeps undelivered
+    jobs only as Vault-encrypted pending records for 24 hours and each spawned chat's state and label only as a
+    Vault-encrypted record for 72 hours, does not persist read results, and treats read results
+    and reports as untrusted data. When no device is online, start and event jobs wait and run on the next connection;
+    read and send fail with a clear device-offline tool error.
+  depends_on:
+  - models.OrchestrationJob
+  - examples.device_jobs
+- id: chat-orchestration.billing.separate-main-chats
+  type: invariant
+  must: Every spawned main chat keeps its own usage and billing history under its own chat id, including the brief and
+    every later turn. Only sub_chat children roll usage up under their root chat. The creator chat's usage contains only
+    its own turns and skill calls.
+  depends_on:
+  - models.SpawnKind
+  - examples.billing
+- id: chat-orchestration.user-awareness.no-talking-over
+  type: behavior
+  must: When the user sends their own message in a spawned chat, the creator chat gets a "You wrote in" event without
+    the message content, the list skill shows the chat as user_active for ten minutes, and send-to-spawned-chat refuses
+    with a user-active tool error while the spawned assistant is answering or the user wrote there within the last ten
+    minutes. Messages sent by the creator are marked in the spawned chat as coming from the creator chat.
+  depends_on:
+  - models.SpawnedChatState
+  - examples.user_awareness
+applies_to:
+  rest_api:
+    required: true
+    role: Authenticated first-party WebSocket job frames, the chats creator link field and the OpenMates app skills;
+      no public developer API for spawning.
+  cli:
+    required: true
+    role: CLI chats show and history render orchestration events as readable lines through the shared Rust core.
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: true
+      apple:
+        required: false
+        role: The shared core driver is available through the binding; native event rendering follows the web.
+examples:
+  file: examples.yml
+  required_groups:
+  - unified_kind
+  - start_chat
+  - limits
+  - creator_events
+  - creator_context
+  - report
+  - automatic_status
+  - list_read_send
+  - device_jobs
+  - billing
+  - user_awareness
+notes:
+  design_authorization: >-
+    Product decisions (one spawn mechanism with a kind, system events instead of the carousel, report-to-creator plus
+    automatic status events, skills in the OpenMates app, separate billing for spawned main chats, user-typing
+    awareness) were agreed by the founder on 2026-11-13, who also asked for implementation to proceed without waiting
+    for a separate approval round.

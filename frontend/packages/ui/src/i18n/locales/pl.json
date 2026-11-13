@@ -135,6 +135,12 @@
         "description": {
           "text": "Ustal, ile pozyskać, jaki instrument pasuje, jakie będzie rozwodnienie i harmonogram, z edytowalnym arkuszem cap table."
         }
+      },
+      "write_press_release": {
+        "text": "Napisz informację prasową",
+        "description": {
+          "text": "Napisz informację prasową, z której dziennikarze mogą korzystać, w stylu prasowym Twojej firmy, jako dokument Word lub w innym wybranym formacie."
+        }
       }
     },
     "code": {
@@ -3353,6 +3359,7 @@
       }
     }
   },
+  "chat_orchestration_events": {},
   "chat_settings": {},
   "chats": {
     "chat": {
@@ -3941,6 +3948,12 @@
     },
     "download": {
       "text": "Pobierz"
+    },
+    "download_pdf": {
+      "text": "Pobierz PDF"
+    },
+    "download_word": {
+      "text": "Pobierz Word"
     },
     "loading": {
       "text": "Ładowanie..."
@@ -10733,6 +10746,21 @@
       "text": "Napisz wiadomość do inwestora",
       "description": {
         "text": "Przygotuj krótki e-mail do inwestora, wiadomość polecającą do przekazania wspólnemu znajomemu i dwa follow-upy."
+      }
+    },
+    "business_write_press_release": {
+      "text": "Napisz informację prasową",
+      "description": {
+        "text": "Napisz informację prasową, z której dziennikarze mogą korzystać, w stylu prasowym Twojej firmy, jako dokument Word lub w innym wybranym formacie."
+      },
+      "process": {
+        "text": "- Korzysta z zapisanego stylu prasowego (nazwy, opis firmy, rzecznicy, kontakt, ton) albo najpierw tworzy go na podstawie wcześniejszych informacji, kilku pytań lub neutralnych ustawień\n\n- Proponuje zapisanie stylu w Twoim projekcie, aby każda kolejna informacja brzmiała tak samo\n\n- Pyta tylko o to, czego brakuje do newsa, po jednym pytaniu naraz, i szczerze mówi, gdy temat jest słaby informacyjnie\n\n- Pokazuje propozycje nagłówka, lead i fakty, których użyje, abyś mógł je poprawić, zanim cokolwiek powstanie\n\n- Pisze informację z nagłówkiem, miejscem i datą, leadem, cytatami, opisem firmy i kontaktem dla mediów, domyślnie jako dokument Word, a na życzenie jako PDF, HTML lub React\n\n- Używa tylko faktów, które potwierdzisz, nigdy nie wymyśla cytatów i oznacza każdy cytat do zatwierdzenia\n\n- Sprawdza wynik i proponuje e-mail z ofertą tematu dla dziennikarzy, post w mediach społecznościowych lub tłumaczenie"
+      },
+      "how_to_use": {
+        "text": "- Napisz **informację prasową** o premierze naszej aplikacji 18 listopada. Oto nasze dwie ostatnie informacje\n\n- Stwórz nasz **styl prasowy** na podstawie strony internetowej i zapisz go w tym projekcie\n\n- Zamień to ogłoszenie na **informację prasową w PDF** i krótki e-mail z ofertą tematu dla dziennikarzy"
+      },
+      "systemprompt": {
+        "text": "Pomagasz użytkownikowi napisać informację prasową, z której dziennikarz może skorzystać bez zmian: najpierw prawdziwa wiadomość, sprawdzalne fakty, podpisany głos i kontakt, który odpowiada. Styl prasowy firmy i wyraźne życzenia użytkownika mają pierwszeństwo przed ogólnymi konwencjami.\n\nStosuj tylko instrukcje bieżącej fazy. Zadawaj jedno pytanie na rundę, z konkretnym przykładem i rekomendacją, i czekaj na odpowiedź. Respektuj prośby o pominięcie pytań, odpowiedź na wszystko naraz lub przejście od razu do szkicu.\n\nWażne zasady:\n\n- Nigdy nie pytaj o informacje, które zawiera już załadowane wspomnienie, przesłany plik lub czat. Zacznij od nich i poproś o potwierdzenie.\n\n- Fakty użytkownika są jedynym źródłem. Poprawiaj sformułowania, kolejność i akcenty; nigdy nie wymyślaj ani nie zawyżaj liczb, dat, klientów, partnerów, nagród, wyników ani nazw. Jeśli użytkownik prosi o wymyślenie czegoś, odmów i zaproponuj prawdziwą alternatywę.\n\n- Nigdy nie przedstawiaj cytatu jako ostatecznego. Pisz cytaty jako szkice do zatwierdzenia przez wskazaną osobę i nigdy nie przypisuj słów prawdziwej osobie spoza organizacji użytkownika bez źródła.\n\n- Pisz prosto i konkretnie. Usuwaj puste superlatywy i modne słowa lub zastępuj je faktem.\n\n- Informacje objęte embargiem lub jeszcze nieopublikowane zostają w tym czacie i w projekcie użytkownika; nigdy ich nie publikuj, nie wysyłaj ani nie udostępniaj i nigdy nie kontaktuj się z dziennikarzami ani nikim innym. Ty piszesz szkice; wysyła je użytkownik.\n\n- Domyślnym formatem jest Word. PDF, HTML lub React twórz tylko na prośbę, zgodnie z zasadami formatu z fazy szkicu.\n\n- Styl prasowy należy do jednej firmy. Zaleć zapisanie go we Wspomnieniach aktywnego projektu; bez aktywnego projektu zaproponuj osobiste wspomnienie ładowane tylko po wzmiance. Zapisuj dopiero po zgodzie użytkownika.\n\n- Mów, że wspomnienie zapisano lub zaktualizowano, dopiero po udanym wywołaniu narzędzia zapisu. Jeśli dostępne narzędzie nie może zapisać w projekcie, powiedz o tym, zaproponuj osobiste wspomnienie lub poinformuj, że użytkownik może wkleić styl na karcie Wspomnienia w projekcie.\n\n- Nie udzielaj porad prawnych dotyczących obowiązków informacyjnych, zasad giełdowych ani znaków towarowych; mów, kiedy użytkownik powinien skonsultować się z prawnikiem lub zespołem relacji inwestorskich.\n\n- Odpowiedzi na czacie niech będą krótkie. Treść niesie dokument.\n\n- Wartości takie jak [EMAIL_1_org] lub [PHONE_1_000] to zastępniki prywatności. Aplikacja pokazuje w ich miejsce prawdziwe dane użytkownika na ekranie i w dokumencie. Używaj ich bez zmian jako prawdziwej wartości; nigdy nie nazywaj ich zastępnikami, brakującymi ani nieprawidłowymi i nigdy nie proś użytkownika o ich zamianę."
       }
     },
     "code_analyze_logs": {
@@ -20716,7 +20744,7 @@
       "text": "Testuj za darmo"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "Domena e-mail niedozwolona."

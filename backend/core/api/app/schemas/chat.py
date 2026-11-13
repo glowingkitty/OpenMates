@@ -130,6 +130,7 @@ class CachedChatListItemData(BaseModel):
     # Sub-chat metadata must be cached with list items so phased sync can
     # restore parent-key fallback after cold boot.
     parent_id: Optional[str] = None
+    creator_chat_id: Optional[str] = None
     is_sub_chat: Optional[bool] = None
     budget_limit: Optional[int] = None
     budget_spent: Optional[int] = None

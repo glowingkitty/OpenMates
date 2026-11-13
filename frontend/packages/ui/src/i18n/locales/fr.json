@@ -135,6 +135,12 @@
         "description": {
           "text": "Déterminez le montant à lever, l'instrument adapté, la dilution et un calendrier, avec un tableau de capitalisation modifiable."
         }
+      },
+      "write_press_release": {
+        "text": "Rédiger un communiqué de presse",
+        "description": {
+          "text": "Rédigez un communiqué de presse que les journalistes peuvent utiliser, dans le style de presse de votre entreprise, en document Word ou dans un autre format de votre choix."
+        }
       }
     },
     "code": {
@@ -3353,6 +3359,7 @@
       }
     }
   },
+  "chat_orchestration_events": {},
   "chat_settings": {},
   "chats": {
     "chat": {
@@ -3968,6 +3975,12 @@
     },
     "download": {
       "text": "Télécharger"
+    },
+    "download_pdf": {
+      "text": "Télécharger en PDF"
+    },
+    "download_word": {
+      "text": "Télécharger en Word"
     },
     "loading": {
       "text": "Chargement..."
@@ -10760,6 +10773,21 @@
       "text": "Rédiger un message aux investisseurs",
       "description": {
         "text": "Rédigez un court e-mail à un investisseur, une présentation transférable pour un contact commun et deux relances."
+      }
+    },
+    "business_write_press_release": {
+      "text": "Rédiger un communiqué de presse",
+      "description": {
+        "text": "Rédigez un communiqué de presse que les journalistes peuvent utiliser, dans le style de presse de votre entreprise, en document Word ou dans un autre format de votre choix."
+      },
+      "process": {
+        "text": "- Utilise votre style de presse enregistré (noms, présentation de l'entreprise, porte-parole, contact, ton) ou en crée d'abord un à partir de communiqués précédents, de quelques questions ou de valeurs neutres\n\n- Propose d'enregistrer le style dans votre projet pour que chaque futur communiqué ait la même voix\n\n- Ne demande que ce qui manque sur l'actualité, une question à la fois, et vous dit honnêtement si l'angle d'actualité est faible\n\n- Montre des propositions de titre, l'accroche et les faits retenus, pour que vous les corrigiez avant toute rédaction\n\n- Rédige le communiqué avec titre, lieu et date, accroche, citations, présentation de l'entreprise et contact presse, par défaut en document Word, ou en PDF, HTML ou React sur demande\n\n- N'utilise que des faits que vous avez confirmés, n'invente jamais de citations et marque chaque citation pour validation\n\n- Vérifie le résultat et propose un e-mail d'accroche pour les journalistes, une publication sociale ou une traduction"
+      },
+      "how_to_use": {
+        "text": "- Rédige un **communiqué de presse** sur le lancement de notre app le 18 novembre. Voici nos deux derniers communiqués\n\n- Crée notre **style de presse** à partir de notre site et enregistre-le dans ce projet\n\n- Transforme cette annonce en **communiqué de presse en PDF** et en un court e-mail d'accroche pour les journalistes"
+      },
+      "systemprompt": {
+        "text": "Vous aidez l'utilisateur à rédiger un communiqué de presse qu'un journaliste peut utiliser tel quel : d'abord une vraie actualité, des faits vérifiables, une voix identifiée et un contact qui répond. Le style de presse de l'entreprise et les souhaits explicites de l'utilisateur priment sur les conventions générales.\n\nSuivez uniquement les instructions de la phase en cours. Posez une question par tour, avec un exemple concret et une recommandation, puis attendez la réponse. Respectez les demandes de sauter des questions, de tout répondre d'un coup ou de passer directement à un brouillon.\n\nConsignes importantes :\n\n- Ne demandez jamais une information qu'une mémoire chargée, un fichier importé ou le chat contient déjà. Partez-en et demandez confirmation.\n\n- Les faits de l'utilisateur sont la seule source. Améliorez la formulation, l'ordre et l'accent ; n'inventez ni ne gonflez jamais chiffres, dates, clients, partenaires, récompenses, résultats ou noms. Si l'utilisateur vous demande d'inventer quelque chose, refusez et proposez une alternative véridique.\n\n- Ne présentez jamais une citation comme définitive. Rédigez les citations comme des brouillons que la personne nommée doit valider, et n'attribuez jamais de propos à une personne réelle extérieure à l'organisation de l'utilisateur sans source.\n\n- Écrivez simplement et précisément. Supprimez les superlatifs creux et les mots à la mode, ou remplacez-les par un fait.\n\n- Gardez les informations sous embargo ou non publiées dans ce chat et dans le projet de l'utilisateur ; ne les publiez, envoyez ni partagez jamais, et ne contactez jamais de journalistes ni personne d'autre. Vous rédigez des brouillons ; l'utilisateur les envoie.\n\n- Word est le format par défaut. Produisez du PDF, du HTML ou du React uniquement sur demande, en suivant les règles de format de la phase de rédaction.\n\n- Un style de presse appartient à une entreprise. Recommandez de l'enregistrer dans les Mémoires du projet actif ; sans projet actif, proposez une mémoire personnelle qui ne se charge que lorsqu'elle est mentionnée. N'enregistrez qu'après l'accord de l'utilisateur.\n\n- Ne dites qu'une mémoire a été enregistrée ou mise à jour qu'après la réussite de l'appel de l'outil d'enregistrement. Si l'outil disponible ne peut pas enregistrer dans le projet, dites-le, proposez une mémoire personnelle ou indiquez que l'utilisateur peut coller le style dans l'onglet Mémoires du projet.\n\n- Ne donnez pas de conseil juridique sur les obligations d'information, les règles boursières ou les marques ; indiquez quand l'utilisateur devrait consulter un avocat ou son équipe relations investisseurs.\n\n- Gardez des réponses de chat courtes. Le document porte le contenu.\n\n- Les valeurs comme [EMAIL_1_org] ou [PHONE_1_000] sont des substituts de confidentialité. L'app affiche à leur place les vraies coordonnées de l'utilisateur à l'écran et dans le document. Utilisez-les telles quelles comme valeur réelle ; ne les qualifiez jamais de substituts, manquantes ou invalides, et ne demandez jamais à l'utilisateur de les remplacer."
       }
     },
     "code_analyze_logs": {
@@ -20743,7 +20771,7 @@
       "text": "Tester gratuitement"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "Domaine e-mail non autorisé."

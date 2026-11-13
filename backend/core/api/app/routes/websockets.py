@@ -120,6 +120,12 @@ from .handlers.websocket_handlers.workflow_chat_delivery_handlers import (
     handle_workflow_chat_delivery_persist,
     send_available_workflow_chat_deliveries,
 )
+from .handlers.websocket_handlers.chat_orchestration_job_handlers import (
+    handle_chat_orchestration_job_claim,
+    handle_chat_orchestration_job_result,
+    offer_job_to_devices,
+    send_pending_chat_orchestration_jobs,
+)
 from .handlers.websocket_handlers.memory_write_job_handlers import (
     handle_memory_write_job_claim,
     handle_memory_write_job_result,
@@ -1511,6 +1517,19 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             message={"type": event_type, "payload": client_payload},
                             user_id=owner_id,
                             device_fingerprint_hash=device_hash,
+                        )
+                    continue
+
+                if event_type == "chat_orchestration_job_available":
+                    # Job payloads stay Vault-encrypted in Redis; decrypt only to deliver
+                    # to the owner's capable devices (first claim wins).
+                    orchestration_user = redis_payload.get("user_id_uuid")
+                    orchestration_job = redis_payload.get("job_id")
+                    if orchestration_user and orchestration_job:
+                        await offer_job_to_devices(
+                            manager=manager, cache_service=cache_service,
+                            encryption_service=app.state.encryption_service,
+                            user_id=orchestration_user, job_id=orchestration_job,
                         )
                     continue
 
@@ -3292,6 +3311,7 @@ async def websocket_endpoint(
     supports_project_create_requests = "project_create_requests" in connection_capabilities
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
     supports_memory_write_jobs = "memory_write_jobs" in connection_capabilities
+    supports_chat_orchestration_jobs = "chat_orchestration_jobs" in connection_capabilities
     supports_canonical_embed_receipts = "canonical_embed_receipts_v1" in connection_capabilities
     supports_typed_recovery_outputs = "typed_recovery_outputs_v2" in connection_capabilities
     supports_empty_call_cleanup = websocket.query_params.get("empty_call_cleanup_guard") == "1"
@@ -3343,6 +3363,7 @@ async def websocket_endpoint(
         supports_project_create_requests=supports_project_create_requests,
         supports_remote_command_jobs=supports_remote_command_jobs,
         supports_memory_write_jobs=supports_memory_write_jobs,
+        supports_chat_orchestration_jobs=supports_chat_orchestration_jobs,
         supports_storage_archive=supports_storage_archive,
         supports_canonical_embed_receipts=supports_canonical_embed_receipts,
         supports_typed_recovery_outputs=supports_typed_recovery_outputs,
@@ -3463,6 +3484,17 @@ async def websocket_endpoint(
                 device_fingerprint_hash=device_fingerprint_hash,
                 complete_inventory=complete_task_inventory,
                 inventory_request_id=inventory_request_id,
+            )
+        )
+
+    if supports_chat_orchestration_jobs:
+        asyncio.create_task(
+            send_pending_chat_orchestration_jobs(
+                manager=manager,
+                cache_service=cache_service,
+                encryption_service=encryption_service,
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash,
             )
         )
 
@@ -3889,6 +3921,21 @@ async def websocket_endpoint(
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
                 )
+
+            elif message_type in ("chat_orchestration_job_claim", "chat_orchestration_job_result"):
+                if not supports_chat_orchestration_jobs:
+                    await websocket.send_json({"type": "error", "payload": {"message": "Chat orchestration jobs require a chat-orchestration-jobs capable client"}})
+                    continue
+                if message_type == "chat_orchestration_job_claim":
+                    await handle_chat_orchestration_job_claim(
+                        manager=manager, cache_service=cache_service, user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    )
+                else:
+                    await handle_chat_orchestration_job_result(
+                        manager=manager, cache_service=cache_service, encryption_service=encryption_service,
+                        user_id=user_id, device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    )
 
             elif message_type in ("memory_write_job_claim", "memory_write_job_result"):
                 if not supports_memory_write_jobs:

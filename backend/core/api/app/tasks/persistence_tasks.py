@@ -89,6 +89,7 @@ def _chat_list_cache_data_from_metadata(
         encrypted_auto_speak_response=chat_metadata.get("encrypted_auto_speak_response"),
         last_message_timestamp=chat_metadata.get("last_message_timestamp"),
         parent_id=chat_metadata.get("parent_id"),
+        creator_chat_id=chat_metadata.get("creator_chat_id"),
         is_sub_chat=chat_metadata.get("is_sub_chat"),
         budget_limit=chat_metadata.get("budget_limit"),
         budget_spent=chat_metadata.get("budget_spent"),
@@ -2542,6 +2543,7 @@ async def _async_persist_encrypted_chat_metadata(
                         encrypted_auto_speak_response=encrypted_metadata.get("encrypted_auto_speak_response"),
                         last_message_timestamp=last_message,
                         parent_id=encrypted_metadata.get("parent_id"),
+                        creator_chat_id=encrypted_metadata.get("creator_chat_id"),
                         is_sub_chat=encrypted_metadata.get("is_sub_chat"),
                         budget_limit=encrypted_metadata.get("budget_limit"),
                         budget_spent=encrypted_metadata.get("budget_spent"),
@@ -2620,6 +2622,7 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_shared_short_url": encrypted_metadata.get("encrypted_shared_short_url"),
                 "encrypted_auto_speak_response": encrypted_metadata.get("encrypted_auto_speak_response"),
                 "parent_id": encrypted_metadata.get("parent_id"),
+                "creator_chat_id": encrypted_metadata.get("creator_chat_id"),
                 "is_sub_chat": encrypted_metadata.get("is_sub_chat"),
             }
 

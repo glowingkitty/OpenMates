@@ -79,6 +79,8 @@ pub mod embed_write;
 pub mod embed_user_revision;
 /// The `embed_updated` chat system event: codec, writer, reconcile, grouping.
 pub mod embed_updated_event;
+/// Chat orchestration jobs, events and read bounds (`feature.chat-orchestration`).
+pub mod chat_orchestration;
 /// Image Enhance: start, wait and save the result as the next embed version.
 pub mod image_enhance;
 /// Version history with provenance and the edit head of a native shell's edit.

@@ -1,0 +1,144 @@
+schema_version: 1
+specification: feature.chat-orchestration@1
+unified_kind:
+- id: subchat-unchanged
+  assertion_ids:
+  - chat-orchestration.spawn.unified-kind
+  given: Alice asks her research chat to compare three laptops in parallel sub-chats.
+  when: The assistant starts three sub-chats.
+  then: They appear in the sub-chat carousel under the research chat as before, their usage rolls up under the research
+    chat, and their orchestration records carry kind sub_chat.
+- id: main-chat-not-nested
+  assertion_ids:
+  - chat-orchestration.spawn.unified-kind
+  given: Alice's planning chat starts the main chat "Kitchen quotes".
+  when: She looks at the planning chat and the sidebar.
+  then: '"Kitchen quotes" is a top-level sidebar chat with no sub-chat carousel entry, its orchestration record carries
+    kind main_chat, and finishing it does not resume the planning chat''s turn.'
+start_chat:
+- id: voice-call-starts-chat
+  assertion_ids:
+  - chat-orchestration.spawn.main-chat-is-normal
+  given: Alice is in a voice call in her chat "Weekly planning".
+  when: She says "Start a chat that collects three quotes for kitchen tiles in Berlin".
+  then: A new sidebar chat "Kitchen quotes" appears whose first user message is the brief, its assistant starts
+    working, and "Weekly planning" shows the event "Started chat Kitchen quotes".
+- id: open-and-link-back
+  assertion_ids:
+  - chat-orchestration.spawn.main-chat-is-normal
+  given: '"Kitchen quotes" was started by "Weekly planning".'
+  when: Alice opens "Kitchen quotes", types "also check Leipzig" and taps the small "Started from Weekly planning" link.
+  then: Her message is answered like in any chat, and the link opens "Weekly planning".
+limits:
+- id: incognito-cannot-spawn
+  assertion_ids:
+  - chat-orchestration.spawn.eligibility-and-limits
+  given: Alice is in an incognito chat.
+  when: She asks the assistant to start a new chat for her tax questions.
+  then: No chat is created and the assistant says that starting chats is not available in incognito.
+- id: six-in-one-turn
+  assertion_ids:
+  - chat-orchestration.spawn.eligibility-and-limits
+  given: Alice's chat "Launch week" has no spawned chats yet.
+  when: She asks for six separate chats in one message.
+  then: Five chats start and the sixth start fails with a tool error saying at most five chats start per turn.
+creator_events:
+- id: events-in-order
+  assertion_ids:
+  - chat-orchestration.events.creator-system-events
+  given: '"Weekly planning" started "Kitchen quotes".'
+  when: '"Kitchen quotes" reports "Three quotes found, cheapest 42 EUR per m2" and then finishes.'
+  then: '"Weekly planning" shows, in time order, "Started chat Kitchen quotes", "Report from Kitchen quotes: Three
+    quotes found, cheapest 42 EUR per m2" and "Kitchen quotes finished"; tapping any of them opens "Kitchen quotes",
+    and no assistant answer starts in "Weekly planning".'
+- id: two-devices-no-duplicates
+  assertion_ids:
+  - chat-orchestration.events.creator-system-events
+  given: Alice has "Weekly planning" open on her laptop and her phone.
+  when: '"Kitchen quotes" finishes and both devices reload.'
+  then: Both show exactly one "Kitchen quotes finished" event.
+creator_context:
+- id: status-question
+  assertion_ids:
+  - chat-orchestration.events.context-for-creator
+  given: '"Weekly planning" shows "Started chat Kitchen quotes" and "Kitchen quotes is waiting for you".'
+  when: Alice asks "what is happening in my chats?".
+  then: The assistant answers that "Kitchen quotes" is waiting for her input, without reading that chat.
+report:
+- id: spawned-reports
+  assertion_ids:
+  - chat-orchestration.report.creator-skill
+  given: '"Kitchen quotes" was started by "Weekly planning".'
+  when: Its assistant has collected the quotes.
+  then: It calls report-to-creator with a short summary and "Weekly planning" shows "Report from Kitchen quotes" with
+    that summary.
+- id: no-creator-no-skill
+  assertion_ids:
+  - chat-orchestration.report.creator-skill
+  given: Alice opens a normal new chat she started herself.
+  when: The assistant's skills are listed for her request.
+  then: report-to-creator is not among them.
+automatic_status:
+- id: finished-without-report
+  assertion_ids:
+  - chat-orchestration.status.automatic
+  given: '"Kitchen quotes" never calls report-to-creator.'
+  when: Its assistant finishes its answer.
+  then: '"Weekly planning" still shows "Kitchen quotes finished".'
+- id: waiting-for-input
+  assertion_ids:
+  - chat-orchestration.status.automatic
+  given: '"Kitchen quotes" needs to know Alice''s budget.'
+  when: Its assistant asks Alice for input and pauses.
+  then: '"Weekly planning" shows "Kitchen quotes is waiting for you" and list-spawned-chats reports waiting_for_user.'
+list_read_send:
+- id: read-and-follow-up
+  assertion_ids:
+  - chat-orchestration.skills.list-read-send
+  given: '"Weekly planning" spawned "Kitchen quotes" and "Flight to Lisbon".'
+  when: Alice asks "what did the kitchen chat find? tell it to also check Leipzig".
+  then: The assistant reads the last messages of "Kitchen quotes", summarizes the quotes, sends "Please also check
+    Leipzig" into it, and "Kitchen quotes" answers that message.
+- id: foreign-chat-refused
+  assertion_ids:
+  - chat-orchestration.skills.list-read-send
+  given: Alice also has a chat "Tax return 2025" that "Weekly planning" did not spawn.
+  when: The creator assistant calls read-spawned-chat with the id of "Tax return 2025".
+  then: The skill refuses with a not-spawned-by-this-chat error and nothing is read.
+device_jobs:
+- id: one-device-claims
+  assertion_ids:
+  - chat-orchestration.privacy.device-executed
+  given: Alice is signed in on a laptop and a phone, both online.
+  when: '"Weekly planning" starts "Kitchen quotes".'
+  then: Exactly one device creates the chat with a new chat key and encrypts the brief; the other device receives the
+    chat through normal sync, and the server never holds the chat key.
+- id: offline-start-waits
+  assertion_ids:
+  - chat-orchestration.privacy.device-executed
+  given: A workflow runs in "Weekly planning" while all of Alice's devices are offline.
+  when: Its assistant starts "Kitchen quotes" and later tries to read it.
+  then: The start waits as a Vault-encrypted pending job and runs when Alice's laptop next connects; the read fails at
+    once with a device-offline tool error.
+billing:
+- id: separate-usage
+  assertion_ids:
+  - chat-orchestration.billing.separate-main-chats
+  given: '"Weekly planning" started "Kitchen quotes", which ran two assistant turns.'
+  when: Alice opens her usage history.
+  then: '"Kitchen quotes" has its own two usage entries, and "Weekly planning" shows only its own turns and the
+    start-chat skill call.'
+user_awareness:
+- id: user-writes-in-spawned
+  assertion_ids:
+  - chat-orchestration.user-awareness.no-talking-over
+  given: '"Weekly planning" started "Kitchen quotes".'
+  when: Alice types "use matte tiles only" in "Kitchen quotes".
+  then: '"Weekly planning" shows "You wrote in Kitchen quotes" without the text, and for the next ten minutes
+    send-to-spawned-chat into "Kitchen quotes" fails with a user-active error.'
+- id: creator-message-marked
+  assertion_ids:
+  - chat-orchestration.user-awareness.no-talking-over
+  given: '"Weekly planning" sends "Please also check Leipzig" into "Kitchen quotes".'
+  when: Alice opens "Kitchen quotes".
+  then: The message is marked as sent from "Weekly planning", not as typed by Alice.

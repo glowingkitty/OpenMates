@@ -4,8 +4,11 @@
 //! of one embed (`group_embed_updated_events`); this shell module only words
 //! a folded run as one quiet line, for the CLI transcript and the TUI. Other
 //! system rows (memory events, Undo markers) take the core's
-//! `system_event_line` wording (`feature.app-memories`).
+//! `system_event_line` wording (`feature.app-memories`); chat orchestration
+//! events take the core's `chat_orchestration::event_line`
+//! (`feature.chat-orchestration`).
 use crate::model::Message;
+use openmates_sdk::client::chat_orchestration;
 use openmates_sdk::client::embed_updated_event::{
     ChatHistoryItem, EmbedKind, EmbedUpdateAction, EmbedUpdateSurface, EmbedUpdatedGroup,
     HistoryRow, group_embed_updated_events,
@@ -49,6 +52,11 @@ pub(crate) fn transcript_items(messages: &[Message]) -> Vec<TranscriptItem<'_>> 
                 let message = messages.get(index)?;
                 if message.role != "system" {
                     return Some(TranscriptItem::Message(message));
+                }
+                if let Some(event) = chat_orchestration::parse_event(&message.content) {
+                    return Some(TranscriptItem::Notice(chat_orchestration::event_line(
+                        &event, None,
+                    )));
                 }
                 match system_event_line(&message.content, &undone) {
                     SystemEventLine::Hidden => None,

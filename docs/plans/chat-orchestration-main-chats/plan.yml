@@ -1,0 +1,299 @@
+schema_version: 2
+id: chat-orchestration-main-chats
+title: Any chat can spawn and coordinate other main chats
+status: implementing
+goal: 'Let any eligible chat start and coordinate other full main chats (orchestrator use case, e.g. one voice call managing
+  work across many chats), unified with the existing sub-chat orchestration through a spawn kind (sub_chat | main_chat). Spawned
+  main chats are normal sidebar chats with their own key and billing and a creator link; the creator chat shows compact system
+  events (started, report, finished, waiting for you, you wrote) that open the spawned chat; spawned chats get a report-to-creator
+  skill; all content stays client-encrypted through device-claimed orchestration jobs.
+
+  '
+specifications:
+- feature.chat-orchestration@1
+scope:
+  in:
+  - Directus fields chats.creator_chat_id and sub_chat_orchestration_children.spawn_kind; prepare_batch main_chat branch.
+  - Shared orchestration job service (Redis, Vault-encrypted pending payloads, claim/result, re-offer on connect).
+  - WebSocket frames and capability chat_orchestration_jobs.
+  - OpenMates app skills start-chat, list-spawned-chats, read-spawned-chat, send-to-spawned-chat, report-to-creator.
+  - Automatic finished / waiting-for-user / user-wrote creator events and the user-active send guard.
+  - Rust core chat_orchestration module (event model, job driver effects, read bounding, CLI event line) and wasm export.
+  - Web shell job runner, event notice component, creator link, creator-sent label, i18n, preview, E2E.
+  out:
+  - Apple native rendering (core driver reachable through the binding; UI parity later).
+  - Automatic AI inference in the creator chat on incoming events.
+  - Any change to sub-chat behaviour, carousel or billing rollup.
+decisions:
+- id: D-1
+  status: active
+  decision: Spawned main chats are created by the user's device through the normal new-chat send path (own key, own recovery
+    identity, own billing, normal title generation), not by server-side AI dispatch. The server pre-records only the orchestration
+    child row (spawn_kind main_chat, no chat row, no credit reservation).
+  reason: Agreed product design (2026-11-13) mapped onto existing sub-chat, memory-job and system-message machinery while
+    keeping chat keys on devices.
+  decided_at: '2026-11-13T00:00:00Z'
+- id: D-2
+  status: active
+  decision: Every client-side effect is an orchestration job claimed by exactly one capable online device (SET NX claim, like
+    memory write jobs). Pending jobs are Vault-encrypted in Redis for 24 h and re-offered on connect.
+  reason: Agreed product design (2026-11-13) mapped onto existing sub-chat, memory-job and system-message machinery while
+    keeping chat keys on devices.
+  decided_at: '2026-11-13T00:00:00Z'
+- id: D-3
+  status: active
+  decision: Creator events are client-encrypted role system messages with JSON content type chat_orchestration, stored through
+    the existing system message path with a deterministic message id; they never start inference and are translated to readable
+    context text for the creator assistant.
+  reason: Agreed product design (2026-11-13) mapped onto existing sub-chat, memory-job and system-message machinery while
+    keeping chat keys on devices.
+  decided_at: '2026-11-13T00:00:00Z'
+- id: D-4
+  status: active
+  decision: Creator-sent messages carry a transient orchestration_job_id on chat_message_added (server classification) and
+    a client-encrypted sender name chat:<creator_chat_id> (rendering). Messages without it in a linked chat are user-typed
+    and produce a user_wrote event plus a ten-minute user_active guard.
+  reason: Agreed product design (2026-11-13) mapped onto existing sub-chat, memory-job and system-message machinery while
+    keeping chat keys on devices.
+  decided_at: '2026-11-13T00:00:00Z'
+- id: D-5
+  status: active
+  decision: Spawn state (starting, working, finished, waiting_for_user, user_active, failed) and the spawn label are kept
+    in Redis per spawned chat, Vault-encrypted, 72 h TTL; durable truth is the child row plus chats.creator_chat_id.
+  reason: Agreed product design (2026-11-13) mapped onto existing sub-chat, memory-job and system-message machinery while
+    keeping chat keys on devices.
+  decided_at: '2026-11-13T00:00:00Z'
+protocol:
+  capability: chat_orchestration_jobs
+  frames:
+    server_to_client:
+      chat_orchestration_job_available: '{job_id, kind, payload, created_at, expires_at}'
+      chat_orchestration_job_claim_result: '{job_id, granted, reason?}'
+      chat_orchestration_job_result_ack: '{job_id, accepted, reason?}'
+    client_to_server:
+      chat_orchestration_job_claim: '{job_id}'
+      chat_orchestration_job_result: '{job_id, ok, error_code?, result?}'
+  job_kinds:
+    start_chat: 'payload {spawned_chat_id, creator_chat_id, title, brief, event_message_id}. Device creates the chat with
+      a new key, sends brief as the first user message (sender name chat:<creator_chat_id>, orchestration_job_id on the send
+      and creator_chat_id + orchestration_job_id in encrypted_chat_metadata) and stores the started event in the creator chat.
+
+      '
+    creator_event: 'payload {creator_chat_id, spawned_chat_id, action, title?, text?, event_message_id, created_at}; device
+      stores the event in the creator chat.
+
+      '
+    read_chat: 'payload {spawned_chat_id, creator_chat_id, limit<=20}; device verifies the local creator link and returns
+      result {messages:[{role, content, created_at}]} bounded by the core (2000 chars per message, 12000 total).
+
+      '
+    send_message: 'payload {spawned_chat_id, creator_chat_id, text}; device verifies the link and sends text as a user message
+      in the spawned chat (sender name chat:<creator_chat_id>, orchestration_job_id on the send).
+
+      '
+  event_content: '{"schema_version":1,"type":"chat_orchestration","action":"started|report|finished|waiting_for_user|user_wrote",
+    "chat_id":"<spawned chat id>","title":"<label>","text":"<report text, report only>","event_id":"<stable id>", "created_at":<unix
+    seconds>}
+
+    '
+  error_codes:
+  - not_spawned_by_this_chat
+  - device_offline
+  - user_active
+  - spawn_limit_reached
+  - chain_too_deep
+  - not_eligible
+  - no_creator
+  - job_failed
+  - job_expired
+acceptance_criteria:
+- id: AC-1
+  text: start-chat from a chat creates a normal sidebar main chat whose first message is the brief, and the creator chat shows
+    "Started chat <title>" that opens it.
+  required: true
+  verification_ids:
+  - T-E2E
+  - T-PYTEST
+  scenario: S-1
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+- id: AC-2
+  text: The spawned chat reports back (report-to-creator) and the platform adds finished / waiting-for-you events.
+  required: true
+  verification_ids:
+  - T-E2E
+  - T-PYTEST
+  scenario: S-2
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+- id: AC-3
+  text: list / read / send skills act only on chats spawned by the current chat; read and send run on the device.
+  required: true
+  verification_ids:
+  - T-PYTEST
+  - T-RUST
+  scenario: S-3
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+- id: AC-4
+  text: Spawned main chat usage is billed under its own chat id; sub-chat rollup unchanged.
+  required: true
+  verification_ids:
+  - T-PYTEST
+  scenario: S-1
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+- id: AC-5
+  text: User typing in a spawned chat yields a user_wrote event and the user_active send guard.
+  required: true
+  verification_ids:
+  - T-PYTEST
+  scenario: S-3
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+tests:
+- id: T-PYTEST
+  type: pytest
+  file: backend/tests/test_chat_orchestration_skills.py
+  execution_environment: isolated_github_ci
+  command: python3 scripts/ci_coordinator.py submit --mode pytest --no-prepared-builds --spec backend/tests/test_chat_orchestration_skills.py
+    --spec backend/tests/test_chat_orchestration_main_chats_jobs.py
+  covers:
+  - AC-3
+  - AC-4
+  - AC-5
+  - AC-1
+  - AC-2
+  target: isolated_github_ci
+  assertions:
+  - Behaviour of AC-3, AC-4, AC-5, AC-1, AC-2 as described in feature.chat-orchestration@1.
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-RUST
+  type: unit
+  file: packages/openmates-rust/src/client/chat_orchestration_tests.rs
+  execution_environment: isolated_github_ci
+  command: python3 scripts/ci_coordinator.py submit --mode rust-check --spec openmates-sdk::chat_orchestration
+  covers:
+  - AC-3
+  target: isolated_github_ci
+  assertions:
+  - Behaviour of AC-3 as described in feature.chat-orchestration@1.
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-E2E
+  type: playwright
+  file: frontend/apps/web_app/tests/chat-orchestration-main-chats.spec.ts
+  execution_environment: dev_server_real_inference
+  command: python3 scripts/chat_orchestration_web_real_test.py --session 2cc2 --revision <deployed sha> --output-dir
+    /tmp/chat-orchestration-proof/run-1 --personal-dev-test-account --allow-paid-dev-inference
+  covers:
+  - AC-1
+  - AC-2
+  target: app.dev.openmates.org
+  assertions:
+  - Behaviour of AC-1, AC-2 as described in feature.chat-orchestration@1.
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass_after_deploy
+    evidence: {}
+scenarios:
+- id: S-1
+  title: Spawn a main chat and open it from the event
+  given:
+  - Alice is in her chat "Weekly planning".
+  when:
+  - She asks it to start a chat that collects kitchen tile quotes.
+  then:
+  - A new sidebar chat starts with the brief, and "Weekly planning" shows "Started chat ..." that opens it.
+- id: S-2
+  title: Spawned chat reports back
+  given:
+  - '"Kitchen quotes" was started by "Weekly planning".'
+  when:
+  - Its assistant finishes or reports.
+  then:
+  - '"Weekly planning" shows a report event and a finished event.'
+- id: S-3
+  title: Creator coordinates its chats
+  given:
+  - '"Weekly planning" spawned two chats.'
+  when:
+  - It lists, reads or messages them, or the user types in one.
+  then:
+  - Only its own spawned chats are reachable, reads/writes run on the device, and user typing is surfaced and guarded.
+tasks:
+- id: TASK-1
+  title: Implement, test and deploy chat orchestration of main chats
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+    - AC-5
+  expected_files:
+  - backend/shared/python_utils/chat_orchestration_jobs.py
+  - backend/apps/openmates/app.yml
+  - packages/openmates-rust/src/client/chat_orchestration.rs
+  - frontend/packages/ui/src/components/ChatOrchestrationEventNotice.svelte
+  verification_ids:
+  - T-PYTEST
+  - T-RUST
+  - T-E2E
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - docs/plans/chat-orchestration-main-chats/plan.yml
+    shared_files: []
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-1
+  approach: Backend jobs + skills, Rust core driver, web shell runner and event UI in parallel lanes against the shared protocol.
+  outcome: planned
+  recorded_at: '2026-11-13T00:00:00Z'
+implementation_state:
+  subject_commit: working-tree
+handoff:
+  current_task_id: TASK-1
+  next_action: Implement lanes, run CI, deploy to dev, record proof.
+  command: python3 scripts/plan_verify.py docs/plans/chat-orchestration-main-chats/plan.yml --json
+  expected_outcome: Plan verification complete.
+  blocker: null
+  last_verified_commit: working-tree
+approvals:
+  plan:
+    status: approved
+    approved_at: '2026-11-13T00:00:00Z'
+  specification:
+    status: pending
+    approved_at: ''

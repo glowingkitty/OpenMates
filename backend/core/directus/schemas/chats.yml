@@ -268,6 +268,11 @@ chats:
       nullable: true
       note: "Foreign Key linking back to the parent chat"
 
+    creator_chat_id:
+      type: uuid
+      nullable: true
+      note: "Plaintext id of the chat that started this main chat (chat orchestration). Set only after the server verified a matching start_chat job."
+
     is_sub_chat:
       type: boolean
       default: false

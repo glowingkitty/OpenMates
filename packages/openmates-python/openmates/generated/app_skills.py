@@ -6887,6 +6887,90 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'get-docs',
   'skill_method_py': 'get_docs',
   'skill_method_ts': 'getDocs'},
+ {'app_id': 'openmates',
+  'app_namespace_py': 'openmates',
+  'app_namespace_ts': 'openmates',
+  'description': 'Use when the user asks, in any language, to start, open or spawn a new separate '
+                 "chat for a task (for example 'start a new chat for the kitchen quotes'), to run "
+                 'several workstreams in parallel chats, or when a voice call should delegate work '
+                 'to other chats. The new chat appears in the sidebar and the current chat can '
+                 'follow its progress.',
+  'description_key': 'openmates_app.start_chat.description',
+  'schema': {'properties': {'brief': {'description': 'The complete task brief that becomes the '
+                                                     'first user message of the new chat. Include '
+                                                     'all needed context.\n',
+                                      'type': 'string',
+                                      'x-ui': {'basic': True}},
+                            'title': {'description': 'Short title of the new chat.\n',
+                                      'type': 'string',
+                                      'x-ui': {'basic': True}}},
+             'required': ['title', 'brief'],
+             'type': 'object'},
+  'skill_id': 'start-chat',
+  'skill_method_py': 'start_chat',
+  'skill_method_ts': 'startChat'},
+ {'app_id': 'openmates',
+  'app_namespace_py': 'openmates',
+  'app_namespace_ts': 'openmates',
+  'description': 'Use to list the chats that this chat started and their state (starting, running, '
+                 'waiting for user, finished, failed).',
+  'description_key': 'openmates_app.list_spawned_chats.description',
+  'schema': {'properties': {}, 'type': 'object'},
+  'skill_id': 'list-spawned-chats',
+  'skill_method_py': 'list_spawned_chats',
+  'skill_method_ts': 'listSpawnedChats'},
+ {'app_id': 'openmates',
+  'app_namespace_py': 'openmates',
+  'app_namespace_ts': 'openmates',
+  'description': 'Use to read the latest messages of a chat that this chat started, to check its '
+                 'progress or result.',
+  'description_key': 'openmates_app.read_spawned_chat.description',
+  'schema': {'properties': {'limit': {'description': 'Number of latest messages to read, at most '
+                                                     '20.\n',
+                                      'type': 'integer',
+                                      'x-ui': {'basic': True}},
+                            'spawned_chat_id': {'description': 'Id of a chat started by this chat '
+                                                               '(from start-chat or '
+                                                               'list-spawned-chats).\n',
+                                                'type': 'string',
+                                                'x-ui': {'basic': True}}},
+             'required': ['spawned_chat_id'],
+             'type': 'object'},
+  'skill_id': 'read-spawned-chat',
+  'skill_method_py': 'read_spawned_chat',
+  'skill_method_ts': 'readSpawnedChat'},
+ {'app_id': 'openmates',
+  'app_namespace_py': 'openmates',
+  'app_namespace_ts': 'openmates',
+  'description': 'Use to send a follow-up message into a chat that this chat started. Refused '
+                 'while the user is active in that chat or an answer is being written.',
+  'description_key': 'openmates_app.send_to_spawned_chat.description',
+  'schema': {'properties': {'spawned_chat_id': {'description': 'Id of a chat started by this '
+                                                               'chat.\n',
+                                                'type': 'string',
+                                                'x-ui': {'basic': True}},
+                            'text': {'description': 'The message to send.\n',
+                                     'type': 'string',
+                                     'x-ui': {'basic': True}}},
+             'required': ['spawned_chat_id', 'text'],
+             'type': 'object'},
+  'skill_id': 'send-to-spawned-chat',
+  'skill_method_py': 'send_to_spawned_chat',
+  'skill_method_ts': 'sendToSpawnedChat'},
+ {'app_id': 'openmates',
+  'app_namespace_py': 'openmates',
+  'app_namespace_ts': 'openmates',
+  'description': 'Use only in a chat that was started by another chat: report a concise result or '
+                 'question back to the creator chat.',
+  'description_key': 'openmates_app.report_to_creator.description',
+  'schema': {'properties': {'text': {'description': 'Concise report, at most 2000 characters.\n',
+                                     'type': 'string',
+                                     'x-ui': {'basic': True}}},
+             'required': ['text'],
+             'type': 'object'},
+  'skill_id': 'report-to-creator',
+  'skill_method_py': 'report_to_creator',
+  'skill_method_ts': 'reportToCreator'},
  {'app_id': 'pdf',
   'app_namespace_py': 'pdf',
   'app_namespace_ts': 'pdf',
@@ -10888,6 +10972,38 @@ class OpenmatesAppSkills:
         """
         return self._run_skill("openmates", "get-docs", input_data, prompt_injection_protection=prompt_injection_protection)
 
+    def list_spawned_chats(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Use to list the chats that this chat started and their state (starting, running, waiting for user, finished, failed).
+
+        Description key: openmates_app.list_spawned_chats.description
+        Skill: openmates/list-spawned-chats
+        """
+        return self._run_skill("openmates", "list-spawned-chats", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def read_spawned_chat(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Use to read the latest messages of a chat that this chat started, to check its progress or result.
+
+        Description key: openmates_app.read_spawned_chat.description
+        Skill: openmates/read-spawned-chat
+        """
+        return self._run_skill("openmates", "read-spawned-chat", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def report_to_creator(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Use only in a chat that was started by another chat: report a concise result or question back to the creator chat.
+
+        Description key: openmates_app.report_to_creator.description
+        Skill: openmates/report-to-creator
+        """
+        return self._run_skill("openmates", "report-to-creator", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def send_to_spawned_chat(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Use to send a follow-up message into a chat that this chat started. Refused while the user is active in that chat or an answer is being written.
+
+        Description key: openmates_app.send_to_spawned_chat.description
+        Skill: openmates/send-to-spawned-chat
+        """
+        return self._run_skill("openmates", "send-to-spawned-chat", input_data, prompt_injection_protection=prompt_injection_protection)
+
     def share_usecase(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Use when the user has explicitly agreed to anonymously share a summary of their intended use cases with the OpenMates team to help improve the product. NEVER call this without clear user consent.
 
@@ -10895,6 +11011,14 @@ class OpenmatesAppSkills:
         Skill: openmates/share-usecase
         """
         return self._run_skill("openmates", "share-usecase", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def start_chat(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Use when the user asks, in any language, to start, open or spawn a new separate chat for a task (for example 'start a new chat for the kitchen quotes'), to run several workstreams in parallel chats, or when a voice call should delegate work to other chats. The new chat appears in the sidebar and the current chat can follow its progress.
+
+        Description key: openmates_app.start_chat.description
+        Skill: openmates/start-chat
+        """
+        return self._run_skill("openmates", "start-chat", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class PdfAppSkills:
     def __init__(self, run_skill: SkillRunner):

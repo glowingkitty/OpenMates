@@ -65,6 +65,14 @@ export function setMemoryWriteJobsCapabilityEnabled(enabled: boolean): void {
   memoryWriteJobsCapabilityEnabled = enabled;
 }
 
+// Chat orchestration (any chat starts and coordinates other main chats): enabled
+// only while the Rust-core job runner is installed (flag-on builds).
+let chatOrchestrationJobsCapabilityEnabled = false;
+
+export function setChatOrchestrationJobsCapabilityEnabled(enabled: boolean): void {
+  chatOrchestrationJobsCapabilityEnabled = enabled;
+}
+
 function getBrowserDerivedApiUrl(): string | null {
   if (typeof window === "undefined") {
     return null;
@@ -144,6 +152,7 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
     ...(projectFileJobsCapabilityEnabled ? ["project_file_jobs"] : []),
     ...(remoteCommandJobsCapabilityEnabled ? ["remote_command_jobs"] : []),
     ...(memoryWriteJobsCapabilityEnabled ? ["memory_write_jobs"] : []),
+    ...(chatOrchestrationJobsCapabilityEnabled ? ["chat_orchestration_jobs"] : []),
     "agentic-storage-v2",
   ];
   if (clientCapabilities.length > 0) {

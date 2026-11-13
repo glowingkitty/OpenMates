@@ -17,6 +17,11 @@ from typing import Dict, Any, List, Optional, AsyncIterator, Union, Callable, Aw
 from celery.exceptions import SoftTimeLimitExceeded
 from celery.states import REVOKED as TASK_STATE_REVOKED
 
+from backend.apps.ai.processing.chat_orchestration_hooks import (
+    record_spawned_chat_failed,
+    record_spawned_chat_finished,
+    record_spawned_chat_waiting,
+)
 from backend.shared.python_utils.saved_chat_turn_authority import admission_chat_id
 from backend.core.api.app.tasks import celery_config
 from backend.core.api.app.services.cache import CacheService
@@ -7411,6 +7416,10 @@ async def _consume_main_processing_stream(
                 }
                 if cache_service:
                     await _publish_to_redis(cache_service, redis_channel_name, payload, log_prefix, f"Published awaiting_user_input event to '{redis_channel_name}'")
+                await record_spawned_chat_waiting(
+                    cache_service=cache_service, encryption_service=encryption_service,
+                    request_data=request_data, message_id=assistant_message_id,
+                )
                 continue
 
             # Check for cumulative LLM usage sentinel (emitted by handle_main_processing
@@ -12096,6 +12105,16 @@ async def _consume_main_processing_stream(
         )
         if completion_timing:
             completion_timing.mark_final_marker()
+    if not (was_revoked_during_stream or was_soft_limited_during_stream):
+        if terminal_failure_applies:
+            await record_spawned_chat_failed(
+                cache_service=cache_service, encryption_service=encryption_service, request_data=request_data,
+            )
+        else:
+            await record_spawned_chat_finished(
+                cache_service=cache_service, encryption_service=encryption_service,
+                request_data=request_data, message_id=assistant_message_id,
+            )
     if project_file_finalization_started_at is not None:
         logger.info(
             "%s ai_project_file_finalization stage=total duration_ms=%.1f outcome=ok",

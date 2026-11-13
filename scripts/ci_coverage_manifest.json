@@ -1055,7 +1055,8 @@
         "vector-graphic-chat.spec.ts",
         "design-embroidery-chat.spec.ts",
         "skill-search-live-progress-chat.spec.ts",
-        "videos-generate-chat.spec.ts"
+        "videos-generate-chat.spec.ts",
+        "chat-orchestration-main-chats.spec.ts"
       ]
     },
     "real_stripe_sandbox_settlement": {
@@ -1253,6 +1254,13 @@
       "enabling_work": "Account-free Vite-only bare Code fullscreen preview tests real dependency preparation and start request serialization against intercepted HTTP fixtures. Frozen latest Python metadata covers automatic compatible selection and explicit pins; no sandbox execution, backend, account, provider credentials or AI inference is claimed. Actual Python/Rust execution and assistant continuation are verified separately on dev with isolated state and automatic routing.",
       "specs": [
         "components/code-run-dependencies.spec.ts"
+      ]
+    },
+    "chat_orchestration_event_notice_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare preview of the chat orchestration system event (started, report, finished, waiting for you, you wrote) as one compact clickable line. Pure presentation fixtures; no backend, account credentials, provider or AI inference.",
+      "specs": [
+        "components/chat-orchestration-event-notice.spec.ts"
       ]
     }
   },
