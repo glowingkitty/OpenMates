@@ -20,7 +20,8 @@ impl Client {
     /// For a new chat the chat key shell is stored first (`encrypted_chat_metadata`,
     /// answered by `encrypted_metadata_stored`), because the server activates a
     /// Project focus only for an existing chat. The later admission still
-    /// carries the same wrapped key, which the server accepts unchanged.
+    /// carries the same wrapped key and `created` (seconds), which the server
+    /// accepts only when they match the stored shell field by field.
     ///
     /// # Errors
     /// [`Error::Cancelled`] on cancellation, [`Error::Offline`] when the chat is
@@ -34,11 +35,12 @@ impl Client {
         project_id: &str,
         new_chat: bool,
         wrapped: &str,
+        created: u64,
         team: Option<&str>,
         cancel: &CancellationToken,
     ) -> Result<()> {
         if new_chat {
-            let mut shell = json!({"chat_id":id,"encrypted_chat_key":wrapped,"created_at":now_ms()/1000,"versions":{}});
+            let mut shell = json!({"chat_id":id,"encrypted_chat_key":wrapped,"created_at":created,"versions":{}});
             if let Some(team) = team {
                 shell["team_id"] = json!(team);
             }

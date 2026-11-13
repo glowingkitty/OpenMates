@@ -125,11 +125,15 @@ impl Client {
         }
         let wait_ai = should_wait_for_ai(&prepared.text, team.as_deref());
         turn_scope.check_chat(self,id)?;
+        // One creation time for the stored chat shell and the turn's chat
+        // metadata: the server completes an existing empty shell only when
+        // every field it already holds matches (`canCompleteChatMetadata`).
+        let created = now_ms() / 1000;
         // An explicit Project (`--project`) is bound before context collection,
         // so a new chat's first turn already carries that Project's context.
         let bound_project = match &options.project_id {
             Some(project) if wait_ai => {
-                self.bind_project_for_send(ws, id, project, new_chat, wrapped, team.as_deref(), cancel).await?;
+                self.bind_project_for_send(ws, id, project, new_chat, wrapped, created, team.as_deref(), cancel).await?;
                 turn_scope.check_chat(self,id)?;
                 true
             }
@@ -138,7 +142,6 @@ impl Client {
         let project_context=Plain::new(if (new_chat&&!bound_project)||!wait_ai{json!({})}else{self.active_project_context(id,&prepared.text).await?});
         turn_scope.check_chat(self,id)?;
         let recovery = crypto::recovery_keypair(key, id, 1)?;
-        let created = now_ms() / 1000;
         let mut encrypted = json!({"client_message_id":message,"chat_id":id,"encrypted_content":crypto::encrypt_combined(&prepared.text,key)?,"encrypted_sender_name":crypto::encrypt_combined(&sender,key)?,"role":"user","created_at":created,"updated_at":created});
         if !prepared.mappings.is_empty(){let encoded=Plain::new(serde_json::to_string(&prepared.mappings)?);encrypted["encrypted_pii_mappings"]=json!(crypto::encrypt_combined(&encoded,key)?);}
         let mut inference = Plain::new(json!({"chat_id":id,"client_capabilities":[],"is_incognito":false,"message":{"message_id":message,"chat_id":id,"role":"user","sender_name":"User","status":"sent","content":prepared.text,"created_at":created,"chat_has_title":!new_chat},"turn_id":turn,"recovery_public_key":recovery.public_key,"chat_key_version":1,"custom_memory_documents":[],"app_settings_memories_metadata":memory_metadata,"project_focus_candidates":projects.as_slice()}));
