@@ -21,10 +21,19 @@ zellij --session claude action new-tab --name "<title>" -- \
   claude --remote-control "<title>" --model <model> --effort <effort> --permission-mode auto "<prompt>"
 ```
 
-Issue chats run on `claude-fable-5-2` at `medium` effort
+Issue chats run on `claude-opus-5-5` at `medium` effort
 (`CLAUDE_DISPATCH_ISSUE_MODEL`, `CLAUDE_DISPATCH_ISSUE_EFFORT`). Production
-chat-failure chats run on `claude-sonnet-5-5` at `high` effort
-(`CLAUDE_DISPATCH_MODEL`, `CLAUDE_DISPATCH_EFFORT`).
+chat-failure chats and every other chat started through `launch_claude_chat`
+(the private voice connector, daily-meeting decision handovers) default to
+`claude-opus-5-5` at `high` effort (`CLAUDE_DISPATCH_MODEL`, `CLAUDE_DISPATCH_EFFORT`).
+
+Fable (`claude-fable-5-2`) is never a default: `launch_claude_chat` refuses it
+unless the caller relays an explicit user request (`explicit_model=True`), also
+when an environment override names it, and marks such chats with
+`OPENMATES_FABLE_REQUESTED=1`. The `fable-guard` SessionStart hook
+(`scripts/fable_guard.py`) catches Fable chats started any other way and makes
+them stop and ask the user before any work; a prompt naming Fable confirms it.
+Each launch is logged with its model in `logs/claude-dispatch/launches.jsonl`.
 
 Chats are interactive sessions, not `claude --bg` jobs. Background jobs are
 retired after about 8 hours idle at a prompt, so a chat waiting for the admin's

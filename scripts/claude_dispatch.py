@@ -12,11 +12,16 @@ Two cron-driven entry points (see docs/architecture/infrastructure/claude-dispat
                and opens one investigation chat for new failure fingerprints.
 
 Each chat runs ``claude --remote-control <title> --model <model> --effort <effort> <prompt>``
-(issue chats: claude-fable-5-2 at medium effort; prod-errors chats: claude-sonnet-5-5 at high effort)
+(issue chats: claude-opus-5-5 at medium effort; prod-errors chats: claude-opus-5-5 at high effort)
 in its own tab of the persistent zellij session ``claude`` (created on demand,
 with a ``claude remote-control`` bridge tab), from the canonical checkout. It
 appears in the owner's Claude app and stays online while it waits for the
 admin's input. ``--bg`` is not used: background jobs retire after ~8h idle.
+
+Model policy: every chat started here defaults to Opus. Fable is much more
+expensive and runs only when a caller passes ``explicit_model=True`` for a user's
+explicit request (e.g. the voice connector's ``start_chat`` with model Fable);
+``launch_claude_chat`` refuses it otherwise, including from environment overrides.
 
 Prompts are built only from validated identifiers and server-defined labels;
 no report text or log message text is ever interpolated.
@@ -43,9 +48,10 @@ QUEUE_DIR = STATE_ROOT / "queue"
 PROCESSED_DIR = STATE_ROOT / "processed"
 PROD_STATE_FILE = STATE_ROOT / "prod-errors-state.json"
 LAUNCH_LOG = STATE_ROOT / "launches.jsonl"
-CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_MODEL", "claude-sonnet-5-5")
+DEFAULT_CHAT_MODEL = "claude-opus-5-5"
+CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_MODEL", DEFAULT_CHAT_MODEL)
 CLAUDE_EFFORT = os.getenv("CLAUDE_DISPATCH_EFFORT", "high")
-ISSUE_CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_ISSUE_MODEL", "claude-fable-5-2")
+ISSUE_CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_ISSUE_MODEL", DEFAULT_CHAT_MODEL)
 ISSUE_CLAUDE_EFFORT = os.getenv("CLAUDE_DISPATCH_ISSUE_EFFORT", "medium")
 
 
@@ -138,22 +144,43 @@ def ensure_zellij_session() -> None:
             "--cwd", str(REPO_ROOT), "--", *_chat_command("remote-control"))
 
 
-def launch_claude_chat(title: str, prompt: str, model: str = CLAUDE_MODEL, effort: str = CLAUDE_EFFORT) -> str:
+def is_fable(model: str) -> bool:
+    """True for any Fable model id or alias (claude-fable-5-2, fable, fable[1m])."""
+    return "fable" in model.lower()
+
+
+def check_chat_model(model: str, explicit_model: bool = False) -> str:
+    """Return the model a new chat may start on; Fable only for an explicit user request."""
+    if is_fable(model) and not explicit_model:
+        raise DispatchError(
+            f"refusing to start a chat on {model}: Fable runs only when the user explicitly asks for it "
+            f"(the default for new chats is {DEFAULT_CHAT_MODEL}); check CLAUDE_DISPATCH_*MODEL overrides"
+        )
+    return model
+
+
+def launch_claude_chat(
+    title: str, prompt: str, model: str = CLAUDE_MODEL, effort: str = CLAUDE_EFFORT, explicit_model: bool = False,
+) -> str:
     """Open the chat as an interactive Remote Control session in its own tab of the
     persistent zellij session; returns `<session>/<tab title>`.
+
+    `explicit_model` is set only by callers relaying a user's explicit model choice;
+    without it a Fable model is refused (`check_chat_model`).
 
     Not `claude --bg`: background jobs are retired after ~8h idle at a prompt, which
     takes chats that are waiting for the admin's answer offline in the Claude app.
     Interactive sessions stay connected until the tab is closed.
     """
-    ensure_zellij_session()
-    _zellij(
-        "--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", str(REPO_ROOT),
-        "--", *_chat_command(
-            "--remote-control", title, "--model", model,
-            "--effort", effort, "--permission-mode", "auto", prompt,
-        ),
+    check_chat_model(model, explicit_model)
+    command = _chat_command(
+        "--remote-control", title, "--model", model, "--effort", effort, "--permission-mode", "auto", prompt,
     )
+    if is_fable(model):
+        # Tells the SessionStart Fable guard (scripts/fable_guard.py) this Fable chat was asked for.
+        command.insert(2, "OPENMATES_FABLE_REQUESTED=1")
+    ensure_zellij_session()
+    _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", str(REPO_ROOT), "--", *command)
     return f"{ZELLIJ_SESSION}/{title}"
 
 
@@ -216,7 +243,7 @@ def dispatch_issues(launcher: Launcher = launch_issue_chat, dry_run: bool = Fals
         target = PROCESSED_DIR / ("ok" if outcome["status"] == "launched" else "failed")
         target.mkdir(parents=True, exist_ok=True)
         path.replace(target / f"{_now():%Y%m%dT%H%M%S}-{path.name}")
-        _record_launch({"kind": "issue", **outcome})
+        _record_launch({"kind": "issue", "model": ISSUE_CLAUDE_MODEL, **outcome})
         results.append(outcome)
     return results
 

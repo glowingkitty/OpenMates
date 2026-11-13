@@ -141,7 +141,7 @@ def _fake_zellij(monkeypatch, listing: str) -> list[list[str]]:
 
 
 # contract-test: supporting surface=gui.web assertions=issue-reporting.automation.admin-dev-claude-chat
-def test_launch_opens_persistent_remote_control_tab_with_sonnet_5_5_high(monkeypatch):
+def test_launch_opens_persistent_remote_control_tab_with_opus_5_5_high(monkeypatch):
     calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
     assert dispatch.launch_claude_chat("title", "prompt") == "claude/title"
     command = calls[-1]
@@ -150,22 +150,56 @@ def test_launch_opens_persistent_remote_control_tab_with_sonnet_5_5_high(monkeyp
     chat = command[command.index("--") + 1:]
     assert "--bg" not in chat, "background jobs retire after 8h idle and go offline in the app"
     assert chat[chat.index("--remote-control") + 1] == "title"
-    assert chat[chat.index("--model") + 1] == "claude-sonnet-5-5"
+    assert chat[chat.index("--model") + 1] == "claude-opus-5-5"
     assert chat[chat.index("--effort") + 1] == "high"
     assert chat[-1] == "prompt"
     assert not any("attach" in call for call in calls)
 
 
 # contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
-def test_issue_chat_runs_on_fable_5_2_at_medium_effort(isolated_state, monkeypatch):
+def test_issue_chat_runs_on_opus_5_5_at_medium_effort(isolated_state, monkeypatch):
     calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
     _queue(isolated_state, "issue-ABCDE.json",
            {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"})
     results = dispatch.dispatch_issues()
     assert results[0]["status"] == "launched"
     chat = calls[-1][calls[-1].index("--") + 1:]
-    assert chat[chat.index("--model") + 1] == "claude-fable-5-2"
+    assert chat[chat.index("--model") + 1] == "claude-opus-5-5"
     assert chat[chat.index("--effort") + 1] == "medium"
+    logged = json.loads((isolated_state / "launches.jsonl").read_text().splitlines()[-1])
+    assert logged["model"] == "claude-opus-5-5"
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+@pytest.mark.parametrize("model", ["claude-fable-5-2", "fable", "Fable[1m]"])
+def test_launch_refuses_fable_unless_explicitly_requested(monkeypatch, model):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    with pytest.raises(dispatch.DispatchError, match="Fable runs only when the user explicitly asks"):
+        dispatch.launch_claude_chat("title", "prompt", model=model)
+    assert not calls, "no zellij tab may open for an implicit Fable chat"
+    assert dispatch.launch_claude_chat("title", "prompt", model=model, explicit_model=True) == "claude/title"
+    chat = calls[-1][calls[-1].index("--") + 1:]
+    assert chat[chat.index("--model") + 1] == model
+    assert "OPENMATES_FABLE_REQUESTED=1" in chat[:chat.index(dispatch.CLAUDE_BIN)]
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_fable_env_override_for_issue_chats_fails_the_request_instead_of_launching(isolated_state, monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    monkeypatch.setattr(dispatch, "ISSUE_CLAUDE_MODEL", "claude-fable-5-2")
+    _queue(isolated_state, "issue-ABCDE.json",
+           {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"})
+    results = dispatch.dispatch_issues()
+    assert results[0]["status"] == "failed" and "Fable" in results[0]["error"]
+    assert not calls
+    assert len(list((isolated_state / "processed" / "failed").iterdir())) == 1
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_no_launcher_default_is_fable():
+    for name in ("DEFAULT_CHAT_MODEL", "CLAUDE_MODEL", "ISSUE_CLAUDE_MODEL"):
+        assert not dispatch.is_fable(getattr(dispatch, name)), name
+    assert dispatch.DEFAULT_CHAT_MODEL == "claude-opus-5-5"
 
 
 # contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat

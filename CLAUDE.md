@@ -182,6 +182,8 @@ when a skill or this file points to it.
   `test-failure-triager`, `e2e-test-investigator`.
   Debug tooling reference: `.claude/rules/debugging.md`.
 - Skills, agents and hooks live in `.claude/`; edit them there directly.
+- Models: new chats default to Opus; Fable only on the user's explicit
+  request (launcher check + `fable-guard` hook).
 - Sub-agent budget: use the lean `lane-worker` agent for implementation lanes
   (`general-purpose` only when the lane needs web access, skills or its own
   sub-agents). Sub-agents run on Sonnet (settings `env`), the `ci-runner` on

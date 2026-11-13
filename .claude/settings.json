@@ -246,6 +246,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/fable-guard.sh",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -260,6 +270,11 @@
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/peer-chats.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/fable-guard.sh",
+            "timeout": 5
           }
         ]
       }
