@@ -284,6 +284,37 @@ async function downloadFile(url: string, destination: string): Promise<void> {
 	});
 }
 
+/** Waits until the chat holds a finished image of the given images skill and returns its content. */
+async function waitForImageSkillResult(
+	apiUrl: string,
+	chatId: string,
+	skillId: 'generate' | 'generate_draft'
+): Promise<Record<string, unknown>> {
+	let result: Record<string, unknown> | null = null;
+	await expect(async () => {
+		for (const embedId of await collectChatEmbedIds(apiUrl, chatId)) {
+			const shown = await runCli(apiUrl, ['embeds', 'show', embedId, '--json'], 30_000);
+			if (shown.code !== 0) continue;
+			const content = readEmbedContent(JSON.parse(shown.stdout));
+			if (content.app_id === 'images' && content.skill_id === skillId && content.model) {
+				result = content;
+			}
+		}
+		expect(result).not.toBeNull();
+	}).toPass({ timeout: 180_000, intervals: [3000] });
+	return result!;
+}
+
+/** Starts a CLI chat with one message and returns its chat ID. */
+async function startCliChat(apiUrl: string, message: string, label: string): Promise<string> {
+	const chatResult = await runCli(apiUrl, ['chats', 'new', message, '--json'], 120_000);
+	consoleLogs.push(`[${label} chats new stderr] ${chatResult.stderr.slice(0, 200)}`);
+	expect(chatResult.code).toBe(0);
+	const chatId = String(JSON.parse(chatResult.stdout).chatId || '');
+	expect(chatId).toBeTruthy();
+	return chatId;
+}
+
 async function collectChatEmbedIds(apiUrl: string, chatId: string): Promise<string[]> {
 	clearCliSyncCache();
 	let showResult = await runCli(apiUrl, ['chats', 'show', chatId, '--json'], 30_000);
@@ -605,35 +636,58 @@ test.describe('CLI Images', () => {
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 		await loginViaPair(page, apiUrl, logCheckpoint);
 
-		const chatResult = await runCli(
+		const chatId = await startCliChat(
 			apiUrl,
-			[
-				'chats', 'new',
-				'Use the draft image skill to make a quick rough draft image of a red bicycle leaning on a wall.',
-				'--json'
-			],
-			120_000
+			'Use the draft image skill to make a quick rough draft image of a red bicycle leaning on a wall.',
+			'draft'
 		);
-		consoleLogs.push(`[draft chats new stderr] ${chatResult.stderr.slice(0, 200)}`);
-		expect(chatResult.code).toBe(0);
-		const chatId = String(JSON.parse(chatResult.stdout).chatId || '');
-		expect(chatId).toBeTruthy();
 
 		// The draft is produced asynchronously; wait until one embed of the chat is the finished draft.
-		let draft: Record<string, unknown> | null = null;
-		await expect(async () => {
-			for (const embedId of await collectChatEmbedIds(apiUrl, chatId)) {
-				const shown = await runCli(apiUrl, ['embeds', 'show', embedId, '--json'], 30_000);
-				if (shown.code !== 0) continue;
-				const content = readEmbedContent(JSON.parse(shown.stdout));
-				if (content.app_id === 'images' && content.skill_id === 'generate_draft' && content.model) {
-					draft = content;
-				}
-			}
-			expect(draft).not.toBeNull();
-		}).toPass({ timeout: 120_000, intervals: [3000] });
-		logCheckpoint(`Draft embed model: ${String(draft!.model)}`);
-		expect(String(draft!.model)).toBe('recraftv4_1_flash');
+		const draft = await waitForImageSkillResult(apiUrl, chatId, 'generate_draft');
+		logCheckpoint(`Draft embed model: ${String(draft.model)}`);
+		expect(String(draft.model)).toBe('recraftv4_1_flash');
+
+		expect((await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 20_000)).code).toBe(0);
+		await runCli(apiUrl, ['logout']);
+	});
+
+	// contract-test: direct surface=cli assertions=images-generate.raster.cheap-default
+	test('a normal image request is made with the fast Recraft Flash model', async ({ page }: { page: any }) => {
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+		const logCheckpoint = createSignupLogger('CLI_IMAGES_DEFAULT_MODEL');
+		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+		await loginViaPair(page, apiUrl, logCheckpoint);
+
+		const chatId = await startCliChat(
+			apiUrl,
+			'Generate an image (PNG, not a draft) of a red bicycle leaning on a garden fence.',
+			'default model'
+		);
+		const image = await waitForImageSkillResult(apiUrl, chatId, 'generate');
+		logCheckpoint(`Generated image model: ${String(image.model)}`);
+		expect(String(image.model)).toBe('recraftv4_1_flash');
+
+		expect((await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 20_000)).code).toBe(0);
+		await runCli(apiUrl, ['logout']);
+	});
+
+	// contract-test: direct surface=cli assertions=images-generate.raster.cheap-default
+	test('an explicit highest-quality image request uses Gemini 3 Pro Image', async ({ page }: { page: any }) => {
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+		const logCheckpoint = createSignupLogger('CLI_IMAGES_MAX_QUALITY');
+		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+		await loginViaPair(page, apiUrl, logCheckpoint);
+
+		const chatId = await startCliChat(
+			apiUrl,
+			'Generate the final version of an image (PNG) in the highest possible quality: a red bicycle leaning on a garden fence.',
+			'max quality'
+		);
+		const image = await waitForImageSkillResult(apiUrl, chatId, 'generate');
+		logCheckpoint(`Generated image model: ${String(image.model)}`);
+		expect(String(image.model)).toBe('gemini-3-pro-image-preview');
 
 		expect((await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 20_000)).code).toBe(0);
 		await runCli(apiUrl, ['logout']);

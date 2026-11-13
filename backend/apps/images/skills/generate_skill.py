@@ -17,7 +17,12 @@
 #   output_filetype="png"|"jpg" with recraft model → Recraft V4.1 Raster pipeline
 #     quality="default"          → recraftv4_1     ($0.04/image,  50 credits)
 #     quality="max"              → recraftv4_1_pro ($0.25/image, 250 credits)
-#   output_filetype="png"|"jpg" with google model  → Google Gemini (default)
+#   output_filetype="png"|"jpg" with the default model (recraft/recraftv4_1_flash):
+#     quality="default"          → Recraft V4.1 Flash ($0.007/image, 15 credits);
+#                                  with reference images FLUX.2 [klein] edit (30 credits)
+#     quality="max"              → Gemini 3 Pro Image ($0.134/image, 205 credits), only on an
+#                                  explicit highest-quality request
+#   output_filetype="png"|"jpg" with a google model → Google Gemini
 #   output_filetype="png"|"jpg" with bfl/flux model → fal.ai FLUX
 
 import logging
@@ -68,7 +73,8 @@ class ImageGenerationRequestItem(BaseModel):
     quality: str = Field(
         default="default",
         description="Quality tier: 'default' or 'max'. For svg with the llm engine 'max' means longer reasoning; "
-        "otherwise it selects the Recraft model tier.",
+        "otherwise it selects the model tier. For png/jpg with the default model, 'max' (only when the user "
+        "explicitly asks for the highest quality) uses Gemini 3 Pro Image instead of Recraft V4.1 Flash.",
     )
     style: Optional[str] = Field(
         default=None,
@@ -93,7 +99,7 @@ class ImageGenerationRequest(BaseModel):
         description=(
             "Array of image generation request objects. Each object must contain 'prompt' "
             "and can include optional 'aspect_ratio', 'output_filetype' (png|jpg|svg), "
-            "and 'quality' (default|max, only relevant for svg)."
+            "and 'quality' (default|max; max only on an explicit highest-quality request)."
         ),
     )
 
@@ -135,7 +141,9 @@ class GenerateSkill(BaseSkill):
     - Raster (png/jpg) + recraft model: routes to Recraft V4.1 Raster API
                                  quality="default" → recraftv4_1     ( 50 credits)
                                  quality="max"     → recraftv4_1_pro (250 credits)
-    - Raster (png/jpg) + other model: routes to Google Gemini (default) or fal.ai FLUX
+    - Raster (png/jpg) + default model: Recraft V4.1 Flash (FLUX.2 [klein] edit with
+                                 reference images); quality="max" → Gemini 3 Pro Image
+    - Raster (png/jpg) + other model: routes to Google Gemini or fal.ai FLUX
 
     This skill is designed for long-running operations (> 5 seconds).
     It follows the asynchronous execution pattern with embed-based storage:
@@ -244,9 +252,9 @@ class GenerateSkill(BaseSkill):
                 )
                 output_filetype = "png"
 
-            # quality only applies to SVG output (selects Recraft model tier):
-            #   "default" → recraftv4_1_vector     (100 credits, $0.08/image API cost)
-            #   "max"     → recraftv4_1_pro_vector  (300 credits, $0.30/image API cost)
+            # quality selects the model tier: for SVG the Recraft vector tier or longer author
+            # reasoning; for pixel images "max" (explicit highest-quality request) switches the
+            # default Flash model to Gemini 3 Pro Image.
             quality = str(req.get("quality", "default")).lower()
             if quality not in ("default", "max"):
                 logger.warning(

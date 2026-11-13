@@ -198,11 +198,28 @@ DRAFT_FLASH_MODEL_REF = f"recraft/{RECRAFT_RASTER_MODEL_FLASH}"
 DRAFT_EDIT_MODEL_REF = "bfl/flux-2-klein"
 
 
+HIGHEST_QUALITY_RASTER_MODEL_REF = "google/gemini-3-pro-image-preview"
+
+
 def _draft_model_ref_for_references(model_ref: Optional[str], has_reference_images: bool) -> Optional[str]:
     """The text-only Flash draft model cannot take reference images; those drafts use FLUX klein edit."""
     if model_ref == DRAFT_FLASH_MODEL_REF and has_reference_images:
         return DRAFT_EDIT_MODEL_REF
     return model_ref
+
+
+def _resolve_raster_model_ref(
+    model_ref: Optional[str], *, skill_id: Optional[str], quality: str, has_reference_images: bool,
+) -> Optional[str]:
+    """The pixel-image model that runs for this request.
+
+    images.generate defaults to the cheap Flash model; only quality "max" (an
+    explicit highest-quality request) switches the default to Gemini 3 Pro Image.
+    Drafts ignore quality. A model the user saved in settings is kept as it is.
+    """
+    if model_ref == DRAFT_FLASH_MODEL_REF and skill_id == "generate" and quality == "max":
+        return HIGHEST_QUALITY_RASTER_MODEL_REF
+    return _draft_model_ref_for_references(model_ref, has_reference_images)
 
 
 def _resolve_image_billing_model_ref(
@@ -843,7 +860,10 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         reference_script_sources: List[str] = []
         # Reference images for image-to-image generation (resolved embed IDs from skill layer)
         reference_image_embed_ids: List[str] = arguments.get("reference_image_embed_ids") or []
-        model_ref = _draft_model_ref_for_references(model_ref, bool(reference_image_embed_ids))
+        model_ref = _resolve_raster_model_ref(
+            model_ref, skill_id=arguments.get("skill_id"), quality=quality,
+            has_reference_images=bool(reference_image_embed_ids),
+        )
         user_vault_key_id: Optional[str] = arguments.get("user_vault_key_id")
 
         if not prompt or not user_id:

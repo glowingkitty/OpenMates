@@ -396,7 +396,11 @@ skills:
       - Google
       - Recraft
       - OpenAI
-    full_model_reference: google/gemini-3-pro-image-preview
+    # Normal pictures use the fast, low-cost Recraft V4.1 Flash model (with reference
+    # images: the FLUX.2 [klein] edit model). Gemini 3 Pro Image runs only for
+    # quality "max", which the request sets when the user explicitly asks for the
+    # highest quality. A model saved in the user's settings replaces this default.
+    full_model_reference: recraft/recraftv4_1_flash
     tool_schema:
       type: object
       properties:
@@ -449,10 +453,13 @@ skills:
                     "default" uses Recraft V4.1 Vector (100 credits — good for web/UI use).
                     "max" uses Recraft V4.1 Pro Vector (300 credits — best for print, large-format,
                     or highly detailed vector illustrations).
-                  For raster output (output_filetype="png"/"jpg") with a Recraft model selected:
-                    "default" uses Recraft V4.1 (50 credits — fast, cost-effective).
-                    "max" uses Recraft V4.1 Pro (250 credits — high-resolution, print-ready).
-                  For other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.
+                  For raster output (output_filetype="png"/"jpg"):
+                    "default" (use for every normal request, also for changes of an earlier picture):
+                    Recraft V4.1 Flash (15 credits, fast), or FLUX.2 [klein] edit when reference_images are given.
+                    "max" ONLY when the user explicitly asks for the highest quality, e.g. "best quality",
+                    "highest quality", "high resolution", "print quality" or "final version":
+                    Gemini 3 Pro Image (205 credits, also with reference_images).
+                  When the user saved another image model in settings, quality selects that model's tier.
                 enum: ["default", "max"]
                 default: "default"
               vector_engine:

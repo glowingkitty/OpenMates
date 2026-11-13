@@ -90,8 +90,8 @@ async def test_models3d_dispatches_to_shared_media_worker_queue(monkeypatch) -> 
 def test_images_generate_default_is_resolved_from_canonical_metadata() -> None:
     default = resolve_images_generate_default()
 
-    assert default.model_reference == "google/gemini-3-pro-image-preview"
-    assert default.credits == 205
+    assert default.model_reference == "recraft/recraftv4_1_flash"
+    assert default.credits == 15
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
