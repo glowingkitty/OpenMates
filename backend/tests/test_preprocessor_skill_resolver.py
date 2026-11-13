@@ -25,6 +25,7 @@ sys.modules.setdefault("backend.apps.ai.utils.llm_utils", llm_utils_stub)
 
 from backend.apps.ai.processing.preprocessor import (
     _build_skill_resolver_map,
+    _delegates_to_another_chat,
     _resolve_explicit_natural_search_intent,
     _resolve_explicit_skill_mentions_from_latest_user_text,
 )
@@ -174,3 +175,15 @@ def test_non_news_articles_request_does_not_force_news_search() -> None:
     )
 
     assert result == []
+
+
+# contract-test: supporting surface=gui.web assertions=chat-orchestration.spawn.brief-not-answered-here
+def test_news_wording_in_a_brief_for_another_chat_keeps_the_delegation() -> None:
+    text = ("Start a new chat titled 'Ocean news' with the brief: search the web for three recent ocean "
+            "conservation news headlines, then report back to me.")
+    assert _resolve_explicit_natural_search_intent([_user_message(text)], ["news-search", "openmates-start-chat"]) == [
+        "news-search"]
+    assert _delegates_to_another_chat(["openmates-start-chat"]) is True
+    assert _delegates_to_another_chat(["openmates-send-to-spawned-chat", "web-search"]) is True
+    assert _delegates_to_another_chat(["web-search", "news-search"]) is False
+    assert _delegates_to_another_chat([]) is False

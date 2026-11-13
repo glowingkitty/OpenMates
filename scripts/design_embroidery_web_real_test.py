@@ -114,8 +114,15 @@ def require_runtime_revision(revision: str) -> None:
 def require_frontend_revision(revision: str) -> None:
     with urllib.request.urlopen(f"{APP_URL}/_app/version.json", timeout=20) as response:
         served = json.load(response).get("version")
-    if served != revision:
+    if served == revision:
+        return
+    # Other chats keep deploying while a real run waits for its heavy slot; a
+    # served build that already contains ``revision`` still proves it.
+    if not isinstance(served, str) or subprocess.run(
+            ["git", "-C", str(ROOT), "merge-base", "--is-ancestor", revision, served],
+            check=False, timeout=30).returncode:
         raise ProofError("frontend_revision_mismatch")
+    print(f"Served web app {served[:10]} already contains {revision[:10]}", file=sys.stderr)
 
 
 LOG_PATTERNS = (("card_numbers", r"card numbers: ([^\n]+)"),

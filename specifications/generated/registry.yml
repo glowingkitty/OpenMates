@@ -632,7 +632,7 @@ specifications:
     version: 2
     status: draft
     path: features/chat-orchestration
-    fingerprint: 134dbfd08f8119f3fc39a192fc7df97de52b6bbddf858e08bd6363e1a8146b88
+    fingerprint: 1b8d46e5b14963eedb29ec0ad2f82a6776d3175fd98cd85893897fde99a923a2
     required_applies_to:
     - rest_api
     - cli
@@ -8548,6 +8548,15 @@ assertions:
     specification_id: feature.chat-orchestration
     type: behavior
     fingerprint: ccfa99fec2b280fc1ce30c1430b4d7354cf8b9e1f348a9c70c8d99b10c1f4248
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.spawn.brief-not-answered-here:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: 9da99e863298208491c3dd46d58b8ba9ca9f1444aa38c7f6a3bcca11cf8ee80a
     required_applies_to:
     - rest_api
     - cli

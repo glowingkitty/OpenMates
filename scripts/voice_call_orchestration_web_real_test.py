@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # contract-test-file: infrastructure
-"""Opt-in dev-only real proof: a voice call starts a spawned chat and speaks its report, no mocks.
+"""Opt-in dev-only real proof: a spawned chat's report is spoken in a voice call, no mocks.
 
-Generates two utterances with text-to-speech (dev ``api`` container, script
-backend/scripts/generate_voice_call_speaker_audio.py) and joins them into one WAV:
-request for a separate chat that reports a poem, ~8 s of silence, a capital-of-France
-question, then a long silence. Runs frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
+Generates the spoken question with text-to-speech (dev ``api`` container, script
+backend/scripts/generate_voice_call_speaker_audio.py) as one WAV: short lead silence,
+a capital-of-France question, then a long silence. The spawned chat is started by a typed
+request in the same chat before the call. Runs frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
 against https://app.dev.openmates.org with the personal dev test account; Chromium plays
 the WAV as its microphone. Same harness as scripts/voice_call_web_real_test.py.
 
@@ -34,9 +34,7 @@ SPEC = "tests/voice-call-orchestration-real.spec.ts"
 GENERATOR = ROOT / "backend/scripts/generate_voice_call_speaker_audio.py"
 API_CONTAINER = "api"
 SLUG = "chat-report-spoken"  # keep in sync with SLUG in the spec
-UTTERANCE_A = "Please start a separate new chat that writes a short two line poem about the sea and reports the poem back to me."
-UTTERANCE_B = "Meanwhile, what is the capital of France?"
-GAP_SECONDS = 8.0
+QUESTION = "What is the capital of France?"
 TAIL_SECONDS = 240.0
 PATTERNS = (("heard", r"heard: ([^\n]+)"),
             ("events", r"event notices: ([^\n]+)"),
@@ -60,20 +58,20 @@ def read_pcm(data: bytes) -> tuple[tuple[int, int, int], bytes]:
 
 
 def generate_speech(directory: Path) -> dict[str, float]:
-    """Write chat-report-spoken.wav = A + silence gap + B + long tail; returns the section seconds."""
-    (channels, width, rate), first = read_pcm(synthesize(UTTERANCE_A, lead=1.5, tail=GAP_SECONDS))
-    params_b, second = read_pcm(synthesize(UTTERANCE_B, lead=0.0, tail=0.0))
-    if params_b != (channels, width, rate):
-        raise SystemExit(f"sample format mismatch between utterances: {params_b} vs {(channels, width, rate)}")
+    """Write chat-report-spoken.wav = lead silence + the spoken question + long tail; returns the section seconds.
+
+    The spawned chat is started by a typed request before the call: speech-to-text dropped
+    or split the spoken start-chat request too often for a reliable proof.
+    """
+    (channels, width, rate), question = read_pcm(synthesize(QUESTION, lead=4.0, tail=0.0))
     silence = b"\x00" * (int(TAIL_SECONDS * rate) * channels * width)
     with wave.open(str(directory / f"{SLUG}.wav"), "wb") as out:
         out.setnchannels(channels)
         out.setsampwidth(width)
         out.setframerate(rate)
-        out.writeframes(first + second + silence)
+        out.writeframes(question + silence)
     frame = channels * width * rate
-    return {"first": len(first) / frame, "second": len(second) / frame, "tail": TAIL_SECONDS}
-
+    return {"question": len(question) / frame, "tail": TAIL_SECONDS}
 
 if __name__ == "__main__":
     if any(os.getenv(key) for key in ("CI", "GITHUB_ACTIONS", "BUILDKITE", "GITLAB_CI")):

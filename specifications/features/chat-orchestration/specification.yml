@@ -165,6 +165,12 @@ assertions:
   depends_on:
   - models.ChatCreatorLink
   - examples.start_chat
+- id: chat-orchestration.spawn.brief-not-answered-here
+  type: behavior
+  must: When the creator turn starts a chat or writes to a spawned chat, wording inside the brief (for example "search
+    recent news") does not replace that action with a search in the creator chat; the brief runs in the other chat.
+  depends_on:
+  - examples.start_chat
 - id: chat-orchestration.spawn.eligibility-and-limits
   type: security
   must: Only an authenticated user's own non-incognito, non-anonymous, non-shared chat may spawn main chats; any such

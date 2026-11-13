@@ -694,6 +694,16 @@ def _resolve_explicit_natural_search_intent(
     return []
 
 
+# Skills that hand a written brief to another chat: search wording inside the
+# brief must not replace them with a search in this chat.
+CHAT_DELEGATION_SKILLS = frozenset({"openmates-start-chat", "openmates-send-to-spawned-chat"})
+
+
+def _delegates_to_another_chat(selected_skill_ids: List[str]) -> bool:
+    """True when the selection starts or writes to another chat."""
+    return bool(CHAT_DELEGATION_SKILLS.intersection(selected_skill_ids or []))
+
+
 def _news_follow_up_repeats_prior_topic(message_history: List[Any]) -> bool:
     """Return true when two consecutive news turns repeat a distinctive topic token."""
     user_texts: List[str] = []
@@ -4160,7 +4170,14 @@ async def handle_preprocessing(
                     f"{log_prefix} [RULE_BASED] Forced {forced_mentions} into preselected skills: "
                     "latest user message explicitly requested known app skill identifier(s)."
                 )
-        if natural_search_intents:
+        if natural_search_intents and _delegates_to_another_chat(validated_relevant_skills):
+            # The search wording is the brief for the started/addressed chat,
+            # not a request this chat should answer itself (feature.chat-orchestration).
+            logger.info(
+                f"{log_prefix} [RULE_BASED] Kept {validated_relevant_skills}: the search request is a brief "
+                "for another chat."
+            )
+        elif natural_search_intents:
             user_requested_skills_only = True
             validated_relevant_skills = natural_search_intents
             logger.info(
