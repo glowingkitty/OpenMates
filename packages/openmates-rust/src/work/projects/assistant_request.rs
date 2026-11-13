@@ -26,8 +26,24 @@ pub const PROJECT_CREATE_VERSION: u64 = 1;
 /// Plaintext proposal limits from the contract.
 const MAX_NAME_CHARS: usize = 120;
 const MAX_DESCRIPTION_CHARS: usize = 400;
-/// Slug tries for one assistant request: the name, then "<name> 2" to "<name> 5".
+/// Numbered slug tries for one assistant request: the name, then "<name> 2" to
+/// "<name> 5"; one random-suffix try follows (see [`assistant_slug`]).
 const SLUG_ATTEMPTS: u32 = 5;
+
+/// Slug source for one creation attempt: `None` (derive from the name) first,
+/// then "<name> 2".."<name> 5", then "<name> <random>" as the last attempt for
+/// an account that already holds every numbered variant.
+pub(super) fn assistant_slug(name: &str, attempt: u32) -> Option<String> {
+    let name = name.trim();
+    match attempt {
+        1 => None,
+        n if n <= SLUG_ATTEMPTS => Some(format!("{name} {n}")),
+        _ => Some(format!(
+            "{name} {}",
+            &uuid::Uuid::new_v4().simple().to_string()[..6]
+        )),
+    }
+}
 
 /// A validated creation request. Built only by [`ProjectCreateRequest::parse`].
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -241,7 +257,7 @@ impl Projects<'_> {
         let mut attempt = 1;
         let project_id = loop {
             match self.post_assistant_project(request, &focus, attempt).await {
-                Err(Error::Conflict) if attempt < SLUG_ATTEMPTS => attempt += 1,
+                Err(Error::Conflict) if attempt <= SLUG_ATTEMPTS => attempt += 1,
                 other => break other?,
             }
         };
@@ -267,8 +283,9 @@ impl Projects<'_> {
     }
 
     /// One encrypted `POST /v1/projects` for an assistant request; returns the
-    /// new Project id. `attempt` 1 derives the slug from the name, later attempts
-    /// use "<name> <attempt>" so a taken slug does not fail the request.
+    /// new Project id. `attempt` 1 derives the slug from the name, attempts up to
+    /// `SLUG_ATTEMPTS` use "<name> <attempt>", and the one after that adds a
+    /// random suffix, so a taken slug does not fail the request.
     ///
     /// # Errors
     /// `Error::Conflict` when the server reports the slug as taken; any other
@@ -284,7 +301,7 @@ impl Projects<'_> {
             description: request.description.clone(),
             write_mode: Some(ProjectWriteMode::ApplyAndShow),
             default_focus: Some(focus.clone()),
-            slug: (attempt > 1).then(|| format!("{} {attempt}", request.name.trim())),
+            slug: assistant_slug(&request.name, attempt),
             ..Default::default()
         };
         let (mut payload, key) = self.prepare_create(input).await?;

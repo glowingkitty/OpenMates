@@ -1,7 +1,7 @@
 //! Assistant-requested Project creation: request validation, create + focus,
 //! rollback, reload lookup and undo against a stateful in-process REST server.
 // contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
-use super::assistant_request::default_focus;
+use super::assistant_request::{assistant_slug, default_focus};
 use super::*;
 use crate::work::tasks::tests::client;
 use std::sync::{Arc, Mutex};
@@ -19,6 +19,7 @@ pub(crate) fn request_event(now: u64) -> Value {
         "undo":{"available":true},"created_at":now,"expires_at":now+600,"notification_queued":false}})
 }
 
+// contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
 #[test]
 fn parse_accepts_the_contract_request_and_refuses_everything_else() {
     let request = ProjectCreateRequest::parse(&request_event(1_000), CHAT, 1_000).unwrap();
@@ -75,6 +76,7 @@ fn parse_accepts_the_contract_request_and_refuses_everything_else() {
     );
 }
 
+// contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
 #[test]
 fn default_focus_matches_the_rule_core_creation_applies() {
     let focus = default_focus("Recipe Manager");
@@ -207,6 +209,7 @@ fn request() -> ProjectCreateRequest {
     ProjectCreateRequest::parse(&request_event(now()), CHAT, now()).unwrap()
 }
 
+// contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
 #[tokio::test]
 async fn creates_an_apply_and_show_project_and_activates_its_default_focus() {
     let (api, log, _) = rest_fixture(rest_handler(true)).await;
@@ -233,6 +236,7 @@ async fn creates_an_apply_and_show_project_and_activates_its_default_focus() {
     );
 }
 
+// contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
 #[tokio::test]
 async fn taken_slug_retries_with_a_numbered_slug_and_keeps_the_name() {
     let inner = rest_handler(true);
@@ -269,6 +273,7 @@ async fn taken_slug_retries_with_a_numbered_slug_and_keeps_the_name() {
     );
 }
 
+// contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
 #[tokio::test]
 async fn failed_focus_activation_deletes_the_new_project_and_reports_the_error() {
     let (api, log, stored) = rest_fixture(rest_handler(false)).await;
@@ -285,6 +290,7 @@ async fn failed_focus_activation_deletes_the_new_project_and_reports_the_error()
         .any(|(line, _)| line.starts_with("DELETE /v1/projects/")));
 }
 
+// contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
 #[tokio::test]
 async fn created_project_is_found_again_after_reload_and_undo_removes_it() {
     let (api, log, stored) = rest_fixture(rest_handler(true)).await;
@@ -327,6 +333,7 @@ async fn created_project_is_found_again_after_reload_and_undo_removes_it() {
         .is_none());
 }
 
+// contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
 #[tokio::test]
 async fn undo_refuses_a_project_the_assistant_did_not_create_for_the_chat() {
     let (api, log, _) = rest_fixture(rest_handler(true)).await;
@@ -340,4 +347,20 @@ async fn undo_refuses_a_project_the_assistant_did_not_create_for_the_chat() {
         .unwrap()
         .iter()
         .all(|(l, _)| !l.starts_with("DELETE")));
+}
+
+// contract-test: supporting surface=sdks.rust assertions=projects.creation.assistant-inferred
+#[test]
+fn every_numbered_slug_taken_still_leaves_a_random_last_try() {
+    assert_eq!(assistant_slug("Recipe Manager", 1), None);
+    assert_eq!(
+        assistant_slug(" Recipe Manager ", 5).as_deref(),
+        Some("Recipe Manager 5")
+    );
+    let last = assistant_slug("Recipe Manager", 6).unwrap();
+    assert!(last.starts_with("Recipe Manager ") && last.len() == "Recipe Manager ".len() + 6);
+    assert_ne!(
+        assistant_slug("Recipe Manager", 6),
+        assistant_slug("Recipe Manager", 6)
+    );
 }
