@@ -53,6 +53,12 @@
   import SvgEmbedImage from './SvgEmbedImage.svelte';
   import { resolveCodePreviewKind } from './interactiveHtmlSandbox';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
+  import EmbedIconButton from '../shared/EmbedIconButton.svelte';
+  import CodeEditor from './CodeEditor.svelte';
+  import { EMBED_EDITS_ENABLED } from '../../../services/rustCore/embeds/embedEditSession';
+  import { chatTeamOf, contentEditScope, saveContentEdit } from '../../../services/rustCore/embeds/embedContentEdit';
+  import type { EmbedEditScope } from '../../../services/rustCore/embeds/embedEditProtocol';
+  import { computeSHA256 } from '../../../message_parsing/utils';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
   import Toggle from '../../Toggle.svelte';
@@ -159,8 +165,12 @@
   let dc = $derived(data.decodedContent);
   let attrs = $derived(data.attrs);
   let includedOriginalCodeContent = $state<string | null>(null);
+  /** Saved edit shown until the embed data catches up with the new head. */
+  let localCode = $state<string | null>(null);
+  let localVersion = $state<number | null>(null);
   let latestCodeContent = $derived(
-      typeof dc.code === 'string' ? dc.code
+      localCode !== null ? localCode
+      : typeof dc.code === 'string' ? dc.code
       : typeof attrs?.code === 'string' ? attrs.code as string
       : ''
     );
@@ -196,11 +206,18 @@
   let remoteSourceProvenance = $derived(
     remoteSourceLabel ? `Streamed from ${remoteSourceLabel}` : ''
   );
-  let versionNumber = $derived(
+  let dataVersionNumber = $derived(
       typeof dc.version_number === 'number' ? dc.version_number
       : typeof data.embedData?.version_number === 'number' ? data.embedData.version_number
       : 1
     );
+  let versionNumber = $derived(Math.max(dataVersionNumber, localVersion ?? 0));
+  $effect(() => {
+    if (localVersion !== null && dataVersionNumber >= localVersion) {
+      localCode = null;
+      localVersion = null;
+    }
+  });
 
   // Single source of truth: piiRevealed flows down from piiVisibilityStore via
   // the parent (ActiveChat); togglePII() writes back to the same store so the
@@ -228,6 +245,63 @@
     });
     return () => { cancelled = true; };
   });
+
+  // ── Editing a stored code file as the next version ─────────────────────────
+  let editing = $state(false);
+  let editError = $state('');
+  let editConflict = $state(false);
+  let editScope = $state<EmbedEditScope | null>(null);
+  $effect(() => {
+    const place = { chatId, projectId, projectTeamId: teamId };
+    let cancelled = false;
+    editScope = null;
+    if (!EMBED_EDITS_ENABLED) return;
+    (async () => {
+      const scope = contentEditScope({ ...place, chatTeamId: place.projectId ? null : (teamId ?? await chatTeamOf(place.chatId)) });
+      if (!cancelled) editScope = scope;
+    })();
+    return () => { cancelled = true; };
+  });
+  /**
+   * Stored Project files only (the server accepts code edits in Project scope
+   * only): not streaming, not a remote preview, no PII masking in the shown text.
+   */
+  let canEdit = $derived(!!embedId && editScope?.kind === 'project' && data.embedData?.status !== 'processing' && dc.type !== 'remote_file_preview' && !onImport && !hasPII);
+
+  async function saveEdit(next: string) {
+    const scope = editScope;
+    if (!embedId || !scope) return;
+    editError = '';
+    editConflict = false;
+    const baseVersion = versionNumber;
+    const contentHash = await computeSHA256(next);
+    try {
+      const saved = await saveContentEdit(embedId, scope, baseVersion, (newVersion) => ({
+        ...dc,
+        code: next,
+        line_count: countCodeLines(next),
+        content_hash: contentHash,
+        version_number: newVersion,
+      }));
+      localCode = next;
+      localVersion = saved.version;
+      includedOriginalCodeContent = null;
+      editing = false;
+    } catch (error) {
+      console.error('[CodeEmbedFullscreen] Failed to save code edit:', error);
+      const code = (error as { code?: unknown } | null)?.code;
+      editConflict = code === 'embed_version_conflict';
+      editError = editConflict ? $text('embed_user_edits.edit_conflict')
+        : typeof code === 'string' ? $text('embed_user_edits.edit_failed')
+        : error instanceof Error ? error.message : String(error);
+      notificationStore.error(editError);
+      throw new Error(editError);
+    }
+  }
+
+  function reloadAfterConflict() {
+    window.location.reload();
+  }
 
   function togglePII() {
     if (!chatId) return;
@@ -1571,7 +1645,20 @@
   {/snippet}
 
   {#snippet content()}
-    {#if renderCodeContent}
+    {#if canEdit && !editing}
+      <div class="code-edit-bar">
+        <EmbedIconButton icon="edit" label={$text('app_skills.code.edit')} testId="code-edit-button" onclick={() => { editError = ''; editConflict = false; editing = true; }} />
+      </div>
+    {/if}
+    {#if editing}
+      <CodeEditor
+        code={renderCodeContent}
+        onSave={saveEdit}
+        onCancel={() => { editing = false; }}
+        error={editError}
+        onReload={editConflict ? reloadAfterConflict : undefined}
+      />
+    {:else if renderCodeContent}
       <!-- Split-pane layout when preview or terminal output is active, full code otherwise -->
       <div
         class="code-fullscreen-container"
@@ -1945,6 +2032,12 @@
 {/if}
 
 <style>
+  .code-edit-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding-bottom: var(--spacing-4);
+  }
+
   /* Code fullscreen container */
   .code-fullscreen-container {
     width: calc(100% - 10px);

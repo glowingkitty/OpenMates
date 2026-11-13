@@ -973,6 +973,7 @@
         "project-plans-flow.spec.ts",
         "project-task-sync.spec.ts",
         "projects-flow.spec.ts",
+        "projects-create-edit-files.spec.ts",
         "projects-remote-sources.spec.ts",
         "teams-settings-context.spec.ts",
         "workflow-files.spec.ts",
@@ -1127,6 +1128,8 @@
         "components/slides-deck-embed.spec.ts",
         "components/slides-presenter.spec.ts",
         "components/slides-editor.spec.ts",
+        "components/code-editor.spec.ts",
+        "components/docs-editor.spec.ts",
         "components/test-result-embed.spec.ts"
       ]
     },

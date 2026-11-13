@@ -187,23 +187,35 @@ async def handle_request_embed(
                 return
             hashed_chat_id = directus_embed.get("hashed_chat_id")
             if not hashed_chat_id:
-                await not_found()
-                return
-            try:
-                personal_chats = await directus_service.chat.get_chat_activity_candidates(user_id)
-            except Exception:
-                logger.error(f"{log_prefix}Failed to verify legacy Personal source", exc_info=True)
-                await not_found()
-                return
-            source_id = next((row.get("id") for row in personal_chats
-                              if isinstance(row, dict) and isinstance(row.get("id"), str)
-                              and hashlib.sha256(row["id"].encode()).hexdigest() == hashed_chat_id), None)
-            chat = await source_chat(source_id) if source_id else None
-            if (not chat or chat.get("storage_state") == "deleting"
-                    or chat.get("hashed_team_id") or chat.get("hashed_user_id") != hashed_user_id):
-                await not_found()
-                return
-            chat_id = source_id
+                # A Project-only file (created in a Project, never in a chat) has
+                # no source chat. Its Personal author may read only its finished
+                # client-encrypted record with the author's master wrappers (the
+                # canonical branch below), e.g. to save a manual edit.
+                project_only_file = (
+                    not source_only and directus_embed.get("status") == "finished"
+                    and directus_embed.get("encryption_mode") in (None, "client")
+                    and directus_embed.get("encrypted_content")
+                    and directus_embed.get("encrypted_type")
+                )
+                if not project_only_file:
+                    await not_found()
+                    return
+            if hashed_chat_id:
+                try:
+                    personal_chats = await directus_service.chat.get_chat_activity_candidates(user_id)
+                except Exception:
+                    logger.error(f"{log_prefix}Failed to verify legacy Personal source", exc_info=True)
+                    await not_found()
+                    return
+                source_id = next((row.get("id") for row in personal_chats
+                                  if isinstance(row, dict) and isinstance(row.get("id"), str)
+                                  and hashlib.sha256(row["id"].encode()).hexdigest() == hashed_chat_id), None)
+                chat = await source_chat(source_id) if source_id else None
+                if (not chat or chat.get("storage_state") == "deleting"
+                        or chat.get("hashed_team_id") or chat.get("hashed_user_id") != hashed_user_id):
+                    await not_found()
+                    return
+                chat_id = source_id
 
         if source_only:
             if not directus_embed or directus_embed.get("status") == "cancelled":
@@ -226,8 +238,9 @@ async def handle_request_embed(
                 and directus_embed.get("encrypted_content")
                 and directus_embed.get("encrypted_type")):
             try:
+                # A Project-only file has no chat: only the author's master wrappers match.
                 key_window = await directus_service.embed.get_sync_embed_key_window_for_page(
-                    hashed_chat_id, hashed_user_id,
+                    hashed_chat_id or "", hashed_user_id,
                     [directus_embed.get("hashed_embed_id") or hashlib.sha256(embed_id.encode()).hexdigest()],
                     include_master_keys=not bool(team_id),
                 )

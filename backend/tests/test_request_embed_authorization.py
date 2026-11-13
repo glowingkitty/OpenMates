@@ -359,6 +359,50 @@ async def test_legacy_personal_author_reads_only_verified_personal_source() -> N
     assert manager.send_personal_message.await_args.args[0]["payload"]["content"] == "personal-ciphertext"
 
 
+# contract-test: supporting surface=rest_api assertions=projects.items.create-documents,storage.privacy.ciphertext-boundary
+@pytest.mark.anyio
+@pytest.mark.parametrize("case", ["author", "other_user", "processing", "source_only"])
+async def test_project_only_file_is_read_by_its_author_only(case: str) -> None:
+    """A Project-only file has no chat; its author reads the finished ciphertext with master wrappers only."""
+    owner_hash = hashlib.sha256(b"owner").hexdigest()
+    row = {"embed_id": "project-file", "hashed_user_id": owner_hash, "status": "finished",
+           "encryption_mode": "client", "encrypted_type": "type-ciphertext",
+           "encrypted_content": "content-ciphertext", "version_number": 1}
+    if case == "processing":
+        row["status"] = "processing"
+    key_page = {"embed_keys": [{"key_type": "master", "encrypted_embed_key": "owner-wrapper"}],
+                "has_more_after": False, "end_cursor": None, "oversized_key_id": None}
+    directus = SimpleNamespace(
+        chat=SimpleNamespace(get_chat_activity_candidates=AsyncMock(return_value=[])),
+        embed=SimpleNamespace(get_embed_by_id=AsyncMock(return_value=row),
+                              get_sync_embed_key_window_for_page=AsyncMock(return_value=key_page)),
+        get_items=AsyncMock(return_value=[row]),
+    )
+    cache = SimpleNamespace(get=AsyncMock())
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    payload = {"embed_id": "project-file"}
+    if case == "source_only":
+        payload.update(source_only=True, embed_id="00000000-0000-4000-8000-000000000001",
+                       request_id="00000000-0000-4000-8000-000000000002")
+    await handle_request_embed(
+        websocket=None, manager=manager, cache_service=cache, directus_service=directus,
+        encryption_service=None, user_id="intruder" if case == "other_user" else "owner",
+        device_fingerprint_hash="device-1", payload=payload,
+    )
+    message = manager.send_personal_message.await_args.args[0]
+    cache.get.assert_not_awaited()
+    directus.chat.get_chat_activity_candidates.assert_not_awaited()
+    if case != "author":
+        assert "content" not in message["payload"]
+        directus.embed.get_sync_embed_key_window_for_page.assert_not_awaited()
+        return
+    assert directus.embed.get_sync_embed_key_window_for_page.await_args.args[0] == ""
+    assert directus.embed.get_sync_embed_key_window_for_page.await_args.kwargs == {"include_master_keys": True}
+    assert message["payload"]["content"] == "content-ciphertext"
+    assert message["payload"]["chat_id"] is None
+    assert message["payload"]["embed_keys"] == key_page["embed_keys"]
+
+
 # contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure,storage.privacy.ciphertext-boundary
 @pytest.mark.anyio
 @pytest.mark.parametrize('catalog', [False, True])

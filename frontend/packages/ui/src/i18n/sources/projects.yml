@@ -450,3 +450,47 @@ focus_not_active:
   context: Status of the Project focus row after the Project creation was undone
   en: Not active
   verified_by_human: []
+create_document:
+  context: Project create menu entry that makes a new empty document
+  en: New document
+  verified_by_human: []
+create_sheet:
+  context: Project create menu entry that makes a new empty spreadsheet
+  en: New sheet
+  verified_by_human: []
+create_slides:
+  context: Project create menu entry that makes a new empty slide deck
+  en: New slides
+  verified_by_human: []
+create_code_file:
+  context: Project create menu entry that makes a new empty code file
+  en: New code file
+  verified_by_human: []
+create_name_label:
+  context: Accessible label of the name field when creating a new Project file
+  en: Name
+  verified_by_human: []
+create_name_submit:
+  context: Button that creates the new Project file with the entered name
+  en: Create
+  verified_by_human: []
+create_default_document_name:
+  context: Prefilled name of a new empty document in a Project
+  en: Untitled document
+  verified_by_human: []
+create_default_sheet_name:
+  context: Prefilled name of a new empty spreadsheet in a Project
+  en: Untitled sheet
+  verified_by_human: []
+create_default_slides_name:
+  context: Prefilled name of a new empty slide deck in a Project
+  en: Untitled deck
+  verified_by_human: []
+create_default_code_name:
+  context: Prefilled file name of a new empty code file in a Project, including a file extension
+  en: untitled.py
+  verified_by_human: []
+create_file_failed:
+  context: Error shown when creating a new Project document, sheet, deck or code file failed
+  en: Could not create the file. Please try again.
+  verified_by_human: []

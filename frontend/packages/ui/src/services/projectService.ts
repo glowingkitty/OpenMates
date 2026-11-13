@@ -1395,6 +1395,103 @@ export async function removeEmbedFromProject(projectId: string, embedId: string,
   }), { method: 'DELETE' });
 }
 
+interface NewProjectEmbed {
+  embedId: string;
+  embedType: string;
+  /** Embed content already serialized as the JSON string the viewers decode. */
+  content: string;
+  textPreview: string;
+  contentHash: string;
+  displayName: string;
+  metadata: Record<string, unknown>;
+  location: ProjectUploadLocation;
+  timestampMs: number;
+  embedRef?: string;
+  embedRefKind?: string;
+  /**
+   * Catalog type of the embed row (`app_id`/`skill_id`, stored in plaintext like
+   * assistant-created embeds). The server accepts user edits only for known
+   * editable pairs (embed-version-transaction `USER_EDITABLE_TYPES`).
+   */
+  catalogType?: { appId: string; skillId: string };
+}
+
+/**
+ * Store one new client-encrypted embed in a Project: owner master-key wrapper,
+ * Project-key wrapper and the Project item link in the target folder, then the
+ * local embed cache. Shared by every Project path that creates an embed without a chat.
+ */
+async function storeNewProjectEmbed(project: ProjectViewModel, embed: NewProjectEmbed): Promise<string> {
+  const { embedId, embedType, timestampMs } = embed;
+  const timestamp = Math.floor(timestampMs / 1000);
+  const embedKey = generateEmbedKey();
+  const hashedEmbedId = await computeSHA256(embedId);
+  const hashedProjectId = await computeSHA256(project.project_id);
+  const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
+  const wrappedProjectKey = await wrapEmbedKeyWithChatKey(embedKey, project.projectKey);
+  if (!wrappedMasterKey || !wrappedProjectKey) throw new Error("Could not wrap project embed keys");
+  const projectItemId = crypto.randomUUID();
+
+  await requestJson(`/v1/projects/${project.project_id}/upload-embed`, {
+    method: "POST",
+    body: JSON.stringify({
+      embed: {
+        embed_id: embedId,
+        encrypted_type: await encryptWithEmbedKey(embedType, embedKey),
+        status: "finished",
+        encrypted_content: await encryptWithEmbedKey(embed.content, embedKey),
+        encrypted_text_preview: await encryptWithEmbedKey(embed.textPreview, embedKey),
+        content_hash: embed.contentHash,
+        created_at: timestamp,
+        updated_at: timestamp,
+        encryption_mode: "client",
+        is_private: true,
+        is_shared: false,
+        ...(embed.catalogType ? { app_id: embed.catalogType.appId, skill_id: embed.catalogType.skillId } : {}),
+      },
+      embed_keys: [
+        { hashed_embed_id: hashedEmbedId, key_type: "master", encrypted_embed_key: wrappedMasterKey, created_at: timestamp },
+        {
+          hashed_embed_id: hashedEmbedId,
+          key_type: "project",
+          hashed_project_id: hashedProjectId,
+          encrypted_embed_key: wrappedProjectKey,
+          created_at: timestamp,
+        },
+      ],
+      item: {
+        project_item_id: projectItemId,
+        folder_id: embed.location.folderId ?? null,
+        item_type: "embed",
+        target_id: embedId,
+        target_id_encrypted: await encryptWithEmbedKey(embedId, project.projectKey),
+        encrypted_display_name: await encryptWithEmbedKey(embed.displayName, project.projectKey),
+        encrypted_note: await encryptWithEmbedKey("", project.projectKey),
+        encrypted_metadata: await encryptWithEmbedKey(JSON.stringify(embed.metadata), project.projectKey),
+        created_at: timestamp,
+        updated_at: timestamp,
+        position: timestamp,
+      },
+    }),
+  });
+
+  await embedStore.put(
+    `embed:${embedId}`,
+    {
+      embed_id: embedId,
+      type: embedType as never,
+      status: "finished",
+      content: embed.content,
+      text_preview: embed.textPreview,
+      createdAt: timestampMs,
+      updatedAt: timestampMs,
+    },
+    embedType as never,
+  );
+  if (embed.embedRef && embed.embedRefKind) embedStore.registerEmbedRef(embed.embedRef, embedId, embed.embedRefKind);
+  return projectItemId;
+}
+
 async function uploadMindMapToProject(
   project: ProjectViewModel,
   file: File,
@@ -1408,10 +1505,8 @@ async function uploadMindMapToProject(
   }
 
   const timestampMs = Date.now();
-  const timestamp = Math.floor(timestampMs / 1000);
   const embedId = crypto.randomUUID();
   const embedType = "mindmaps-mindmap";
-  const embedKey = generateEmbedKey();
   const embedRef = generateDirectEmbedRef("mindmap", embedId, {
     filename: file.name,
   });
@@ -1434,73 +1529,11 @@ async function uploadMindMapToProject(
     filename: file.name,
   });
   const contentHash = await computeSHA256(normalization.sourceJson);
-  const hashedEmbedId = await computeSHA256(embedId);
-  const hashedProjectId = await computeSHA256(project.project_id);
-  const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
-  const wrappedProjectKey = await wrapEmbedKeyWithChatKey(embedKey, project.projectKey);
-  if (!wrappedMasterKey || !wrappedProjectKey) throw new Error("Could not wrap mind map embed keys");
-
-  await requestJson(`/v1/projects/${project.project_id}/upload-embed`, {
-    method: "POST",
-    body: JSON.stringify({
-      embed: {
-        embed_id: embedId,
-        encrypted_type: await encryptWithEmbedKey(embedType, embedKey),
-        status: "finished",
-        encrypted_content: await encryptWithEmbedKey(embedContent, embedKey),
-        encrypted_text_preview: await encryptWithEmbedKey(normalization.title, embedKey),
-        content_hash: contentHash,
-        created_at: timestamp,
-        updated_at: timestamp,
-        encryption_mode: "client",
-        is_private: true,
-        is_shared: false,
-      },
-      embed_keys: [
-        {
-          hashed_embed_id: hashedEmbedId,
-          key_type: "master",
-          encrypted_embed_key: wrappedMasterKey,
-          created_at: timestamp,
-        },
-        {
-          hashed_embed_id: hashedEmbedId,
-          key_type: "project",
-          hashed_project_id: hashedProjectId,
-          encrypted_embed_key: wrappedProjectKey,
-          created_at: timestamp,
-        },
-      ],
-      item: {
-        project_item_id: crypto.randomUUID(),
-        folder_id: location.folderId ?? null,
-        item_type: "embed",
-        target_id: embedId,
-        target_id_encrypted: await encryptWithEmbedKey(embedId, project.projectKey),
-        encrypted_display_name: await encryptWithEmbedKey(normalization.title || file.name, project.projectKey),
-        encrypted_note: await encryptWithEmbedKey("", project.projectKey),
-        encrypted_metadata: await encryptWithEmbedKey(JSON.stringify({ ...metadata, embed_type: embedType }), project.projectKey),
-        created_at: timestamp,
-        updated_at: timestamp,
-        position: timestamp,
-      },
-    }),
+  await storeNewProjectEmbed(project, {
+    embedId, embedType, content: embedContent, textPreview: normalization.title, contentHash,
+    displayName: normalization.title || file.name, metadata: { ...metadata, embed_type: embedType },
+    location, timestampMs, embedRef, embedRefKind: "mindmap",
   });
-
-  await embedStore.put(
-    `embed:${embedId}`,
-    {
-      embed_id: embedId,
-      type: embedType as never,
-      status: "finished",
-      content: embedContent,
-      text_preview: normalization.title,
-      createdAt: timestampMs,
-      updatedAt: timestampMs,
-    },
-    embedType as never,
-  );
-  embedStore.registerEmbedRef(embedRef, embedId, "mindmap");
 }
 
 async function uploadRemoteCodeFileToProject(
@@ -1509,13 +1542,11 @@ async function uploadRemoteCodeFileToProject(
 ): Promise<void> {
   const source = await file.text();
   const timestampMs = Date.now();
-  const timestamp = Math.floor(timestampMs / 1000);
   const embedId = crypto.randomUUID();
   const embedType = "code-code";
   const storedMetadata = route.readme
     ? { ...metadata, embed_type: embedType, readme_uploaded_at_ms: timestampMs }
     : { ...metadata, embed_type: embedType };
-  const embedKey = generateEmbedKey();
   const embedRef = generateDirectEmbedRef("code", embedId, {
     filename: file.name,
   });
@@ -1532,73 +1563,80 @@ async function uploadRemoteCodeFileToProject(
     line_count: source.split("\n").length,
     content_hash: contentHash,
   });
-  const hashedEmbedId = await computeSHA256(embedId);
-  const hashedProjectId = await computeSHA256(project.project_id);
-  const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
-  const wrappedProjectKey = await wrapEmbedKeyWithChatKey(embedKey, project.projectKey);
-  if (!wrappedMasterKey || !wrappedProjectKey) throw new Error("Could not wrap code embed keys");
-
-  await requestJson(`/v1/projects/${project.project_id}/upload-embed`, {
-    method: "POST",
-    body: JSON.stringify({
-      embed: {
-        embed_id: embedId,
-        encrypted_type: await encryptWithEmbedKey(embedType, embedKey),
-        status: "finished",
-        encrypted_content: await encryptWithEmbedKey(embedContent, embedKey),
-        encrypted_text_preview: await encryptWithEmbedKey(file.name, embedKey),
-        content_hash: contentHash,
-        created_at: timestamp,
-        updated_at: timestamp,
-        encryption_mode: "client",
-        is_private: true,
-        is_shared: false,
-      },
-      embed_keys: [
-        {
-          hashed_embed_id: hashedEmbedId,
-          key_type: "master",
-          encrypted_embed_key: wrappedMasterKey,
-          created_at: timestamp,
-        },
-        {
-          hashed_embed_id: hashedEmbedId,
-          key_type: "project",
-          hashed_project_id: hashedProjectId,
-          encrypted_embed_key: wrappedProjectKey,
-          created_at: timestamp,
-        },
-      ],
-      item: {
-        project_item_id: crypto.randomUUID(),
-        folder_id: location.folderId ?? null,
-        item_type: "embed",
-        target_id: embedId,
-        target_id_encrypted: await encryptWithEmbedKey(embedId, project.projectKey),
-        encrypted_display_name: await encryptWithEmbedKey(file.name, project.projectKey),
-        encrypted_note: await encryptWithEmbedKey("", project.projectKey),
-        encrypted_metadata: await encryptWithEmbedKey(JSON.stringify(storedMetadata), project.projectKey),
-        created_at: timestamp,
-        updated_at: timestamp,
-        position: timestamp,
-      },
-    }),
+  await storeNewProjectEmbed(project, {
+    embedId, embedType, content: embedContent, textPreview: file.name, contentHash,
+    displayName: file.name, metadata: storedMetadata, location, timestampMs, embedRef, embedRefKind: "code",
   });
+}
 
-  await embedStore.put(
-    `embed:${embedId}`,
-    {
-      embed_id: embedId,
-      type: embedType as never,
-      status: "finished",
-      content: embedContent,
-      text_preview: file.name,
-      createdAt: timestampMs,
-      updatedAt: timestampMs,
-    },
-    embedType as never,
-  );
-  embedStore.registerEmbedRef(embedRef, embedId, "code");
+export type ProjectDocumentKind = "document" | "sheet" | "slides" | "code";
+
+const PROJECT_DOCUMENT_TYPES: Record<ProjectDocumentKind, { embedType: string; appId: string; skillId: string; refKind: string }> = {
+  document: { embedType: "docs-doc", appId: "docs", skillId: "document", refKind: "doc" },
+  sheet: { embedType: "sheets-sheet", appId: "sheets", skillId: "sheet", refKind: "sheet" },
+  slides: { embedType: "slides-deck", appId: "slides", skillId: "deck", refKind: "deck" },
+  code: { embedType: "code-code", appId: "code", skillId: "code", refKind: "code" },
+};
+
+/** Text escaping of normalised slides markup (the core refuses any other form). */
+function escapeMarkupText(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Attribute escaping of normalised slides markup (Python's `html.escape(value, quote=True)`). */
+function escapeMarkupAttr(value: string): string {
+  return escapeMarkupText(value).replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
+}
+
+/** Blank content in the fields each viewer/editor reads (html, table, slides_markup, code). */
+async function blankProjectDocumentContent(
+  kind: ProjectDocumentKind, name: string,
+): Promise<{ fields: Record<string, unknown>; hashSource: string; preview: string }> {
+  if (kind === "document") {
+    const html = "<p></p>";
+    return { fields: { title: name, filename: `${name}.docx`, html, word_count: 0 }, hashSource: html, preview: name };
+  }
+  if (kind === "sheet") {
+    const rows = 8;
+    const table = ["| Column 1 | Column 2 | Column 3 |", "| --- | --- | --- |", ...Array.from({ length: rows }, () => "|  |  |  |")].join("\n");
+    return { fields: { title: name, table, row_count: rows, col_count: 3 }, hashSource: table, preview: name };
+  }
+  if (kind === "slides") {
+    // Byte-exact normalised markup (one element per line, trailing newline): the deck editor opens nothing else.
+    const markup = `<deck title="${escapeMarkupAttr(name)}" aspect="16:9" template="builtin:plain">\n  <slide id="s1" layout="title">\n    <text id="e1" role="title">${escapeMarkupText(name)}</text>\n  </slide>\n</deck>\n`;
+    return { fields: { title: name, slides_markup: markup, slide_count: 1 }, hashSource: markup, preview: name };
+  }
+  const routeInput = { fileName: name, fileType: "", importedFromRemote: false };
+  const route = PROJECT_RUST_CORE ? await decideProject("projectUploadRoute", routeInput) : projectRule("projectUploadRoute", routeInput);
+  const language = route.route === "code" ? route.language : "text";
+  return { fields: { language, code: "", filename: name, line_count: 1 }, hashSource: "", preview: name };
+}
+
+/**
+ * Create a new empty document, sheet, slide deck or code file as a Project embed
+ * (no chat) in the current folder. The caller opens it right away for editing.
+ */
+export async function createProjectDocument(
+  project: ProjectViewModel, kind: ProjectDocumentKind, name: string, location: ProjectUploadLocation = {},
+): Promise<{ embedId: string; embedType: string; projectItemId: string; content: Record<string, unknown> }> {
+  const title = name.trim();
+  if (!title) throw new Error("A name is required");
+  const spec = PROJECT_DOCUMENT_TYPES[kind];
+  const timestampMs = Date.now();
+  const embedId = crypto.randomUUID();
+  const embedRef = generateDirectEmbedRef(spec.refKind, embedId, { filename: title });
+  const blank = await blankProjectDocumentContent(kind, title);
+  const content = {
+    type: spec.embedType, app_id: spec.appId, skill_id: spec.skillId, ...blank.fields,
+    embed_ref: embedRef, status: "finished", version_number: 1,
+  };
+  const projectItemId = await storeNewProjectEmbed(project, {
+    embedId, embedType: spec.embedType, content: JSON.stringify(content), textPreview: blank.preview,
+    contentHash: await computeSHA256(blank.hashSource), displayName: title,
+    metadata: { embed_type: spec.embedType }, location, timestampMs, embedRef, embedRefKind: spec.refKind,
+    catalogType: { appId: spec.appId, skillId: spec.skillId },
+  });
+  return { embedId, embedType: spec.embedType, projectItemId, content };
 }
 
 export async function uploadFileToProject(project: ProjectViewModel, file: File, metadata: ProjectUploadMetadata = {}, location: ProjectUploadLocation = {}): Promise<void> {

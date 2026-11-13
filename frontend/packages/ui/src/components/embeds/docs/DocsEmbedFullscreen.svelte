@@ -50,6 +50,11 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { hydrateEmbedLinks, hydrateWikiLinks, replaceEmbedRefsWithUrls } from '../../../utils/embedLinkUtils';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
+  import DocsEditor from './DocsEditor.svelte';
+  import { buildEditedContent } from './docsEditorHtml';
+  import { EMBED_EDITS_ENABLED } from '../../../services/rustCore/embeds/embedEditSession';
+  import { chatTeamOf, contentEditScope, saveContentEdit } from '../../../services/rustCore/embeds/embedContentEdit';
+  import type { EmbedEditScope } from '../../../services/rustCore/embeds/embedEditProtocol';
   import EmbedZoomControls from '../shared/EmbedZoomControls.svelte';
   import { fetchAndDecryptDocArtifact } from './docsArtifactCrypto';
   import { docsDownloadFilename, fetchDocxDownloadArtifact, prepareDocsDownload, prepareDocsPdfDownload, triggerDocsDownload } from './docsDownload';
@@ -116,7 +121,9 @@
 
   // ── Extract fields from data.decodedContent (with attrs fallback) ───────────
 
-  let dc = $derived(data.decodedContent);
+  /** Content object saved from the editor; shown until the embed data itself catches up. */
+  let savedContent = $state<Record<string, unknown> | null>(null);
+  let dc = $derived(savedContent ?? data.decodedContent);
   let attrs = $derived(data.attrs);
   let includedOriginalHtmlContent = $state<string | null>(null);
   let latestHtmlContent = $derived(
@@ -170,6 +177,53 @@
   let allPIIMappings = $derived([...piiMappings, ...embedPIIMappings]);
   let hasPII = $derived(allPIIMappings.length > 0);
   let isDraftEmbed = $derived(!data.embedData?.encrypted_content && !data.embedData?.hashed_message_id);
+
+  // ── Manual editing (saved as the next version through the client core) ─────
+  let editing = $state(false);
+  let editScope = $state<EmbedEditScope | null>(null);
+  let canEdit = $derived(
+    // Manual editing is offered for Project documents only (spec projects.items.create-documents);
+    // a Project document is stored as soon as it is created, so it is editable at once.
+    EMBED_EDITS_ENABLED && !!embedId && editScope?.kind === 'project' && !hasPII && includedOriginalHtmlContent === null
+  );
+
+  $effect(() => {
+    if (!EMBED_EDITS_ENABLED || !embedId) { editScope = null; return; }
+    let cancelled = false;
+    (async () => {
+      const scope = contentEditScope({
+        chatId, chatTeamId: projectId ? null : (teamId ?? await chatTeamOf(chatId)), projectId, projectTeamId: teamId,
+      });
+      if (!cancelled) editScope = scope;
+    })();
+    return () => { cancelled = true; };
+  });
+
+  /** Clear the optimistic saved content once the embed data carries that version. */
+  $effect(() => {
+    const fromData = data.decodedContent?.version_number;
+    if (savedContent && typeof fromData === 'number' && fromData >= (savedContent.version_number as number)) savedContent = null;
+  });
+
+  /** Persists the edit as version + 1; rejects with a user-facing error (code kept) so the editor stays open. */
+  async function saveEditedDocument(html: string): Promise<void> {
+    if (!embedId || !editScope) throw new Error($text('embed_user_edits.edit_failed'));
+    const base = dc;
+    try {
+      const result = await saveContentEdit(embedId, editScope, versionNumber, (newVersion) => buildEditedContent(base, html, newVersion));
+      savedContent = buildEditedContent(base, html, result.version);
+      artifactPageUrls = {};
+      editing = false;
+    } catch (error) {
+      console.error('[DocsEmbedFullscreen] Failed to save document edit:', error);
+      const code = (error as { code?: unknown } | null)?.code;
+      const message = code === 'embed_version_conflict' ? $text('embed_user_edits.edit_conflict')
+        : typeof code === 'string' ? $text('embed_user_edits.edit_failed')
+        : error instanceof Error ? error.message : String(error);
+      if (code !== 'embed_version_conflict') notificationStore.error(message);
+      throw Object.assign(new Error(message), { code });
+    }
+  }
   let canIncludeOriginalPII = $derived(!!embedId && isDraftEmbed && embedPIIMappings.length > 0 && !originalPIIIncluded);
 
   $effect(() => {
@@ -731,6 +785,11 @@
   showPIIToggle={hasPII}
   piiRevealed={piiRevealed}
   onTogglePII={togglePII}
+  onEdit={canEdit && !editing ? () => { editing = true; } : undefined}
+  editActive={editing}
+  editPlacement="share"
+  editTestId="docs-edit-button"
+  editLabel={$text('common.edit')}
   showPIIIncludeOriginal={canIncludeOriginalPII}
   onIncludeOriginalPII={includeOriginalPII}
   skipInitialScrollReset={!!highlightQuoteText}
@@ -738,7 +797,9 @@
   onDownloadPdf={pdfS3Key && aesKey ? handlePdfDownload : undefined}
 >
   {#snippet content()}
-    {#if Object.keys(displayedArtifactPageUrls).length > 0}
+    {#if editing}
+      <DocsEditor html={latestHtmlContent} onSave={saveEditedDocument} onCancel={() => { editing = false; }} />
+    {:else if Object.keys(displayedArtifactPageUrls).length > 0}
       <div class="doc-viewer-canvas" data-testid="doc-artifact-pages" data-download-ready={preparedDocxDownloadUrl ? 'true' : 'false'}>
         <div
           class="doc-canvas-scroll"

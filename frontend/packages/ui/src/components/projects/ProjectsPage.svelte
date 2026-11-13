@@ -22,6 +22,7 @@
   import ProjectChatsSection from './ProjectChatsSection.svelte';
   import type { ProjectChatPresentation } from '../../services/projectChatPreviewService';
   import ProjectReadme from './ProjectReadme.svelte';
+  import ProjectCreateFileEntries from './ProjectCreateFileEntries.svelte';
   import ProjectWorkspaceHeader from './ProjectWorkspaceHeader.svelte';
   import ProjectRemotePreviewCard from './ProjectRemotePreviewCard.svelte';
   import TasksPage from '../tasks/TasksPage.svelte';
@@ -61,6 +62,8 @@
     transferProjectRemoteEntries,
     updateProjectMetadata,
     uploadFileToProject,
+  createProjectDocument,
+  type ProjectDocumentKind,
     type ProjectFolderViewModel,
     type ProjectItemViewModel,
     type ProjectSourceViewModel,
@@ -1332,6 +1335,32 @@
     }
   }
 
+  const canCreateFiles = $derived(!!selectedProject);
+
+  async function createProjectFile(kind: ProjectDocumentKind, name: string): Promise<boolean> {
+    if (!selectedProject) return false;
+    try {
+      const created = await createProjectDocument(selectedProject, kind, name, { folderId: currentFolder?.folder_id ?? null });
+      showCreateMenu = false;
+      await refreshSelectedProject();
+      openStoredFullscreen({
+        embedId: created.embedId,
+        projectId: selectedProject.project_id,
+        teamId: selectedProject.teamId,
+        embedData: { embed_id: created.embedId, type: created.embedType, status: 'finished' },
+        decodedContent: created.content,
+        embedType: created.embedType,
+        attrs: { type: created.embedType, contentRef: `embed:${created.embedId}`, status: 'finished' },
+        hasChatContext: false,
+      });
+      return true;
+    } catch (error) {
+      console.error('[ProjectsPage] Failed to create Project file:', error);
+      notificationStore.error(error instanceof Error && error.message ? error.message : $text('projects.create_file_failed'));
+      return false;
+    }
+  }
+
   function openStoredFullscreen(detail: EmbedFullscreenDispatchDetail): void {
     activeStoredFullscreen = detail;
   }
@@ -2212,6 +2241,7 @@
                 <span class="menu-icon plan-icon" aria-hidden="true"></span>
                 <span><strong>New plan</strong><small>Plan work for this project</small></span>
               </button>
+              {#if canCreateFiles}<ProjectCreateFileEntries variant="root" onCreate={createProjectFile} />{/if}
             </div>
           {/if}
           {#if readmeState.status === 'empty'}
@@ -2326,6 +2356,7 @@
                 <button type="button" data-testid="project-create-chat" onclick={startProjectChat}><span class="menu-icon chat-icon" aria-hidden="true"></span><span><strong>New chat</strong></span></button>
                 <button type="button" data-testid="project-create-workflow" onclick={startProjectWorkflow}><span class="menu-icon workflow-icon" aria-hidden="true"></span><span><strong>New workflow</strong></span></button>
                 <button type="button" data-testid="project-create-plan" onclick={startProjectPlan}><span class="menu-icon plan-icon" aria-hidden="true"></span><span><strong>New plan</strong></span></button>
+                {#if canCreateFiles}<ProjectCreateFileEntries variant="folder" onCreate={createProjectFile} />{/if}
               </div>
             {/if}
             </div>

@@ -113,3 +113,78 @@ event.open:
   en: Open
   de: Öffnen
   verified_by_human: []
+docs_editor_label:
+  context: Accessible name of the document editor text area
+  en: Document text
+  de: Dokumenttext
+  verified_by_human: []
+docs_editor_toolbar:
+  context: Accessible name of the formatting toolbar above the document editor
+  en: Formatting
+  de: Formatierung
+  verified_by_human: []
+docs_editor_bold:
+  context: Tooltip and accessible name of the bold button in the document editor
+  en: Bold
+  de: Fett
+  verified_by_human: []
+docs_editor_italic:
+  context: Tooltip and accessible name of the italic button in the document editor
+  en: Italic
+  de: Kursiv
+  verified_by_human: []
+docs_editor_underline:
+  context: Tooltip and accessible name of the underline button in the document editor
+  en: Underline
+  de: Unterstrichen
+  verified_by_human: []
+docs_editor_h1:
+  context: Tooltip and accessible name of the heading level 1 button in the document editor
+  en: Heading 1
+  de: Überschrift 1
+  verified_by_human: []
+docs_editor_h2:
+  context: Tooltip and accessible name of the heading level 2 button in the document editor
+  en: Heading 2
+  de: Überschrift 2
+  verified_by_human: []
+docs_editor_h3:
+  context: Tooltip and accessible name of the heading level 3 button in the document editor
+  en: Heading 3
+  de: Überschrift 3
+  verified_by_human: []
+docs_editor_paragraph:
+  context: Tooltip and accessible name of the normal paragraph button in the document editor
+  en: Paragraph
+  de: Absatz
+  verified_by_human: []
+docs_editor_bullets:
+  context: Tooltip and accessible name of the bulleted list button in the document editor
+  en: Bulleted list
+  de: Aufzählung
+  verified_by_human: []
+docs_editor_numbers:
+  context: Tooltip and accessible name of the numbered list button in the document editor
+  en: Numbered list
+  de: Nummerierte Liste
+  verified_by_human: []
+docs_editor_save:
+  context: Button that saves the edited document as its next version
+  en: Save
+  de: Speichern
+  verified_by_human: []
+docs_editor_saving:
+  context: Save button label while the edited document is being saved
+  en: Saving…
+  de: Wird gespeichert…
+  verified_by_human: []
+docs_editor_cancel:
+  context: Button that leaves the document editor without saving
+  en: Cancel
+  de: Abbrechen
+  verified_by_human: []
+docs_editor_reload:
+  context: Button shown after a save conflict that reloads the page to get the latest version of the document
+  en: Reload
+  de: Neu laden
+  verified_by_human: []

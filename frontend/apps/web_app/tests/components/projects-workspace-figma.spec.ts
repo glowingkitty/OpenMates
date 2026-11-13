@@ -178,14 +178,17 @@ test('keeps the Figma project header and icon tabs while switching workspace pan
   const expandedActions = page.getByTestId('project-action-expander');
   const createMenu = page.getByTestId('project-create-menu');
   await expect(page.getByTestId('project-folder-create-menu-button')).toHaveAttribute('aria-expanded', 'true');
-  await expect(createMenu.getByRole('button')).toHaveCount(3);
+  // Chat, workflow and plan entries keep the icon layout; the new-file entries sit below them.
+  const primaryEntries = createMenu.locator('button:not([data-testid="project-create-file-entries"] button)');
+  await expect(primaryEntries).toHaveCount(3);
+  await expect(createMenu.getByTestId('project-create-file-entries').getByRole('button')).toHaveCount(4);
   const actionsBox = await page.getByTestId('project-folder-actions').boundingBox();
   const menuBox = await createMenu.boundingBox();
   expect(actionsBox).not.toBeNull();
   expect(menuBox).not.toBeNull();
   expect(menuBox!.x).toBeGreaterThanOrEqual(actionsBox!.x + actionsBox!.width - 1);
   expect(Math.abs(menuBox!.y - actionsBox!.y)).toBeLessThanOrEqual(1);
-  for (const button of await createMenu.getByRole('button').all()) {
+  for (const button of await primaryEntries.all()) {
     const iconBox = await button.locator('.menu-icon').boundingBox();
     const labelBox = await button.locator('strong').boundingBox();
     expect(iconBox).not.toBeNull();
@@ -810,4 +813,29 @@ test('shows a hosted application inside its folder, not at the Project root', as
   await expect(page.getByTestId('project-virtual-folder-card')).toContainText('src');
   await expect(page.getByTestId('project-folders-panel')).toContainText('1 folders, 2 files and embeds');
   await testInfo.attach('projects-hosted-application-opened-folder', { body: await page.getByTestId('project-folders-panel').screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.items.create-documents
+test('Create menu offers new document, sheet, slides and code file with a name field', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512));
+  await waitForProjectsPreview(page);
+  await page.getByTestId('project-tab-folders').click();
+  await page.getByTestId('project-folder-create-menu-button').click();
+  const menu = page.getByTestId('project-create-menu');
+  await expect(menu).toBeVisible();
+  for (const id of ['project-create-document', 'project-create-sheet', 'project-create-slides', 'project-create-code']) {
+    await expect(menu.getByTestId(id)).toBeVisible();
+  }
+  await testInfo.attach('create-menu-open', { body: await page.screenshot(), contentType: 'image/png' });
+
+  await menu.getByTestId('project-create-document').click();
+  await expect(page.getByTestId('project-create-name-input')).toHaveValue('Untitled document');
+  await expect(page.getByTestId('project-create-name-submit')).toBeEnabled();
+  await testInfo.attach('create-name-field', { body: await page.screenshot(), contentType: 'image/png' });
+
+  await page.getByTestId('project-create-name-input').press('Escape');
+  await expect(page.getByTestId('project-create-name-input')).toHaveCount(0);
+  await menu.getByTestId('project-create-code').click();
+  await expect(page.getByTestId('project-create-name-input')).toHaveValue('untitled.py');
 });

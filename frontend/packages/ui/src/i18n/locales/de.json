@@ -905,6 +905,23 @@
         "description": {
           "text": "AST-Übersicht der Projektstruktur erstellen."
         }
+      },
+      "edit": {
+        "text": "Code bearbeiten"
+      },
+      "editor": {
+        "label": {
+          "text": "Code-Editor"
+        },
+        "unsaved": {
+          "text": "Ungespeicherte Änderungen"
+        },
+        "discard_confirm": {
+          "text": "Ungespeicherte Änderungen verwerfen?"
+        },
+        "reload": {
+          "text": "Neu laden"
+        }
       }
     },
     "design": {
@@ -7322,6 +7339,51 @@
       "open": {
         "text": "Öffnen"
       }
+    },
+    "docs_editor_label": {
+      "text": "Dokumenttext"
+    },
+    "docs_editor_toolbar": {
+      "text": "Formatierung"
+    },
+    "docs_editor_bold": {
+      "text": "Fett"
+    },
+    "docs_editor_italic": {
+      "text": "Kursiv"
+    },
+    "docs_editor_underline": {
+      "text": "Unterstrichen"
+    },
+    "docs_editor_h1": {
+      "text": "Überschrift 1"
+    },
+    "docs_editor_h2": {
+      "text": "Überschrift 2"
+    },
+    "docs_editor_h3": {
+      "text": "Überschrift 3"
+    },
+    "docs_editor_paragraph": {
+      "text": "Absatz"
+    },
+    "docs_editor_bullets": {
+      "text": "Aufzählung"
+    },
+    "docs_editor_numbers": {
+      "text": "Nummerierte Liste"
+    },
+    "docs_editor_save": {
+      "text": "Speichern"
+    },
+    "docs_editor_saving": {
+      "text": "Wird gespeichert…"
+    },
+    "docs_editor_cancel": {
+      "text": "Abbrechen"
+    },
+    "docs_editor_reload": {
+      "text": "Neu laden"
     }
   },
   "embeds": {

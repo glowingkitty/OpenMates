@@ -218,7 +218,8 @@
   let saveChain: Promise<void> = Promise.resolve();
   let pendingSaves = $state(0);
   let isViewingHistory = $derived(includedOriginalTableContent !== null && includedOriginalTableContent !== latestTableContent);
-  let canEdit = $derived(!!embedId && !!chatId && !isDraftEmbed && !hasPII && !isViewingHistory);
+  // Editable where it is saved: in its chat, or as a Project file opened from its Project.
+  let canEdit = $derived(!!embedId && (projectId ? true : !!chatId && !isDraftEmbed) && !hasPII && !isViewingHistory);
   /** Original (unsorted/unfiltered) data-row index for every row object. */
   let rowOrigin = $derived(new Map(parsedTable.rows.map((r, i) => [r, i])));
 

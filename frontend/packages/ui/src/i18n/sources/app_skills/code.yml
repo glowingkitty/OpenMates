@@ -1817,3 +1817,33 @@ run.automatic_compatible:
   en: Automatic (compatible)
   de: Automatisch (kompatibel)
   verified_by_human: []
+
+edit:
+  context: Round icon button label in a code file embed fullscreen that opens the code editor
+  en: Edit code
+  de: Code bearbeiten
+  verified_by_human: []
+
+editor.label:
+  context: Accessible name of the multi-line code editing field in a code file embed fullscreen
+  en: Code editor
+  de: Code-Editor
+  verified_by_human: []
+
+editor.unsaved:
+  context: Indicator next to the code editor buttons that the code was changed and not saved yet
+  en: Unsaved changes
+  de: Ungespeicherte Änderungen
+  verified_by_human: []
+
+editor.discard_confirm:
+  context: Confirmation shown when the user cancels the code editor while it holds unsaved changes
+  en: Discard your unsaved changes?
+  de: Ungespeicherte Änderungen verwerfen?
+  verified_by_human: []
+
+editor.reload:
+  context: Button after a code edit could not be saved because the file changed elsewhere; reloads the latest version
+  en: Reload
+  de: Neu laden
+  verified_by_human: []

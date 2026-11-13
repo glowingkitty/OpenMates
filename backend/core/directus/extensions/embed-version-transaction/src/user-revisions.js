@@ -57,6 +57,12 @@ export const USER_EDITABLE_TYPES = new Set([
   'diagrams/html', 'slides/deck', 'sheets/sheet', 'docs/document',
   'images/generated_image', 'images/upload',
 ]);
+/**
+ * Pairs a user may edit only in Project scope: a code file is a Project file the
+ * owner or a Team writer edits in its Project; a code embed in a chat stays
+ * assistant-owned.
+ */
+export const PROJECT_EDITABLE_TYPES = new Set(['code/code']);
 const IMAGE_TYPES = new Set(['images/generated_image', 'images/upload']);
 /** Enhance job states (owned by the images Enhance task). Only `ready` may be committed. */
 export const ENHANCE_JOB_STATES = new Set(['pending', 'ready', 'committed', 'failed', 'expired']);
@@ -333,8 +339,9 @@ export async function lookupEnhanceResult(trx, {
 }
 
 function typeAllowed(embed, scopeKind, projectNative) {
-  if (USER_EDITABLE_TYPES.has(`${embed.app_id}/${embed.skill_id}`)) return true;
-  return scopeKind === 'project' && projectNative;
+  const pair = `${embed.app_id}/${embed.skill_id}`;
+  if (USER_EDITABLE_TYPES.has(pair)) return true;
+  return scopeKind === 'project' && (projectNative || PROJECT_EDITABLE_TYPES.has(pair));
 }
 
 async function storeHistory(trx, body, embed) {

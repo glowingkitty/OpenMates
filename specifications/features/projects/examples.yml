@@ -683,6 +683,11 @@ project_document_creation:
   given: Bob may edit the Team Project "Launch", and Carol may only read it.
   when: Bob creates "New document" and "New sheet" in the Project root, and Carol opens the same Project.
   then: Both items appear in the root for Bob and Carol and open in their editors for Bob; Carol's Create menu does not offer new documents, sheets or slides.
+- id: new-code-file-edited-and-saved
+  assertion_ids: [projects.items.create-documents]
+  given: Dana works in her Project "Weather station".
+  when: She chooses "New code file", names it "greet.py", types a function in the code editor and saves.
+  then: The file greet.py appears in the Project files as Python code, the saved code is shown after a reload, and the edit is the file's next version.
 project_surface_parity:
 - id: same-linked-object
   input:

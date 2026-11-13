@@ -905,6 +905,23 @@
         "description": {
           "text": "Create AST overview of project structure."
         }
+      },
+      "edit": {
+        "text": "Edit code"
+      },
+      "editor": {
+        "label": {
+          "text": "Code editor"
+        },
+        "unsaved": {
+          "text": "Unsaved changes"
+        },
+        "discard_confirm": {
+          "text": "Discard your unsaved changes?"
+        },
+        "reload": {
+          "text": "Reload"
+        }
       }
     },
     "design": {
@@ -7381,6 +7398,51 @@
       "open": {
         "text": "Open"
       }
+    },
+    "docs_editor_label": {
+      "text": "Document text"
+    },
+    "docs_editor_toolbar": {
+      "text": "Formatting"
+    },
+    "docs_editor_bold": {
+      "text": "Bold"
+    },
+    "docs_editor_italic": {
+      "text": "Italic"
+    },
+    "docs_editor_underline": {
+      "text": "Underline"
+    },
+    "docs_editor_h1": {
+      "text": "Heading 1"
+    },
+    "docs_editor_h2": {
+      "text": "Heading 2"
+    },
+    "docs_editor_h3": {
+      "text": "Heading 3"
+    },
+    "docs_editor_paragraph": {
+      "text": "Paragraph"
+    },
+    "docs_editor_bullets": {
+      "text": "Bulleted list"
+    },
+    "docs_editor_numbers": {
+      "text": "Numbered list"
+    },
+    "docs_editor_save": {
+      "text": "Save"
+    },
+    "docs_editor_saving": {
+      "text": "Saving…"
+    },
+    "docs_editor_cancel": {
+      "text": "Cancel"
+    },
+    "docs_editor_reload": {
+      "text": "Reload"
     }
   },
   "embeds": {
@@ -17593,6 +17655,39 @@
     },
     "focus_not_active": {
       "text": "Not active"
+    },
+    "create_document": {
+      "text": "New document"
+    },
+    "create_sheet": {
+      "text": "New sheet"
+    },
+    "create_slides": {
+      "text": "New slides"
+    },
+    "create_code_file": {
+      "text": "New code file"
+    },
+    "create_name_label": {
+      "text": "Name"
+    },
+    "create_name_submit": {
+      "text": "Create"
+    },
+    "create_default_document_name": {
+      "text": "Untitled document"
+    },
+    "create_default_sheet_name": {
+      "text": "Untitled sheet"
+    },
+    "create_default_slides_name": {
+      "text": "Untitled deck"
+    },
+    "create_default_code_name": {
+      "text": "untitled.py"
+    },
+    "create_file_failed": {
+      "text": "Could not create the file. Please try again."
     }
   },
   "recommendations": {
