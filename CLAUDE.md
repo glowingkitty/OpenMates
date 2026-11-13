@@ -127,7 +127,9 @@ when a skill or this file points to it.
 - CI cost: for a UI-only or otherwise narrow change, first run only the
   cheapest proving check (component spec, lint, the one affected spec); submit
   the full E2E set once, after that is green. Wait in the background and act on
-  the first failed job instead of waiting for the whole set. Sub-agents never
+  the first failed job while the rest of the set finishes (never cancel it);
+  `ci_coordinator.py failures <ids>` reports all failures together and the
+  rerun of only the failed targets. Sub-agents never
   wait on CI or deploys: they submit, hand back the job ids and end. The one
   exception is the Haiku `ci-runner` agent: hand it job ids (or exact checks to
   submit) in the background and it returns pass/fail with the failing test and

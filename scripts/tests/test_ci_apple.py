@@ -62,7 +62,7 @@ def test_apple_core_plan_builds_core_and_the_watch_as_its_own_late_step():
     commands = {name: " ".join(cmd) for name, cmd, *_ in plan}
     joined = " ".join(commands.values())
     assert "PairOpaque" not in joined and "swift test" not in joined
-    assert commands["openmates-apple-bindings tests (macOS)"].endswith("-p openmates-apple-bindings --locked")
+    assert commands["openmates-apple-bindings tests (macOS)"].endswith("-p openmates-apple-bindings --locked --no-fail-fast")
     assert "--check-bindings" in commands["apple bindings are fresh"]
     watch = [n for n in names if "WATCH" in n]
     assert len(watch) == 1 and "--watch" in commands[watch[0]]

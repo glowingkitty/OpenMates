@@ -58,7 +58,8 @@ MACOS_BUILD_STEP = "xcodebuild build OpenMates_macOS"
 BUILD_STEPS = (BUILD_STEP, MACOS_BUILD_STEP)
 TEST_SUPPORT_SETTING = "OPENMATES_CORE_TEST_SUPPORT=YES"
 TEST_SUPPORT_SWIFT_FLAGS = "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT"
-RUST_TEST_FLAGS = ["--locked", "--lib", "--bins", "--tests"]
+# --no-fail-fast: a failing test binary must not hide the results of the others.
+RUST_TEST_FLAGS = ["--locked", "--no-fail-fast", "--lib", "--bins", "--tests"]
 
 Step = tuple[str, list[str], dict, str]
 
@@ -117,7 +118,7 @@ def core_plan(root: Path, results: Path) -> list[Step]:
         ),
         (
             "openmates-apple-bindings tests (macOS)",
-            ["cargo", "test", "-p", "openmates-apple-bindings", "--locked"],
+            ["cargo", "test", "-p", "openmates-apple-bindings", "--locked", "--no-fail-fast"],
             toolchain,
             "",
         ),

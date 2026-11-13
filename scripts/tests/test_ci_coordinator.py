@@ -953,7 +953,7 @@ def test_rust_check_plan_matches_rust_workflow_exclusions():
         "browser-bindings wasm32 check",
     ]
     assert commands["workspace test"] == [
-        "cargo", "test", "--workspace", "--locked", "--lib", "--bins", "--tests",
+        "cargo", "test", "--workspace", "--locked", "--no-fail-fast", "--lib", "--bins", "--tests",
     ]
     assert "--no-default-features" in commands["openmates sdk-only check"]
     assert "wasm32-unknown-unknown" in commands["browser-bindings wasm32 check"]

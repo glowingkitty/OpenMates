@@ -32,7 +32,7 @@ Usage:
     python3 scripts/tests.py run --prod-app-skill          # prod CLI app-skill smoke (daily slot)
     python3 scripts/tests.py run --hourly-dev --dry-run-notify  # test Discord wiring
     python3 scripts/tests.py run --max-concurrent 10       # override batch size
-    python3 scripts/tests.py run --no-fail-fast            # run all batches
+    python3 scripts/tests.py run --fail-fast               # stop after the first failed spec (default: run all)
 
 Architecture: docs/architecture/test-orchestration.md
 """
@@ -7711,7 +7711,8 @@ class TestOrchestrator:
         self.max_concurrent = args.max_concurrent
         self.account = args.account
         self.create_account_slot = args.create_account_slot
-        self.fail_fast = not args.no_fail_fast
+        # Run the whole selection by default; stopping early hides later failures.
+        self.fail_fast = bool(getattr(args, "fail_fast", False)) and not args.no_fail_fast
         self.use_mocks = not args.no_mocks
         self.record_live_fixtures = args.record_live_fixtures
         self.proof_video_profile = args.proof_video_profile
@@ -9435,8 +9436,11 @@ def main() -> int:
                         help="Pin a single Playwright spec to a specific GitHub Actions test-account slot")
     parser.add_argument("--create-account-slot", type=int, choices=range(14, 21), metavar="14-20", default=None,
                         help="Provision a reserved auth-test account slot via cli-provision-auth-accounts.spec.ts")
+    parser.add_argument("--fail-fast", action="store_true",
+                        help="Stop dispatching further specs after the first failure (off by default: "
+                             "every selected spec runs so all failures are reported together)")
     parser.add_argument("--no-fail-fast", action="store_true",
-                        help="Don't stop on first batch failure")
+                        help="Accepted for older callers; running every spec is the default")
     parser.add_argument("--no-mocks", action="store_true",
                         help="Run with real LLM calls instead of mocks")
     parser.add_argument("--record-live-fixtures", action="store_true",

@@ -2025,13 +2025,18 @@ def main():
     health = sub.add_parser("health")
     sub.add_parser("serve")
     sub.add_parser("tick")
+    failures = sub.add_parser(
+        "failures",
+        help="All failures of finished jobs in one report, with a rerun of only the failed targets",
+    )
+    failures.add_argument("ids", nargs="+")
     wait = sub.add_parser(
         "wait", help="Wait for a cached job result without agent polling"
     )
     wait.add_argument("id")
     wait.add_argument("--timeout", type=float, default=7200)
     wait.add_argument("--poll", type=float, default=10)
-    for command in (submit, priority, cancel, release, status, result, verify, health, wait):
+    for command in (submit, priority, cancel, release, status, result, verify, health, wait, failures):
         command.add_argument(
             "--json", action="store_true", help="Emit complete machine-readable data"
         )
@@ -2213,6 +2218,16 @@ def main():
             }
         print_receipt(row, as_json=args.json)
         return 0 if terminal_state == "success" else 1
+    elif args.action == "failures":
+        from ci_failures import collect, render
+        from ci_results import fetch
+
+        github = GitHub(root)
+        reports = [
+            collect(queue.result(github, job_id, root, fetch)) for job_id in args.ids
+        ]
+        print(json.dumps(reports, indent=2) if args.json else render(reports))
+        return 1 if any(report["state"] != "success" for report in reports) else 0
     elif args.action == "result":
         from ci_results import fetch
 

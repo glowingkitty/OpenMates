@@ -104,6 +104,26 @@ paths:
   plus `sdk-conformance`; web Playwright with the core flag on; Apple
   `apple-unit`/`apple-core`/`apple-ui` on GitHub `macos-26`. Parity vectors never gate.
 
+## Report every failure, then rerun only the failures
+- Run the whole selected set and report ALL failures in one result: never
+  `pytest -x`/`--maxfail`, vitest `--bail`, Playwright `--max-failures`/
+  `maxFailures`, `cargo test` without `--no-fail-fast`, `xcodebuild` without
+  continuing after errors, or `set -e` around a test loop (capture each exit
+  code and continue). `forbidOnly` stays on in CI; never use `.only` to narrow
+  a run. `scripts/tests.py run` runs every spec by default (`--fail-fast` is
+  opt-in).
+- Fail fast only where an early failure makes the rest meaningless: the build
+  or code generation is broken, or the server/stack did not start.
+- Never cancel the rest of a submitted set because one job failed; start on
+  the first failure while the others finish. Then
+  `ci_coordinator.py failures <id> [<id> ...]` lists every failure of the set
+  with its trace lines, screenshots, videos and traces, and prints the
+  `submit` arguments that rerun only the failed targets (failed spec files,
+  exact pytest node IDs, failed vitest files). After the fix, rerun only
+  those; run the full set again once they pass. Locally the same rule:
+  `pytest --lf`, `playwright test --last-failed`, `vitest` with the failed
+  files.
+
 ## Debugging bounds
 Existing browser observations, logs or failing checks suffice to start; do not
 re-reproduce known bugs. After two failed attempts with the same approach,
