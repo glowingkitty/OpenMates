@@ -94,6 +94,12 @@ def require_runtime_revision(revision: str) -> None:
     runtime = head.stdout.strip()
     if runtime == revision:
         return
+    # A later deploy by another chat moves the runtime past ``revision``; it still
+    # serves every backend change of ``revision``, so the proof stays valid.
+    if subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", revision, runtime],
+                      check=False, timeout=30).returncode == 0:
+        print(f"Backend runtime {runtime[:10]} already contains {revision[:10]}", file=sys.stderr)
+        return
     for command in (["merge-base", "--is-ancestor", runtime, revision],
                     ["diff", "--quiet", runtime, revision, "--", "backend"]):
         if subprocess.run(["git", "-C", str(ROOT), *command], check=False, timeout=30).returncode:

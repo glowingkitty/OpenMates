@@ -33,6 +33,18 @@ TEST_RESULT_FRONTEND_TYPE = "code-test-result"
 TEST_RESULT_APP_ID = "code"
 TEST_RESULT_SKILL_ID = "test_result"
 STALE_REASON_REVISIONS_CHANGED = "revisions_changed"
+# Fixed namespace: one execution always maps to the same test result embed id.
+_TEST_RESULT_EMBED_NAMESPACE = uuid.UUID("5b0c3e8e-2f4a-4d55-9a57-6f1d8c0e7a21")
+
+
+def run_result_embed_id(execution_id: str) -> str:
+    """Id of the test result embed of one Code Run execution.
+
+    Known before the run ends, so a chat-bound run without a target embed stores
+    its evidence under this id; the owner-checked generated-assets download-url
+    route then finds the embed that references the evidence.
+    """
+    return str(uuid.uuid5(_TEST_RESULT_EMBED_NAMESPACE, f"test_result:{execution_id}"))
 
 
 def build_test_result_content(
@@ -141,13 +153,14 @@ async def create_test_result_embed(
     tested_embed_ids: list[str] | None = None,
     task_id: str | None = None,
     log_prefix: str = "",
+    embed_id: str | None = None,
 ) -> dict[str, Any]:
     """Create the finished test result embed and deliver it to the client.
 
     Raises RuntimeError when the embed could not be cached and delivered; the
     caller reports that instead of silently dropping the result.
     """
-    embed_id = str(uuid.uuid4())
+    embed_id = embed_id or str(uuid.uuid4())
     embed_ref = embed_service._generate_direct_embed_ref(
         TEST_RESULT_EMBED_TYPE, embed_id, {"title": "test-result"}
     )
@@ -330,4 +343,5 @@ async def persist_test_result_embed(
         project_id=(payload.get("test_run") or {}).get("project_id"),
         tested_embed_ids=tested,
         log_prefix=f"[TestResultEmbed] [execution:{execution_id[:8]}]",
+        embed_id=run_result_embed_id(execution_id),
     )

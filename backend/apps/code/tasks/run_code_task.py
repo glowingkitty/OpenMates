@@ -25,7 +25,7 @@ import httpx
 from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.tasks.celery_config import app, get_worker_cache_service
-from backend.apps.code.tasks.test_result_embed import persist_test_result_embed
+from backend.apps.code.tasks.test_result_embed import persist_test_result_embed, run_result_embed_id
 from backend.apps.code.tasks.test_run_execution import execute_test_run, final_test_result
 from backend.shared.providers.e2b_code_runner import (
     CodeRunCancelled,
@@ -145,8 +145,15 @@ def _public_api_base_url() -> str:
 
 
 def _artifact_asset_id(execution_id: str, payload: dict[str, Any]) -> str:
+    """Embed the stored run outputs belong to: the target embed, else, for a
+    chat-bound test run, its test result embed (so the download-url route finds
+    an owned embed), else the execution itself (direct API runs)."""
     target_embed_id = payload.get("target_embed_id")
-    return target_embed_id if isinstance(target_embed_id, str) and target_embed_id else execution_id
+    if isinstance(target_embed_id, str) and target_embed_id:
+        return target_embed_id
+    if payload.get("test_run") and payload.get("chat_id"):
+        return run_result_embed_id(execution_id)
+    return execution_id
 
 
 def _artifact_variant_name(normalized_path: str, used_variants: set[str]) -> str:

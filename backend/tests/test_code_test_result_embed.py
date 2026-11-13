@@ -209,3 +209,17 @@ def test_final_result_pairs_each_evidence_with_its_stored_asset_and_variant() ->
     assert evidence[0]["asset_id"] == "embed-1" and evidence[0]["variant"] == "video-abc"
     # Evidence whose storage failed carries neither, so clients show "no video".
     assert evidence[1]["asset_id"] is None and evidence[1]["variant"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.tests.recorded-evidence
+def test_chat_test_run_stores_evidence_under_its_result_embed() -> None:
+    from backend.apps.code.tasks.run_code_task import _artifact_asset_id
+    from backend.apps.code.tasks.test_result_embed import run_result_embed_id
+
+    chat_run = {"chat_id": "chat-1", "test_run": {"kind": "browser"}}
+    assert run_result_embed_id("exec-1") == run_result_embed_id("exec-1") != run_result_embed_id("exec-2")
+    # The download-url route needs an owned embed with the asset id: the result embed.
+    assert _artifact_asset_id("exec-1", chat_run) == run_result_embed_id("exec-1")
+    # A run bound to a target embed and a direct API run keep their ids.
+    assert _artifact_asset_id("exec-1", {**chat_run, "target_embed_id": "code-1"}) == "code-1"
+    assert _artifact_asset_id("exec-1", {"test_run": {"kind": "browser"}}) == "exec-1"
