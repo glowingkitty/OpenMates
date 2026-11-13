@@ -63,3 +63,18 @@ boundary_and_history:
   then: The filters, result groups and source evidence agree on every surface.
   assertion_ids:
   - events-search.surface-parity
+billing:
+- id: events-search-billing-web-usage
+  given: Alice asks for open source conferences in Europe and the web source answers with one web search request and
+    Mercury 3 reading five pages (24,868 input and 6,800 output tokens) at its regular price.
+  when: The request item succeeds with results.
+  then: The item costs 10 credits for the search plus 7.46 and 7.12 token credits, floored to 24 credits; a second
+    item that failed costs nothing, and an item answered only by an official schedule costs 1 credit.
+  assertion_ids:
+  - events-search.billing.usage
+- id: events-search-billing-prices-unavailable
+  given: The pricing lookup fails.
+  when: Alice runs a general event search.
+  then: The web is not searched, the item reports that web results are unavailable, and nothing is charged for it.
+  assertion_ids:
+  - events-search.billing.usage

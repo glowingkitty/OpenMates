@@ -112,6 +112,18 @@ assertions:
     or known conference is rejected without contacting any source.
   depends_on:
   - examples.boundary_and_history
+- id: events-search.billing.usage
+  type: invariant
+  must: Each request item is charged what it used, at the platform's regular prices, on every surface (chat, REST,
+    workflows). A successful item costs each answered web search request at the web search provider's per-request
+    price plus the extraction model's input and output tokens at that model's current token price (temporary prices
+    included), floored once; a successful item that used no web search costs 1 credit. Items with an error or without
+    results cost nothing, and items served only by operator-installed providers are exempt by the server registry.
+    Prices are loaded before the web is searched; without them the web is not searched and the item says so. Before
+    a run, 50 credits per item are reserved as the upper bound. The skill settings page shows the per-search price,
+    the current token prices and a typical cost per search.
+  depends_on:
+  - examples.billing
 - id: events-search.results.actionable
   type: invariant
   must: Returned conference sessions and saved event cards retain nonblank titles, usable source links, dates and
@@ -186,6 +198,7 @@ examples:
   file: examples.yml
   required_groups:
   - boundary_and_history
+  - billing
 
 approval_source:
   instruction: The user approved the provider-boundary plan and requested implementation in the current Codex task

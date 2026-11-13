@@ -46,6 +46,8 @@ class InstalledProviderOutcome:
     provider_id: str
     results: List[Dict[str, Any]] = field(default_factory=list)
     error: Optional[str] = None
+    # Metered usage of sources that report it (the web source); installed providers leave it empty.
+    usage: Optional[Dict[str, Any]] = None
 
 
 async def _run_one(app_id: str, skill_id: str, provider_id: str, input_item: Dict[str, Any],

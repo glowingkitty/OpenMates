@@ -1364,7 +1364,9 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
     ("music", "generate"),
     ("videos", "generate"),
 }
-VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read")}
+VARIABLE_RESULT_BILLING_SKILLS = {
+    ("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read"), ("events", "search"),
+}
 
 
 def _ordered_async_task_ids(async_result: Dict[str, Any]) -> List[str]:
@@ -2434,6 +2436,9 @@ def _get_variable_preflight_reserved_credits(
         validated = ReadRequest.model_validate(parsed_args)
         return [20] * len(validated.requests)
     requests = parsed_args.get("requests")
+    if (app_id, skill_id) == ("events", "search"):
+        from backend.shared.python_utils.web_source_billing import RESERVED_CREDITS_PER_REQUEST
+        return [RESERVED_CREDITS_PER_REQUEST] * max(1, len(requests) if isinstance(requests, list) else 1)
     items = requests if isinstance(requests, list) else [parsed_args]
     if app_id == "audio" and skill_id == "generate":
         from backend.apps.audio.pricing import DEFAULT_SOUND_EFFECT_DURATION_SECONDS, calculate_sound_effect_credits
@@ -3358,6 +3363,10 @@ def _get_result_declared_charge_items(
                     for page in group["results"])
         ]
 
+    if (app_id, skill_id) == ("events", "search"):
+        from backend.shared.python_utils.web_source_billing import usage_charge_items
+        return usage_charge_items(app_id, skill_id, results)
+
     charge_items: List[Tuple[int, int, Dict[str, Any]]] = []
     found_result_declared_billing = False
     for result_index, result in enumerate(results):
@@ -3391,6 +3400,10 @@ def _get_result_declared_usage_details(
         return {"web_read_credits_charged": 20} if _get_result_declared_charge_items(
             app_id, skill_id, [result]
         ) else {}
+
+    if (app_id, skill_id) == ("events", "search"):
+        from backend.shared.python_utils.web_source_billing import usage_details
+        return usage_details(result)
 
     details: Dict[str, Any] = {}
     if app_id == "audio":
@@ -3551,7 +3564,8 @@ async def _charge_skill_credits(
         else:
             result_declared_charge_items = _get_result_declared_charge_items(
                 app_id, skill_id,
-                (grouped_results or []) if (app_id, skill_id) == ("web", "read") else results,
+                # These skills declare usage per request group, not per flattened result.
+                (grouped_results or []) if (app_id, skill_id) in {("web", "read"), ("events", "search")} else results,
             )
         if result_declared_charge_items is not None:
             if not result_declared_charge_items:

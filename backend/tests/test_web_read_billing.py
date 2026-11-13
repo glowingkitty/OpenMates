@@ -158,6 +158,7 @@ async def test_assistant_charge_uses_group_index_and_never_charges_blocked_page(
                ASYNC_SKILLS=set(), MINIMUM_CREDITS_CHARGED=1,
                _resolve_skill_billing_config=AsyncMock(return_value=(SimpleNamespace(full_model_reference=None), {"fixed": 1})),
                resolve_skill_usage_provider_id=lambda *_: None,
+               is_installed_only_group=lambda *_: False,
                _apply_benchmark_usage_details=lambda *_: None,
                _skill_operation_id=lambda *args: f"operation-{args[-1]}",
                INTERNAL_API_SHARED_TOKEN="", INTERNAL_API_BASE_URL="https://billing.invalid")

@@ -139,11 +139,13 @@ function normalizeProviderNames(providers: unknown): string[] | undefined {
 
 function runtimeSkillToMetadata(appId: string, runtimeSkill: Record<string, unknown>): SkillMetadata {
     const id = String(runtimeSkill.id);
-    // /v1/apps/metadata returns resolved strings, not keys; keys follow the app.yml convention.
+    // /v1/apps/metadata returns resolved strings, not keys; keys follow the generated metadata
+    // (scripts/generate-apps-metadata.js prefixes skill keys with `app_skills.`), so per-skill
+    // texts such as `.pricing_note` and `.how_to_use.N` resolve for runtime-only skills too.
     return {
         id,
-        name_translation_key: `${appId}.${id}`,
-        description_translation_key: `${appId}.${id}.description`,
+        name_translation_key: `app_skills.${appId}.${id}`,
+        description_translation_key: `app_skills.${appId}.${id}.description`,
         name: runtimeSkill.name,
         description: runtimeSkill.description,
         icon_image: runtimeSkill.icon_image,

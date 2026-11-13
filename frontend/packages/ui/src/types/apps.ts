@@ -76,6 +76,8 @@ export interface SkillPricing {
     cache_write?: { per_credit_unit: number };
     cache_write_1h?: { per_credit_unit: number };
   };
+  /** `provider/model` whose token price the skill charges; its current (temporary) rates win for display. */
+  tokens_model?: string;
   per_unit?: {
     credits: number;
     unit_name?: string;

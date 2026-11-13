@@ -4,6 +4,7 @@ import pytest
 from backend.apps.events.skills import search_skill
 from backend.apps.events.skills.search_skill import SearchRequest, SearchSkill
 from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome
+from backend.shared.python_utils.web_source_billing import WebSourcePrices
 from backend.apps.events.skills.provider_routing import deterministic_auto_providers
 
 # contract-test: direct surface=rest_api assertions=events-search.providers.explicit
@@ -36,6 +37,8 @@ async def test_general_discovery_without_installed_providers_answers_from_web_pa
                   "source_page_title": "Open source conferences"}
     web = AsyncMock(return_value=InstalledProviderOutcome("web", results=[page_event]))
     monkeypatch.setattr(search_skill, "run_web_source", web)
+    monkeypatch.setattr(search_skill, "fetch_web_source_prices", AsyncMock(return_value=WebSourcePrices(
+        10, "inception/mercury-3", {"tokens": {"input": {"per_credit_unit": 3335}, "output": {"per_credit_unit": 955}}})))
     response = await skill.execute(SearchRequest(requests=[
         {"id": "eu", "query": "open source conferences", "provider": choice}]), secrets_manager=object())
     assert response.error is None

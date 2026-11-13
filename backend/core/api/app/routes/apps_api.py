@@ -88,7 +88,9 @@ DEFAULT_APP_INTERNAL_PORT = 8000
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 APPLE_DEVICE_CLIENTS = {"ios", "macos", "apple"}
-VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read")}
+VARIABLE_RESULT_BILLING_SKILLS = {
+    ("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read"), ("events", "search"),
+}
 TEAM_ASYNC_SKILL_BILLING = {
     ("images", "generate"), ("images", "generate_draft"),
     ("videos", "generate"),
@@ -1428,6 +1430,11 @@ def get_variable_result_charge_items(
         ]
     if not isinstance(results, list):
         return None
+    if (app_id, skill_id) == ("events", "search"):
+        # Server-produced request groups declare their usage-based credits;
+        # failed, empty and installed-only groups are never charged.
+        from backend.shared.python_utils.web_source_billing import usage_charge_items
+        return [(index, credits) for index, credits, _ in usage_charge_items(app_id, skill_id, results)]
 
     charge_items: List[tuple[int, int]] = []
     found = False
@@ -1479,6 +1486,10 @@ def get_variable_preflight_reserved_credits(
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail={"code": "invalid_web_read_request"}) from exc
         return 20 * len(validated.requests)
+    if (app_id, skill_id) == ("events", "search"):
+        from backend.shared.python_utils.web_source_billing import RESERVED_CREDITS_PER_REQUEST
+        requests = input_data.get("requests")
+        return RESERVED_CREDITS_PER_REQUEST * max(1, len(requests) if isinstance(requests, list) else 1)
     if app_id == "code" and skill_id == "image_to_html":
         from backend.apps.code.skills.image_to_html_skill import (
             DEFAULT_MAX_CORRECTION_PASSES,
@@ -1563,6 +1574,9 @@ def get_variable_result_usage_details(
         return {"web_read_credits_charged": 20} if get_variable_result_charge_items(
             app_id, skill_id, {"results": [result]}
         ) else {}
+    if (app_id, skill_id) == ("events", "search"):
+        from backend.shared.python_utils.web_source_billing import usage_details
+        return usage_details(result)
     if app_id == "audio":
         details: Dict[str, Any] = {}
         model = result.get("model")

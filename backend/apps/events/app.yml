@@ -56,17 +56,27 @@ skills:
         City or place to search in. Omit for a country, a region such as Europe, or worldwide and give only the topic
         in query.
     provider_contract: events.search@1
+    # Charged by usage per request item (backend/shared/python_utils/web_source_billing.py): each answered web
+    # search request at the web search price plus the tokens Mercury 3 uses to read up to five public pages, at
+    # Mercury 3's current token price. A request answered only by an official schedule costs 1 credit; failed
+    # and empty requests cost nothing. These rates are what the settings page shows.
     pricing:
       per_unit:
-        credits: 15
+        credits: 10
+        unit_name: web search
+      tokens:
+        input:
+          per_credit_unit: 3335
+        output:
+          per_credit_unit: 955
     supplier_costs:
       per_unit:
-        price: 0.0085
+        price: 0.005
         currency: USD
         source_url: https://brave.com/search/api/
-        note: >-
-          Public web pages per request item: one Brave Search API request (USD 0.005) plus Mercury 3 extraction of
-          up to five pages (about USD 0.0035). Official schedule exports and installed providers have no cost.
+        note: One Brave Search API request per request item that searches public web pages.
+      tokens:
+        model: inception/mercury-3
     providers:
       - name: GPN24
         id: pretalx

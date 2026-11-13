@@ -40,7 +40,7 @@ async def test_explicit_unsupported_provider_never_falls_back(skill, provider):
     result = await instance._process_single_search_request(
         {"conference": "39C3", "provider": provider, "count": 5}, "explicit"
     )
-    identity, events, error, total, sources = result
+    identity, events, error, total, sources, _warnings = result
     assert identity == "explicit"
     assert events == [] and total == 0 and sources == []
     assert error and "unavailable" in error.lower()
@@ -58,7 +58,7 @@ async def test_supported_conference_preserves_shape_and_count(skill):
         {"id": "second", "title": "Another conference session", "description": "Another published session.",
          "url": "https://example.org/conference/second", "provider": "pretalx", "date_start": "2099-12-28T13:00:00+00:00"},
     ], 2, None)
-    identity, events, error, total, sources = await instance._process_single_search_request(
+    identity, events, error, total, sources, _warnings = await instance._process_single_search_request(
         {"conference": "39C3", "provider": "pretalx", "count": 1}, "conference"
     )
     assert error is None and identity == "conference" and total == 2

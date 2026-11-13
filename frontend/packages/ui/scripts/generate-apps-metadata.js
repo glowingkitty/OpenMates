@@ -689,6 +689,12 @@ function parseAppYaml(appId, filePath) {
 
           if (skill.pricing.tokens) {
             pricing.tokens = skill.pricing.tokens;
+            // The model whose token price the skill charges (a public model id, never a cost), so the
+            // settings page can show that model's current rates, a temporary launch price included.
+            const tokensModel = skill.supplier_costs?.tokens?.model;
+            if (typeof tokensModel === "string" && tokensModel.includes("/")) {
+              pricing.tokens_model = tokensModel;
+            }
           }
           if (skill.pricing.per_unit) {
             pricing.per_unit = skill.pricing.per_unit;

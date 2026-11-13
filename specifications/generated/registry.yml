@@ -248,7 +248,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/events-search
-    fingerprint: 1579c8a8e8b5083aaf78a77f65d64df71d5b23df0dcedec7468b4d82f941e751
+    fingerprint: b57416149a54801547bd2570cdb71243a51276d10fa5a032d9ad0096f256df26
     required_applies_to:
     - rest_api
     - cli
@@ -4579,6 +4579,18 @@ assertions:
     specification_id: feature.app-skill.events-search
     type: behavior
     fingerprint: 72e99bd38d15cd176aba2450ea8111627f86598a66e7f89c71d454e1e20c742b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  events-search.billing.usage:
+    specification: feature.app-skill.events-search@1
+    specification_id: feature.app-skill.events-search
+    type: invariant
+    fingerprint: 5f406c88bf8f45768a860a6b2445c400b8b95701f4e895fb344e98f320233d4a
     required_applies_to:
     - rest_api
     - cli

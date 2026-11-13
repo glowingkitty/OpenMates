@@ -12,6 +12,7 @@ goal: >-
 specifications:
   - feature.instance-app-packages@1  # assertion instance-app-packages.web-source
   - architecture.app-skill-execution@1  # assertion app-skills.progress.live-status
+  - feature.app-skill.events-search@1  # assertions events-search.discovery.web-pages, events-search.billing.usage
 acceptance:
   - Extraction model chosen by backend/scripts/benchmark_web_result_extraction.py (accuracy, speed, cost).
   - Web results carry their source page; prices, fees, links and pictures only when the page states them.
@@ -19,8 +20,14 @@ acceptance:
   - Processing embeds receive progress frames (sources total/done, result count) that are never persisted.
   - Web client shows the live status line; component spec and backend tests green in isolated CI.
   - Result videos on dev for an event discovery request and a product search request.
-  - Event search enabled in production with official schedules and the web source only (no installed providers);
-    priced from the web source's supplier cost (Brave request plus page extraction).
+  - Event search enabled in production with official schedules and the web source only (no installed providers).
+  - >-
+    Event search charged by usage, not a flat fee (owner decision 2026-11-13, Task 9c56986f): each answered web
+    search request at the search provider's regular per-request price plus the extraction model's tokens at its
+    current token price, floored once per request item; schedule-only items 1 credit; failed or empty items free.
+    Mercury 3 stays the extraction model (same validated rows as Gemini 3.8 Flash on four real queries, about 11x
+    cheaper and 5x faster). The skill settings page shows the per-search price, current token prices and a
+    typical cost per search (events-search.billing.usage).
   - Pages of sites whose terms of use forbid automated collection are never read (built-in list plus
     WEB_SOURCE_EXCLUDED_HOSTS).
 not_in_scope:

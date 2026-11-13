@@ -20,6 +20,10 @@ from backend.apps.skill_progress import SkillProgress
 from backend.shared.app_packages.contracts import validate_events_search_result
 from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
 from backend.shared.app_packages.web_source import KIND_EVENT, WEB_PROVIDER_ID, run_web_source
+from backend.shared.python_utils.web_result_extraction import DEFAULT_MODEL, MODEL_REFS
+from backend.shared.python_utils.web_source_billing import (
+    WebSourcePrices, WebSourcePricingError, fetch_web_source_prices, group_usage,
+)
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS, normalize_url_for_deduplication,
     stable_deduplicate_candidates, normalize_relevance_criteria, rank_search_candidates,
@@ -248,8 +252,9 @@ class SearchSkill(BaseSkill):
             skill_name:                 Display name for the skill
             skill_description:          Description of what the skill does
             stage:                      Deployment stage ('development' / 'production')
-            full_model_reference:       Unused for this skill (no LLM calls)
-            pricing_config:             Pricing configuration (5 credits per request)
+            full_model_reference:       Unused (the web source names its extraction model per request)
+            pricing_config:             Catalog prices for display; each request group declares its own
+                                        usage-based credits (backend/shared/python_utils/web_source_billing.py)
             celery_producer:            Unused for this skill (direct async execution)
             skill_operational_defaults: Optional per-skill config from app.yml
         """
@@ -840,14 +845,21 @@ class SearchSkill(BaseSkill):
         warnings: List[str] = []
         providers: List[str] = []
         progress = SkillProgress(self)
+        # Web search and extraction prices, loaded once per call before the web is first searched.
+        prices: Dict[str, Optional[WebSourcePrices]] = {}
         for item in valid:
+            web_usage: Dict[str, Any] = {}
             identity, events, message, total, dispatched, provider_warnings = await self._process_single_search_request(
-                item, item["id"], secrets_manager, progress=progress, policy=policy_from_skill_kwargs(kwargs))
+                item, item["id"], secrets_manager, progress=progress, policy=policy_from_skill_kwargs(kwargs),
+                prices=prices, web_usage=web_usage)
             providers.extend(provider for provider in dispatched if provider not in providers)
             # Provider ids that contributed results; billing re-checks them
             # against the server's installation registry.
             group = {"id": identity, "results": events, "total_available": total,
-                     "providers": list(dict.fromkeys(event.get("provider_id") or _BUILTIN_PROVIDER for event in events))}
+                     "providers": list(dict.fromkeys(event.get("provider_id") or _BUILTIN_PROVIDER for event in events)),
+                     # Credits of this request: web search requests plus extraction tokens it used.
+                     "usage": group_usage(has_results=bool(events), failed=bool(message), web=web_usage,
+                                          prices=prices.get("web"))}
             if message:
                 errors.append(message)
                 group["error"] = message
@@ -862,8 +874,23 @@ class SearchSkill(BaseSkill):
                               error="; ".join(errors) or None, warnings=warnings)
 
     async def _search_web(self, req: Dict[str, Any], secrets_manager: Any, progress: Optional[SkillProgress],
-                          *, past_events: bool) -> InstalledProviderOutcome:
-        """Events found on public web pages, as contract-valid results labelled with their source page."""
+                          *, past_events: bool,
+                          prices: Optional[Dict[str, Optional[WebSourcePrices]]] = None) -> InstalledProviderOutcome:
+        """Events found on public web pages, as contract-valid results labelled with their source page.
+
+        The web is searched only once its prices are known, so every search request and token is billable.
+        """
+        prices = prices if prices is not None else {}
+        if "web" not in prices:
+            try:
+                prices["web"] = await fetch_web_source_prices(MODEL_REFS[DEFAULT_MODEL])
+            except WebSourcePricingError as exc:
+                logger.error("[events.search] Web source prices unavailable: %s", exc)
+                prices["web"] = None
+        if prices["web"] is None:
+            if progress is not None:
+                await progress.source_done(0)
+            return InstalledProviderOutcome(WEB_PROVIDER_ID, error="Web results are unavailable right now.")
         outcome = await run_web_source(KIND_EVENT, req, secrets_manager)
         today = datetime.now(timezone.utc).date().isoformat()
         kept: List[Dict[str, Any]] = []
@@ -882,10 +909,13 @@ class SearchSkill(BaseSkill):
     async def _process_single_search_request(self, req: Dict[str, Any], request_id: Any,
                                              secrets_manager: Any = None, progress: Optional[SkillProgress] = None,
                                              policy: Optional[InternalLlmPolicy] = None,
+                                             prices: Optional[Dict[str, Optional[WebSourcePrices]]] = None,
+                                             web_usage: Optional[Dict[str, Any]] = None,
                                              **kwargs: Any) -> Tuple:
         """Fetch and validate one bounded candidate pool from built-in and installed providers.
 
         ``progress`` counts the sources of this item (built-in conference source, installed providers, web).
+        ``web_usage`` receives what the web source used (search requests, model, tokens) for billing.
         """
         choices = req.get("providers") or [req.get("provider") or "auto"]
         normalized = [_PROVIDER_ALIASES.get(str(value).lower().strip(), str(value).lower().strip())
@@ -905,6 +935,9 @@ class SearchSkill(BaseSkill):
         # caller naming providers switches that off. Without secrets there is no web search key.
         run_web = bool(query) and not conference and "auto" in normalized and secrets_manager is not None
         if not run_builtin and not selected_installed and not run_web:
+            if query and not conference and "auto" in normalized:
+                # A topic that only the web can answer, on a call without the server's secrets.
+                return request_id, [], "Web search is unavailable for this request.", 0, [], []
             return request_id, [], "Event search needs a topic or a known conference schedule.", 0, [], []
         criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
         topic = f"Events about {query}" if query and (not conference or query.casefold() != conference.casefold()) else None
@@ -918,6 +951,7 @@ class SearchSkill(BaseSkill):
             await progress.add_sources(int(run_builtin) + len(selected_installed) + int(run_web))
         web_search = asyncio.create_task(self._search_web(
             {**req, "query": query}, secrets_manager, progress, past_events=bool(req.get("past_events")),
+            prices=prices,
         )) if run_web else None
         if run_builtin:
             dispatched.append(_BUILTIN_PROVIDER)
@@ -947,6 +981,8 @@ class SearchSkill(BaseSkill):
                     failures.append(outcome.error)
         if web_search is not None:
             outcome = await web_search
+            if web_usage is not None and outcome.usage:
+                web_usage.update(outcome.usage)
             dispatched.append(WEB_PROVIDER_ID)
             events.extend(outcome.results)
             total += len(outcome.results)
