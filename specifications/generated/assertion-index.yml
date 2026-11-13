@@ -32055,7 +32055,7 @@ assertions:
       surface: gui.web
     - &id4105
       path: frontend/apps/web_app/tests/press-release-project-memory-real.spec.ts
-      line: 174
+      line: 204
       name: a second chat of the Project writes the press release in the saved style
       surface: gui.web
     - &id4108
@@ -154447,7 +154447,7 @@ assertions:
     direct_tests:
     - &id19644
       path: frontend/apps/web_app/tests/press-release-project-memory-real.spec.ts
-      line: 174
+      line: 204
       name: a second chat of the Project writes the press release in the saved style
       surface: gui.web
     - &id19645
@@ -158865,7 +158865,7 @@ assertions:
       surface: cli
     - &id20212
       path: frontend/apps/web_app/tests/press-release-project-memory-real.spec.ts
-      line: 174
+      line: 204
       name: a second chat of the Project writes the press release in the saved style
       surface: gui.web
     supporting_tests:
