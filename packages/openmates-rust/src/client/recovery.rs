@@ -34,6 +34,16 @@ pub(super) fn output_settling(state: &Value, attempts: u32) -> bool {
     attempts < OUTPUT_SETTLE_ATTEMPTS && matches!(state.as_str(), Some("PREPARING" | "PENDING"))
 }
 
+/// True when another device already acknowledged this output and the replay
+/// may skip it. The server verifies the ciphertext digest of message, metadata
+/// and checkpoint outputs inside the acknowledging transaction and reports
+/// `canonical_verified` only for embed/diff outputs, whose canonical row the
+/// client re-verifies itself (`verify_acknowledged_output`).
+pub(super) fn acknowledged_elsewhere(output_kind: &str, status: &Value) -> bool {
+    status["state"] == "ACKNOWLEDGED"
+        && (!matches!(output_kind, "embed" | "diff") || status["canonical_verified"] == true)
+}
+
 impl Client {
     pub(super) async fn replay_outputs(
         &mut self,
@@ -132,7 +142,7 @@ impl Client {
                     )
                     .await?;
                     same_identity(output, &status)?;
-                    if status["state"] == "ACKNOWLEDGED" && status["canonical_verified"] == true {
+                    if acknowledged_elsewhere(text(output, "output_kind"), &status) {
                         self.verify_acknowledged_output(output, &status, &key, &scope)
                             .await?;
                         break None;
