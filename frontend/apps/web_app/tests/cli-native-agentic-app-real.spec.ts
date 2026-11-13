@@ -225,6 +225,24 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       const testTurn = sent.code === 0 ? parseJson(sent) : { status: `exit ${sent.code}` };
       const shown = await run(['chats', 'show', chatId, '--json']);
       const testResults = embedIdsOfType(shown, 'test_result');
+      // The stored final reply (what other devices sync) must itself reference
+      // the test result, not only the chat's embed list.
+      const assistantTexts: string[] = [];
+      const findAssistant = (value: unknown): void => {
+        if (Array.isArray(value)) value.forEach(findAssistant);
+        else if (value && typeof value === 'object') {
+          const row = value as Record<string, unknown>;
+          const content = row.content ?? row.text;
+          if (row.role === 'assistant' && typeof content === 'string') assistantTexts.push(content);
+          else Object.values(row).forEach(findAssistant);
+        }
+      };
+      findAssistant(shown);
+      const finalReply = assistantTexts[assistantTexts.length - 1] ?? '';
+      const replyTestResults = embedIdsOfType(finalReply, 'test_result');
+      Object.assign(evidence, { finalReply: { messages: assistantTexts.length, length: finalReply.length,
+        testResultRefs: replyTestResults.length, preview: finalReply.replace(/\s+/g, ' ').slice(0, 240) } });
+      expect.soft(replyTestResults.length, 'stored final reply references the test result').toBeGreaterThan(0);
       testResultId = testResults[testResults.length - 1] || '';
       const readResult = async (id: string) => {
         // Without --version the CLI reads the embed's current content; a fresh
