@@ -65,7 +65,7 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
         guard await permission() else {
             if let reservation { runtime.releaseLiveCall(reservation) }
             reservation = nil
-            throw NativeVoiceCallError.audioUnavailable
+            throw NativeVoiceCallError.microphoneDenied
         }
     }
 

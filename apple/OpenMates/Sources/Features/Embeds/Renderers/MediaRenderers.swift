@@ -1533,6 +1533,9 @@ struct VideoGenerateEmbedRenderer: View {
 
     private var payload: GeneratedMediaPayload { GeneratedMediaPayload(data) }
 
+    /// Videos without `made_by` predate composed videos and are gen-AI clips (web madeByOf).
+    private var isGenerative: Bool { VideoAuthenticityBadge.isGenerative(madeBy: data?["made_by"]?.value as? String) }
+
     var body: some View {
         switch mode {
         case .preview:
@@ -1540,6 +1543,10 @@ struct VideoGenerateEmbedRenderer: View {
                 if payload.status == "finished" {
                     GeneratedVideoPlayer(payload: payload)
                         .frame(height: 30).clipped()
+                        .overlay(alignment: .bottomLeading) {
+                            // The card already names the maker once, so the badge carries the label only.
+                            if isGenerative { VideoAuthenticityBadge(detail: nil, fullscreen: false) }
+                        }
                 }
             } inputs: {
                 Text(payload.prompt ?? GeneratedMediaText.generatingVideo)
@@ -1561,6 +1568,9 @@ struct VideoGenerateEmbedRenderer: View {
                         .aspectRatio(16.0 / 9.0, contentMode: .fit)
                         .background(Color.grey100)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay(alignment: .topLeading) {
+                            if isGenerative { VideoAuthenticityBadge(detail: payload.model, fullscreen: true) }
+                        }
                 } else if let error = payload.error {
                     Text(error)
                         .font(.omP)
@@ -1592,6 +1602,63 @@ struct VideoGenerateEmbedRenderer: View {
             Text(label).font(.omP).fontWeight(.bold).foregroundStyle(Color.fontPrimary)
             Text(value).font(.omP).foregroundStyle(Color.fontPrimary).textSelection(.enabled)
         }
+    }
+}
+
+/// AI-generated overlay of generated-video cards and fullscreen. Never drawn into the video.
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/embeds/AiGeneratedBadge.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+// Tokens:  Color.grey70/grey0, Font.omTiny, spacing tokens
+// ────────────────────────────────────────────────────────────────────
+// Specification: specifications/app-skills/videos-generate/specification.yml
+// Assertions: videos-generate.provenance.ai-label
+struct VideoAuthenticityBadge: View {
+    let detail: String?
+    let fullscreen: Bool
+    @State private var isExpanded = false
+
+    /// Composed (code-rendered) videos carry no badge; anything else is a gen-AI clip.
+    static func isGenerative(madeBy: String?) -> Bool { madeBy != "composed" }
+
+    private var label: String { LocalizationManager.shared.text("app_skills.images.view.ai_generated") }
+    private var accessibleName: String {
+        if let detail, !detail.isEmpty { return "\(label), \(detail)" }
+        return label
+    }
+
+    var body: some View {
+        let side: CGFloat = fullscreen ? 32 : 28
+        let offset: CGFloat = fullscreen ? 12 : 8
+        HStack(alignment: .top, spacing: .spacing2) {
+            Icon("ai", size: fullscreen ? 15 : 14)
+                .foregroundStyle(Color.grey0)
+                .frame(width: fullscreen ? 15 : 14, height: fullscreen ? 15 : 14)
+                .frame(minWidth: isExpanded ? nil : side - 2, minHeight: isExpanded ? nil : side - 2)
+            if isExpanded {
+                VStack(alignment: .leading, spacing: .spacing1) {
+                    Text(label)
+                    if let detail, !detail.isEmpty { Text(detail) }
+                }
+                .font(.omTiny.weight(.semibold))
+                .foregroundStyle(Color.grey0)
+                .lineLimit(1)
+            }
+        }
+        .padding(.leading, isExpanded ? .spacing3 : 0)
+        .padding(.trailing, isExpanded ? .spacing4 : 0)
+        .padding(.vertical, isExpanded ? .spacing2 : 0)
+        .background(Capsule().fill(Color.grey70))
+        .overlay(Capsule().stroke(Color.white.opacity(0.58), lineWidth: 1))
+        .shadow(color: .black.opacity(0.24), radius: 4, x: 0, y: 2)
+        .padding(offset)
+        .contentShape(Capsule())
+        .onTapGesture { isExpanded.toggle() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibleName)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("ai-generated-badge")
     }
 }
 

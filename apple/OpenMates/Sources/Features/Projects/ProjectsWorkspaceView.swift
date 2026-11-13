@@ -1300,6 +1300,16 @@ struct ProjectsWorkspaceView: View {
     }
 
     private func fileActions(_ project: ProjectWorkspaceProject, compact: Bool) -> some View {
+        VStack(spacing: 0) {
+            fileActionsMenu(project, compact: compact)
+            if showCreateMenu, !store.remoteMetadataOnly,
+               project.permissions.manageOwnItems || project.permissions.manageAnyItems { createFileEntries(compact: compact) }
+        }
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+    }
+
+    private func fileActionsMenu(_ project: ProjectWorkspaceProject, compact: Bool) -> some View {
         Group {
             if showCreateMenu {
                 if compact {
@@ -1326,6 +1336,19 @@ struct ProjectsWorkspaceView: View {
         }
         .background(Color.grey10)
         .clipShape(RoundedRectangle(cornerRadius: .radius5))
+    }
+
+    /// Web: ProjectCreateFileEntries under the Create menu (root and folder).
+    private func createFileEntries(compact: Bool) -> some View {
+        ProjectCreateFileEntries(stacked: compact, busy: store.isSaving) { kind, name in
+            guard let item = await store.createFile(kind: kind, name: name, folderID: currentFolderID) else {
+                return false
+            }
+            showCreateMenu = false
+            onOpenEmbed(item)
+            return true
+        }
+        .background(Color.grey10)
     }
 
     private func fileActionTray(_ project: ProjectWorkspaceProject, height: CGFloat) -> some View {

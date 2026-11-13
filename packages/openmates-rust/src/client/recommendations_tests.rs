@@ -356,3 +356,20 @@ fn empty_normalized_titles_never_match_anything() {
             .all(|r| r.action == RecommendationAction::Create && r.target_id.is_none())
     );
 }
+
+#[test]
+fn open_items_come_from_schema_one_state_only() {
+    let state = serde_json::json!({
+        "schema_version": 1,
+        "items": [{"id": "r1", "kind": "memory", "action": "create", "target_id": null,
+                   "title": "Prefers tea", "summary": "Offer tea."}],
+        "dismissed": [], "resolved": [], "updated_at": 1
+    });
+    let items = open_recommendations_from_state(&state.to_string()).unwrap();
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].id, "r1");
+    let mut other = state;
+    other["schema_version"] = 2.into();
+    assert!(open_recommendations_from_state(&other.to_string()).is_none());
+    assert!(open_recommendations_from_state("not json").is_none());
+}

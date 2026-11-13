@@ -21,6 +21,8 @@ struct NativeVoiceCallScope: Codable, Equatable, Hashable, Sendable {
 enum NativeVoiceCallError: String, Error, Equatable, Sendable {
     case invalidState, invalidResponse, scopeChanged, consentRequired, consentUnavailable
     case audioUnavailable, audioQueueFull, startupTimedOut, connectionLost
+    /// The user (or device policy) refused microphone access; web: `microphone_denied`.
+    case microphoneDenied
     case contextUnavailable, contextTooLarge, persistenceFailed, textRejected
     case callUnavailable, unsupportedTransport
     /// The system took the microphone away and did not give it back. Ends the

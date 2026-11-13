@@ -7,7 +7,7 @@
 //! metadata only, so matching against the user's decrypted memories happens
 //! here and local memories never reach the server.
 //! Spec: `specifications/features/app-memories/specification.yml`
-//! (`app-memories.recommendations.*`); plan: `docs/plans/chat-recommendations/plan.yml`.
+//! (`app-memories.suggestions.*`); plan: `docs/plans/chat-recommendations/plan.yml`.
 use crate::error::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -389,6 +389,39 @@ pub fn recommendations_from_payload(rows: &[serde_json::Value]) -> Vec<ChatRecom
         .filter_map(|row| serde_json::from_value::<ChatRecommendation>(row.clone()).ok())
         .take(2 * MAX_PER_KIND)
         .collect()
+}
+
+/// Decodes the plaintext of `chats.encrypted_recommendations`: the open items
+/// of a `schema_version` 1 state (at most 2 x [`MAX_PER_KIND`]), `None` for
+/// any other plaintext. Web twin: `parseChatRecommendationsState`.
+pub fn open_recommendations_from_state(plaintext: &str) -> Option<Vec<ChatRecommendation>> {
+    let state = serde_json::from_str::<ChatRecommendationsState>(plaintext).ok()?;
+    (state.schema_version == 1).then(|| state.items.into_iter().take(2 * MAX_PER_KIND).collect())
+}
+
+impl super::Client {
+    /// Open Recommendations of `chat_id`, decrypted on this device with the
+    /// chat key from the stored `encrypted_recommendations` (empty when the
+    /// chat has none or the stored state is unreadable). Hydration half of
+    /// the web `hydrateChatRecommendations`; the server never sees plaintext.
+    ///
+    /// # Errors
+    /// Errors of opening the chat and of unwrapping its key.
+    pub async fn chat_recommendations(&mut self, chat_id: &str) -> Result<Vec<ChatRecommendation>> {
+        self.open_chat(chat_id).await?;
+        let row = self.chats.get(chat_id).ok_or(Error::Offline)?.clone();
+        let Some(ciphertext) = row
+            .get("encrypted_recommendations")
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| !value.is_empty())
+        else {
+            return Ok(Vec::new());
+        };
+        let wrapping = self.wrapping_capability().await?;
+        let key = self.chat_key_with_capability(&row, &wrapping).await?;
+        let plaintext = zeroize::Zeroizing::new(crate::crypto::decrypt_combined(ciphertext, &key)?);
+        Ok(open_recommendations_from_state(&plaintext).unwrap_or_default())
+    }
 }
 
 #[cfg(test)]

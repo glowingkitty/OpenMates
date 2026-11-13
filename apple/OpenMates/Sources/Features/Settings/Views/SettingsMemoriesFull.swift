@@ -187,10 +187,19 @@ struct SettingsMemoriesFullView: View {
     private func entryPage(row: SettingsMemoryRow?) -> some View {
         SettingsMemoryEntryPage(
             row: row, saving: model.saving, error: model.errorMessage,
+            initialDraft: MemoryDraftSuggestionStore.shared.draft(forExisting: row?.id),
             onSave: { draft in
-                Task { if await model.save(draft, existingID: row?.id) { page = .list } }
+                Task {
+                    if await model.save(draft, existingID: row?.id) {
+                        MemoryDraftSuggestionStore.shared.didSave()
+                        page = .list
+                    }
+                }
             },
-            onCancel: { open(.list) },
+            onCancel: {
+                MemoryDraftSuggestionStore.shared.discard()
+                open(.list)
+            },
             onDelete: {
                 guard let row else { return }
                 Task { if await model.delete(id: row.id) { page = .list } }

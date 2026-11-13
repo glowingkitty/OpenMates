@@ -1810,6 +1810,12 @@ struct ChatView: View {
                                     .id("assistant-response-feedback")
                                 }
 
+                                if !viewModel.isLoading && !viewModel.hasNewerMessages && !viewModel.isStreaming {
+                                    ChatRecommendationsContainer(chatId: chatId, category: viewModel.chat?.category,
+                                                                 refreshKey: "\(viewModel.messages.count)")
+                                        .id("chat-recommendations")
+                                }
+
                                 if !viewModel.isLoading && !viewModel.hasNewerMessages && !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming {
                                     FollowUpSuggestions(
                                         suggestions: viewModel.followUpSuggestions,

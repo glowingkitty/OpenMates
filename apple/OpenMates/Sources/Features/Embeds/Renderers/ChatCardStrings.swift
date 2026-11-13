@@ -50,6 +50,7 @@ extension AppStrings {
     static var recommendationsTypeMemory: String { localized("recommendations.type_memory") }
     static var recommendationsTypeWorkflow: String { localized("recommendations.type_workflow") }
     static var recommendationsMemoryUpToDate: String { localized("memories.suggestion_up_to_date") }
+    static var recommendationsDraftFailed: String { localized("memories.suggestion_failed") }
 
     /// `HEADING_KEYS[kind][action]` in RecommendationsCard.svelte.
     static func recommendationsHeading(kind: String, action: String) -> String {

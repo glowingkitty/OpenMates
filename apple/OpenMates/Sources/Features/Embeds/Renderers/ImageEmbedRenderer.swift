@@ -251,6 +251,8 @@ struct ImageEmbedRenderer: View {
     var accessibilityPrefix: String = "sent-image"
 
     private var filename: String? { data?["filename"]?.value as? String }
+    /// Uploaded-image AI-detection badge (`aiDetection` / `ai_detection` content key).
+    private var authenticity: ImageAuthenticityModel? { ImageAuthenticityModel(data: data) }
     private var s3Url: String? { EmbedMediaPayload.s3URL(from: data) }
     private var s3Key: String? { EmbedMediaPayload.s3Key(from: data) }
     private var aesKey: String? { EmbedMediaPayload.string(data, keys: ["aes_key"]) }
@@ -302,6 +304,9 @@ struct ImageEmbedRenderer: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
+                .overlay(alignment: .topTrailing) {
+                    if let authenticity { ImageAuthenticityBadge(model: authenticity) }
+                }
                 .accessibilityIdentifier("\(accessibilityPrefix)-thumbnail")
             } else {
                 GeometryReader { proxy in
@@ -329,16 +334,20 @@ struct ImageEmbedRenderer: View {
                         encryption: encryption,
                         filename: filename
                     )
+                    .overlay(alignment: .topTrailing) {
+                        if let authenticity { ImageAuthenticityBadge(model: authenticity, variant: .fullscreen) }
+                    }
                     .accessibilityIdentifier("\(accessibilityPrefix)-fullscreen-image")
                 } else {
                     ProgressView()
-                        .tint(Color(hex: 0x5B8DD9))
+                        .tint(Color.buttonPrimary)
                         .scaleEffect(1.45)
                         .accessibilityIdentifier("image-loading")
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(minHeight: 560)
+            // 788e8aa2cb: the picture uses the available height (viewport minus the result chrome).
+            .frame(minHeight: 200, maxHeight: ImageFullscreenSizing.maxImageHeight)
             .accessibilityIdentifier("\(accessibilityPrefix)-fullscreen")
         }
     }

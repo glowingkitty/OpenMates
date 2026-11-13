@@ -1421,6 +1421,14 @@ enum AppStrings {
     }
     static var mindMapInvalidJSON: String { L("embeds.mindmaps.invalid_json") }
     static var mindMapInvalidContent: String { L("embeds.mindmaps.invalid_content") }
+    static var slidesDeckDefaultTitle: String { L("embeds.slides_deck_default_title") }
+    static var slidesCountSingular: String { L("embeds.slides_count_singular") }
+    static var slidesCountPlural: String { L("embeds.slides_count_plural") }
+    static var slidesPrevious: String { L("embeds.slides_prev") }
+    static var slidesNext: String { L("embeds.slides_next") }
+    static var slidesStripLabel: String { L("embeds.slides_strip_label") }
+    static var slidesSlideLabel: String { L("embeds.slides_slide_label") }
+    static var slidesNoContent: String { L("embeds.slides_no_content") }
     static var mindMapValidationWarnings: String { L("embeds.mindmaps.validation_warnings") }
     static var mindMapSource: String { L("embeds.mindmaps.source") }
 
@@ -1579,6 +1587,61 @@ enum AppStrings {
     }
 }
 
+// MARK: - Embroidery result and image authenticity badge (existing en.json keys)
+extension AppStrings {
+    private static func embroidery(_ suffix: String, _ replacements: [String: String] = [:]) -> String {
+        replacements.isEmpty
+            ? LocalizationManager.shared.text("embeds.design.embroidery.\(suffix)")
+            : LocalizationManager.shared.text("embeds.design.embroidery.\(suffix)", replacements: replacements)
+    }
+    static var embroiderySkillName: String { LocalizationManager.shared.text("app_skills.design.embroidery") }
+    static var embroideryThreads: String { embroidery("threads") }
+    static var embroideryStitchesUnit: String { embroidery("stitches_unit") }
+    static var embroideryStitches: String { embroidery("stitches") }
+    static var embroiderySize: String { embroidery("size") }
+    static var embroideryThreadChanges: String { embroidery("thread_changes") }
+    static var embroiderySewingTime: String { embroidery("sewing_time") }
+    static var embroiderySewingTimeNote: String { embroidery("sewing_time_note") }
+    static var embroideryThreadLength: String { embroidery("thread_length") }
+    static func embroideryThreadAmount(length: String) -> String { embroidery("thread_amount", ["length": length]) }
+    static func embroideryFitsHoop(_ hoop: String) -> String { embroidery("fits_hoop", ["hoop": hoop]) }
+    static func embroideryTooLargeForHoop(_ hoop: String) -> String { embroidery("too_large_for_hoop", ["hoop": hoop]) }
+    static var embroideryFabric: String { embroidery("fabric") }
+    static func embroideryFabricName(_ fabric: String) -> String { embroidery("fabric_\(fabric)") }
+    static var embroideryBorder: String { embroidery("border") }
+    static func embroideryBorderMm(_ width: Int) -> String { embroidery("border_mm", ["width": String(width)]) }
+    static var embroideryDownload: String { embroidery("download") }
+    static var embroideryDownloadAll: String { embroidery("download_all") }
+    static var embroideryDownloadSingle: String { embroidery("download_single") }
+    static var embroideryNotes: String { embroidery("notes") }
+    static var embroideryReworkedHint: String { embroidery("reworked_hint") }
+    static var embroideryViewStitches: String { embroidery("view_stitches") }
+    static var embroideryViewGraphic: String { embroidery("view_graphic") }
+    static var embroideryConverting: String { embroidery("converting") }
+    static var embroideryFailed: String { embroidery("failed") }
+    static var embroideryPreviewUnavailable: String { embroidery("preview_unavailable") }
+    static var embroideryActionFailed: String { LocalizationManager.shared.text("embeds.action_failed") }
+    /// Translated error reason or note; `key` comes from `EmbroideryDesignModel.errorKey` / `noteKey`.
+    static func embroideryText(key: String, replacements: [String: String] = [:]) -> String {
+        replacements.isEmpty ? LocalizationManager.shared.text(key) : LocalizationManager.shared.text(key, replacements: replacements)
+    }
+
+    private static func imageView(_ suffix: String, _ replacements: [String: String] = [:]) -> String {
+        replacements.isEmpty
+            ? LocalizationManager.shared.text("app_skills.images.view.\(suffix)")
+            : LocalizationManager.shared.text("app_skills.images.view.\(suffix)", replacements: replacements)
+    }
+    static var imageAuthenticityAIGenerated: String { imageView("ai_generated") }
+    static var imageAuthenticityAuthentic: String { imageView("authentic") }
+    static func imageAuthenticityChance(percentage: String) -> String { imageView("ai_generated_chance", ["percentage": percentage]) }
+    static var imageAuthenticityViaPrefix: String { imageView("via_provider_prefix") }
+    static func imageAuthenticityVia(provider: String) -> String { imageView("via_provider", ["provider": provider]) }
+    static var imageAuthenticityLimitations: String { imageView("detection_limitations") }
+    static var imageAuthenticityFailedTitle: String { imageView("detection_failed_title") }
+    static var imageAuthenticityFailedRetry: String { imageView("detection_failed_retry") }
+    static var imageAuthenticityFailedDescription: String { imageView("detection_failed_description") }
+}
+
 // MARK: - Workflow workspace
 extension AppStrings {
     enum WorkflowBuilderCopy: String {
@@ -1698,6 +1761,17 @@ extension AppStrings {
     static var projectOverviewEmpty: String { localized("projects.workspace_overview_empty") }
     static var projectUpload: String { localized("projects.workspace_upload") }
     static var projectCreateAction: String { localized("projects.workspace_create") }
+    static var projectCreateDocument: String { localized("projects.create_document") }
+    static var projectCreateSheet: String { localized("projects.create_sheet") }
+    static var projectCreateSlides: String { localized("projects.create_slides") }
+    static var projectCreateCodeFile: String { localized("projects.create_code_file") }
+    static var projectCreateNameLabel: String { localized("projects.create_name_label") }
+    static var projectCreateNameSubmit: String { localized("projects.create_name_submit") }
+    static var projectCreateDefaultDocumentName: String { localized("projects.create_default_document_name") }
+    static var projectCreateDefaultSheetName: String { localized("projects.create_default_sheet_name") }
+    static var projectCreateDefaultSlidesName: String { localized("projects.create_default_slides_name") }
+    static var projectCreateDefaultCodeName: String { localized("projects.create_default_code_name") }
+    static var projectCreateFileFailed: String { localized("projects.create_file_failed") }
     static var projectSourceNeeded: String { localized("projects.workspace_source_needed") }
     static var projectOverviewFailed: String { localized("projects.workspace_overview_failed") }
     static var projectTasksHeading: String { localized("projects.workspace_project_tasks") }

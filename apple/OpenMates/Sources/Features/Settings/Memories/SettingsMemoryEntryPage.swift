@@ -30,10 +30,12 @@ struct SettingsMemoryEntryPage: View {
     @State private var draft: SettingsMemoryDraft
 
     init(row: SettingsMemoryRow?, saving: Bool, error: String?,
+         initialDraft: SettingsMemoryDraft? = nil,
          onSave: @escaping (SettingsMemoryDraft) -> Void, onCancel: @escaping () -> Void, onDelete: @escaping () -> Void) {
         self.row = row; self.saving = saving; self.error = error
         self.onSave = onSave; self.onCancel = onCancel; self.onDelete = onDelete
-        _draft = State(initialValue: row?.record.fields.map(SettingsMemoryDraft.init) ?? SettingsMemoryDraft())
+        // `initialDraft`: an unsaved draft from a chat Recommendation replaces the stored fields.
+        _draft = State(initialValue: initialDraft ?? row?.record.fields.map(SettingsMemoryDraft.init) ?? SettingsMemoryDraft())
     }
 
     private var isNew: Bool { row == nil }

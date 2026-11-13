@@ -42,6 +42,7 @@ actor NativeVoiceCallController {
     private var startInProgress = false
     private var activityUpdatedAt: Date?
     private var submittedTurns = Set<String>()
+    private var orchestrationTurns = NativeVoiceCallOrchestrationTurns()
     private var pendingTyped: [String: (text: String, createdAt: Int)] = [:]
     private struct ArtifactOrigin {
         let assistantID: String
@@ -89,7 +90,7 @@ actor NativeVoiceCallController {
         state = .init(status: .connecting, scope: scope)
         startup.removeAll(); startupBytes = 0; startupSpentBytes = 0
         pausedInputs.removeAll(); pausedBytes = 0; checkpointID = nil
-        submittedTurns.removeAll(); pendingTyped.removeAll(); issuedArtifacts.removeAll(); streamOpen = false; drainingStartup = false
+        submittedTurns.removeAll(); orchestrationTurns.removeAll(); pendingTyped.removeAll(); issuedArtifacts.removeAll(); streamOpen = false; drainingStartup = false
         modelName = nil; mateName = nil; activityUpdatedAt = nil
         assistantTaskID = nil; assistantMessageID = nil; assistantActive = false; providerProcessing = false
         await publish()
@@ -414,6 +415,14 @@ actor NativeVoiceCallController {
             await event(.transcript(value))
             // The accepted turn is now an ordinary chat row.
             if state.liveTranscript?.messageID == id { state.liveTranscript = nil; await publish() }
+        case "orchestration_turn":
+            // The server started an interpreting turn for updates from chats this
+            // chat spawned. Its answer and speech belong to this call (web
+            // voiceCall.ts orchestration_turn); the server already waits for the
+            // current speech to end, so nothing is queued here.
+            guard state.status == .live, let callID = state.callID else { return }
+            orchestrationTurns.accept(callID: callID, frameCallID: frame["call_id"]?.string,
+                messageID: frame["message_id"]?.string)
         case "transcript.pending":
             // The broker holds an unfinished thought; the live line stays visible.
             guard state.status == .live, let id = frame["message_id"]?.string,

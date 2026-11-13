@@ -17,6 +17,7 @@ pub mod deck_values;
 
 pub use deck::{DeckDocument, DeckView};
 pub use deck_error::DeckError;
+pub use deck_inline::{InlineRun, inline_runs};
 pub use deck_markup::{
     DeckModel, ElementContent, ElementModel, SlideModel, TodoItem, parse_deck_markup,
     serialise_deck_markup,

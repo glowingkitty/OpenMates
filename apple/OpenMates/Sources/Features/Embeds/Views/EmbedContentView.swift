@@ -162,6 +162,12 @@ struct EmbedContentView: View {
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "icons")
             case .designIconResult:
                 DesignIconResultEmbedRenderer(data: rawData, mode: mode)
+            case .designEmbroidery:
+                DesignEmbroideryEmbedRenderer(data: rawData, mode: mode, embedID: embed.id)
+
+            // Slides
+            case .slidesDeck:
+                SlidesDeckEmbedRenderer(data: rawData, mode: mode, embedID: embed.id)
 
             // Documents
             case .docsDoc:

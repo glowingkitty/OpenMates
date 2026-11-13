@@ -748,8 +748,9 @@ struct EmbedPreviewCard: View {
             if let origin, let destination {
                 // TravelConnectionEmbedPreview.svelte uses extractCode() in
                 // BasicInfosBar, keeping long city names in the details area.
-                let originCode = TravelValue.iataCode(from: origin) ?? String(origin.split(separator: " ").first ?? "")
-                let destinationCode = TravelValue.iataCode(from: destination) ?? String(destination.split(separator: " ").first ?? "")
+                let method = firstString(in: raw, keys: ["transport_method"])
+                let originCode = TravelValue.routeLabel(from: origin, transportMethod: method)
+                let destinationCode = TravelValue.routeLabel(from: destination, transportMethod: method)
                 return "\(originCode) → \(destinationCode)"
             }
             return firstString(in: raw, keys: ["title", "route"])

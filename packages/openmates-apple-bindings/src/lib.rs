@@ -21,8 +21,10 @@ mod error;
 mod pairing;
 mod view_account;
 mod view_adopt;
+mod view_call_source;
 mod view_chat_actions;
 mod view_consent;
+mod view_project_files;
 mod view_projects;
 mod view_queued_revision;
 #[cfg(test)]
@@ -44,6 +46,7 @@ mod view_login;
 mod view_login_migration;
 mod view_login_passkey;
 mod view_memories;
+mod view_recommendations;
 mod view_record_details;
 mod view_records;
 mod view_region;
@@ -54,6 +57,7 @@ mod view_send_stream;
 mod view_unowned;
 mod view_vault;
 mod view_session;
+mod view_slides;
 mod view_upload;
 
 pub use crate::core::{

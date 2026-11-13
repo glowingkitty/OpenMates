@@ -17,6 +17,7 @@ mod travel_booking;
 pub mod learning_mode;
 pub mod new_chat_suggestions;
 pub mod recommendations;
+pub mod recommendation_actions;
 pub use apps::DirectAppSkillAdmission;
 mod auth;
 mod session_response;
@@ -211,6 +212,7 @@ mod view_projection;
 mod toon;
 pub(crate) mod transport;
 #[cfg(not(target_arch = "wasm32"))] pub mod upload;
+#[cfg(not(target_arch = "wasm32"))] pub mod call_source_frame;
 #[cfg(not(target_arch = "wasm32"))] pub mod profile_upload;
 // Temporary shell passthrough for un-migrated Apple code (plan step A6 removes it).
 #[cfg(not(target_arch = "wasm32"))] mod shell_http;

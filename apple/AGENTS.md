@@ -217,6 +217,26 @@ Use `NativeDiagnostics` for Apple product diagnostics instead of adding new ad-h
 
 Diagnostics must remain privacy-safe: never log message plaintext, encryption keys, auth/session tokens, cookies, push tokens, full share URL fragments, request/response bodies, private file paths, or raw typed text. For performance instrumentation, use the approved diagnostics helpers (`NativePerformanceMonitor`, MetricKit summaries, or signpost-style phase logs) and keep payloads to counts, durations, sanitized categories, and hashed/prefixed identifiers only.
 
+## Local Mac Build
+
+A fresh checkout needs inputs that are generated rather than committed. On the
+Mac run `scripts/apple_local_prepare.sh` once per pull (`--check` only reports
+missing tools). It needs Xcode 26.2 or newer, Node.js, python3 and rustup. It
+writes the design tokens and locales, the pinned Whistle link inputs, and the
+Rust toolchain with Apple targets in `<repo>/.tmp`. The UniFFI Swift bindings
+are committed in `apple/OpenMatesCore`. The "Build OpenMatesCore" phase builds
+the Rust static library on each build, so the first build of a platform takes
+several minutes longer.
+
+- macOS: scheme `OpenMates_macOS`, destination My Mac. Without the project's
+  signing team, `scripts/apple_local_macos.sh` builds an ad-hoc signed copy.
+  That copy has no App Groups or shared keychain.
+- iOS Simulator: scheme `OpenMates_iOS` on an iPhone 17 simulator. A physical
+  device needs the project's signing team in Xcode. The embedded Watch app adds
+  a watchOS core build (arm64_32 uses the pinned nightly build-std toolchain).
+- Debug builds default to the development server (`app.dev.openmates.org`).
+  Switch servers under Settings, Server connection.
+
 ## Remote Mac Verification
 
 XCTest and XCUITest suites run first on GitHub `macos-26` runners

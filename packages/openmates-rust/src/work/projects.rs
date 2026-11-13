@@ -75,6 +75,8 @@ pub(crate) use assistant_request_tests::{
 };
 mod commits;
 pub use commits::*;
+mod documents;
+pub use documents::{CreatedProjectDocument, ProjectDocumentKind};
 mod focus;
 #[cfg(all(feature = "workflow-yaml", unix))]
 mod hosted;

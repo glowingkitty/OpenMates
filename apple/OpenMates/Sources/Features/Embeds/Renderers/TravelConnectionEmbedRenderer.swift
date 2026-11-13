@@ -795,6 +795,16 @@ enum TravelValue {
         return output
     }
 
+    /// Short route label (web `extractCode`, 3d05e653d7): flights show the airport
+    /// code from "Munich (MUC)"; bus and rail show the place, never the stop code.
+    static func routeLabel(from location: String, transportMethod: String?) -> String {
+        let method = (transportMethod?.isEmpty == false ? transportMethod : nil) ?? "airplane"
+        if method == "airplane", let code = iataCode(from: location) { return code }
+        let place = location.replacingOccurrences(of: #"\s*\([^)]*\)"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return place.isEmpty ? location : place
+    }
+
     static func iataCode(from value: String?) -> String? {
         guard let value else { return nil }
         if let match = value.range(of: #"\(([A-Z]{3})\)"#, options: .regularExpression) {

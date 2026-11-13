@@ -113,6 +113,8 @@ private struct EventPreviewDetails: View {
                 }
                 .frame(width: 104, height: 104)
                 .clipped()
+            } else if horizontalSizeClass != .compact, event.imageURL == nil {
+                EventVenueMapThumbnail(event: event)
             }
         }
         .padding(.vertical, 2)
@@ -1005,5 +1007,31 @@ enum EventValue {
             if let date = formatter.date(from: value) { return date }
         }
         return nil
+    }
+}
+
+
+/// Venue map shown in the event card media slot when the event has no image
+/// (web: EventResultCard `media` snippet with the venue map, commit 3f3c8db298).
+private struct EventVenueMapThumbnail: View {
+    let event: EventResultSummary
+
+    var body: some View {
+        #if canImport(MapKit)
+        if let configuration = event.mapConfiguration {
+            Map(initialPosition: .region(MKCoordinateRegion(
+                center: configuration.center,
+                span: MKCoordinateSpan(latitudeDelta: configuration.latitudeDelta, longitudeDelta: configuration.longitudeDelta)
+            ))) {
+                ForEach(configuration.markers) { marker in
+                    Marker(marker.title, coordinate: marker.coordinate)
+                }
+            }
+            .allowsHitTesting(false)
+            .frame(width: 104, height: 104)
+            .clipShape(RoundedRectangle(cornerRadius: .radius3))
+            .accessibilityIdentifier("event-venue-map")
+        }
+        #endif
     }
 }
