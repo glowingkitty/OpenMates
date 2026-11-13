@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.video-call
-version: 15
+version: 16
 status: approved
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
@@ -444,15 +444,29 @@ assertions:
 - id: video-call.audio.localized-waiting
   type: behavior
   must: Every call turn plays one brief pre-recorded acknowledgement, picked at random from several variants, in the
-    current Mate voice as soon as processing of the user's audio turn starts, so there is no silent gap. Its language
-    follows the spoken turn, then the previous turn of the same call, then the interface language; when none of these
-    is known or no recorded clip exists for it, the call stays silent and never defaults to English. When app skills
-    start, one pre-recorded announcement says that apps are being used, and after the skills finish a short recap names
-    the skills used before the regular answer. These clips are never loops, never overlap or delay useful speech, never
-    falsely claim an action finished, are not stored in the transcript or chat, and are cancelled on interruption or
-    hangup. None of them is a second assistant answer.
+    voice of the Mate that answers, never a guessed one (a previous turn's, a default or a gender-based Mate). It plays as
+    soon as processing of the user's audio turn starts when that Mate is already chosen, otherwise right after routing.
+    A turn that starts a chat still being created, with no Mate yet, instead plays at once one short sound plus a neutral
+    system voice saying the chat is starting, and no Mate clip follows; all later speech uses the routed Mate's voice.
+    These clips are never loops, never overlap or delay useful speech, never falsely claim an action finished, are not
+    stored in the transcript or chat, and are cancelled on interruption or hangup. None of them is a second assistant
+    answer.
   depends_on:
   - examples.localized_waiting
+- id: video-call.audio.waiting-language
+  type: behavior
+  must: The acknowledgement's language follows the spoken turn, then the previous turn of the same call, then the
+    interface language; when none of these is known or no recorded clip exists for it, the call stays silent and never
+    defaults to English.
+  depends_on:
+  - examples.waiting_language
+- id: video-call.audio.skills-announcement
+  type: behavior
+  must: When app skills start, one pre-recorded announcement says that apps are being used, and after the skills finish
+    a short recap names the skills used before the regular answer. Both follow the same clip rules as the waiting
+    acknowledgement.
+  depends_on:
+  - examples.skills_announcement
 - id: video-call.audio.background-resume
   type: behavior
   must: A web call ends cleanly only where the platform stops microphone capture for a page that is not in front (iOS and
@@ -545,3 +559,10 @@ notes:
     Direct user instruction on 2026-11-12 ("voice call must continue in background")
     authorizes native Apple calls that keep running off screen and end only when the
     system removes the microphone for good. Web behavior is unchanged.
+  version_16_neutral_chat_start_confirmation: >-
+    Direct user instruction on 2026-11-13 authorizes a neutral system voice with a short
+    sound ("Starting your chat…") for a call turn whose chat is still being created, and
+    requires removing every guessed Mate or voice-gender choice; once routed, all speech
+    uses the routed Mate's voice. The user approved this wording on 2026-11-13 and chose to
+    split the former localized-waiting requirement into localized-waiting, waiting-language and
+    skills-announcement so each changed requirement maps one or two examples.

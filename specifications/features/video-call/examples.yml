@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@15
+specification: feature.video-call@16
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
@@ -346,10 +346,17 @@ localized_waiting:
   when: The server starts processing her audio turn.
   then: One randomly chosen pre-recorded German acknowledgement plays in the Mate voice at once, never English, and is
     cancelled if useful speech is already ready.
+- id: new-chat-neutral-start
+  given: Maya starts a call on the new chat screen, so the chat is still being created and has no Mate yet.
+  when: The server starts processing her first German audio turn.
+  then: A short sound and a neutral system voice saying "Dein Chat startet…" play at once, never a guessed Mate voice;
+    no Mate acknowledgement follows, and the answer is spoken in the routed Mate's own voice.
+waiting_language:
 - id: unknown-language-stays-silent
   given: The turn language is unknown and the interface language has no recorded clips.
   when: Processing starts.
   then: No acknowledgement plays and the answer simply follows.
+skills_announcement:
 - id: skills-announced-and-recapped
   given: A call turn needs web search and news search.
   when: The skills start and later finish.

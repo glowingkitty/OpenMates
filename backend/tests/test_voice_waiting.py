@@ -3,7 +3,7 @@ import asyncio
 from backend.apps.ai.assistant_speech.voice_waiting import DelayedVoiceWaiting
 
 
-# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting,video-call.audio.waiting-language
 async def test_delayed_waiting_uses_request_language_once_and_never_falls_back_to_english():
     spoken = []
     waiting = DelayedVoiceWaiting(language="de-DE", response_ready=lambda: False,
@@ -144,7 +144,7 @@ async def test_expired_budget_still_yields_to_ready_prose_or_owner_cancellation(
         assert [segment["kind"] for segment in dispatched] == (["voice_prose_clause"] if has_prose else [])
 
 
-# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting,video-call.audio.waiting-language
 async def test_expired_budget_never_falls_back_for_unknown_language():
     import time
 

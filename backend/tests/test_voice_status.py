@@ -21,27 +21,27 @@ def test_instant_acknowledgement_is_prerecorded_and_varies_per_turn():
     assert all(clip.startswith("sophia-en-US-") for clip in clips)
 
 
-# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting,video-call.audio.waiting-language
 def test_instant_acknowledgement_is_silent_for_unsupported_language():
     assert select_instant_acknowledgement(
         voice_profile_id="sophia", voice_profile_version=1, language="ja", seed="message-1") is None
 
 
-# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting,video-call.audio.skills-announcement
 def test_app_use_announcement_is_localized_without_english_fallback():
     assert "apps" in build_voice_app_use_announcement("en-US", "m1").lower()
     assert "Apps" in build_voice_app_use_announcement("de", "m1")
     assert build_voice_app_use_announcement("ja", "m1") is None
 
 
-# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting,video-call.audio.skills-announcement
 def test_recap_names_the_skills_that_ran_once_in_order():
     skills = [("web", "search"), ("news", "search"), ("web", "search")]
     assert build_skill_recap(skills, "en") == "I used web search and news search."
     assert build_skill_recap([("web", "search")], "de") == "Ich habe die Websuche verwendet."
 
 
-# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting,video-call.audio.waiting-language,video-call.audio.skills-announcement
 def test_recap_stays_generic_for_an_unnamed_skill_and_silent_for_unknown_language():
     assert build_skill_recap([("web", "search"), ("fitness", "plan")], "en") == "I used a few apps."
     assert build_skill_recap([("web", "search")], "ja") is None
@@ -90,7 +90,7 @@ async def test_status_lines_are_dropped_outside_calls():
     assert spoken == []
 
 
-# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting,video-call.audio.waiting-language
 def test_turn_language_follows_clearly_dominant_words_else_preference():
     from backend.apps.ai.assistant_speech.voice_status import detect_turn_language
 
@@ -101,7 +101,7 @@ def test_turn_language_follows_clearly_dominant_words_else_preference():
     assert detect_turn_language("", "es") == "es"
 
 
-# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting,video-call.audio.waiting-language
 def test_short_phrases_and_accents_are_recognised_and_unknown_stays_unknown():
     from backend.apps.ai.assistant_speech.voice_status import detect_turn_language
 
@@ -112,7 +112,7 @@ def test_short_phrases_and_accents_are_recognised_and_unknown_stays_unknown():
     assert detect_turn_language("", None) is None
 
 
-# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting,video-call.audio.waiting-language
 async def test_instant_acknowledgement_follows_call_language_and_is_silent_when_unknown(monkeypatch):
     from types import SimpleNamespace
 
