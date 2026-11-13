@@ -718,7 +718,15 @@ assertions:
   type: behavior
   must: Each test run the assistant starts in a coding turn produces a test result embed (status, step timeline and, for
     browser tests, the recording) that is shown in the assistant reply that interprets the run, also when the model does
-    not link it itself, so every client shows the failing and the passing runs in the chat.
+    not link it itself, so every client shows the failing and the passing runs in the chat. This holds as well when
+    several runs of one turn resume together.
+  depends_on:
+  - examples.project_application_files
+- id: projects.agentic.test-run-installs-dependencies
+  type: behavior
+  must: A hosted test run of a Node project installs its dependencies before the server or tests start. When the folder
+    the server (or, without a server, the test command) runs in has a package.json and no setup command installs
+    packages, the run adds one npm install step there, shown in its step timeline.
   depends_on:
   - examples.project_application_files
 - id: projects.files.adopt-embed

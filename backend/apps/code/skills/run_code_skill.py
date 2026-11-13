@@ -21,6 +21,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.code.skills.dependency_install import with_dependency_install
 from backend.apps.code.test_run_target import resolve_test_run_target
 from backend.shared.python_schemas.code_test_run import TestRunSpec
 
@@ -709,6 +710,8 @@ class RunCodeSkill(BaseSkill):
             }), None
         if not request.files:
             return request, RunCodeResponse(status="error", error="E2B test runs require the Project snapshot as files.")
+        # A fresh sandbox has no node_modules; add the install the model often omits.
+        resolved = with_dependency_install(resolved, (file.path for file in request.files))
         return request.model_copy(update={"target": "e2b", "test_run": resolved, "enable_internet": resolved.enable_internet}), None
 
     async def _execute_remote(

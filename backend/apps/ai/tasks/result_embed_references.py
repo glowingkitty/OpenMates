@@ -10,7 +10,7 @@ not already contain. Spec: feature.projects (agentic coding test results).
 from __future__ import annotations
 
 import json
-from typing import Iterable
+from typing import Any, Iterable
 
 
 def append_result_embed_references(text: str, embed_type: str, embed_ids: Iterable[str]) -> str:
@@ -22,3 +22,13 @@ def append_result_embed_references(text: str, embed_type: str, embed_ids: Iterab
         "```json\n" + json.dumps({"type": embed_type, "embed_id": embed_id}) + "\n```" for embed_id in missing
     )
     return f"{text.rstrip()}\n\n{blocks}" if text.strip() else blocks
+
+
+def completed_result_embed_ids(completed_results: Any) -> list[str]:
+    """Test result embeds created by the completed runs, in run order, without repeats."""
+    ids: list[str] = []
+    for result in completed_results if isinstance(completed_results, list) else []:
+        embed_id = result.get("test_result_embed_id") if isinstance(result, dict) else None
+        if isinstance(embed_id, str) and embed_id and embed_id not in ids:
+            ids.append(embed_id)
+    return ids

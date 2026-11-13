@@ -14,6 +14,7 @@ import base64
 import zlib
 from typing import Any
 
+from backend.apps.ai.tasks.result_embed_references import completed_result_embed_ids
 from backend.shared.python_utils.skill_use_body_refs import is_skill_use_ref
 
 PREFIX = "same_turn_skill"
@@ -349,6 +350,7 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
     generated_refs = list(checkpoint.get("generated_embed_refs") or [])
     generated_aliases = dict(checkpoint.get("generated_embed_aliases") or {})
     authored_inline_outputs = list(checkpoint.get("authored_inline_outputs") or [])
+    result_embed_ids: list[str] = list(getattr(request, "completed_result_embed_ids", None) or [])
     for job, slot in zip(jobs, slots):
         if not isinstance(job, dict) or not isinstance(slot, dict) or job.get("task_id") != slot.get("task_id"):
             raise RuntimeError("Same-turn completion order changed")
@@ -370,6 +372,11 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
                 payload = {"status": "content_unavailable", "results": [],
                            "message": "The completed result expired before it could be restored."}
         payload, _ = sanitize_text_payload_for_ascii_smuggling(payload)
+        # Test runs that finished in this batch show their result embed in the
+        # resumed reply, like a single async continuation does.
+        for embed_id in completed_result_embed_ids(payload.get("results")):
+            if embed_id not in result_embed_ids:
+                result_embed_ids.append(embed_id)
         if job.get("app_id") in {"images", "audio", "music", "videos", "models3d"} or (
             job.get("app_id") == "code" and job.get("skill_id") == "image_to_html"
         ) or (job.get("app_id") == "design" and job.get("skill_id") == "embroidery"):
@@ -395,6 +402,8 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
                         **({"filename": result["filename"]} if isinstance(result.get("filename"), str) else {}),
                     })
         by_call.setdefault(str(job["tool_call_id"]), []).append(payload)
+    if result_embed_ids:
+        request.completed_result_embed_ids = result_embed_ids
     checkpoint["generated_embed_refs"] = generated_refs
     checkpoint["generated_embed_aliases"] = generated_aliases
     checkpoint["authored_inline_outputs"] = authored_inline_outputs

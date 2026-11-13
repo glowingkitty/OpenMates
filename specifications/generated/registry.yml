@@ -882,7 +882,7 @@ specifications:
     version: 2
     status: draft
     path: features/projects
-    fingerprint: dc2010a7dbc85aeba1c1ca4a8a7e38abf7730f29af12c3fcc4552c92d9277392
+    fingerprint: c1117f5385c529dfeb0a87fc39ad48cab9ccad02253734a308096c9b49724b8a
     required_applies_to:
     - rest_api
     - cli
@@ -11853,7 +11853,19 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: da962e34c9b986ed0b73a2b5e412d5029d5cf42d08648e09261a76316be4fe92
+    fingerprint: af360c53bec333bda82fdbc42ee1e0932465e82d41db46913ccb8e2c17091cfd
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.agentic.test-run-installs-dependencies:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: ee048989e16307cff644c74fa94965f88d0b24997d5d98715c38772344f281c2
     required_applies_to:
     - rest_api
     - cli

@@ -23,6 +23,7 @@ except ImportError:  # pragma: no cover - test environments may not install opti
     def toon_encode(value: Any) -> str:
         return json.dumps(value, ensure_ascii=False)
 
+from backend.apps.ai.tasks.result_embed_references import completed_result_embed_ids  # noqa: F401 - re-exported for the continuation request
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.utils.embeds_map_view import (
     EMBEDS_MAP_VIEW_INSTRUCTION,
@@ -80,16 +81,6 @@ def _project_file_reference_preview(
     return build_project_file_reference_preview(
         context=context, completed_results=completed_results, result_status=result_status,
     )
-
-
-def completed_result_embed_ids(completed_results: list[dict[str, Any]]) -> list[str]:
-    """Test result embeds created by the completed runs, in run order, without repeats."""
-    ids: list[str] = []
-    for result in completed_results:
-        embed_id = result.get("test_result_embed_id") if isinstance(result, dict) else None
-        if isinstance(embed_id, str) and embed_id and embed_id not in ids:
-            ids.append(embed_id)
-    return ids
 
 
 def async_skill_continuation_key(task_id: str) -> str:
