@@ -6,7 +6,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { classifyPastedContent, plainTextToDocumentHtml } from '../../../components/enter_message/services/pasteClassification';
 import { detectPII, replacePIIWithPlaceholders, restorePIIInText } from '../../../components/enter_message/services/piiDetectionService';
 import { buildWebPIIWindows, mergeWebPIIWindowEntities } from '../../../components/enter_message/services/webPIIWindows';
 import { createComposerHandlers } from '../composer/composerUnit';
@@ -15,11 +14,6 @@ import { isComposerBinding, type ComposerBinding } from '../composer/composerPro
 const vectors = JSON.parse(readFileSync(resolve(__dirname, '../../../../../../../packages/openmates-rust/src/web_composer/ts_vectors.json'), 'utf8'));
 
 describe('composer vectors', () => {
-	// contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
-	it('paste classification equals the TypeScript service', () => {
-		for (const c of vectors.paste) expect(classifyPastedContent(c.in), JSON.stringify(c.in).slice(0, 80)).toEqual(c.out);
-		for (const c of vectors.plain) expect(plainTextToDocumentHtml(c.in.text)).toEqual(c.out);
-	});
 	// contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
 	it('detection spans equal the TypeScript service', () => {
 		for (const c of vectors.detect) {

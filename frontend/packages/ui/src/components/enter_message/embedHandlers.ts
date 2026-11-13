@@ -11,7 +11,6 @@ import {
   createDocEmbed,
   createMailEmbed,
   createMindMapEmbed,
-  detectLanguageFromContent,
   redactEmbedContent,
   createSheetEmbed,
 } from "./services/codeEmbedService";
@@ -978,9 +977,7 @@ export async function createCodeFileEmbedNode(
   const filenameLanguage = getLanguageFromFilename(file.name);
   const language =
     filenameLanguage ||
-    (import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-      ? await (await import("./services/rustComposerCode")).rustDetectLanguageFromContent(fileContent)
-      : detectLanguageFromContent(fileContent)) ||
+    (await (await import("./services/rustComposerCode")).rustDetectLanguageFromContent(fileContent)) ||
     "text";
 
   if (!isAuthenticated) {

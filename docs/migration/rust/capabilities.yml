@@ -285,9 +285,11 @@ capabilities:
     status: rust-default
     old: []
     unit: parse, composer
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
-      parse and composer units
-    last_commit: 06da1b2448
+    note: Worker unit installed and on by default in dev and production builds; mention ranking, paste
+      classification, language and URL detection and ghost validation now run only in the composer unit
+      (TypeScript modules deleted, last_commit pending); still TypeScript, so not rust-only - the PII
+      detection services (send path) and the page-side parse_message markdown parser
+    last_commit: pending
   apple:
     status: swift-only
     old: []

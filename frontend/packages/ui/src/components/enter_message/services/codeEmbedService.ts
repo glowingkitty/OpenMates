@@ -25,8 +25,7 @@
  * 8. The embedPIIStore merges embed-level mappings for display toggling
  */
 
-import { detectLanguageFromContent, detectLanguageFromVSCode } from "./codeLanguageDetection";
-export { detectLanguageFromContent, detectLanguageFromVSCode };
+import { rustDetectLanguages } from "./rustComposerCode";
 import { embedStore } from "../../../services/embedStore";
 import { generateUUID } from "../../../message_parsing/utils";
 import { createEmbedReferenceBlock } from "./urlMetadataService";
@@ -595,8 +594,8 @@ export async function createCodeEmbedFromPastedText(
 ): Promise<CodeEmbedCreationResult> {
   // Support legacy string-only signature for backward compatibility
   if (typeof options === "string") {
-    const heuristicLanguage = detectLanguageFromContent(options);
-    return createCodeEmbed(options, heuristicLanguage || "text");
+    const { content } = await rustDetectLanguages(options, null);
+    return createCodeEmbed(options, content || "text");
   }
 
   const { text, vsCodeEditorData, language: explicitLanguage } = options;
@@ -605,18 +604,22 @@ export async function createCodeEmbedFromPastedText(
   let language: string;
   let detectionSource: string;
 
+  const detected = explicitLanguage
+    ? null
+    : await rustDetectLanguages(text, vsCodeEditorData ?? null);
+
   if (explicitLanguage) {
     language = explicitLanguage;
     detectionSource = "explicit";
   } else {
     // Try VS Code clipboard data first
-    const vsCodeLanguage = detectLanguageFromVSCode(vsCodeEditorData);
+    const vsCodeLanguage = detected?.vsCode ?? null;
     if (vsCodeLanguage) {
       language = vsCodeLanguage;
       detectionSource = "vscode";
     } else {
       // Fall back to content-based heuristics
-      const heuristicLanguage = detectLanguageFromContent(text);
+      const heuristicLanguage = detected?.content ?? null;
       if (heuristicLanguage) {
         language = heuristicLanguage;
         detectionSource = "heuristic";

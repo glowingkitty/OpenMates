@@ -10,13 +10,18 @@ import { activeTeamId } from '../stores/teamStore';
 import { chatDB } from './db';
 import { chatKeyManager } from './encryption/ChatKeyManager';
 import { getKeyHandle } from './encryption/chatKeyHandles';
-import { encryptWithChatKey, decryptWithChatKey } from './encryption/MessageEncryptor';
+import { encryptWithChatKey } from './encryption/MessageEncryptor';
 import { ensureChatKeySafeForWrite } from './chatKeyWriteGuard';
 import { webSocketService } from './websocketService';
 import type { ChatSynchronizationService } from './chatSyncService';
-import { decodeComposerGhostSuggestion, type ComposerGhostSuggestion } from './composerGhostDecode';
 
-export { decodeComposerGhostSuggestion, type ComposerGhostSuggestion } from './composerGhostDecode';
+/** A decrypted composer ghost suggestion; validated by the Rust composer unit (`ghostValidate`). */
+export interface ComposerGhostSuggestion {
+  text: string;
+  sourceMessageId: string;
+  sourceUserMessageId: string;
+  sourceTaskId: string;
+}
 
 export function chatAllowsComposerGhostSuggestion(chat: Chat): boolean {
   const profile = get(userProfile);
@@ -29,17 +34,11 @@ export function chatAllowsComposerGhostSuggestion(chat: Chat): boolean {
 
 export async function decryptComposerGhostSuggestion(chat: Chat): Promise<ComposerGhostSuggestion | null> {
   if (!chat.encrypted_suggested_followup_message || !chatAllowsComposerGhostSuggestion(chat)) return null;
-  if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
-    // Flag on: the Worker decrypts with its stored key; the page holds a handle only.
-    const handle = await getKeyHandle(chat.chat_id);
-    if (!handle) return null;
-    const text = await handle.decrypt(chat.encrypted_suggested_followup_message);
-    return text ? (await import('../components/enter_message/services/rustComposerSuggestions')).rustDecodeComposerGhostSuggestion(text) : null;
-  }
-  const key = await chatKeyManager.getKey(chat.chat_id);
-  if (!key) return null;
-  const plaintext = await decryptWithChatKey(chat.encrypted_suggested_followup_message, key);
-  return plaintext ? decodeComposerGhostSuggestion(plaintext) : null;
+  // The Worker decrypts with its stored key; the page holds a handle only.
+  const handle = await getKeyHandle(chat.chat_id);
+  if (!handle) return null;
+  const text = await handle.decrypt(chat.encrypted_suggested_followup_message);
+  return text ? (await import('../components/enter_message/services/rustComposerSuggestions')).rustDecodeComposerGhostSuggestion(text) : null;
 }
 
 // Only successful final IDs survive until correlated post-processing arrives.

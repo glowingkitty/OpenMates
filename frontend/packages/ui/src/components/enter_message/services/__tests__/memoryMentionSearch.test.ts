@@ -14,16 +14,17 @@ vi.mock('../../../../services/projectService', () => ({listProjects: async () =>
 vi.mock('../../../../i18n/translations', async () => ({text: (await import('svelte/store')).writable((key: string) => key)}));
 vi.mock('../../../../i18n/setup', () => ({getCurrentLanguage: () => 'en'}));
 vi.mock('../../../../config/api', () => ({getApiUrl: () => ''}));
-vi.mock('../../../../utils/imageProxy', () => ({proxyImage: (url: string) => url}));
+vi.mock('../../../../utils/imageProxy', () => ({proxyImage: (url: string) => url}));vi.mock('../rustComposerSuggestions', () => ({rustRankMentionResults: async <T extends {searchTerms: string[]}>(results: T[], query: string, limit: number) => results.filter(r => r.searchTerms.some(t => t.toLowerCase().includes(query.toLowerCase()))).slice(0, limit)}));
+
 import {getAllMentionResults, getSettingsMemoryEntryResults, searchMentions} from '../mentionSearchService';
 beforeEach(() => {fixture.entries = [{id: 'account-memory-mobile', app_id: 'openmates', settings_group: 'memories', item_key: 'Mobile preference', item_value: {title: 'Mobile preference', document: 'Private full document'}, updated_at: 1}];});
 
 // contract-test: supporting surface=gui.web assertions=app-memories.compatibility.legacy-documents,app-memories.conversation.explicit-approval
-it('discovers migrated personal Memories in both category and specific-entry mentions', () => {
+it('discovers migrated personal Memories in both category and specific-entry mentions', async () => {
   const category = getAllMentionResults().find(result => result.type === 'settings_memory');
   expect(category).toMatchObject({entryCount: 1, mentionSyntax: '@memory:openmates:memories:list'});
   expect(getSettingsMemoryEntryResults('openmates', 'memories')).toMatchObject({totalCount: 1, entries: [{displayName: 'Mobile preference', mentionSyntax: '@memory-entry:openmates:memories:account-memory-mobile'}]});
-  const result = searchMentions('Mobile preference').find(result => result.type === 'settings_memory_entry');
+  const result = (await searchMentions('Mobile preference')).find(result => result.type === 'settings_memory_entry');
   expect(result).toMatchObject({entryId: 'account-memory-mobile'});
   expect(JSON.stringify(result)).not.toContain('Private full document');
 });

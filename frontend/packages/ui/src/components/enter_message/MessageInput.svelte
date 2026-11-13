@@ -93,8 +93,8 @@
     // URL metadata service - creates proper embeds with embed_id for LLM context
     import { createEmbedFromUrl } from './services/urlMetadataService';
     // Code embed service - creates proper embeds for pasted code/text
-    import { createCodeEmbed, createCodeEmbedFromPastedText, createDocEmbed, createSheetEmbed, detectLanguageFromVSCode, detectLanguageFromContent } from './services/codeEmbedService';
-    import { classifyPastedContent, plainTextToDocumentHtml, type PastedContentKind } from './services/pasteClassification';
+    import { createCodeEmbed, createCodeEmbedFromPastedText, createDocEmbed, createSheetEmbed } from './services/codeEmbedService';
+    import type { PastedContentKind } from './services/rustComposerCode';
     import { generateUUID } from '../../message_parsing/utils';
     import { extractEmbedReferences } from '../../services/embedResolver';
     import { getLastAuthMethod, type LastAuthMethod } from '../../utils/lastAuthMethod';
@@ -124,6 +124,7 @@
         handleDragOver as handleFileDragOver,
         handleDragLeave as handleFileDragLeave,
         handlePaste as handleFilePaste,
+        processFiles as processPastedFiles,
         onFileSelected as handleFileSelectedEvent,
         extractChatLinkFromYAML,
         processFiles
@@ -2605,78 +2606,25 @@
                         
                         const vsCodeEditorData = event.clipboardData?.getData('vscode-editor-data') || null;
                         const htmlPasteText = event.clipboardData?.getData('text/html') || null;
-                        const vsCodeLanguage = detectLanguageFromVSCode(vsCodeEditorData);
-                        const detectedLanguage = detectLanguageFromContent(normalizedPasteText);
-                        const pasteClassification = classifyPastedContent({
-                            text: normalizedPasteText,
-                            html: htmlPasteText,
-                            vsCodeLanguage,
-                            detectedLanguage,
-                        });
-
-                        if (pasteClassification.kind !== 'text') {
+                        {
+                            // Files (e.g. the image Excel/Sheets add next to copied cells) are
+                            // snapshotted now; the clipboard is unreadable after the event.
+                            const pastedFiles: File[] = [];
+                            const clipboardItems = event.clipboardData?.items;
+                            for (let i = 0; clipboardItems && i < clipboardItems.length; i += 1) {
+                                const item = clipboardItems[i];
+                                if (item.type.startsWith('image/') || item.kind === 'file') {
+                                    const file = item.getAsFile();
+                                    if (file) pastedFiles.push(file);
+                                }
+                            }
+                            // Clipboard reads and preventDefault must happen inside the paste
+                            // event; the Rust composer classifies afterwards and the
+                            // result is inserted (embed, or the default paste replayed).
                             event.preventDefault();
                             event.stopPropagation();
-
-                            const embedKind = pasteClassification.kind;
-                            const embedContent =
-                                embedKind === 'document'
-                                    ? (pasteClassification.documentHtml || plainTextToDocumentHtml(normalizedPasteText))
-                                    : embedKind === 'sheet'
-                                        ? (pasteClassification.sheetMarkdown || normalizedPasteText)
-                                        : normalizedPasteText;
-                            const language = vsCodeLanguage || detectedLanguage || 'text';
-                            
-                            if (!$authStore.isAuthenticated) {
-                                // Unauthenticated / demo mode: EmbedStore is unavailable (no encryption keys).
-                                // Insert a preview embed node with content stored inline in node attrs.
-                                insertPreviewPasteEmbed(embedKind, normalizedPasteText, embedContent, language);
-                                return true;
-                            }
-                            
-                            // Authenticated path: create a proper embed in EmbedStore (async).
-                            // Mark hasContent immediately so the send button appears and the
-                            // user understands their paste was accepted; also track the in-flight
-                            // embed so handleSendMessage can defer sends until it resolves.
-                            pendingPasteEmbedCount += 1;
-                            hasContent = true;
-                            const createPasteEmbedPromise =
-                                embedKind === 'document'
-                                    ? createDocEmbed(embedContent)
-                                    : embedKind === 'sheet'
-                                        ? createSheetEmbed(embedContent)
-                                        : createCodeEmbedFromPastedText({ text: normalizedPasteText, vsCodeEditorData });
-
-                            createPasteEmbedPromise.then(async (embedResult) => {
-                                console.info('[MessageInput] Created embed for pasted content:', {
-                                    embed_id: embedResult.embed_id,
-                                    kind: embedKind,
-                                    reason: pasteClassification.reason,
-                                    charCount: normalizedPasteText.length,
-                                });
-
-                                appendPasteEmbedReference(embedResult.embedReference, embedResult.embed_id, normalizedPasteText);
-                            }).catch((error) => {
-                                console.error('[MessageInput] Failed to create paste embed, falling back to inline embed:', error);
-                                // EmbedStore write failed (e.g. encryption keys not ready).
-                                // Fall back to the demo-mode inline embed so the user still sees
-                                // their pasted content in a preview instead of getting an empty field.
-                                insertPreviewPasteEmbed(embedKind, normalizedPasteText, embedContent, language);
-                            }).finally(() => {
-                                pendingPasteEmbedCount = Math.max(0, pendingPasteEmbedCount - 1);
-                                // If the user pressed Enter while the embed was being created,
-                                // execute the deferred send now that originalMarkdown is up-to-date.
-                                if (pendingPasteEmbedCount === 0 && sendRequestedWhilePending) {
-                                    sendRequestedWhilePending = false;
-                                    // Re-check content before firing — editor may have been cleared.
-                                    if (!isContentEmptyExceptMention(editor)) {
-                                        hasContent = true;
-                                        handleSendMessage();
-                                    }
-                                }
-                            });
-                            
-                            return true; // Prevent default paste handling
+                            void completeClassifiedPaste(text, rawPasteText ?? null, normalizedPasteText, htmlPasteText, vsCodeEditorData, pastedFiles);
+                            return true;
                         }
                     }
                     
@@ -2699,53 +2647,11 @@
                     //   1. The pasted text is (after trimming) a single URL.
                     //   2. The URL is not in the ignore list (user previously chose "paste as text").
                     //   3. The user is authenticated (unauthenticated path has no EmbedStore).
-                    const trimmedText = text ? text.trim() : '';
-                    const standaloneUrlRegex = /^https?:\/\/[^\s]+$/;
-                    if (
-                        trimmedText &&
-                        standaloneUrlRegex.test(trimmedText) &&
-                        !ignoredEmbedUrls.has(trimmedText) &&
-                        $authStore.isAuthenticated
-                    ) {
-                        // Let TipTap insert the text first (return false = default paste),
-                        // then immediately schedule embed processing on the next tick so
-                        // the editor content is already updated when we read it.
-                        // We use a flag so scheduleHeavyParsing in handleEditorUpdate
-                        // triggers processClosedUrls immediately (same as typing a space).
-                        piiPasteDetectionPending = true;
-                        // Schedule immediate URL conversion after the paste is committed.
-                        // We insert a trailing space after the URL to trigger detectClosedUrls
-                        // (which looks for whitespace after the URL), then remove it once
-                        // processClosedUrls has replaced the URL with an embed block.
-                        // The whole operation happens in a single tick so the user never
-                        // sees the trailing space in the editor.
-                        tick().then(() => {
-                            if (!editor || editor.isDestroyed) return;
-                            // Insert a trailing space to satisfy the "closed URL" detection
-                            editor.commands.insertContent(' ');
-                            // The space triggers handleEditorUpdate → scheduleHeavyParsing
-                            // → runHeavyParsing → handleUnifiedParsing → detectClosedUrls
-                            // → processClosedUrls, which replaces the URL+space with the embed.
-                        });
-                        return false;
+                    if (!text) return false;
+                    if (prepareDefaultTextPaste(text, rawPasteText ?? null) === 'inserted') {
+                        event.preventDefault();
+                        return true;
                     }
-
-                    // No special handling needed - allow default paste.
-                        // Flag for immediate PII detection on the next editor update,
-                        // since pasted text may contain complete PII patterns.
-                        piiPasteDetectionPending = true;
-                        pendingDefaultPasteTextForRecovery = text.replace(/\r\n?/g, '\n');
-
-                        // If sanitization removed invisible characters, prevent default
-                        // paste and insert the cleaned text manually so TipTap doesn't
-                        // re-read the raw (unsanitized) clipboard data.
-                        if (rawPasteText && text !== rawPasteText) {
-                            event.preventDefault();
-                            pendingDefaultPasteTextForRecovery = null;
-                            editor.commands.insertContent(text);
-                            return true;
-                        }
-
                     return false;
                 },
                 // Handle clicks on PII highlight decorations via handleDOMEvents.
@@ -4481,6 +4387,160 @@
         return false;
     }
 
+    /**
+     * Pre-insert bookkeeping for a plain text paste that follows the default
+     * path (standalone URL conversion, PII flag, sanitized-text insertion).
+     * Returns 'inserted' when the cleaned text was already inserted manually.
+     */
+    function prepareDefaultTextPaste(text: string, rawPasteText: string | null): 'default' | 'inserted' {
+        if (!editor) return 'default';
+        const trimmedText = text.trim();
+        const standaloneUrlRegex = /^https?:\/\/[^\s]+$/;
+        if (
+                        trimmedText &&
+                        standaloneUrlRegex.test(trimmedText) &&
+                        !ignoredEmbedUrls.has(trimmedText) &&
+                        $authStore.isAuthenticated
+                    ) {
+                        // Let TipTap insert the text first (return false = default paste),
+                        // then immediately schedule embed processing on the next tick so
+                        // the editor content is already updated when we read it.
+                        // We use a flag so scheduleHeavyParsing in handleEditorUpdate
+                        // triggers processClosedUrls immediately (same as typing a space).
+                        piiPasteDetectionPending = true;
+                        // Schedule immediate URL conversion after the paste is committed.
+                        // We insert a trailing space after the URL to trigger detectClosedUrls
+                        // (which looks for whitespace after the URL), then remove it once
+                        // processClosedUrls has replaced the URL with an embed block.
+                        // The whole operation happens in a single tick so the user never
+                        // sees the trailing space in the editor.
+                        tick().then(() => {
+                            if (!editor || editor.isDestroyed) return;
+                            // Insert a trailing space to satisfy the "closed URL" detection
+                            editor.commands.insertContent(' ');
+                            // The space triggers handleEditorUpdate → scheduleHeavyParsing
+                            // → runHeavyParsing → handleUnifiedParsing → detectClosedUrls
+                            // → processClosedUrls, which replaces the URL+space with the embed.
+                        });
+                        return 'default';
+                    }
+        piiPasteDetectionPending = true;
+        pendingDefaultPasteTextForRecovery = text.replace(/\r\n?/g, '\n');
+        // If sanitization removed invisible characters, insert the cleaned text
+        // manually so the editor does not re-read the raw clipboard data.
+        if (rawPasteText && text !== rawPasteText) {
+            pendingDefaultPasteTextForRecovery = null;
+            editor.commands.insertContent(text);
+            return 'inserted';
+        }
+        return 'default';
+    }
+
+    /** Classify one paste in the Rust composer and insert the result. */
+    async function completeClassifiedPaste(
+        text: string,
+        rawPasteText: string | null,
+        normalizedPasteText: string,
+        htmlPasteText: string | null,
+        vsCodeEditorData: string | null,
+        pastedFiles: File[],
+    ) {
+        const replayDefaultPaste = () => {
+            if (!editor || editor.isDestroyed) return;
+            if (pastedFiles.length > 0) {
+                // Text did not classify as an embed: the files are the paste, as
+                // the file paste listener treats them.
+                if (!$authStore.isAuthenticated) setPendingAnonymousFileAttachment(true);
+                void processPastedFiles(pastedFiles, editor, $authStore.isAuthenticated);
+                return;
+            }
+            if (prepareDefaultTextPaste(text, rawPasteText) === 'inserted') return;
+            // Replays the browser default (HTML-aware) paste through ProseMirror.
+            if (htmlPasteText) editor.view.pasteHTML(htmlPasteText);
+            else editor.view.pasteText(text);
+        };
+        let pasteClassification: Awaited<ReturnType<typeof import('./services/rustComposerPII').rustClassifyPastedContent>>;
+        let vsCodeLanguage: string | null;
+        let detectedLanguage: string | null;
+        try {
+            const detected = await (await import('./services/rustComposerCode')).rustDetectLanguages(normalizedPasteText, vsCodeEditorData);
+            vsCodeLanguage = detected.vsCode;
+            detectedLanguage = detected.content;
+            pasteClassification = await (await import('./services/rustComposerPII')).rustClassifyPastedContent({
+                text: normalizedPasteText, html: htmlPasteText, vsCodeLanguage, detectedLanguage,
+            });
+        } catch (error) {
+            console.error('[MessageInput] Paste classification failed, pasting as text:', error);
+            replayDefaultPaste();
+            return;
+        }
+        if (!editor || editor.isDestroyed) return;
+        if (pasteClassification.kind === 'text') {
+            replayDefaultPaste();
+            return;
+        }
+
+        const embedKind = pasteClassification.kind;
+        const embedContent =
+            embedKind === 'document'
+                ? (pasteClassification.documentHtml || await (await import('./services/rustComposerCode')).rustPlainTextToHtml(normalizedPasteText))
+                : embedKind === 'sheet'
+                    ? (pasteClassification.sheetMarkdown || normalizedPasteText)
+                    : normalizedPasteText;
+        const language = vsCodeLanguage || detectedLanguage || 'text';
+
+        if (!$authStore.isAuthenticated) {
+            // Unauthenticated / demo mode: EmbedStore is unavailable (no encryption keys).
+            // Insert a preview embed node with content stored inline in node attrs.
+            insertPreviewPasteEmbed(embedKind, normalizedPasteText, embedContent, language);
+            return;
+        }
+
+        // Authenticated path: create a proper embed in EmbedStore (async).
+        // Mark hasContent immediately so the send button appears and the
+        // user understands their paste was accepted; also track the in-flight
+        // embed so handleSendMessage can defer sends until it resolves.
+        pendingPasteEmbedCount += 1;
+        hasContent = true;
+        const createPasteEmbedPromise =
+            embedKind === 'document'
+                ? createDocEmbed(embedContent)
+                : embedKind === 'sheet'
+                    ? createSheetEmbed(embedContent)
+                    : createCodeEmbedFromPastedText({ text: normalizedPasteText, vsCodeEditorData });
+
+        createPasteEmbedPromise.then(async (embedResult) => {
+            console.info('[MessageInput] Created embed for pasted content:', {
+                embed_id: embedResult.embed_id,
+                kind: embedKind,
+                reason: pasteClassification.reason,
+                charCount: normalizedPasteText.length,
+            });
+
+            appendPasteEmbedReference(embedResult.embedReference, embedResult.embed_id, normalizedPasteText);
+        }).catch((error) => {
+            console.error('[MessageInput] Failed to create paste embed, falling back to inline embed:', error);
+            // EmbedStore write failed (e.g. encryption keys not ready).
+            // Fall back to the demo-mode inline embed so the user still sees
+            // their pasted content in a preview instead of getting an empty field.
+            insertPreviewPasteEmbed(embedKind, normalizedPasteText, embedContent, language);
+        }).finally(() => {
+            pendingPasteEmbedCount = Math.max(0, pendingPasteEmbedCount - 1);
+            // If the user pressed Enter while the embed was being created,
+            // execute the deferred send now that originalMarkdown is up-to-date.
+            if (pendingPasteEmbedCount === 0 && sendRequestedWhilePending) {
+                sendRequestedWhilePending = false;
+                // Re-check content before firing — editor may have been cleared.
+                if (!isContentEmptyExceptMention(editor)) {
+                    hasContent = true;
+                    handleSendMessage();
+                }
+            }
+        });
+        
+
+    }
+
     async function handlePaste(event: ClipboardEvent) {
         if (!$authStore.isAuthenticated && hasClipboardFiles(event)) {
             setPendingAnonymousFileAttachment(true);
@@ -4493,9 +4553,7 @@
                 const normalizedPasteText = text.replace(/\r\n?/g, '\n');
                 const vsCodeEditorData = event.clipboardData?.getData('vscode-editor-data') || null;
                 const htmlPasteText = event.clipboardData?.getData('text/html') || null;
-                const detectedLanguages = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-                    ? await (await import('./services/rustComposerCode')).rustDetectLanguages(normalizedPasteText, vsCodeEditorData)
-                    : { vsCode: detectLanguageFromVSCode(vsCodeEditorData), content: detectLanguageFromContent(normalizedPasteText) };
+                const detectedLanguages = await (await import('./services/rustComposerCode')).rustDetectLanguages(normalizedPasteText, vsCodeEditorData);
                 const vsCodeLanguage = detectedLanguages.vsCode;
                 const detectedLanguage = detectedLanguages.content;
                 const pasteInput = {
@@ -4504,9 +4562,7 @@
                     vsCodeLanguage,
                     detectedLanguage,
                 };
-                const pasteClassification = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-                    ? await (await import('./services/rustComposerPII')).rustClassifyPastedContent(pasteInput)
-                    : classifyPastedContent(pasteInput);
+                const pasteClassification = await (await import('./services/rustComposerPII')).rustClassifyPastedContent(pasteInput);
 
                 if (pasteClassification.kind !== 'text') {
                     event.preventDefault();
@@ -4514,7 +4570,7 @@
                     const embedKind = pasteClassification.kind;
                     const embedContent =
                         embedKind === 'document'
-                            ? (pasteClassification.documentHtml || plainTextToDocumentHtml(normalizedPasteText))
+                            ? (pasteClassification.documentHtml || await (await import('./services/rustComposerCode')).rustPlainTextToHtml(normalizedPasteText))
                             : embedKind === 'sheet'
                                 ? (pasteClassification.sheetMarkdown || normalizedPasteText)
                                 : normalizedPasteText;

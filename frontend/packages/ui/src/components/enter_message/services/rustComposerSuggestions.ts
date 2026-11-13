@@ -12,11 +12,17 @@
  */
 import { composerCall } from '../../../services/rustCore/composer/composerClient';
 import type { IndexedSavedEmbed, SavedEmbedSuggestion } from '../../../services/embedSuggestionSearch';
-import type { ComposerGhostSuggestion } from '../../../services/composerGhostDecode';
+import type { ComposerGhostSuggestion } from '../../../services/composerGhostSuggestion';
 import { toWellFormedText } from '../../../services/shareState/anonymousChatPolicy';
-import type { RankableMention } from './mentionRanking';
 
 const wellFormed = toWellFormedText;
+
+/** A mention candidate the Rust ranker can score by its search terms. */
+export interface RankableMention {
+	searchTerms: string[];
+	type?: string;
+	score?: number;
+}
 
 /** Rust twin of `rankMentionResults(results, query, limit)`. */
 export async function rustRankMentionResults<T extends RankableMention>(results: T[], query: string, limit: number): Promise<T[]> {

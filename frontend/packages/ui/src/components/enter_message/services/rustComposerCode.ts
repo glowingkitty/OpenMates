@@ -27,3 +27,11 @@ export async function rustDetectLanguageFromContent(text: string): Promise<strin
 export async function rustClassifyUrl(url: string): Promise<{ youtube: boolean; githubRepo: boolean; videoId: string | null }> {
 	return composerCall('urlClassify', { url: toWellFormedText(url) });
 }
+
+/** Kinds of pasted content the composer can turn into an embed. */
+export type PastedContentKind = 'text' | 'code' | 'document' | 'sheet';
+
+/** Rust twin of the plain-text to document-HTML formatter (paragraphs, escaped). */
+export async function rustPlainTextToHtml(text: string): Promise<string> {
+	return composerCall('plainTextToHtml', { text: toWellFormedText(text) });
+}

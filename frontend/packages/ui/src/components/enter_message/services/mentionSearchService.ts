@@ -30,7 +30,6 @@ import { getApiUrl } from "../../../config/api";
 import { getCurrentLanguage } from "../../../i18n/setup";
 import { proxyImage } from "../../../utils/imageProxy";
 import { buildProjectMentionSyntax } from "./projectMentionSyntax";
-import { rankMentionResults } from "./mentionRanking";
 
 /**
  * Types of mentionable items in the @ dropdown.
@@ -486,9 +485,7 @@ export async function searchProjectMentions(
       }
     }
 
-    return import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-      ? await (await import("./rustComposerSuggestions")).rustRankMentionResults(results, query, limit)
-      : rankMentionResults(results, query, limit);
+    return await (await import("./rustComposerSuggestions")).rustRankMentionResults(results, query, limit);
   } catch (error) {
     console.warn("[MentionSearch] Failed to load Project mention results:", error);
     return [];
@@ -963,11 +960,11 @@ const SEARCH_RESULT_LIMIT = 8;
  * @param query - Search query string (text after @)
  * @param limit - Maximum number of results when query is non-empty (default: 8); ignored when query is empty
  */
-export function searchMentions(
+export async function searchMentions(
   query: string,
   limit: number = SEARCH_RESULT_LIMIT,
   teamActive = false,
-): AnyMentionResult[] {
+): Promise<AnyMentionResult[]> {
   if (!query || query.trim() === "") {
     return teamActive
       ? [getOpenMatesMentionResult(), ...getDefaultMentionResults()]
@@ -979,7 +976,7 @@ export function searchMentions(
     : getAllMentionResults(true);
 
   // Score and filter results (settings_memory / settings_memory_entry get a boost when they match)
-  return rankMentionResults(allResults, query, limit);
+  return (await import("./rustComposerSuggestions")).rustRankMentionResults(allResults, query, limit);
 }
 
 /**

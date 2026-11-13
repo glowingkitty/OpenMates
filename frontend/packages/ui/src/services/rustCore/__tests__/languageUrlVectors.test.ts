@@ -1,26 +1,11 @@
-// TS-generated parity vectors for the shared Rust composer code-language and URL-kind
-// helpers. The committed JSON (packages/openmates-rust/src/web_composer/
-// language_url_ts_vectors.json) is written by helpers/generateLanguageUrlVectors.mjs
-// from the real flag-off TypeScript modules; this test rebuilds it from them and fails
-// on drift. web_composer/language_url_tests.rs replays the same file against Rust.
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+// Page-side handler forwarding for the shared Rust composer code-language and URL-kind
+// helpers. The committed vectors (packages/openmates-rust/src/web_composer/
+// language_url_ts_vectors.json) are replayed against Rust by web_composer/language_url_tests.rs.
 import { describe, expect, it } from 'vitest';
-import * as language from '../../../components/enter_message/services/codeLanguageDetection';
-import * as urls from '../../../components/enter_message/services/urlKinds';
 import { createComposerHandlers } from '../composer/composerUnit';
 import type { ComposerBinding } from '../composer/composerProtocol';
-import { buildLanguageUrlVectors } from './helpers/languageUrlCases';
 
-const VECTORS = resolve(__dirname, '../../../../../../../packages/openmates-rust/src/web_composer/language_url_ts_vectors.json');
-
-describe('composer language and URL parity vectors (TypeScript side)', () => {
-	// contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
-	it('the TypeScript detection modules match the committed vectors', () => {
-		const fresh = buildLanguageUrlVectors({ ...language, ...urls });
-		expect(JSON.parse(JSON.stringify(fresh))).toEqual(JSON.parse(readFileSync(VECTORS, 'utf8')));
-	});
-
+describe('composer language and URL handlers', () => {
 	// contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
 	it('the composer handlers forward the language and URL ops as JSON text', async () => {
 		const seen: string[] = [];

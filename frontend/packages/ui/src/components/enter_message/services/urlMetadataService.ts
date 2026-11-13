@@ -23,8 +23,6 @@ import { embedStore } from "../../../services/embedStore";
 import { generateUUID } from "../../../message_parsing/utils";
 import { userProfile } from "../../../stores/userProfile";
 import { getGitHubRepoMetadataUrl, getMetadataUrl, getYouTubeMetadataUrl } from "../../../utils/imageProxy";
-import { extractYouTubeVideoId, isGitHubRepoUrl, isYouTubeUrl } from "./urlKinds";
-export { extractYouTubeVideoId, isGitHubRepoUrl, isYouTubeUrl };
 
 // =============================================================================
 // Types
@@ -727,14 +725,7 @@ export async function createStaticYouTubeEmbed(
 export async function createEmbedFromUrl(
   url: string,
 ): Promise<EmbedCreationResult | null> {
-  const urlKind =
-    import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-      ? await (await import("./rustComposerCode")).rustClassifyUrl(url)
-      : {
-          githubRepo: isGitHubRepoUrl(url),
-          youtube: isYouTubeUrl(url),
-          videoId: extractYouTubeVideoId(url),
-        };
+  const urlKind = await (await import("./rustComposerCode")).rustClassifyUrl(url);
   if (urlKind.githubRepo) {
     const repoMetadata = await fetchGitHubRepoMetadata(url);
     if (repoMetadata) {

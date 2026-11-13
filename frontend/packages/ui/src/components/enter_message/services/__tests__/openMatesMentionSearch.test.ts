@@ -12,19 +12,20 @@ vi.mock('../../../../i18n/translations', async () => ({text: (await import('svel
 vi.mock('../../../../i18n/setup', () => ({getCurrentLanguage: () => 'en'}));
 vi.mock('../../../../config/api', () => ({getApiUrl: () => ''}));
 vi.mock('../../../../utils/imageProxy', () => ({proxyImage: (url: string) => url}));
+vi.mock('../rustComposerSuggestions', () => ({rustRankMentionResults: async <T extends {searchTerms: string[]}>(results: T[], query: string, limit: number) => results.filter(r => r.searchTerms.some(t => t.toLowerCase().includes(query.toLowerCase()))).slice(0, limit)}));
 
 import {searchMentions} from '../mentionSearchService';
 
 // contract-test: supporting surface=gui.web assertions=teams.chat.encrypted-until-invoked
-it('offers the exact @openmates token for Team chats at @ and during case-insensitive search', () => {
-  const atResult = searchMentions('', 8, true)[0];
+it('offers the exact @openmates token for Team chats at @ and during case-insensitive search', async () => {
+  const atResult = (await searchMentions('', 8, true))[0];
   expect(atResult).toMatchObject({type: 'openmates', displayName: 'OpenMates', mentionSyntax: '@openmates'});
-  expect(searchMentions('OPENMATES', 8, true)[0]).toMatchObject({type: 'openmates', mentionSyntax: '@openmates'});
-  expect(searchMentions('openmat', 8, true)[0]).toMatchObject({type: 'openmates', mentionSyntax: '@openmates'});
+  expect((await searchMentions('OPENMATES', 8, true))[0]).toMatchObject({type: 'openmates', mentionSyntax: '@openmates'});
+  expect((await searchMentions('openmat', 8, true))[0]).toMatchObject({type: 'openmates', mentionSyntax: '@openmates'});
 });
 
 // contract-test: supporting surface=gui.web assertions=teams.chat.encrypted-until-invoked
-it('keeps Personal mention defaults and search free of the Team-only OpenMates result', () => {
-  expect(searchMentions('').some(result => result.type === 'openmates')).toBe(false);
-  expect(searchMentions('OPENMATES').some(result => result.type === 'openmates')).toBe(false);
+it('keeps Personal mention defaults and search free of the Team-only OpenMates result', async () => {
+  expect((await searchMentions('')).some(result => result.type === 'openmates')).toBe(false);
+  expect((await searchMentions('OPENMATES')).some(result => result.type === 'openmates')).toBe(false);
 });
