@@ -421,9 +421,9 @@ specifications:
     - gui.apple
   feature.app-skill.web-browse:
     version: 1
-    status: draft
+    status: approved
     path: features/app-skills/web-browse
-    fingerprint: 32b87cfba1d633bdf2b07e59951274aea37fe97fbb16e12ab97862e9a5c56ebc
+    fingerprint: 2abcc119b3a0e9eeefb1c6fd5b6f45571e4a9bfb68e8c36d108f783507a33477
     required_applies_to:
     - rest_api
     - cli
@@ -648,9 +648,9 @@ specifications:
     - gui.apple
   feature.chat-request-safety:
     version: 1
-    status: draft
+    status: approved
     path: features/chat-request-safety
-    fingerprint: 85dd229ec73af237476cf4ed66d43a65b7dae525fe770123ad9546afdf2316b0
+    fingerprint: 5c85d755aa631c985e3834568328d347208c949df0677ee7c6fb94f8dd09fe1a
     required_applies_to:
     - rest_api
     - cli

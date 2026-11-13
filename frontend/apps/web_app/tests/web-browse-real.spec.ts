@@ -120,6 +120,24 @@ async function saveVideo(page: Page, ctx: BrowserContext, info: TestInfo) {
     } catch { info.annotations.push({ type: 'video_capture_failure', description: 'Recording copy unavailable' }); }
   }
 }
+// Records server error frames so a run names the exact rejection code that a
+// "Server error" notification would show for a CLI-created chat.
+function watchServerErrors(page: Page) {
+  const errors: Array<{ code?: string; message?: string }> = [];
+  page.on('websocket', ws => ws.on('framereceived', frame => {
+    if (typeof frame.payload !== 'string' || !frame.payload.includes('"error"')) return;
+    try {
+      const data = JSON.parse(frame.payload);
+      if (data?.type === 'error') errors.push({ code: data.payload?.code, message: data.payload?.message });
+    } catch { /* binary or partial frames are not server error events */ }
+  }));
+  return errors;
+}
+async function expectNoRecoveryRejection(page: Page, errors: Array<{ code?: string; message?: string }>) {
+  const rejected = errors.filter(e => /recovery was rejected/i.test(e.message || ''));
+  expect(rejected, `Recovery rejections: ${JSON.stringify(rejected)}`).toEqual([]);
+  await expect(page.getByText(/recovery was rejected/i)).toHaveCount(0);
+}
 function receipt(info: TestInfo, data: Record<string, unknown>) {
   fs.writeFileSync(info.outputPath('browse-runtime.json'), JSON.stringify({ target: APP, automaticRouting: true, ...data }, null, 2), { mode: 0o600 });
 }
@@ -195,6 +213,7 @@ test('real Browse JSON, watch, pause/resume and closed saved history on laptop a
   receipt(info, { ...created, phase: 'chat-created' });
   let sid: string | undefined;
   const ctx = await context(browser, info, 1280), page = ctx.pages()[0] || await ctx.newPage();
+  const serverErrors = watchServerErrors(page);
   try {
     const opened = await openSession(page, created.chatId, id => { sid = id; });
     receipt(info, { ...created, sessionId: sid, phase: 'viewer-opened' });
@@ -224,7 +243,8 @@ test('real Browse JSON, watch, pause/resume and closed saved history on laptop a
     await page.getByText('Structured data', { exact: true }).click();
     await expect(page.getByTestId('browse-json')).toContainText('Herman Melville - Moby-Dick');
     await screenshot(page, info, 'closed-history-phone');
-    receipt(info, { ...created, ...opened, sessionId: sid, closed });
+    receipt(info, { ...created, ...opened, sessionId: sid, closed, serverErrors });
+    await expectNoRecoveryRejection(page, serverErrors);
   } finally { try { await cleanup(ctx, created.chatId, sid); } finally { await saveVideo(page, ctx, info); } }
 });
 
@@ -236,6 +256,7 @@ test('real Browse shop listing with prices, sources and a legal notice on laptop
   receipt(info, { ...created, phase: 'chat-created' });
   let sid: string | undefined;
   const ctx = await context(browser, info, 1280), page = ctx.pages()[0] || await ctx.newPage();
+  const serverErrors = watchServerErrors(page);
   try {
     const opened = await openSession(page, created.chatId, id => { sid = id; }, true);
     await page.getByText('Structured data', { exact: true }).click();
@@ -247,7 +268,8 @@ test('real Browse shop listing with prices, sources and a legal notice on laptop
     await expect(reply).toContainText(/legal|law/i);
     await reply.getByText(/legal|law/i).last().scrollIntoViewIfNeeded();
     await screenshot(page, info, 'shop-reply-laptop');
-    receipt(info, { ...created, ...opened, sessionId: sid });
+    receipt(info, { ...created, ...opened, sessionId: sid, serverErrors });
+    await expectNoRecoveryRejection(page, serverErrors);
   } finally { try { await cleanup(ctx, created.chatId, sid); } finally { await saveVideo(page, ctx, info); } }
 });
 

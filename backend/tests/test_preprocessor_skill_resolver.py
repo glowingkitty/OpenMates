@@ -16,6 +16,8 @@ install_code_route_import_stubs()
 import sys
 import types
 
+import pytest
+
 llm_utils_stub = types.ModuleType("backend.apps.ai.utils.llm_utils")
 llm_utils_stub.call_preprocessing_llm = None
 llm_utils_stub.LLMPreprocessingCallResult = object
@@ -93,6 +95,42 @@ def test_explicit_skill_mention_ignores_assistant_history() -> None:
             _user_message("What events can I attend in Berlin?"),
         ],
         ["events-search"],
+    )
+
+    assert result == []
+
+
+# contract-test: direct surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Use the Browse skill to open [!](embed:abc123) and read the heading.",
+        "Please open the page with the web browse skill.",
+        "Run the Web Browse skill on that shop page.",
+    ],
+)
+def test_explicit_skill_named_in_words_resolves_a_unique_skill(text: str) -> None:
+    result = _resolve_explicit_skill_mentions_from_latest_user_text(
+        [_user_message(text)],
+        ["web-browse", "web-search", "news-search"],
+    )
+
+    assert result == ["web-browse"]
+
+
+# contract-test: direct surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Use the search skill to find Berlin events.",
+        "What can the Browse skill do?",
+        "Use the browser to check it.",
+    ],
+)
+def test_skill_named_in_words_needs_a_directive_and_a_unique_name(text: str) -> None:
+    result = _resolve_explicit_skill_mentions_from_latest_user_text(
+        [_user_message(text)],
+        ["web-browse", "web-search", "news-search"],
     )
 
     assert result == []

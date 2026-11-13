@@ -178,7 +178,12 @@ def observation_url(value: str) -> str:
 
 
 PROTOCOL = "preboot-v2"
+# Controls nearest the viewport fill the window, so a long product grid keeps
+# the visible offers instead of the first page-order menu entries. Links are
+# collected separately (nearest first) for source verification.
 MAX_CONTROLS = 150
+MAX_LINKS = 300
+MAX_CANDIDATES = 4000
 DOCUMENT_TEXT_LIMIT = 120000
 MAX_BATCH = 6
 SETTLE_CAP_SECONDS = 2.5
@@ -214,7 +219,7 @@ SNAPSHOT = (
       if(h.tagName==='IFRAME'&&h.contentDocument){const f=h.getBoundingClientRect();x-=f.x+h.clientLeft;y-=f.y+h.clientTop;doc=h.contentDocument;continue;}
       return h;
     }};
-  const nodes=[],inputs=[];let captcha=false,scanned=0;
+  const candidates=[],inputs=[];let captcha=false,scanned=0;
   const bigEnough=e=>{const r=e.getBoundingClientRect();return r.width>=100&&r.height>=50;};
   const walk=root=>{
     for(const e of root.querySelectorAll('*')){
@@ -226,9 +231,14 @@ SNAPSHOT = (
         if(/recaptcha\/api2\/(anchor|bframe)|hcaptcha\.com|challenges\.cloudflare\.com|turnstile/i.test(e.src||'')&&!e.closest('.grecaptcha-badge')&&shown(e)&&bigEnough(e))captcha=true;
       } else if(e.matches('.g-recaptcha,.h-captcha,.cf-turnstile')&&shown(e)&&bigEnough(e))captcha=true;
       if(e.matches('input,textarea,[contenteditable=true]'))inputs.push(e);
-      if(nodes.length<__MAX_CONTROLS__&&e.matches(SEL)&&shown(e)&&!e.disabled&&!privateField(e))nodes.push(e);
+      if(candidates.length<__MAX_CANDIDATES__&&e.matches(SEL)&&shown(e)&&!e.disabled&&!privateField(e))candidates.push(e);
     }};
   walk(document);
+  const away=e=>{const r=rect(e);
+    return Math.max(0,-(r.y+r.h),r.y-innerHeight)+Math.max(0,-(r.x+r.w),r.x-innerWidth);};
+  const ranked=candidates.map((e,i)=>({e,i,d:away(e)})).sort((a,b)=>a.d-b.d||a.i-b.i);
+  const nodes=ranked.slice(0,__MAX_CONTROLS__).sort((a,b)=>a.i-b.i).map(c=>c.e);
+  const seenLinks=new Set();
   const buttonLike=e=>e.tagName==='INPUT'&&/^(submit|button|reset|image|checkbox|radio)$/i.test(e.type||'');
   const label=e=>(e.getAttribute('aria-label') || e.ownerDocument.querySelector(`label[for="${CSS.escape(e.id||'__none__')}"]`)?.innerText ||
     e.innerText || (buttonLike(e)&&!/^(checkbox|radio)$/i.test(e.type)?e.value:'') || e.placeholder || e.name || e.tagName).trim().slice(0,180);
@@ -253,10 +263,13 @@ SNAPSHOT = (
   const observation={url:location.href,title:document.title,text:passages.join('\n'),document_text:text,controls,tables,dialogs,captcha,
     scroll:{y:Math.round(scrollY),height:document.documentElement.scrollHeight,viewport:innerHeight},
     has_private_input:inputs.some(e=>privateField(e)&&shown(e)&&inView(e)),
-    links:nodes.filter(e=>e.tagName==='A').map(e=>({text:label(e),url:e.href})),width:innerWidth,height:innerHeight};
+    links:ranked.filter(c=>c.e.tagName==='A'&&c.e.href&&!seenLinks.has(c.e.href)&&seenLinks.add(c.e.href))
+      .slice(0,__MAX_LINKS__).map(c=>({text:label(c.e),url:c.e.href})),width:innerWidth,height:innerHeight};
   return {nodes,signatures:nodes.map(signature),signature,rect,deepAt,observation};
 }""".replace("__PRIVATE_FIELD_PREDICATE__", PRIVATE_FIELD_JS)
     .replace("__MAX_CONTROLS__", str(MAX_CONTROLS))
+    .replace("__MAX_LINKS__", str(MAX_LINKS))
+    .replace("__MAX_CANDIDATES__", str(MAX_CANDIDATES))
     .replace("__TEXT_LIMIT__", str(DOCUMENT_TEXT_LIMIT))
 )
 

@@ -345,6 +345,20 @@ def test_snapshot_excludes_private_fields_and_covers_shadow_and_frames():
     assert "scrollIntoView" in rt.PREPARE_JS
 
 
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.structured-data
+def test_snapshot_keeps_controls_nearest_the_viewport_and_links_beyond_the_window():
+    # A long product grid: menu links first in page order must not take the
+    # control window from the offers the user is looking at.
+    assert "__MAX_" not in rt.SNAPSHOT
+    assert f"ranked.slice(0,{rt.MAX_CONTROLS})" in rt.SNAPSHOT
+    assert "sort((a,b)=>a.d-b.d||a.i-b.i)" in rt.SNAPSHOT
+    # The chosen controls keep page order, so ids stay stable and readable.
+    assert "sort((a,b)=>a.i-b.i)" in rt.SNAPSHOT
+    # Links come from every candidate, nearest first, unique and bounded.
+    assert f".slice(0,{rt.MAX_LINKS})" in rt.SNAPSHOT and "seenLinks" in rt.SNAPSHOT
+    assert rt.MAX_CONTROLS < rt.MAX_LINKS < rt.MAX_CANDIDATES
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop
 def test_batch_stop_and_settle_decisions():
     assert rt.batch_stops("a", "b", 0, 0)

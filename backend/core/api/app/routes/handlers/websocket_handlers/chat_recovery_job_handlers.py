@@ -892,6 +892,10 @@ async def _send_protocol_error(
     job_id: str | None,
     request_id: str | None,
 ) -> None:
+    logger.warning(
+        "Recovery request rejected: code=%s status=%s record=%s",
+        exc.code, exc.status_code, job_id,
+    )
     await manager.send_personal_message(
         {
             "type": "error",

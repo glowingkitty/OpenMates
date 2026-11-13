@@ -896,10 +896,13 @@ Findings and fixes:
   browsers were idle but still held by the AI (`needs_user` sessions stay active
   until the idle sweep). A fourth browser now pauses the least recently used
   idle AI-held browser; browsers under the user's control are never paused.
-- The runtime offers the first 150 visible controls in document order. On shop
-  pages with large menus, product links lower on the page can fall outside that
-  window. Prioritising controls near the viewport needs a runtime template
-  rebuild and is not done yet.
+- The runtime offered the first 150 visible controls in document order. On shop
+  pages with large menus, product links lower on the page fell outside that
+  window. The runtime now ranks up to 4,000 visible candidates by distance from
+  the viewport, keeps the nearest 150 as controls (in page order) and returns up
+  to 300 unique links separately, nearest first, so source URLs further down a
+  grid can still be verified. This is part of the runtime file inside the
+  template, so it takes effect with a rebuilt template (protocol unchanged).
 - The shop answer matched every value on the page but broke its schema
   (keyword `type`): a field held a value of another type, such as a price shown
   as text or a missing value as `null`. Shown prices are now converted to the

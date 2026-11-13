@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.chat-request-safety
 version: 1
-status: draft
+status: approved
 title: Chat Request Safety Decisions
 summary: >
   OpenMates allows requests that discuss sensitive, harmful, or illegal subjects

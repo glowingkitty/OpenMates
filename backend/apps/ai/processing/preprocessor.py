@@ -640,7 +640,41 @@ def _resolve_explicit_skill_mentions_from_latest_user_text(
             if skill_id not in resolved_mentions:
                 resolved_mentions.append(skill_id)
 
+    for alias, skill_id in _named_skill_aliases(available_skill_ids).items():
+        alias_pattern = re.compile(
+            rf"(?<![\w-]){alias}\s+skill(?![\w-])",
+            re.IGNORECASE,
+        )
+        for match in alias_pattern.finditer(latest_user_text):
+            before = latest_user_text[max(0, match.start() - 48):match.start()]
+            if EXPLICIT_SKILL_DIRECTIVE_PATTERN.search(before) and skill_id not in resolved_mentions:
+                resolved_mentions.append(skill_id)
+
     return resolved_mentions
+
+
+def _named_skill_aliases(available_skill_ids: List[str]) -> Dict[str, str]:
+    """Map spoken skill names ("Browse", "web browse") to visible skill IDs.
+
+    Used only before the word "skill" after a directive ("use the Browse
+    skill"). A bare skill name counts only when one visible skill has it, so
+    "use the search skill" stays unresolved while "use the web search skill"
+    resolves. Values are regex fragments with flexible whitespace.
+    """
+    by_skill_name: Dict[str, List[str]] = {}
+    aliases: Dict[str, str] = {}
+    for valid_skill in available_skill_ids:
+        if "-" not in valid_skill:
+            continue
+        app_id, skill_id = valid_skill.split("-", 1)
+        skill_words = re.split(r"[-_]+", skill_id)
+        app_words = re.split(r"[-_]+", app_id)
+        aliases[r"\s+".join(map(re.escape, app_words + skill_words))] = valid_skill
+        by_skill_name.setdefault(r"\s+".join(map(re.escape, skill_words)), []).append(valid_skill)
+    for name, owners in by_skill_name.items():
+        if len(owners) == 1 and len(name) >= 3:
+            aliases.setdefault(name, owners[0])
+    return aliases
 
 
 def _resolve_explicit_natural_search_intent(

@@ -654,8 +654,11 @@ class BrowseRun:
                     "observations": {
                         **{
                             k: self.observation.get(k)
-                            for k in ("url", "title", "tables", "links")
+                            for k in ("url", "title", "tables")
                         },
+                        # Same bound as extraction: the nearest links, not every
+                        # link the runtime collected for source verification.
+                        "links": (self.observation.get("links") or [])[:100],
                         "text": page_text(self.observation),
                     },
                 },
