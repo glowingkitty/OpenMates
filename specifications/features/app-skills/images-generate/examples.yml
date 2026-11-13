@@ -102,6 +102,7 @@ named_person_limits:
 
 raster_model:
   - id: normal-picture-uses-flash
+    assertion_ids: [images-generate.raster.cheap-default]
     given: Alice leaves her image model on Auto and asks for a picture of a red bicycle leaning on a garden fence.
     when: The chat model calls images.generate with output_filetype png and the default quality.
     then: Recraft V4.1 Flash makes the picture, it is charged 15 credits, and the card names recraftv4_1_flash.
@@ -110,6 +111,7 @@ raster_model:
     when: The chat model calls images.generate with reference_images and the default quality.
     then: The image-editing draft model makes the picture at its own low price; Gemini is not used.
   - id: highest-quality-uses-gemini
+    assertion_ids: [images-generate.raster.cheap-default]
     given: Alice asks for the final version of the picture in the highest possible quality.
     when: The chat model calls images.generate with quality max.
     then: Gemini 3 Pro Image makes the picture, it is charged 205 credits, and the card names gemini-3-pro-image-preview.

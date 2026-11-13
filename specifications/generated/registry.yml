@@ -293,9 +293,9 @@ specifications:
     - gui.apple
   feature.app-skill.images-generate:
     version: 1
-    status: draft
+    status: approved
     path: features/app-skills/images-generate
-    fingerprint: 34ea7d808f7aa840295b64bdd5d3ed670af373e5935906ecfcbec92e248e0470
+    fingerprint: 3670a8f8f3854f080dd458258842947d3f547614f05d16b3438b88cee08f3b40
     required_applies_to:
     - rest_api
     - cli
@@ -5052,7 +5052,7 @@ assertions:
     specification: feature.app-skill.images-generate@1
     specification_id: feature.app-skill.images-generate
     type: behavior
-    fingerprint: 28803df90da6a29461ff13c64120833509ce5a2c4f3bb6cb3c7c266e7a5e7fe8
+    fingerprint: e9935499da9bef3c737b338f6f1a388fe066ebe397b9de89b15175820f5c4ec6
     required_applies_to:
     - rest_api
     - cli

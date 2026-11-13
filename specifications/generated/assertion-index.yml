@@ -45830,7 +45830,7 @@ assertions:
     current_direct_proof: false
   images-generate.raster.cheap-default:
     specification: feature.app-skill.images-generate@1
-    fingerprint: 28803df90da6a29461ff13c64120833509ce5a2c4f3bb6cb3c7c266e7a5e7fe8
+    fingerprint: e9935499da9bef3c737b338f6f1a388fe066ebe397b9de89b15175820f5c4ec6
     direct_tests:
     - &id5746
       path: backend/tests/test_image_generate_default_model.py
