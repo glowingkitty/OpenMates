@@ -78,3 +78,6 @@ mod child_revision_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "embed_child_revision_recovery_tests.rs"]
 mod child_revision_recovery_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "embed_write_local_only_tests.rs"]
+mod local_only_tests;

@@ -15,8 +15,8 @@ summary:
   missing: 5
   percent: 38.1
 worker_namespaces_installed_not_progress:
-  installed: 18
-  total: 19
+  installed: 17
+  total: 20
   note: 'Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs.'
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat-recommendations-flow.spec.ts,
   web-rust-core-chat.spec.ts, web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts,
@@ -108,30 +108,39 @@ units:
   typescript_fallback: none declared (4 files)
   unit_tests: [embedTransientWorker.test.ts, childRevision.test.ts, embedContentEdit.test.ts, embedEditSession.test.ts,
     embedEditUnit.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, embedWriteBinding.test.ts, messageEmbedVersion.test.ts,
-    messageParentIds.test.ts, readOps.test.ts, rustRecoveredChildRevision.test.ts]
+    messageParentIds.test.ts, readOps.test.ts, rustRecoveredChildRevision.test.ts, rustStreamedEmbedWriteGuest.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: [packages/openmates-rust/src/toon_decode_ts_vectors.json]
   open_gaps: [Embed RSS +1..+77 MB vs TypeScript in the embeds bench (noisy); see performance-history.yml.]
   spec_assertions: [chats.persistence.client-encrypted, chats.rendering.assistant-document-convergence]
   spec_gaps: ['Embed resolve, version reconstruction and TOON decode behavior have no assertion.']
 - namespace: embedWrite
-  status: installed
+  status: planned
   pre_bind: false
-  installer: frontend/packages/ui/src/services/rustCore/embeds/embedWriteUnit.ts
-  what_moved: One installer call = one Rust embed write session (`BrowserEmbedWriter`) under the bound generation,
-    next to the Worker-side `chats_db` rows it writes. Rust owns key choice, every ciphertext, row/payload shapes
-    and the revision-history decisions (embedWriteAdapter.ts sequences them); this unit persists the prepared rows
-    (embe...
-  typescript_fallback: none declared (4 files)
-  unit_tests: [embedTransientWorker.test.ts, childRevision.test.ts, embedContentEdit.test.ts, embedEditSession.test.ts,
-    embedEditUnit.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, embedWriteBinding.test.ts, messageEmbedVersion.test.ts,
-    messageParentIds.test.ts, readOps.test.ts, rustRecoveredChildRevision.test.ts]
+  installer: null
+  what_moved: Planned; no installer yet.
+  typescript_fallback: null
+  unit_tests: []
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: []
   open_gaps: [Streamed write is wired for send_embed_data only.]
   spec_assertions: [chats.persistence.client-encrypted, chats.streaming.ordered-final]
   spec_gaps: ['Streamed embed write ordering and key resolution (master/chat wrapper, legacy child inheritance)
       have no assertion.']
+- namespace: embedWriteGuest
+  status: planned
+  pre_bind: true
+  installer: null
+  what_moved: Planned; no installer yet.
+  typescript_fallback: null
+  unit_tests: []
+  e2e_specs: []
+  vectors: []
+  open_gaps: [No web-rust-core spec yet; anonymous-child-embeds.spec.ts (guest result card survives reload) covers
+      the flow outside the web-rust-core set., 'Guest result cards are not carried over to the account on signup
+      (no master wrapper, never uploaded).']
+  spec_assertions: [billing.anonymous.local-only-content]
+  spec_gaps: [Signup promotion of local-only guest embeds has no assertion.]
 - namespace: chatState
   status: installed
   pre_bind: true

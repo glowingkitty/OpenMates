@@ -80,18 +80,20 @@ impl EmbedWriteSession {
             .unwrap_or_default();
         let mut candidates = Vec::new();
         let mut pending_chat_hashes = Vec::new();
-        if let Some(wrapped) = rows
-            .iter()
-            .find(|row| field(row, "key_type") == Some("master"))
-            .and_then(|row| field(row, "encrypted_embed_key"))
-        {
+        // A local-only (guest) session has no master key: master rows are not candidates.
+        if let (Some(master), Some(wrapped)) = (
+            self.master.as_ref(),
+            rows.iter()
+                .find(|row| field(row, "key_type") == Some("master"))
+                .and_then(|row| field(row, "encrypted_embed_key")),
+        ) {
             candidates.push(KeyAdoption {
                 target: Target::Embed {
                     embed_id: embed_id.to_owned(),
                     chat_id: owner,
                 },
                 wrapped: wrapped.to_owned(),
-                wrapping: Wrapping::Master(self.master.clone()),
+                wrapping: Wrapping::Master(master.clone()),
             });
         }
         let chat_rows: Vec<(usize, &Value)> = rows

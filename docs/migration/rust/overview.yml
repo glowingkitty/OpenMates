@@ -63,13 +63,13 @@ areas:
   missing: 5
   percent: 38.1
   done_definition: capability whose web cell is rust-only (old web code deleted, suite green) or stays-shell (capabilities.yml)
-  blockers: ['planned units without installer: embedEdit', 'perf gate not cleared: chatRendered is inconclusive
-      (2026-11-08-chatRendered-01)', 'perf gate not cleared: embedReady is inconclusive (2026-11-08-embedReady-01)',
-    'perf gate not cleared: rss is inconclusive (2026-11-08-rss-01)', 'perf gate not cleared: send draftSaveP95Ms
-      is rust_worse (2026-11-08-send-02)']
+  blockers: ['planned units without installer: embedWrite, embedWriteGuest, embedEdit', 'perf gate not cleared:
+      chatRendered is inconclusive (2026-11-08-chatRendered-01)', 'perf gate not cleared: embedReady is inconclusive
+      (2026-11-08-embedReady-01)', 'perf gate not cleared: rss is inconclusive (2026-11-08-rss-01)', 'perf gate
+      not cleared: send draftSaveP95Ms is rust_worse (2026-11-08-send-02)']
   worker_namespaces_installed_not_progress:
-    installed: 18
-    total: 19
+    installed: 17
+    total: 20
 - id: shared_client
   title: Shared client-side code (Rust, non-operation SDK capabilities)
   priority_rank: 1

@@ -265,4 +265,18 @@ describe('embedWrite unit', () => {
 		client.close();
 		await expect(client.unit.request('hasKeys', after)).rejects.toMatchObject({ code: 'unit_unbound' });
 	});
+
+	// contract-test: supporting surface=gui.web assertions=billing.anonymous.local-only-content
+	it('keeps the account writer bound-only and the guest writer principal-free', async () => {
+		const { db } = fakeDb();
+		const binding = writer(sample.expected, { count: 0 });
+		const account = createEmbedWriteUnitInstaller(() => ({ open: async () => db, close: () => undefined }));
+		const guest = createEmbedWriteUnitInstaller(() => ({ open: async () => db, close: () => undefined }), true);
+		for (const [install, principal] of [[account, null], [guest, PRINCIPAL]] as const) {
+			const { port1, port2 } = new MessageChannel();
+			expect(() => install({ ports: [port1], generation: principal ? 1 : null, principal, signal: SIGNAL, binding } as never)).toThrow('unavailable');
+			port1.close();
+			port2.close();
+		}
+	});
 });

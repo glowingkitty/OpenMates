@@ -6974,6 +6974,7 @@
             "client.embed_write_session.EmbedWriteSession.has_chat_key",
             "client.embed_write_session.EmbedWriteSession.has_embed_key",
             "client.embed_write_session.EmbedWriteSession.install",
+            "client.embed_write_session.EmbedWriteSession.local_only",
             "client.embed_write_session.EmbedWriteSession.new",
             "client.embed_write_session.EmbedWriteSession.plan_child_revision",
             "client.embed_write_session.EmbedWriteSession.plan_processing_update",

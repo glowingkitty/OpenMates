@@ -17,7 +17,7 @@ import { installCryptoUnit } from '@openmates/ui/src/services/rustCore/crypto/cr
 import { installAuthUnit } from '@openmates/ui/src/services/rustCore/auth/authUnit';
 import { installAppsUnit } from '@openmates/ui/src/services/rustCore/apps/appsUnit';
 import { installEmbedDataUnit } from '@openmates/ui/src/services/rustCore/embeds/embedDataUnit';
-import { installEmbedWriteUnit } from '@openmates/ui/src/services/rustCore/embeds/embedWriteUnit';
+import { installEmbedWriteGuestUnit, installEmbedWriteUnit } from '@openmates/ui/src/services/rustCore/embeds/embedWriteUnit';
 import { installSearchUnit } from '@openmates/ui/src/services/rustCore/search/searchUnit';
 import { installTransferUnit } from '@openmates/ui/src/services/rustCore/transfer/transferUnit';
 import { installSyncUnit } from '@openmates/ui/src/services/rustCore/sync/syncUnit';
@@ -39,6 +39,7 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	apps: installAppsUnit,
 	embedData: installEmbedDataUnit,
 	embedWrite: installEmbedWriteUnit,
+	embedWriteGuest: installEmbedWriteGuestUnit,
 	search: installSearchUnit,
 	transfer: installTransferUnit,
 	sync: installSyncUnit,

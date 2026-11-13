@@ -115,6 +115,18 @@ units:
     - Streamed embed write ordering and key resolution (master/chat wrapper, legacy child inheritance) have no assertion.
     rust_paths:
     - packages/openmates-browser-bindings/src/browser_embed_write.rs
+  embedWriteGuest:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No web-rust-core spec yet; anonymous-child-embeds.spec.ts (guest result card survives reload) covers the flow outside the web-rust-core set.
+    - Guest result cards are not carried over to the account on signup (no master wrapper, never uploaded).
+    spec_assertions: [billing.anonymous.local-only-content]
+    spec_gaps:
+    - Signup promotion of local-only guest embeds has no assertion.
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_embed_write.rs
+    - packages/openmates-rust/src/client/embed_write_session.rs
   embedEdit:
     specs: []
     vectors: []

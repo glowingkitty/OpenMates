@@ -28,6 +28,15 @@ SOCK_DIR="${HOME}/.ssh/upload-ssh-sockets"
 log()  { echo "[upload-ssh] $*" >&2; }
 die()  { echo "[upload-ssh] ERROR: $*" >&2; exit 1; }
 
+# fail2ban on the target bans an address after repeated failed logins; sshd then
+# refuses connections. Show the exact unban command for this dev server's address.
+unban_hint() {
+    local host="$1" ip
+    ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") { print $(i + 1); exit }}')"
+    log "If SSH is refused or hangs, fail2ban on ${host} may have banned this dev server. Unban it there (provider console):"
+    log "  sudo fail2ban-client set sshd unbanip ${ip:-<dev-server-ip>}"
+}
+
 [[ -f "$ENV_FILE" ]] || die ".env not found at $ENV_FILE"
 set +u
 set -a
@@ -84,6 +93,7 @@ cmd_open() {
 
     log "Opening master connection to ${UPLOAD_SSH_USER}@${UPLOAD_SSH_HOST}"
     log "Upload-side temp-ssh-access window must be open."
+    unban_hint "$UPLOAD_SSH_HOST"
 
     local otp=""
     if [[ -t 0 ]]; then
@@ -94,8 +104,9 @@ cmd_open() {
     fi
     [[ -n "$otp" ]] || die "Empty TOTP code."
 
+    local expect_status=0
     UPLOAD_SSH_PASSWORD="$UPLOAD_SSH_PASSWORD" UPLOAD_SSH_OTP="$otp" \
-    expect <<'EXPECT_EOF'
+    expect <<'EXPECT_EOF' || expect_status=$?
 set timeout 45
 set password $env(UPLOAD_SSH_PASSWORD)
 set otp      $env(UPLOAD_SSH_OTP)
@@ -131,6 +142,10 @@ exit [lindex $result 3]
 EXPECT_EOF
 
     unset UPLOAD_SSH_OTP
+    if (( expect_status != 0 )); then
+        unban_hint "$UPLOAD_SSH_HOST"
+        die "Master connection was not established (authentication helper status ${expect_status})."
+    fi
 
     if master_active; then
         log "Master connection established (persists ${UPLOAD_SSH_PERSIST} idle)."

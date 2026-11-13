@@ -69,7 +69,8 @@ export type StoredRowResult = { ok: true; fields: OpenedEmbedFields } | { ok: fa
 export type PersistedEmbedWrite = Omit<PreparedEmbedWrite, 'local_key_wrappers'>;
 
 export type EmbedWriteProtocol = {
-	init: { request: { masterKey: CryptoKey }; response: null };
+	/** Account sessions send the non-extractable master key; a signed-out guest session sends `localOnly` (no key). */
+	init: { request: { masterKey: CryptoKey } | { localOnly: true }; response: null };
 	adoptChatKey: { request: { chatId: string; encryptedChatKey: string }; response: null };
 	adoptEmbedKeyWrapper: { request: { embedId: string; chatId: string; row: EmbedKeyWrapperRow }; response: null };
 	adoptChildEmbedKey: { request: { childId: string; parentId: string; wrappedByParent: string }; response: null };

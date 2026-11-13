@@ -22,7 +22,7 @@ import { chatKeyManager } from '../../encryption/ChatKeyManager';
 import { rememberOpenedRow, rustEmbedData, WORKER_RESOLVED_EMBED_KEY } from './embedDataClient';
 import type { StoredRowRequest, StoredRowResult } from './embedDataProtocol';
 import type { EmbedWriteClient } from './embedWriteClient';
-import { discardRustEmbedWriter, rustEmbedWriter } from './embedWriteSession';
+import { discardRustEmbedWriter, rustEmbedReader } from './embedWriteSession';
 import { UnitPortError } from '../host/unitPort';
 
 /** The embedStore state the hook needs (bound methods of the store). */
@@ -39,7 +39,8 @@ let resolutions: WeakMap<object, Promise<Uint8Array | null>> | null = null;
 
 async function chatIdsByHash(hashes: string[]): Promise<Map<string, string>> {
 	const { chatListCache } = await import('../../chatListCache');
-	const chats = chatListCache.getCache() ?? (await chatDB.getAllChats());
+	const { anonymousChatStorage } = await import('../../anonymousChatStorage');
+	const chats = [...(chatListCache.getCache() ?? (await chatDB.getAllChats())), ...(await anonymousChatStorage.getAllChats())];
 	const wanted = new Set(hashes);
 	const found = new Map<string, string>();
 	for (const chat of chats) {
@@ -74,7 +75,7 @@ async function openInWorker(embedId: string, hashedChatId: string | undefined, r
 		encrypted_type: text(row.encrypted_type),
 		encrypted_text_preview: text(row.encrypted_text_preview)
 	};
-	const writer = await rustEmbedWriter();
+	const writer = await rustEmbedReader();
 	const open = async (): Promise<StoredRowResult> => {
 		const [result] = await writer.unit.request('openStoredRows', { rows: [request] });
 		return result;

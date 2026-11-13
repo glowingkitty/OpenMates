@@ -9,6 +9,11 @@
  * The session broker binds at boot and has no bind event, so a call made
  * before the bind waits for a bound generation (bounded; refuses
  * `embed_write_not_bound`). There is no TS fallback.
+ *
+ * Signed-out guests have no master key and no account principal: they use a
+ * separate guest slot (`rustGuestEmbedWriter`), a local-only unit opened outside
+ * any generation. Rust refuses every master wrapper and server payload there.
+ * The slot is closed when an account writer opens and with the account writer.
  */
 import { getKeyFromStorage } from '../../cryptoService';
 import { requireSharedRustCore, type SharedRustCore } from '../host/sharedCoreRegistry';
@@ -20,6 +25,30 @@ const BIND_WAIT_MS = 15_000;
 const BIND_POLL_MS = 50;
 
 let current: { core: SharedRustCore; generation: number; client: Promise<EmbedWriteClient> } | null = null;
+let guest: { core: SharedRustCore; client: Promise<EmbedWriteClient> } | null = null;
+
+function closeGuestWriter(): void {
+	const stale = guest;
+	guest = null;
+	stale?.client.then((client) => client.close(), () => undefined);
+}
+
+/**
+ * The local-only `embedWrite` client of a signed-out guest (opens it on first
+ * use). Needs neither a bound generation nor a master key.
+ */
+export async function rustGuestEmbedWriter(): Promise<EmbedWriteClient> {
+	const core = requireSharedRustCore();
+	if (guest && guest.core === core) {
+		const client = await guest.client;
+		if (!client.unit.closed) return client;
+	}
+	closeGuestWriter();
+	const opening = openEmbedWriteClient(core, null);
+	guest = { core, client: opening };
+	opening.catch(() => { if (guest?.client === opening) guest = null; });
+	return opening;
+}
 
 /**
  * The stored master key is extractable (it is re-wrapped for server sync); the
@@ -78,6 +107,14 @@ async function boundGeneration(core: SharedRustCore): Promise<number> {
 	return core.generation;
 }
 
+/**
+ * The unit that opens stored embed rows: the account writer when a master key
+ * exists, else the signed-out guest unit (guest embeds are chat-key wrapped).
+ */
+export async function rustEmbedReader(): Promise<EmbedWriteClient> {
+	return (await getKeyFromStorage()) ? rustEmbedWriter() : rustGuestEmbedWriter();
+}
+
 /** The `embedWrite` client of the current generation (opens it on first use). */
 export async function rustEmbedWriter(): Promise<EmbedWriteClient> {
 	const core = requireSharedRustCore();
@@ -88,6 +125,8 @@ export async function rustEmbedWriter(): Promise<EmbedWriteClient> {
 	}
 	const stale = current;
 	stale?.client.then((client) => client.close(), () => undefined);
+	// An account principal is binding: the guest session's local-only keys never carry over.
+	closeGuestWriter();
 	const opening = (async () => {
 		const masterKey = await getKeyFromStorage();
 		if (!masterKey) throw new UnitPortError('embed_write_no_master_key');
@@ -108,6 +147,7 @@ export function onRustEmbedWriterClosed(forget: () => void): void {
 export function closeRustEmbedWriter(): void {
 	const stale = current;
 	current = null;
+	closeGuestWriter();
 	for (const forget of closeHooks) forget();
 	stale?.client.then((client) => client.close(), () => undefined);
 }

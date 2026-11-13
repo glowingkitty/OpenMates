@@ -21,6 +21,7 @@ import {
   freeTestingCreditsPromotion,
   getPendingGiftCardRedemptionCode,
   hasDeviceReceivedFreeTestingCredits,
+  initializeServerStatus,
   markDeviceReceivedFreeTestingCredits,
   markDeviceReceivedFreeTestingCreditsFromNotification,
   markPendingGiftCardRedemption,
@@ -232,6 +233,34 @@ describe("serverStatusStore anonymous free usage", () => {
     resolveResponse({ ok: true, json: async () => ({ active: true, can_send_text: true }) } as Response);
     expect(await refresh).toMatchObject({ active: false, can_send_text: false });
     expect(get(anonymousFreeUsageStatus)?.reason).toBe("anonymous_usage_limit");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.anonymous.daily-remaining-percent
+  it("keeps the guest's own allowance when the page's server-status fetch is still in flight", async () => {
+    // Production 2026-11-13: after a reload the composer refreshed the guest status while the
+    // layout's server-status request was loading; the result was dropped and Send became Sign up.
+    serverStatusStore.set({ status: null, initialized: false, loading: false, error: null });
+    let resolveServerStatus!: (response: Response) => void;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      if (String(input).includes("/v1/settings/server-status")) {
+        return new Promise(resolve => { resolveServerStatus = resolve; });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ active: true, can_send_text: true, reason: null, daily_remaining_percent: 79 }),
+      } as Response);
+    });
+
+    const layoutFetch = initializeServerStatus();
+    const refresh = refreshAnonymousFreeUsageStatus();
+    resolveServerStatus({
+      ok: true,
+      json: async () => ({ is_self_hosted: false, anonymous_free_usage: null }),
+    } as Response);
+    await layoutFetch;
+
+    expect(await refresh).toMatchObject({ active: true, can_send_text: true });
+    expect(get(anonymousFreeUsageStatus)).toMatchObject({ active: true, can_send_text: true, daily_remaining_percent: 79 });
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.self-host.cloud-guard

@@ -41,6 +41,15 @@ PERSIST_DURATION="${PROD_SSH_PERSIST:-30m}"
 log()  { echo "[prod-ssh] $*" >&2; }
 die()  { echo "[prod-ssh] ERROR: $*" >&2; exit 1; }
 
+# fail2ban on the target bans an address after repeated failed logins; sshd then
+# refuses connections. Show the exact unban command for this dev server's address.
+unban_hint() {
+    local host="$1" ip
+    ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") { print $(i + 1); exit }}')"
+    log "If SSH is refused or hangs, fail2ban on ${host} may have banned this dev server. Unban it there (provider console):"
+    log "  sudo fail2ban-client set sshd unbanip ${ip:-<dev-server-ip>}"
+}
+
 # ── Load config ──────────────────────────────────────────────────────────────
 
 [[ -f "$ENV_FILE" ]] || die ".env not found at $ENV_FILE"
@@ -109,6 +118,7 @@ cmd_open() {
 
     log "Opening master connection to ${PROD_SSH_USER}@${PROD_SSH_HOST}"
     log "Prod-side temp-ssh-access window must be open (see scripts/temp-ssh-access.sh)."
+    unban_hint "$PROD_SSH_HOST"
 
     # Read OTP: prefer controlling terminal (interactive operator case); fall
     # back to stdin so Claude can pipe a code the user pasted into chat
@@ -214,6 +224,7 @@ EXPECT_EOF
 
     unset otp PROD_SSH_OTP
     if (( expect_status != 0 )); then
+        unban_hint "$PROD_SSH_HOST"
         die "Master connection was not established (authentication helper status ${expect_status})."
     fi
 
