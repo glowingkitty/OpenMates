@@ -85,10 +85,15 @@ async def discover_rule_metadata(request: Any, directus: Any, cache: Any,
         project_id = (binding or {}).get("project_id")
         # Ask first Project Memories are catalog-only like personal ones; a row
         # whose id also arrived as an authorized body is offered once.
+        memory_catalog = request_memory_catalog(request)
+        requestable = requestable_catalog(memory_catalog, active_project_id=project_id)
+        # Counts only: which catalog rows this turn could offer for selection.
+        logger.info("[RULE_DISCOVERY] catalog personal=%d project=%d requestable_project=%d active_project=%s bodies=%d",
+                    sum(entry.source == "personal" for entry in memory_catalog),
+                    sum(entry.source == "project" for entry in memory_catalog),
+                    sum(entry.source == "project" for entry in requestable), bool(project_id), len(body_ids))
         private_rows = [rule_discovery(rule) for rule in catalog if rule.source != "app"] + [
-            catalog_discovery(entry)
-            for entry in requestable_catalog(request_memory_catalog(request), active_project_id=project_id)
-            if entry.id not in body_ids
+            catalog_discovery(entry) for entry in requestable if entry.id not in body_ids
         ]
         app_rows = [rule_discovery(rule) for rule in catalog if rule.source == "app"]
         result = []
@@ -102,7 +107,9 @@ async def discover_rule_metadata(request: Any, directus: Any, cache: Any,
                 result.append(entry)
         request._rule_metadata_discovery_complete = True
         return result
-    except Exception:
+    except Exception as error:  # noqa: BLE001 - discovery is optional; the turn continues without Memories
+        # Logged by type only: the message could echo untrusted catalog metadata.
+        logger.warning("[RULE_DISCOVERY] failed: %s", type(error).__name__)
         return []
 
 

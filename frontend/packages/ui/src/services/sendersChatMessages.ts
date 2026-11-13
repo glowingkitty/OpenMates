@@ -78,6 +78,28 @@ import { isDraftContextDispatchActive, reserveDraftContextDispatch } from "./dra
 const RUST_SEND_PREP_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
 
+/**
+ * Project Memories of a focus activated by this send's @Project mention: Auto include
+ * bodies and the catalog with the Ask first rows. A failed read keeps the earlier
+ * (personal-only) context and is logged, like the first collection.
+ */
+async function addProjectMemoriesAfterActivation(
+	chatId: string,
+	payload: { custom_memory_documents?: Array<Record<string, unknown>>; memory_catalog?: Array<Record<string, unknown>> },
+): Promise<void> {
+	let documents: ReadonlyArray<import("../utils/ruleDocuments").CustomRuleDocument>;
+	try {
+		const { collectCustomRuleDocuments } = await import("./ruleDocumentService");
+		documents = await collectCustomRuleDocuments({ chatId });
+	} catch (error) {
+		console.warn("[ChatSyncService:Senders] Project Memories unavailable after focus activation", error);
+		return;
+	}
+	if (documents.length) payload.custom_memory_documents = documents as unknown as Array<Record<string, unknown>>;
+	const catalog = await collectMemoryCatalogForSend(documents);
+	if (catalog.length) payload.memory_catalog = catalog;
+}
+
 /** Metadata-only Memory catalog; a catalog failure must not block sending the message. */
 async function collectMemoryCatalogForSend(
 	projectDocuments: ReadonlyArray<import("../utils/ruleDocuments").CustomRuleDocument>,
@@ -3399,6 +3421,9 @@ export async function sendNewMessageImpl(
 			await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
 			throw error;
 		}
+		// The @Project mention activates the focus only now: the private context
+		// collected above saw no focus, so this turn's Project Memories are added here.
+		await addProjectMemoriesAfterActivation(message.chat_id, payload);
 	}
 
 	// OTel: WebSocket dispatch span — the actual send over the wire
