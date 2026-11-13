@@ -482,3 +482,41 @@ async fn a_snapshot_with_invalid_arguments_is_refused_without_reading() {
         assert!(fake.executed.is_empty());
     }
 }
+
+const PII_TOKEN: &str = "[OM_PII_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]";
+
+fn write_job(operation: HostedFileOperation, path: &str) -> HostedFileJob {
+    HostedFileJob {
+        operation_id: "op".into(),
+        chat_id: CHAT.into(),
+        operation,
+        arguments: json!({"path": path, "content": format!("Media contact: {PII_TOKEN}")}),
+    }
+}
+
+#[test]
+fn project_file_writes_store_real_details_like_the_web() {
+    let mappings = vec![json!({"placeholder": PII_TOKEN, "original": "press@example.org"})];
+    let memory = ".openmates/memories/press-style-ab2bd.md";
+    for operation in [
+        HostedFileOperation::CreateFile,
+        HostedFileOperation::UpdateFile,
+    ] {
+        let restored = restore_write(write_job(operation, memory), &mappings).unwrap();
+        assert_eq!(
+            restored.arguments["content"],
+            "Media contact: press@example.org"
+        );
+        assert_eq!(restored.arguments["path"], memory);
+    }
+    let read = restore_write(write_job(HostedFileOperation::ReadText, memory), &mappings).unwrap();
+    assert_eq!(
+        read.arguments["content"],
+        format!("Media contact: {PII_TOKEN}")
+    );
+    let unmapped = restore_write(write_job(HostedFileOperation::CreateFile, memory), &[]).unwrap();
+    assert_eq!(
+        unmapped.arguments["content"],
+        format!("Media contact: {PII_TOKEN}")
+    );
+}

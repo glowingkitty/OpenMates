@@ -343,6 +343,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             {
                 // Hosted Project file tool calls run here; the turn resumes afterwards.
                 observed.project_create.file_jobs.approve_writes = options.approve_project_file_writes;
+                observed.project_create.file_jobs.set_mappings(&prepared.mappings);
                 trace.phase = SendPhase::ProjectPhase;
                 phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
                 trace.phase = SendPhase::FrameValidation;

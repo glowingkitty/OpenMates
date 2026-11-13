@@ -16,7 +16,9 @@
 //! answered `waiting_for_executor` (`source_offline`) so the server can hand
 //! them to a source executor instead of failing the turn.
 use super::plaintext::Wipe;
+use serde_json::Value;
 use std::collections::BTreeSet;
+use std::fmt;
 
 /// WebSocket and turn capability that opts into Project file jobs.
 pub(super) const PROJECT_FILE_JOBS_CAPABILITY: &str = "project_file_jobs";
@@ -31,9 +33,34 @@ pub(super) struct FileJobState {
     pub(super) approve_writes: bool,
     pub(super) finished: BTreeSet<String>,
     pub(super) notices: Vec<String>,
+    /// The chat's privacy mappings; file writes restore placeholders with them.
+    pub(super) mappings: FileJobMappings,
+}
+
+/// The chat's privacy mappings: wiped on drop and never printed.
+#[derive(Clone, Default)]
+pub(super) struct FileJobMappings(pub(super) Vec<Value>);
+
+impl fmt::Debug for FileJobMappings {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FileJobMappings({})", self.0.len())
+    }
+}
+
+impl Drop for FileJobMappings {
+    fn drop(&mut self) {
+        for mapping in &mut self.0 {
+            crate::model::zeroize_json(mapping);
+        }
+    }
 }
 
 impl FileJobState {
+    /// Remember the chat's privacy mappings; later file writes restore with them.
+    pub(super) fn set_mappings(&mut self, mappings: &[Value]) {
+        self.mappings = FileJobMappings(mappings.to_vec());
+    }
+
     /// One-line summaries for the shell (applied or rejected file changes).
     pub(super) fn take_notices(&mut self) -> Vec<String> {
         std::mem::take(&mut self.notices)
@@ -42,6 +69,7 @@ impl FileJobState {
     pub(super) fn clear(&mut self) {
         self.finished.clear();
         self.notices.clear();
+        self.mappings = FileJobMappings::default();
     }
 }
 

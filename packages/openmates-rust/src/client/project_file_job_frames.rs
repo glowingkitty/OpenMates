@@ -229,6 +229,47 @@ fn job_of(event: &Value) -> Option<HostedFileJob> {
     })
 }
 
+/// A created or updated Project file stores real details, like the web's
+/// `projectFilePrivacy.restoreMutation`: the model only saw placeholders, so
+/// every string argument except `path` is restored with the chat's mappings
+/// (unknown tokens stay literal). A saved Project Memory is such a file.
+/// Reads, renames and deletes are returned unchanged.
+///
+/// # Errors
+/// `crate::privacy::restore_page` failures (conflicting or oversized mappings).
+fn restore_write(mut job: HostedFileJob, mappings: &[Value]) -> Result<HostedFileJob> {
+    let writes = matches!(job.operation.wire(), "create_file" | "update_file");
+    if !writes || mappings.is_empty() {
+        return Ok(job);
+    }
+    if let Value::Object(arguments) = &mut job.arguments {
+        for (key, value) in arguments.iter_mut() {
+            if key != "path" {
+                restore_strings(value, mappings)?;
+            }
+        }
+    }
+    Ok(job)
+}
+
+fn restore_strings(value: &mut Value, mappings: &[Value]) -> Result<()> {
+    match value {
+        Value::String(text) => *text = crate::privacy::restore_page(text, mappings)?,
+        Value::Array(items) => {
+            for item in items {
+                restore_strings(item, mappings)?;
+            }
+        }
+        Value::Object(map) => {
+            for item in map.values_mut() {
+                restore_strings(item, mappings)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 /// One-line notice of an applied write (`renamed` names both paths).
 fn applied_notice(mutation: &HostedFileMutation, created: bool) -> String {
     let path = &mutation.path;
@@ -298,6 +339,14 @@ pub(super) async fn job_frames<R: JobRunner>(
         None
     } else {
         job_of(job)
+    };
+    let hosted = match hosted.map(|h| restore_write(h, &state.mappings.0)) {
+        Some(Err(error)) => {
+            state.finish(&operation);
+            return Ok(vec![error_frame(job, &HostedFileError::Core(error))]);
+        }
+        Some(Ok(h)) => Some(h),
+        None => None,
     };
     if hosted.is_none() && !is_commit && !is_snapshot {
         return Ok(Vec::new());

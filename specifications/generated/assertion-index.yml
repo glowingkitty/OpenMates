@@ -35048,7 +35048,7 @@ assertions:
     current_direct_proof: false
   app-memories.privacy.anonymized-on-send:
     specification: feature.app-memories@6
-    fingerprint: 31875dde5869435d324ecd5d4e4bc65770216cfefaa986224ed3adbd80516f02
+    fingerprint: 270f142ff1cc45159a3b76f22c3b6b1a1ba2df51af8a677d0266650760e6adde
     direct_tests: []
     supporting_tests:
     - &id4482

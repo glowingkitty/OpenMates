@@ -461,7 +461,8 @@ assertions:
   must: Memories are stored with the user's real details. When a Memory body is released to the AI, the client first replaces
     personal details with placeholders exactly as it does for chat messages. The placeholder mapping is kept only in the
     chat-key encrypted chat history, so answers and reopened chats show the real details again on the user's clients, and a
-    Memory the assistant updates is stored with real details, never with placeholders. Real details from a Memory never reach
+    Memory the assistant creates or updates (personal, team or Project, the latter written as a Project file) is stored with
+    real details, never with placeholders, on every client (web, CLI and terminal UI). Real details from a Memory never reach
     the server, the AI provider or logs, and human-readable client views never print the mapping itself.
   depends_on:
   - models.MemoryDocument
