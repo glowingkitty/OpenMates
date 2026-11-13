@@ -12,6 +12,7 @@ from backend.apps.ai.processing.rule_context import (
     memory_catalog_snapshot, request_memory_catalog,
 )
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.shared.python_utils.voice_call_admission import paused_voice_delivery
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,8 @@ def build_pending_app_settings_memories_context(
         "recovery_public_key": getattr(request_data, "recovery_public_key", None),
         "chat_key_version": getattr(request_data, "chat_key_version", None),
         "preprocessing_resume_ref": getattr(request_data, "preprocessing_resume_ref", None),
+        # A call turn stays a call turn after the permission is answered.
+        **paused_voice_delivery(request_data),
     }
 
 

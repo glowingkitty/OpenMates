@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   },
   chatKeyManager: { getKey: vi.fn(), onKeyReady: vi.fn(() => () => undefined) },
   ensureChatKeySafeForWrite: vi.fn(),
-  webSocketService: { on: vi.fn(), off: vi.fn(), sendMessage: vi.fn() },
+  webSocketService: { on: vi.fn(), off: vi.fn(), sendMessage: vi.fn(), ownEmbedProtocolRequest: vi.fn() },
   deriveChatCompletionRecoveryKeypair: vi.fn(),
   openChatCompletionRecoveryEnvelope: vi.fn(),
 }));
@@ -21,7 +21,8 @@ vi.mock("../../utils/chatCompletionRecovery", () => ({
   openChatCompletionRecoveryEnvelope: mocks.openChatCompletionRecoveryEnvelope,
 }));
 
-const { sendEmbedStoreWithReceipt } = await import("../chatSyncServiceHandlersRecovery");
+// vi.mock calls are hoisted above this import, so the mocks apply.
+import { sendEmbedStoreWithReceipt } from "../chatSyncServiceHandlersRecovery";
 
 describe("recovered embed receipt errors", () => {
   beforeEach(() => {
@@ -46,6 +47,14 @@ describe("recovered embed receipt errors", () => {
     mocks.webSocketService.off.mockImplementation((type: string, handler: (payload: Record<string, unknown>) => void) => {
       if (handlers.get(type) === handler) handlers.delete(type);
     });
+    // Owning the request keeps the default handler from also showing the
+    // rejection as a "Server error" notification (issue DGZVY).
+    mocks.webSocketService.ownEmbedProtocolRequest.mockImplementation(
+      (_requestId: string, handler: (payload: Record<string, unknown>) => void) => {
+        handlers.set("error", handler);
+        return () => { if (handlers.get("error") === handler) handlers.delete("error"); };
+      },
+    );
     mocks.webSocketService.sendMessage.mockResolvedValue(undefined);
 
     const pending = sendEmbedStoreWithReceipt(
@@ -59,6 +68,9 @@ describe("recovered embed receipt errors", () => {
     expect(sent).toMatchObject({
       request_id: "11111111-1111-4111-8111-111111111111", recovery_record_id: "record-1",
     });
+
+    expect(mocks.webSocketService.ownEmbedProtocolRequest).toHaveBeenCalledWith(sent.request_id, expect.any(Function));
+    expect(mocks.webSocketService.on).not.toHaveBeenCalledWith("error", expect.anything());
 
     handlers.get("error")?.({ request_id: "22222222-2222-4222-8222-222222222222", code: "embed_storage_failed" });
     await vi.advanceTimersByTimeAsync(0);

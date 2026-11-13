@@ -3693,7 +3693,11 @@ async def _async_process_ai_skill_ask_task(
                     user_overrides.mate_id if user_overrides else None,
                     request_data.mate_id,
                 )
-                if explicit_call_mate is not None:
+                if (request_data.is_app_settings_memories_continuation
+                        or request_data.is_focus_mode_continuation):
+                    # The paused first task of this turn already confirmed it.
+                    pass
+                elif explicit_call_mate is not None:
                     await publish_instant_voice_acknowledgement(
                         task_id=task_id, request_data=request_data, mate=explicit_call_mate,
                         cache_service=cache_service_instance, log_prefix=f"[Task ID: {task_id}] ",

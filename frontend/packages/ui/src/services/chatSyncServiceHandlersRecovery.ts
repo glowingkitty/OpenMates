@@ -487,6 +487,7 @@ export async function sendEmbedStoreWithReceipt(
 ): Promise<RecoveredEmbedReceipt> {
   const requestId = crypto.randomUUID();
   let stop = () => {};
+  let releaseErrorOwnership = () => {};
   const confirmation = new Promise<RecoveredEmbedReceipt>((resolve, reject) => {
     const timer = window.setTimeout(() => {
       stop();
@@ -513,10 +514,12 @@ export async function sendEmbedStoreWithReceipt(
     stop = () => {
       window.clearTimeout(timer);
       webSocketService.off(confirmedType, onConfirmed);
-      webSocketService.off("error", onError);
+      releaseErrorOwnership();
     };
     webSocketService.on(confirmedType, onConfirmed);
-    webSocketService.on("error", onError);
+    // This request owns its rejection: recovery handles it, so the default
+    // handler must not also show it as a "Server error" notification.
+    releaseErrorOwnership = webSocketService.ownEmbedProtocolRequest(requestId, onError);
   });
   try {
     await webSocketService.sendMessage(eventType, {

@@ -24,6 +24,7 @@ from typing import Dict, Any, List
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.shared.python_utils.voice_call_admission import resumed_voice_delivery
 from backend.shared.python_utils.app_memory_policy import (
     REMOVED_APP_MEMORY_ERROR,
     is_removed_app_memory,
@@ -561,6 +562,11 @@ async def _trigger_continuation(
             "mate_id": mate_id,
             "active_focus_id": active_focus_id,
             "user_preferences": user_preferences,
+            # Spoken call delivery of the paused turn; a call that has ended
+            # since then continues as a text turn.
+            **await resumed_voice_delivery(
+                cache_service, pending_context, user_id=user_id, chat_id=chat_id,
+            ),
             "embed_file_path_index": embed_file_path_index,
             "has_image_upload_embed": has_image_upload_embed,
             # Pass the app_settings_memories_metadata so preprocessing knows what's available

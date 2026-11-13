@@ -39,11 +39,11 @@ vi.mock("../recoveryEmbedSource", () => ({
   catalogContextFromSealedEmbed: vi.fn(async () => ({ app_id: "code", skill_id: "code" })),
 }));
 vi.mock("../websocketService", () => ({ webSocketService: {
-  on: vi.fn(), off: vi.fn(), sendMessage: vi.fn(),
+  on: vi.fn(), off: vi.fn(), sendMessage: vi.fn(), ownEmbedProtocolRequest: vi.fn(() => () => undefined),
 } }));
 
 import { markAcknowledgedRecoveredEmbed, withCanonicalEmbedWrite } from "../canonicalEmbedWriteCoordinator";
-const { reuseAcknowledgedRecoveredEmbed } = await import("../chatSyncServiceHandlersRecovery");
+import { reuseAcknowledgedRecoveredEmbed } from "../chatSyncServiceHandlersRecovery";
 
 const embed = {
   embed_id: "embed-1", hashed_chat_id: "hash:chat-1", hashed_message_id: "hash:message-1",
