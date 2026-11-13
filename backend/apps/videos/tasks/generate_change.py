@@ -226,12 +226,23 @@ def _check_prompt(prompt: str, *, named_person_reviewed: bool) -> None:
         raise ChangeFailed(ERROR_SAFETY, SAFETY_MESSAGE)
 
 
+def _llm_policy(context: _Context) -> Any:
+    """The user's AI-settings policy carried in the task arguments."""
+    from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
+
+    return InternalLlmPolicy.from_payload(context.arguments.get("internal_llm_policy"))
+
+
 async def _ensure_headroom(context: _Context, *, extend_seconds: int, still: bool, author: bool = False) -> None:
     from backend.apps.videos.composed.author import COMPOSE_AUTHOR_MODELS
     from backend.apps.videos.tasks.generate_billing import estimate_composed_credits, omni_clip_credits
 
-    estimate = await estimate_composed_credits(picture_count=len(context.kept.inputs) if author else 0,
-                                               author_model=COMPOSE_AUTHOR_MODELS[0])
+    picture_count = len(context.kept.inputs) if author else 0
+    routes = _llm_policy(context).author_routes(
+        COMPOSE_AUTHOR_MODELS, required_inputs=("text", "image") if picture_count else ("text",),
+        task_id=context.log_prefix)
+    estimate = await estimate_composed_credits(picture_count=picture_count,
+                                               author_model=routes[0].model_id if routes else COMPOSE_AUTHOR_MODELS[0])
     if extend_seconds:
         estimate += omni_clip_credits(context.kept.resolution, extend_seconds)
     estimate += OPENING_STILL_CREDITS if still else 0
@@ -387,6 +398,7 @@ async def _author_edit(context: _Context) -> _Made:
                             previous_source=source, previous_audio=await recall_audio(kept.audio, context.read)),
             secrets_manager=context.task._secrets_manager, task_id=str(context.task.request.id),
             on_stage=context.stage, on_audio=context.audio_stage, afford_audio=afford,
+            policy=_llm_policy(context),
         )
     except ComposedInputError as exc:
         raise ChangeFailed(ERROR_INVALID_INPUT, f"The video could not be changed: {exc}. Nothing was charged.") \

@@ -20,9 +20,10 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 
 from backend.apps.videos.generate_request import MODE_AUTO, MODE_COMPOSED, MODE_GENERATIVE
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -78,13 +79,15 @@ def describe_pictures(kinds: Sequence[str]) -> str:
 
 
 async def decide_route(*, mode: str, instructions: str, picture_kinds: Sequence[str], secrets_manager: Any,
-                       task_id: str, user_request: str = "") -> RouteDecision:
+                       task_id: str, user_request: str = "",
+                       policy: Optional[InternalLlmPolicy] = None) -> RouteDecision:
     """Return the route of one request; ask Jev only when the request does not name a mode."""
     if mode in (MODE_GENERATIVE, MODE_COMPOSED):
         return RouteDecision(route=mode, decided_by=DECIDED_BY_REQUEST)
     if mode != MODE_AUTO:
         raise ValueError(f"unknown video mode {mode!r}")
-    from backend.shared.providers.typesafe.client import DecisionProviderError, JevDecisionClient
+    from backend.apps.ai.utils.internal_decisions import decision_client_for_policy
+    from backend.shared.providers.typesafe.client import DecisionProviderError
     from backend.shared.providers.typesafe.models import ChoiceAnswer
 
     state = {
@@ -111,8 +114,8 @@ async def decide_route(*, mode: str, instructions: str, picture_kinds: Sequence[
             "criteria": dict(ROUTE_CRITERIA),
         },
     }
-    client = JevDecisionClient(secrets_manager=secrets_manager, max_retries=1, telemetry_task_id=task_id,
-                               telemetry_purpose=ROUTING_TASK)
+    client = decision_client_for_policy(policy, secrets_manager=secrets_manager, max_retries=1, task_id=task_id,
+                                        purpose=ROUTING_TASK)
     try:
         response = await client.evaluate(state=state, questions=questions)
     except DecisionProviderError as exc:

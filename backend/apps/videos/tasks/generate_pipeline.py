@@ -46,6 +46,7 @@ from backend.apps.videos.generate_request import (
     generative_model,
     parse_generate_request,
 )
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
 from backend.apps.videos.routing import DECIDED_BY_REQUEST, RouteDecision, RoutingUnavailable, decide_route
 from backend.apps.videos.tasks.generate_billing import (
     add_audio_credits,
@@ -210,6 +211,7 @@ async def run_generate(task: Any, app_id: str, skill_id: str, arguments: dict[st
                 mode=request.mode, instructions=request.instructions,
                 picture_kinds=[picture.routing_kind for picture in pictures], secrets_manager=task._secrets_manager,
                 task_id=str(task.request.id), user_request=request.user_request,
+                policy=InternalLlmPolicy.from_payload(arguments.get("internal_llm_policy")),
             )
             check_route_constraints(request, decision.route)
         except RoutingUnavailable as exc:
@@ -284,8 +286,11 @@ async def _reject(task: Any, rejection: Any, *, instructions: str, user_id: str,
 
 
 async def _ensure_headroom(task: Any, *, user_id: str, team_id: Optional[str], picture_count: int,
-                           log_prefix: str) -> None:
-    estimated = await estimate_composed_credits(picture_count=picture_count, author_model=COMPOSE_AUTHOR_MODELS[0])
+                           log_prefix: str, policy: Optional[InternalLlmPolicy] = None) -> None:
+    routes = (policy or InternalLlmPolicy()).author_routes(
+        COMPOSE_AUTHOR_MODELS, required_inputs=("text", "image") if picture_count else ("text",), task_id=log_prefix)
+    lead_model = routes[0].model_id if routes else COMPOSE_AUTHOR_MODELS[0]
+    estimated = await estimate_composed_credits(picture_count=picture_count, author_model=lead_model)
     await _ensure_credits(task, user_id=user_id, team_id=team_id, estimated=estimated, log_prefix=log_prefix)
 
 
@@ -347,14 +352,16 @@ async def _run_composed(
             await _reject(task, decision_in.rejection, instructions=request.instructions, user_id=user_id,
                           message_id=message_id, source_embed_id=image_ids[0], output_embed_id=None, model=None,
                           log_prefix=log_prefix)
-    await _ensure_headroom(task, user_id=user_id, team_id=team_id, picture_count=len(inputs), log_prefix=log_prefix)
+    llm_policy = InternalLlmPolicy.from_payload(arguments.get("internal_llm_policy"))
+    await _ensure_headroom(task, user_id=user_id, team_id=team_id, picture_count=len(inputs), log_prefix=log_prefix,
+                           policy=llm_policy)
     try:
         video = await compose_video(
             ComposedRequest(instructions=request.instructions, aspect_ratio=request.aspect_ratio,
                             duration_seconds=request.duration_seconds, inputs=tuple(inputs),
                             sources=tuple(loaded.sources)),
             secrets_manager=task._secrets_manager, task_id=str(task.request.id), on_stage=progress.on_stage,
-            on_audio=progress.on_audio,
+            on_audio=progress.on_audio, policy=llm_policy,
             afford_audio=_audio_afford(task, user_id=user_id, team_id=team_id, log_prefix=log_prefix),
         )
     except ComposedInputError as exc:
