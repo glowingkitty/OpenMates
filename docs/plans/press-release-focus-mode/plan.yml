@@ -170,7 +170,60 @@ acceptance_criteria:
   verification_ids:
   - T-REAL
   coverage_status: covered
+- id: AC-7
+  scenario: S-2
+  text: The CLI and terminal UI match the web. The client core sends the active Project's Memories with every turn,
+    and `chats new --project <uuid>` binds the Project before the first turn, like an @Project mention on the web.
+  required: true
+  status: pending
+  verification_scope: related_backend
+  verification_ids:
+  - T-CORE
+  - T-REAL
+  - T-WEB-REAL
+  coverage_status: covered
 tests:
+- id: T-CORE
+  type: unit
+  file: packages/openmates-rust/src/client/context_capability_tests.rs
+  command: python3 scripts/ci_coordinator.py submit --session c595 --mode rust-check
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  covers:
+  - AC-7
+  assertions:
+  - active Project Memories sent as custom_memory_documents with source project
+  - expired, invalid and changed Memories are not sent
+  - CLI accepts only a full Project UUID for --project
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-WEB-REAL
+  type: manual
+  file: frontend/apps/web_app/tests/press-release-project-memory-real.spec.ts
+  command: python3 scripts/press_release_project_memory_web_real_test.py --session c595 --allow-paid-dev-inference
+  execution_environment: dev
+  target: dev
+  covers:
+  - AC-5
+  - AC-6
+  - AC-7
+  assertions:
+  - web chat saves the press style to the Project
+  - a second web chat in the Project uses it
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
 - id: T-REAL
   type: manual
   file: scripts/press_release_focus_real_test.py
@@ -309,6 +362,38 @@ tasks:
   follow_up_tasks: []
   ownership:
     files: *id004
+    shared_files: []
+- id: TASK-4
+  title: 'CLI/TUI parity: Project Memories and explicit Project binding in the client core'
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-2
+    acceptance_criteria:
+    - AC-7
+  expected_files: &id005
+  - packages/openmates-rust/src/client/project_memories.rs
+  - packages/openmates-rust/src/client/project_memories_tests.rs
+  - packages/openmates-rust/src/client/send_project_binding.rs
+  - packages/openmates-rust/src/client/context.rs
+  - packages/openmates-rust/src/client/context_capability_tests.rs
+  - packages/openmates-rust/src/client/send_prepared_turn.rs
+  - packages/openmates-rust/src/client/send.rs
+  - packages/openmates-rust/src/client.rs
+  - frontend/packages/openmates-tui-native/src/cli/send.rs
+  - frontend/apps/web_app/tests/press-release-project-memory-real.spec.ts
+  - scripts/press_release_project_memory_web_real_test.py
+  verification_ids:
+  - T-CORE
+  - T-REAL
+  - T-WEB-REAL
+  dependencies:
+  - TASK-2
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id005
     shared_files: []
 implementation_state:
   subject_commit: 3b73b6239727be64a8b058eabbb5de72d131fb94

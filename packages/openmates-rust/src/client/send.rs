@@ -468,9 +468,9 @@ impl Client {
                 "A volatile chat cannot become a saved chat.",
             ));
         }
-        if options.project_id.is_some() {
+        if options.project_id.is_some() && options.incognito {
             return Err(Error::Invalid(
-                "Explicit Project chat binding is unavailable in native send; no message was submitted.",
+                "A Project can only be bound to a saved chat; no message was submitted.",
             ));
         }
         if let Some(slug) = &options.slug {
@@ -864,6 +864,8 @@ mod tests {
             },
             SendOptions {
                 task_update_jobs: false,
+                // A Project binds only to a saved chat.
+                incognito: true,
                 project_id: Some("11111111-1111-4111-8111-111111111111".into()),
                 ..Default::default()
             },

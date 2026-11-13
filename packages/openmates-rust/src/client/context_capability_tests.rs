@@ -349,3 +349,63 @@ fn revision_retain_preserves_order_and_kept_values_without_discarded_documents()
     assert_eq!(values[1]["id"], "last");
     assert!(values.iter().all(|value| value["id"] != "removed"));
 }
+
+fn memory_item(item: &str, path: &str, embed: &str) -> Value {
+    json!({"item_type":"embed","project_item_id":item,"updated_at":1,"target_id_hash":"hash","deleted_target_state":null,
+        "encrypted_metadata":crypto::encrypt_combined(&json!({"path":path}).to_string(),&[8;32]).unwrap(),
+        "target_id_encrypted":crypto::encrypt_combined(embed,&[8;32]).unwrap()})
+}
+fn memory_embed(document: &str) -> Value {
+    json!({"embed_keys":[{"key_type":"project","encrypted_embed_key":crypto::encrypt_bytes(&[9;32],&[8;32]).unwrap()}],
+        "embed":{"encrypted_content":crypto::encrypt_combined(&json!({"content":document}).to_string(),&[9;32]).unwrap()}})
+}
+#[tokio::test]
+async fn active_project_sends_every_current_project_memory_as_custom_memory_document() {
+    let style = "---\ntitle: Press style\nload_mode: auto_include\n---\nExample Solar GmbH, about 3,000 customers.\n";
+    let expired = "---\ntitle: Trip\nvalid_until: 2020-01-01\n---\nIn Rome.\n";
+    let active = json!({"project_id":PROJECT,"focus_id":"focus","team_id":null});
+    let detail = json!({"project":project_row(),"folders":[],"items":[
+        memory_item("style", ".openmates/memories/press-style.md", "embed-style"),
+        memory_item("trip", ".openmates/memories/old-trip.md", "embed-trip"),
+    ]});
+    let rev = revision(&detail["items"][0]);
+    let (api, server) = mock(vec![
+        json!({"focus":active}),
+        detail.clone(),
+        json!({"focus":active}),
+        memory_embed(expired),
+        memory_embed(style),
+        json!({"focus":active}),
+        detail,
+    ])
+    .await;
+    let mut client = client(&api);
+    let out = client.active_project_context(CHAT, "Write a press release").await.unwrap();
+    let docs = out["custom_memory_documents"].as_array().unwrap();
+    assert_eq!(docs.len(), 1);
+    assert_eq!(docs[0]["id"], "style");
+    assert_eq!(docs[0]["source"], "project");
+    assert_eq!(docs[0]["project_id"], PROJECT);
+    assert_eq!(docs[0]["document"], style);
+    assert_eq!(docs[0]["item_revision"], rev);
+    // Memories are sent whole, never offered to relevance selection.
+    let requests = server.await.unwrap();
+    assert_eq!(requests.len(), 7);
+    assert!(requests.iter().all(|r| !r.contains("/context/select")));
+}
+#[tokio::test]
+async fn project_memory_changed_during_send_is_dropped_by_the_revision_check() {
+    let style = "---\ntitle: Press style\n---\nTone: plain.\n";
+    let active = json!({"project_id":PROJECT,"focus_id":"focus","team_id":null});
+    let detail = json!({"project":project_row(),"folders":[],"items":[memory_item("style", ".openmates/memories/press-style.md", "embed-style")]});
+    let mut changed = detail.clone();
+    changed["items"][0]["updated_at"] = json!(2);
+    let (api, server) = mock(vec![
+        json!({"focus":active}), detail, json!({"focus":active}), memory_embed(style), json!({"focus":active}), changed,
+    ])
+    .await;
+    let mut client = client(&api);
+    let out = client.active_project_context(CHAT, "Write").await.unwrap();
+    assert!(out["custom_memory_documents"].as_array().unwrap().is_empty());
+    assert_eq!(server.await.unwrap().len(), 6);
+}

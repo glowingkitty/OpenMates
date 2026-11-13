@@ -7,7 +7,8 @@ Example (after deployment; paid inference requires explicit opt-in):
     --state-dir /tmp/press-focus-state-UNIQUE --output-dir /tmp/press-focus-UNIQUE \
     --allow-paid-dev-inference [--case word]
 
-Runs scripted multi-turn conversations through the installed npm CLI with the
+Runs scripted multi-turn conversations through the OpenMates CLI (`--cli`, e.g. a
+native build of this checkout) with the
 personal dev-test account in isolated CLI state (same harness as
 scripts/jobs_focus_real_test.py). Never run in CI. All company data is synthetic
 and transcripts stay outside the repository; only this run's chats are deleted.
@@ -27,7 +28,7 @@ import sys
 import threading
 from pathlib import Path
 
-from code_run_real_test import command, delete_owned_chat, personal_test_environment, personal_test_leases
+from code_run_real_test import command, delete_owned_chat
 from personal_dev_draft_guard import DraftGuard, DraftGuardError
 from workflow_schedule_real_test import API_URL, ProofError, sessions, write_receipt
 
@@ -83,7 +84,7 @@ CASES: dict[str, dict] = {
         + " Media contact: Jonas Example, press officer, press@example.org. Mara Example, CEO, is usually quoted.",
         "Thanks. If the press style is not saved to this project's Memories yet, save it now; otherwise just confirm.",
     ], "reuse_turns": [
-        "Write a press release about our app launch. " + NEWS
+        "Write a press release as a Word document about our app launch. " + NEWS
         + " Skip all questions and the fact check, use your recommended headline and write it now.",
     ]},
     "not-investor-outreach": {"format": None, "expect_focus": False, "turns": [
@@ -107,7 +108,8 @@ def project_memory_files(cli: str, project_id: str, out: Path, label: str) -> li
     found: set[str] = set()
     for name, args in (("path", ["--path", MEMORY_DIR]), ("tree", ["--depth", "4"])):
         try:
-            listed = command(cli, ["projects", "files", "list", project_id, *args])
+            listed = command(cli, ["projects", "files", "list", project_id, *args],
+                             diagnostic_path=out / f"{label}-files-{name}-diagnostic.json")
         except ProofError as exc:
             listed = {"error": str(exc)}
         write_receipt(out / f"{label}-files-{name}.json", listed)
@@ -208,6 +210,18 @@ def release_text(cli: str, chat_id: str, shown: dict, out: Path, label: str) -> 
                 continue
             write_receipt(out / f"{label}-embed-{embed_id[:8]}.json", embed)
             parts.append(json.dumps(embed, ensure_ascii=False))
+            # An application keeps its page text in child file embeds (src/App.jsx).
+            content = embed.get("content") if isinstance(embed, dict) else None
+            for ref in (content or {}).get("file_refs", []) if isinstance(content, dict) else []:
+                child_id = ref.get("embed_id") if isinstance(ref, dict) else None
+                if not isinstance(child_id, str):
+                    continue
+                try:
+                    child = command(cli, ["embeds", "show", child_id, "--chat", chat_id])
+                except ProofError:
+                    continue
+                write_receipt(out / f"{label}-embed-{child_id[:8]}.json", child)
+                parts.append(json.dumps(child, ensure_ascii=False))
     return types, "\n".join(parts).lower()
 
 
@@ -218,7 +232,9 @@ def run_case(cli: str, label: str, case: dict, out: Path, timeout: int, *, proje
     try:
         for index, prompt in enumerate(case["turns"]):
             args = (["chats", "new", prompt] if chat_id is None else ["chats", "send", "--chat", chat_id, prompt])
-            if project_id:
+            # Like an @Project mention on the web: the new chat is bound to the
+            # Project before its first turn, so that turn already loads the Memories.
+            if project_id and chat_id is None:
                 args += ["--project", project_id]
             reply = command(cli, [*args, "--personal", "--auto-approve", "--response-timeout-seconds", str(timeout)],
                             timeout=timeout + 30)
@@ -277,9 +293,9 @@ def main() -> int:
             parser.error("--state-dir and --output-dir must be fresh paths below /tmp")
     cli = shutil.which(args.cli)
     if not cli:
-        parser.error("installed global openmates executable missing")
+        parser.error("openmates CLI executable missing")
     receipt: dict = {"status": "started", "target": API_URL, "session": args.session, "cases": []}
-    leases, stop, guard = [], threading.Event(), None
+    leases, stop, guard, real_account = [], threading.Event(), None, None
     old_umask = os.umask(0o077)
     try:
         state.mkdir(mode=0o700)
@@ -287,8 +303,12 @@ def main() -> int:
         os.environ.update(OPENMATES_STATE_DIR=str(state), OPENMATES_PROFILE="", OPENMATES_API_URL=API_URL)
         for key in ("OPENMATES_API_KEY", "OPENMATES_CLI_HOME", "OPENMATES_CLI_SESSION_PATH"):
             os.environ.pop(key, None)
-        login_env = personal_test_environment()
-        leases = personal_test_leases(args.session)
+        # Personal dev test account when free, else a throwaway account for this run.
+        import dev_test_account
+        real_account = dev_test_account.acquire_real_test_account(
+            "press-release-personal", args.session, "press-release", stack_timeout=120)
+        login_env, leases = real_account.environment, real_account.leases
+        receipt["account_role"] = "personal_dev_test" if real_account.kind == "personal" else "throwaway_dev_test"
 
         def renew() -> None:
             while not stop.wait(sessions.DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS):
@@ -318,8 +338,11 @@ def main() -> int:
         if guard is not None:
             from personal_dev_draft_guard import record_leftovers
             record_leftovers(receipt, guard)
-        for lease_id, *_ in reversed(leases):
-            sessions.release_test_resource_lease(lease_id)
+        if real_account is not None:
+            account_receipt = dev_test_account.finish_real_test_account(real_account)
+            receipt["account_cleanup"] = account_receipt
+            if account_receipt.get("lease_release_failed") or account_receipt.get("delete", {}).get("status") == "failed":
+                receipt["status"] = "failed"
         shutil.rmtree(state, ignore_errors=True)
         os.umask(old_umask)
         if out.is_dir():

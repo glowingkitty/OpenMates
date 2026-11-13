@@ -54,6 +54,8 @@ pub use browser::{OriginalHintRefreshAdmission,OriginalHintRefreshBatch,Original
 mod consent;
 mod selected_first_page;
 mod context;
+mod project_memories;
+mod send_project_binding;
 mod direct;
 mod docs;
 mod browser_draft;

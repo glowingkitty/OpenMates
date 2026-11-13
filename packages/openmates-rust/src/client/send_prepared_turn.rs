@@ -125,7 +125,17 @@ impl Client {
         }
         let wait_ai = should_wait_for_ai(&prepared.text, team.as_deref());
         turn_scope.check_chat(self,id)?;
-        let project_context=Plain::new(if new_chat||!wait_ai{json!({})}else{self.active_project_context(id,&prepared.text).await?});
+        // An explicit Project (`--project`) is bound before context collection,
+        // so a new chat's first turn already carries that Project's context.
+        let bound_project = match &options.project_id {
+            Some(project) if wait_ai => {
+                self.bind_project_for_send(ws, id, project, new_chat, wrapped, team.as_deref(), cancel).await?;
+                turn_scope.check_chat(self,id)?;
+                true
+            }
+            _ => false,
+        };
+        let project_context=Plain::new(if (new_chat&&!bound_project)||!wait_ai{json!({})}else{self.active_project_context(id,&prepared.text).await?});
         turn_scope.check_chat(self,id)?;
         let recovery = crypto::recovery_keypair(key, id, 1)?;
         let created = now_ms() / 1000;

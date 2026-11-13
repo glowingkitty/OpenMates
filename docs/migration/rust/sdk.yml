@@ -221,12 +221,12 @@ capabilities:
     gaps: 4
   npm:
     status: partial
-    api_symbols: 196
+    api_symbols: 200
     conformance: true
     gaps: 3
   python:
     status: partial
-    api_symbols: 99
+    api_symbols: 101
     conformance: true
     gaps: 3
 - id: sdk.benchmark

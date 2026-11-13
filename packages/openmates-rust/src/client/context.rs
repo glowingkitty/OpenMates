@@ -1,4 +1,5 @@
-//! Fresh owner-scoped Project routing and selected encrypted context documents.
+//! Fresh owner-scoped Project routing, selected encrypted context documents
+//! and the active Project's Memories (`project_memories`) for one send.
 use super::sync::decrypt_optional;
 use super::sync_capability::AsyncCryptoScope;
 use super::plaintext::Plain;
@@ -76,6 +77,7 @@ impl Client {
         let mut candidates = ContextValues::default();
         let mut catalog = ContextValues::default();
         let mut targets = BTreeMap::new();
+        let mut memory_rows = Vec::new();
         for row in detail["items"].as_array().ok_or(Error::Protocol)? {
             if !["embed", "upload"].contains(&text(row, "item_type"))
                 || text(row, "encrypted_metadata").is_empty()
@@ -98,6 +100,13 @@ impl Client {
                     .any(|s| s.is_empty() || *s == "." || *s == ".." || s.contains('\0'))
                 || !(path.ends_with(".md") || path.ends_with("/SKILL.md"))
             {
+                continue;
+            }
+            // Project Memories are sent whole, not chosen by relevance (web
+            // `collectCustomRuleDocuments`); they never become selection candidates.
+            if super::project_memories::is_project_memory_path(path) {
+                let item_id = required(row, "project_item_id")?.to_owned();
+                memory_rows.push(super::project_memories::ProjectMemoryRow{item_id,row:row.clone(),revision:revision(row),path:path.to_owned()});
                 continue;
             }
             let kind = match parts[1] {
@@ -201,6 +210,13 @@ impl Client {
             }
             chars += doc.len();
             match kind{"focus"=>focus_docs.push(json!({"item_id":item_id,"document":doc.as_str(),"revision":candidate["revision"]})),"rule"=>rules.push(json!({"id":item_id,"source":"project","project_id":id,"document":doc.as_str(),"item_revision":candidate["revision"]})),_=>context_docs.push(json!({"item_id":item_id,"kind":kind,"title":candidate["title"],"description":candidate["description"],"document":doc.as_str(),"revision":candidate["revision"]}))}
+        }
+        if !memory_rows.is_empty() {
+            if self.current_project_focus(&scope, chat_id).await? != active {
+                return Err(Error::Cancelled);
+            }
+            let loaded = self.project_memory_documents(&scope, chat_id, &id, memory_rows, &key).await?;
+            rules.0.extend(loaded);
         }
         if self.current_project_focus(&scope, chat_id).await? != active {
             return Err(Error::Cancelled);

@@ -293,6 +293,9 @@ fn options(invocation: &Invocation, interactive: bool) -> Result<SendOptions, Cl
         "slug",
         "response-timeout-seconds",
         "no-pii-detection",
+        // Full Project UUID; the core stores a new chat, then activates the
+        // Project's default focus before this turn's context is collected.
+        "project",
     ];
     if invocation.command_path() == "chats send" {
         allowed.extend(super::send_machine::FLAGS);
@@ -330,6 +333,8 @@ fn options(invocation: &Invocation, interactive: bool) -> Result<SendOptions, Cl
         .transpose()?;
     let options = SendOptions {
         slug: super::task_input::text(invocation, "slug")?.map(str::to_owned),
+        project_id: super::task_input::text(invocation, "project")?
+            .map(|project| project.trim().to_ascii_lowercase()),
         task_update_jobs: !invocation.boolean("no-task-update-jobs"),
         // The CLI renders the created-Project card and offers `projects undo-create`.
         project_create_requests: true,
@@ -373,7 +378,7 @@ fn options(invocation: &Invocation, interactive: bool) -> Result<SendOptions, Cl
     Ok(options)
 }
 fn volatile_options(invocation: &Invocation, options: &SendOptions) -> Result<(), CliError> {
-    if invocation.has("personal") || invocation.has("team") {
+    if invocation.has("personal") || invocation.has("team") || invocation.has("project") {
         return Err(CliError::Unsupported {
             command: invocation.command_path(),
             reason:
@@ -687,15 +692,22 @@ mod tests {
                         Err(CliError::Invalid(_))
                     ));
                 }
-                for unported in [
-                    vec!["--project", "synthetic"],
-                    vec!["--accept-task-proposals"],
-                ] {
-                    assert!(matches!(
-                        options(&parse(&unported), false),
-                        Err(CliError::Unsupported { .. })
-                    ));
-                }
+                assert!(matches!(
+                    options(&parse(&["--accept-task-proposals"]), false),
+                    Err(CliError::Unsupported { .. })
+                ));
+                // A Project is bound by its full UUID only.
+                assert!(matches!(
+                    options(&parse(&["--project", "synthetic"]), false),
+                    Err(CliError::Invalid(_))
+                ));
+                assert_eq!(
+                    options(&parse(&["--project", "11111111-1111-4111-8111-11111111111A"]), false)
+                        .unwrap_or_else(|e| panic!("{e}"))
+                        .project_id
+                        .as_deref(),
+                    Some("11111111-1111-4111-8111-11111111111a")
+                );
                 // Anonymous new/send share options(), but cannot silently
                 // ignore a selected scope once volatile admission is chosen.
                 assert!(matches!(
@@ -919,12 +931,11 @@ mod tests {
                 .unwrap_or_else(|e| panic!("{e}"))
                 .incognito
         );
-        for flag in ["project", "accept-task-proposals"] {
-            assert!(matches!(
-                options(&invocation(&[(flag, json!(true))]), false),
-                Err(CliError::Unsupported { .. })
-            ));
-        }
+        assert!(matches!(
+            options(&invocation(&[("accept-task-proposals", json!(true))]), false),
+            Err(CliError::Unsupported { .. })
+        ));
+        assert!(options(&invocation(&[("project", json!(true))]), false).is_err());
         assert!(
             options(&invocation(&[("slug", json!("chat"))]), false)
                 .unwrap_or_else(|e| panic!("{e}"))
