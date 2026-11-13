@@ -92250,7 +92250,7 @@ assertions:
     direct_tests:
     - &id11598
       path: frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
-      line: 125
+      line: 122
       name: a spawned chat reports back during a call and its report is interpreted
         once, spoken without cutting off other speech
       surface: gui.web
@@ -92361,7 +92361,7 @@ assertions:
     direct_tests:
     - &id11612
       path: frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
-      line: 125
+      line: 122
       name: a spawned chat reports back during a call and its report is interpreted
         once, spoken without cutting off other speech
       surface: gui.web
@@ -92548,7 +92548,7 @@ assertions:
     direct_tests:
     - &id11626
       path: frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
-      line: 125
+      line: 122
       name: a spawned chat reports back during a call and its report is interpreted
         once, spoken without cutting off other speech
       surface: gui.web
@@ -189454,7 +189454,7 @@ assertions:
     direct_tests:
     - &id24097
       path: frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
-      line: 125
+      line: 122
       name: a spawned chat reports back during a call and its report is interpreted
         once, spoken without cutting off other speech
       surface: gui.web

@@ -4,7 +4,8 @@
 
 Generates the spoken question with text-to-speech (dev ``api`` container, script
 backend/scripts/generate_voice_call_speaker_audio.py) as one WAV: short lead silence,
-a question about penguins and 60 s of silence (Chromium loops it). The spawned chat is started by a request
+90 s of silence, a question about penguins and 90 s of silence (Chromium loops it from
+the moment the call opens the microphone). The spawned chat is started by a request
 typed during the call; the spec unmutes only while the question should be heard. Runs frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
 against https://app.dev.openmates.org with the personal dev test account; Chromium plays
 the WAV as its microphone. Same harness as scripts/voice_call_web_real_test.py.
@@ -35,9 +36,11 @@ GENERATOR = ROOT / "backend/scripts/generate_voice_call_speaker_audio.py"
 API_CONTAINER = "api"
 SLUG = "chat-report-spoken"  # keep in sync with SLUG in the spec
 QUESTION = "Tell me one fun fact about penguins."
-# Chromium loops the fake-microphone file from browser start; the spec mutes at once and
-# unmutes only for the question, so a long silent tail keeps it from repeating early.
-TAIL_SECONDS = 60.0
+# Chromium starts the fake-microphone file when the call opens the microphone and loops it.
+# The long lead lets the spec mute, start the spawned chat and unmute before the question
+# plays; the long tail keeps the question from repeating while the spec waits.
+LEAD_SECONDS = 90.0
+TAIL_SECONDS = 90.0
 PATTERNS = (("heard", r"heard: ([^\n]+)"),
             ("events", r"event notices: ([^\n]+)"),
             ("played_audio", r"played audio: ([^\n]+)"),
@@ -60,20 +63,21 @@ def read_pcm(data: bytes) -> tuple[tuple[int, int, int], bytes]:
 
 
 def generate_speech(directory: Path) -> dict[str, float]:
-    """Write chat-report-spoken.wav = short lead silence + the spoken question + silence; looped by Chromium; returns the section seconds.
+    """Write chat-report-spoken.wav = lead silence + the spoken question + silence; looped by Chromium; returns the section seconds.
 
-    The spawned chat is started by a typed request before the call: speech-to-text dropped
+    The spawned chat is started by a request typed during the call: speech-to-text dropped
     or split the spoken start-chat request too often for a reliable proof.
     """
     (channels, width, rate), question = read_pcm(synthesize(QUESTION, lead=1.0, tail=0.0))
+    lead = b"\x00" * (int(LEAD_SECONDS * rate) * channels * width)
     silence = b"\x00" * (int(TAIL_SECONDS * rate) * channels * width)
     with wave.open(str(directory / f"{SLUG}.wav"), "wb") as out:
         out.setnchannels(channels)
         out.setsampwidth(width)
         out.setframerate(rate)
-        out.writeframes(question + silence)
+        out.writeframes(lead + question + silence)
     frame = channels * width * rate
-    return {"question": len(question) / frame, "tail": TAIL_SECONDS}
+    return {"lead": LEAD_SECONDS, "question": len(question) / frame, "tail": TAIL_SECONDS}
 
 if __name__ == "__main__":
     if any(os.getenv(key) for key in ("CI", "GITHUB_ACTIONS", "BUILDKITE", "GITLAB_CI")):

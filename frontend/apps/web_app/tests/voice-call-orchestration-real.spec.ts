@@ -8,8 +8,8 @@
  * A voice call starts in a new chat with the microphone muted at once; a request typed during the
  * call starts a spawned main chat that searches the web and reports back (speech-to-text dropped or
  * split a spoken start-chat request too often for a reliable proof). One WAV is the fake
- * microphone: a question about penguins and 60 s of silence, looped by Chromium; the spec unmutes
- * only while the question should be heard.
+ * microphone: 90 s of silence, a question about penguins and 90 s of silence, looped by Chromium from
+ * the moment the call opens the microphone; the spec mutes at once and unmutes for the question.
  * Checked: the spawned chat appears with its started notice; the unrelated spoken question is
  * answered and spoken here, without writing to the spawned chat; the report/finished notices
  * arrive during the call; exactly one automatic interpreting assistant message follows them, is
@@ -61,16 +61,18 @@ function installRecorders() {
   HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
     const entry: Played = { src: this.currentSrc || this.src || '', startedAt: -1, endedAt: -1, maxTime: 0, playing: false };
     w.__realVoice.played.push(entry);
+    // One element can be reused for the next track: a listener only follows its own source.
+    const own = () => !entry.src || !this.currentSrc || this.currentSrc === entry.src;
     this.addEventListener('playing', () => {
+      if (entry.startedAt >= 0 && !own()) return;
       entry.playing = true;
       entry.src = this.currentSrc || entry.src;
       if (entry.startedAt < 0) entry.startedAt = performance.now();
       entry.endedAt = -1;
     });
     const finish = () => { if (entry.playing) entry.endedAt = performance.now(); };
-    this.addEventListener('ended', finish);
-    this.addEventListener('pause', finish);
-    this.addEventListener('timeupdate', () => { entry.maxTime = Math.max(entry.maxTime, this.currentTime); });
+    for (const name of ['ended', 'pause', 'emptied', 'abort']) this.addEventListener(name, () => { if (own() || name === 'emptied') finish(); });
+    this.addEventListener('timeupdate', () => { if (own()) entry.maxTime = Math.max(entry.maxTime, this.currentTime); });
     return originalPlay.call(this);
   };
 }
@@ -102,11 +104,6 @@ async function chatShape(page: Page) {
   }, NOTICE);
 }
 
-/** True when every call speech track that started has also ended. */
-async function speechIdle(page: Page, since: number) {
-  const speech = (await recorded(page)).played.filter((e) => e.playing && e.startedAt >= since && !e.src.includes(ACK_ROOT));
-  return speech.every((e) => e.endedAt > e.startedAt);
-}
 
 // Worker-level launch options (fake microphone file) must be set at file level.
 test.use({
@@ -165,14 +162,15 @@ test.describe(`real voice call orchestration: ${SLUG}`, () => {
           .toBeGreaterThan(chatsBefore + 1);  // the creator chat and the spawned chat
         await expect.poll(() => page.getByTestId('message-assistant').count(), { timeout: 120_000,
           message: 'creator turn confirmed the start' }).toBeGreaterThanOrEqual(1);
-        await expect.poll(() => speechIdle(page, tCallStart), { timeout: 120_000, message: 'start confirmation spoken' }).toBe(true);
+        // The bar shows "Microphone muted" only while nothing is spoken and no turn is working.
+        await expect(status, 'start confirmation spoken, call idle').toHaveText('Microphone muted', { timeout: 150_000 });
         await snap(page, testInfo, `${SLUG}-01-started-notice`);
 
         // An unrelated spoken question while the spawned chat works is answered here.
         await mute.click();
         await expect(mute).toHaveAttribute('aria-pressed', 'false');
         const heardB = page.getByTestId('message-user').filter({ hasText: /penguin/i });
-        await expect(heardB).toHaveCount(1, { timeout: 120_000 });
+        await expect(heardB).toHaveCount(1, { timeout: 240_000 });  // at most one loop of the file
         log(`heard: ${(await heardB.first().textContent())?.trim()}`);
         if (await mute.isEnabled()) {
           await mute.click();  // the looped file must not repeat the question
