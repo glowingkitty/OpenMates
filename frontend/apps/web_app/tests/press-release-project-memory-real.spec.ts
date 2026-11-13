@@ -157,6 +157,12 @@ test.describe('Press style saved in Project Memories is reused (real inference, 
     test.setTimeout(1_800_000);
     test.skip(!getTestAccount().email, 'Test account credentials required.');
     await page.setViewportSize({ width: 1280, height: 900 });
+    // Counts-only client diagnostics for the Project Memory path, kept as test output.
+    const memoryLogs: string[] = [];
+    page.on('console', (message: { text(): string }) => {
+      const text = message.text();
+      if (/ruleDocumentService|Project Memories unavailable|Memory catalog unavailable/.test(text)) memoryLogs.push(text.slice(0, 300));
+    });
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
     await loginToTestAccount(page);
 
@@ -207,6 +213,7 @@ test.describe('Press style saved in Project Memories is reused (real inference, 
       await page.screenshot({ path: testInfo.outputPath('02-reuse-release.png') });
       await deleteActiveChat(page);
     } finally {
+      console.log(`[memory-logs] ${JSON.stringify(memoryLogs)}`);
       await deleteProject(page, projectId);
     }
   });

@@ -427,8 +427,15 @@ export async function collectCustomRuleDocuments(input: {
   const personal: CustomRuleDocument[] = [];
   const focus = await (input.initialFocus ? input.initialFocus() : getActiveProjectFocus(input.chatId));
   if (!get(authStore).isAuthenticated || get(userProfile).user_id !== owner) return [];
-  if (!focus || input.projectId && focus.project_id !== input.projectId) return personal;
-  const project = await listProjectRuleDocuments({ chatId: input.chatId, projectId: focus.project_id });
+  if (!focus || input.projectId && focus.project_id !== input.projectId) {
+    console.info('[ruleDocumentService] Project memories skipped', { focus: Boolean(focus) });
+    return personal;
+  }
+  const project = await listProjectRuleDocuments({ chatId: input.chatId, projectId: focus.project_id }).catch((error: unknown) => {
+    // Rethrown: the caller decides; logged so a failed Project Memory read is visible.
+    console.warn('[ruleDocumentService] Project memories could not be listed', error instanceof Error ? error.message : error);
+    throw error;
+  });
   try { await deleteExpiredProjectMemories({ projectId: focus.project_id, teamId: focus.team_id, documents: project }); }
   catch (error) { console.warn('[ruleDocumentService] Project memory expiry sweep skipped', error); }
   const fresh = await getActiveProjectFocus(input.chatId);
@@ -447,6 +454,11 @@ export async function collectCustomRuleDocuments(input: {
     chars += document.length;
   }
   const validated = validateRuleCatalog(bounded);
+  // Counts only: which Project Memories this send carries as bodies or catalog rows.
+  console.info('[ruleDocumentService] Project memories', {
+    listed: project.length, current, bodies: bounded.length,
+    askFirst: project.filter((item) => item.id && parseRuleDocument(item.document).load_mode === 'ask_first').length,
+  });
   if (current) askFirstProjectDocuments.set(validated, project.filter((item) => item.id
     && parseRuleDocument(item.document).load_mode === 'ask_first'));
   return validated;

@@ -2615,6 +2615,9 @@ export async function sendNewMessageImpl(
 				payload[fields[index]] = result.value as unknown as Array<Record<string, unknown>>;
 			}
 		}
+		if (collected[0].status === 'rejected') {
+			console.warn('[ChatSyncService:Senders] Project Memories unavailable for this send', collected[0].reason);
+		}
 		const projectMemoryDocs = collected[0].status === 'fulfilled' ? collected[0].value : [];
 		const memoryCatalog = await collectMemoryCatalogForSend(projectMemoryDocs);
 		if (!sendContextStillCurrent()) return;
