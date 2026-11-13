@@ -30,6 +30,7 @@ SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 import daily_meeting_context as context  # noqa: E402 - sibling scripts, path set above
 import mac_reminders  # noqa: E402
+import daily_meeting_growth  # noqa: E402
 
 TZ = ZoneInfo("Europe/Berlin")
 PHASE_ANCHOR = date(2026, 11, 2)  # Monday of the first Marketing Week; weeks alternate
@@ -202,7 +203,14 @@ rough share that served the milestone ("about a third of the work served the pre
 rest went into …"), name the drift plainly and say where the time went instead. Work the founder \
 has approved to run on its own in the background (the Rust rewrite and any migration named in the \
 phase rules or the agreed adjustments) is named separately and does not count as drift. If the \
-previous decisions note has a `Drift:` line, say whether it got better or worse. Then ask \
+previous decisions note has a `Drift:` line, say whether it got better or worse. Then the \
+**growth numbers** (about one minute, plain language, rounded, never a list read aloud), from \
+"Marketing and growth numbers (production)": total users, new signups since the last meeting and \
+in the last 7 days, daily and weekly active users, new paying users and credit purchases, each with \
+its trend against the previous period ("signups went from 4 to 9", "paying users flat"). Relate them \
+to the current milestone ("the press wave goes out Wednesday; this week's signups are the baseline \
+it has to beat"). Small numbers are noise: say so instead of reading a trend into one or two signups. \
+If the section says the numbers are unavailable, say that in one sentence and never guess. Then ask \
 **exactly one** open question that lets the founder draw the conclusion ("what does that tell you \
 about today?"); do not answer it for them and do not bring the point up again later in the meeting.
   - **Block 2 — Safety net.** If the briefing opens with a ⚠ warning that the OpenMates \
@@ -479,6 +487,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     else:
         out += ["", "**Claude subscription:** weekly usage unavailable (see data gaps)."]
     out += _alerts_section(ev.get("alerts") or {})
+    out += daily_meeting_growth.render(ev.get("growth"))
     out += _waiting_section(ev.get("waiting_chats") or {})
     product = ev.get("product") or {}
     if product:

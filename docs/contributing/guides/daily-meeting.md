@@ -88,6 +88,22 @@ Data comes from `backend/scripts/debug.py` via `scripts/daily_meeting_health.py`
 title, age and status are kept; contact emails and share links (which carry chat keys) are never
 included. The meeting discusses production reports before planning the day's focus.
 
+## Marketing and growth numbers (production only)
+
+After the Alerts, the briefing shows aggregate production counts: total users, new signups since the
+last meeting and in the last 7 days (with signups started but not finished), daily and weekly active
+users, new paying users and credit purchases, each against the equally long period before. Dev data is
+never used. `scripts/daily_meeting_growth.py` calls the read-only admin endpoint
+`POST /v1/admin/debug/growth-metrics` (`backend/core/api/app/routes/admin_growth_metrics.py`) through
+`backend/scripts/growth_metrics_query.py` in the api container (admin API key from Vault). The endpoint
+writes nothing and returns counts only. Left out completely: admins and the server's configured test
+accounts (server side), plus every email found in the dev server's `.env` and in the private
+`logs/daily-meetings/growth-excluded-emails.txt` (one email per line; add the founder's other accounts
+there). Only SHA-256 hashes of those emails are sent. Active users come from the last session check,
+so each run stores an aggregate snapshot in `logs/daily-meetings/growth-history.json` and compares with
+the previous one. Claude reports the numbers in about one minute in Block 1's drift check and relates
+them to the current milestone.
+
 ## Privacy of meeting data
 `logs/` is gitignored: briefings, contexts, decision notes and the reminder caches never enter the repository. Before writing reminders, always sync from the Mac first and work from that live list.
 
@@ -126,7 +142,9 @@ meeting with the current milestone, states the rough share of the work that serv
 drift and where the time went, and asks exactly one question that lets the founder draw the
 conclusion. Background work the founder approved to run on its own (the Rust rewrite, migrations named
 in the phase rules or the agreed adjustments) is named separately and does not count as drift. The
-result is the note's `Drift:` line, so the next meeting can say whether it got better or worse.
+result is the note's `Drift:` line, so the next meeting can say whether it got better or worse. Right
+after the drift share, Claude gives the production growth numbers in about one minute, with their trend,
+related to the milestone (small numbers are named as noise).
 
 ## Structured decisions note (reminder and Task tables)
 The note's `Reminder changes:` and `Task changes:` sections are tables, one row per change, with the exact

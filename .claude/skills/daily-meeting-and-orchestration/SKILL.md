@@ -147,5 +147,9 @@ The briefing's "Alerts" section (production and dev reported issues, repeating e
   ends with the daily drift check: share of the commits and chats since the last meeting that served
   the current milestone, drift named plainly, exactly one question, approved background migrations
   named separately. The milestone task gets the first work slot of the day.
+- Growth numbers: the briefing's "Marketing and growth numbers (production)" section (aggregate counts
+  from the read-only `/v1/admin/debug/growth-metrics` endpoint, admin/test/own accounts left out) is
+  reported in about one minute in the drift check, against the current milestone. More own accounts to
+  leave out go in the private `logs/daily-meetings/growth-excluded-emails.txt`.
 - Voice mode has no repo access: checks of the repo ("is bug X already fixed?") are done by
   the dev server when the note is applied, and the result goes into the closing summary.

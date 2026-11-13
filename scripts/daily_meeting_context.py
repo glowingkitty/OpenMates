@@ -391,6 +391,14 @@ def alerts(gaps: list[str]) -> dict:
     return daily_meeting_health.collect_alerts(gaps)
 
 
+def growth(root: Path, out: Path, since: datetime, day: str, gaps: list[str]) -> dict | None:
+    """Production growth counts, aggregate only (scripts/daily_meeting_growth.py)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import daily_meeting_growth  # noqa: E402 - sibling script, path set just above
+
+    return daily_meeting_growth.collect(root, out, since, day, gaps)
+
+
 def waiting(tasks: list[dict] | None, out: Path, now: datetime) -> dict:
     """Dev-server Claude chats whose last message came from the assistant (scripts/daily_meeting_waiting.py)."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -556,6 +564,7 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "tasks_status": tasks_status,
         "waiting_chats": waiting(tasks, out, now),
         "alerts": alerts(gaps),
+        "growth": growth(root, out, since, today, gaps),
         "goals": goals(root, out, tasks, now.astimezone(TZ).date()),
         "issues": issues,
         "cleanup": cleanup,
