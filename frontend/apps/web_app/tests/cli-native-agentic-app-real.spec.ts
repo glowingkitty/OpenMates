@@ -91,7 +91,7 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
   const browser = await chromium.launch({ headless: true, executablePath: process.env.PW_CHROMIUM || undefined });
   const binary = process.env.OPENMATES_NATIVE_CLI || '';
   expect(binary && fs.existsSync(binary), 'OPENMATES_NATIVE_CLI must name the native CLI binary').toBeTruthy();
-  for (const key of ['EMAIL', 'PASSWORD', 'OTP_KEY']) expect(process.env[`OPENMATES_PERSONAL_TEST_ACOUNT_${key}`]).toBeTruthy();
+  for (const key of ['EMAIL', 'PASSWORD', 'OTP_KEY']) expect(process.env[`OPENMATES_TEST_ACCOUNT_${key}`]).toBeTruthy();
   // Records the web part (chat, test result fullscreen, preview, Project folder) as the result video.
   const context = await browser.newContext({ baseURL: APP, viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2,
     recordVideo: { dir: info.outputPath('video'), size: { width: 1440, height: 1000 } } });
@@ -124,9 +124,9 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
   const projectIds = async () => collect(await run(['projects', 'list', '--personal', '--json']), ['project_id', 'projectId', 'id']);
   try {
     await loginToTestAccount(page, () => {}, async () => {}, { credentials: {
-      email: process.env.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL,
-      password: process.env.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD,
-      otpKey: process.env.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY,
+      email: process.env.OPENMATES_TEST_ACCOUNT_EMAIL,
+      password: process.env.OPENMATES_TEST_ACCOUNT_PASSWORD,
+      otpKey: process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY,
     } });
 
     // The pair login needs a terminal for the PIN prompt. `script` provides the
@@ -158,7 +158,7 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       await expect(pinDisplay.or(useTwoFactor).first()).toBeVisible({ timeout: 15_000 });
       if (await useTwoFactor.isVisible()) {
         await useTwoFactor.click();
-        await page.getByTestId('tfa-input').fill(generateTotp(process.env.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY, 0));
+        await page.getByTestId('tfa-input').fill(generateTotp(process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY, 0));
       }
       await expect(pinDisplay).toBeVisible({ timeout: 30_000 });
       const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '');

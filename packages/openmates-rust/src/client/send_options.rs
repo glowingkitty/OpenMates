@@ -13,8 +13,9 @@
 //! - `pii_detection`: controls local privacy preparation, never a model option.
 //! - `task_update_jobs`: controls socket capabilities and encrypted job execution;
 //!   disabling it must not report received jobs as successfully persisted.
-//! - `response_timeout_ms`: positive timeout up to one day for response and
-//!   confirmation waits. Bounded to prevent timer overflow/unbounded waits.
+//! - `response_timeout_ms`: positive idle timeout up to one day for response and
+//!   confirmation waits; each received turn frame restarts it, and a whole turn
+//!   is capped at one day. Bounded to prevent timer overflow/unbounded waits.
 //! - consent policies: `--auto-approve` / `--auto-approve-memories` explicitly
 //!   approve only fresh server-requested categories or the proposed batch.
 //! - `embeds`, `pii_exclusions`, `pii_mappings`: native-shell composer state

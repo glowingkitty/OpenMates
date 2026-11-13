@@ -882,7 +882,7 @@ specifications:
     version: 2
     status: draft
     path: features/projects
-    fingerprint: c8750a881a45fd8dfb27407476a410317f1d59437a55e96a710d18d9bcb963df
+    fingerprint: d8ab74575360c47dcdf5fb443521b5dadfdab1a3376a3365aad3a02d765929e1
     required_applies_to:
     - rest_api
     - cli
@@ -11829,7 +11829,19 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: 83c39432fb4ef461ef90ef09e955fcc75bff9de7d16ca8098856d3f6aa1d8f37
+    fingerprint: b3d978b1e6b183633fd40ffaf69de160d8a47fadb7b672c99cf8a3159c5ef8ac
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.agentic.long-turn-stays-online:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: 041b8da039746669b8648f918ca1b5d9a3f634ee447e90f8f4ec26af5391ff05
     required_applies_to:
     - rest_api
     - cli

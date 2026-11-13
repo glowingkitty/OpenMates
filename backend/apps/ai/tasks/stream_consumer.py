@@ -62,6 +62,7 @@ from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
 from backend.apps.ai.processing.agentic_context import attach_memory_receipt_assistant_id
+from backend.apps.ai.tasks.loose_application_files import split_loose_application_files
 from backend.apps.ai.processing.suggested_followup_stream import may_publish_suggested_followup
 from backend.apps.ai.sub_chat_orchestration import (
     build_sequential_child_prompt,
@@ -10652,6 +10653,36 @@ async def _consume_main_processing_stream(
                     )
         except Exception as e:
             logger.error(f"{log_prefix} Error creating early generated application parent embed: {e}", exc_info=True)
+
+    # Script sources written as unfenced `language:path` sections after the
+    # combined block would otherwise stay chat text, leaving the app without an
+    # entry script. Turn them into file embeds so the refresh below adds them.
+    if (
+        streaming_application_embed_id
+        and embed_service
+        and user_vault_key_id
+        and aggregated_response
+        and not was_revoked_during_stream
+    ):
+        loose_files, remaining_response = split_loose_application_files(
+            aggregated_response, _parse_generated_app_file_header
+        )
+        if loose_files:
+            await _create_application_preview_child_code_embeds(
+                files=loose_files,
+                embed_service=embed_service,
+                generated_code_file_embeds=generated_code_file_embeds,
+                request_data=request_data,
+                task_id=task_id,
+                user_vault_key_id=user_vault_key_id,
+                log_prefix=log_prefix,
+            )
+            aggregated_response = remaining_response
+            final_response_chunks = [aggregated_response]
+            logger.info(
+                f"{log_prefix} Recovered {len(loose_files)} unfenced application file(s) "
+                f"for application embed {streaming_application_embed_id}"
+            )
 
     # Files streamed after the streaming application parent was created are not in
     # its manifest yet. Re-publish the same parent embed with the complete file list.

@@ -700,9 +700,19 @@ assertions:
     and extend the same revision history; no second copy exists to synchronize. A raw diff block in an assistant reply that
     targets a Project-linked file never writes and is shown as not applied with code project_file_tool_required. The
     subfolder is an ordinary folder whose files are visible, and the application card is shown at the top of that folder
-    as the entry for starting and previewing the application.
+    as the entry for starting and previewing the application. Every file the assistant writes for the application is one
+    of these files, also script sources it sends after a combined file bundle or as unfenced language:path sections; none
+    of them stays chat text.
   depends_on:
   - models.ProjectItemLink
+  - examples.project_application_files
+- id: projects.agentic.long-turn-stays-online
+  type: behavior
+  must: A coding turn that writes, tests and fixes an application can run longer than the client response timeout. The
+    timeout counts silence, not turn length; every frame the client receives for the turn restarts it, and one turn ends
+    at the latest after one day. A turn whose server stays silent for the whole timeout still ends as Offline with its
+    recovery hint.
+  depends_on:
   - examples.project_application_files
 - id: projects.files.adopt-embed
   type: behavior

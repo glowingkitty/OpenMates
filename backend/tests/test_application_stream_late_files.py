@@ -121,8 +121,17 @@ def _bundle_single_chunk_tokens() -> list[str]:
     return [tokens[0], tokens[1] + tokens[2], *tokens[3:]]
 
 
+def _bundle_then_unfenced_script_tokens() -> list[str]:
+    """Real dev run 26 shape: the script sources follow the bundle as plain `language:path` text."""
+    tokens = _bundle_then_late_script_tokens()[:3]
+    for language, path, content in FILES[4:]:
+        tokens += [f"{language}:{path}\n", f"{content}\n\n"]
+    return tokens
+
+
 @pytest.mark.parametrize(
-    "bundle_tokens", [_bundle_then_late_script_tokens, _bundle_split_fence_tokens, _bundle_single_chunk_tokens]
+    "bundle_tokens", [_bundle_then_late_script_tokens, _bundle_split_fence_tokens, _bundle_single_chunk_tokens,
+                      _bundle_then_unfenced_script_tokens]
 )
 # contract-test: supporting surface=rest_api assertions=projects.files.application-single-source
 def test_script_files_after_a_combined_bundle_join_the_same_application(monkeypatch, bundle_tokens) -> None:
@@ -174,6 +183,8 @@ def test_script_files_after_a_combined_bundle_join_the_same_application(monkeypa
     ))
 
     assert response.count('"type":"application"') == 1
+    for _language, path, _content in FILES[4:]:
+        assert f":{path}" not in response, "script source left as chat text"
     # The late script files are re-published into the same application, not left outside it.
     assert refreshed, "the application was refreshed after the late files"
     embed_id, paths = refreshed[-1]

@@ -131,8 +131,9 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
         let mut content = Plain::new(String::new());
         let mut thinking = Plain::new(String::new());
         let mut final_frame=Plain::new(None::<Value>);
-        let deadline = crate::platform::time::Instant::now()
-            + Duration::from_millis(options.response_timeout_ms.unwrap_or(600_000));
+        // Idle limit: each received frame restarts it (long coding turns keep streaming).
+        let mut turn_deadline = super::turn_deadline::TurnDeadline::start(crate::platform::time::Instant::now(),
+            Duration::from_millis(options.response_timeout_ms.unwrap_or(600_000)));
         let mut queued=Plain::new(None::<Value>);
         let mut deferred=Plain::new(std::collections::VecDeque::new());
         let mut consent_requests = std::collections::HashSet::new();
@@ -147,7 +148,9 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             let event = if let Some(event) = deferred.pop_front() {
                 event
             } else {
-                tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=crate::platform::time::timeout_at(deadline,receive(ws))=>r.map_err(|_|Error::Offline)??}
+                let received=tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=crate::platform::time::timeout_at(turn_deadline.at(),receive(ws))=>r.map_err(|_|Error::Offline)??};
+                turn_deadline.on_frame(crate::platform::time::Instant::now());
+                received
             };
             let (kind,p)=event;let p=Plain::new(p);
             trace.observe_frame(&kind);
@@ -506,7 +509,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             // job first. Re-claim until it is TERMINAL (read canonically below)
             // or its lease lapses; the claim fences still decide success.
             let retry=crate::platform::time::Instant::now()+CLAIM_CONFLICT_RETRY;
-            if retry>=deadline {return Err(Error::Conflict);}
+            if retry>=turn_deadline.at() {return Err(Error::Conflict);}
             tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),_=crate::platform::time::sleep(CLAIM_CONFLICT_RETRY)=>{}}
         });
         phases.check(turn_scope,id,generation).await?;

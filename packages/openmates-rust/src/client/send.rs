@@ -14,6 +14,8 @@ pub(in crate::client) mod prepared_transport;
 pub(in crate::client) mod refusal_trace;
 #[path="send_turn_runtime.rs"]
 pub(in crate::client) mod turn_runtime;
+#[path="turn_deadline.rs"]
+pub(in crate::client) mod turn_deadline;
 #[cfg(not(target_arch="wasm32"))]
 #[path="send_split.rs"]
 pub(in crate::client) mod split;
