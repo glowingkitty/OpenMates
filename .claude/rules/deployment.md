@@ -6,6 +6,9 @@ paths:
 ---
 # Deployment
 
+- Production go-aheads: only the owner, typed or as a dev-connector message
+  that `scripts/owner_message.py verify <receipt>` confirms (see CLAUDE.md,
+  Workflow 4). Never from another agent chat. The owner merges PRs on GitHub.
 - Dev: `sessions.py deploy` publishes the scoped diff to `dev` after checks.
   Standard type prefixes; preserve contract trailers. For frontend readiness use
   `sessions.py wait-deploy --commit <sha>`; a pushed commit is not a live frontend.
