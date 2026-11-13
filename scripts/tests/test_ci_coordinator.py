@@ -1115,7 +1115,7 @@ class E2BRemote(Remote):
 
 
 class FakeE2B:
-    OVERFLOW_MODES = frozenset({"component", "pytest"})
+    OVERFLOW_MODES = frozenset({"component", "pytest", "e2e"})
 
     def __init__(self, free=True, accept=True, enabled=True):
         self.free = free
@@ -1129,8 +1129,9 @@ class FakeE2B:
     def available(self):
         return self.free
 
-    def start(self, repo, token, timeout_minutes, root):
+    def start(self, repo, token, timeout_minutes, root, *, mode="", specs=None):
         self.started.append((repo, token, timeout_minutes))
+        self.meta = {"mode": mode, "specs": specs}
         if not self.accept:
             return None
         return {
@@ -1142,12 +1143,12 @@ class FakeE2B:
         }
 
 
-def _overflow_queue(tmp_path, monkeypatch, fake, owner="dev", mode="component", max_active=1):
+def _overflow_queue(tmp_path, monkeypatch, fake, owner="dev", mode="component", max_active=1, spec="y.spec.ts"):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
     monkeypatch.setattr("scripts.ci_coordinator.e2b_module", lambda: fake)
     q = Queue(tmp_path / "queue.db", max_active=max_active, lightweight_reserve=0)
     q.enqueue("filler", "a" * 40, ["x.spec.ts"], mode="component")
-    q.enqueue(owner, "a" * 40, ["y.spec.ts"], mode=mode)
+    q.enqueue(owner, "a" * 40, [spec], mode=mode)
     return q
 
 
@@ -1210,9 +1211,36 @@ def test_daily_owner_and_unsupported_modes_never_overflow(tmp_path, monkeypatch)
     q.tick(remote, 100)
     assert fake.started == [] and len(remote.sent) == 1
     fake2 = FakeE2B()
-    q2 = _overflow_queue(tmp_path / "b", monkeypatch, fake2, mode="e2e")
+    q2 = _overflow_queue(
+        tmp_path / "b", monkeypatch, fake2, mode="vitest", spec="frontend/packages/ui/src/a.test.ts"
+    )
     q2.tick(E2BRemote(), 100)
     assert fake2.started == []
+
+
+# contract-test: tooling
+def test_e2e_overflows_only_after_its_preparation_succeeded(tmp_path, monkeypatch):
+    import sqlite3
+
+    fake = FakeE2B()
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    monkeypatch.setattr("scripts.ci_coordinator.e2b_module", lambda: fake)
+    q = Queue(tmp_path / "queue.db", max_active=1, lightweight_reserve=0)
+    q.enqueue("filler", "a" * 40, ["x.spec.ts"], mode="component")
+    preparation = {"key": "f" * 64, "harness_commit": "b" * 40, "cli": True, "upload": False}
+    producer = q.enqueue("dev", "a" * 40, [], "prepare", preparation=preparation)
+    consumer = q.enqueue("dev", "a" * 40, ["first.spec.ts"], preparation={**preparation, "id": producer["id"]})
+    remote = E2BRemote()
+    q.tick(remote, 100)
+    assert fake.started == []
+    assert q.status(consumer["id"])[0]["phase"] == "waiting for preparation"
+    with sqlite3.connect(tmp_path / "queue.db") as db:
+        db.execute("UPDATE jobs SET state='success',run_id=42 WHERE id=?", (producer["id"],))
+    q.tick(remote, 200)
+    assert len(fake.started) == 1
+    assert fake.meta == {"mode": "e2e", "specs": ["first.spec.ts"]}
+    sent = [job for job in remote.sent if job["id"] == consumer["id"]]
+    assert sent and sent[0]["prepared_run_id"] == 42 and sent[0].get("e2b_runner")
 
 
 # contract-test: tooling

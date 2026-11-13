@@ -14,7 +14,7 @@ scope:
     - Dev tooling only; agent-submitted isolated CI jobs of the dev server.
     - A pinned E2B template that runs the official GitHub Actions runner on Ubuntu 24.04 with Docker.
     - A launcher that registers a single-use just-in-time (JIT) runner per job and owns the sandbox for its lifetime, holding a slot of the shared dev E2B cap.
-    - Coordinator overflow for component and pytest jobs when hosted slots are full; e2e only after the Docker pilot.
+    - Coordinator overflow for component, pytest and (after the Docker pilot, owner-approved) e2e jobs when hosted slots are full.
     - Proof admission accepts the E2B runner only when GitHub's job metadata names the exact runner the coordinator registered for that job.
   out:
     - The product's own test execution (user-created E2E tests on E2B or remote machines).
@@ -186,6 +186,14 @@ decisions:
       slot the job waits for GitHub; it never runs on the dev server. The daily batch and Apple modes never overflow.
     reason: Owner keeps 30% of E2B for product usage.
     decided_at: '2026-11-13'
+  - id: D-4
+    status: active
+    decision: >
+      After the green pilot the owner added e2e to automatic overflow (receipt 5da53a7d01791c5a), within the 70% cap and the daily
+      budget. An e2e job overflows only once its preparation succeeded. Runs at 90% of the 8 GB sandbox or with a kernel OOM kill are
+      pushed to Discord and logged in memory-alerts.jsonl, naming mode and specs.
+    reason: Owner asked to watch peak memory on heavier specs and to hear about any that exceed 8 GB.
+    decided_at: '2026-11-13'
 attempts:
   - id: A-1
     task_id: TASK-1
@@ -202,7 +210,7 @@ attempts:
     recorded_at: '2026-11-13'
 handoff:
   current_task_id: TASK-3
-  next_action: Owner decides whether to turn on automatic overflow (logs/ci-coordinator/e2b-overflow.json).
+  next_action: Watch memory-alerts.jsonl and `ci_e2b_runner.py memory`; report specs that reach the 8 GB limit.
   command: python3 scripts/plan_validate.py docs/plans/ci-e2b-overflow-runners/plan.yml
   expected_outcome: Valid plan; component, pytest and e2e proven green on E2B runners.
   last_verified_commit: 934dbb9106296f987ee64836934936f58fd1573c

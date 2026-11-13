@@ -1223,7 +1223,8 @@ class Queue:
         """Start single-use E2B runners for jobs GitHub-hosted capacity left queued.
 
         Forced jobs (--runner e2b) always try E2B. Automatic overflow covers only
-        component/pytest jobs of non-daily owners that could run hosted; capacity
+        component/pytest/e2e jobs (ci_e2b_runner.OVERFLOW_MODES) of non-daily owners
+        that are ready (preparation done) and could run hosted; capacity
         is governed by ci_e2b_runner.available(). Nothing runs on the dev server;
         a refused start leaves the job queued for GitHub.
         """
@@ -1264,6 +1265,8 @@ class Queue:
                 job["token"],
                 e2b_timeout_minutes(job),
                 Path(__file__).resolve().parents[1],
+                mode=job["mode"],
+                specs=json.loads(job["specs"]),
             )
             if registration is None:
                 return

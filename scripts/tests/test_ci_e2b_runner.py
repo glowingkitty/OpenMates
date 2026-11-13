@@ -161,3 +161,37 @@ def test_overflow_switch_is_off_unless_enabled(tmp_path, monkeypatch):
     assert runner.overflow_enabled() is False
     (tmp_path / "e2b-overflow.json").write_text('{"enabled": true}')
     assert runner.overflow_enabled() is True
+
+
+# contract-test: tooling
+def test_memory_alert_only_near_the_sandbox_limit_or_on_oom():
+    calm = {"mode": "e2e", "specs": ["a.spec.ts"], "peak_memory_mb": 5201, "oom_kills": 0}
+    assert runner.memory_alert(calm) is None
+    near = {**calm, "peak_memory_mb": runner.MEMORY_ALERT_MB}
+    assert "a.spec.ts" in runner.memory_alert(near) and "8192 MB" in runner.memory_alert(near)
+    assert runner.memory_alert({**calm, "oom_kills": 1}) is not None
+
+
+# contract-test: tooling
+def test_launch_records_oom_and_reports_heavy_spec(tmp_path, monkeypatch, env):
+    class OomSandbox(FakeSandbox):
+        def _run(self, cmd, **kw):
+            if cmd == runner.OOM_PROBE:
+                return SimpleNamespace(stdout="2\n")
+            return super()._run(cmd, **kw)
+
+    posted = []
+    monkeypatch.setattr(runner.agent_question, "configured_value",
+                        lambda root, key: "https://hooks.example.org/x" if key == "DISCORD_WEBHOOK_DEV_NIGHTLY" else "")
+    monkeypatch.setattr(runner.discord_webhook, "post_message",
+                        lambda **kw: posted.append(kw) or {"message_id": "1"})
+    runner.write_state("openmates-e2b-t", mode="e2e", specs=["heavy.spec.ts"])
+    sandbox = OomSandbox(["run worker 7600", "exit noworker 3000"])
+    clock = Clock()
+    runner.run_launch(launch_args(tmp_path), create_sandbox=lambda *_a: sandbox, now=clock.now, sleep=clock.sleep)
+    state = runner.read_state("openmates-e2b-t")
+    assert state["oom_kills"] == 2 and state["peak_memory_mb"] == 7600
+    assert sandbox.killed and env["slot"].released
+    assert len(posted) == 1 and "heavy.spec.ts" in posted[0]["payload"]["content"]
+    alert = (tmp_path / "memory-alerts.jsonl").read_text().strip().splitlines()
+    assert len(alert) == 1 and '"notified": true' in alert[0]

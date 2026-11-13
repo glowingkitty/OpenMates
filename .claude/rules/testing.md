@@ -77,13 +77,16 @@ paths:
   `ci_coordinator.py wait <id>`. Never start a second scheduler, deploy before
   E2E, or use the shared dev stack for these tests.
   - E2B overflow: when the 20 GitHub-hosted slots are full, the coordinator
-    runs queued component and pytest jobs on a single-use E2B GitHub runner
+    runs queued component, pytest and e2e jobs (e2e once its preparation
+    succeeded) on a single-use E2B GitHub runner
     (`scripts/ci_e2b_runner.py`, label `openmates-e2b`), within the 70% dev
     E2B cap and daily budget; otherwise they wait for GitHub. Switch:
     `logs/ci-coordinator/e2b-overflow.json` `{"enabled": true}`. Evidence is
     admitted only when GitHub names the exact runner registered for that job.
     `submit --runner e2b` forces one job onto E2B (component, pytest, e2e;
-    never the daily batch).
+    never the daily batch). Runs at 90% of the 8 GB sandbox or with an OOM
+    kill go to Discord and `logs/ci-coordinator/e2b/memory-alerts.jsonl`;
+    `ci_e2b_runner.py memory` lists runs by peak memory.
 - Real AI inference: only on the dev server, never in CI. Deploy the candidate
   via the session helper first, use disposable Projects and isolated
   CLI state, select `@Gemini-3.8-Flash` (unless the user names another model)

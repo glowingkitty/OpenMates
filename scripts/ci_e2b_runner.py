@@ -33,15 +33,20 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import e2b_dev_capacity  # noqa: E402 - sibling module; path set up above
+import agent_question  # noqa: E402 - sibling module; path set up above
+import discord_webhook  # noqa: E402
+import e2b_dev_capacity  # noqa: E402
 import host_load_guard  # noqa: E402
 
 TEMPLATE_ALIAS = "openmates-ci-runner"
 RUNNER_LABEL = "openmates-e2b"
 RUNNER_VERSION = "2.338.2"
-OVERFLOW_MODES = frozenset({"component", "pytest"})
+OVERFLOW_MODES = frozenset({"component", "pytest", "e2e"})
 SANDBOX_CPUS = 8
 SANDBOX_MEMORY_MB = 8192
+# A run at 90% of sandbox memory, or with a kernel OOM kill, is reported to the owner.
+MEMORY_ALERT_MB = int(SANDBOX_MEMORY_MB * 0.9)
+ALERT_WEBHOOK_KEYS = ("DISCORD_WEBHOOK_DEV_NIGHTLY", "DISCORD_WEBHOOK_DAILY_MEETING")
 RUNNER_DIR = "/home/user/actions-runner"
 READY_WAIT_SECONDS = 20
 NO_JOB_SECONDS = 600
@@ -142,8 +147,11 @@ def spawn_launcher(argv: list[str], log: Path) -> subprocess.Popen:
 
 
 def start(repo: str, token: str, timeout_minutes: int, root: Path, *, no_job_seconds: int = NO_JOB_SECONDS,
-          ready_wait: float = READY_WAIT_SECONDS) -> dict | None:
-    """Register a JIT runner and start its sandbox. None when no sandbox could be started."""
+          ready_wait: float = READY_WAIT_SECONDS, mode: str = "", specs: list[str] | None = None) -> dict | None:
+    """Register a JIT runner and start its sandbox. None when no sandbox could be started.
+
+    `mode` and `specs` are recorded in the runner state so memory reports name the job.
+    """
     label = job_label(token)
     state_path(label).unlink(missing_ok=True)
     try:
@@ -160,7 +168,8 @@ def start(repo: str, token: str, timeout_minutes: int, root: Path, *, no_job_sec
     argv = [python, str(SCRIPT), "launch", "--repo", repo, "--label", label, "--runner-id", str(runner_id),
             "--timeout-minutes", str(timeout_minutes), "--config-file", str(cfg),
             "--no-job-seconds", str(no_job_seconds)]
-    write_state(label, state="starting", runner_id=runner_id, runner_name=runner_name, repo=repo)
+    write_state(label, state="starting", runner_id=runner_id, runner_name=runner_name, repo=repo,
+                mode=mode, specs=list(specs or []))
     launcher = spawn_launcher(argv, state_root() / f"{label}.log")
     deadline = time.monotonic() + ready_wait
     state: dict = {}
@@ -192,6 +201,9 @@ def runner_script() -> str:
     """Shell wrapper run in the sandbox: read the config, delete its file, run one job."""
     return (f"cd {RUNNER_DIR} && CFG=$(cat /home/user/.jit) && rm -f /home/user/.jit && "
             "(./run.sh --jitconfig \"$CFG\" > /home/user/runner.log 2>&1; echo $? > /home/user/runner.exit)")
+
+
+OOM_PROBE = "sudo -n dmesg 2>/dev/null | grep -ciE 'out of memory|oom-kill' || true"
 
 
 PROBE = ("if [ -f /home/user/runner.exit ]; then echo exit; else echo run; fi; "
@@ -268,7 +280,13 @@ def run_launch(args: argparse.Namespace, *, create_sandbox=None, now=time.monoto
     except sandbox_errors() as exc:
         write_state(label, reason=f"{type(exc).__name__}: {str(exc)[:200]}")
     finally:
+        oom_kills = 0
         if sandbox is not None:
+            try:
+                out = sandbox.commands.run(OOM_PROBE, timeout=30).stdout.strip()
+                oom_kills = int(out) if out.isdigit() else 0
+            except sandbox_errors() as exc:
+                print(f"ci_e2b_runner: OOM probe failed for {label}: {exc}", file=sys.stderr)
             try:
                 sandbox.kill()
             except sandbox_errors() as exc:
@@ -277,9 +295,35 @@ def run_launch(args: argparse.Namespace, *, create_sandbox=None, now=time.monoto
         seconds = now() - started
         cost = e2b_dev_capacity.record_spend(seconds, SANDBOX_CPUS, SANDBOX_MEMORY_MB) if sandbox is not None else 0.0
         slot.release()
-        write_state(label, state=final, seconds=round(seconds, 1), cost_usd=round(cost, 4),
-                    peak_memory_mb=peak_mb, ended=time.time())
+        state = write_state(label, state=final, seconds=round(seconds, 1), cost_usd=round(cost, 4),
+                            peak_memory_mb=peak_mb, oom_kills=oom_kills, ended=time.time())
+        report_memory(label, state)
     return 0 if final == "done" else 1
+
+
+def memory_alert(state: dict) -> str | None:
+    """Owner-facing alert text when a run reached the sandbox memory limit, else None."""
+    peak, oom = int(state.get("peak_memory_mb") or 0), int(state.get("oom_kills") or 0)
+    if peak < MEMORY_ALERT_MB and not oom:
+        return None
+    specs = ", ".join(state.get("specs") or []) or "unknown spec"
+    return (f"E2B CI runner at its memory limit: {state.get('mode') or 'unknown mode'} job ({specs}) peaked at "
+            f"{peak} of {SANDBOX_MEMORY_MB} MB, kernel OOM kills: {oom}. This spec may need a GitHub-hosted runner.")
+
+
+def report_memory(label: str, state: dict, *, post=None) -> bool:
+    """Append a memory alert to memory-alerts.jsonl and push it to Discord. True when an alert was raised."""
+    text = memory_alert(state)
+    if text is None:
+        return False
+    url = next((value for key in ALERT_WEBHOOK_KEYS if (value := agent_question.configured_value(
+        host_load_guard.canonical_root(), key))), "")
+    sent = (post or discord_webhook.post_message)(webhook_url=url, payload={"content": text}) if url else None
+    with (state_root() / "memory-alerts.jsonl").open("a") as out:
+        out.write(json.dumps({"at": time.time(), "label": label, "mode": state.get("mode", ""),
+                              "specs": state.get("specs", []), "peak_memory_mb": state.get("peak_memory_mb"),
+                              "oom_kills": state.get("oom_kills", 0), "notified": bool(sent)}) + "\n")
+    return True
 
 
 def create_e2b_sandbox(timeout_minutes: int, label: str):
@@ -338,6 +382,23 @@ def build_template() -> int:
     return 0
 
 
+def print_memory() -> int:
+    """Finished runs by peak memory, heaviest first, against the sandbox limit."""
+    rows = []
+    for path in state_root().glob("*.json"):
+        try:
+            data = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        if data.get("state") in ("done", "timeout", "failed") and data.get("peak_memory_mb"):
+            rows.append(data)
+    for data in sorted(rows, key=lambda item: -int(item["peak_memory_mb"])):
+        flag = "ALERT" if memory_alert(data) else "ok"
+        print(f"{data['peak_memory_mb']:>6} MB / {SANDBOX_MEMORY_MB}  {flag:<5}  {data.get('mode') or '-':<9}  "
+              f"oom={data.get('oom_kills', 0)}  {', '.join(data.get('specs') or []) or '-'}")
+    return 0
+
+
 def print_status() -> int:
     for path in sorted(state_root().glob("*.json")):
         print(path.stem, path.read_text())
@@ -349,6 +410,7 @@ def main(argv: list[str]) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
     sub.add_parser("template")
+    sub.add_parser("memory", help="finished runs by peak memory against the 8 GB sandbox limit")
     launch = sub.add_parser("launch")
     launch.add_argument("--repo", required=True)
     launch.add_argument("--label", required=True)
@@ -362,6 +424,8 @@ def main(argv: list[str]) -> int:
         signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
     if args.cmd == "status":
         return print_status()
+    if args.cmd == "memory":
+        return print_memory()
     if args.cmd == "template":
         return build_template()
     return run_launch(args)
