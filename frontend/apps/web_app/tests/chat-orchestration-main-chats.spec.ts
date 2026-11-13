@@ -28,18 +28,41 @@ import {
 } from './helpers/chat-test-helpers';
 import { skipWithoutCredentials } from './helpers/env-guard';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- the proof helper is CommonJS like in the other real specs
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
+
+const proofContract = defineVideoProof({
+	id: 'chat-orchestration-main-chats',
+	title: 'A chat starts another main chat, follows its work and receives its report',
+	surface: 'web',
+	devices: ['web-laptop'],
+	domain: 'app.dev.openmates.org',
+	transcript: [
+		{ id: 'started', text: 'The creator chat shows a Started chat event for the new chat.', checkpoint: 'creator-started-event', devices: ['web-laptop'] },
+		{ id: 'spawned', text: 'Tapping the event opens the spawned chat: the brief is its first message and it links back to its creator.', checkpoint: 'spawned-chat-opened', devices: ['web-laptop'] },
+		{ id: 'answer', text: 'The spawned chat answers the brief like any chat.', checkpoint: 'spawned-chat-answer', devices: ['web-laptop'] },
+		{ id: 'report', text: 'Back in the creator chat a report or finished event from the spawned chat appears.', checkpoint: 'creator-report-or-finished', devices: ['web-laptop'] }
+	],
+	assertions: [
+		{ id: 'chat_orchestration.started_event', checkpoint: 'creator-started-event', visual: 'A compact system event reads Started chat with the new chat title.', devices: ['web-laptop'] },
+		{ id: 'chat_orchestration.spawned_chat', checkpoint: 'spawned-chat-opened', visual: 'The spawned chat shows the brief as its first message and a Started from link.', devices: ['web-laptop'] },
+		{ id: 'chat_orchestration.answer', checkpoint: 'spawned-chat-answer', visual: 'An assistant answer listing kitchen floor tiles is visible in the spawned chat.', devices: ['web-laptop'] },
+		{ id: 'chat_orchestration.report', checkpoint: 'creator-report-or-finished', visual: 'The creator chat shows a Report from or finished event for the spawned chat.', devices: ['web-laptop'] }
+	],
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+});
 
 const PROMPT =
 	"Start a new chat titled 'Kitchen tile quotes' with the brief: list three kinds of kitchen floor tiles " +
 	'in one short sentence each, then report back to me.';
 
 // contract-test: direct surface=gui.web assertions=chat-orchestration.spawn.main-chat-is-normal,chat-orchestration.events.creator-system-events,chat-orchestration.report.creator-skill,chat-orchestration.status.automatic
-test('a chat starts another main chat, follows its work and receives its report', async ({
-	page
-}: {
-	page: any;
-}) => {
+test('a chat starts another main chat, follows its work and receives its report', async (
+	{ page }: { page: any },
+	testInfo: any
+) => {
 	attachConsoleListeners(page);
 	attachNetworkListeners(page);
 	test.slow();
@@ -47,6 +70,11 @@ test('a chat starts another main chat, follows its work and receives its report'
 
 	const log = createSignupLogger('CHAT_ORCHESTRATION');
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'chat-orchestration' });
+	const proof = createVideoProofRuntime(proofContract, {
+		device: 'web-laptop',
+		attach: testInfo.attach.bind(testInfo),
+		captureFrame: () => page.screenshot({ type: 'png' })
+	});
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 	await archiveExistingScreenshots(log);
 
@@ -65,6 +93,7 @@ test('a chat starts another main chat, follows its work and receives its report'
 		.first();
 	await expect(startedEvent).toBeVisible({ timeout: 240000 });
 	await screenshot(page, 'creator-started-event');
+	await proof.checkpoint('creator-started-event');
 
 	// Open the spawned chat: the brief is its first user message and it links back to the creator.
 	await startedEvent.click();
@@ -72,14 +101,21 @@ test('a chat starts another main chat, follows its work and receives its report'
 	await expect(page.getByTestId('message-user').first()).toContainText(/kitchen floor tiles/i, {
 		timeout: 60000
 	});
+	// The URL hash follows the opened chat through an async URL queue: wait for the spawned chat's id.
+	await expect
+		.poll(() => {
+			const id = chatIdOf(page.url());
+			return id && id !== creatorChatId ? id : null;
+		}, { timeout: 30000 })
+		.not.toBeNull();
 	const spawnedChatId = chatIdOf(page.url());
-	expect(spawnedChatId).toBeTruthy();
-	expect(spawnedChatId).not.toBe(creatorChatId);
 	await screenshot(page, 'spawned-chat-opened');
+	await proof.checkpoint('spawned-chat-opened');
 
 	await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
 	await expect(page.getByTestId('stop-processing-button')).not.toBeVisible({ timeout: 180000 });
 	await screenshot(page, 'spawned-chat-answer');
+	await proof.checkpoint('spawned-chat-answer');
 
 	// Back to the creator via the link: a report and/or finished event follows.
 	await page.getByTestId('chat-creator-link').click();
@@ -90,6 +126,7 @@ test('a chat starts another main chat, follows its work and receives its report'
 		.first();
 	await expect(followUp).toBeVisible({ timeout: 240000 });
 	await screenshot(page, 'creator-report-or-finished');
+	await proof.checkpoint('creator-report-or-finished');
 
 	// Cleanup: delete the creator chat, then the spawned chat.
 	await deleteActiveChat(page, log, screenshot);

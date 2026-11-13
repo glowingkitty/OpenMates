@@ -1472,7 +1472,6 @@ async function dispatchFastPersonalTurn(input: {
 			encrypted_chat_key: encryptedChatKey,
 			created_at: chat.created_at ?? message.created_at,
 			updated_at: chat.updated_at ?? message.created_at,
-			...orchestrationMetadata(chat, message),
 		};
 	}
 	assertCurrentAdmissionScope();
@@ -1620,7 +1619,7 @@ async function dispatchFastPersonalTurn(input: {
 	}
 }
 
-/** Creator link fields the server stores for a chat spawned by another chat. */
+/** Creator link fields of a spawned chat, sent on the storage package; the server verifies the start_chat job. */
 function orchestrationMetadata(
 	chat: { creator_chat_id?: string | null } | null | undefined,
 	message: { orchestration_job_id?: string },
@@ -3283,8 +3282,7 @@ export async function sendNewMessageImpl(
 				encrypted_title: chat?.encrypted_title ?? (await encryptWithChatKey("", chatKey)),
 				encrypted_chat_key: encryptedChatKey,
 				created_at: chat?.created_at ?? message.created_at,
-				updated_at: chat?.updated_at ?? message.created_at,
-				...orchestrationMetadata(chat, message)
+				updated_at: chat?.updated_at ?? message.created_at
 			};
 		}
 
@@ -4043,6 +4041,8 @@ export async function sendEncryptedStoragePackage(
 				last_edited_overall_timestamp: number;
 			};
 			task_id?: string;
+			creator_chat_id?: string;
+			orchestration_job_id?: string;
 		}
 		const metadataPayload: MetadataPayload = {
 			chat_id,
@@ -4060,7 +4060,10 @@ export async function sendEncryptedStoragePackage(
 				title_v: chat.title_v || 0, // Use title_v from updated chat (should be incremented)
 				last_edited_overall_timestamp: user_message.created_at
 			},
-			task_id
+			task_id,
+			// Creator link of a spawned chat: the server stores it after verifying the start_chat job.
+			// It must not go into the first-message preflight metadata, whose fields are a fixed set.
+			...orchestrationMetadata(chat, user_message)
 		};
 		if (
 			encryptedChatKey &&

@@ -92208,7 +92208,7 @@ assertions:
     direct_tests:
     - &id11596
       path: frontend/apps/web_app/tests/chat-orchestration-main-chats.spec.ts
-      line: 38
+      line: 62
       name: a chat starts another main chat, follows its work and receives its report
       surface: gui.web
     supporting_tests:
@@ -92282,7 +92282,7 @@ assertions:
     direct_tests:
     - &id11601
       path: frontend/apps/web_app/tests/chat-orchestration-main-chats.spec.ts
-      line: 38
+      line: 62
       name: a chat starts another main chat, follows its work and receives its report
       surface: gui.web
     - &id11602
@@ -92399,7 +92399,7 @@ assertions:
     direct_tests:
     - &id11613
       path: frontend/apps/web_app/tests/chat-orchestration-main-chats.spec.ts
-      line: 38
+      line: 62
       name: a chat starts another main chat, follows its work and receives its report
       surface: gui.web
     supporting_tests:
@@ -92434,7 +92434,7 @@ assertions:
     direct_tests:
     - &id11615
       path: frontend/apps/web_app/tests/chat-orchestration-main-chats.spec.ts
-      line: 38
+      line: 62
       name: a chat starts another main chat, follows its work and receives its report
       surface: gui.web
     supporting_tests:
