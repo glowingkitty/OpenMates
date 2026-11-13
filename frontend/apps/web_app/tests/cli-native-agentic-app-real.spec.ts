@@ -226,9 +226,6 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       const shown = await run(['chats', 'show', chatId, '--json']);
       const testResults = embedIdsOfType(shown, 'test_result');
       testResultId = testResults[testResults.length - 1] || '';
-      // `embeds versions list` needs an API key in the native CLI, so read
-      // versions upward from 1; the last readable one is the latest. Version 1
-      // must exist: its failure is reported.
       const readResult = async (id: string) => {
         // Without --version the CLI reads the embed's current content; a fresh
         // test result has no version history to walk.
@@ -314,7 +311,12 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       const card = page.locator('[data-testid="embed-preview"][data-skill-id="test_result"]').last();
       await expect.soft(card, 'test result card in chat').toBeVisible({ timeout: 90_000 });
       if (await card.isVisible()) {
-        await card.scrollIntoViewIfNeeded();
+        // Right after navigation the chat re-renders its messages while it
+        // syncs, replacing the card node; retry until it stays attached.
+        await expect(async () => {
+          await card.scrollIntoViewIfNeeded({ timeout: 5_000 });
+          await expect(card).toBeInViewport({ timeout: 2_000 });
+        }, 'test result card scrolled into view').toPass({ timeout: 60_000 });
         await page.screenshot({ path: info.outputPath('chat-test-result-card.png') });
         await card.getByTestId('result-preview-expand').click();
         const body = page.getByTestId('test-result-fullscreen-body');
