@@ -714,6 +714,13 @@ assertions:
     recovery hint.
   depends_on:
   - examples.project_application_files
+- id: projects.agentic.test-result-in-reply
+  type: behavior
+  must: Each test run the assistant starts in a coding turn produces a test result embed (status, step timeline and, for
+    browser tests, the recording) that is shown in the assistant reply that interprets the run, also when the model does
+    not link it itself, so every client shows the failing and the passing runs in the chat.
+  depends_on:
+  - examples.project_application_files
 - id: projects.files.adopt-embed
   type: behavior
   must: An existing chat embed the user may write is adopted into a Project they may write as one atomic, idempotent

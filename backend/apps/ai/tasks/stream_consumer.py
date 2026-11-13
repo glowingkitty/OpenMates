@@ -63,6 +63,7 @@ from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
 from backend.apps.ai.processing.agentic_context import attach_memory_receipt_assistant_id
 from backend.apps.ai.tasks.loose_application_files import split_loose_application_files
+from backend.apps.ai.tasks.result_embed_references import append_result_embed_references
 from backend.apps.ai.processing.suggested_followup_stream import may_publish_suggested_followup
 from backend.apps.ai.sub_chat_orchestration import (
     build_sequential_child_prompt,
@@ -10683,6 +10684,17 @@ async def _consume_main_processing_stream(
                 f"{log_prefix} Recovered {len(loose_files)} unfenced application file(s) "
                 f"for application embed {streaming_application_embed_id}"
             )
+
+    # Test results of the completed run are shown in the reply even when the
+    # model did not link them (they carry the run video and step timeline).
+    if request_data.completed_result_embed_ids and not was_revoked_during_stream:
+        referenced_response = append_result_embed_references(
+            aggregated_response or "", "test_result", request_data.completed_result_embed_ids
+        )
+        if referenced_response != aggregated_response:
+            aggregated_response = referenced_response
+            final_response_chunks = [aggregated_response]
+            logger.info(f"{log_prefix} Added completed test result embed reference(s) to the reply")
 
     # Files streamed after the streaming application parent was created are not in
     # its manifest yet. Re-publish the same parent embed with the complete file list.

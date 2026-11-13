@@ -82,6 +82,16 @@ def _project_file_reference_preview(
     )
 
 
+def completed_result_embed_ids(completed_results: list[dict[str, Any]]) -> list[str]:
+    """Test result embeds created by the completed runs, in run order, without repeats."""
+    ids: list[str] = []
+    for result in completed_results:
+        embed_id = result.get("test_result_embed_id") if isinstance(result, dict) else None
+        if isinstance(embed_id, str) and embed_id and embed_id not in ids:
+            ids.append(embed_id)
+    return ids
+
+
 def async_skill_continuation_key(task_id: str) -> str:
     """Return the cache key used to resume interpretation for an async skill task."""
     return f"{ASYNC_SKILL_CONTINUATION_KEY_PREFIX}:{task_id}"
@@ -765,6 +775,7 @@ async def dispatch_async_skill_continuation(
             original_request.original_user_message_id or original_request.message_id
         ),
         async_skill_task_id=async_task_id,
+        completed_result_embed_ids=completed_result_embed_ids(completed_results),
         preprocessing_resume_ref=original_request.preprocessing_resume_ref,
         recovery_inference_task_id=(
             original_request.recovery_task_id
