@@ -1256,6 +1256,9 @@
     "web-browse-real.spec.ts": {
       "next_action": "Real Jev/text-helper inference and E2B sessions: run only against dev with automatic chat routing, the isolated personal test profile, explicit shared-runtime lease and exact owned-source check. Account authentication is excluded from recordings; demo website credentials are public training fixtures. Never submit this provider-billed flow to isolated CI. Deterministic component and HTTP boundaries run in CI separately."
     },
+    "voice-call-real.spec.ts": {
+      "next_action": "Real voice calls (ElevenLabs speaker audio as the fake microphone, real Mistral speech-to-text, AI routing, skills and Mate speech): run only on the dev host through scripts/voice_call_web_real_test.py with the personal-dev lease and explicit paid opt-in. Never submit this provider-billed flow to isolated CI; voice-call.spec.ts covers the deterministic call contract there."
+    },
     "anonymous-cli-skill.spec.ts": {
       "dependency": "official_cloud_eligibility_and_billing",
       "next_action": "Run the public anonymous skill boundary against an isolated official-cloud billing profile. The portable self-host runner intentionally returns 404 for this cloud-only route.",

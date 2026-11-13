@@ -673,6 +673,7 @@ interface NativeVoiceInputEvidence {
   nativeTracks: MediaStreamTrack[];
   outputTracks: MediaStreamTrack[];
   contexts: AudioContext[];
+  pageContexts: AudioContext[];
   localToneStarts: number;
   samples: number;
   sampleRate: number;
@@ -696,7 +697,7 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const state: NativeVoiceInputEvidence = {
       speechPrimes: [], speechAcknowledgementPosts: [], speechAudioId: () => 0,
-      nativeTracks: [], outputTracks: [], contexts: [], localToneStarts: 0, samples: 0, sampleRate: 0,
+      nativeTracks: [], outputTracks: [], contexts: [], pageContexts: [], localToneStarts: 0, samples: 0, sampleRate: 0,
       capturedSpeech: false, capturedQuietSamples: 0,
       captureRequests: 0, interruptOnPermission: false, permissionInterruptions: 0, speechReady: false, playing: false, workersCreated: 0,
       workersTerminated: 0, detectorReady: 0, readyUploadedSamples: 0, error: false, play: () => {},
@@ -734,7 +735,12 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
     window.AudioContext = new Proxy(NativeAudioContext, {
       construct(Target, args) {
         const context: AudioContext = Reflect.construct(Target, args);
-        state.contexts.push(context);
+        // Event sounds open one page-lifetime output from the capture-phase
+        // pointerdown/keydown unlock (services/eventSounds.ts), before the click
+        // that starts a call. It is not call audio, so call cleanup never owns it.
+        const eventType = (window.event as Event | undefined)?.type;
+        if (eventType === 'pointerdown' || eventType === 'keydown') state.pageContexts.push(context);
+        else state.contexts.push(context);
         // Observe genuine local WebAudio cue output without replacing its sound
         // implementation or exposing product-only diagnostic hooks.
         const createOscillator = context.createOscillator.bind(context);
@@ -1531,6 +1537,27 @@ async function sendCameraCallText(page: Page, text: string): Promise<string> {
 }
 
 test.describe('Voice mode through ordinary chat', () => {
+  // The first-call privacy case resets this job's shared account to "must ask".
+  // Restore the saved acknowledgement even when that case fails, so later cases
+  // never start behind the consent notice.
+  let voiceAcknowledgementResetPending = false;
+  test.afterEach(async ({page}) => {
+    if (!voiceAcknowledgementResetPending) return;
+    voiceAcknowledgementResetPending = false;
+    const restored = await page.evaluate(async apiUrl => {
+      // One retry covers a pending isolated fail_next_write fixture.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const response = await fetch(`${apiUrl}/v1/settings/voice-processing-ack`, {
+          method: 'POST', credentials: 'include', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({version: 3}),
+        });
+        if (response.ok && (await response.json()).acknowledged === true) return true;
+      }
+      return false;
+    }, process.env.PLAYWRIGHT_TEST_API_URL!);
+    expect(restored, 'restore the saved voice processing acknowledgement for later cases').toBe(true);
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.chat.project-context,video-call.audio.single-owner,video-call.audio.complete-turn-admission,projects.lifecycle.encrypted-crud
   test('registers an unsent personal Project chat before opening its voice call',async({page},testInfo)=>{
     test.setTimeout(120_000);
@@ -1889,6 +1916,7 @@ test.describe('Voice mode through ordinary chat', () => {
       expect(voiceFrames(await evidence(page),'start')).toHaveLength(0);
     };
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    voiceAcknowledgementResetPending = true;
     await configure('reset');
     expect(await profileAcknowledgement()).toEqual({ok:true,versionValid:true,acknowledged:false,timestampValid:false});
     await page.locator('[data-testid="voice-call-start"]:visible').click();
