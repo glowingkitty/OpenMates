@@ -1381,6 +1381,9 @@ async function dispatchFastPersonalTurn(input: {
 			chat_has_title: (chat.title_v ?? 0) > 0,
 			current_chat_title_v: chat.title_v ?? 0,
 			current_chat_metadata_v: chat.metadata_v ?? chat.title_v ?? 0,
+			// A creator-sent message (spawned chat brief or follow-up) names its job so the
+			// server does not classify it as typed by the user.
+			...(message.orchestration_job_id ? { orchestration_job_id: message.orchestration_job_id } : {}),
 		},
 	};
 	const expectedMessagesVersion = predecessorVersion ?? preflightExpectedMessagesVersion(chat.messages_v);

@@ -25,6 +25,21 @@ describe("historical sealed embed source", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery
+  it("recovers embeds of hyphenated skills like the server's store_embed catalog check", async () => {
+    const started = encode({ type: "app_skill_use", app_id: "openmates", skill_id: "start-chat" });
+    expect(await catalogContextFromSealedEmbed(started, undefined, undefined)).toEqual({
+      app_id: "openmates", skill_id: "start-chat",
+    });
+    expect(await catalogContextFromSealedEmbed("{}", "openmates", "report-to-creator")).toEqual({
+      app_id: "openmates", skill_id: "report-to-creator",
+    });
+    await expect(catalogContextFromSealedEmbed("{}", "open-mates", "start-chat"))
+      .rejects.toThrow(/catalog identity/);
+    await expect(catalogContextFromSealedEmbed("{}", "openmates", "-start"))
+      .rejects.toThrow(/catalog identity/);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery
   it("creates only an unwritten v1 snapshot after the bounded read's exact missing-snapshot conflict", () => {
     expect(isUnwrittenInitialDiffRead(409, "snapshot_required", 1)).toBe(true);
     expect(isUnwrittenInitialDiffRead(409, "snapshot_required", 2)).toBe(false);

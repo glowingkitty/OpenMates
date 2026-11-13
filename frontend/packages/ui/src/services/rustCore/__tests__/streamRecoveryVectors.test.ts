@@ -98,8 +98,8 @@ describe('stream recovery parity vectors (TypeScript side)', () => {
 
 		const catalog = [] as unknown[];
 		const producers: unknown[] = [undefined, null, 'app_1', 'Bad', '', 'a'.repeat(64), 'a'.repeat(65), 5, '1abc', 'a-b'];
-		const fieldSets: Array<Record<string, unknown> | null> = [null, {}, { app_id: 'web', skill_id: 'search' }, { app_id: null, skill_id: 'x' }, { app_id: 'web' }, { skill_id: 'Search' }, { app_id: 7, skill_id: 'x' }];
-		for (const app of producers) for (const skill of [undefined, 'search', null, 'Bad']) for (const fields of fieldSets) {
+		const fieldSets: Array<Record<string, unknown> | null> = [null, {}, { app_id: 'web', skill_id: 'search' }, { app_id: null, skill_id: 'x' }, { app_id: 'web' }, { skill_id: 'Search' }, { app_id: 7, skill_id: 'x' }, { app_id: 'openmates', skill_id: 'report-to-creator' }, { app_id: 'open-mates', skill_id: 'start-chat' }];
+		for (const app of producers) for (const skill of [undefined, 'search', null, 'Bad', 'start-chat', '-x']) for (const fields of fieldSets) {
 			const content = fields ? encode(fields) : 'just text';
 			let out: unknown;
 			try { out = await catalogContextFromSealedEmbed(content, app, skill); } catch (e) { out = error(e); }

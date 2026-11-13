@@ -125,6 +125,11 @@ test('a chat starts another main chat, follows its work and receives its report'
 		.filter({ hasText: /Report from|finished/ })
 		.first();
 	await expect(followUp).toBeVisible({ timeout: 240000 });
+	await followUp.scrollIntoViewIfNeeded();
+	// The brief was sent by the creator, not typed by the user in the spawned chat.
+	await expect(
+		page.getByTestId('chat-orchestration-event').filter({ hasText: /You wrote/ })
+	).toHaveCount(0);
 	await screenshot(page, 'creator-report-or-finished');
 	await proof.checkpoint('creator-report-or-finished');
 

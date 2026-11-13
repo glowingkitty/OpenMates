@@ -104,13 +104,16 @@ pub fn initial_diff_json(input: &str) -> Result<String, String> {
     Ok(json!({ "unwritten": unwritten }).to_string())
 }
 
-fn is_catalog_id(value: &str) -> bool {
+/// Catalog id check mirroring the server's `store_embed` validation: app ids are
+/// `^[a-z][a-z0-9_]{0,63}$`; skill ids may also contain `-` (`start-chat`,
+/// `get-docs`), so a hyphenated skill's embed recovers instead of failing.
+fn is_catalog_id(value: &str, allow_hyphen: bool) -> bool {
     let bytes = value.as_bytes();
     (1..=64).contains(&bytes.len())
         && bytes[0].is_ascii_lowercase()
-        && bytes[1..]
-            .iter()
-            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_')
+        && bytes[1..].iter().all(|b| {
+            b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_' || (allow_hyphen && *b == b'-')
+        })
 }
 
 /// `catalogContextFromSealedEmbed` decision. Input `{producerApp?, producerSkill?,
@@ -139,13 +142,13 @@ pub fn catalog_json(input: &str) -> Result<String, String> {
     if (app.is_none() && skill.is_none()) || app_only_from_fields {
         return Ok(json!({ "kind": "none" }).to_string());
     }
-    let valid = |v: &Option<Value>| {
+    let valid = |v: &Option<Value>, allow_hyphen: bool| {
         v.as_ref()
             .and_then(Value::as_str)
-            .filter(|s| is_catalog_id(s))
+            .filter(|s| is_catalog_id(s, allow_hyphen))
             .map(str::to_owned)
     };
-    Ok(match (valid(&app), valid(&skill)) {
+    Ok(match (valid(&app, false), valid(&skill, true)) {
         (Some(app_id), Some(skill_id)) => {
             json!({ "kind": "context", "app_id": app_id, "skill_id": skill_id })
         }

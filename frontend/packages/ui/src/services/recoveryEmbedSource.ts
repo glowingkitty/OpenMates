@@ -29,9 +29,11 @@ export async function catalogContextFromSealedEmbed(
   // An embed no skill produced (a focus-mode activation) carries only its app in
   // the sealed fields: it has no skill catalog identity, which is not an invalid one.
   if (skill === undefined && (producerApp === undefined || producerApp === null)) return null;
-  const catalogId = /^[a-z][a-z0-9_]{0,63}$/;
-  if (typeof app !== "string" || !catalogId.test(app)
-    || typeof skill !== "string" || !catalogId.test(skill)) {
+  // Mirrors the server's store_embed check: skill ids may contain "-" (start-chat, get-docs).
+  const appCatalogId = /^[a-z][a-z0-9_]{0,63}$/;
+  const skillCatalogId = /^[a-z][a-z0-9_-]{0,63}$/;
+  if (typeof app !== "string" || !appCatalogId.test(app)
+    || typeof skill !== "string" || !skillCatalogId.test(skill)) {
     throw new Error("Recovered embed catalog identity was invalid.");
   }
   return { app_id: app, skill_id: skill };
