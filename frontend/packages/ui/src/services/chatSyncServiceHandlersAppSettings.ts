@@ -174,7 +174,7 @@ async function resolveAutoMemoryEntries(requestId: string, pending?: PendingPerm
   const known = autoMemoryEntriesByRequest.get(requestId);
   if (known) return known;
   if (!pending?.autoMemoryIds?.length) return [];
-  const decision = decideMemoryRequest(pending.autoMemoryIds, await loadLocalMemoryDocuments());
+  const decision = decideMemoryRequest(pending.autoMemoryIds, await loadLocalMemoryDocuments(pending.chatId));
   const readers = await defaultReferenceReaders();
   return Promise.all(decision.auto.map((memory) => memoryEntryWithReferences(memoryResponseEntry(memory), readers)));
 }
@@ -357,7 +357,7 @@ export async function handleRequestAppSettingsMemoriesImpl(
     const autoMemoryIds: string[] = [];
     if (memoryIds.length > 0) {
       if (answeredMemoryRequests.has(request_id)) return;
-      const decision = decideMemoryRequest(memoryIds, await loadLocalMemoryDocuments(), Date.now(), payload.memory_titles);
+      const decision = decideMemoryRequest(memoryIds, await loadLocalMemoryDocuments(chat_id), Date.now(), payload.memory_titles);
       const readers = await defaultReferenceReaders();
       const autoEntries = await Promise.all(decision.auto.map((memory) => memoryEntryWithReferences(memoryResponseEntry(memory), readers)));
       for (const memory of decision.ask) {
@@ -687,7 +687,7 @@ export async function handlePermissionDialogConfirm(
       const memoryId = route === "memory" ? itemType : null;
       if (memoryId !== null) {
         // Re-decide locally at response time: only ask_first, in-window memories may be released.
-        const decision = decideMemoryRequest([memoryId], await loadLocalMemoryDocuments());
+        const decision = decideMemoryRequest([memoryId], await loadLocalMemoryDocuments(chatId));
         const readers = await defaultReferenceReaders();
         for (const memory of decision.ask) {
           // Deselected references are neither resolved nor searchable.

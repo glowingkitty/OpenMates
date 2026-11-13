@@ -78,6 +78,7 @@ impl Client {
         let mut catalog = ContextValues::default();
         let mut targets = BTreeMap::new();
         let mut memory_rows = Vec::new();
+        let mut project_catalog = ContextValues::default();
         for row in detail["items"].as_array().ok_or(Error::Protocol)? {
             if !["embed", "upload"].contains(&text(row, "item_type"))
                 || text(row, "encrypted_metadata").is_empty()
@@ -215,8 +216,9 @@ impl Client {
             if self.current_project_focus(&scope, chat_id).await? != active {
                 return Err(Error::Cancelled);
             }
-            let loaded = self.project_memory_documents(&scope, chat_id, &id, memory_rows, &key).await?;
+            let (loaded, listed) = self.project_memory_documents(&scope, chat_id, &id, memory_rows, &key).await?;
             rules.0.extend(loaded);
+            project_catalog.0.extend(listed);
         }
         if self.current_project_focus(&scope, chat_id).await? != active {
             return Err(Error::Cancelled);
@@ -237,7 +239,18 @@ impl Client {
         focus_docs.retain(|d| unchanged(d, "item_id", "revision"));
         context_docs.retain(|d| unchanged(d, "item_id", "revision"));
         rules.retain(|d| unchanged(d, "id", "item_revision"));
+        project_catalog.retain(|d| unchanged(d, "id", "item_revision"));
+        for row in project_catalog.0.iter_mut() {
+            if let Some(object) = row.as_object_mut() {
+                object.remove("item_revision");
+            }
+        }
         let mut result = ContextValue(json!({"active_focus_id":active["focus_id"],"project_focus_catalog":&catalog.0,"project_focus_documents":&focus_docs.0,"project_context_documents":&context_docs.0,"custom_memory_documents":&rules.0}));
+        // Ask first Project Memories as metadata-only catalog rows (with a
+        // `size` the send needs for its shared budget); absent when none.
+        if !project_catalog.is_empty() {
+            result.0["project_memory_catalog"] = Value::Array(std::mem::take(&mut project_catalog.0));
+        }
         scope.check_chat(self, chat_id)?;
         Ok(std::mem::take(&mut result.0))
     }
@@ -270,7 +283,7 @@ impl Client {
         scope.check(self)?;
         Ok(std::mem::take(&mut value.0))
     }
-    fn context_request<'a>(&'a mut self,scope:&'a AsyncCryptoScope,chat:Option<&'a str>,method:Method,path:&'a str,body:Option<Value>)->impl std::future::Future<Output=Result<Value>>+'a {
+    pub(super) fn context_request<'a>(&'a mut self,scope:&'a AsyncCryptoScope,chat:Option<&'a str>,method:Method,path:&'a str,body:Option<Value>)->impl std::future::Future<Output=Result<Value>>+'a {
         // Own before first poll; every plaintext HTTP body enters the guarded
         // transport seam without an ordinary serializer across suspension.
         let body=Plain::new(body);
@@ -284,7 +297,7 @@ impl Client {
             }
         }
     }
-    async fn current_project_focus(&mut self, scope: &AsyncCryptoScope, chat: &str) -> Result<Value> {
+    pub(super) async fn current_project_focus(&mut self, scope: &AsyncCryptoScope, chat: &str) -> Result<Value> {
         let response = self
             .context_request(
                 scope, Some(chat), Method::GET,
@@ -337,7 +350,7 @@ pub(in crate::client) fn project_catalogue_items(detail:&Value,key:&[u8;32])->Re
 fn truncate(value: &str, max: usize) -> String {
     value.chars().take(max).collect()
 }
-fn revision(row: &Value) -> String {
+pub(super) fn revision(row: &Value) -> String {
     let parts = [
         "updated_at",
         "encrypted_metadata",

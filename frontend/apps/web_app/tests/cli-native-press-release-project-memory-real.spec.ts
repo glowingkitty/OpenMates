@@ -21,7 +21,7 @@ const APP = 'https://app.dev.openmates.org';
 const API = 'https://api.dev.openmates.org';
 const STYLE = "Our press style: always write 'Example Solar' (never 'ExampleSolar'), product name 'SunShare' in camel case, plain and friendly tone, no superlatives, English with AP style, end with ###. About paragraph: Example Solar GmbH, based in Leipzig, makes plug-in balcony solar kits for renters. Founded in 2021, the company has equipped more than 3,000 apartments in Germany.";
 const NEWS = "All synthetic test data. Company: Example Solar GmbH, Leipzig, founded 2021, 24 employees, makes balcony solar kits for renters. News: on 18 November 2026 we launch SunShare, an app that lets neighbours in one building pool their balcony solar power. Pilot: 120 households in Leipzig saved on average 11 percent on electricity over six months (our own pilot data, May to October 2026). Available from 18 November in Germany, free for Example Solar customers, 2 EUR a month otherwise, at example.org/sunshare. Quote from Mara Example, CEO: she wants renters to share energy like they share a stairwell. Media contact: Jonas Example, press officer, press@example.org, +49 341 0000000. Release for immediate publication.";
-const SAVE_PROMPT = `@Gemini-3.8-Flash Set up our press style for press releases and save it to this project. ${STYLE} Media contact: Jonas Example, press officer, press@example.org. Mara Example, CEO, is usually quoted.`;
+const SAVE_PROMPT = `@Gemini-3.8-Flash Set up our press style for press releases and save it to this project's Memories so that you ask me before using it (load mode ask first). ${STYLE} Media contact: Jonas Example, press officer, press@example.org. Mara Example, CEO, is usually quoted.`;
 const CONFIRM_PROMPT = "@Gemini-3.8-Flash Thanks. If the press style is not saved to this project's Memories yet, save it now; otherwise just confirm.";
 const REUSE_PROMPT = `@Gemini-3.8-Flash Write a press release as a Word document about our app launch. ${NEWS} Skip all questions and the fact check, use your recommended headline and write it now. In your chat reply, also quote the release's About paragraph word for word.`;
 
@@ -47,7 +47,7 @@ function documentEmbedIds(value: unknown): string[] {
   return [...ids];
 }
 
-// contract-test: direct surface=cli assertions=projects.memories.active-access,projects.focus.default-owned
+// contract-test: direct surface=cli assertions=app-memories.conversation.explicit-approval,projects.memories.active-access,projects.focus.default-owned
 // eslint-disable-next-line no-empty-pattern -- Playwright requires an object pattern; this test launches its own browser
 test('native CLI saves a press style in Project Memories and a new chat reuses it', async ({}, info: TestInfo) => {
   if (process.env.CI || process.env.GITHUB_ACTIONS || process.env.OPENMATES_CI_ISOLATED === '1') {
@@ -81,8 +81,10 @@ test('native CLI saves a press style in Project Memories and a new chat reuses i
   let projectId = '';
   const chatIds: string[] = [];
   let signedIn = false;
+  let lastStderr = '';
   const run = async (args: string[], timeoutMs = 120_000) => {
     const r = await runRust(binary, env, args, timeoutMs);
+    lastStderr = String(r.stderr);
     // Never print stdout wholesale: client metadata can contain key material.
     expect(r.code, `${args.slice(0, 3).join(' ')} exit ${r.code}\nstderr: ${r.stderr}\nstdout tail: ${String(r.stdout).slice(-600)}`).toBe(0);
     return parseJson(r);
@@ -156,7 +158,10 @@ test('native CLI saves a press style in Project Memories and a new chat reuses i
     expect.soft(hasMemory, 'at least one .md file under .openmates/memories').toBe(true);
 
     // Chat 2: new chat of the same Project reuses the saved style.
-    const turn2 = await run(['chats', 'new', REUSE_PROMPT, '--project', projectId, '--personal', '--auto-approve', '--response-timeout-seconds', '420', '--json'], 600_000);
+    // The Ask first Project Memory is requested by id; --auto-approve-memories approves it.
+    const turn2 = await run(['chats', 'new', REUSE_PROMPT, '--project', projectId, '--personal', '--auto-approve', '--auto-approve-memories', '--response-timeout-seconds', '420', '--json'], 600_000);
+    evidence.memoryApproved = /Approved the requested memory categories/.test(lastStderr);
+    expect.soft(evidence.memoryApproved, 'Ask first Project Memory approved on the reuse turn').toBe(true);
     const reuseChat = pickString(turn2, ['chatId', 'chat_id']);
     expect(reuseChat).toMatch(/^[0-9a-f-]{36}$/);
     chatIds.push(reuseChat);

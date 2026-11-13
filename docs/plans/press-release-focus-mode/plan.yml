@@ -64,6 +64,16 @@ decisions:
     Project Memory updates use project_read_text plus project_update_file.
   reason: No second encrypted write path; truthful results come from the existing Project file operation.
   decided_at: '2026-11-12'
+- id: D-7
+  status: active
+  decision: 'Project Memories support all three load modes exactly like personal Memories (owner directive 2026-11-13, replaces
+    the auto_include-only restriction of 7adc9d4). Auto include Project Memories keep the authorized body path. Ask first
+    Project Memories of the active Project travel only as body-free memory_catalog rows (source project, id = Project item
+    id); preprocessing selects them by title and when-to-use, the server requests memory:<id>, and the client answers after
+    approval with the stored document. Mention only Project bodies are never sent. Team Memory documents have no source on
+    the selection path today; adding one is separate work.'
+  reason: One consent model for every Memory source; a body never reaches the server before approval.
+  decided_at: '2026-11-13'
 scenarios:
 - id: S-1
   title: First press release without a style
@@ -182,7 +192,39 @@ acceptance_criteria:
   - T-REAL
   - T-WEB-REAL
   coverage_status: covered
+- id: AC-8
+  scenario: S-2
+  text: Saving a Project Memory accepts auto_include, ask_first and mention_only. An Ask first Project Memory is offered when
+    relevant and loads only after approval, on the web and in the CLI; a Mention only Project Memory is never sent.
+  required: true
+  status: pending
+  verification_scope: related_backend
+  verification_ids:
+  - T-ASK-FIRST
+  - T-REAL
+  - T-WEB-REAL
+  coverage_status: covered
 tests:
+- id: T-ASK-FIRST
+  type: unit
+  file: backend/tests/test_project_memory_ask_first.py
+  command: python3 scripts/ci_coordinator.py submit --session c595 --mode pytest --spec backend/tests/test_project_memory_ask_first.py
+  execution_environment: isolated_github_ci
+  target: isolated_github_ci
+  covers:
+  - AC-8
+  assertions:
+  - selected Ask first Project catalog rows become memory:<id> requests only under an active Project Focus
+  - approved Project bodies load as Project Memories of the active Project; without it they are rejected
+  - Project saves accept all three load modes
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
 - id: T-CORE
   type: unit
   file: packages/openmates-rust/src/client/context_capability_tests.rs

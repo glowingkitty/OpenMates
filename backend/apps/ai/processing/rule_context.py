@@ -92,6 +92,18 @@ def personal_catalog(memory_catalog: Iterable[MemoryCatalogEntry]) -> list[Memor
     """Personal catalog rows (Auto include and Ask first): metadata only, no body exists here."""
     return [entry for entry in memory_catalog if entry.source == "personal"]
 
+def requestable_catalog(
+    memory_catalog: Iterable[MemoryCatalogEntry], *, active_project_id: str | None,
+) -> list[MemoryCatalogEntry]:
+    """Catalog rows a ``memory:<id>`` request may ask for: metadata only, no body.
+
+    Personal rows always; Ask first Project rows (the client catalogs only its
+    active Project's) only while a Project Focus is active, so a stale or forged
+    Project row can never be selected or answered outside that Project.
+    """
+    return [entry for entry in memory_catalog
+            if entry.source == "personal" or (entry.source == "project" and active_project_id)]
+
 def request_personal_catalog(request: Any) -> list[MemoryCatalogEntry]:
     """Personal catalog rows of a request, revalidated first.
 
@@ -104,20 +116,19 @@ def request_personal_catalog(request: Any) -> list[MemoryCatalogEntry]:
 def split_selected_rule_snapshots(
     snapshots: Iterable[Any], memory_catalog: Iterable[MemoryCatalogEntry],
 ) -> tuple[list[str], list[dict[str, Any]]]:
-    """Split Jev-selected rows into personal Memory requests and reloadable guides.
+    """Split Jev-selected rows into Memory requests and reloadable guides.
 
-    Selected personal rows (Auto include and Ask first alike) carry no body: they
-    become ``memory:<id>`` requests answered by the client per its local load
-    mode, and only for ids present in the catalog. The rest keeps Auto include
-    app/Project guides for the exact-revision reload.
+    Selected catalog rows (personal Auto include and Ask first, Ask first
+    Project) carry no body: they become ``memory:<id>`` requests answered by the
+    client per its local load mode, and only for (source, id) pairs present in
+    the catalog. The rest keeps Auto include app/Project guides for the
+    exact-revision reload.
     """
-    catalog_ids = {entry.id for entry in personal_catalog(memory_catalog)}
+    catalog_rows = {(entry.source, entry.id) for entry in memory_catalog}
     rows = [row for row in snapshots if isinstance(row, dict)]
-    memory_keys = list(dict.fromkeys(
-        f"memory:{row['id']}" for row in rows
-        if row.get("source") == "personal" and row.get("id") in catalog_ids
-    ))
-    guides = [row for row in rows if row.get("source") != "personal"
+    requested = [row for row in rows if (row.get("source"), row.get("id")) in catalog_rows]
+    memory_keys = list(dict.fromkeys(f"memory:{row['id']}" for row in requested))
+    guides = [row for row in rows if row not in requested and row.get("source") != "personal"
               and row.get("load_mode", "auto_include") == "auto_include"]
     return memory_keys, guides
 
@@ -139,6 +150,7 @@ def approved_memory_definitions(
     *,
     requested_keys: Iterable[str] = (),
     mentioned_keys: Iterable[str] = (),
+    active_project_id: str | None = None,
 ) -> tuple[list[RuleDefinition], dict[str, Any]]:
     """Turn returned ``memory:<id>`` content into Memories.
 
@@ -146,10 +158,11 @@ def approved_memory_definitions(
     include) or after approval (Ask first). Content is honoured only for an id
     that was requested in this pending request AND exists in the stored catalog
     snapshot, or that the user mentioned. Returns the Memories plus the contents
-    without ``memory:`` keys. Invalid documents raise ``ValueError`` without
-    echoing their text.
+    without ``memory:`` keys. An Ask first Project row is honoured only while
+    ``active_project_id`` is set and loads as a Memory of that Project. Invalid
+    documents raise ``ValueError`` without echoing their text.
     """
-    catalog = {entry.id: entry for entry in personal_catalog(memory_catalog)}
+    catalog = {entry.id: entry for entry in requestable_catalog(memory_catalog, active_project_id=active_project_id)}
     requested = set(requested_keys)
     mentioned = set(mentioned_keys)
     memories: list[RuleDefinition] = []
@@ -165,7 +178,10 @@ def approved_memory_definitions(
             entry = catalog[identifier]
         else:
             raise ValueError("Memory content was not requested")
-        parsed = parse_rule_md(_memory_document(value), rule_id=identifier, source="personal")
+        project = entry is not None and entry.source == "project"
+        parsed = parse_rule_md(_memory_document(value), rule_id=identifier,
+                               source="project" if project else "personal",
+                               project_id=active_project_id if project else None)
         if entry is not None and (parsed.title != entry.title or parsed.when_to_use != entry.when_to_use):
             raise ValueError("Memory body does not match its catalog metadata")
         memories.append(parsed)

@@ -433,7 +433,12 @@ export async function collectCustomRuleDocuments(input: {
   catch (error) { console.warn('[ruleDocumentService] Project memory expiry sweep skipped', error); }
   const fresh = await getActiveProjectFocus(input.chatId);
   if (requireOwner() !== owner) return [];
-  const documents = fresh?.project_id === focus.project_id && fresh?.team_id === focus.team_id ? [...personal, ...project] : personal;
+  const current = fresh?.project_id === focus.project_id && fresh?.team_id === focus.team_id;
+  // Only Auto include Project bodies travel with the request; Ask first ones are catalogued
+  // and Mention only ones are neither sent nor catalogued.
+  const documents = current
+    ? [...personal, ...project.filter((item) => (parseRuleDocument(item.document).load_mode ?? 'auto_include') === 'auto_include')]
+    : personal;
   const bounded: CustomRuleDocument[] = [];
   let chars = 0;
   for (const { id, source, project_id, document, item_revision } of documents) {
@@ -441,8 +446,14 @@ export async function collectCustomRuleDocuments(input: {
     bounded.push({ id, source, ...(project_id ? { project_id } : {}), document, item_revision });
     chars += document.length;
   }
-  return validateRuleCatalog(bounded);
+  const validated = validateRuleCatalog(bounded);
+  if (current) askFirstProjectDocuments.set(validated, project.filter((item) => item.id
+    && parseRuleDocument(item.document).load_mode === 'ask_first'));
+  return validated;
 }
+
+/** Ask first Project documents of the collection that produced a given (body) result array. */
+const askFirstProjectDocuments = new WeakMap<readonly CustomRuleDocument[], CustomRuleDocument[]>();
 
 /**
  * Metadata-only catalog of personal and (already collected) Project memories for a send.
@@ -453,9 +464,9 @@ export async function collectMemoryCatalog(projectDocuments: readonly CustomRule
   const owner = requireOwner();
   const personal = await listPersonalRuleDocuments();
   if (requireOwner() !== owner) return [];
-  // Project memories are not catalogued; their Project document path is separate.
-  void projectDocuments;
-  return buildMemoryCatalog(personal).catalog;
+  // Personal first, then the active Project's Ask first Memories (same bounds together).
+  const project = askFirstProjectDocuments.get(projectDocuments) ?? [];
+  return buildMemoryCatalog([...personal, ...project]).catalog;
 }
 
 export function activeRuleChatId(): string | null { return activeChatStore.get(); }

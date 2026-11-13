@@ -4,10 +4,12 @@
 //! `listProjectRuleDocuments` + `collectCustomRuleDocuments`
 //! (`frontend/packages/ui/src/services/ruleDocumentService.ts`): every Markdown
 //! file in `.openmates/memories/` (and the legacy `.openmates/rules/`) is sent
-//! in full as a `custom_memory_documents` row with `source: "project"`.
+//! in full as a `custom_memory_documents` row (Auto include only; Ask first ones
+//! become metadata-only `memory_catalog` rows, Mention only ones are not sent) with `source: "project"`.
 //! Implements `feature.app-memories` Project Memories and `feature.projects`
 //! Project focus context.
 use super::memory_document_fields::{is_memory_expired, parse_memory_document};
+use super::memory_catalog::{MemoryCatalogEntry, MemoryLoadMode, parse_memory_header};
 use super::plaintext::Plain;
 use super::sync_capability::AsyncCryptoScope;
 use super::*;
@@ -69,6 +71,18 @@ pub(super) fn keep_project_memory(document: &str, now_ms: i64) -> bool {
     }
 }
 
+/// Catalog row of an Ask first Project Memory: title and when-to-use trimmed
+/// by the header parser exactly like a personal row; `id` is the Project item id.
+fn project_catalog_entry(item_id: &str, header: super::memory_catalog::MemoryHeader) -> MemoryCatalogEntry {
+    MemoryCatalogEntry {
+        id: item_id.to_owned(),
+        title: header.title,
+        when_to_use: header.when_to_use,
+        load_mode: header.load_mode.as_str(),
+        source: "project",
+    }
+}
+
 impl Client {
     /// Read the bodies of the active Project's Memory files for this send.
     ///
@@ -87,13 +101,14 @@ impl Client {
         project_id: &str,
         mut rows: Vec<ProjectMemoryRow>,
         key: &[u8; 32],
-    ) -> Result<Vec<Value>> {
+    ) -> Result<(Vec<Value>, Vec<Value>)> {
         rows.sort_by(|a, b| a.path.cmp(&b.path));
         let now = i64::try_from(now_ms()).unwrap_or(i64::MAX);
         let mut out = Plain::new(Vec::new());
+        let mut listed = Plain::new(Vec::new());
         let mut chars = 0usize;
         for memory in rows.iter() {
-            if out.len() >= MAX_PROJECT_MEMORIES {
+            if out.len() + listed.len() >= MAX_PROJECT_MEMORIES {
                 break;
             }
             let embed = zeroize::Zeroizing::new(crypto::decrypt_combined(
@@ -113,10 +128,27 @@ impl Client {
             if !keep_project_memory(document, now) || chars + document.len() > MAX_PROJECT_MEMORY_CHARS {
                 continue;
             }
-            chars += document.len();
-            out.push(json!({"id":memory.item_id,"source":"project","project_id":project_id,"document":document,"item_revision":memory.revision}));
+            let Ok(header) = parse_memory_header(document) else {
+                continue;
+            };
+            match header.load_mode {
+                MemoryLoadMode::AutoInclude => {
+                    chars += document.len();
+                    out.push(json!({"id":memory.item_id,"source":"project","project_id":project_id,"document":document,"item_revision":memory.revision}));
+                }
+                MemoryLoadMode::AskFirst if header.is_active(now) => {
+                    chars += document.len();
+                    let entry = project_catalog_entry(&memory.item_id, header);
+                    let mut row = json!(entry);
+                    row["item_revision"] = json!(memory.revision);
+                    row["size"] = json!(crate::chat_state::js::utf16_len(document));
+                    listed.push(row);
+                }
+                // Mention only (and out-of-window Ask first) is neither sent nor offered.
+                _ => {}
+            }
         }
-        Ok(out.into_inner())
+        Ok((out.into_inner(), listed.into_inner()))
     }
 }
 

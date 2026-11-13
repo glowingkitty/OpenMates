@@ -115,6 +115,15 @@ pub(super) fn build_memory_catalog(
     documents: &[PersonalMemoryDocument],
     now_ms: i64,
 ) -> MemoryResult<Vec<MemoryCatalogEntry>> {
+    build_memory_catalog_sized(documents, now_ms).map(|(catalog, _)| catalog)
+}
+
+/// [`build_memory_catalog`] plus the UTF-16 units of the listed documents, so
+/// Project rows can share the same budget.
+pub(super) fn build_memory_catalog_sized(
+    documents: &[PersonalMemoryDocument],
+    now_ms: i64,
+) -> MemoryResult<(Vec<MemoryCatalogEntry>, usize)> {
     let mut catalog = Vec::new();
     let mut chars = 0usize;
     for document in documents {
@@ -138,7 +147,33 @@ pub(super) fn build_memory_catalog(
             source: "personal",
         });
     }
-    Ok(catalog)
+    Ok((catalog, chars))
+}
+
+/// Append Project catalog rows (each with a `size` field, removed here) to the
+/// personal rows, within the same 24-row / [`MAX_CATALOG_CHARS`] bounds.
+pub(super) fn merge_project_catalog(
+    mut rows: Vec<Value>,
+    mut chars: usize,
+    project: Vec<Value>,
+) -> Vec<Value> {
+    for mut row in project {
+        if rows.len() >= MAX_DOCUMENTS {
+            break;
+        }
+        let size = row
+            .as_object_mut()
+            .and_then(|object| object.remove("size"))
+            .and_then(|size| size.as_u64())
+            .and_then(|size| usize::try_from(size).ok())
+            .unwrap_or(usize::MAX);
+        if chars.saturating_add(size) > MAX_CATALOG_CHARS {
+            continue;
+        }
+        chars += size;
+        rows.push(row);
+    }
+    rows
 }
 
 /// `memory_catalog` of a send from the decrypted account settings (`""` when
@@ -149,9 +184,17 @@ pub(super) fn send_memory_catalog(
     settings_plaintext: &str,
     now_ms: i64,
 ) -> Vec<MemoryCatalogEntry> {
+    send_memory_catalog_sized(settings_plaintext, now_ms).0
+}
+
+/// [`send_memory_catalog`] with the listed documents' UTF-16 units.
+pub(super) fn send_memory_catalog_sized(
+    settings_plaintext: &str,
+    now_ms: i64,
+) -> (Vec<MemoryCatalogEntry>, usize) {
     let plaintext = (!settings_plaintext.is_empty()).then_some(settings_plaintext);
     decode_memory_documents(plaintext)
-        .and_then(|documents| build_memory_catalog(&documents, now_ms))
+        .and_then(|documents| build_memory_catalog_sized(&documents, now_ms))
         .unwrap_or_default()
 }
 
@@ -281,17 +324,28 @@ impl super::Client {
     /// withhold every requested Memory instead (answering without content).
     pub(super) async fn memory_request_decision(
         &mut self,
+        chat_id: &str,
         keys: &BTreeSet<String>,
     ) -> super::Result<MemoryRequestDecision> {
         let ids = memory_request_ids(keys);
         if ids.is_empty() {
             return Ok(MemoryRequestDecision::default());
         }
-        let documents = match self.personal_memory_documents().await {
+        let mut documents = match self.personal_memory_documents().await {
             Ok(documents) => documents,
             Err(MemoryDocumentError::Core(error)) => return Err(error),
             Err(_) => Vec::new(),
         };
+        // Ids that are not personal may be the active Project's Memories; they
+        // are decided from their own stored load mode like personal ones.
+        let unknown: Vec<String> = ids
+            .iter()
+            .filter(|id| !documents.iter().any(|d| &d.id == *id))
+            .cloned()
+            .collect();
+        if !unknown.is_empty() {
+            documents.extend(self.project_memory_request_documents(chat_id, &unknown).await?);
+        }
         let now = i64::try_from(super::now_ms()).unwrap_or(i64::MAX);
         Ok(decide_memory_request(&ids, &documents, now))
     }

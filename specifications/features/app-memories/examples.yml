@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.app-memories@4
+specification: feature.app-memories@5
 catalog:
 - id: no-typed-types
   given: The Code and Travel apps previously declared preferred_tech and trips types.
@@ -242,6 +242,11 @@ load_modes:
   given: A memory "Therapy notes" is set to Only when mentioned.
   when: The user sends an unrelated message, then later types @Therapy notes.
   then: No model stage sees it in the first message; after the mention only that body is sent.
+- id: project-ask-first
+  given: The active Project "Press office" has the Ask first Memory "Press style" and the Mention only Memory "Embargo list".
+  when: The user asks for a press release in a chat of that Project.
+  then: The server receives only the Press style title and when-to-use, never a body and nothing about Embargo list; the
+    client shows the approval card, and only after approval the Press style body loads as a Memory of that Project.
 expiry:
 - id: client-deletes-when-expired
   given: A memory expired on Monday.

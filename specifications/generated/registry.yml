@@ -154,10 +154,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.app-memories:
-    version: 4
-    status: approved
+    version: 5
+    status: draft
     path: features/app-memories
-    fingerprint: ebf47a90c6a22b99c52125478362e68e7775650a61b7d0218f5c188ddcf8a674
+    fingerprint: f42fd31a2a63749cabe02820a30469b9893aa8e32e2891ab9d9cd625c08c54c8
     required_applies_to:
     - rest_api
     - cli
@@ -3166,7 +3166,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.catalog.no-typed-types:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: invariant
     fingerprint: 382daf0e407facbed4c9c81689b1f0b59b45394bf52855f6cf8a8f99cf8a0f40
@@ -3178,7 +3178,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.lifecycle.encrypted-crud:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: behavior
     fingerprint: 62c90a60c5f691c5f1bdef95234f1627656cd991817604f913b39e2834f1d9ec
@@ -3190,7 +3190,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.privacy.client-encrypted:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: privacy
     fingerprint: e5363472640d552d498e6f47d74839f8c34a07e31c8c97ac6ba1007dc40b7fd5
@@ -3202,7 +3202,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.access.owner-scoped:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: security
     fingerprint: 58c84cbdd836e95d2f0ba03a110fe9ad7ee0fc8601be002d00583f362fe9f9b4
@@ -3214,7 +3214,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.sync.versioned-convergence:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: invariant
     fingerprint: 642f2e547ac9d253d06ab0709b34155fc6c6b9b142bf1b75146998a11723fc8a
@@ -3226,10 +3226,10 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.conversation.explicit-approval:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: behavior
-    fingerprint: fc4cd1e1b317d158c1b28c20bff25cc91a34dd385d56f20843d473042abb60fb
+    fingerprint: 9869a0cafde0b9993a1ce57e2e410141660d55aaac7b17aa0e315a002f9d705a
     required_applies_to:
     - rest_api
     - cli
@@ -3238,7 +3238,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.conversation.request-convergence:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: invariant
     fingerprint: 7fe452a0a9e8f5a99a6d36ae9ac2e74c8d332aca478edaa2d5db96e0681ff2ff
@@ -3250,7 +3250,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.surface.semantic-parity:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: parity
     fingerprint: edccba84ca9d87ff0981cb3f053fce51fdb26e92ebd3ae58203706b24c6a9db6
@@ -3262,7 +3262,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.definition.context-documents:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: validation
     fingerprint: c7df86fc1031186b638bcd665b868807af35f69f34e3cf7960d3bbf2d68bb292
@@ -3274,10 +3274,10 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.selection.source-scoped:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: security
-    fingerprint: f484828c7a8a5b1d700329752d58957b3ba412312222956af3e56eab6a2f104c
+    fingerprint: e6eaf2ec87f4333574df3cbdaa0113b6591df3d6ecafe2fa18b95bca40d2b69e
     required_applies_to:
     - rest_api
     - cli
@@ -3286,7 +3286,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.precedence.obligations:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: invariant
     fingerprint: 942965d1bd938ddf0eb433af125d68a919810564b783773bdebddd297c14e229
@@ -3298,7 +3298,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.transparency.loaded-set:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: parity
     fingerprint: 99022fd17da305c4a3680839f611b530278a1d805c6f309cee049b9885520b39
@@ -3310,7 +3310,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.discovery.visibility-cards:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: parity
     fingerprint: 46843babb29523084e2981a43c2486b150c989e97a4d310f0deab4aea2b5c879
@@ -3322,7 +3322,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.compatibility.legacy-documents:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: invariant
     fingerprint: cb390b8189c317dfc7f150b6c0011dae4c19b2835e380e1978e59b39619524ee
@@ -3334,7 +3334,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.document.canonical-shape:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: behavior
     fingerprint: 7ec287df4d28b3df7daf056bdb14fed11c2bd6529434b895e1b196d03fdc8f81
@@ -3346,10 +3346,10 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.load-modes:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: privacy
-    fingerprint: fbf0e3bddba349573e71ca29efbea27fdf4d2c375ab033b4bc16212242e87e8a
+    fingerprint: fbee1b7a6c75cc7182a01517d7ff167423af05a38042193f29244c2bec9dc74f
     required_applies_to:
     - rest_api
     - cli
@@ -3358,7 +3358,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.expiry.client-enforced:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: invariant
     fingerprint: 49305420f9974c58940c1d2595d824bbb4a25cdc7f9b2f7783e788599de0d9f9
@@ -3370,7 +3370,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.references.embeds:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: privacy
     fingerprint: 160ab548ae63da9a2783058490490a66bbd4468c52905bbf4fd24f1a7a21b844
@@ -3382,7 +3382,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.suggestions.post-processor:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: behavior
     fingerprint: 0ba38da762928da1887186f03dabc0bdef97884f7b8a416d741ec519bda2ab61
@@ -3394,7 +3394,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.suggestions.no-duplicates:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: privacy
     fingerprint: f928aaeec68bbbd432fc264ff0249ec78d3fb0b71346ad7343108e5c0d375bc6
@@ -3406,7 +3406,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.suggestions.billing:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: behavior
     fingerprint: c2573ea9d10027f88faeef859815c6ed5dadda3c7cd2223cf42dc26e18f77f7a
@@ -3418,7 +3418,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.workflows.explicit-snapshots:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: privacy
     fingerprint: 50c4199cca1d9f8419e6d2d85d393b028b304e5b499a5c308a3a2e57ecaea9c8
@@ -3430,7 +3430,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.typed.removed:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: invariant
     fingerprint: eb091c56e0eb80f7b4da8891630feeee79fa4f77fcc74f77d5744349ab2accc4
@@ -3442,7 +3442,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.migration.client-auto:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: behavior
     fingerprint: 8a17f806faad16a9619c836433e9f3fbd81b91be65a2f946703ebf98575d0fbc
@@ -3454,7 +3454,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.saved-items.not-memories:
-    specification: feature.app-memories@4
+    specification: feature.app-memories@5
     specification_id: feature.app-memories
     type: behavior
     fingerprint: 7ea9b1a28d4ac13d3e8c40a0dbcc22624ed98339265b6eee9bfcf0311bbfe522

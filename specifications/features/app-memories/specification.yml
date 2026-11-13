@@ -1,11 +1,12 @@
 schema_version: 1
 id: feature.app-memories
-version: 4
-status: approved
+version: 5
+status: draft
 title: Memories
 summary: Memories are free-form documents (title, memory, when to use, optional start and expiry, load mode) that replace
-  every app-specific typed memory. Public app memories and authorized Project memories load automatically; private personal/team
-  memories load automatically, after conversation approval, or only when mentioned, according to their load mode.
+  every app-specific typed memory. Public app memories load automatically; personal, team and Project memories load
+  automatically, after conversation approval, or only when mentioned, according to their load mode (Project memories only
+  under authorized active Project Focus).
 scope:
   includes:
   - One free-form Memory document shape for personal, team and Project memories, with load modes, optional start and expiry,
@@ -286,10 +287,10 @@ assertions:
   - examples.sync
 - id: app-memories.conversation.explicit-approval
   type: behavior
-  must: Before a mate uses a saved encrypted personal/team memory set to Ask first, the existing conversation request lets
-    the user approve specific memories or reject; supply only approved content transiently. A mention includes only that memory
-    without another request and never grants others. Auto include and public app memories need no request; Project Memories
-    require current authorized active Project Focus.
+  must: Before a mate uses a saved encrypted personal, team or Project memory set to Ask first, the existing conversation
+    request lets the user approve specific memories or reject; supply only approved content transiently. A mention includes
+    only that memory without another request and never grants others. Auto include and public app memories need no request;
+    Project Memories, whatever their load mode, also require current authorized active Project Focus.
   depends_on:
   - models.ConversationMemoryApproval
   - examples.private_consent
@@ -327,7 +328,8 @@ assertions:
     under fresh authoritative active Project access. Refresh relevance on Focus or phase changes; recheck activation/access
     and exact revisions after selection before inclusion, rejecting invented IDs, forged app ownership and stale or revoked
     Project content. Personal/team content stays on its existing consent or explicit-mention path, even when it describes
-    a Project.
+    a Project. Ask first Project Memories are offered only as catalog metadata of the active Project and use the same
+    approval path as personal ones.
   depends_on:
   - models.MemoryDocument
   - examples.source_selection
@@ -378,9 +380,11 @@ assertions:
   - examples.canonical_shape
 - id: app-memories.load-modes
   type: privacy
-  must: Each private Memory has exactly one load mode. Auto include and Ask first expose only title and when-to-use to the
+  must: Each private Memory (personal, team or Project) has exactly one load mode, and the three modes behave the same for
+    every source. Auto include and Ask first expose only title and when-to-use to the
     preprocessor and post-processor; Mention only exposes nothing to any model stage until the user mentions it. Memory bodies
-    are never sent with a chat request. After the preprocessor selects a memory by title and when-to-use, the server asks
+    are never sent with a chat request, except Auto include Project Memory bodies, which accompany the request only under
+    authorized active Project Focus and are revision-checked before use. After the preprocessor selects a memory by title and when-to-use, the server asks
     the client for just that body using the existing memory request; the client answers automatically for Auto include and
     only after user approval for Ask first, and a mention supplies only that memory. Received bodies are used transiently
     and may be cached only vault-encrypted for the lifetime of the chat, never stored durably or logged. Memories outside

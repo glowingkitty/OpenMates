@@ -409,3 +409,65 @@ async fn project_memory_changed_during_send_is_dropped_by_the_revision_check() {
     assert!(out["custom_memory_documents"].as_array().unwrap().is_empty());
     assert_eq!(server.await.unwrap().len(), 6);
 }
+const ASK_MEMORY: &str = "---\ntitle: \"  Career profile \"\nwhen_to_use: Job questions\nload_mode: ask_first\n---\nSenior Rust engineer.\n";
+const MENTION_MEMORY: &str = "---\ntitle: Health\nload_mode: mention_only\n---\nPrivate.\n";
+const AUTO_MEMORY: &str = "---\ntitle: Press style\n---\nTone: plain.\n";
+
+fn three_memories() -> Value {
+    json!({"project":project_row(),"folders":[],"items":[
+        memory_item("ask", ".openmates/memories/a-ask.md", "embed-ask"),
+        memory_item("mention", ".openmates/memories/b-mention.md", "embed-mention"),
+        memory_item("auto", ".openmates/memories/c-auto.md", "embed-auto"),
+    ]})
+}
+
+#[tokio::test]
+async fn ask_first_project_memory_is_catalogued_without_body_and_mention_only_is_left_out() {
+    let active = json!({"project_id":PROJECT,"focus_id":"focus","team_id":null});
+    let detail = three_memories();
+    let (api, server) = mock(vec![
+        json!({"focus":active}), detail.clone(), json!({"focus":active}),
+        memory_embed(ASK_MEMORY), memory_embed(MENTION_MEMORY), memory_embed(AUTO_MEMORY),
+        json!({"focus":active}), detail,
+    ])
+    .await;
+    let mut client = client(&api);
+    let out = client.active_project_context(CHAT, "Write").await.unwrap();
+    let docs = out["custom_memory_documents"].as_array().unwrap();
+    assert_eq!(docs.len(), 1);
+    assert_eq!(docs[0]["id"], "auto");
+    assert_eq!(docs[0]["document"], AUTO_MEMORY);
+    let catalog = out["project_memory_catalog"].as_array().unwrap();
+    assert_eq!(catalog.len(), 1);
+    assert_eq!(catalog[0]["id"], "ask");
+    assert_eq!(catalog[0]["title"], "Career profile");
+    assert_eq!(catalog[0]["when_to_use"], "Job questions");
+    assert_eq!(catalog[0]["load_mode"], "ask_first");
+    assert_eq!(catalog[0]["source"], "project");
+    assert!(catalog[0].get("item_revision").is_none());
+    assert!(!out.to_string().contains("Senior Rust engineer"));
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn requested_project_memory_ids_are_decided_by_their_own_load_mode() {
+    let active = json!({"project_id":PROJECT,"focus_id":"focus","team_id":null});
+    let detail = json!({"project":project_row(),"folders":[],"items":[
+        memory_item("ask", ".openmates/memories/a-ask.md", "embed-ask"),
+        memory_item("auto", ".openmates/memories/c-auto.md", "embed-auto"),
+    ]});
+    let (api, server) = mock(vec![
+        json!({"focus":active}), detail.clone(), memory_embed(ASK_MEMORY), memory_embed(AUTO_MEMORY),
+        json!({"focus":active}), detail,
+    ])
+    .await;
+    let mut client = client(&api);
+    let ids = vec!["ask".to_owned(), "auto".to_owned(), "unknown".to_owned()];
+    let documents = client.project_memory_request_documents(CHAT, &ids).await.unwrap();
+    let decision = super::memory_catalog::decide_memory_request(&ids, &documents, 1_793_000_000_000);
+    assert_eq!(decision.ask.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), ["ask"]);
+    assert_eq!(decision.auto.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), ["auto"]);
+    assert_eq!(decision.auto[0].document.as_str(), AUTO_MEMORY);
+    assert_eq!(decision.withheld, ["unknown"]);
+    server.await.unwrap();
+}

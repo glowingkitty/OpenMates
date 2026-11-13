@@ -190,7 +190,7 @@ impl Client {
             .take(64)
             .map(str::to_owned)
             .collect::<BTreeSet<_>>();
-        let decision = Plain::new(self.memory_request_decision(&memory_keys).await?);
+        let decision = Plain::new(self.memory_request_decision(chat_id, &memory_keys).await?);
         scope.check_chat(self, chat_id)?;
         self.memory_consent_decided(
             ws,

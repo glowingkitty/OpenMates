@@ -915,4 +915,12 @@ async def decide_preprocessing_with_jev(
         "icon_names": public_decisions["icon_names"] if public_decisions else ([choice_value(response, "icon")] if is_first_message else []),
         "selected_app_ids": selected,
     }
+    # Counts only (no titles or ids): shows whether a Project Memory was offered and chosen.
+    rule_scores = {key: noul_value(response, question) for question, key in rule_map.items()}
+    rule_sources = [row.get("source") for row in rule_candidates]
+    logger.info("[RULE_PRESELECTION] candidates app=%d project=%d selected app=%d project=%d project_scores=%s",
+                rule_sources.count("app"), rule_sources.count("project"),
+                sum(row.get("source") == "app" for row in result["relevant_rules"]),
+                sum(row.get("source") == "project" for row in result["relevant_rules"]),
+                [round(rule_scores.get(row["id"], 0.0), 2) for row in rule_candidates if row.get("source") == "project"])
     return result

@@ -279,16 +279,17 @@ def test_project_target_becomes_one_canonical_project_memory_file():
     assert tool.project_memory_file_arguments({**GOOD, "target": "project"})["path"] != args["path"]
 
 
-def test_project_memory_defaults_to_auto_include_so_the_project_loads_it():
-    # contract-test: direct surface=rest_api assertions=app-memories.selection.source-scoped
+def test_project_memory_accepts_every_load_mode_with_the_personal_default():
+    # contract-test: direct surface=rest_api assertions=app-memories.load-modes
     args = tool.project_memory_file_arguments({**GOOD, "target": "project"})
-    assert parse_memory_md(args["content"], memory_id="draft", source="project", project_id="p").load_mode == "auto_include"
-    mention = tool.project_memory_file_arguments({**GOOD, "target": "project", "load_mode": "mention_only"})
-    assert "load_mode: mention_only" in mention["content"]
+    assert parse_memory_md(args["content"], memory_id="draft", source="project", project_id="p").load_mode == "ask_first"
+    for mode in ("auto_include", "ask_first", "mention_only"):
+        saved = tool.project_memory_file_arguments({**GOOD, "target": "project", "load_mode": mode})
+        assert f"load_mode: {mode}" in saved["content"] or mode == "auto_include"
+        assert parse_memory_md(saved["content"], memory_id="d", source="project", project_id="p").load_mode == mode
 
 
 @pytest.mark.parametrize("args, reason", [
-    ({**GOOD, "target": "project", "load_mode": "ask_first"}, "loads automatically"),
     ({**GOOD, "target": "project", "action": "update"}, "project_update_file"),
     ({**GOOD, "target": "project", "memory_id": "m-1"}, "Unknown"),
     ({**GOOD, "target": "project", "content": "api_key: abcdef123456"}, "secret"),

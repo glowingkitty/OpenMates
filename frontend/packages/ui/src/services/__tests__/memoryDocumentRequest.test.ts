@@ -66,3 +66,17 @@ describe('memory request wire adapter', () => {
     expect(memory.title).toBe('Title p1');
   });
 });
+
+describe('decideMemoryRequest for Project Memories', () => {
+  const project = (id: string, fields: Partial<RuleDocumentFields>): CustomRuleDocument => ({ ...doc(id, fields), source: 'project' });
+
+  // contract-test: supporting surface=gui.web assertions=app-memories.load-modes
+  it('asks for an Ask first Project id and answers an Auto include one silently', () => {
+    const result = decideMemoryRequest(['p1', 'p2', 'p3'], [
+      project('p1', { load_mode: 'ask_first' }), project('p2', { load_mode: 'auto_include' }), project('p3', { load_mode: 'mention_only' }),
+    ], NOW);
+    expect(result.ask.map((m) => [m.id, m.source])).toEqual([['p1', 'project']]);
+    expect(result.auto.map((m) => m.id)).toEqual(['p2']);
+    expect(result.withheld).toEqual(['p3']);
+  });
+});

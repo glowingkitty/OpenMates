@@ -41,7 +41,8 @@ function requireDirectDevRealInference(): void {
 }
 
 async function createProject(page: Page, name: string, writeMode: 'always_ask' | 'apply_and_show'): Promise<string> {
-  await page.goto('/projects', { waitUntil: 'domcontentloaded' });
+  // In-app navigation only: a full reload drops a session that is not "stay logged in".
+  await page.getByTestId('projects-nav-link').click();
   await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30_000 });
   const created = page.waitForResponse(
     (response: Response) => response.request().method() === 'POST'
@@ -59,7 +60,7 @@ async function createProject(page: Page, name: string, writeMode: 'always_ask' |
   expect(projectId).toMatch(/^[0-9a-f-]{36}$/i);
   // Creating a Project opens its full-page detail view, which hides the chat
   // composer; return to the chat view so the next step can start a chat.
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('chats-nav-link').click();
   await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 60_000 });
   return projectId as string;
 }
@@ -151,7 +152,7 @@ test.describe('Press style saved in Project Memories is reused (real inference, 
     requireDirectDevRealInference();
   });
 
-  // contract-test: direct surface=gui.web assertions=projects.memories.active-access,projects.focus.mention-activation
+  // contract-test: direct surface=gui.web assertions=projects.memories.active-access,projects.focus.mention-activation,app-memories.conversation.explicit-approval
   test('a second chat of the Project writes the press release in the saved style', async ({ page }: { page: Page }, testInfo: any) => {
     test.setTimeout(1_800_000);
     test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -166,7 +167,7 @@ test.describe('Press style saved in Project Memories is reused (real inference, 
       await startNewChat(page);
       await sendWithProjectMention(
         page, projectId, projectName,
-        `Set up our press style for press releases and save it to this project. ${STYLE} Media contact: Jonas Example, press officer, press@example.org. Mara Example, CEO, is usually quoted.`,
+        `Set up our press style for press releases and save it to this project's Memories so that you ask me before using it (load mode ask first). ${STYLE} Media contact: Jonas Example, press officer, press@example.org. Mara Example, CEO, is usually quoted.`,
         'read_write',
       );
       await waitForTurn(page);
@@ -183,6 +184,13 @@ test.describe('Press style saved in Project Memories is reused (real inference, 
         `Write a press release as a Word document about our app launch. ${NEWS} Skip all questions and the fact check, use your recommended headline and write it now. In your chat reply, also quote the release's About paragraph word for word.`,
         'read_write',
       );
+      // The Ask first Project Memory is offered by title and loads only after approval.
+      const consent = page.getByTestId('app-settings-memories-permission-dialog');
+      await expect(consent, 'Ask first approval for the saved Project press style').toBeVisible({ timeout: TURN_TIMEOUT });
+      await testInfo.attach('02a-ask-first-approval', { body: await page.screenshot(), contentType: 'image/png' });
+      await page.screenshot({ path: testInfo.outputPath('02a-ask-first-approval.png') });
+      await consent.getByTestId('btn-include').click();
+      await expect(consent).not.toBeVisible({ timeout: 30_000 });
       await waitForTurn(page);
       // "3,000" exists only in the saved Project Memory; document pages are images, so the reply text carries the check.
       const reply = page.locator('[data-testid="message-assistant"]').last();

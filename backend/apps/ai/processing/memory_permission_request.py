@@ -9,7 +9,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from backend.apps.ai.processing.rule_context import (
-    memory_catalog_snapshot, personal_catalog, request_memory_catalog,
+    memory_catalog_snapshot, request_memory_catalog,
 )
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 
@@ -89,7 +89,7 @@ async def issue_memory_permission_request(
         message_id=request_data.message_id,  # User message that triggered this request (for UI display)
         memory_titles={
             entry.id: entry.title
-            for entry in personal_catalog(request_memory_catalog(request_data))
+            for entry in request_memory_catalog(request_data)
             if f"memory:{entry.id}" in missing_keys
         },
     )
@@ -125,7 +125,7 @@ async def issue_memory_permission_request(
                 key.startswith("memory:") for key in missing_keys
             ):
                 snapshot_json = json.dumps(
-                    memory_catalog_snapshot(personal_catalog(request_memory_catalog(request_data))),
+                    memory_catalog_snapshot(request_memory_catalog(request_data)),
                     separators=(",", ":"), ensure_ascii=True,
                 )
                 pending_context["memory_catalog_ciphertext"], _ = (

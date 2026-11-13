@@ -8,19 +8,22 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 from typing import Any
 
 from backend.apps.ai.processing.agentic_context import first_party, fresh_project
 from backend.apps.ai.processing.rule_context import (
     MAX_APPLIED_RULE_CHARS, MAX_DISCOVERY_CHARS, MAX_RULE_CANDIDATES,
     authorized_project_memory_documents, bound_always_on, catalog_discovery,
-    eligible_rule_catalog, parse_custom_rule_documents, personal_catalog, request_memory_catalog, rule_discovery,
+    eligible_rule_catalog, parse_custom_rule_documents, request_memory_catalog, requestable_catalog, rule_discovery,
 )
 from backend.shared.python_utils.rule_loader import rules_prompt
 
 # Sliding retention for encrypted discovery only. Selection still reloads the
 # current owner-authorized Workflow version before reading any graph.
 WORKFLOW_METADATA_TTL_SECONDS = 2 * 60 * 60
+
+logger = logging.getLogger(__name__)
 
 
 def _workflow_metadata_cache_key(user_id: str, team_id: str | None, vault_key_id: str) -> str:
@@ -78,8 +81,14 @@ async def discover_rule_metadata(request: Any, directus: Any, cache: Any,
         catalog = await _rules(request, directus, cache, eligible_app_ids)
         # Personal Memories are catalog-only: just title and when-to-use reach the
         # decision provider, for Auto include and Ask first alike. No body exists here.
+        body_ids = {rule.id for rule in catalog}
+        project_id = (binding or {}).get("project_id")
+        # Ask first Project Memories are catalog-only like personal ones; a row
+        # whose id also arrived as an authorized body is offered once.
         private_rows = [rule_discovery(rule) for rule in catalog if rule.source != "app"] + [
-            catalog_discovery(entry) for entry in personal_catalog(request_memory_catalog(request))
+            catalog_discovery(entry)
+            for entry in requestable_catalog(request_memory_catalog(request), active_project_id=project_id)
+            if entry.id not in body_ids
         ]
         app_rows = [rule_discovery(rule) for rule in catalog if rule.source == "app"]
         result = []
@@ -118,6 +127,11 @@ async def reload_preselected_rules(request: Any, directus: Any, cache: Any,
             seen.add(rule.id)
             if len(rules_prompt([*result, rule])) <= MAX_APPLIED_RULE_CHARS:
                 result.append(rule)
+        # Counts only: shows whether a selected Project Memory survived the
+        # fresh authorization and revision check.
+        logger.info("[RULE_RELOAD] selected=%d selected_project=%d loaded=%d loaded_project=%d",
+                    len(selected), sum(row.get("source") == "project" for row in selected),
+                    len(result), sum(rule.source == "project" for rule in result))
         return result
     except Exception:
         return []

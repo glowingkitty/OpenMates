@@ -55,6 +55,7 @@ mod consent;
 mod selected_first_page;
 mod context;
 mod project_memories;
+mod project_memory_request;
 mod send_project_binding;
 mod direct;
 mod docs;

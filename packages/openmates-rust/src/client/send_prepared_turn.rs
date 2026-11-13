@@ -81,7 +81,8 @@ impl Client {
         // Metadata-only personal Memory catalog from the same fresh snapshot
         // (web `collectMemoryCatalog`): the server can select only these and
         // then asks for their bodies through `request_app_settings_memories`.
-        let mut memory_catalog=Plain::new(super::memory_catalog::send_memory_catalog(&settings,i64::try_from(now_ms()).unwrap_or(i64::MAX)).into_iter().map(|entry|json!(entry)).collect::<Vec<Value>>());
+        let (personal_catalog,personal_chars)=super::memory_catalog::send_memory_catalog_sized(&settings,i64::try_from(now_ms()).unwrap_or(i64::MAX));
+        let mut memory_catalog=Plain::new(personal_catalog.into_iter().map(|entry|json!(entry)).collect::<Vec<Value>>());
         let settings=Plain::new(if settings.is_empty(){json!({})}else{serde_json::from_str::<Value>(&settings)?});
         if !settings.is_object() {
             return Err(Error::Protocol);
@@ -139,7 +140,12 @@ impl Client {
             }
             _ => false,
         };
-        let project_context=Plain::new(if (new_chat&&!bound_project)||!wait_ai{json!({})}else{self.active_project_context(id,&prepared.text).await?});
+        let mut project_context=Plain::new(if (new_chat&&!bound_project)||!wait_ai{json!({})}else{self.active_project_context(id,&prepared.text).await?});
+        // Ask first Project Memories join the personal catalog under its bounds.
+        if let Some(Value::Array(project_rows))=project_context.as_object_mut().and_then(|context|context.remove("project_memory_catalog")){
+            let merged=super::memory_catalog::merge_project_catalog(std::mem::take(&mut *memory_catalog),personal_chars,project_rows);
+            *memory_catalog=merged;
+        }
         turn_scope.check_chat(self,id)?;
         let recovery = crypto::recovery_keypair(key, id, 1)?;
         let mut encrypted = json!({"client_message_id":message,"chat_id":id,"encrypted_content":crypto::encrypt_combined(&prepared.text,key)?,"encrypted_sender_name":crypto::encrypt_combined(&sender,key)?,"role":"user","created_at":created,"updated_at":created});

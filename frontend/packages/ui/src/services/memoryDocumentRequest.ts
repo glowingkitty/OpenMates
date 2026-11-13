@@ -68,8 +68,22 @@ export function decideMemoryRequest(
   return decision;
 }
 
-/** Personal memory documents stored locally; Project memories are not requested by id. */
-export async function loadLocalMemoryDocuments(): Promise<CustomRuleDocument[]> {
-  const { listPersonalRuleDocuments } = await import('./ruleDocumentService');
-  return listPersonalRuleDocuments();
+/**
+ * Memory documents stored locally: personal ones plus, when the chat has an active Project
+ * focus, that Project's Memories. A failure to read Project documents withholds only those ids.
+ */
+export async function loadLocalMemoryDocuments(chatId?: string): Promise<CustomRuleDocument[]> {
+  const { listPersonalRuleDocuments, listProjectRuleDocuments } = await import('./ruleDocumentService');
+  const personal = await listPersonalRuleDocuments();
+  if (!chatId) return personal;
+  try {
+    const { getActiveProjectFocus } = await import('./projectService');
+    const focus = await getActiveProjectFocus(chatId);
+    if (!focus) return personal;
+    const project = await listProjectRuleDocuments({ chatId, projectId: focus.project_id });
+    return [...personal, ...project.filter((document) => document.id)];
+  } catch (error) {
+    console.warn('[memoryDocumentRequest] Project Memories unavailable; withholding them', error);
+    return personal;
+  }
 }

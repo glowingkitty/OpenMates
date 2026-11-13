@@ -4279,9 +4279,13 @@ async def handle_main_processing(
                 requested_keys=[key for key in (preprocessing_results.load_app_settings_and_memories or [])
                                 if isinstance(key, str) and key.startswith("memory:")],
                 mentioned_keys=(getattr(request_data, "mentioned_settings_memories_cleartext", None) or {}).keys(),
+                # Ask first Project Memories load only under the chat's current Project Focus.
+                active_project_id=((await agentic_context.fresh_project(
+                    request_data, directus_service, cache_service)) or {}).get("project_id"),
             )
             approved_memories_prompt = rules_prompt(approved_memories)
-            logger.info("%s Applied %d personal Memories", log_prefix, len(approved_memories))
+            logger.info("%s Applied %d approved Memories (%d Project)", log_prefix, len(approved_memories),
+                        sum(memory.source == "project" for memory in approved_memories))
         except ValueError:
             logger.warning("%s Returned Memory content rejected; none applied", log_prefix)
             approved_memories = []
