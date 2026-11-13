@@ -15,7 +15,7 @@ capabilities:
     old: []
     unit: ws
     note: WebSocket lifecycle decisions (online, connection change, resume, close, pong timeout, periodic retry) run only in the Worker ws unit; the TypeScript reconnect branches, flag and opt-out are deleted. The socket itself stays in the shell.
-    last_commit: pending
+    last_commit: c17164fa5b
   apple:
     status: rust-twin
     old:
@@ -111,7 +111,7 @@ capabilities:
     old: []
     unit: persist
     note: IndexedDB cache decisions (window, eviction, budget, quota, page size) run only in the Worker persist unit; the TypeScript policy, flag and opt-out are deleted. IndexedDB I/O stays in the shell.
-    last_commit: pending
+    last_commit: aabaaf74c9
   apple:
     status: rust-twin
     old:
@@ -231,7 +231,7 @@ capabilities:
     note: 'Rust-only: deleted the TypeScript search path in searchService.ts (indexChatMessages, messageIndex,
       addMessageToIndex, searchMessagesInChat, searchMetadataInChat/Inline, findMatchRanges, buildSnippet, the
       settings/app catalog loops, the opt-out key); the page keeps only index builders and metadata decryption'
-    last_commit: pending
+    last_commit: 80d5d8e6c7
   apple:
     status: swift-only
     old: []
@@ -266,7 +266,7 @@ capabilities:
     unit: transfer
     note: chat import parsing, chat/account export and ZIP writing run only in the transfer Worker unit; the
       TypeScript paths, flag and opt-out are deleted. File uploads and media fetch are not part of this unit.
-    last_commit: pending
+    last_commit: e2fde9611d
   apple:
     status: swift-only
     old:
@@ -283,9 +283,9 @@ capabilities:
     unit: parse, composer
     note: Worker unit installed and on by default in dev and production builds; mention ranking, paste
       classification, language and URL detection and ghost validation now run only in the composer unit
-      (TypeScript modules deleted, last_commit pending); still TypeScript, so not rust-only - the PII
+      (TypeScript modules deleted in 5dff8a2680); still TypeScript, so not rust-only - the PII
       detection services (send path) and the page-side parse_message markdown parser
-    last_commit: pending
+    last_commit: 5dff8a2680
   apple:
     status: swift-only
     old: []
@@ -302,7 +302,7 @@ capabilities:
       deleted the TypeScript retainAppsResult body (normalizedStatus, extractResults, existingResultIds, stableChildId),
       the outbox validateRecord and the library and results opt-out branches. freshAppsRecommendations stays as a
       synchronous UI helper for AppsWorkspace.svelte derived state.
-    last_commit: pending
+    last_commit: b6af4d0c38
   apple:
     status: swift-only
     old: []
