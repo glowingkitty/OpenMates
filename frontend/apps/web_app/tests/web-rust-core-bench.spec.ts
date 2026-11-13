@@ -43,19 +43,3 @@ test('interleaved TS vs Rust reload benchmark with paired bootstrap verdicts', a
 		profile: process.env.OPENMATES_BENCH_PROFILE === '1'
 	});
 });
-
-// Search flow (gated user-facing flow): paired TS/Rust sidebar search after reload,
-// rare query on a cold index then a common query on the warm index
-// (helpers/web-rust-core-bench-search.ts), attached as web-rust-core-bench-search.json.
-const search = require('./helpers/web-rust-core-bench-search');
-
-// contract-test: tooling
-
-test('interleaved TS vs Rust search benchmark with paired bootstrap verdicts', async ({ page }: { page: any }, testInfo: any) => {
-	test.slow();
-	test.setTimeout(1500000);
-	bench.skipWithoutCredentials(test, bench.TEST_EMAIL, bench.TEST_PASSWORD, bench.TEST_OTP_KEY);
-	await search.runSearchBench(page, testInfo, {
-		pairs: Math.max(3, Number.parseInt(process.env.OPENMATES_BENCH_PAIRS ?? '30', 10) || 30)
-	});
-});

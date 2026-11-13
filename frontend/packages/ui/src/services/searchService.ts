@@ -1,4 +1,3 @@
-import { BoundedCache } from "../utils/boundedCache";
 // frontend/packages/ui/src/services/searchService.ts
 // Core search engine service for offline full-text search across chats, messages, settings,
 // apps, skills, focus modes, and memories.
@@ -152,27 +151,12 @@ export interface SearchResults {
 
 // --- Configuration ---
 
-/** Number of characters to show before and after a match in message snippets */
-const SNIPPET_CONTEXT_CHARS = 50;
-/**
- * Maximum number of message snippets to show per chat.
- * Raised to 5 so results from multiple messages can all appear.
- */
-const MAX_SNIPPETS_PER_CHAT = 5;
-/**
- * Maximum snippets shown from a single message.
- * Caps how many embed variants of the same message are shown,
- * so different messages each get representation in the results.
- */
-const MAX_SNIPPETS_PER_MESSAGE = 2;
 /**
  * Maximum characters to extract from a single embed for search indexing.
  * Caps RAM usage per embed — a typical web page scrape can be 10k+ chars.
  */
 const MAX_EMBED_TEXT_CHARS = 1500;
 const MAX_CHILD_EMBEDS_TO_INDEX = 50;
-const MAX_EMBED_RESULTS_PER_CHAT = 6;
-const MAX_EMBED_RESULTS_TOTAL = 6;
 // --- Helpers ---
 
 /**
@@ -696,13 +680,10 @@ async function resolveEmbedText(
  *
  * This data is RAM-only and cleared when the page unloads.
  */
-const MAX_SEARCH_INDEX_BYTES = 32 * 1024 * 1024;
-const MAX_SEARCH_INDEX_CHATS = 500;
 const MAX_CONCURRENT_INDEX_JOBS = 5;
 export type SearchEntries = Array<{
     messageId: string;
     content: string;
-    normalizedContent: string;
     createdAt: number;
     /** Present when this entry represents embed content rather than raw message text */
     embedSourceLabel?: string;
@@ -721,22 +702,12 @@ export type SearchEntries = Array<{
     /** Focus mode display name/translation key from embed payload */
     embedFocusModeName?: string;
   }>;
-const messageIndex = new BoundedCache<string, SearchEntries>(MAX_SEARCH_INDEX_BYTES, MAX_SEARCH_INDEX_CHATS);
-const pendingIndexJobs = new Map<string, Promise<SearchEntries>>();
 let activeIndexJobs = 0;
 const indexWaiters: Array<() => void> = [];
 
 /** Re-read a chat after its messages change, including newly arrived embeds. */
 export function invalidateChatSearchIndex(chatId: string): void {
-  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") rustSearch?.invalidateRustChat(chatId);
-  messageIndex.delete(chatId);
-  const pending = pendingIndexJobs.get(chatId);
-  if (pending) {
-    // An in-flight warm-up may finish after the update. Remove that stale result.
-    void pending.then((entries) => {
-      if (messageIndex.get(chatId) === entries) messageIndex.delete(chatId);
-    });
-  }
+  rustSearch?.invalidateRustChat(chatId);
 }
 let indexGeneration = 0;
 
@@ -748,30 +719,6 @@ async function measuredBuild(chatId: string, generation: number): Promise<Search
   return entries;
 }
 
-// Share decryption across warm-up and overlapping searches, with one global limit.
-async function indexChatMessages(chatId: string): Promise<SearchEntries> {
-  const cached = messageIndex.get(chatId);
-  if (cached) return cached;
-  const pending = pendingIndexJobs.get(chatId);
-  if (pending) return pending;
-  const generation = indexGeneration;
-  const job = (async () => {
-    if (activeIndexJobs >= MAX_CONCURRENT_INDEX_JOBS) {
-      await new Promise<void>(resolve => indexWaiters.push(resolve));
-    } else { activeIndexJobs++; }
-    try {
-      if (generation !== indexGeneration) return [];
-      return await measuredBuild(chatId, generation);
-    } finally {
-      const next = indexWaiters.shift();
-      if (next) next(); else activeIndexJobs--;
-    }
-  })();
-  pendingIndexJobs.set(chatId, job);
-  try { return await job; } finally {
-    if (pendingIndexJobs.get(chatId) === job) pendingIndexJobs.delete(chatId);
-  }
-}
 
 /**
  * Metadata search index for expanded search (chats 101–1000).
@@ -817,10 +764,6 @@ let metadataWarmUpInProgress = false;
  */
 async function buildChatMessageIndex(chatId: string, generation: number): Promise<SearchEntries> {
 
-  // Rust-core builds: the Worker index lowercases the contents itself (ingestColumns sends
-  // contents only), so the page skips the unused per-entry toLowerCase copy.
-  const workerOwnsIndex = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && rustSearchOwnsIndex();
-  const lower = (text: string): string => (workerOwnsIndex ? "" : text.toLowerCase());
   try {
     let messages: Message[];
 
@@ -846,7 +789,6 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
         entries.push({
           messageId: msg.message_id,
           content: messageText,
-          normalizedContent: lower(messageText),
           createdAt: msg.created_at,
           // No embedSourceLabel — this is the base message text
         });
@@ -871,7 +813,6 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
           entries.push({
             messageId: msg.message_id,
             content: result.text,
-            normalizedContent: lower(result.text),
             createdAt: msg.created_at,
             embedSourceLabel: result.sourceLabel,
             // Store embed ID and type so clicking the search result can open the embed
@@ -888,7 +829,6 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
             entries.push({
               messageId: msg.message_id,
               content: child.text,
-              normalizedContent: lower(child.text),
               createdAt: msg.created_at,
               embedSourceLabel: EMBED_TYPE_LABELS[child.embedType] || result.sourceLabel,
               embedId: child.embedId,
@@ -904,18 +844,13 @@ async function buildChatMessageIndex(chatId: string, generation: number): Promis
     }
 
     if (generation !== indexGeneration) return [];
-    // Rust-core builds: indexChatInRustUnit transfers the entries to the Worker index (it sorts them); the page keeps no copy.
-    if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && rustSearchOwnsIndex()) return entries;
-    entries.sort(compareSearchEntriesNewestFirst);
-    messageIndex.set(chatId, entries);
+    // indexChatInRustUnit transfers the entries to the Worker index (it sorts them); the page keeps no copy.
     return entries;
   } catch (error) {
     console.error(
       `[SearchService] Error indexing messages for chat ${chatId}:`,
       error,
     );
-    // Mark as indexed even on error to avoid repeated failures
-    if (generation === indexGeneration && !(import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && rustSearchOwnsIndex())) messageIndex.set(chatId, []);
     return [];
   }
 }
@@ -941,7 +876,7 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
     for (let i = 0; i < chatIds.length; i += BATCH_SIZE) {
       if (generation !== indexGeneration) break;
       const batch = chatIds.slice(i, i + BATCH_SIZE);
-      await Promise.all(batch.map((chatId) => import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && rustSearchOwnsIndex() ? indexChatInRustUnit(chatId) : indexChatMessages(chatId)));
+      await Promise.all(batch.map((chatId) => indexChatInRustUnit(chatId)));
 
       // Yield to the event loop between batches so UI stays responsive
       if (i + BATCH_SIZE < chatIds.length) {
@@ -952,7 +887,7 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
     const elapsed = performance.now() - startTime;
     performance.measure("openmates:search:warmup", { start: startTime, end: performance.now(), detail: { chats: chatIds.length } });
     console.debug(
-      `[SearchService] Search index warmed up in ${elapsed.toFixed(0)}ms (${messageIndex.size} chats)`,
+      `[SearchService] Search index warmed up in ${elapsed.toFixed(0)}ms (${chatIds.length} chats)`,
     );
   } catch (error) {
     console.error("[SearchService] Error during search index warm-up:", error);
@@ -1046,371 +981,14 @@ export async function warmUpMetadataSearchIndex(chats: Chat[]): Promise<void> {
   }
 }
 
-/**
- * Search metadata (summary + tags + draft preview) for a single chat using the metadataIndex.
- * Used for metadata-only chats that have been pre-indexed.
- */
-function searchMetadataInChat(
-  chatId: string,
-  query: string,
-): MetadataMatchSnippet[] {
-  const meta = metadataIndex.get(chatId);
-  if (!meta) return [];
-  return searchMetadataInline(
-    chatId,
-    query,
-    meta.summary,
-    meta.tags,
-    meta.draftPreview,
-  );
-}
-
-/**
- * Search metadata (summary + tags + draft preview) inline using provided values.
- * Shared implementation used by both metadataIndex lookup and inline cache search.
- */
-function searchMetadataInline(
-  chatId: string,
-  query: string,
-  summary: string | null,
-  tags: string[] | null,
-  draftPreview: string | null = null,
-): MetadataMatchSnippet[] {
-  const snippets: MetadataMatchSnippet[] = [];
-  const lowerQuery = query.toLowerCase();
-
-  // Search in summary
-  if (summary) {
-    const lowerSummary = summary.toLowerCase();
-    const idx = lowerSummary.indexOf(lowerQuery);
-    if (idx !== -1) {
-      const { snippet, snippetMatchStart, snippetMatchLength } = buildSnippet(
-        summary,
-        idx,
-        query.length,
-      );
-      snippets.push({
-        chatId,
-        snippet,
-        matchStart: snippetMatchStart,
-        matchLength: snippetMatchLength,
-        matchSource: "summary",
-      });
-    }
-  }
-
-  // Search in tags
-  if (tags && tags.length > 0) {
-    for (const tag of tags) {
-      const lowerTag = tag.toLowerCase();
-      if (lowerTag.includes(lowerQuery)) {
-        snippets.push({
-          chatId,
-          snippet: tag,
-          matchStart: lowerTag.indexOf(lowerQuery),
-          matchLength: query.length,
-          matchSource: "tags",
-        });
-        break; // One tag match is sufficient
-      }
-    }
-  }
-
-  // Search in unsent draft previews so draft-only chats without a title/message
-  // remain discoverable across CLI, web, and cold-boot sync paths.
-  if (draftPreview) {
-    const lowerDraftPreview = draftPreview.toLowerCase();
-    const idx = lowerDraftPreview.indexOf(lowerQuery);
-    if (idx !== -1) {
-      const { snippet, snippetMatchStart, snippetMatchLength } = buildSnippet(
-        draftPreview,
-        idx,
-        query.length,
-      );
-      snippets.push({
-        chatId,
-        snippet,
-        matchStart: snippetMatchStart,
-        matchLength: snippetMatchLength,
-        matchSource: "draft",
-      });
-    }
-  }
-
-  return snippets;
-}
-
-/**
- * Add or update a single message (and its embed content) in the search index.
- * Called when new messages arrive via WebSocket or when messages are updated.
- *
- * This function is async to support embed resolution, but callers that don't
- * await it (fire-and-forget) are fine — the index update will complete in the
- * background and the next search will pick up the new entries.
- *
- * @param chatId  - The chat ID the message belongs to
- * @param message - The decrypted message to add
- */
-export async function addMessageToIndex(
-  chatId: string,
-  message: Message,
-): Promise<void> {
-  if (!message.content || typeof message.content !== "string") return;
-
-  const rawContent = message.content.trim();
-  if (!rawContent) return;
-
-  // Remove all existing entries for this message (clean slate for update)
-  const existing = messageIndex.get(chatId);
-  if (!existing) return;
-  const generation = indexGeneration;
-  const withoutThisMessage = existing.filter(
-    (e) => e.messageId !== message.message_id,
-  );
-
-  const newEntries: SearchEntries = [];
-
-  // 1. Index the message's own text
-  const messageText = stripMarkdown(rawContent);
-  if (messageText) {
-    newEntries.push({
-      messageId: message.message_id,
-      content: messageText,
-      normalizedContent: messageText.toLowerCase(),
-      createdAt: message.created_at,
-    });
-  }
-
-  // 2. Index embed content referenced in the message
-  const embedRefs = extractEmbedReferences(rawContent);
-  for (const ref of embedRefs) {
-    const result = await resolveEmbedText(ref.embed_id, ref.type, ref);
-    if (!result) continue;
-    newEntries.push({
-      messageId: message.message_id,
-      content: result.text,
-      normalizedContent: result.text.toLowerCase(),
-      createdAt: message.created_at,
-      embedSourceLabel: result.sourceLabel,
-      embedId: ref.embed_id,
-      embedType: result.embedType,
-      embedTitle: result.title,
-      embedSubtitle: result.sourceLabel,
-      embedAppId: result.appId,
-      embedSkillId: result.skillId,
-      embedFocusId: result.focusId,
-      embedFocusModeName: result.focusModeName,
-    });
-    for (const child of result.children) {
-      newEntries.push({
-        messageId: message.message_id,
-        content: child.text,
-        normalizedContent: child.text.toLowerCase(),
-        createdAt: message.created_at,
-        embedSourceLabel: EMBED_TYPE_LABELS[child.embedType] || result.sourceLabel,
-        embedId: child.embedId,
-        embedType: child.embedType,
-        embedTitle: child.title,
-        embedSubtitle: EMBED_TYPE_LABELS[child.embedType] || result.sourceLabel,
-        embedAppId: result.appId,
-        embedSkillId: result.skillId,
-      });
-    }
-  }
-
-  if (generation === indexGeneration && messageIndex.get(chatId) === existing) {
-    messageIndex.set(
-      chatId,
-      [...withoutThisMessage, ...newEntries].sort(compareSearchEntriesNewestFirst),
-    );
-  }
-}
-
-// --- Search Logic ---
-
-/**
- * Find all non-overlapping occurrences of a query within a text (case-insensitive).
- * @returns Array of { start, length } for each match
- */
-export function findMatchRanges(
-  text: string,
-  query: string,
-): Array<{ start: number; length: number }> {
-  const ranges: Array<{ start: number; length: number }> = [];
-  const lowerText = text.toLowerCase();
-  const lowerQuery = query.toLowerCase();
-
-  let searchFrom = 0;
-  while (searchFrom < lowerText.length) {
-    const idx = lowerText.indexOf(lowerQuery, searchFrom);
-    if (idx === -1) break;
-    ranges.push({ start: idx, length: lowerQuery.length });
-    searchFrom = idx + lowerQuery.length;
-  }
-
-  return ranges;
-}
-
-/**
- * Build a snippet around a match position, showing surrounding context.
- * Produces text like "... words before match words after ..."
- * @param content - Full message content
- * @param matchStart - Start index of the match
- * @param matchLength - Length of the match
- * @returns Object with snippet text and match position within the snippet
- */
-export function buildSnippet(
-  content: string,
-  matchStart: number,
-  matchLength: number,
-): { snippet: string; snippetMatchStart: number; snippetMatchLength: number } {
-  const contextStart = Math.max(0, matchStart - SNIPPET_CONTEXT_CHARS);
-  const contextEnd = Math.min(
-    content.length,
-    matchStart + matchLength + SNIPPET_CONTEXT_CHARS,
-  );
-
-  let snippet = content.slice(contextStart, contextEnd);
-  let snippetMatchStart = matchStart - contextStart;
-
-  // Add ellipsis for truncated context, trimming to nearest word boundary
-  if (contextStart > 0) {
-    const firstSpace = snippet.indexOf(" ");
-    if (firstSpace > 0 && firstSpace < snippetMatchStart) {
-      snippet = snippet.slice(firstSpace + 1);
-      snippetMatchStart -= firstSpace + 1;
-    }
-    snippet = "... " + snippet;
-    snippetMatchStart += 4; // Account for "... " prefix
-  }
-  if (contextEnd < content.length) {
-    const lastSpace = snippet.lastIndexOf(" ");
-    if (lastSpace > snippetMatchStart + matchLength) {
-      snippet = snippet.slice(0, lastSpace);
-    }
-    snippet = snippet + " ...";
-  }
-
-  return {
-    snippet,
-    snippetMatchStart,
-    snippetMatchLength: matchLength,
-  };
-}
-
-/**
- * Search messages (and embed content) in a single chat.
- * Returns up to MAX_SNIPPETS_PER_CHAT snippet matches across distinct messages,
- * with at most MAX_SNIPPETS_PER_MESSAGE snippets from any single message.
- * Preferring message-text matches over embed matches (message text shown first).
- *
- * Embed-sourced snippets include an embedSourceLabel so the results UI can show
- * "Found in: Web page" / "Found in: Code" context labels, and an embedId so
- * clicking the result opens the embed fullscreen view.
- */
-function compareSearchEntriesNewestFirst(a: SearchEntries[number], b: SearchEntries[number]): number {
-  if (b.createdAt !== a.createdAt) return b.createdAt - a.createdAt;
-  const aIsEmbed = a.embedSourceLabel !== undefined ? 1 : 0;
-  const bIsEmbed = b.embedSourceLabel !== undefined ? 1 : 0;
-  return aIsEmbed - bIsEmbed;
-}
-
-export async function searchMessagesInChat(
-  chatId: string,
-  query: string,
-  activeFocusId: string | null = null,
-  entries = messageIndex.get(chatId),
-  signal?: AbortSignal,
-  includeEmbeds = false,
-): Promise<{ snippets: MessageMatchSnippet[]; embeds: EmbedSearchResult[] }> {
-  if (!entries) return { snippets: [], embeds: [] };
-
-  const snippets: MessageMatchSnippet[] = [];
-  const embeds: EmbedSearchResult[] = [];
-  const seenEmbedIds = new Set<string>();
-  // Count how many snippets we've already emitted for each message ID
-  const snippetsPerMessage = new Map<string, number>();
-  const lowerQuery = query.toLowerCase();
-
-  // Entries are ordered when indexed. Yield periodically so a large chat cannot
-  // monopolize the UI thread and an obsolete query can be aborted promptly.
-  for (let entryIndex = 0; entryIndex < entries.length; entryIndex++) {
-    if (entryIndex > 0 && entryIndex % 256 === 0) {
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      signal?.throwIfAborted();
-    }
-    const entry = entries[entryIndex];
-    if (snippets.length >= MAX_SNIPPETS_PER_CHAT && (!includeEmbeds || embeds.length >= MAX_EMBED_RESULTS_PER_CHAT)) break;
-
-    const idx = entry.normalizedContent.indexOf(lowerQuery);
-    if (idx === -1) continue;
-
-    if (includeEmbeds && entry.embedId && entry.embedTitle &&
-        embeds.length < MAX_EMBED_RESULTS_PER_CHAT && !seenEmbedIds.has(entry.embedId)) {
-      embeds.push({
-        embedId: entry.embedId,
-        embedType: entry.embedType || '',
-        chatId,
-        messageId: entry.messageId,
-        title: entry.embedTitle,
-        subtitle: entry.embedSubtitle || entry.embedSourceLabel || 'Embed',
-        appId: entry.embedAppId,
-        createdAt: entry.createdAt,
-      });
-      seenEmbedIds.add(entry.embedId);
-    }
-
-    if (snippets.length >= MAX_SNIPPETS_PER_CHAT) continue;
-
-    // Cap how many snippets come from the same message (prevents one embed-heavy
-    // message from consuming all result slots and hiding other messages)
-    const countForMsg = snippetsPerMessage.get(entry.messageId) ?? 0;
-    if (countForMsg >= MAX_SNIPPETS_PER_MESSAGE) continue;
-
-    const { snippet, snippetMatchStart, snippetMatchLength } = buildSnippet(
-      entry.content,
-      idx,
-      query.length,
-    );
-
-    snippets.push({
-      messageId: entry.messageId,
-      chatId,
-      snippet,
-      matchStart: snippetMatchStart,
-      matchLength: snippetMatchLength,
-      embedSourceLabel: entry.embedSourceLabel,
-      embedId: entry.embedId,
-      embedType: entry.embedType,
-      embedAppId: entry.embedAppId,
-      embedSkillId: entry.embedSkillId,
-      embedFocusId: entry.embedFocusId,
-      embedFocusModeName: entry.embedFocusModeName,
-      embedFocusIsActive:
-        entry.embedType === "focus-mode-activation" && entry.embedFocusId
-          ? entry.embedFocusId === activeFocusId
-          : undefined,
-    });
-    snippetsPerMessage.set(entry.messageId, countForMsg + 1);
-  }
-
-  return { snippets, embeds };
-}
-
-// --- Rust-core builds only (VITE_OPENMATES_RUST_CORE=1; dead code otherwise) ---
+// --- Rust search unit (the only search path) ---
 // The shared Worker's `search` unit owns the message index and runs the search
 // (rustCore/search/rustChatSearch.ts). The page builds a chat's entries from the
 // source with buildChatMessageIndex, transfers them once and keeps no copy; after
 // a Worker crash the next search re-indexes from the source.
 
-/** Measurement-only TypeScript opt-out; same key as rustChatSearch.ts SEARCH_OPT_OUT_KEY. */
-const RUST_SEARCH_OPT_OUT_KEY = "openmates_rust_core_search";
 let rustSearch: typeof import("./rustCore/search/rustChatSearch") | null = null;
 const pendingRustIndexJobs = new Map<string, Promise<void>>();
-
-function rustSearchOwnsIndex(): boolean {
-  return typeof localStorage === "undefined" || localStorage.getItem(RUST_SEARCH_OPT_OUT_KEY) !== "ts";
-}
 
 async function loadRustSearch() {
   rustSearch ??= await import("./rustCore/search/rustChatSearch");
@@ -1418,18 +996,17 @@ async function loadRustSearch() {
 }
 
 /**
- * Called when the search bar opens, before the first query: Rust-core builds load the
+ * Called when the search bar opens, before the first query: load the
  * search unit while the user types, so the first warm-up ingest does not wait for it.
- * No-op in default builds. A failed open is reported by the search that needs the unit.
+ * A failed open is reported by the search that needs the unit.
  */
 export function prepareSearchBackend(): void {
-  if (import.meta.env.VITE_OPENMATES_RUST_CORE !== "1" || !rustSearchOwnsIndex()) return;
   loadRustSearch().then((rust) => rust.prepareRustChatSearch()).catch((error: unknown) => {
     console.warn("[SearchService] Preparing the search unit failed:", error instanceof Error ? error.message : "unknown");
   });
 }
 
-/** indexChatMessages for the Worker index: same dedupe and global concurrency limit. */
+/** Build and ingest one chat into the Worker index: same dedupe and global concurrency limit. */
 async function indexChatInRustUnit(chatId: string): Promise<void> {
   const rust = await loadRustSearch();
   if (rust.isRustChatIndexed(chatId)) return;
@@ -1543,98 +1120,6 @@ async function searchViaRustUnit(
 }
 
 /**
- * Search settings catalog against the query.
- * Matches against the translated label and keyword synonyms.
- * Filters out entries that require authentication or admin access based on the caller's context.
- * @param query - Search query string
- * @param textFn - Translation function ($text)
- * @param isAuthenticated - Whether the current user is authenticated
- * @param isAdmin - Whether the current user has admin privileges
- * @returns Array of matching settings entries visible to the current user
- */
-function searchSettings(
-  query: string,
-  textFn: (key: string) => string,
-  isAuthenticated: boolean,
-  isAdmin: boolean,
-): SettingsSearchResult[] {
-  const catalog = getSettingsSearchCatalog();
-  const lowerQuery = query.toLowerCase();
-  const results: SettingsSearchResult[] = [];
-
-  for (const entry of catalog) {
-    // Access control: skip entries that the current user cannot access.
-    // - 'admin' entries: only visible to admin users
-    // - 'authenticated' entries: only visible to logged-in users
-    // - 'public' / undefined (default): visible to everyone
-    const access = entry.access ?? "public";
-    if (access === "admin" && !isAdmin) continue;
-    if (access === "authenticated" && !isAuthenticated) continue;
-
-    const label = textFn(entry.translationKey);
-    const lowerLabel = label.toLowerCase();
-
-    if (lowerLabel.includes(lowerQuery)) {
-      results.push({ entry, label, icon: entry.icon });
-      continue;
-    }
-
-    const keywordMatch = entry.keywords.some((kw) =>
-      kw.toLowerCase().includes(lowerQuery),
-    );
-    if (keywordMatch) {
-      results.push({ entry, label, icon: entry.icon });
-    }
-  }
-
-  return results;
-}
-
-/**
- * Search the app catalog (apps, skills, focus modes, memories) against the query.
- * @param query - Search query string
- * @param textFn - Translation function ($text)
- * @returns Array of matching app catalog entries
- */
-function searchAppCatalog(
-  query: string,
-  textFn: (key: string) => string,
-): AppCatalogSearchResult[] {
-  const catalog = getAppCatalog(textFn);
-  const lowerQuery = query.toLowerCase();
-  const results: AppCatalogSearchResult[] = [];
-
-  for (const entry of catalog) {
-    const label = entry.label;
-    const lowerLabel = label.toLowerCase();
-
-    if (lowerLabel.includes(lowerQuery)) {
-      results.push({
-        entry,
-        label,
-        icon: entry.icon,
-        entryType: entry.entryType,
-      });
-      continue;
-    }
-
-    const keywordMatch = entry.keywords.some((kw) =>
-      kw.toLowerCase().includes(lowerQuery),
-    );
-    if (keywordMatch) {
-      results.push({
-        entry,
-        label,
-        icon: entry.icon,
-        entryType: entry.entryType,
-      });
-    }
-  }
-
-  return results;
-}
-
-/**
  * Build the runtime app catalog using translated labels from appsMetadata.
  * This is cached per-search since it requires translation resolution.
  */
@@ -1706,159 +1191,16 @@ export async function search(
     signal?.throwIfAborted();
   }
 
-  // Rust-core builds: the shared Worker's search unit holds the message index and runs the whole search (rustCore/search/).
-  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && rustSearchOwnsIndex()) {
-    return searchViaRustUnit(trimmedQuery, allSearchableChats, textFn, isAuthenticated, isAdmin, signal, includeEmbedResults, useWarmIndexOnly);
-  }
-
-  const chatResults: ChatSearchResult[] = [];
-  const embedMatches: EmbedSearchResult[] = [];
-
-  // Search each chat
-  for (let offset = 0; offset < allSearchableChats.length; offset += MAX_CONCURRENT_INDEX_JOBS) {
-    await Promise.all(allSearchableChats.slice(offset, offset + MAX_CONCURRENT_INDEX_JOBS).map(async (chat) => {
-    signal?.throwIfAborted();
-    let decryptedTitle: string | null = null;
-    let activeFocusId: string | null = null;
-
-    if (isPublicChat(chat.chat_id)) {
-      // Public chats (demo, legal, example, newsletter) have plaintext titles
-      decryptedTitle = chat.title || null;
-    } else {
-      // Authenticated user chats — get decrypted title from cache
-      const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
-      signal?.throwIfAborted();
-      decryptedTitle = metadata?.title || chat.title || null;
-      activeFocusId = metadata?.activeFocusId || null;
-    }
-
-    // Check title match
-    let titleMatch = false;
-    let titleMatchRanges: Array<{ start: number; length: number }> = [];
-    if (decryptedTitle) {
-      titleMatchRanges = findMatchRanges(decryptedTitle, trimmedQuery);
-      titleMatch = titleMatchRanges.length > 0;
-    }
-
-    // Check message matches (only for full chats — metadata-only chats have no messages)
-    let messageSnippets: MessageMatchSnippet[] = [];
-    if (!chat.is_metadata_only) {
-      const entries = useWarmIndexOnly ? messageIndex.get(chat.chat_id) : await indexChatMessages(chat.chat_id);
-      signal?.throwIfAborted();
-      const messageMatches = await searchMessagesInChat(
-        chat.chat_id,
-        trimmedQuery,
-        activeFocusId,
-        entries,
-        signal,
-        includeEmbedResults,
-      );
-      messageSnippets = messageMatches.snippets;
-      embedMatches.push(...messageMatches.embeds);
-    }
-
-    // Check metadata matches (summary + tags).
-    // For metadata-only chats: use the metadataIndex (populated during warm-up).
-    // For full chats: search inline against already-decrypted metadata from the cache above.
-    let metadataSnippets: MetadataMatchSnippet[] = [];
-    if (chat.is_metadata_only) {
-      metadataSnippets = searchMetadataInChat(chat.chat_id, trimmedQuery);
-    } else if (!isPublicChat(chat.chat_id)) {
-      // Full authenticated chats — search metadata inline using already-fetched cache data
-      const meta = await chatMetadataCache.getDecryptedMetadata(chat);
-      signal?.throwIfAborted();
-      if (meta) {
-        metadataSnippets = searchMetadataInline(
-          chat.chat_id,
-          trimmedQuery,
-          meta.summary,
-          meta.tags,
-          meta.draftPreview,
-        );
-      }
-    }
-
-    // Include chat if title, message, or metadata matches
-    if (
-      titleMatch ||
-      messageSnippets.length > 0 ||
-      metadataSnippets.length > 0
-    ) {
-      chatResults.push({
-        chat,
-        titleMatch,
-        titleMatchRanges,
-        decryptedTitle,
-        messageSnippets,
-        metadataSnippets,
-      });
-    }
-    }));
-  }
-
-  // Sort results:
-  // 1. Title matches first
-  // 2. Full-content matches (have message snippets) before metadata-only matches
-  // 3. Within same tier, sort by recency
-  chatResults.sort((a, b) => {
-    if (a.titleMatch && !b.titleMatch) return -1;
-    if (!a.titleMatch && b.titleMatch) return 1;
-    const aHasMessages = a.messageSnippets.length > 0;
-    const bHasMessages = b.messageSnippets.length > 0;
-    if (aHasMessages && !bHasMessages) return -1;
-    if (!aHasMessages && bHasMessages) return 1;
-    return (
-      b.chat.last_edited_overall_timestamp -
-      a.chat.last_edited_overall_timestamp
-    );
-  });
-
-  // Search settings and app catalog — pass auth context so access-controlled entries are filtered
-  const staticSettingsResults = searchSettings(
-    trimmedQuery,
-    textFn,
-    isAuthenticated,
-    isAdmin,
-  );
-  const settingsResults = [...staticSettingsResults];
-  const appCatalogResults = searchAppCatalog(trimmedQuery, textFn);
-
-  const totalCount =
-    chatResults.length + settingsResults.length + appCatalogResults.length;
-
-  const seenEmbedIds = new Set<string>();
-  const lowerQuery = trimmedQuery.toLowerCase();
-  const embeds = embedMatches
-    .sort((a, b) => {
-      const aTitle = a.title.toLowerCase().includes(lowerQuery) ? 1 : 0;
-      const bTitle = b.title.toLowerCase().includes(lowerQuery) ? 1 : 0;
-      return bTitle - aTitle || b.createdAt - a.createdAt;
-    })
-    .filter((entry) => {
-      if (seenEmbedIds.has(entry.embedId)) return false;
-      seenEmbedIds.add(entry.embedId);
-      return true;
-    })
-    .slice(0, MAX_EMBED_RESULTS_TOTAL);
-
-  return {
-    chats: chatResults,
-    embeds,
-    settings: settingsResults,
-    appCatalog: appCatalogResults,
-    totalCount,
-    isWarmingUp: warmUpInProgress,
-  };
+  // The shared Worker's search unit holds the message index and runs the whole search (rustCore/search/).
+  return searchViaRustUnit(trimmedQuery, allSearchableChats, textFn, isAuthenticated, isAdmin, signal, includeEmbedResults, useWarmIndexOnly);
 }
 
 if (typeof window !== "undefined") {
   window.addEventListener("userLoggingOut", () => {
     indexGeneration++;
-    messageIndex.clear();
     metadataIndex.clear();
     indexedMetadataChatIds.clear();
-    pendingIndexJobs.clear();
-    if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") pendingRustIndexJobs.clear();
+    pendingRustIndexJobs.clear();
     metadataWarmUpInProgress = false;
     warmUpInProgress = false;
   });

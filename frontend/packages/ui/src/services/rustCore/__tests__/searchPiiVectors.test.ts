@@ -1,8 +1,8 @@
-// TS-generated vectors for the Rust web search / PII alias ports (U16/U18).
+// Vectors for the Rust web search / PII alias ports (U16/U18).
 // The committed JSON (packages/openmates-rust/src/web_search_ts_vectors.json) holds
-// inputs plus the outputs of the existing TypeScript functions. This test fails if
-// the TS behaviour drifts from the committed vectors; the Rust unit tests check the
-// same file. Regenerate: OPENMATES_REGEN_VECTORS=1 vitest run searchPiiVectors.
+// inputs plus expected outputs (match/snippet outputs frozen from the former TypeScript
+// search; saved-embed and PII outputs still come from the live TS helpers). The Rust
+// unit tests check the same file. Regenerate the live parts with OPENMATES_REGEN_VECTORS.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -19,7 +19,6 @@ vi.mock('../../../demo_chats', () => ({
   getExampleChatEmbed: () => undefined, INTRO_CHATS: [], LEGAL_CHATS: [],
 }));
 
-import { buildSnippet, findMatchRanges } from '../../searchService';
 import { searchSavedEmbedMemories } from '../../embedSuggestionSearch';
 import { createPIIDisplayAliases } from '../../piiDisplayAliases';
 import { createSearchPiiAdapter, toOrderedMemories, toOrderedSource, type SearchPiiBinding } from '../search/searchPiiAdapter';
@@ -78,8 +77,8 @@ function memoriesMap(entries: unknown[]) {
 
 function compute() {
   return {
-    matchRanges: matchCases.map(c => ({ ...c, expected: findMatchRanges(c.text, c.query) })),
-    snippets: snippetCases.map(c => ({ ...c, expected: (({ snippet, snippetMatchStart, snippetMatchLength }) => ({ snippet, snippetMatchStart, snippetMatchLength }))(buildSnippet(c.content, c.start, c.length)) })),
+    matchRanges: matchCases,
+    snippets: snippetCases,
     savedEmbeds: memoryCases.flatMap(m => m.queries.map(([query, limit]) => ({
       entries: toOrderedMemories(memoriesMap(m.entries)),
       query, limit,
@@ -96,10 +95,12 @@ describe('Rust search/PII vectors', () => {
   // contract-test: supporting surface=gui.web assertions=pii.surface.semantic-parity
   it('matches the committed TypeScript-generated vectors', () => {
     const actual = JSON.parse(JSON.stringify(compute()));
-    if (process.env.OPENMATES_REGEN_VECTORS === '1') {
-      writeFileSync(VECTORS, JSON.stringify(actual, null, 1) + '\n');
-    }
-    expect(actual).toEqual(JSON.parse(readFileSync(VECTORS, 'utf8')));
+    const committed = JSON.parse(readFileSync(VECTORS, 'utf8'));
+    // matchRanges/snippets expectations were frozen from the former TypeScript
+    // functions (deleted); only their inputs are checked here, Rust asserts the outputs.
+    const inputsOnly = (cases: Array<Record<string, unknown>>) => cases.map(({ expected: _expected, ...input }) => input);
+    expect({ ...actual, matchRanges: inputsOnly(actual.matchRanges), snippets: inputsOnly(actual.snippets) })
+      .toEqual({ ...committed, matchRanges: inputsOnly(committed.matchRanges), snippets: inputsOnly(committed.snippets) });
   });
 
   // contract-test: supporting surface=gui.web assertions=pii.surface.semantic-parity
@@ -121,16 +122,11 @@ describe('Rust search/PII vectors', () => {
 
   // contract-test: supporting surface=gui.web assertions=pii.surface.semantic-parity
   it('records TypeScript timings for the Rust comparison', () => {
-    const text = long.repeat(200);
-    const t0 = performance.now();
-    for (let i = 0; i < 200; i++) findMatchRanges(text, 'needle');
-    const t1 = performance.now();
-    for (let i = 0; i < 20000; i++) buildSnippet(long, 400, 6);
     const t2 = performance.now();
     const big = memoriesMap([['app', { g: Array.from({ length: 2000 }, (_, i) => ({ id: String(i), item_value: { embed_id: `e${i}`, title: `Design item ${i}`, location: 'Berlin' }, updated_at: i })) }]]);
     for (let i = 0; i < 20; i++) searchSavedEmbedMemories({ entriesByApp: new Map(big) }, 'design');
     const t3 = performance.now();
-    const line = `TS_TIMINGS_MS match=${(t1 - t0).toFixed(2)} snippet=${(t2 - t1).toFixed(2)} memories=${(t3 - t2).toFixed(2)}\n`;
+    const line = `TS_TIMINGS_MS memories=${(t3 - t2).toFixed(2)}\n`;
     if (process.env.OPENMATES_TIMINGS_FILE) writeFileSync(process.env.OPENMATES_TIMINGS_FILE, line);
     expect(t3).toBeGreaterThan(0);
   });

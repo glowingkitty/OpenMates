@@ -1,6 +1,6 @@
 /**
- * Page side of the shared Rust core Worker's `search` unit (Rust-core builds
- * only; searchService.ts reaches it through flag-guarded dynamic imports, so
+ * Page side of the shared Rust core Worker's `search` unit (searchService.ts
+ * reaches it through a dynamic import, so
  * default builds never bundle it).
  *
  * The Worker owns the chat message index. searchService.ts builds a chat's
@@ -25,8 +25,6 @@ import {
 	type SearchIngestChat, type SearchQueryReply, type SearchQueryRequest, type SearchUnitProtocol,
 } from './searchUnitProtocol';
 
-/** Measurement-only opt-out (`'ts'`): the paired bench runs the TypeScript search in the same build. */
-export const SEARCH_OPT_OUT_KEY = 'openmates_rust_core_search';
 const OPEN_TIMEOUT_MS = 10_000;
 
 /** The fields of a searchService index entry the Worker index stores. */

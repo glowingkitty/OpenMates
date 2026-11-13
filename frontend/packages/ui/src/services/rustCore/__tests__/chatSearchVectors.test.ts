@@ -1,12 +1,10 @@
-// TS-generated vectors for the Rust chat message search (web_search_chats.rs) and
-// unit tests of the page/Worker search adapter. The committed JSON
+// Vectors for the Rust chat message search (web_search_chats.rs) and unit tests of
+// the page/Worker search adapter. The committed JSON
 // (packages/openmates-rust/src/web_search_chats_ts_vectors.json) holds index
-// entries, queries and the output of the existing TypeScript
-// `searchMessagesInChat`; this test fails when the TS behaviour drifts and the
-// Rust tests replay the same file. Snippets are stored as UTF-16 code units so a
-// snippet cut inside a surrogate pair survives JSON parsing in Rust.
-// Regenerate: OPENMATES_REGEN_VECTORS=1 vitest run chatSearchVectors.
-import { readFileSync, writeFileSync } from 'node:fs';
+// entries, queries and expected outputs frozen from the former TypeScript
+// `searchMessagesInChat` (deleted); the Rust tests replay the file. Snippets are
+// UTF-16 code units so a cut inside a surrogate pair survives JSON parsing in Rust.
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -21,7 +19,6 @@ vi.mock('../../../demo_chats', () => ({
   getExampleChatEmbed: () => undefined, INTRO_CHATS: [], LEGAL_CHATS: [],
 }));
 
-import { searchMessagesInChat, type SearchEntries } from '../../searchService';
 import { decodeSearchReply, ingestColumns, queryColumns } from '../search/rustChatSearch';
 import { installSearchUnit, type ChatSearchIndexBinding } from '../search/searchUnit';
 import { createUnitPort, UnitPortError } from '../host/unitPort';
@@ -65,35 +62,12 @@ const queries: Array<[string, string, boolean]> = [
   ['empty', 'x', true],
 ];
 
-function toEntries(entries: CaseEntry[]): SearchEntries {
-  return entries.map((entry, index) => ({
-    ...entry, normalizedContent: entry.content.toLowerCase(), createdAt: 1000 - index,
-    ...(entry.embedId ? { embedSourceLabel: 'Doc', embedType: 'docs-doc' } : {}),
-  }));
-}
-const units = (text: string) => Array.from({ length: text.length }, (_, i) => text.charCodeAt(i));
-
-async function compute() {
-  const cases = [];
-  for (const [chat, query, includeEmbeds] of queries) {
-    const { snippets, embeds } = await searchMessagesInChat('chat', query, null, toEntries(chats[chat]), undefined, includeEmbeds);
-    cases.push({
-      chat, query, includeEmbeds,
-      expected: {
-        snippets: snippets.map((s) => ({ messageId: s.messageId, embedId: s.embedId ?? null, snippetUnits: units(s.snippet), matchStart: s.matchStart, matchLength: s.matchLength })),
-        embeds: embeds.map((e) => ({ embedId: e.embedId, messageId: e.messageId })),
-      },
-    });
-  }
-  return { chats, cases };
-}
-
 describe('Rust chat search vectors', () => {
   // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
-  it('matches the committed TypeScript-generated vectors', async () => {
-    const actual = JSON.parse(JSON.stringify(await compute()));
-    if (process.env.OPENMATES_REGEN_VECTORS === '1') writeFileSync(VECTORS, JSON.stringify(actual) + '\n');
-    expect(actual).toEqual(JSON.parse(readFileSync(VECTORS, 'utf8')));
+  it('keeps the committed vector inputs; Rust asserts the frozen expected outputs', () => {
+    const committed = JSON.parse(readFileSync(VECTORS, 'utf8'));
+    expect(committed.chats).toEqual(JSON.parse(JSON.stringify(chats)));
+    expect(committed.cases.map((item: { chat: string; query: string; includeEmbeds: boolean }) => [item.chat, item.query, item.includeEmbeds])).toEqual(queries);
   });
 
   // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary

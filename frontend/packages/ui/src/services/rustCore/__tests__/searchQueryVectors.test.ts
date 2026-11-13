@@ -1,17 +1,15 @@
 /**
- * TypeScript-generated vectors for the Rust search query
+ * Vectors for the Rust search query
  * (packages/openmates-rust/src/web_search_query_tests.rs replays them).
  *
- * Each case runs the real TypeScript `search()` (flag off) for the expected
- * results, then runs `search()` again with VITE_OPENMATES_RUST_CORE=1 against a
- * recording stand-in of rustChatSearch.ts, capturing exactly what the Rust-mode
- * path transfers to the Worker: each chat's ingested entries and the query
- * input. Rust must turn those inputs into the TypeScript results.
- * Regenerate with OPENMATES_REGEN_VECTORS=1.
+ * Runs `search()` against a recording stand-in of rustChatSearch.ts and checks
+ * that the page transfers exactly the committed inputs to the Worker: each chat's
+ * ingested entries and the query input. The expected results in the vector file
+ * are frozen from the former TypeScript search (deleted).
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 const fixtures = vi.hoisted(() => {
   const filler = 'The quick brown fox jumps over the lazy dog. ';
@@ -107,56 +105,40 @@ const chat = (chatId: string, title: string | null, lastEdited: number, metadata
 const visible = [chat('c-alpha', 'Alpha', 9000), chat('c-beta', 'Beta needle chat', 8000), chat('c-meta', null, 7000, true), chat('demo-1', 'Demo: the welcome', 6000), chat('c-many', null, 5000)];
 const hidden = [chat('c-hidden', null, 4000)];
 const textFn = (key: string) => fixtures.labels[key] ?? key;
-const units = (text: string) => Array.from({ length: text.length }, (_, i) => text.charCodeAt(i));
 const queries: Array<[string, boolean, boolean, boolean]> = [
   ['needle', false, true, false], ['needle', true, true, true], ['the', true, false, false], ['PANDAS', true, true, false],
   ['career', true, true, false], ['straße', false, true, false], ['ος', false, true, false], ['zzz', true, true, true],
   ['data', false, true, false], ['draft', false, false, false], ['profile', false, true, false],
 ];
 
-afterEach(() => vi.unstubAllEnvs());
-
 async function compute() {
   await warmUpMetadataSearchIndex(visible);
-  const cases = [];
   let inputs: unknown = null;
   for (const [query, includeEmbeds, isAuthenticated, isAdmin] of queries) {
-    vi.stubEnv('VITE_OPENMATES_RUST_CORE', '');
-    const ts = await search(query, visible, textFn, hidden, isAuthenticated, isAdmin, undefined, includeEmbeds);
-    vi.stubEnv('VITE_OPENMATES_RUST_CORE', '1');
     recorded.queries.length = 0;
     await search(query, visible, textFn, hidden, isAuthenticated, isAdmin, undefined, includeEmbeds);
     expect(recorded.queries).toHaveLength(1);
     const input = recorded.queries[0] as { chats: unknown; settings: unknown; apps: unknown };
     inputs ??= { chats: input.chats, settings: input.settings, apps: input.apps };
     expect({ chats: input.chats, settings: input.settings, apps: input.apps }, 'per-query inputs do not depend on the query').toEqual(inputs);
-    cases.push({
-      query, includeEmbeds, isAuthenticated, isAdmin,
-      expected: {
-        chats: ts.chats.map((hit) => ({
-          chatId: hit.chat.chat_id, titleMatchRanges: hit.titleMatchRanges,
-          messageSnippets: hit.messageSnippets.map((s) => ({ ...s, snippet: units(s.snippet) })),
-          metadataSnippets: hit.metadataSnippets.map((s) => ({ ...s, snippet: units(s.snippet) })),
-        })),
-        embeds: ts.embeds,
-        // Catalog positions (the Rust outcome indexes the request catalogs).
-        settings: ts.settings.map((hit) => fixtures.settings.findIndex((entry) => entry.path === hit.entry.path)),
-        apps: ts.appCatalog.map((hit) => fixtures.apps.findIndex((entry) => entry.path === hit.entry.path)),
-      },
-    });
   }
-  return { ingests: Object.fromEntries(recorded.ingests), ...(inputs as object), cases };
+  return { ingests: Object.fromEntries(recorded.ingests), ...(inputs as object) };
 }
 
 describe('Rust search query vectors', () => {
   // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
-  it('matches the committed TypeScript-generated vectors', async () => {
+  it('transfers the committed per-chat inputs to the Worker', async () => {
     // Undefined fields are dropped like JSON drops them; Rust reads absent as undefined.
     const actual = JSON.parse(JSON.stringify(await compute()));
     expect(Object.keys(actual.ingests).sort()).toEqual(['c-alpha', 'c-beta', 'c-hidden', 'c-many', 'demo-1']);
-    expect(actual.cases.some((item: { expected: { embeds: unknown[] } }) => item.expected.embeds.length === 6)).toBe(true);
-    expect(actual.cases.flatMap((item: { expected: { settings: number[]; apps: number[] } }) => [...item.expected.settings, ...item.expected.apps])).not.toContain(-1);
-    if (process.env.OPENMATES_REGEN_VECTORS === '1') writeFileSync(VECTORS, JSON.stringify(actual) + '\n');
-    expect(actual).toEqual(JSON.parse(readFileSync(VECTORS, 'utf8')));
+    // The committed vectors also hold the expected results (frozen from the former
+    // TypeScript search); only the page-built inputs are recomputed here.
+    const { cases: _cases, ...committed } = JSON.parse(readFileSync(VECTORS, 'utf8'));
+    // The page no longer sends `normalizedContent` (the Rust index lowercases itself);
+    // the committed file keeps it for the Rust replay, which ignores the field.
+    for (const entries of Object.values(committed.ingests as Record<string, Array<Record<string, unknown>>>)) {
+      for (const entry of entries) delete entry.normalizedContent;
+    }
+    expect(actual).toEqual(committed);
   });
 });

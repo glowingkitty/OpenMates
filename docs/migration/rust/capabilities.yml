@@ -229,12 +229,13 @@ capabilities:
 - id: search
   what: chat/message search and index policy
   web:
-    status: rust-default
+    status: rust-only
     old: []
     unit: search
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
-      search unit
-    last_commit: 06da1b2448
+    note: 'Rust-only: deleted the TypeScript search path in searchService.ts (indexChatMessages, messageIndex,
+      addMessageToIndex, searchMessagesInChat, searchMetadataInChat/Inline, findMatchRanges, buildSnippet, the
+      settings/app catalog loops, the opt-out key); the page keeps only index builders and metadata decryption'
+    last_commit: pending
   apple:
     status: swift-only
     old: []

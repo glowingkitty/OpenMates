@@ -7,11 +7,8 @@
  * through the normal send (CI mock replay). After a reload the sidebar search
  * must find the seeded chat's message by a word of its content, served by the
  * Rust search unit inside the one shared Worker (no page-realm WASM, at most one
- * WASM instance), and must render exactly the snippets the TypeScript search
- * renders for the same query on the same page (measurement opt-out arm).
- * Clicking the snippet opens the seeded chat. A common query exercises the
- * warm Worker index and the same TS parity. Performance is gated by the
- * search section of web-rust-core-bench.spec.ts.
+ * WASM instance). Clicking the snippet opens the seeded chat. A common query
+ * exercises the warm Worker index. Rare and common render latency are logged.
  */
 export {};
 
@@ -20,7 +17,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createSignupLogger, createStepScreenshotter, getTestAccount, getE2EDebugUrl } = require('./signup-flow-helpers');
 const { seedCodeEmbedChat } = require('./helpers/embed-ready-metrics');
 const { rustCoreInstances } = require('./helpers/rust-core-instances');
-const { appMetadataSettled, openSidebarSearch, searchAndWait, sorted, SEARCH_OPT_OUT_KEY, SNIPPETS, RARE_QUERY, COMMON_QUERY } = require('./helpers/web-rust-core-bench-search');
+const { appMetadataSettled, openSidebarSearch, searchAndWait, SNIPPETS, RARE_QUERY, COMMON_QUERY } = require('./helpers/web-rust-core-bench-search');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -33,27 +30,26 @@ test.afterEach(async ({ page }: { page: any }, testInfo: any) => {
 	}
 });
 
-/** Reloads the seeded chat on the `path` arm and runs the rare then the common query. */
-async function searchArm(page: any, chatId: string, path: 'ts' | 'rust') {
-	await page.evaluate(([key, ts]: [string, boolean]) => { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); }, [SEARCH_OPT_OUT_KEY, path === 'ts']);
+/** Reloads the seeded chat and runs the rare then the common query. */
+async function searchRun(page: any, chatId: string) {
 	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
 	const settled = appMetadataSettled(page);
 	await page.reload();
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 60000 });
 	await settled;
 	const input = await openSidebarSearch(page);
-	const rare = await searchAndWait(page, input, RARE_QUERY, `e2e:${path}:rare`);
-	expect(rare.ms, `${path}: rare-query snippet rendered`).not.toBeNull();
+	const rare = await searchAndWait(page, input, RARE_QUERY, 'e2e:rare');
+	expect(rare.ms, 'rare-query snippet rendered').not.toBeNull();
 	await input.fill('');
 	await expect(page.locator(SNIPPETS)).toHaveCount(0, { timeout: 15000 });
-	const common = await searchAndWait(page, input, COMMON_QUERY, `e2e:${path}:common`);
-	expect(common.ms, `${path}: common-query snippets rendered`).not.toBeNull();
+	const common = await searchAndWait(page, input, COMMON_QUERY, 'e2e:common');
+	expect(common.ms, 'common-query snippets rendered').not.toBeNull();
 	const marker = await page.evaluate(() => document.documentElement.dataset.rustCoreSearch ?? null);
-	return { input, rare: rare.snippets, common: common.snippets, marker };
+	return { input, rare, common, marker };
 }
 
-// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,sdk.web.before-after-performance
-test('Rust search unit finds saved chat messages with the same snippets as TS', async ({ page }: { page: any }) => {
+// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+test('Rust search unit finds saved chat messages', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(300000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -66,16 +62,12 @@ test('Rust search unit finds saved chat messages with the same snippets as TS', 
 
 	const chatId = await seedCodeEmbedChat(page, log, screenshot);
 
-	const ts = await searchArm(page, chatId, 'ts');
-	expect(ts.marker, 'TS arm did not use the Rust search unit').toBeNull();
-	const rust = await searchArm(page, chatId, 'rust');
+	const rust = await searchRun(page, chatId);
 	await screenshot(page, 'rust-search-common');
 	expect(String(rust.marker), 'the Rust search unit served both queries').toMatch(/^rust:\d+$/);
 	expect(Number(String(rust.marker).slice(5)), 'one Rust search per query (cold rerun included)').toBeGreaterThanOrEqual(2);
-	expect(sorted(rust.rare), 'rare query: Rust snippets equal TS snippets').toEqual(sorted(ts.rare));
-	expect(sorted(rust.common), 'common query: Rust snippets equal TS snippets').toEqual(sorted(ts.common));
-	expect(rust.rare.some((text: string) => text.toLowerCase().includes(RARE_QUERY)), 'seeded message found').toBe(true);
-	log('search parity', { rare: rust.rare.length, common: rust.common.length });
+	expect(rust.rare.snippets.some((text: string) => text.toLowerCase().includes(RARE_QUERY)), 'seeded message found').toBe(true);
+	log('search latency ms', { rare: rust.rare.ms, common: rust.common.ms, rareSnippets: rust.rare.snippets.length, commonSnippets: rust.common.snippets.length });
 
 	const instances = await rustCoreInstances(page);
 	expect(instances.wasmMainThreadInstantiations, 'no WASM on the page realm').toBe(0);
@@ -90,5 +82,4 @@ test('Rust search unit finds saved chat messages with the same snippets as TS', 
 	await page.locator(SNIPPETS).filter({ hasText: new RegExp(RARE_QUERY, 'i') }).first().click();
 	await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
 	await expect(page.locator('[data-testid="message-user"]').first()).toBeVisible({ timeout: 30000 });
-	await page.evaluate((key: string) => localStorage.removeItem(key), SEARCH_OPT_OUT_KEY);
 });
