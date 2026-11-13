@@ -83,6 +83,30 @@ def build_test_result_content(
     return content
 
 
+FAILURE_LOG_FIELD_CHARS = 160
+
+
+def failure_log_summary(content: dict[str, Any]) -> str:
+    """Bounded operator summary of a non-passing run for the worker log.
+
+    Holds only the exit code, counts, the first failing step name and the run's
+    own error line, each cut to FAILURE_LOG_FIELD_CHARS; command output and test
+    file contents are never logged.
+    """
+    if content.get("run_status") == "passed":
+        return ""
+    failing = next((step for step in content.get("steps") or [] if step.get("status") != "passed"), None)
+
+    def cut(value: object) -> str:
+        return str(value or "").splitlines()[0][:FAILURE_LOG_FIELD_CHARS] if value else ""
+
+    return (
+        f"exit={content.get('exit_code')} passed={content.get('passed')} failed={content.get('failed')} "
+        f"steps={len(content.get('steps') or [])} failing_step={cut(failing and failing.get('name'))!r} "
+        f"step_error={cut(failing and failing.get('error'))!r} error={cut(content.get('error'))!r}"
+    )
+
+
 def _title(result: TestRunResult) -> str:
     label = {"unit": "Unit tests", "browser": "Browser test", "cli": "CLI test"}[result.kind]
     return f"{label}: {result.status}"
@@ -184,7 +208,8 @@ async def create_test_result_embed(
     if not delivered:
         raise RuntimeError("Test result embed was not cached and delivered")
     embed_service._schedule_embed_persistence_fallback(embed_id)
-    logger.info("%s Created test result embed %s (%s)", log_prefix, embed_id, content["run_status"])
+    logger.info("%s Created test result embed %s (%s) %s", log_prefix, embed_id, content["run_status"],
+                failure_log_summary(content))
     return {"embed_id": embed_id, "embed_ref": embed_ref, "linked_embed_ids": linked}
 
 

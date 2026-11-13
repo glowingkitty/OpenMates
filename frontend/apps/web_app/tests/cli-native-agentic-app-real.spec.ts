@@ -227,17 +227,30 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
     let testResultId = '';
     if (created.length) {
       const commitsBefore = collect(await run(['projects', 'commits', 'list', created[0], '--json']), ['commit_id', 'commitId']);
-      const testTurn = await run(['chats', 'send', '--chat', chatId, TEST_PROMPT, '--json'], 900_000);
+      // A failed turn is soft so every test run's outcome is still recorded below.
+      const sent = await runRust(binary, env, ['chats', 'send', '--chat', chatId, TEST_PROMPT, '--response-timeout-seconds', '840', '--json'], 900_000);
+      expect.soft(sent.code, `test turn exit ${sent.code}\nstderr: ${String(sent.stderr).slice(-600)}`).toBe(0);
+      const testTurn = sent.code === 0 ? parseJson(sent) : { status: `exit ${sent.code}` };
       const shown = await run(['chats', 'show', chatId, '--json']);
       const testResults = embedIdsOfType(shown, 'test_result');
       testResultId = testResults[testResults.length - 1] || '';
-      let result: Record<string, unknown> = {};
-      if (testResultId) {
-        const numbers = numbersUnder(await run(['embeds', 'versions', 'list', testResultId, '--json']), ['version_number', 'versionNumber']);
+      const readResult = async (id: string) => {
+        const numbers = numbersUnder(await run(['embeds', 'versions', 'list', id, '--json']), ['version_number', 'versionNumber']);
         const latest = String(numbers.length ? Math.max(...numbers) : 1);
-        result = await run(['embeds', 'test-result', testResultId, '--version', latest, '--json']);
+        const read = await run(['embeds', 'test-result', id, '--version', latest, '--json']);
+        return (read.test_result ?? {}) as Record<string, unknown>;
+      };
+      // Outcome of every run of this turn: run status, error and failing step (no command output).
+      const runs: Record<string, unknown>[] = [];
+      for (const id of testResults) {
+        const item = await readResult(id);
+        const steps = Array.isArray(item.steps) ? item.steps as Record<string, unknown>[] : [];
+        const failing = steps.find((step) => step.status !== 'passed');
+        runs.push({ status: item.run_status, exit: item.exit_code, error: String(item.error ?? '').slice(0, 300),
+          failingStep: String(failing?.name ?? '').slice(0, 160), stepError: String(failing?.error ?? '').slice(0, 300) });
       }
-      const typed = (result.test_result ?? {}) as Record<string, unknown>;
+      Object.assign(evidence, { testRuns: runs });
+      const typed = testResultId ? await readResult(testResultId) : {};
       const assets = collect(typed, ['asset_id', 'assetId', 'path']);
       const commitsAfter = collect(await run(['projects', 'commits', 'list', created[0], '--json']), ['commit_id', 'commitId']);
       const listedAfter = collect(await run(['projects', 'hosted', 'list', created[0], '--json']), ['path']);

@@ -37450,32 +37450,32 @@ assertions:
       surface: rest_api
     - &id4746
       path: backend/tests/test_code_test_result_embed.py
-      line: 37
+      line: 38
       name: test_unit_content_is_summary_only
       surface: rest_api
     - &id4747
       path: backend/tests/test_code_test_result_embed.py
-      line: 46
+      line: 47
       name: test_browser_content_keeps_steps_order_and_evidence_asset_ids
       surface: rest_api
     - &id4748
       path: backend/tests/test_code_test_result_embed.py
-      line: 69
+      line: 70
       name: test_cli_content_carries_command_and_output
       surface: rest_api
     - &id4749
       path: backend/tests/test_code_test_result_embed.py
-      line: 81
+      line: 82
       name: test_staleness_follows_result_is_current
       surface: rest_api
     - &id4750
       path: backend/tests/test_code_test_result_embed.py
-      line: 144
+      line: 145
       name: test_create_links_tested_embeds_and_marks_stale_on_new_revision
       surface: rest_api
     - &id4751
       path: backend/tests/test_code_test_result_embed.py
-      line: 170
+      line: 171
       name: test_create_raises_when_delivery_fails
       surface: rest_api
     - &id4752

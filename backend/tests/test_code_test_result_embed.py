@@ -15,6 +15,7 @@ from backend.apps.code.tasks.test_result_embed import (
     apply_currency,
     build_test_result_content,
     create_test_result_embed,
+    failure_log_summary,
     refresh_test_result_currency,
 )
 from backend.shared.python_schemas.code_test_run import ProjectFileRevision
@@ -174,3 +175,18 @@ async def test_create_raises_when_delivery_fails() -> None:
         await create_test_result_embed(
             service, result=_result("unit"), chat_id="c", message_id="m", user_id="u", user_id_hash="h", user_vault_key_id="vk",
         )
+
+
+# contract-test: tooling
+def test_failure_log_summary_names_the_failing_step_without_output() -> None:
+    long_error = "x" * 500 + "\nsecond line"
+    content = build_test_result_content(_result(
+        "browser", status="failed", exit_code=1, passed=0, failed=1, error=long_error,
+        steps=[{"name": "Open page", "start_ms": 0, "end_ms": 5, "status": "passed"},
+               {"name": "Running tests", "start_ms": 5, "end_ms": 9, "status": "failed",
+                "error": "Running tests exited with code 1"}],
+    ), embed_ref="b-1")
+    summary = failure_log_summary(content)
+    assert "exit=1" in summary and "failing_step='Running tests'" in summary
+    assert "second line" not in summary and "x" * 161 not in summary
+    assert failure_log_summary(build_test_result_content(_result("unit"), embed_ref="u-1")) == ""
