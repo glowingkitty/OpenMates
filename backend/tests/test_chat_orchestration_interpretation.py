@@ -5,13 +5,12 @@ Run: python3 -m pytest backend/tests/test_chat_orchestration_interpretation.py -
 
 import asyncio
 import json
-import sys
 import time
-import types
 
 import pytest
 
 from backend.shared.python_utils import chat_orchestration_interpretation as interp
+from backend.shared.python_utils import server_turn_dispatch
 
 USER = "user-1"
 CHAT = "11111111-1111-4111-8111-111111111111"
@@ -112,6 +111,7 @@ class FakeEncryption:
 class Recorder:
     def __init__(self):
         self.applied, self.scheduled = [], []
+        self.refuse = False
 
 
 @pytest.fixture
@@ -119,13 +119,16 @@ def recorder(monkeypatch):
     rec = Recorder()
     monkeypatch.setattr(interp, "_schedule", lambda user_id, chat_id, countdown, elapsed:
                         rec.scheduled.append((countdown, elapsed)))
-    ask = types.ModuleType("backend.apps.ai.tasks.ask_skill_task")
-    ask.process_ai_skill_ask_task = types.SimpleNamespace(
-        apply_async=lambda **kwargs: rec.applied.append(kwargs))
-    focus = types.ModuleType("backend.apps.ai.tasks.focus_mode_auto_confirm_task")
-    focus._load_ask_skill_config_from_app_yml = lambda: {"default_llms": {}}
-    monkeypatch.setitem(sys.modules, "backend.apps.ai.tasks.ask_skill_task", ask)
-    monkeypatch.setitem(sys.modules, "backend.apps.ai.tasks.focus_mode_auto_confirm_task", focus)
+
+
+    async def admit_and_dispatch(*, cache_service, directus_service, request):
+        # Durable admission + ai.ask dispatch are covered by test_server_turn_dispatch.py.
+        if rec.refuse:
+            raise server_turn_dispatch.ServerTurnNotAdmitted("server turn already admitted")
+        rec.applied.append({"kwargs": {"request_data_dict": request}})
+        return server_turn_dispatch.server_turn_identity(
+            request["user_id"], request["chat_id"], request["message_id"])
+    monkeypatch.setattr(server_turn_dispatch, "admit_and_dispatch_server_turn", admit_and_dispatch)
     return rec
 
 
@@ -176,6 +179,28 @@ def test_close_events_combine_into_one_turn_anchored_on_last(recorder):
     last = request["message_history"][-1]
     assert last["role"] == "user" and last["content"].count("[Spawned chat event]") == 2
     assert "voice_mode" not in request
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.events.automatic-interpretation
+def test_turn_identity_is_the_durable_admission_identity(recorder):
+    cache = FakeCache()
+    task_id = _dispatch(cache, [_event("report", 1), _event("finished", 2)])
+    assert task_id == server_turn_dispatch.server_turn_identity(USER, CHAT, "evt-finished-2")
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.events.automatic-interpretation
+def test_refused_admission_frees_the_chat_and_does_not_retry(recorder):
+    cache = FakeCache()
+    cleared = []
+
+    async def clear(chat_id, task_id):
+        cleared.append(task_id)
+        return True
+    cache.clear_active_ai_task_if_matches = clear
+    recorder.refuse = True
+    assert _dispatch(cache, [_event("report", 1)]) is None
+    assert recorder.applied == [] and _claim(cache) == []
+    assert cleared == cache.claimed and len(cleared) == 1
 
 
 # contract-test: supporting surface=rest_api assertions=chat-orchestration.events.automatic-interpretation

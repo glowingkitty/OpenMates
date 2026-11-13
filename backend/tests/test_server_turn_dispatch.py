@@ -87,6 +87,7 @@ async def test_admits_with_owner_and_team_scope_then_dispatches_bound_to_the_adm
                      "chat_id": CHAT, "first_message_id": MESSAGE, "hashed_team_id": "team-hash"}
     app_id, skill_id, body = registry.calls[0]
     assert (app_id, skill_id) == ("ai", "ask") and body["legacy_cutover_task_id"] == IDENTITY
+    assert body["team_id_hash"] == "team-hash"
 
 
 # contract-test: supporting surface=rest_api assertions=chat-orchestration.events.automatic-interpretation

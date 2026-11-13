@@ -47,6 +47,7 @@ async def admit_and_dispatch_server_turn(
     user_id, chat_id, message_id = request["user_id"], request["chat_id"], request["message_id"]
     identity = server_turn_identity(user_id, chat_id, message_id)
     metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True) or {}
+    hashed_team_id = metadata.get("hashed_team_id") or None
     controller = ChatRecoveryCutoverController(cache_service, directus_service)
     admission = await controller.admit_legacy_inference(
         identity,
@@ -54,7 +55,7 @@ async def admit_and_dispatch_server_turn(
         hashed_user_id=hashlib.sha256(user_id.encode()).hexdigest(),
         chat_id=chat_id,
         first_message_id=message_id,
-        hashed_team_id=metadata.get("hashed_team_id") or None,
+        hashed_team_id=hashed_team_id,
     )
     if admission.get("admitted") is not True:
         # idempotent: this exact turn was admitted before; a second dispatch would answer twice.
@@ -63,7 +64,8 @@ async def admit_and_dispatch_server_turn(
         )
     try:
         response = await get_global_registry().dispatch_skill(
-            "ai", "ask", {**request, "legacy_cutover_task_id": identity},
+            # ai.ask binds the broker task with team_id_hash; it must match the admitted scope.
+            "ai", "ask", {**request, "legacy_cutover_task_id": identity, "team_id_hash": hashed_team_id},
         )
     except Exception:
         # Nothing reached the broker: free the admission so a later attempt can run this turn.

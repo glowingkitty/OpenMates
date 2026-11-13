@@ -26,7 +26,6 @@ import hashlib
 import json
 import logging
 import time
-import uuid
 from typing import Any, Optional
 
 from backend.shared.python_utils.chat_orchestration_spawns import (
@@ -234,8 +233,12 @@ async def dispatch_interpretation(*, cache_service: Any, directus_service: Any, 
     """Start one automatic turn for these events; None (events requeued) when the chat is busy."""
     if not events:
         return None
-    task_id = str(uuid.uuid4())
     from backend.shared.python_utils.chat_orchestration_safety import record_turn_origin
+    from backend.shared.python_utils.server_turn_dispatch import (
+        ServerTurnNotAdmitted, admit_and_dispatch_server_turn, server_turn_identity,
+    )
+    # Same stable identity the durable admission uses, so marker, admission and limits agree.
+    task_id = server_turn_identity(user_id, chat_id, events[-1]["event_message_id"])
     await record_turn_origin(cache_service=cache_service, user_id=user_id, chat_id=chat_id,
                              message_id=events[-1]["event_message_id"], origin="automatic")
     if not await cache_service.try_claim_active_ai_task(chat_id, task_id):
@@ -260,13 +263,13 @@ async def dispatch_interpretation(*, cache_service: Any, directus_service: Any, 
             request.update({name: voice_delivery[name] for name in (
                 "voice_mode", "voice_call_id", "voice_turn_id", "voice_heard_boundary", "auto_speak_response",
             ) if name in voice_delivery})
-        from backend.apps.ai.tasks.ask_skill_task import process_ai_skill_ask_task
-        from backend.apps.ai.tasks.focus_mode_auto_confirm_task import _load_ask_skill_config_from_app_yml
-        process_ai_skill_ask_task.apply_async(
-            task_id=task_id,
-            kwargs={"request_data_dict": request, "skill_config_dict": _load_ask_skill_config_from_app_yml()},
-            queue="app_ai", exchange="app_ai", routing_key="app_ai",
-        )
+        await admit_and_dispatch_server_turn(
+            cache_service=cache_service, directus_service=directus_service, request=request)
+    except ServerTurnNotAdmitted as refused:
+        # This exact turn was admitted before (or refused): running it again would answer twice.
+        await cache_service.clear_active_ai_task_if_matches(chat_id, task_id)
+        logger.warning("[CHAT_ORCH] interpretation not admitted chat=%s task=%s: %s", chat_id, task_id, refused)
+        return None
     except Exception:
         # Release the marker and keep the events so a later attempt can retry; the error still surfaces.
         await cache_service.clear_active_ai_task_if_matches(chat_id, task_id)
