@@ -28,8 +28,8 @@ test('recipe option previews retain their public example source through question
     await expect(card.getByText(payload.question, { exact: true })).toBeVisible();
     const salad = card.getByTestId('interactive-question-option-salad');
     const fritters = card.getByTestId('interactive-question-option-fritters');
-    await expect(salad.locator('.recipe-title')).toHaveText('Thai Chopped Spinach Salad with Chickpeas');
-    await expect(fritters.locator('.recipe-title')).toHaveText('Chickpea Fritters with Veggies');
+    await expect(salad.getByRole('heading', { level: 3 })).toHaveText('Thai Chopped Spinach Salad with Chickpeas');
+    await expect(fritters.getByRole('heading', { level: 3 })).toHaveText('Chickpea Fritters with Veggies');
     await expect(card.getByText('Preview unavailable', { exact: true })).toHaveCount(0);
     for (const option of [salad, fritters]) {
       const image = option.getByTestId('nutrition-recipe-preview-image');

@@ -13,7 +13,9 @@
   import EmbedPreviewLarge from '../embeds/EmbedPreviewLarge.svelte';
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
-  import { resolveReferenceableEmbedIds } from './utils/referenceableEmbeds';
+  import { embedStore } from '../../services/embedStore';
+  import { resolveExampleChatEmbedRef } from '../../demo_chats/exampleChatStore';
+  import { isEmbedUuid, resolveReferenceableEmbedIds } from './utils/referenceableEmbeds';
 
   let { embedIds = [] }: { embedIds?: string[] } = $props();
   const chatId = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT)?.chatId ?? null;
@@ -43,6 +45,16 @@
         console.debug('[InteractiveQuestionEmbeds] Referenced embed not resolvable yet:', embedId, error);
         return null;
       }
+    }, async (embedRef) => {
+      // Public example chats keep their own ref namespace; private chats use the embed ref index.
+      const exampleEmbedId = resolveExampleChatEmbedRef(embedRef, chatId)?.embedId;
+      if (exampleEmbedId) return exampleEmbedId;
+      try {
+        return await embedStore.resolveByRefDeep(embedRef, chatId ?? undefined);
+      } catch (error) {
+        console.debug('[InteractiveQuestionEmbeds] Embed ref not resolvable yet:', embedRef, error);
+        return null;
+      }
     }).then((ids) => { if (!cancelled) resolvedEmbedIds = ids; });
     return () => { cancelled = true; };
   });
@@ -57,7 +69,7 @@
       <div class="interactive-question-embed" data-testid="interactive-question-embed">
         <EmbedPreviewLarge
           embedRef={embedId}
-          {embedId}
+          embedId={isEmbedUuid(embedId) ? embedId : null}
           carouselIndex={0}
           carouselTotal={1}
           runRef={`interactive-question-${embedId}`}
