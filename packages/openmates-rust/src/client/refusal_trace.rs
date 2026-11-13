@@ -61,3 +61,13 @@ macro_rules! protocol_at {
     }};
 }
 pub(in crate::client) use protocol_at;
+
+/// Remember the source location of a JSON decode failure or missing field
+/// into `Error::Protocol` (file:line only, never the input).
+pub(crate) fn note_caller(location: &'static std::panic::Location<'static>) {
+    if enabled()
+        && let Ok(mut last) = LAST.lock()
+    {
+        *last = Some(format!("at:{}:{}", location.file(), location.line()));
+    }
+}

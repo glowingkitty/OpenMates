@@ -153,6 +153,8 @@ mod sync_feed;
 mod mention_context;
 mod search;
 mod send;
+/// Opt-in send diagnostic hook for JSON decode failures (see `refusal_trace`).
+pub(crate) use send::refusal_trace::note_caller as note_protocol_caller;
 // Composer attachments and caller PII mappings of a turn (native shells).
 mod send_attachments;
 mod send_observations;
@@ -1372,9 +1374,12 @@ pub(crate) fn now_ms() -> u64 {
 fn text<'a>(value: &'a Value, key: &str) -> &'a str {
     value.get(key).and_then(Value::as_str).unwrap_or("")
 }
+// The caller's location is noted for the opt-in send diagnostic only.
+#[track_caller]
 fn required<'a>(value: &'a Value, key: &str) -> Result<&'a str> {
     let s = text(value, key);
     if s.is_empty() {
+        send::refusal_trace::note_caller(std::panic::Location::caller());
         Err(Error::Protocol)
     } else {
         Ok(s)
