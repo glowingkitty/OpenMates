@@ -213,6 +213,30 @@ def test_user_typed_message_emits_user_wrote_and_guard_creator_sent_does_not():
     asyncio.run(run())
 
 
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.user-awareness.no-talking-over
+def test_client_job_id_is_read_from_the_message_payload_the_web_client_sends():
+    """The brief arrives with orchestration_job_id inside ``message``; reading only the envelope
+    classified every brief as user-typed (dev proof run 8)."""
+    message = {"message_id": "m-1", "orchestration_job_id": "job-1"}
+    assert jobs.client_orchestration_job_id({"chat_id": SPAWNED, "message": message}, message) == "job-1"
+    assert jobs.client_orchestration_job_id({"orchestration_job_id": "job-2"}, {"message_id": "m"}) == "job-2"
+    assert jobs.client_orchestration_job_id({}, {"orchestration_job_id": ""}) is None
+    assert jobs.client_orchestration_job_id(None, None) is None
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.report.creator-skill,chat-orchestration.status.automatic
+def test_api_ask_request_schema_keeps_the_creator_link_for_the_ai_task():
+    """The API request schema must carry creator_chat_id to the AI task; without the field
+    pydantic dropped it and spawned chats got no report skill context or finished event."""
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest as AiAskSkillRequest
+    from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as ApiAskSkillRequest
+
+    assert "creator_chat_id" in ApiAskSkillRequest.model_fields
+    assert "creator_chat_id" in AiAskSkillRequest.model_fields
+    orchestration_fields = {"parent_id", "is_sub_chat", "creator_chat_id", "budget_limit", "budget_spent"}
+    assert orchestration_fields <= set(ApiAskSkillRequest.model_fields) & set(AiAskSkillRequest.model_fields)
+
+
 # contract-test: supporting surface=rest_api assertions=chat-orchestration.events.creator-system-events
 def test_event_message_id_is_deterministic_and_error_codes_validated():
     assert jobs.event_message_id("c", "s", "report", "x") == jobs.event_message_id("c", "s", "report", "x")

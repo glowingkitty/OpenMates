@@ -253,6 +253,15 @@ async def verified_creator_link(*, cache_service: Any, user_id: str, chat_id: st
                 and isinstance(creator_chat_id, str) and record.get("creator_chat_id") == creator_chat_id)
 
 
+def client_orchestration_job_id(payload: Any, message_payload: Any) -> Optional[str]:
+    """Job id a client attached to a chat message: inside the message (web, CLI), else on the envelope."""
+    for source in (message_payload, payload):
+        job_id = source.get("orchestration_job_id") if isinstance(source, dict) else None
+        if isinstance(job_id, str) and job_id:
+            return job_id
+    return None
+
+
 async def classify_chat_message(*, cache_service: Any, encryption_service: Any, user_id: str, chat_id: str,
                                 message_id: str, job_id: Any,
                                 creator_chat_id: Optional[str] = None) -> Optional[str]:

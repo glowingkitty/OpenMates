@@ -46,7 +46,11 @@ from backend.shared.python_utils.native_cache_history import (
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
 
-from backend.shared.python_utils.chat_orchestration_jobs import OrchestrationError, classify_chat_message
+from backend.shared.python_utils.chat_orchestration_jobs import (
+    OrchestrationError,
+    classify_chat_message,
+    client_orchestration_job_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -2745,7 +2749,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             creator_chat_id_for_ai = await classify_chat_message(
                 cache_service=cache_service, encryption_service=encryption_service, user_id=user_id,
                 chat_id=chat_id, message_id=str(message_payload_from_client.get("message_id")),
-                job_id=payload.get("orchestration_job_id"),
+                job_id=client_orchestration_job_id(payload, message_payload_from_client),
                 creator_chat_id=(chat_metadata_from_db or {}).get("creator_chat_id"),
             )
         except OrchestrationError as orchestration_error:
