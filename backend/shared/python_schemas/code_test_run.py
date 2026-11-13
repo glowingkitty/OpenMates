@@ -184,6 +184,9 @@ class EvidenceRef(BaseModel):
     mime_type: str
     size_bytes: int = Field(ge=0)
     asset_id: str | None = None  # filled after the artifact is persisted
+    # File variant inside the persisted asset; with asset_id it mints a fresh
+    # download link via /v1/generated-assets/{asset_id}/files/{variant}/download-url.
+    variant: str | None = None
     at_step: int | None = Field(default=None, ge=0)  # preview_frame: index of the step
 
 

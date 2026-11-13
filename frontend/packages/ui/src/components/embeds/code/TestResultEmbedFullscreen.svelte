@@ -21,6 +21,7 @@
     resolveArtifactEvidenceUrl,
     rowStatus,
     type EvidenceUrlResolver,
+    type TestResultEvidence,
   } from './testResultContent';
 
   interface Props {
@@ -62,17 +63,17 @@
   let currentMs = $state(0);
 
   $effect(() => {
-    const videoId = findEvidence(view, 'video')?.assetId;
-    const frameId = findEvidence(view, 'preview_frame')?.assetId;
+    const video = findEvidence(view, 'video');
+    const frame = findEvidence(view, 'preview_frame');
     videoUrl = null;
     frameUrl = null;
     let cancelled = false;
-    const load = (assetId: string | undefined, assign: (url: string | null) => void) => {
-      if (!assetId) return;
-      resolveEvidenceUrl(assetId).then((url) => { if (!cancelled) assign(url); }).catch(() => { if (!cancelled) assign(null); });
+    const load = (evidence: TestResultEvidence | undefined, assign: (url: string | null) => void) => {
+      if (!evidence?.assetId) return;
+      resolveEvidenceUrl(evidence).then((url) => { if (!cancelled) assign(url); }).catch(() => { if (!cancelled) assign(null); });
     };
-    load(videoId, (url) => { videoUrl = url; });
-    load(frameId, (url) => { frameUrl = url; });
+    load(video, (url) => { videoUrl = url; });
+    load(frame, (url) => { frameUrl = url; });
     return () => { cancelled = true; };
   });
 

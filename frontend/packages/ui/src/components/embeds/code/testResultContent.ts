@@ -7,8 +7,7 @@
 // Shape source: backend/apps/code/tasks/test_result_embed.py.
 // Tests: frontend/apps/web_app/tests/components/test-result-embed.spec.ts.
 
-import { decodeToonContent, resolveEmbed } from '../../../services/embedResolver';
-import { isCodeRunArtifactDownloadAvailable } from '../../../services/codeRunArtifacts';
+import { getApiEndpoint } from '../../../config/api';
 
 export type TestResultKind = 'unit' | 'browser' | 'cli';
 export type TestResultRunStatus = 'passed' | 'failed' | 'error' | 'cancelled' | 'timed_out';
@@ -37,6 +36,7 @@ export interface TestResultEvidence {
   path: string;
   mimeType?: string;
   assetId?: string;
+  variant?: string;
   atStep?: number;
 }
 
@@ -58,8 +58,8 @@ export interface TestResultView {
   staleReason?: string;
 }
 
-/** Resolves an evidence asset id to a short-lived playable/displayable URL. */
-export type EvidenceUrlResolver = (assetId: string) => Promise<string | null>;
+/** Resolves stored evidence to a short-lived playable/displayable URL. */
+export type EvidenceUrlResolver = (evidence: TestResultEvidence) => Promise<string | null>;
 
 const KINDS: TestResultKind[] = ['unit', 'browser', 'cli'];
 const RUN_STATUSES: TestResultRunStatus[] = ['passed', 'failed', 'error', 'cancelled', 'timed_out'];
@@ -109,6 +109,7 @@ export function parseTestResult(content: Record<string, unknown> | undefined | n
       path: str(e.path) ?? '',
       mimeType: str(e.mime_type),
       assetId: str(e.asset_id),
+      variant: str(e.variant),
       atStep: num(e.at_step),
     })),
     isCurrent: dc.is_current !== false,
@@ -148,21 +149,20 @@ export function findEvidence(view: TestResultView, kind: string): TestResultEvid
 }
 
 /**
- * Default evidence resolver: evidence bytes live in the encrypted Code Run
- * artifact child embed (`asset_id` is that embed id); its decoded content holds
- * the signed download URL. No bytes or keys are handled here.
+ * Default evidence resolver: evidence bytes stay in the encrypted Code Run asset
+ * (`asset_id`), one file per `variant`. The existing generated-assets route checks
+ * ownership and mints a fresh short-lived link, so a result keeps playing after
+ * the run's own links expired. Evidence without both ids has no stored file.
  */
-export const resolveArtifactEvidenceUrl: EvidenceUrlResolver = async (assetId) => {
-  const embed = await resolveEmbed(assetId);
-  if (!embed) return null;
-  const decoded = await decodeToonContent(embed.content);
-  const url = str(decoded?.download_url);
-  if (!url) return null;
-  const available = isCodeRunArtifactDownloadAvailable({
-    path: str(decoded?.path) ?? assetId,
-    normalized_path: str(decoded?.normalized_path) ?? assetId,
-    download_url: url,
-    download_expires_at: num(decoded?.download_expires_at),
-  });
-  return available ? url : null;
+export const resolveArtifactEvidenceUrl: EvidenceUrlResolver = async (evidence) => {
+  if (!evidence.assetId || !evidence.variant) return null;
+  const response = await fetch(
+    getApiEndpoint(
+      `/v1/generated-assets/${encodeURIComponent(evidence.assetId)}/files/${encodeURIComponent(evidence.variant)}/download-url`,
+    ),
+    { credentials: 'include' },
+  );
+  if (!response.ok) throw new Error(`Test evidence unavailable (${response.status})`);
+  const result = await response.json() as { download_url?: unknown };
+  return typeof result.download_url === 'string' ? result.download_url : null;
 };

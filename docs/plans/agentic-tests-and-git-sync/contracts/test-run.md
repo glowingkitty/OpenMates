@@ -31,7 +31,7 @@ Delivered on the execution status payload and the assistant completion result as
 - `revisions[]`: revisions the run used. A result whose set differs from the current files is stale: `result_is_current()`.
 - `passed`, `failed`, `skipped`, `tests[]` (`{name, status, duration_ms, error}`)
 - `steps[]` ordered: `{name, start_ms, end_ms, status passed|failed|skipped, error, is_preview, command, output}`; offsets are ms from run start (after upload). The runner adds one step per setup command, `Starting server`, `Waiting for server`, `Running tests`; recorder steps follow, so recorder offsets are relative to the start of the test command's own timeline and `preview_step_index` indexes the merged list.
-- `evidence[]`: `{kind video|terminal_cast|preview_frame|trace|report, path, mime_type, size_bytes, asset_id, at_step}`. `asset_id` is the persisted encrypted artifact id (set after storage).
+- `evidence[]`: `{kind video|terminal_cast|preview_frame|trace|report, path, mime_type, size_bytes, asset_id, variant, at_step}`. `asset_id` is the persisted encrypted artifact id and `variant` the file inside it (both set after storage); clients mint a fresh link with `GET /v1/generated-assets/{asset_id}/files/{variant}/download-url`.
 - `preview_step_index`, `error`.
 
 Status rules: error if setup/server fails, the report is malformed, or a non-unit run wrote no report; failed if exit code != 0 or any test failed; timed_out on exit code 124. `unit` needs no report: without one, status comes from the exit code and `tests` is empty.

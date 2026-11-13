@@ -66,12 +66,12 @@
   let frameFailed = $state(false);
 
   $effect(() => {
-    const assetId = frame?.assetId;
+    const evidence = frame;
     frameUrl = null;
     frameFailed = false;
-    if (!assetId) return;
+    if (!evidence?.assetId) return;
     let cancelled = false;
-    resolveEvidenceUrl(assetId).then((url) => {
+    resolveEvidenceUrl(evidence).then((url) => {
       if (!cancelled) frameUrl = url;
     }).catch(() => {
       if (!cancelled) frameFailed = true;

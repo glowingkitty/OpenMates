@@ -157,6 +157,9 @@ pub struct Evidence {
     /// Encrypted artifact id; absent when storage failed.
     #[serde(default)]
     pub asset_id: Option<String>,
+    /// File variant inside the asset (with `asset_id` it names the download).
+    #[serde(default)]
+    pub variant: Option<String>,
     /// Step index for a preview frame.
     #[serde(default)]
     pub at_step: Option<usize>,

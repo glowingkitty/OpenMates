@@ -1,3 +1,5 @@
+import type { TestResultEvidence } from './testResultContent';
+
 // frontend/packages/ui/src/components/embeds/code/testResultFixtures.ts
 //
 // Shared decoded-content fixtures for the test result embed component previews.
@@ -5,7 +7,7 @@
 
 const FIXTURE_BASE = '/dev-fixtures/test-result';
 
-export const fixtureEvidenceUrl = async (assetId: string): Promise<string | null> => {
+export const fixtureEvidenceUrl = async ({ assetId = '' }: TestResultEvidence): Promise<string | null> => {
   if (assetId.startsWith('asset-video')) return `${FIXTURE_BASE}/run.webm`;
   if (assetId.startsWith('asset-frame')) return `${FIXTURE_BASE}/frame.png`;
   return null;
@@ -23,8 +25,8 @@ const browserSteps = (failedLast: boolean) => [
 ];
 
 const browserEvidence = [
-  { kind: 'video', path: 'artifacts/run.webm', mime_type: 'video/webm', size_bytes: 122700, asset_id: 'asset-video-1' },
-  { kind: 'preview_frame', path: 'artifacts/frame.png', mime_type: 'image/png', size_bytes: 2452, asset_id: 'asset-frame-1', at_step: 2 },
+  { kind: 'video', path: 'artifacts/run.webm', mime_type: 'video/webm', size_bytes: 122700, asset_id: 'asset-video-1', variant: 'video-1' },
+  { kind: 'preview_frame', path: 'artifacts/frame.png', mime_type: 'image/png', size_bytes: 2452, asset_id: 'asset-frame-1', variant: 'frame-1', at_step: 2 },
 ];
 
 const base = {

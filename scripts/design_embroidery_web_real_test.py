@@ -188,6 +188,7 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
     heartbeat = None
     link = WEB_APP / "node_modules"
     created_link = False
+    acquiring = False
     old_umask = os.umask(0o077)
     try:
         out.mkdir(parents=True)
@@ -209,9 +210,11 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
             chrome=json.dumps(str(chrome))))
         import dev_test_account
 
+        acquiring = True
         real_account = dev_test_account.acquire_real_test_account(
             "embroidery-web", args.session, spec_name(spec), stack_timeout=args.lease_timeout_seconds,
             allow_throwaway=not args.personal_only)
+        acquiring = False
         leases = real_account.leases
         receipt["account_role"] = "personal_dev_test" if real_account.kind == "personal" else "throwaway_dev_test"
         env = real_account.environment
@@ -246,8 +249,12 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
     except BaseException as exc:
         receipt["status"] = "failed"
         receipt["error_code"] = str(exc) if isinstance(exc, ProofError) else type(exc).__name__
-        if isinstance(exc, RuntimeError) and not isinstance(exc, ProofError) and not leases:
-            receipt["error_code"] = "lease_unavailable"
+        if isinstance(exc, RuntimeError) and not isinstance(exc, ProofError):
+            if acquiring:
+                receipt["error_code"] = "lease_unavailable"
+            # Revision/runtime checks raise plain RuntimeErrors with fixed,
+            # non-secret messages; keep them so a failed start names its cause.
+            receipt["error_detail"] = str(exc)[:300]
     finally:
         record_leftovers(receipt, draft_guard)
         shutil.rmtree(cli_state, ignore_errors=True)

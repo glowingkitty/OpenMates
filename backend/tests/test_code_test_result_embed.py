@@ -190,3 +190,22 @@ def test_failure_log_summary_names_the_failing_step_without_output() -> None:
     assert "exit=1" in summary and "failing_step='Running tests'" in summary
     assert "second line" not in summary and "x" * 161 not in summary
     assert failure_log_summary(build_test_result_content(_result("unit"), embed_ref="u-1")) == ""
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.tests.recorded-evidence
+def test_final_result_pairs_each_evidence_with_its_stored_asset_and_variant() -> None:
+    from backend.apps.code.tasks.test_run_execution import final_test_result
+    from backend.shared.providers.e2b_test_runner import TestRunOutcome
+    from backend.shared.python_schemas.code_test_run import TestRunResult
+
+    result = TestRunResult.model_validate(_result("browser", evidence=[
+        {"kind": "video", "path": "outputs/test-run/video.webm", "mime_type": "video/webm", "size_bytes": 10},
+        {"kind": "trace", "path": "outputs/test-run/trace.zip", "mime_type": "application/zip", "size_bytes": 3},
+    ]))
+    outcome = TestRunOutcome(result=result, artifacts=[], skipped_artifacts=[], sandbox_id=None,
+                             duration_seconds=1.0, output_truncated=False)
+    stored = [{"asset_id": "embed-1", "normalized_path": "outputs/test-run/video.webm", "variant": "video-abc"}]
+    evidence = final_test_result(outcome, stored)["evidence"]
+    assert evidence[0]["asset_id"] == "embed-1" and evidence[0]["variant"] == "video-abc"
+    # Evidence whose storage failed carries neither, so clients show "no video".
+    assert evidence[1]["asset_id"] is None and evidence[1]["variant"] is None

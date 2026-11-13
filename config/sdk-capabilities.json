@@ -7846,6 +7846,7 @@
             "test_result_embed.Evidence.mime_type",
             "test_result_embed.Evidence.path",
             "test_result_embed.Evidence.size_bytes",
+            "test_result_embed.Evidence.variant",
             "test_result_embed.FRONTEND_TYPE",
             "test_result_embed.Revision",
             "test_result_embed.Revision.path",

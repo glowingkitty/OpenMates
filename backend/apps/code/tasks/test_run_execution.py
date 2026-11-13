@@ -45,14 +45,16 @@ def execute_test_run(
 
 
 def final_test_result(outcome: TestRunOutcome, stored_artifacts: list[dict[str, Any]]) -> dict[str, Any]:
-    """Serialize the result with asset ids of the persisted evidence artifacts."""
-    asset_by_path: dict[str, str] = {}
+    """Serialize the result with the asset id and file variant of each persisted
+    evidence artifact (both are needed to mint a download link later)."""
+    asset_by_path: dict[str, tuple[str, str | None]] = {}
     for artifact in stored_artifacts:
         asset_id = artifact.get("asset_id")
         path = artifact.get("normalized_path") or artifact.get("path")
+        variant = artifact.get("variant")
         if isinstance(asset_id, str) and isinstance(path, str):
-            asset_by_path[path] = asset_id
+            asset_by_path[path] = (asset_id, variant if isinstance(variant, str) else None)
     result = outcome.result.model_copy(deep=True)
     for item in result.evidence:
-        item.asset_id = asset_by_path.get(item.path)
+        item.asset_id, item.variant = asset_by_path.get(item.path, (None, None))
     return result.model_dump(mode="json")
