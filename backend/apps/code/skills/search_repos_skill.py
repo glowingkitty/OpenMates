@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy, policy_from_skill_kwargs
 from backend.shared.providers.github import search_github_repositories
 from backend.shared.python_utils.search_relevance import (
     normalize_relevance_criteria,
@@ -177,6 +178,7 @@ class SearchReposSkill(BaseSkill):
         req: Dict[str, Any],
         request_id: Any,
         secrets_manager: Optional[SecretsManager] = None,
+        policy: Optional[InternalLlmPolicy] = None,
     ) -> tuple[Any, List[Dict[str, Any]], Optional[str]]:
         query = str(req.get("query", "")).strip()
         count = req.get("count", DEFAULT_RESULT_COUNT)
@@ -210,6 +212,7 @@ class SearchReposSkill(BaseSkill):
                     search_parameters={"query": query},
                     profile="code_repositories",
                     secrets_manager=secrets_manager,
+                    policy=policy,
                 )
                 sanitized = ranking.candidates
             sanitized = sanitized[:count_int]
@@ -259,6 +262,7 @@ class SearchReposSkill(BaseSkill):
             process_single_request_func=self._process_single_repo_search_request,
             logger=logger,
             secrets_manager=secrets_manager,
+            policy=policy_from_skill_kwargs(kwargs),
         )
         grouped_results, errors = self._group_results_by_request_id(results, requests, logger)
         grouped_results = self._merge_grouped_results_preserving_request_order(

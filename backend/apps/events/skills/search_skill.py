@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from celery import Celery
 from pydantic import BaseModel, Field
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy, policy_from_skill_kwargs
 from backend.apps.base_skill import BaseSkill
 from backend.apps.events.providers import pretalx as pretalx_provider
 from backend.apps.events.provider_aliases import PROVIDER_ALIASES, VALID_PROVIDERS
@@ -841,7 +842,7 @@ class SearchSkill(BaseSkill):
         progress = SkillProgress(self)
         for item in valid:
             identity, events, message, total, dispatched, provider_warnings = await self._process_single_search_request(
-                item, item["id"], secrets_manager, progress=progress)
+                item, item["id"], secrets_manager, progress=progress, policy=policy_from_skill_kwargs(kwargs))
             providers.extend(provider for provider in dispatched if provider not in providers)
             # Provider ids that contributed results; billing re-checks them
             # against the server's installation registry.
@@ -880,6 +881,7 @@ class SearchSkill(BaseSkill):
 
     async def _process_single_search_request(self, req: Dict[str, Any], request_id: Any,
                                              secrets_manager: Any = None, progress: Optional[SkillProgress] = None,
+                                             policy: Optional[InternalLlmPolicy] = None,
                                              **kwargs: Any) -> Tuple:
         """Fetch and validate one bounded candidate pool from built-in and installed providers.
 
@@ -973,7 +975,8 @@ class SearchSkill(BaseSkill):
                 search_parameters={"query": query, "conference": conference, "providers": dispatched,
                                    "location": req.get("location"), "start_date": req.get("start_date"),
                                    "end_date": req.get("end_date"), "event_type": req.get("event_type")},
-                profile="events" if criteria else "events_topic", secrets_manager=secrets_manager)
+                profile="events" if criteria else "events_topic", secrets_manager=secrets_manager,
+                policy=policy)
             results = ranking.candidates
             if ranking.applied and len(ranking.scores) == len(results):
                 results = [event for event, score in zip(results, ranking.scores)

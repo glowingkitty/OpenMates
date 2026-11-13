@@ -30,6 +30,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel, Field
 from toon_format import decode as toon_decode
 
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy, policy_from_skill_kwargs
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 from backend.apps.pdf.utils.bm25 import RankedPage, rank_pages
@@ -301,6 +302,7 @@ class SearchSkill(BaseSkill):
         candidates: List[RankedPage],
         pages_text: Dict[int, str],
         secrets_manager: Any,
+        policy: Optional[InternalLlmPolicy] = None,
     ) -> Optional[Dict[int, float]]:
         """Ask the decision model for a 0-1 relevance of each candidate page to the query.
 
@@ -310,6 +312,7 @@ class SearchSkill(BaseSkill):
         if secrets_manager is None or not candidates:
             return None
         from backend.apps.ai.processing.jev_decisions import evaluate_jev_decisions, score_value
+        from backend.apps.ai.utils.internal_decisions import decision_client_for_policy
         from backend.shared.providers.typesafe.client import DEFAULT_JEV_MODEL, DecisionProviderError
 
         state = {
@@ -333,13 +336,21 @@ class SearchSkill(BaseSkill):
             for c in candidates
         }
         try:
-            response = await evaluate_jev_decisions(
-                state=state,
-                questions=questions,
-                secrets_manager=secrets_manager,
-                model_id=DEFAULT_JEV_MODEL,
-                max_retries=1,
-            )
+            if policy is None or policy.is_default:
+                response = await evaluate_jev_decisions(
+                    state=state,
+                    questions=questions,
+                    secrets_manager=secrets_manager,
+                    model_id=DEFAULT_JEV_MODEL,
+                    max_retries=1,
+                )
+            else:
+                # The user's saved complex model, or Jev on the servers the user permits.
+                client = decision_client_for_policy(
+                    policy, secrets_manager=secrets_manager, model=DEFAULT_JEV_MODEL, max_retries=1,
+                    purpose="pdf_search_relevance",
+                )
+                response = await client.evaluate(state=state, questions=questions)
             top = len(JEV_RELEVANCE_LEVELS) - 1
             return {
                 c.page_num: min(1.0, max(0.0, score_value(response, f"page_{c.page_num}") / top))
@@ -497,7 +508,8 @@ class SearchSkill(BaseSkill):
                     else JEV_RERANK_CANDIDATES
                 )
                 scores = await self._jev_relevance(
-                    query, ranked[:candidates], pages_text, kwargs.get("secrets_manager")
+                    query, ranked[:candidates], pages_text, kwargs.get("secrets_manager"),
+                    policy_from_skill_kwargs(kwargs),
                 )
                 if scores:
                     relevance = scores

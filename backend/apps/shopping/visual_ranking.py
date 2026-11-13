@@ -17,7 +17,8 @@ from uuid import uuid4
 
 import httpx
 
-from backend.shared.providers.typesafe.client import JevDecisionClient
+from backend.apps.ai.utils.internal_decisions import decision_client_for_policy
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
 from backend.shared.providers.typesafe.models import ScoreAnswer
 from backend.shared.python_utils.encrypted_embed_images import resolve_encrypted_image_embed
 from backend.shared.python_utils.image_reference_resolver import (
@@ -166,7 +167,7 @@ def unavailable_visual_results(candidates: Sequence[dict[str, Any]], reference_c
 async def rank_products_visually(
     *, candidates: Sequence[dict[str, Any]], reference_images: Sequence[bytes],
     relevance_criteria: str | None, query: str, secrets_manager: Any,
-    telemetry_task_id: str | None = None,
+    telemetry_task_id: str | None = None, policy: InternalLlmPolicy | None = None,
 ) -> VisualRankingResult:
     """Compare available photos plus product facts; filter only completed decisions."""
     original = list(candidates)
@@ -220,9 +221,9 @@ async def rank_products_visually(
                 sum(task.cancelled() for task in tasks), dict(sorted(photo_failures.items())), preparation_ms)
     if not batches:
         return unavailable_visual_results(original, len(reference_images))
-    client = JevDecisionClient(secrets_manager=secrets_manager, max_retries=0,
-                               telemetry_task_id=telemetry_task_id,
-                               telemetry_purpose="shopping_visual_relevance")
+    client = decision_client_for_policy(policy, secrets_manager=secrets_manager, needs_images=True,
+                                        max_retries=0, task_id=telemetry_task_id,
+                                        purpose="shopping_visual_relevance")
     decision_semaphore = asyncio.Semaphore(3)
 
     async def evaluate(batch: list[tuple[int, dict[str, Any], list[bytes]]], batch_index: int) -> dict[int, float]:

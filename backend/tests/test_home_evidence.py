@@ -1,4 +1,5 @@
 """Housing evidence contracts: unknowns, photo budgets, and transient failures."""
+from backend.apps.ai.utils import internal_decisions as _internal_decisions
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -19,7 +20,7 @@ def response(values, confidence=.95):
 # Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_preferences_preserve_prefer_and_explicit_lists(monkeypatch):
     client = AsyncMock()
-    monkeypatch.setattr(evidence, "JevDecisionClient", lambda **kwargs: client)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", lambda **kwargs: client)
     criteria = "Balkon erforderlich; bevorzugt mit Garten"
     result = await evidence.resolve_home_preferences({"relevance_criteria": criteria}, secrets_manager=None)
     assert result["required_amenities"] == ["balcony"]
@@ -38,7 +39,7 @@ async def test_preferences_preserve_prefer_and_explicit_lists(monkeypatch):
 async def test_preference_jev_and_low_confidence_fallback(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "preferred"})
-    monkeypatch.setattr(evidence, "JevDecisionClient", lambda **kwargs: client)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", lambda **kwargs: client)
     result = await evidence.resolve_home_preferences({"relevance_criteria": "ideally a balcony"}, secrets_manager=object())
     assert result["preferred_amenities"] == ["balcony"]
     assert not result["required_amenities"]
@@ -52,7 +53,7 @@ async def test_preference_jev_and_low_confidence_fallback(monkeypatch):
 # Retained helper mechanics; no live discovery or historical rendering proof is claimed.
 async def test_neutral_search_skips_all_inference(monkeypatch):
     factory = AsyncMock()
-    monkeypatch.setattr(evidence, "JevDecisionClient", factory)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", factory)
     listings = [{"description": "Apartment in Berlin"}]
     assert await evidence.assess_home_evidence(listings, request={}, secrets_manager=object()) == []
     factory.assert_not_called()
@@ -65,7 +66,7 @@ async def test_neutral_search_skips_all_inference(monkeypatch):
 async def test_description_confirms_without_photos_and_structured_fact_survives_outage(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "present"})
-    monkeypatch.setattr(evidence, "JevDecisionClient", lambda **kwargs: client)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", lambda **kwargs: client)
     listing = {"description": "Die Wohnung verfügt über einen Balkon"}
     await evidence.assess_home_evidence([listing], request={"required_amenities": ["balcony"]}, secrets_manager=object())
     item = listing["match_evidence"]["amenities"]["balcony"]
@@ -86,7 +87,7 @@ async def test_photo_visibility_never_proves_apartment_ownership(monkeypatch, te
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": text})
     client.evaluate_with_images.return_value = response({"balcony:0": seen})
-    monkeypatch.setattr(evidence, "JevDecisionClient", lambda **kwargs: client)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", lambda **kwargs: client)
     download = AsyncMock(return_value=b"prepared jpeg")
     monkeypatch.setattr(evidence, "download_public_image", download)
     gallery = ["https://example.org/building.jpg"]
@@ -105,7 +106,7 @@ async def test_failure_does_not_fake_visual_confirmation(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "unknown"})
     client.evaluate_with_images.side_effect = RuntimeError("unavailable")
-    monkeypatch.setattr(evidence, "JevDecisionClient", lambda **kwargs: client)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", lambda **kwargs: client)
     monkeypatch.setattr(evidence, "download_public_image", AsyncMock(return_value=b"photo"))
     listing = {"image_url": "https://example.org/photo.jpg"}
     warnings = await evidence.assess_home_evidence([listing], request={"required_amenities": ["balcony"]}, secrets_manager=object())
@@ -124,7 +125,7 @@ async def test_bounded_spaced_photos_all_candidates_and_no_file_writes(monkeypat
         assert len(kwargs["images"]) <= 18
         return response({key: "not_visible" for key in kwargs["questions"]})
     client.evaluate_with_images.side_effect = evaluate_images
-    monkeypatch.setattr(evidence, "JevDecisionClient", lambda **kwargs: client)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", lambda **kwargs: client)
     download = AsyncMock(return_value=b"prepared image")
     monkeypatch.setattr(evidence, "download_public_image", download)
     def forbid(*args, **kwargs):
@@ -148,7 +149,7 @@ async def test_bounded_spaced_photos_all_candidates_and_no_file_writes(monkeypat
 async def test_global_timeout_and_cancellation_join_download_tasks(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "present"})
-    monkeypatch.setattr(evidence, "JevDecisionClient", lambda **kwargs: client)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", lambda **kwargs: client)
     running = set()
     async def download(url):
         running.add(url)
@@ -178,7 +179,7 @@ async def test_global_timeout_and_cancellation_join_download_tasks(monkeypatch):
 async def test_disabled_visual_assessment_keeps_text_and_skips_images(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "present"})
-    monkeypatch.setattr(evidence, "JevDecisionClient", lambda **kwargs: client)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", lambda **kwargs: client)
     download = AsyncMock()
     monkeypatch.setattr(evidence, "download_public_image", download)
     listing = {"description": "With balcony", "image_urls": ["https://example.org/1.jpg"]}
@@ -198,7 +199,7 @@ async def test_disabled_visual_assessment_keeps_text_and_skips_images(monkeypatc
 async def test_provider_conflicts_override_text_and_minimize_state(monkeypatch):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": "present"})
-    monkeypatch.setattr(evidence, "JevDecisionClient", lambda **kwargs: client)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", lambda **kwargs: client)
     listing = {"amenities": {"balcony": True}, "amenity_conflicts": {"balcony": [True, False], "garden": "private unused data"}}
     await evidence.assess_home_evidence([listing], request={"required_amenities": ["balcony"]}, secrets_manager=object())
     item = listing["match_evidence"]["amenities"]["balcony"]
@@ -216,7 +217,7 @@ async def test_provider_conflicts_override_text_and_minimize_state(monkeypatch):
 async def test_exclusions_require_supported_absence(monkeypatch, advertised, text, expected):
     client = AsyncMock()
     client.evaluate.return_value = response({"balcony": text})
-    monkeypatch.setattr(evidence, "JevDecisionClient", lambda **kwargs: client)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", lambda **kwargs: client)
     listing = {"amenities": {"balcony": advertised}}
     await evidence.assess_home_evidence([listing], request={"excluded_amenities": ["balcony"], "visual_analysis": False}, secrets_manager=object())
     assert listing["match_evidence"]["status"] == expected

@@ -43,6 +43,7 @@ from backend.shared.app_packages.generic_contract import (
 from backend.shared.app_packages.loader import InstalledProvider, get_installed_providers
 from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
 from backend.shared.app_packages.web_source import delegate_web_kind, run_web_source
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy, policy_from_skill_kwargs
 from backend.shared.app_packages.result_photo_relevance import (
     CRITERIA_FIELD,
     rank_results_by_photos,
@@ -358,20 +359,22 @@ class InstalledProviderSkill(BaseSkill):
 
     async def _serve_covered(self, index: int, raw: Any, models: OriginalSkillModels,
                              providers: Sequence[InstalledProvider], secrets_manager: Any,
-                             progress: Optional[SkillProgress] = None) -> Dict[str, Any]:
+                             progress: Optional[SkillProgress] = None,
+                             policy: Optional[InternalLlmPolicy] = None) -> Dict[str, Any]:
         """Serve one item with only the providers covering its regions; skipped ones become warnings."""
         if index >= MAX_REQUESTS_PER_CALL or not providers or not isinstance(raw, dict):
-            return await self._serve_item(index, raw, models, providers, secrets_manager, progress)
+            return await self._serve_item(index, raw, models, providers, secrets_manager, progress, policy)
         # Selectors and regions are read from the raw item: the item model may not declare them.
         covered, skipped, coverage_error = covered_providers(raw, providers)
         if coverage_error:
             return error_group(raw.get("id") if raw.get("id") is not None else index + 1, coverage_error)
         return with_warnings(
-            await self._serve_item(index, raw, models, covered, secrets_manager, progress), skipped)
+            await self._serve_item(index, raw, models, covered, secrets_manager, progress, policy), skipped)
 
     async def _serve_item(self, index: int, raw: Any, models: OriginalSkillModels,
                           providers: Sequence[InstalledProvider], secrets_manager: Any,
-                          progress: Optional[SkillProgress] = None) -> Dict[str, Any]:
+                          progress: Optional[SkillProgress] = None,
+                          policy: Optional[InternalLlmPolicy] = None) -> Dict[str, Any]:
         """Serve one request item. ``progress`` counts this item's sources across the whole call."""
         request_id = raw.get("id") if isinstance(raw, dict) and raw.get("id") is not None else index + 1
         if index >= MAX_REQUESTS_PER_CALL:
@@ -400,7 +403,7 @@ class InstalledProviderSkill(BaseSkill):
         outcomes = [*outcomes, *web_outcomes]
         group = build_group(request_id, outcomes)
         if ranked and group["results"]:
-            await self._rank_group(group, contract_input, secrets_manager)
+            await self._rank_group(group, contract_input, secrets_manager, policy)
         return group
 
     async def _search_web(self, kind: str, contract_input: Dict[str, Any], secrets_manager: Any,
@@ -410,11 +413,12 @@ class InstalledProviderSkill(BaseSkill):
             await progress.source_done(len(outcome.results))
         return outcome
 
-    async def _rank_group(self, group: Dict[str, Any], contract_input: Dict[str, Any], secrets_manager: Any) -> None:
+    async def _rank_group(self, group: Dict[str, Any], contract_input: Dict[str, Any], secrets_manager: Any,
+                          policy: Optional[InternalLlmPolicy] = None) -> None:
         """Order the group by criteria fit judged on result photos; then apply the requested limit."""
         ranking = await rank_results_by_photos(
             group["results"], relevance_criteria=contract_input[CRITERIA_FIELD],
-            searched=request_projection(contract_input), secrets_manager=secrets_manager,
+            searched=request_projection(contract_input), secrets_manager=secrets_manager, policy=policy,
         )
         limit = requested_limit(contract_input)
         group["results"] = ranking.results[:limit] if limit else ranking.results
@@ -427,8 +431,9 @@ class InstalledProviderSkill(BaseSkill):
         providers = self._providers()
         items = [requests] if isinstance(requests, dict) else list(requests or [])
         progress = SkillProgress(self)
+        policy = policy_from_skill_kwargs(kwargs)
         groups = list(await asyncio.gather(*(
-            self._serve_covered(index, item, models, providers, secrets_manager, progress)
+            self._serve_covered(index, item, models, providers, secrets_manager, progress, policy)
             for index, item in enumerate(items)
         )))
         return build_response(groups, providers, models.response_defaults, models.provider_objects)

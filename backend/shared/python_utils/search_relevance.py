@@ -17,7 +17,9 @@ from typing import Any, Callable, Dict, Generic, List, Mapping, Optional, Sequen
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.providers.typesafe.client import DecisionProviderError, DecisionRequestTooLarge, JevDecisionClient
+from backend.shared.providers.typesafe.client import DecisionProviderError, DecisionRequestTooLarge
+from backend.apps.ai.utils.internal_decisions import decision_client_for_policy
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
 from backend.shared.providers.typesafe.batching import candidate_batches, evaluate_batches
 from backend.shared.providers.typesafe.models import ScoreAnswer
 
@@ -480,6 +482,7 @@ async def rank_search_candidates(
     search_parameters: Mapping[str, Any],
     profile: str,
     secrets_manager: Optional[SecretsManager],
+    policy: Optional[InternalLlmPolicy] = None,
 ) -> SearchRelevanceRankingResult[T]:
     """Use complete bounded Jev decisions to reorder a candidate list.
 
@@ -544,7 +547,8 @@ async def rank_search_candidates(
             field="candidates", candidates=[(item["candidate_id"], item) for item in candidate_state],
             questions=questions,
         )
-        response = await evaluate_batches(batches, JevDecisionClient(secrets_manager=secrets_manager).evaluate)
+        response = await evaluate_batches(batches, decision_client_for_policy(
+            policy, secrets_manager=secrets_manager, purpose="search_relevance").evaluate)
         elapsed_ms = (time.perf_counter() - started) * 1_000
         if not set(questions).issubset(response.answers):
             return _fallback(original, reason="incomplete_response", latency_ms=elapsed_ms)

@@ -18,6 +18,7 @@ from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.brave.brave_search import search_news
 from backend.shared.python_utils.domain_filter import load_tabloid_blocklist, filter_results_by_domain
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy, policy_from_skill_kwargs
 from backend.shared.python_utils.app_skill_helpers import sanitize_external_content, check_rate_limit, wait_for_rate_limit
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS,
@@ -313,7 +314,8 @@ class SearchSkill(BaseSkill):
         req: Dict[str, Any],
         request_id: Any,
         secrets_manager: SecretsManager,
-        cache_service: CacheService
+        cache_service: CacheService,
+        policy: Optional[InternalLlmPolicy] = None,
     ) -> Tuple[Any, List[Dict[str, Any]], Optional[str]]:
         """
         Process a single news search request.
@@ -515,6 +517,7 @@ class SearchSkill(BaseSkill):
                     },
                     profile="news",
                     secrets_manager=secrets_manager,
+                    policy=policy,
                 )
                 results = ranking.candidates
                 if ranking.applied and len(ranking.scores) == len(results):
@@ -818,7 +821,8 @@ class SearchSkill(BaseSkill):
             process_single_request_func=self._process_single_search_request,
             logger=logger,
             secrets_manager=secrets_manager,
-            cache_service=cache_service
+            cache_service=cache_service,
+            policy=policy_from_skill_kwargs(kwargs),
         )
         
         # Group results by request ID using BaseSkill helper

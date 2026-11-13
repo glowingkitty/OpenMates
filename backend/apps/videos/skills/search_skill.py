@@ -15,6 +15,7 @@ from celery import Celery  # For Celery type hinting
 from toon_format import encode, decode
 
 from backend.apps.base_skill import BaseSkill
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy, policy_from_skill_kwargs
 from backend.shared.providers.brave.brave_search import search_videos
 from backend.shared.providers.youtube.youtube_metadata import (
     get_video_metadata_batched,
@@ -331,7 +332,8 @@ class SearchSkill(BaseSkill):
         req: Dict[str, Any],
         request_id: Any,
         secrets_manager: SecretsManager,
-        cache_service: CacheService
+        cache_service: CacheService,
+        policy: Optional[InternalLlmPolicy] = None,
     ) -> Tuple[Any, List[Dict[str, Any]], Optional[str]]:
         """
         Process a single video search request.
@@ -420,6 +422,7 @@ class SearchSkill(BaseSkill):
                     search_parameters={"query": search_query},
                     profile="videos",
                     secrets_manager=secrets_manager,
+                    policy=policy,
                 )
                 fixture_results = fixture_ranking.candidates
             return (request_id, fixture_results[:req_count], None)
@@ -905,6 +908,7 @@ class SearchSkill(BaseSkill):
                     },
                     profile="videos",
                     secrets_manager=secrets_manager,
+                    policy=policy,
                 )
                 previews = ranking.candidates
 
@@ -992,7 +996,8 @@ class SearchSkill(BaseSkill):
             process_single_request_func=self._process_single_search_request,
             logger=logger,
             secrets_manager=secrets_manager,
-            cache_service=cache_service
+            cache_service=cache_service,
+            policy=policy_from_skill_kwargs(kwargs),
         )
         
         # Group results by request ID using BaseSkill helper

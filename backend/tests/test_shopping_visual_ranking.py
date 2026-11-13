@@ -1,6 +1,8 @@
 """Contracts for authorized, bounded shopping image evaluation."""
 from __future__ import annotations
 
+from backend.apps.ai.utils import internal_decisions as _internal_decisions
+
 import asyncio
 from io import BytesIO
 import json
@@ -88,7 +90,7 @@ async def test_multiple_references_score_photos_and_text_filter_conflicts_and_pr
             })
 
     monkeypatch.setattr(visual, "download_public_product_image", download)
-    monkeypatch.setattr(visual, "JevDecisionClient", FakeClient)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", FakeClient)
     candidates = [{"product_id": str(i), "title": f"Fabric{i}", "description": "Explicit cotton floral pattern",
                    "price_cents": 1299, "image_url": f"https://cdn.example/{i}.jpg",
                    "image_urls": [f"https://cdn.example/{i}.jpg", f"https://cdn.example/{i}-back.jpg"],
@@ -141,7 +143,7 @@ async def test_candidate_photo_and_batch_cost_budgets_are_bounded(monkeypatch, c
             return DecisionResponse(model="jev-1.13.0", answers={key: score(3) for key in questions})
 
     monkeypatch.setattr(visual, "download_public_product_image", download)
-    monkeypatch.setattr(visual, "JevDecisionClient", FakeClient)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", FakeClient)
     candidates = [{"title": str(i), "image_urls": [f"https://cdn.example/{i}/{j}.jpg" for j in range(8)]} for i in range(40)]
     result = await visual.rank_products_visually(candidates=candidates, reference_images=[prepared] * 3,
                                                  relevance_criteria=None, query="fabric", secrets_manager=None,
@@ -177,7 +179,7 @@ async def test_unavailable_or_malformed_visual_decisions_preserve_order_and_mark
                 "candidate_000": score(float("nan")), "candidate_001": score(4),
             })
 
-    monkeypatch.setattr(visual, "JevDecisionClient", FakeClient)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", FakeClient)
     result = await visual.rank_products_visually(candidates=[{"title": name, "image_url": "https://cdn.example/p.jpg"} for name in ["A", "B"]],
                                                  reference_images=[prepared], relevance_criteria="blue", query="fabric", secrets_manager=None)
     assert result.applied is False and result.summary["status"] == "unavailable"
@@ -461,7 +463,7 @@ async def test_forty_candidate_deadline_retains_completed_batches_and_unverified
                 await asyncio.Event().wait()
             finally:
                 cancelled.append(True)
-    monkeypatch.setattr(visual, "JevDecisionClient", Client)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", Client)
     result = await visual.rank_products_visually(
         candidates=[{"product_id": str(i), "image_url": f"https://cdn.example/{i}.jpg"} for i in range(40)],
         reference_images=[b"reference"], relevance_criteria=None, query="fabric", secrets_manager=None)
@@ -484,7 +486,7 @@ async def test_zero_prepared_products_logs_fixed_failure_counts_without_private_
     caplog.set_level("INFO", logger=visual.__name__)
     monkeypatch.setattr(visual, "download_public_product_image", AsyncMock(side_effect=visual.ProductImageHTTPUnavailable(301)))
     decision = AsyncMock()
-    monkeypatch.setattr(visual, "JevDecisionClient", decision)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", decision)
     result = await visual.rank_products_visually(
         candidates=[{"title": "PRIVATE PRODUCT", **({"image_url": "https://private.example/product.jpg"} if has_photo else {})}],
         reference_images=[b"PRIVATE REFERENCE"], relevance_criteria=None, query="PRIVATE QUERY", secrets_manager=None)
