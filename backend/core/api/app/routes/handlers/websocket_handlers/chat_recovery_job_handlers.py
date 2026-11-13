@@ -84,6 +84,26 @@ def _bound_recovery_inventory_manager(manager, user_id, device_fingerprint_hash,
     return _OriginBoundRecoveryManager(manager, user_id, device_fingerprint_hash, origin)
 
 
+def _held_by_connected_origin(manager: Any, user_id: str, device_fingerprint_hash: str, item: dict[str, Any]) -> bool:
+    """True while another connected, completion-capable device started this turn.
+
+    feature.chats recovery_takeover: the originating device persists its own
+    turn; a secondary device takes over only after the origin disconnects, and
+    the lease fences the handover. The origin hash is server-derived and is
+    never sent to clients.
+    """
+    origin = item.get("origin_device_hash")
+    if not isinstance(origin, str) or not origin or origin == device_fingerprint_hash:
+        return False
+    # Origin-bound wrappers answer only for their own socket; ask the real manager.
+    base = getattr(manager, "_manager", manager)
+    return bool(base.is_connection_completion_capable(user_id, origin))
+
+
+def _without_origin(item: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in item.items() if key != "origin_device_hash"}
+
+
 async def begin_initial_recovery_discovery(
     *, manager: Any, directus_service: Any, user_id: str,
     user_id_hash: str, device_fingerprint_hash: str,
@@ -532,6 +552,13 @@ async def send_available_recovery_jobs(
             return False
         if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
             return False
+        # A job whose origin device is still connected stays that device's work;
+        # listing it as pending tells this device an answer exists without
+        # letting it race the origin for the lease.
+        held = [job for job in jobs if isinstance(job, dict)
+                and _held_by_connected_origin(manager, user_id, device_fingerprint_hash, job)]
+        jobs = [_without_origin(job) for job in jobs if job not in held]
+        pending_jobs = [_without_origin(job) for job in [*pending_jobs, *held] if isinstance(job, dict)]
         # A paused owner/device-scoped query never offers either kind of work.
         # Pending completion rows also disprove absence, despite jobs being [].
         if empty_only and (jobs or pending_jobs):
@@ -586,9 +613,14 @@ async def send_available_recovery_outputs(
             })
             if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
                 return
-            if result.get("outputs"):
+            outputs = [
+                _without_origin(output) for output in result.get("outputs") or []
+                if isinstance(output, dict)
+                and not _held_by_connected_origin(manager, user_id, device_fingerprint_hash, output)
+            ]
+            if outputs:
                 await manager.send_personal_message(
-                    {"type": "recovery_outputs_available", "payload": {"outputs": result["outputs"], **discovery}},
+                    {"type": "recovery_outputs_available", "payload": {"outputs": outputs, **discovery}},
                     user_id, device_fingerprint_hash,
                 )
             next_cursor = result.get("next_cursor")

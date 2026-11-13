@@ -892,3 +892,66 @@ async def test_correlated_discovery_tags_job_pages_and_the_matching_completion_f
         {"type": "recovery_jobs_available", "payload": {"jobs": [{"job_id": "prior-job", "chat_id": "chat-1"}], "request_id": "send-scan"}},
         {"type": "recovery_outputs_discovery_complete", "payload": {"status": "completed", "request_id": "send-scan"}},
     ]
+
+
+class OriginAwareManager(FakeManager):
+    """Completion-capable sockets per device; the CLI started the turn."""
+
+    def __init__(self, connected: set[str]) -> None:
+        super().__init__(typed=True)
+        self.connected = connected
+
+    def is_connection_completion_capable(self, _user_id: str, device_hash: str) -> bool:
+        return device_hash in self.connected
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,chats.completion.lease-fenced
+async def test_watching_device_cannot_claim_a_turn_while_its_origin_is_connected(monkeypatch) -> None:
+    job = {"job_id": "job-1", "chat_id": "chat-1", "state": "AVAILABLE", "origin_device_hash": "cli"}
+    output = {"record_id": "out-1", "turn_id": "turn-1", "origin_device_hash": "cli"}
+    public_job = {key: value for key, value in job.items() if key != "origin_device_hash"}
+    public_output = {key: value for key, value in output.items() if key != "origin_device_hash"}
+
+    class Recovery:
+        def __init__(self, _directus_service) -> None:
+            pass
+
+        async def execute(self, operation: str, _data: dict) -> dict:
+            if operation == "list_available_jobs":
+                return {"jobs": [dict(job)], "pending_jobs": []}
+            return {"outputs": [dict(output)], "next_cursor": None}
+
+    monkeypatch.setattr(chat_recovery_job_handlers, "ChatRecoveryService", Recovery)
+
+    async def offers(manager: OriginAwareManager, device: str) -> list[dict]:
+        manager.messages.clear()
+        await chat_recovery_job_handlers.send_available_recovery_jobs(
+            manager=manager, directus_service=object(), user_id="owner",
+            user_id_hash="owner-hash", device_fingerprint_hash=device,
+        )
+        await chat_recovery_job_handlers.send_available_recovery_outputs(
+            manager=manager, directus_service=object(), user_id="owner",
+            user_id_hash="owner-hash", device_fingerprint_hash=device,
+        )
+        return [message for message in manager.messages if message["type"] != "recovery_outputs_discovery_complete"]
+
+    # Origin connected: the watching tab only learns an answer is pending.
+    both = OriginAwareManager({"cli", "web-tab"})
+    assert await offers(both, "web-tab") == [
+        {"type": "recovery_jobs_available", "payload": {"jobs": [], "pending_jobs": [public_job]}},
+    ]
+    # The origin itself keeps its work, without the server-derived origin hash.
+    assert await offers(both, "cli") == [
+        {"type": "recovery_jobs_available", "payload": {"jobs": [public_job]}},
+        {"type": "recovery_outputs_available", "payload": {"outputs": [public_output]}},
+    ]
+    # Origin disconnected: the secondary device takes over.
+    alone = OriginAwareManager({"web-tab"})
+    assert await offers(alone, "web-tab") == [
+        {"type": "recovery_jobs_available", "payload": {"jobs": [public_job]}},
+        {"type": "recovery_outputs_available", "payload": {"outputs": [public_output]}},
+    ]
+    # Origin-bound wrappers still consult the real connection table.
+    wrapped = SimpleNamespace(_manager=both)
+    assert chat_recovery_job_handlers._held_by_connected_origin(wrapped, "owner", "web-tab", job) is True

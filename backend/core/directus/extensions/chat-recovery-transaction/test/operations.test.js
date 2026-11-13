@@ -5932,6 +5932,24 @@ test('discovery exposes an owner live lease as pending without making it claimab
   assert.equal(expired.pending_jobs.length, 0);
 });
 
+// contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+test('discovery names the device that started each turn so the API can keep it the persister', async () => {
+  const seed = leasedSeed();
+  seed.chat_turn_preflights[0].device_hash = 'cli-origin';
+  const database = fakeDatabase(seed);
+  const listed = await executeOperation(database, 'list_available_jobs', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'watching-tab',
+  }, new Date('2029-01-01T00:00:01Z'));
+  assert.equal(listed.jobs[0].job_id, JOB_ID);
+  assert.equal(listed.jobs[0].origin_device_hash, 'cli-origin');
+  assert.equal('preflight_id' in listed.jobs[0], false);
+  seed.chat_turn_preflights[0].hashed_user_id = 'e'.repeat(64);
+  const foreignPreflight = await executeOperation(fakeDatabase(seed), 'list_available_jobs', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'watching-tab',
+  }, new Date('2029-01-01T00:00:01Z'));
+  assert.equal(foreignPreflight.jobs[0].origin_device_hash, null);
+});
+
 const CLEANUP_ATTEMPT = '018fabcd-abcd-7abc-8abc-abcdefabcdef';
 const CLEANUP_CALL = 'f'.repeat(32);
 const cleanupCandidate = (mode, overrides = {}) => ({ protocol_version: 1,
