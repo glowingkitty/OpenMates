@@ -1374,7 +1374,8 @@ async fn receive_raw_policy(
                     });
                 }
                 if kind == "error" && rejects_error_frame(&frame["payload"], ephemeral, allowance) {
-                    return Err(crate::client::send::refusal_trace::protocol_at!());
+                    crate::client::send::refusal_trace::note_ws_error(frame["payload"]["code"].as_str());
+                    return Err(Error::Protocol);
                 }
                 return Ok((kind, frame.get("payload").cloned().unwrap_or(Value::Null)));
             }

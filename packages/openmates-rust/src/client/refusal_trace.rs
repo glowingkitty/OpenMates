@@ -44,6 +44,20 @@ pub(in crate::client) fn note_http(status: u16, path: &str) {
     }
 }
 
+/// Remember a rejected WebSocket `error` frame by its server code. Codes are
+/// fixed identifiers; anything else (ids, free text) is masked as `_`.
+pub(in crate::client) fn note_ws_error(code: Option<&str>) {
+    if !enabled() {
+        return;
+    }
+    let code = code
+        .filter(|c| !c.is_empty() && c.len() <= 64 && c.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_'))
+        .unwrap_or("_");
+    if let Ok(mut last) = LAST.lock() {
+        *last = Some(format!("ws_error:{code}"));
+    }
+}
+
 /// The last remembered site, cleared on read.
 pub(in crate::client) fn take() -> String {
     LAST.lock()
