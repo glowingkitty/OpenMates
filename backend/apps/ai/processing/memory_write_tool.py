@@ -20,7 +20,7 @@ Wire contract (protocol 1), see ``SAVE_MEMORY_*`` constants:
 
 Project target: under an authorized active Project Focus with Project file
 tools, ``target: "project"`` turns the call into one ``project_create_file``
-operation for ``.openmates/memories/<id>.md`` (see
+operation for ``.openmates/memories/<title-slug>-<suffix>.md`` (see
 ``project_memory_file_arguments``). The client then encrypts and stores it as a
 Project file through the existing Project file job path, with its revision
 history; nothing is written as a personal Memory.
@@ -36,6 +36,7 @@ import json
 import logging
 import re
 import time
+import unicodedata
 import uuid
 from typing import Any, Iterable
 
@@ -216,6 +217,9 @@ def with_default_project_target(arguments: Any, *, personal_available: bool) -> 
     return arguments
 
 
+MAX_MEMORY_FILE_SLUG = 60
+
+
 def project_memory_file_arguments(arguments: Any) -> dict[str, Any]:
     """Turn a ``target: "project"`` save into ``project_create_file`` arguments.
 
@@ -241,8 +245,18 @@ def project_memory_file_arguments(arguments: Any) -> dict[str, Any]:
         fields = validated_memory_document(arguments, load_mode=load_mode)
     except MemoryDocumentError as exc:
         raise MemoryWriteToolError(_document_reason(str(exc))) from exc
-    return {"path": f"{PROJECT_MEMORY_DIRECTORY}/{uuid.uuid4()}.md", "expected_base": None,
-            "content": fields["body"]}
+    return {"path": f"{PROJECT_MEMORY_DIRECTORY}/{project_memory_file_name(arguments['title'])}",
+            "expected_base": None, "content": fields["body"]}
+
+
+def project_memory_file_name(title: str) -> str:
+    """Readable file name: the title as a slug plus a short random suffix, e.g.
+    ``press-style-for-press-releases-3f9a2.md``. The suffix keeps names unique; the
+    Memory's identity is its Project item id, never the file name. Only
+    ``[a-z0-9-]`` is used, which every client's Memory path check accepts."""
+    ascii_title = unicodedata.normalize("NFKD", title.replace("ß", "ss")).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_title.lower()).strip("-")[:MAX_MEMORY_FILE_SLUG].rstrip("-")
+    return f"{slug or 'memory'}-{uuid.uuid4().hex[:5]}.md"
 
 
 def _document_reason(reason: str) -> str:

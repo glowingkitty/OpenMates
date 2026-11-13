@@ -279,6 +279,18 @@ def test_project_target_becomes_one_canonical_project_memory_file():
     assert tool.project_memory_file_arguments({**GOOD, "target": "project"})["path"] != args["path"]
 
 
+
+def test_project_memory_file_name_reads_like_its_title_with_a_short_suffix():
+    import re
+    name = tool.project_memory_file_name("Press style for press releases (Example Solar)")
+    assert re.fullmatch(r"press-style-for-press-releases-example-solar-[0-9a-f]{5}\.md", name)
+    assert re.fullmatch(r"grosse-und-ton-aou-[0-9a-f]{5}\.md", tool.project_memory_file_name("Größe und Ton: ÄÖÜ"))
+    assert re.fullmatch(r"memory-[0-9a-f]{5}\.md", tool.project_memory_file_name("!!!"))
+    assert len(tool.project_memory_file_name("x" * 300)) <= 60 + len("-12345.md")
+    path = tool.project_memory_file_arguments({**GOOD, "target": "project"})["path"]
+    # Every client accepts only plain names under .openmates/memories/.
+    assert re.fullmatch(r"\.openmates/memories/[a-zA-Z0-9_-]+\.md", path)
+
 def test_project_memory_accepts_every_load_mode_with_the_personal_default():
     # contract-test: direct surface=rest_api assertions=app-memories.load-modes
     args = tool.project_memory_file_arguments({**GOOD, "target": "project"})
