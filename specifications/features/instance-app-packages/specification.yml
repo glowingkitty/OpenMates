@@ -145,7 +145,10 @@ assertions:
     server. Page text and model output are untrusted. A web result is kept only when its title is written on
     its page (and, for an event, the year and day of its date); a price or fee only when that text appears
     verbatim on the page; a link or picture only when that URL appears on the page, otherwise the result links
-    to the page it was found on. Every web result names its source page and carries the provider id web, and
+    to the page it was found on. Pages of sites whose terms of use forbid automated collection are never
+    fetched, whatever their robots rules say (a built-in list of large social, video and ticketing platforms plus the
+    hosts the operator lists in WEB_SOURCE_EXCLUDED_HOSTS, each with its subdomains); such pages do not count
+    against the page budget. Every web result names its source page and carries the provider id web, and
     passes through the same merge, ranking, limit and progress reporting as provider results. Event search
     uses the web only for general discovery, never for a known conference schedule, and drops past events
     unless they were requested. A denied, unreadable or slow page, an invalid model answer or an unavailable

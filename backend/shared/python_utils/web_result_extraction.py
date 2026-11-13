@@ -12,6 +12,10 @@ Trust rules, enforced here and not left to the model:
   result links to the page it was found on.
 - An event needs a date whose year and day are written on the page.
 - Every result names the page it came from (``source_page_url``).
+- Pages of sites whose terms of use forbid automated collection are never read,
+  even when their robots.txt would allow it (``excluded_host``). The built-in
+  list holds the large social and video platforms; operators add more hosts in
+  ``WEB_SOURCE_EXCLUDED_HOSTS`` (comma-separated, subdomains included).
 
 Every failure yields fewer or no web results, never an error for the caller's
 other sources.
@@ -21,11 +25,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, FrozenSet, List, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlsplit
 
 import httpx
@@ -50,7 +55,8 @@ DEFAULT_MODEL = MERCURY_MODEL
 GOOGLE_SECRET_PATH = "kv/data/providers/google_ai_studio"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
-SEARCH_RESULTS = 8
+# More candidates than pages: excluded sites are dropped before the page budget.
+SEARCH_RESULTS = 12
 MAX_PAGES = 5
 MAX_PAGE_CHARS = 24_000
 MAX_ITEMS_PER_PAGE = 15
@@ -63,6 +69,15 @@ MAX_TEXT_CHARS = 300
 MAX_DESCRIPTION_CHARS = 600
 # Share of a title's words that must be written on the page.
 MIN_TITLE_OVERLAP = 0.6
+
+# Sites whose terms of use forbid automated collection of their pages (social,
+# video and ticketing platforms). Robots
+# rules alone are not enough: these terms apply whatever robots.txt says.
+TERMS_EXCLUDED_HOSTS: FrozenSet[str] = frozenset({
+    "facebook.com", "fb.com", "instagram.com", "threads.net", "linkedin.com", "x.com", "twitter.com",
+    "tiktok.com", "youtube.com", "reddit.com", "pinterest.com", "ticketmaster.com", "eventim.de",
+})
+EXCLUDED_HOSTS_ENV = "WEB_SOURCE_EXCLUDED_HOSTS"
 
 _NULLABLE_TEXT = {"type": ["string", "null"]}
 _EVENT_FIELDS: Dict[str, Any] = {
@@ -98,6 +113,7 @@ class WebExtraction:
     results: List[Dict[str, Any]] = field(default_factory=list)
     pages_found: int = 0
     pages_read: int = 0
+    pages_excluded: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
     error: Optional[str] = None
@@ -208,6 +224,19 @@ def _title_on_page(title: str, flat_page: str) -> bool:
     if not words:
         return False
     return sum(1 for word in words if word in flat_page) / len(words) >= MIN_TITLE_OVERLAP
+
+
+def excluded_hosts() -> FrozenSet[str]:
+    """Built-in terms-of-use exclusions plus the operator's ``WEB_SOURCE_EXCLUDED_HOSTS``."""
+    configured = (part.strip().lower().removeprefix("www.")
+                  for part in os.environ.get(EXCLUDED_HOSTS_ENV, "").split(","))
+    return TERMS_EXCLUDED_HOSTS | frozenset(host for host in configured if host)
+
+
+def excluded_host(url: str, hosts: FrozenSet[str]) -> bool:
+    """True when ``url`` belongs to an excluded host or one of its subdomains."""
+    host = (urlsplit(url).hostname or "").lower().rstrip(".")
+    return any(host == blocked or host.endswith("." + blocked) for blocked in hosts)
 
 
 def _page_url(value: Any, page_text: str) -> Optional[str]:
@@ -359,8 +388,13 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
     if found.get("error"):
         outcome.error = "Web search is unavailable."
         return outcome
-    urls = list(dict.fromkeys(entry["url"] for entry in found.get("results") or []
-                              if isinstance(entry, dict) and isinstance(entry.get("url"), str)))[:MAX_PAGES]
+    found_urls = list(dict.fromkeys(entry["url"] for entry in found.get("results") or []
+                                    if isinstance(entry, dict) and isinstance(entry.get("url"), str)))
+    blocked = excluded_hosts()
+    # Excluded sites are dropped before the page budget so they never take a slot.
+    allowed = [url for url in found_urls if not excluded_host(url, blocked)]
+    outcome.pages_excluded = len(found_urls) - len(allowed)
+    urls = allowed[:MAX_PAGES]
     outcome.pages_found = len(urls)
 
     async def page_rows(url: str) -> List[Dict[str, Any]]:
@@ -385,7 +419,8 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
     for position in range(max((len(rows) for rows in pages), default=0)):
         merged.extend(rows[position] for rows in pages if position < len(rows))
     outcome.results = merged[:max(1, limit)]
-    logger.info("[WebResults] kind=%s pages_found=%d pages_read=%d results=%d input_tokens=%d output_tokens=%d "
-                "wall_ms=%.0f", kind, outcome.pages_found, outcome.pages_read, len(outcome.results),
+    logger.info("[WebResults] kind=%s pages_found=%d pages_excluded=%d pages_read=%d results=%d input_tokens=%d "
+                "output_tokens=%d wall_ms=%.0f", kind, outcome.pages_found, outcome.pages_excluded, outcome.pages_read,
+                len(outcome.results),
                 outcome.input_tokens, outcome.output_tokens, (time.monotonic() - started) * 1000)
     return outcome

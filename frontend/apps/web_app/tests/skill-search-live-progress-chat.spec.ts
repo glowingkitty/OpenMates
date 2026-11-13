@@ -7,7 +7,8 @@ export {};
  * discovery or a product search runs across its sources, the processing card
  * shows the live status line (sources done, results so far) and then the
  * finished results. On a server with installed providers the searches also
- * answer from public web pages.
+ * answer from public web pages; "early next year" conferences in Europe must
+ * include FOSDEM as an event card built from such a page.
  *
  * Run through scripts/skill_search_progress_web_real_test.py (personal dev test
  * account, leases, installed Chromium, output outside the repository).
@@ -37,11 +38,18 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const MODEL_QUERY = 'gemini-3.8-flash';
 const MODEL_NAME = /Gemini 3\.8 Flash/i;
 const ANSWER_TIMEOUT = 300_000;
-const CASES = [
+const CASES: Array<{ name: string; app: string; prompt: string; expectEventTitle?: RegExp }> = [
 	{
 		name: 'event discovery',
 		app: 'events',
 		prompt: 'Any upcoming open source conferences in Europe?'
+	},
+	{
+		// The structured FOSDEM event card is built from public web pages, not from a provider feed.
+		name: 'event discovery early next year',
+		app: 'events',
+		prompt: 'Open source conferences in Europe early next year?',
+		expectEventTitle: /FOSDEM/i
 	},
 	{
 		name: 'product search',
@@ -115,6 +123,18 @@ for (const searchCase of CASES) {
 			await expect(generatedBy).toContainText(MODEL_NAME, { timeout: 120_000 });
 			await finished.scrollIntoViewIfNeeded();
 			await screenshot(page, 'results', { fullPage: false });
+			if (searchCase.expectEventTitle) {
+				const named = page
+					.getByTestId('message-assistant')
+					.last()
+					.locator(card)
+					.filter({ hasText: searchCase.expectEventTitle })
+					.first();
+				await expect(named).toBeAttached({ timeout: 30_000 });
+				await named.scrollIntoViewIfNeeded();
+				log(`event card: ${(await named.textContent())?.replace(/\s+/g, ' ').trim().slice(0, 200)}`);
+				await screenshot(page, 'named-event', { fullPage: false });
+			}
 			await page.getByTestId('message-assistant').last().scrollIntoViewIfNeeded();
 			await screenshot(page, 'answer', { fullPage: false });
 		} catch (error) {

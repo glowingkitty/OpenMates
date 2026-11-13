@@ -286,13 +286,17 @@ concurrently, at most 10 items per call:
 7. Web source (`web_source`, `backend/shared/python_utils/web_result_extraction.py`):
    for `shopping.search_products` and general `events.search` discovery, a request
    item that names no providers is also answered from public web pages. One web
-   search finds up to five pages, the robots-aware public reader fetches them
-   and a small model (chosen by `backend/scripts/benchmark_web_result_extraction.py`)
+   search returns up to twelve candidates, the robots-aware public reader fetches
+   up to five of them and a small model (chosen by `backend/scripts/benchmark_web_result_extraction.py`)
    extracts results of a strict schema from each page. Rows are rebuilt field by
    field: the title must be written on the page (events: also year and day of
    the date), a price or fee is kept only when its text appears verbatim, a link
    or picture only when that URL appears on the page (else the result links to
-   its source page). Results carry `provider_id: web`, the site name as
+   its source page). Pages of sites whose terms of use forbid automated
+   collection are never fetched, whatever robots.txt says: the built-in
+   `TERMS_EXCLUDED_HOSTS` (large social and video platforms) plus the operator's
+   comma-separated `WEB_SOURCE_EXCLUDED_HOSTS`, subdomains included; they are
+   dropped before the five-page budget. Results carry `provider_id: web`, the site name as
    `provider`, `source_page_url` and `source_page_title`, and go through the same
    merge, photo ranking, limit and progress frames. Failures only reduce the web
    results or add a warning.

@@ -102,6 +102,43 @@ async def test_denied_pages_and_failed_extractions_only_reduce_the_results(fake_
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
 @pytest.mark.anyio
+async def test_pages_of_sites_whose_terms_forbid_collection_are_never_read(monkeypatch):
+    read_urls: List[str] = []
+
+    async def search(query, secrets_manager, **kwargs):
+        return {"results": [{"url": "https://www.linkedin.com/events/123"}, {"url": "https://m.facebook.com/e/1"},
+                            {"url": "https://events.my-provider.example/list"}, {"url": "https://a.example.org/1"},
+                            {"url": "https://notlinkedin.com.example.org/2"}]}
+
+    async def read(url, **kwargs):
+        read_urls.append(url)
+        return {"markdown": EVENT_PAGE, "title": "Conferences"}
+
+    async def complete(kind, request, page_url, page_title, page_text, **kwargs):
+        return [{"title": "Libre Days", "date_start": "2027-01-14"}], 10, 5
+
+    monkeypatch.setenv(extraction.EXCLUDED_HOSTS_ENV, " my-provider.example , ")
+    monkeypatch.setattr(extraction, "search_web", search)
+    monkeypatch.setattr(extraction, "read_public_web_page", read)
+    monkeypatch.setattr(extraction, "complete_page", complete)
+    outcome = await extraction.extract_web_results(extraction.KIND_EVENT, {"query": "conferences"},
+                                                   secrets_manager=None)
+    assert sorted(read_urls) == ["https://a.example.org/1", "https://notlinkedin.com.example.org/2"]
+    assert outcome.pages_excluded == 3 and outcome.pages_found == 2
+    assert {row["source_page_url"] for row in outcome.results} == set(read_urls)
+
+
+# contract-test: supporting surface=rest_api assertions=instance-app-packages.web-source
+def test_excluded_host_matches_the_host_and_its_subdomains_only():
+    hosts = extraction.excluded_hosts()
+    assert extraction.excluded_host("https://www.youtube.com/watch?v=1", hosts)
+    assert extraction.excluded_host("https://x.com/someone", hosts)
+    assert not extraction.excluded_host("https://fosdem.org/2027/", hosts)
+    assert not extraction.excluded_host("https://box.com/file", hosts)
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
+@pytest.mark.anyio
 async def test_unavailable_web_search_is_a_warning_without_results(monkeypatch):
     async def search(query, secrets_manager, **kwargs):
         return {"results": [], "error": "quota"}
