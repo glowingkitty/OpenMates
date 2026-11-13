@@ -75,7 +75,8 @@ test('native CLI saves a press style in Project Memories and a new chat reuses i
   });
   const page: Page = await context.newPage();
   const home = createRustHome('press-memory-cli-real');
-  const env = rustEnv(home, API, APP);
+  // Opt-in refusal-site label (no ids, keys or content) so a turn_recovery_required run names its source.
+  const env = { ...rustEnv(home, API, APP), OPENMATES_TEST_SEND_PHASE_DIAGNOSTIC: '1' };
   const evidence: Record<string, unknown> = { target: APP };
   let projectId = '';
   const chatIds: string[] = [];

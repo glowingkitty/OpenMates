@@ -327,6 +327,9 @@ async def select_rules_with_jev(
             continue
         if relevant and len(rules_prompt([*selected, rule])) <= MAX_APPLIED_RULE_CHARS:
             selected.append(rule)
+    logger.info("[RULE_SELECTION] candidates app=%d project=%d selected app=%d project=%d",
+                sum(r.source == "app" for r in candidates), sum(r.source == "project" for r in candidates),
+                sum(r.source == "app" for r in selected), sum(r.source == "project" for r in selected))
     return selected
 
 
@@ -358,8 +361,13 @@ async def authorized_project_memory_documents(documents, *, project, user_id, di
     current = {row.get("project_item_id"): row for row in rows
                if row.get("item_type") in {"file", "embed", "upload"}
                and not row.get("deleted_target_state")}
-    return [document for document in documents[:24] if isinstance(document, dict)
-            and document.get("source") == "project"
-            and document.get("project_id") == project["project_id"]
-            and document.get("id") in current
-            and document.get("item_revision") == project_item_revision(current[document["id"]])]
+    supplied = [document for document in documents[:24] if isinstance(document, dict)
+                and document.get("source") == "project"]
+    in_project = [document for document in supplied
+                  if document.get("project_id") == project["project_id"] and document.get("id") in current]
+    authorized = [document for document in in_project
+                  if document.get("item_revision") == project_item_revision(current[document["id"]])]
+    # Counts only: the bodies are client-decrypted and never logged.
+    logger.info("[PROJECT_MEMORIES] supplied=%d in_project=%d current_revision=%d",
+                len(supplied), len(in_project), len(authorized))
+    return authorized

@@ -108,6 +108,11 @@ impl Peer {
         Self::with_canonical(false).await
     }
     async fn with_canonical(replay: bool) -> Self {
+        Self::with_writer(replay, None).await
+    }
+    /// `rewrite`: another client of the account stores this plaintext as the head
+    /// right after the client's own store (fresh ciphertext, same derived key).
+    async fn with_writer(replay: bool, rewrite: Option<&'static str>) -> Self {
         let key = crypto::derive_embed_key(&[9; 32], EMBED).unwrap();
         // A previously accepted native OM head remains readable on replay.
         let canonical=replay.then(||json!({"hashed_chat_id":sha256(CHAT),"hashed_embed_id":sha256(EMBED),"hashed_message_id":sha256(MESSAGE),"version_number":1,"encrypted_content":crypto::encrypt_combined(input()[EMBED]["content"].as_str().unwrap(),&key).unwrap(),"encrypted_type":crypto::encrypt_combined("code",&key).unwrap()}));
@@ -169,6 +174,10 @@ impl Peer {
                         // it is not part of the client's store_embed payload.
                         let mut stored = p.clone();
                         stored["hashed_embed_id"] = json!(sha256(p["embed_id"].as_str().unwrap()));
+                        if let Some(plain) = rewrite {
+                            let key = crypto::derive_embed_key(&[9; 32], EMBED).unwrap();
+                            stored["encrypted_content"] = json!(crypto::encrypt_combined(plain, &key).unwrap());
+                        }
                         *head.lock().unwrap() = Some(stored);
                         json!({"type":"store_embed_confirmed","payload":{"request_id":p["request_id"],"embed_id":p["embed_id"],"canonical_source":"head","canonical_digest":sha256(p["encrypted_content"].as_str().unwrap())}})
                     }
@@ -399,4 +408,18 @@ fn decoded_artifact_moves_original_plaintext_allocation_into_guarded_item() {
         item.fields["content"]["payload"].as_str().unwrap(),
         "Synthetic private allocation ".repeat(8)
     );
+}
+
+#[tokio::test]
+async fn concurrent_writer_with_same_plaintext_is_accepted_and_different_content_refused() {
+    let same = input()[EMBED]["content"].as_str().unwrap().to_owned();
+    let same: &'static str = Box::leak(same.into_boxed_str());
+    for (rewrite, accepted) in [(same, true), ("Other synthetic artifact", false)] {
+        let mut peer = Peer::with_writer(false, Some(rewrite)).await;
+        let mut client = fixture(&peer.api, false, None);
+        let result = client
+            .persist_stream_artifacts(&mut peer.ws, CHAT, MESSAGE, &[9; 32], "", &input(), &[checkpoint()])
+            .await;
+        assert_eq!(result.is_ok(), accepted, "rewrite accepted={accepted}: {result:?}");
+    }
 }

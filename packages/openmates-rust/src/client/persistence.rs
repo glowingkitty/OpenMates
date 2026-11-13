@@ -181,12 +181,27 @@ impl Client {
                 }
                 let stored = scoped_await!(self.request(Method::GET, &path, None))?;
                 let head = stored.get("embed").ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
-                if text(head, "encrypted_content") != encrypted
-                    || text(head, "encrypted_type") != encrypted_type
-                    || text(head, "hashed_chat_id") != chat_hash
-                    || text(head, "hashed_embed_id") != sha256(&ready)
-                {
+                if text(head, "hashed_chat_id") != chat_hash || text(head, "hashed_embed_id") != sha256(&ready) {
+                    super::send::refusal_trace::note("stored_artifact_identity_differs");
                     return Err(super::send::refusal_trace::protocol_at!());
+                }
+                // Another client of the account (e.g. an open web tab) may persist the same
+                // streamed artifact concurrently. Its ciphertext differs (fresh nonce) under the
+                // same derived embed key, so compare plaintext like the canonical branch above;
+                // different content is still refused.
+                if text(head, "encrypted_content") != encrypted || text(head, "encrypted_type") != encrypted_type {
+                    let stored_source = zeroize::Zeroizing::new(crypto::decrypt_combined(
+                        required(head, "encrypted_content")?,
+                        &embed_key,
+                    )?);
+                    let stored_kind = zeroize::Zeroizing::new(crypto::decrypt_combined(
+                        required(head, "encrypted_type")?,
+                        &embed_key,
+                    )?);
+                    if stored_source.as_str() != source || stored_kind.as_str() != kind {
+                        super::send::refusal_trace::note("stored_artifact_content_differs");
+                        return Err(super::send::refusal_trace::protocol_at!());
+                    }
                 }
                 scope.check_chat(self, chat)?;
                 self.embeds.insert(ready.clone(), head.clone());
