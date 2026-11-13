@@ -798,7 +798,13 @@ async def dispatch_async_skill_continuation(
             original_request.original_user_message_id or original_request.message_id
         ),
         async_skill_task_id=async_task_id,
-        completed_result_embed_ids=completed_result_embed_ids(completed_results),
+        # A continuation that starts another async skill (e.g. a commit after
+        # green tests) is rewritten by the next continuation under the same
+        # message id, so the earlier run's test results stay referenced.
+        completed_result_embed_ids=list(dict.fromkeys([
+            *(original_request.completed_result_embed_ids or []),
+            *completed_result_embed_ids(completed_results),
+        ])),
         preprocessing_resume_ref=original_request.preprocessing_resume_ref,
         recovery_inference_task_id=(
             original_request.recovery_task_id
