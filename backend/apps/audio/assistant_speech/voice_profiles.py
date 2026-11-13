@@ -38,6 +38,11 @@ ASSISTANT_VOICE_PROVIDER_IDS = MappingProxyType(
     }
 )
 
+# The neutral system voice of call confirmations made before any Mate is known
+# (ElevenLabs default voice "River", labelled gender "neutral" by the provider).
+# Only the pre-recorded clips use it; it is never a Mate voice.
+SYSTEM_VOICE_PROVIDER_ID = "SAz9YHcvj6GT2YYXdXww"
+
 # Version 2 uses Mistral presets; version 1 remains resolvable only for existing
 # segments. Distinct curated presets never expose raw provider IDs to clients.
 MISTRAL_VOICE_PROVIDER_IDS = MappingProxyType({

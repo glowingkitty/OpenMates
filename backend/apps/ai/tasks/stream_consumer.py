@@ -298,6 +298,65 @@ _INSTANT_ACK_SENT: dict[str, None] = {}
 _INSTANT_ACK_SENT_LIMIT = 256
 
 
+def _speaks_call_confirmations(request_data: AskSkillRequest) -> bool:
+    return bool(request_data.voice_mode and request_data.auto_speak_response) \
+        and not request_data.is_external and not request_data.is_incognito
+
+
+async def _call_confirmation_language(
+    request_data: AskSkillRequest, preprocessing_result: Any, cache_service: Any,
+) -> str | None:
+    """Turn language for a pre-recorded call clip, or None to stay silent."""
+    language = getattr(preprocessing_result, "output_language", None)
+    if language:
+        return language
+    # Before preprocessing only the turn text, the language of the previous
+    # turn in this call and the interface preference are known. No guess is
+    # hard-coded: with none of them the call stays silent.
+    from backend.apps.ai.assistant_speech.voice_status import detect_turn_language
+
+    turn_text = request_data.current_user_content or next(
+        (str(item.get("content") or "") for item in reversed(request_data.message_history or [])
+         if isinstance(item, dict) and item.get("role") == "user"), "",
+    )
+    remembered = None
+    if cache_service is not None and request_data.voice_call_id:
+        cached_language = await cache_service.get(f"voice_call_last_language:{request_data.voice_call_id}")
+        remembered = cached_language if isinstance(cached_language, str) else None
+    return detect_turn_language(
+        turn_text, remembered or (request_data.user_preferences or {}).get("language") or None,
+    )
+
+
+async def _publish_call_confirmation_clip(
+    *, task_id: str, request_data: AskSkillRequest, clip: dict[str, object],
+    cache_service: Any, log_prefix: str, description: str,
+) -> None:
+    message_id = _assistant_message_id(task_id, request_data)
+    await _publish_to_redis(
+        cache_service,
+        f"chat_stream::{request_data.chat_id}",
+        {
+            "type": "assistant_speech_acknowledgement",
+            "chat_id": request_data.chat_id,
+            "user_id_hash": request_data.user_id_hash,
+            "message_id": message_id,
+            "payload": {
+                "chat_id": request_data.chat_id,
+                "message_id": message_id,
+                "clip_id": clip["clip_id"],
+                "audio_url": clip["asset_url"],
+            },
+        },
+        log_prefix,
+        description,
+    )
+    # One confirmation per turn: the speech setup after routing plays no second one.
+    if len(_INSTANT_ACK_SENT) >= _INSTANT_ACK_SENT_LIMIT:
+        _INSTANT_ACK_SENT.pop(next(iter(_INSTANT_ACK_SENT)))
+    _INSTANT_ACK_SENT[message_id] = None
+
+
 async def publish_instant_voice_acknowledgement(
     *,
     task_id: str,
@@ -314,63 +373,53 @@ async def publish_instant_voice_acknowledgement(
     guess one (a previous turn's or a default Mate): a clip in another voice
     than the answer is worse than no clip, so without a known Mate it stays silent.
     """
-    if not (request_data.voice_mode and request_data.auto_speak_response) \
-            or request_data.is_external or request_data.is_incognito:
+    if not _speaks_call_confirmations(request_data) or mate is None:
         return False
     from backend.apps.ai.assistant_speech.voice_status import select_instant_acknowledgement
 
-    if mate is None:
-        return False
-    language = getattr(preprocessing_result, "output_language", None)
-    if not language:
-        # Before preprocessing only the turn text, the language of the previous
-        # turn in this call and the interface preference are known. No guess is
-        # hard-coded: with none of them the call stays silent.
-        from backend.apps.ai.assistant_speech.voice_status import detect_turn_language
-
-        turn_text = request_data.current_user_content or next(
-            (str(item.get("content") or "") for item in reversed(request_data.message_history or [])
-             if isinstance(item, dict) and item.get("role") == "user"), "",
-        )
-        remembered = None
-        if cache_service is not None and request_data.voice_call_id:
-            cached_language = await cache_service.get(f"voice_call_last_language:{request_data.voice_call_id}")
-            remembered = cached_language if isinstance(cached_language, str) else None
-        language = detect_turn_language(
-            turn_text, remembered or (request_data.user_preferences or {}).get("language") or None,
-        )
+    language = await _call_confirmation_language(request_data, preprocessing_result, cache_service)
     if not language:
         return False
-    message_id = _assistant_message_id(task_id, request_data)
     acknowledgement = select_instant_acknowledgement(
         voice_profile_id=mate.voice_profile.key,
         voice_profile_version=mate.voice_profile.version,
         language=language,
-        seed=message_id,
+        seed=_assistant_message_id(task_id, request_data),
     )
     if acknowledgement is None:
         return False
-    await _publish_to_redis(
-        cache_service,
-        f"chat_stream::{request_data.chat_id}",
-        {
-            "type": "assistant_speech_acknowledgement",
-            "chat_id": request_data.chat_id,
-            "user_id_hash": request_data.user_id_hash,
-            "message_id": message_id,
-            "payload": {
-                "chat_id": request_data.chat_id,
-                "message_id": message_id,
-                "clip_id": acknowledgement["clip_id"],
-                "audio_url": acknowledgement["asset_url"],
-            },
-        },
-        log_prefix,
-        "instant voice acknowledgement",
+    await _publish_call_confirmation_clip(
+        task_id=task_id, request_data=request_data, clip=acknowledgement,
+        cache_service=cache_service, log_prefix=log_prefix, description="instant voice acknowledgement",
     )
-    if len(_INSTANT_ACK_SENT) >= _INSTANT_ACK_SENT_LIMIT:
-        _INSTANT_ACK_SENT.pop(next(iter(_INSTANT_ACK_SENT)))
-    _INSTANT_ACK_SENT[message_id] = None
+    return True
+
+
+async def publish_chat_start_voice_confirmation(
+    *,
+    task_id: str,
+    request_data: AskSkillRequest,
+    cache_service: Any,
+    log_prefix: str,
+) -> bool:
+    """Confirm a call turn that starts a new chat in the neutral system voice.
+
+    The chat has no Mate yet, so no Mate voice may speak before routing. The
+    recorded clip is a short chime plus "Starting your chat…"; everything after
+    routing is spoken in the routed Mate's own voice.
+    """
+    if not _speaks_call_confirmations(request_data):
+        return False
+    from backend.apps.ai.assistant_speech.voice_status import select_chat_start_confirmation
+
+    language = await _call_confirmation_language(request_data, None, cache_service)
+    clip = select_chat_start_confirmation(language=language) if language else None
+    if clip is None:
+        return False
+    await _publish_call_confirmation_clip(
+        task_id=task_id, request_data=request_data, clip=clip,
+        cache_service=cache_service, log_prefix=log_prefix, description="chat start voice confirmation",
+    )
     return True
 
 
@@ -6702,14 +6751,11 @@ async def _consume_main_processing_stream(
                 await cache_service.set(
                     f"voice_call_last_language:{request_data.voice_call_id}", speech_language, ttl=6 * 3600,
                 )
-            if request_data.voice_mode and request_data.voice_call_id and cache_service is not None:
-                await cache_service.set(
-                    f"voice_call_last_mate:{request_data.voice_call_id}", selected_mate.id, ttl=6 * 3600,
-                )
             instant_ack_played = False
             if request_data.voice_mode and request_data.auto_speak_response:
-                # Already played when the turn started for an explicitly chosen
-                # Mate; otherwise it plays now, in the routed Mate's voice.
+                # Already played when the turn started (explicitly chosen Mate, or
+                # the neutral system clip of a new chat); otherwise it plays now,
+                # in the routed Mate's voice.
                 instant_ack_played = (
                     _INSTANT_ACK_SENT.pop(assistant_message_id, 0) is None
                     or await publish_instant_voice_acknowledgement(

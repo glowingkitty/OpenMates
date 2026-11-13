@@ -9,6 +9,18 @@ from __future__ import annotations
 
 
 ACKNOWLEDGEMENT_ASSET_ROOT = "/audio/assistant-acknowledgements"
+
+# A call turn that starts a new chat has no Mate yet: routing picks one later.
+# It is confirmed in a neutral system voice (a short chime is part of the
+# recorded clip), never in a Mate voice that may not be the one that answers.
+SYSTEM_VOICE_PROFILE_ID = "system"
+CHAT_START_CATEGORY = "chat_start"
+CHAT_START_TEXTS: dict[str, str] = {
+    "en-US": "Starting your chat…",
+    "de-DE": "Dein Chat startet…",
+    "es-ES": "Iniciando tu chat…",
+    "fr-FR": "Ton chat démarre…",
+}
 ACKNOWLEDGEMENT_TEXTS: dict[str, dict[str, tuple[str, ...]]] = {
     "en-US": {
         "general": (
@@ -132,14 +144,29 @@ def build_acknowledgement_clips(
     return clips
 
 
-def _resolve_locale(language: str) -> str | None:
-    if language in ACKNOWLEDGEMENT_TEXTS:
+def build_chat_start_clip(*, language: str) -> dict[str, object] | None:
+    """Public static metadata of the neutral system "starting your chat" clip."""
+    locale = _resolve_locale(language, CHAT_START_TEXTS)
+    if locale is None:
+        return None
+    return {
+        "clip_id": f"{SYSTEM_VOICE_PROFILE_ID}-{locale}-{CHAT_START_CATEGORY}-1",
+        "voice_profile_id": SYSTEM_VOICE_PROFILE_ID,
+        "language": locale,
+        "request_category": CHAT_START_CATEGORY,
+        "variant": 1,
+        "asset_url": f"{ACKNOWLEDGEMENT_ASSET_ROOT}/{SYSTEM_VOICE_PROFILE_ID}/{locale}/{CHAT_START_CATEGORY}-1.mp3",
+    }
+
+
+def _resolve_locale(language: str, catalog: dict[str, object] = ACKNOWLEDGEMENT_TEXTS) -> str | None:
+    if language in catalog:
         return language
     base_language = language.split("-", maxsplit=1)[0].lower()
     return next(
         (
             locale
-            for locale in ACKNOWLEDGEMENT_TEXTS
+            for locale in catalog
             if locale.split("-", maxsplit=1)[0].lower() == base_language
         ),
         None,

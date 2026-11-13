@@ -131,7 +131,9 @@ def test_write_manifest_keeps_clean_text_and_existing_locale_entries(tmp_path):
 def test_localized_plan_has_expected_voice_category_variant_coverage(tmp_path, language):
     generator = load_generator()
 
-    plan = generator.build_plan(language, tmp_path)
+    full_plan = generator.build_plan(language, tmp_path)
+    plan = [item for item in full_plan if item["voice_profile_id"] != generator.SYSTEM_VOICE_PROFILE_ID]
+    assert len(full_plan) == len(plan) + 1
     voices = {item["voice_profile_id"] for item in plan}
     categories_by_voice = {
         voice: {item["request_category"] for item in plan if item["voice_profile_id"] == voice}
@@ -156,3 +158,34 @@ def test_localized_plan_has_expected_voice_category_variant_coverage(tmp_path, l
     assert set(frozenset(variants) for variants in variants_by_voice_category.values()) == {
         frozenset({1, 2, 3})
     }
+
+
+@pytest.mark.parametrize("language", ["en-US", "de-DE", "es-ES", "fr-FR"])
+def test_chat_start_clip_uses_the_neutral_system_voice_with_a_leading_chime(tmp_path, language):
+    """A new chat has no Mate yet: its call confirmation is never recorded in a Mate voice."""
+    generator = load_generator()
+
+    [item] = [entry for entry in generator.build_plan(language, tmp_path)
+              if entry["voice_profile_id"] == generator.SYSTEM_VOICE_PROFILE_ID]
+
+    assert item["clip_id"] == f"system-{language}-chat_start-1"
+    assert item["relative_path"] == f"system/{language}/chat_start-1.mp3"
+    assert item["text"] == generator.CHAT_START_TEXTS[language]
+    assert item["leading_chime"] is True
+    assert generator.provider_voice_id(item) == generator.SYSTEM_VOICE_PROVIDER_ID
+    assert generator.SYSTEM_VOICE_PROVIDER_ID not in generator.ASSISTANT_VOICE_PROVIDER_IDS.values()
+    entry = generator._public_entry(item, audio_bytes=b"mp3", duration_seconds=1.0)
+    assert "leading_chime" not in entry and "generation_prompt" not in entry
+    graph = generator.chime_filter_graph()
+    assert graph.endswith(f"concat=n={len(generator.CHIME_NOTES) + 2}:v=0:a=1[out]")
+
+
+def test_shipped_chat_start_clips_match_the_manifest():
+    generator = load_generator()
+    manifest = json.loads((generator.DEFAULT_OUTPUT_ROOT / generator.MANIFEST_FILENAME).read_text(encoding="utf-8"))
+    system = {clip["clip_id"]: clip for clip in manifest["clips"] if clip["voice_profile_id"] == "system"}
+
+    assert set(system) == {f"system-{language}-chat_start-1" for language in generator.CHAT_START_TEXTS}
+    for clip in system.values():
+        audio = (generator.DEFAULT_OUTPUT_ROOT / clip["relative_path"]).read_bytes()
+        assert hashlib.sha256(audio).hexdigest() == clip["sha256"]

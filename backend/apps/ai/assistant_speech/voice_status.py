@@ -15,7 +15,7 @@ import hashlib
 from collections.abc import Iterable, Mapping
 
 from backend.apps.ai.assistant_speech.projection import select_prerecorded_acknowledgement
-from backend.apps.audio.assistant_speech.acknowledgements import build_acknowledgement_clips
+from backend.apps.audio.assistant_speech.acknowledgements import build_acknowledgement_clips, build_chat_start_clip
 
 # Pre-recorded categories that suit a turn whose needs are not yet known.
 _INSTANT_CATEGORIES = ("general", "reasoning")
@@ -111,6 +111,26 @@ def select_instant_acknowledgement(
         language=language, request_category=category, selection_seed=seed,
     )
     return choice if choice and choice.get("asset_url") else None
+
+
+def select_chat_start_confirmation(*, language: str) -> dict[str, object] | None:
+    """The neutral system clip for a call turn that starts a chat without a Mate yet."""
+    return build_chat_start_clip(language=language)
+
+
+def chat_has_no_mate_yet(*, chat_has_title: bool, message_history: Iterable[object]) -> bool:
+    """True while the chat is still being created: no title and no assistant turn.
+
+    Only then is the answering Mate unknown until routing; an existing chat
+    always has a title after its first turn.
+    """
+    if chat_has_title:
+        return False
+    for item in message_history or ():
+        role = item.get("role") if isinstance(item, Mapping) else getattr(item, "role", None)
+        if role == "assistant":
+            return False
+    return True
 
 
 def build_voice_app_use_announcement(language: str | None, seed: str) -> str | None:

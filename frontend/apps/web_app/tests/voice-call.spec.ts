@@ -2750,11 +2750,17 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
     await page.getByTestId('voice-call-mute').click();
     const id=await sendCameraCallText(page,'Bitte prüfe das gründlich');
-    // The pre-recorded, localized acknowledgement is sent when processing starts,
-    // before any generated speech, and replaces the delayed generated waiting line.
-    await expect.poll(async()=>(await evidence(page)).received.filter(frame=>frame.type==='assistant_speech_acknowledgement'&&/-de-DE-/.test(frame.clipId??'')).length,{timeout:30_000}).toBe(1);
+    // This call starts a new chat, so no Mate is known yet: the pre-recorded,
+    // localized confirmation is the neutral system clip (chime + "Dein Chat startet…"),
+    // sent when processing starts and never in a guessed Mate voice. It replaces
+    // the delayed generated waiting line.
+    const acknowledgementClips=async()=>(await evidence(page)).received
+      .filter(frame=>frame.type==='assistant_speech_acknowledgement').map(frame=>frame.clipId);
+    await expect.poll(acknowledgementClips,{timeout:30_000}).toEqual(['system-de-DE-chat_start-1']);
     expect((await evidence(page)).received.filter(frame=>frame.type==='assistant_speech_status'&&frame.kind==='waiting_confirmation')).toHaveLength(0);
     await waitForCanonicalAssistant(page,id);
+    // After routing no second confirmation follows in the routed Mate's voice.
+    expect(await acknowledgementClips()).toEqual(['system-de-DE-chat_start-1']);
     const reply=page.getByTestId('message-assistant').filter({hasText:'Ich habe das geprüft. Hier ist das Ergebnis.'});
     await expect(reply).toHaveCount(1);await expect(page.getByTestId('message-assistant')).toHaveCount(1);
     const protocol=await evidence(page);

@@ -105,8 +105,10 @@ from backend.shared.python_utils.tracing.ai_observability import (
     record_ai_completion_timing,
     record_ai_queue_span,
 )
+from backend.apps.ai.assistant_speech.voice_status import chat_has_no_mate_yet
 from .stream_consumer import (
-    _consume_main_processing_stream, _persist_sealed_typed_output, publish_instant_voice_acknowledgement,
+    _consume_main_processing_stream, _persist_sealed_typed_output, publish_chat_start_voice_confirmation,
+    publish_instant_voice_acknowledgement,
 )
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
@@ -3681,19 +3683,28 @@ async def _async_process_ai_skill_ask_task(
                         await summary_task
 
                 await require_active_voice_dispatch(cache_service_instance, request_data)
-                # The call turn is accepted: acknowledge before slow routing starts,
-                # but only when the answering Mate is already certain (chosen by the
-                # user or the request). An automatically routed Mate is unknown yet;
-                # its acknowledgement plays after routing, in its own voice.
+                # The call turn is accepted: confirm before slow routing starts.
+                # Only a Mate chosen by the user or the request may speak now. A
+                # chat that is still being created has no Mate yet, so a neutral
+                # system voice confirms it; any other auto-routed turn waits for
+                # routing and is confirmed in the routed Mate's own voice.
                 explicit_call_mate, _source = _resolve_explicit_mate(
                     list(all_mates_configs or []),
                     user_overrides.mate_id if user_overrides else None,
                     request_data.mate_id,
                 )
-                await publish_instant_voice_acknowledgement(
-                    task_id=task_id, request_data=request_data, mate=explicit_call_mate,
-                    cache_service=cache_service_instance, log_prefix=f"[Task ID: {task_id}] ",
-                )
+                if explicit_call_mate is not None:
+                    await publish_instant_voice_acknowledgement(
+                        task_id=task_id, request_data=request_data, mate=explicit_call_mate,
+                        cache_service=cache_service_instance, log_prefix=f"[Task ID: {task_id}] ",
+                    )
+                elif chat_has_no_mate_yet(
+                    chat_has_title=request_data.chat_has_title, message_history=request_data.message_history,
+                ):
+                    await publish_chat_start_voice_confirmation(
+                        task_id=task_id, request_data=request_data,
+                        cache_service=cache_service_instance, log_prefix=f"[Task ID: {task_id}] ",
+                    )
                 with ai_phase_span("preprocess"):
                     _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "started")
                     try:

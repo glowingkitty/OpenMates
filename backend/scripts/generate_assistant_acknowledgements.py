@@ -13,7 +13,9 @@ import argparse
 import asyncio
 import hashlib
 import json
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -24,8 +26,12 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from backend.apps.audio.assistant_speech.acknowledgements import ACKNOWLEDGEMENT_TEXTS  # noqa: E402
-from backend.apps.audio.assistant_speech.voice_profiles import ASSISTANT_VOICE_PROVIDER_IDS  # noqa: E402
+from backend.apps.audio.assistant_speech.acknowledgements import (  # noqa: E402
+    ACKNOWLEDGEMENT_TEXTS, CHAT_START_CATEGORY, CHAT_START_TEXTS, SYSTEM_VOICE_PROFILE_ID,
+)
+from backend.apps.audio.assistant_speech.voice_profiles import (  # noqa: E402
+    ASSISTANT_VOICE_PROVIDER_IDS, SYSTEM_VOICE_PROVIDER_ID,
+)
 from backend.apps.audio.pricing import ELEVEN_V4_TURBO_SPEECH_MODEL as ASSISTANT_RESPONSE_SPEECH_MODEL  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
 from backend.shared.providers.elevenlabs.client import DEFAULT_OUTPUT_FORMAT, ElevenLabsClient  # noqa: E402
@@ -79,7 +85,70 @@ def build_plan(language: str, output_root: Path) -> list[dict[str, Any]]:
                     }
                     | build_generation_prompt(language=language, category=category, text=text)
                 )
+    chat_start_text = CHAT_START_TEXTS.get(language)
+    if chat_start_text:
+        # Neutral system voice with a leading chime: a new chat has no Mate yet.
+        relative_path = Path(SYSTEM_VOICE_PROFILE_ID) / language / f"{CHAT_START_CATEGORY}-1.mp3"
+        plan.append(
+            {
+                "clip_id": f"{SYSTEM_VOICE_PROFILE_ID}-{language}-{CHAT_START_CATEGORY}-1",
+                "voice_profile_id": SYSTEM_VOICE_PROFILE_ID,
+                "voice_profile_version": 1,
+                "language": language,
+                "request_category": CHAT_START_CATEGORY,
+                "variant": 1,
+                "text": chat_start_text,
+                "relative_path": relative_path.as_posix(),
+                "output_path": output_root / relative_path,
+                "generation_prompt": chat_start_text,
+                "generation_tags": (),
+                "leading_chime": True,
+            }
+        )
     return plan
+
+
+def provider_voice_id(item: dict[str, Any]) -> str:
+    if item["voice_profile_id"] == SYSTEM_VOICE_PROFILE_ID:
+        return SYSTEM_VOICE_PROVIDER_ID
+    return ASSISTANT_VOICE_PROVIDER_IDS[item["voice_profile_id"]]
+
+
+# Two soft rising notes, distinct from the local call connect/mute/end cues.
+CHIME_NOTES = ((783.99, 0.09), (1046.5, 0.14))
+CHIME_GAP_SECONDS = 0.12
+
+
+def chime_filter_graph() -> str:
+    """ffmpeg graph: chime notes, a short gap, then the voice (input index len(CHIME_NOTES))."""
+    parts, labels = [], []
+    for index, (_frequency, duration) in enumerate(CHIME_NOTES):
+        parts.append(
+            f"[{index}]volume=1.2,afade=t=in:d=0.01,afade=t=out:st={duration - 0.04:.2f}:d=0.04,"
+            f"aresample=44100,aformat=channel_layouts=mono[n{index}]"
+        )
+        labels.append(f"[n{index}]")
+    parts.append(f"anullsrc=r=44100:cl=mono,atrim=duration={CHIME_GAP_SECONDS}[gap]")
+    parts.append(f"[{len(CHIME_NOTES)}]aresample=44100,aformat=channel_layouts=mono[voice]")
+    parts.append("".join(labels) + f"[gap][voice]concat=n={len(CHIME_NOTES) + 2}:v=0:a=1[out]")
+    return ";".join(parts)
+
+
+def with_leading_chime(audio_bytes: bytes) -> bytes:
+    with tempfile.TemporaryDirectory() as directory:
+        voice_path = Path(directory) / "voice.mp3"
+        output_path = Path(directory) / "out.mp3"
+        voice_path.write_bytes(audio_bytes)
+        inputs: list[str] = []
+        for frequency, duration in CHIME_NOTES:
+            inputs += ["-f", "lavfi", "-i", f"sine=frequency={frequency}:duration={duration}"]
+        subprocess.run(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *inputs, "-i", str(voice_path),
+             "-filter_complex", chime_filter_graph(), "-map", "[out]", "-c:a", "libmp3lame", "-b:a", "128k",
+             str(output_path)],
+            check=True,
+        )
+        return output_path.read_bytes()
 
 
 def _remaining_credits(subscription: dict[str, Any]) -> int | None:
@@ -118,17 +187,23 @@ def _public_entry(item: dict[str, Any], *, audio_bytes: bytes, duration_seconds:
     } | {
         "sha256": hashlib.sha256(audio_bytes).hexdigest(),
         "duration_seconds": duration_seconds,
+        "provider_model_id": ASSISTANT_RESPONSE_SPEECH_MODEL,
     }
 
 
 def _write_manifest(output_root: Path, entries: dict[str, dict[str, Any]]) -> None:
+    manifest_path = output_root / MANIFEST_FILENAME
+    # The header names the model of the original catalogue; clips generated
+    # later carry their own provider_model_id.
+    header_model = ASSISTANT_RESPONSE_SPEECH_MODEL
+    if manifest_path.is_file():
+        header_model = json.loads(manifest_path.read_text(encoding="utf-8")).get("provider_model_id", header_model)
     payload = {
         "schema_version": MANIFEST_SCHEMA_VERSION,
         "provider": "elevenlabs",
-        "provider_model_id": ASSISTANT_RESPONSE_SPEECH_MODEL,
+        "provider_model_id": header_model,
         "clips": [entries[key] for key in sorted(entries)],
     }
-    manifest_path = output_root / MANIFEST_FILENAME
     temporary_path = manifest_path.with_suffix(".json.tmp")
     temporary_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     temporary_path.replace(manifest_path)
@@ -259,17 +334,25 @@ async def run(
             output_path.parent.mkdir(parents=True, exist_ok=True)
             result = await client.text_to_speech(
                 text=item["generation_prompt"],
-                voice_id=ASSISTANT_VOICE_PROVIDER_IDS[item["voice_profile_id"]],
+                voice_id=provider_voice_id(item),
                 model=ASSISTANT_RESPONSE_SPEECH_MODEL,
                 output_format=DEFAULT_OUTPUT_FORMAT,
             )
+            audio_bytes = result.audio_bytes
+            duration_seconds = result.duration_seconds
+            if item.get("leading_chime"):
+                audio_bytes = with_leading_chime(audio_bytes)
+                if duration_seconds is not None:
+                    duration_seconds = round(
+                        duration_seconds + sum(duration for _f, duration in CHIME_NOTES) + CHIME_GAP_SECONDS, 3,
+                    )
             temporary_path = output_path.with_suffix(".mp3.tmp")
-            temporary_path.write_bytes(result.audio_bytes)
+            temporary_path.write_bytes(audio_bytes)
             temporary_path.replace(output_path)
             existing_entries[item["clip_id"]] = _public_entry(
                 item,
-                audio_bytes=result.audio_bytes,
-                duration_seconds=result.duration_seconds,
+                audio_bytes=audio_bytes,
+                duration_seconds=duration_seconds,
             )
             _write_manifest(output_root, existing_entries)
             generated_count += 1

@@ -195,3 +195,71 @@ async def test_instant_acknowledgement_uses_only_the_answering_mates_voice(monke
     )
     assert published[0]["payload"]["clip_id"].startswith("sophia-en-US-")
     assert published[0]["payload"]["audio_url"].startswith("/audio/assistant-acknowledgements/sophia/")
+
+
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+def test_new_chat_is_confirmed_in_the_neutral_system_voice_never_a_mate_voice():
+    from backend.apps.ai.assistant_speech.voice_status import select_chat_start_confirmation
+
+    english = select_chat_start_confirmation(language="en")
+    assert english["clip_id"] == "system-en-US-chat_start-1"
+    assert english["voice_profile_id"] == "system"
+    assert english["asset_url"] == "/audio/assistant-acknowledgements/system/en-US/chat_start-1.mp3"
+    assert select_chat_start_confirmation(language="de-DE")["clip_id"] == "system-de-DE-chat_start-1"
+    # No recorded clip for the language: silent, never English.
+    assert select_chat_start_confirmation(language="ja") is None
+
+
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+def test_only_a_chat_without_title_and_assistant_turn_has_no_mate_yet():
+    from types import SimpleNamespace
+
+    from backend.apps.ai.assistant_speech.voice_status import chat_has_no_mate_yet
+
+    user = SimpleNamespace(role="user", content="Hallo")
+    assistant = SimpleNamespace(role="assistant", content="Hi")
+    assert chat_has_no_mate_yet(chat_has_title=False, message_history=[user])
+    assert chat_has_no_mate_yet(chat_has_title=False, message_history=[])
+    assert not chat_has_no_mate_yet(chat_has_title=True, message_history=[user])
+    assert not chat_has_no_mate_yet(chat_has_title=False, message_history=[user, assistant, user])
+    assert not chat_has_no_mate_yet(chat_has_title=False, message_history=[{"role": "assistant"}])
+
+
+# contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
+async def test_chat_start_confirmation_is_the_single_clip_of_the_turn(monkeypatch):
+    """The system clip plays at once; after routing no second (Mate) clip follows."""
+    from types import SimpleNamespace
+
+    from backend.apps.ai.tasks import stream_consumer
+
+    published: list[dict] = []
+
+    async def capture(_cache, _channel, event, *_args):
+        published.append(event)
+
+    monkeypatch.setattr(stream_consumer, "_publish_to_redis", capture)
+
+    def request(**overrides):
+        values = dict(
+            voice_mode=True, auto_speak_response=True, is_external=False, is_incognito=False, mate_id=None,
+            voice_call_id=None, current_user_content="Wie spät ist es", message_history=[],
+            user_preferences={"language": "en"}, chat_id="chat", user_id_hash="u", continuation_message_id=None,
+        )
+        return SimpleNamespace(**(values | overrides))
+
+    assert await stream_consumer.publish_chat_start_voice_confirmation(
+        task_id="task-new-chat", request_data=request(), cache_service=None, log_prefix="[test]",
+    )
+    assert [event["payload"]["clip_id"] for event in published] == ["system-de-DE-chat_start-1"]
+    assert published[0]["payload"]["audio_url"].startswith("/audio/assistant-acknowledgements/system/")
+    # The speech setup after routing finds the turn already confirmed.
+    assert stream_consumer._INSTANT_ACK_SENT.pop("task-new-chat", 0) is None
+
+    published.clear()
+    # Typed (non-call) turns, incognito and unknown languages stay silent.
+    for silent in (request(voice_mode=False), request(is_incognito=True),
+                   request(current_user_content="Paris", user_preferences={})):
+        assert not await stream_consumer.publish_chat_start_voice_confirmation(
+            task_id="task-silent", request_data=silent, cache_service=None, log_prefix="[test]",
+        )
+    assert published == []
