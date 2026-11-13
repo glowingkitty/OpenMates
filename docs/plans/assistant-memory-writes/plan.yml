@@ -138,13 +138,13 @@ tests:
     expected: pass
     evidence:
       status: passed
-      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 39e5f6d82fa52d2a241866bb431c5b88e2dc485d --mode
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 6dc172ea80198f244d82f6f6d21ee0635cd8af53 --mode
         pytest --spec backend/tests/test_memory_write_tool.py --no-prepared-builds
-      run_id: 08c4c8dd9f3cf4a8c6cffa5ee1e6a99e360c8f6d765a80c65fdaae5dc29b78e7
-      subject_commit: bd80112de1a1a789e8d274fc5fcd3f42fd4ffef7
-      timestamp: '2026-11-12T18:00:00Z'
+      run_id: 71c98dd3555a9a84911f24def9a752fad48a098dc036107011c9b0927d3483b5
+      subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      timestamp: '2026-11-13T05:00:00Z'
       execution_environment: isolated_github_ci
-      harness_commit: 39e5f6d82fa52d2a241866bb431c5b88e2dc485d
+      harness_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
       profile: pytest
 - id: T-POST
   type: pytest
@@ -165,13 +165,13 @@ tests:
     expected: pass
     evidence:
       status: passed
-      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 39e5f6d82fa52d2a241866bb431c5b88e2dc485d --mode
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 6dc172ea80198f244d82f6f6d21ee0635cd8af53 --mode
         pytest --spec backend/tests/test_postprocessing_recommendations.py --no-prepared-builds
-      run_id: d09095b2f457da1c0a0ae47d8c028dc332acf049c565c797766740be6fd1643f
-      subject_commit: bd80112de1a1a789e8d274fc5fcd3f42fd4ffef7
-      timestamp: '2026-11-12T18:00:00Z'
+      run_id: dc5f28f9323abfbd5f49d61fe2508a5f9919329bba8717ca4f9289a8edf954d5
+      subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      timestamp: '2026-11-13T05:00:00Z'
       execution_environment: isolated_github_ci
-      harness_commit: 39e5f6d82fa52d2a241866bb431c5b88e2dc485d
+      harness_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
       profile: pytest
 - id: T-CLI
   type: playwright
@@ -193,16 +193,16 @@ tests:
     expected: pass
     evidence:
       status: passed
-      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source a3952f1e22311541f81e533c82d63906aa7c9ba8 --mode
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 6dc172ea80198f244d82f6f6d21ee0635cd8af53 --mode
         e2e --spec cli-memory-write.spec.ts
-      run_id: 0f6227ab76964059ca0c18367c4b1e1a9e88b8ad094ace4721c2f3db05b00b4b
-      subject_commit: bd80112de1a1a789e8d274fc5fcd3f42fd4ffef7
+      run_id: eed641052d4afafbeb307066792cc07b7a437dbcf65da2c2f8c21fbd4263ec53
+      subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      timestamp: '2026-11-13T05:00:00Z'
       execution_environment: isolated_github_ci
-      harness_commit: a3952f1e22311541f81e533c82d63906aa7c9ba8
+      harness_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
       profile: e2e
       artifacts:
-      - https://github.com/glowingkitty/OpenMates/actions/runs/43280737753/artifacts/13974191856
-      timestamp: '2026-11-12T18:45:00Z'
+      - https://github.com/glowingkitty/OpenMates/actions/runs/43362104216/artifacts/14009790505
 - id: T-UNDO
   type: playwright
   file: frontend/apps/web_app/tests/memory-write-undo.spec.ts
@@ -224,16 +224,16 @@ tests:
     expected: pass
     evidence:
       status: passed
-      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 39e5f6d82fa52d2a241866bb431c5b88e2dc485d --mode
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 6dc172ea80198f244d82f6f6d21ee0635cd8af53 --mode
         e2e --spec memory-write-undo.spec.ts
-      run_id: b36a39872f04964bfc08a1d7889c0b0e3621a8542e9c932f1c4fa1b204d06e49
-      subject_commit: bd80112de1a1a789e8d274fc5fcd3f42fd4ffef7
-      timestamp: '2026-11-12T18:00:00Z'
+      run_id: 50f56e5ee702a115505feb2d47244f0bccd798a6fc6c9e911d752641802aed69
+      subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      timestamp: '2026-11-13T05:00:00Z'
       execution_environment: isolated_github_ci
-      harness_commit: 39e5f6d82fa52d2a241866bb431c5b88e2dc485d
+      harness_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
       profile: e2e
       artifacts:
-      - https://github.com/glowingkitty/OpenMates/actions/runs/43272105074/artifacts/13968668881
+      - https://github.com/glowingkitty/OpenMates/actions/runs/43364061594/artifacts/14009263549
 - id: T-REAL
   type: manual
   file: scripts/jobs_focus_real_test.py
@@ -253,7 +253,22 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      command: python3 scripts/jobs_focus_real_test.py --session 3bb9 --state-dir /tmp/jf-770-state --output-dir /tmp/jf-770-out
+        --record-dir /tmp/jf-770-video --native-cli /tmp/3bb9-native-target/debug/openmates --native-session-import /tmp/3bb9-native-target/debug/native-cli-session-import
+        --case profile-reuse --allow-paid-dev-inference --timeout-seconds 420
+      run_id: jf-770-profile-reuse
+      subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      timestamp: '2026-11-13T02:31:30Z'
+      execution_environment: dev
+      reason: Real inference is dev-only by policy (never in CI). Native CLI built from the deployed commit, personal dev
+        test account, Gemini 3.8 Flash pinned and persisted. Save applied with Undo, Ask-first load approved in a new chat,
+        answer used the saved profile, chats show worked, Undo removed the Memory. The Memory response row holds EMAIL and
+        PHONE placeholder mappings; dev app-ai-worker logs for the run show placeholders and never the real email or phone.
+      artifacts:
+      - https://nbg1.your-objectstorage.com/dev-openmates-opencode-response-media/review-responses/runs/openmates-cli-e2e-real-inference/7726c4a76f38d250675a3d80717c8c08fc8f7da9952c88246a54399f87fdcf86/video.mp4
+      - https://nbg1.your-objectstorage.com/dev-openmates-opencode-response-media/review-responses/runs/openmates-cli-e2e-real-inference/d0467f846f4529c71c617197b0efb98ceabd79f29416c3cd80b53909d394a1ff/video.mp4
 - id: T-PRIV
   type: unit
   file: packages/openmates-rust/src/client/memory_privacy_tests.rs
@@ -273,7 +288,19 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --session 3bb9 --source 6dc172ea80198f244d82f6f6d21ee0635cd8af53 --mode
+        rust-check --spec all
+      run_id: 2710f68cf6ae8e3f546f1170cb9e1912476cb2fdc31111d1fc9f2c727402a179
+      subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      timestamp: '2026-11-13T05:00:00Z'
+      execution_environment: isolated_github_ci
+      harness_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
+      profile: rust-check
+      reason: All memory_privacy, memory_consent, memory_write_jobs and chat_details tests passed (2781 of 2782 lib tests).
+        The job is red only on source_host::commands_tests::timeout_kills_the_whole_process_group (remote Project commands,
+        owned by another session), unrelated to this plan.
 tasks:
 - id: TASK-1
   title: Backend save_memory tool, write job and post-processor exclusion
@@ -387,7 +414,7 @@ tasks:
     - packages/openmates-rust/src/client/consent.rs
     - packages/openmates-rust/src/client/memory_write_jobs.rs
 implementation_state:
-  subject_commit: bd80112de1a1a789e8d274fc5fcd3f42fd4ffef7
+  subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
 approvals:
   specification:
     status: pending

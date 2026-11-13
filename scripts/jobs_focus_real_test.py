@@ -44,6 +44,24 @@ ROOT = Path(__file__).resolve().parents[1]
 APP_URL = "https://app.dev.openmates.org"
 NATIVE = {"enabled": False}
 NARRATE = {"enabled": False}
+RECORD: dict[str, Path | None] = {"dir": None}
+
+
+def record_views(cli: str, views: list[tuple[str, list[str]]]) -> list[dict]:
+    """Terminal recordings of read-only CLI views (--record-dir), taken before cleanup."""
+    root = RECORD["dir"]
+    if root is None:
+        return []
+    results = []
+    for name, args in views:
+        target = root / name
+        run = subprocess.run([sys.executable, str(ROOT / "scripts/cli_video_capture.py"), "--output-dir", str(target),
+                              "--target-environment", "dev", "--classification", "real_inference",
+                              "--timeout-seconds", "180", "--", cli, *args, "--api-url", API_URL],
+                             cwd=ROOT, capture_output=True, text=True, timeout=600, check=False)
+        results.append({"view": name, "returncode": run.returncode, "output_dir": str(target),
+                        "stdout_tail": run.stdout[-600:]})
+    return results
 
 
 def narrate(title: str, body: str = "") -> None:
@@ -285,6 +303,11 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
                 write_receipt(out / "profile-reuse-save-chat.json", {"error": str(exc)})
             raise
         write_receipt(out / "profile-reuse-use-chat.json", shown)
+        result["recordings"] = record_views(cli, [
+            ("1-save-chat", ["chats", "show", chats[0], "--personal"]),
+            ("2-memories", ["settings", "memories", "list"]),
+            ("3-reuse-chat", ["chats", "show", second["chatId"], "--personal"]),
+        ])
         text = json.dumps(shown).lower()
         result["profile_used"] = "example retail" in text and "15" in text
         result["models"] = sorted(persisted_models(shown))
@@ -334,11 +357,13 @@ def main() -> int:
     parser.add_argument("--case", action="append", choices=sorted([*CASES, "profile-reuse"]))
     parser.add_argument("--timeout-seconds", type=int, default=420)
     parser.add_argument("--allow-paid-dev-inference", action="store_true")
+    parser.add_argument("--record-dir", type=Path, help="Record terminal videos of the CLI views (fresh /tmp dir)")
     parser.add_argument("--narrate", action="store_true", help="Print prompts and answers for a terminal recording")
     parser.add_argument("--personal-only", action="store_true",
                         help="Wait for the personal account instead of using a throwaway account when it is busy")
     args = parser.parse_args()
     NARRATE["enabled"] = args.narrate
+    RECORD["dir"] = args.record_dir.resolve() if args.record_dir else None
     if any(os.getenv(key) for key in ("CI", "GITHUB_ACTIONS", "BUILDKITE", "GITLAB_CI")):
         parser.error("real inference is dev-only and cannot run in CI")
     if not args.allow_paid_dev_inference or not 60 <= args.timeout_seconds <= 1200:
