@@ -2,24 +2,38 @@
 //! `feature.embed-user-edits`, assertions `event.chat-notice` and
 //! `event.collapse`). The core decides which rows are events and folds runs
 //! of one embed (`group_embed_updated_events`); this shell module only words
-//! a folded run as one quiet line, for the CLI transcript and the TUI.
+//! a folded run as one quiet line, for the CLI transcript and the TUI. Other
+//! system rows (memory events, Undo markers) take the core's
+//! `system_event_line` wording (`feature.app-memories`).
 use crate::model::Message;
 use openmates_sdk::client::embed_updated_event::{
     ChatHistoryItem, EmbedKind, EmbedUpdateAction, EmbedUpdateSurface, EmbedUpdatedGroup,
     HistoryRow, group_embed_updated_events,
+};
+use openmates_sdk::client::system_event_line::{
+    SystemEventLine, system_event_line, undone_memory_write_jobs,
 };
 
 /// One entry of a rendered chat transcript.
 pub(crate) enum TranscriptItem<'a> {
     /// An ordinary message, rendered as before.
     Message(&'a Message),
-    /// A folded run of user edits of one embed, as one line.
+    /// A folded run of user edits of one embed, or another system event, as
+    /// one line.
     Notice(String),
 }
 
 /// The transcript of `messages` in history order, with every run of
-/// `embed_updated` events replaced by one notice line.
+/// `embed_updated` events replaced by one notice line and every other system
+/// row replaced by its core [`system_event_line`] (or dropped when hidden), so
+/// a system row never prints as an "Assistant" bubble with raw JSON.
 pub(crate) fn transcript_items(messages: &[Message]) -> Vec<TranscriptItem<'_>> {
+    let undone = undone_memory_write_jobs(
+        messages
+            .iter()
+            .filter(|message| message.role == "system")
+            .map(|message| message.content.as_str()),
+    );
     let rows: Vec<HistoryRow<'_>> = messages
         .iter()
         .map(|message| HistoryRow {
@@ -31,7 +45,16 @@ pub(crate) fn transcript_items(messages: &[Message]) -> Vec<TranscriptItem<'_>> 
     group_embed_updated_events(&rows)
         .into_iter()
         .filter_map(|item| match item {
-            ChatHistoryItem::Message { index } => messages.get(index).map(TranscriptItem::Message),
+            ChatHistoryItem::Message { index } => {
+                let message = messages.get(index)?;
+                if message.role != "system" {
+                    return Some(TranscriptItem::Message(message));
+                }
+                match system_event_line(&message.content, &undone) {
+                    SystemEventLine::Hidden => None,
+                    SystemEventLine::Line(line) => Some(TranscriptItem::Notice(line)),
+                }
+            }
             ChatHistoryItem::EmbedUpdated(group) => {
                 Some(TranscriptItem::Notice(notice_line(&group)))
             }

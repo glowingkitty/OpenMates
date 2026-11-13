@@ -190,6 +190,7 @@ pub mod memory_documents;
 mod memory_catalog;
 pub mod memory_privacy;
 pub mod memory_write_jobs;
+pub mod system_event_line;
 pub mod server_region;
 pub mod memory_write_job_bridge;
 mod project_file_jobs;

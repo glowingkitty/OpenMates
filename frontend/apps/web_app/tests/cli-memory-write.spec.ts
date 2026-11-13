@@ -10,8 +10,10 @@
  * core having stored the encrypted Memory (`memoryWrites[].status` applied, the
  * Memory listed with its title); a later chat that needs the ask-first Memory
  * gets a load request the CLI approves with --auto-approve-memories, and the
- * continued answer uses it, readable again through `chats show`; Undo (which
- * reads the chat's assistant-write history notice) removes the Memory.
+ * continued answer uses it, readable again through `chats show`; the human
+ * `chats show` reads the assistant's write and the shared Memories as one line
+ * each, never as raw event JSON or a placeholder mapping; Undo (which reads the
+ * chat's assistant-write history notice) removes the Memory.
  * Not proven here: model choice of what to save (real-inference proof in
  * scripts/memory_reuse_web_real_test.py and scripts/jobs_focus_real_test.py).
  */
@@ -37,7 +39,7 @@ function careerRows(listing: any): any[] {
 test.describe('CLI native: assistant Memory writes', () => {
 	skipWithoutCredentials(test, email, password, otpKey);
 
-	// contract-test: supporting surface=cli assertions=app-memories.lifecycle.encrypted-crud,app-memories.conversation.explicit-approval,app-memories.surface.semantic-parity
+	// contract-test: supporting surface=cli assertions=app-memories.lifecycle.encrypted-crud,app-memories.conversation.explicit-approval,app-memories.surface.semantic-parity,app-memories.privacy.anonymized-on-send
 	test('a saved Memory is stored by the CLI, reused after approval in a new chat and undone', async ({ page }: { page: any }, testInfo: TestInfo) => {
 		test.setTimeout(900_000);
 		expect(process.env.E2E_USE_MOCKS, 'Committed fixture replies only; never paid inference').toBeTruthy();
@@ -86,6 +88,19 @@ test.describe('CLI native: assistant Memory writes', () => {
 			// The persisted answer is readable again after the continuation.
 			const shown = await run(['chats', 'show', secondId, '--personal', '--json'], 120_000);
 			expect(JSON.stringify(shown)).toContain('Example Retail GmbH');
+			// The human view reads system events as lines: no raw event JSON and
+			// never the placeholder mapping of the shared Memory.
+			const humanSecond = await diff.native(['chats', 'show', secondId, '--personal'], 120_000);
+			expect(humanSecond.code, String(humanSecond.stderr)).toBe(0);
+			const secondText = String(humanSecond.stdout);
+			expect(secondText).toContain('Memories shared with the assistant');
+			for (const raw of ['app_settings_memories_', 'pii_mappings', '"placeholder"', '"original"']) {
+				expect(secondText, `human chats show prints ${raw}`).not.toContain(raw);
+			}
+			const humanFirst = await diff.native(['chats', 'show', firstId, '--personal'], 120_000);
+			expect(humanFirst.code, String(humanFirst.stderr)).toBe(0);
+			expect(String(humanFirst.stdout)).toContain(`Memory created by the assistant: ${TITLE}`);
+			expect(String(humanFirst.stdout)).not.toContain('"context_entry"');
 
 			// Undo reads the chat's assistant-write notice and removes the Memory.
 			const undone = await run(['settings', 'memories', 'undo', '--chat', firstId, '--json']);

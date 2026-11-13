@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.app-memories
-version: 5
+version: 6
 status: draft
 title: Memories
 summary: Memories are free-form documents (title, memory, when to use, optional start and expiry, load mode) that replace
@@ -19,11 +19,15 @@ scope:
   - Encrypted custom personal guidance, legacy document compatibility and one Memories concept without content-kind subcategories.
   - Removal of all app-specific typed memory types and their automatic client-side migration to Memory documents.
   - Post-processing memory and workflow Recommendations (create or update) with billed drafts, unsaved drafts, encrypted per-chat storage and save events in chat history.
+  - Assistant-written personal Memories (create, or update of a Memory loaded in the same turn) without a review step, with
+    a chat history event and Undo.
+  - Placeholder anonymization of released Memory bodies before they reach the AI, restored in chat history.
   excludes:
   - Chat history, account profile fields, tasks, plans, connected-account credentials, Focus procedures and required Specifications.
   - Retained backup expiry and account-wide deletion policy owned by storage lifecycle Specifications.
   - Automatic inference access to personal/team memory content without current conversation approval or a specific explicit
     mention.
+  - Assistant writes to Team Memories (never) and to the active Project's Memory (owned by the press-release focus mode work).
   - Saved events, stays, connections and listings, reminder defaults and appointments, which belong to their own features,
     not to Memories.
 models:
@@ -438,9 +442,30 @@ assertions:
     that opens the entry (or says it no longer exists). These events are not sent to the AI.
   depends_on:
   - models.MemorySuggestion
+- id: app-memories.assistant.direct-write
+  type: privacy
+  must: When the user asks the mate to remember something, or agrees to its offer to save something, the assistant may create
+    one personal Memory or update one personal Memory that was loaded in the same turn, without a review step. The server
+    validates the document and passes it only to the requesting user's client, which encrypts and stores it; the server keeps
+    no plaintext copy. A new Memory defaults to Ask first. The chat history shows an event with the Memory's title, a link
+    that opens it and Undo; Undo deletes a created Memory or restores the previous document of an updated one, refuses when
+    the Memory was edited since, survives reload and syncs to the user's other devices. The assistant never writes Team Memories.
+  depends_on:
+  - models.AppMemoryEntry
+  - models.MemoryDocument
+- id: app-memories.privacy.anonymized-on-send
+  type: privacy
+  must: Memories are stored with the user's real details. When a Memory body is released to the AI, the client first replaces
+    personal details with placeholders exactly as it does for chat messages. The placeholder mapping is kept only in the
+    chat-key encrypted chat history, so answers and reopened chats show the real details again on the user's clients, and a
+    Memory the assistant updates is stored with real details, never with placeholders. Real details from a Memory never reach
+    the server, the AI provider or logs, and human-readable client views never print the mapping itself.
+  depends_on:
+  - models.MemoryDocument
 - id: app-memories.suggestions.no-duplicates
   type: privacy
   must: Recommendations never duplicate an existing memory or workflow; a matching one is recommended as an update instead.
+    They never repeat a memory or workflow that the same turn already created or updated.
     The post-processor sees only the titles and when-to-use of Auto include and Ask first memories (as already sent with
     the request) and the titles and shortened descriptions of the user's workflows that are relevant to the turn (all of
     them when there are at most 15, otherwise the best lexical matches plus the most recently edited), decrypted
@@ -551,6 +576,8 @@ examples:
   - references
   - suggestions
   - suggestion_billing
+  - assistant_writes
+  - anonymized_send
   - workflow_snapshots
   - typed_removal
   - migration

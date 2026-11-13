@@ -64,6 +64,40 @@ def record_views(cli: str, views: list[tuple[str, list[str]]]) -> list[dict]:
     return results
 
 
+# A system row printed raw (its JSON or its placeholder mapping). Placeholders
+# in chat 1 and restored real details in chat 2's answer are expected output.
+# Raw system-event JSON or a placeholder mapping in the human view. Not a bare
+# '"type":', which an assistant answer's own embed-reference block contains.
+RAW_EVENT_MARKERS = ("pii_mappings", '"placeholder"', '"original"', '"app_settings_memories_',
+                     '"context_entry"', '"memory_write_undone"', '"focus_phase_changed"')
+
+
+def human_show_attempts(cli: str, chat_id: str, out: Path, name: str) -> dict:
+    """Human `chats show` right after a turn, three times (0, 1, 3 s later).
+
+    Records each exit code and error code, so a transient decryption failure
+    shows up as a failed early attempt followed by a successful one, and checks
+    that no attempt prints a system row's raw JSON or its placeholder mapping.
+    """
+    attempts = []
+    for delay in (0, 1, 2):
+        time.sleep(delay)
+        run = subprocess.run([cli, "chats", "show", chat_id, "--personal", "--api-url", API_URL],
+                             capture_output=True, text=True, timeout=180, check=False)
+        error_code = None
+        if run.returncode != 0:
+            try:
+                error_code = json.loads(run.stderr.strip().splitlines()[-1])["error"]["code"]
+            except (ValueError, KeyError, IndexError, TypeError):
+                error_code = "unparsed"
+        attempts.append({"returncode": run.returncode, "error_code": error_code,
+                         "raw_markers": [m for m in RAW_EVENT_MARKERS if m in run.stdout]})
+        (out / f"{name}-human-show-{len(attempts)}.txt").write_text(run.stdout + run.stderr)
+    return {"attempts": attempts,
+            "all_ok": all(a["returncode"] == 0 for a in attempts),
+            "readable": all(a["returncode"] != 0 or not a["raw_markers"] for a in attempts)}
+
+
 def narrate(title: str, body: str = "") -> None:
     """Readable progress for terminal recordings (--narrate); synthetic data only."""
     if NARRATE["enabled"]:
@@ -288,6 +322,8 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
         narrate("Memory load request in chat 2 (Ask first, approved)", json.dumps(
             second.get("appSettingsMemoryRequests"), indent=2))
         narrate("Assistant answer (chat 2) uses the saved profile", str(second.get("assistant") or ""))
+        result["human_show_save"] = human_show_attempts(cli, chats[0], out, "profile-reuse-save")
+        result["human_show_use"] = human_show_attempts(cli, second["chatId"], out, "profile-reuse-use")
         try:
             shown = command(cli, ["chats", "show", second["chatId"], "--personal"],
                             diagnostic_path=out / "profile-reuse-use-show-transport.json")
@@ -312,8 +348,10 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
         result["profile_used"] = "example retail" in text and "15" in text
         result["models"] = sorted(persisted_models(shown))
         result["model_pinned"] = result["models"] == [MODEL_NAME]
+        readable = all(result[key]["all_ok"] and result[key]["readable"]
+                       for key in ("human_show_save", "human_show_use"))
         result["status"] = ("passed" if result["saved"] and result["memory_listed"] and result["profile_used"]
-                            and result["model_pinned"] else "failed")
+                            and result["model_pinned"] and readable else "failed")
     except (ProofError, subprocess.TimeoutExpired) as exc:
         result["reason"] = str(exc) if isinstance(exc, ProofError) else "timeout"
     finally:
