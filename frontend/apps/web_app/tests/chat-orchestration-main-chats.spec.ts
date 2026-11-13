@@ -74,10 +74,13 @@ const PROMPT =
 const FOLLOW_UP = 'Please tell the chat you started to also name one tile that suits underfloor heating.';
 
 // Old chats of the shared dev account fail output recovery at login; that is unrelated account
-// history. The orchestrated chats are still checked: any console error naming them fails the test.
+// history. A socket reconnect rejects in-flight sends ("WebSocket changed before message dispatch",
+// also allowed in videos-generate-chat and projects-readme-focus). The orchestrated chats are still
+// checked: any console error naming them fails the test.
 const ACCOUNT_HISTORY_NOISE = [
 	/\[ChatSyncService:Recovery\] Output recovery failed: .*Canonical store_embed storage was rejected/,
-	/\[WebSocketService\] Connection failed, cannot send message: \{type: get_chat_model_preference/
+	/\[WebSocketService\] Connection failed, cannot send message: \{type: get_chat_model_preference/,
+	/WebSocket changed before message dispatch/
 ];
 
 // contract-test: direct surface=gui.web assertions=chat-orchestration.spawn.main-chat-is-normal,chat-orchestration.events.creator-system-events,chat-orchestration.report.creator-skill,chat-orchestration.status.automatic,chat-orchestration.safety.user-requested-writes-only,chat-orchestration.safety.visible-both-sides

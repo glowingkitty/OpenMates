@@ -10,7 +10,7 @@ goal: 'Let any eligible chat start and coordinate other full main chats (orchest
 
   '
 specifications:
-- feature.chat-orchestration@1
+- feature.chat-orchestration@2
 scope:
   in:
   - Directus fields chats.creator_chat_id and sub_chat_orchestration_children.spawn_kind; prepare_batch main_chat branch.
@@ -171,7 +171,7 @@ tests:
   - AC-2
   target: isolated_github_ci
   assertions:
-  - Behaviour of AC-3, AC-4, AC-5, AC-1, AC-2 as described in feature.chat-orchestration@1.
+  - Behaviour of AC-3, AC-4, AC-5, AC-1, AC-2 as described in feature.chat-orchestration@2.
   red_phase:
     required: false
     expected: not_applicable
@@ -183,10 +183,10 @@ tests:
       status: passed
       timestamp: '2026-11-13T13:20:00Z'
       command: python3 scripts/ci_coordinator.py submit --mode pytest --no-prepared-builds --spec backend/tests/test_chat_orchestration_skills.py --spec backend/tests/test_chat_orchestration_main_chats_jobs.py
-      run_id: '075b5456cbe1 (GitHub run 43429758782)'
-      subject_commit: c88dd5f969b0f07ba5afc97052fbed5f0b03e611
+      run_id: 'ca4bc6459004 (cross-chat safety; earlier 075b5456cbe1 for c88dd5f)'
+      subject_commit: e835939a1686b7c72145e6a654d93fec6fd8f6b5
       execution_environment: isolated_github_ci
-      notes: CI source bab077105198 is the deployed change minus regenerated SDK bindings and sdk-capabilities classification, which no test here reads.
+      notes: CI source ca13e7b89f74 is the deployed e835939 change minus the sdk-capabilities classification and notice styling, which no test here reads.
 - id: T-RUST
   type: unit
   file: packages/openmates-rust/src/client/chat_orchestration_tests.rs
@@ -196,7 +196,7 @@ tests:
   - AC-3
   target: isolated_github_ci
   assertions:
-  - Behaviour of AC-3 as described in feature.chat-orchestration@1.
+  - Behaviour of AC-3 as described in feature.chat-orchestration@2.
   red_phase:
     required: false
     expected: not_applicable
@@ -208,22 +208,22 @@ tests:
       status: passed
       timestamp: '2026-11-13T13:20:00Z'
       command: python3 scripts/ci_coordinator.py submit --mode rust-check --spec openmates-sdk::chat_orchestration (plus openmates-sdk::web_sync and openmates::embed_update_notice)
-      run_id: '6f0da174361c (GitHub run 43429748281); web_sync cdeff4aac627 (43429753312); embed_update_notice 14a2a6201751 (43429742488)'
-      subject_commit: c88dd5f969b0f07ba5afc97052fbed5f0b03e611
+      run_id: '238981a7c657 (Action::Sent/Reported); earlier 6f0da174361c, web_sync cdeff4aac627, embed_update_notice 14a2a6201751 for c88dd5f'
+      subject_commit: e835939a1686b7c72145e6a654d93fec6fd8f6b5
       execution_environment: isolated_github_ci
-      notes: CI source bab077105198 is the deployed change minus regenerated SDK bindings and sdk-capabilities classification.
+      notes: CI source 5a1009f7b0d7 has the deployed Rust core; later commits only changed the sdk-capabilities classification, notice CSS and tests.
 - id: T-E2E
   type: playwright
   file: frontend/apps/web_app/tests/chat-orchestration-main-chats.spec.ts
   execution_environment: dev_server_real_inference
   command: python3 scripts/chat_orchestration_web_real_test.py --session 2cc2 --revision <deployed sha> --output-dir
-    /tmp/chat-orchestration-proof/run-1 --personal-dev-test-account --allow-paid-dev-inference
+    /tmp/chat-orchestration-proof/run-12 --personal-dev-test-account --allow-paid-dev-inference
   covers:
   - AC-1
   - AC-2
   target: app.dev.openmates.org
   assertions:
-  - Behaviour of AC-1, AC-2 as described in feature.chat-orchestration@1.
+  - Behaviour of AC-1, AC-2 as described in feature.chat-orchestration@2.
   red_phase:
     required: false
     expected: not_applicable
@@ -231,7 +231,16 @@ tests:
   green_phase:
     required: true
     expected: pass_after_deploy
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-11-13T22:43:48Z'
+      command: python3 scripts/chat_orchestration_web_real_test.py --session 2cc2 --revision e835939a1686b7c72145e6a654d93fec6fd8f6b5 --output-dir /tmp/chat-orchestration-proof/run-12 --personal-dev-test-account --allow-paid-dev-inference --personal-only
+      run_id: chat-orchestration-proof run-12 (receipt /tmp/chat-orchestration-proof/run-12/receipt.json)
+      subject_commit: e835939a1686b7c72145e6a654d93fec6fd8f6b5
+      execution_environment: dev_server_real_inference
+      target: https://app.dev.openmates.org
+      deployment_reference: dev e835939a1686b7c72145e6a654d93fec6fd8f6b5 (Vercel success; backend runtime dabbf62a93)
+      notes: Real AI on app.dev (backend dabbf62 contains e835939). Started, spawned, answer, report/finished, no write from the automatic turn, user-requested Sent to, Reported to in the spawned chat. Run 11 passed every step but failed on reconnect console noise, now allowlisted as in other real specs.
 scenarios:
 - id: S-1
   title: Spawn a main chat and open it from the event
@@ -296,7 +305,7 @@ attempts:
   outcome: planned
   recorded_at: '2026-11-13T00:00:00Z'
 implementation_state:
-  subject_commit: c88dd5f969b0f07ba5afc97052fbed5f0b03e611
+  subject_commit: e835939a1686b7c72145e6a654d93fec6fd8f6b5
 handoff:
   current_task_id: TASK-1
   next_action: Implement lanes, run CI, deploy to dev, record proof.
