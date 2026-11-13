@@ -255,7 +255,9 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
         cli = WEB_APP / "node_modules/@playwright/test/cli.js"
         # heavy_slot first waits for host memory and a slot (its --timeout); only
         # then does the Playwright run start, so the run limit excludes that wait.
-        command = [sys.executable, str(ROOT / "scripts/heavy_slot.py"), "run",
+        # --local: the real run needs this host's account lease, CLI state and
+        # native binary, none of which an E2B sandbox receives.
+        command = [sys.executable, str(ROOT / "scripts/heavy_slot.py"), "run", "--local",
                    "--timeout", str(HEAVY_SLOT_WAIT_SECONDS), "--", "node", str(cli), "test",
                    "--config", str(config), "--trace", "off", spec,
                    *(["--grep", args.grep] if getattr(args, "grep", None) else [])]
@@ -268,6 +270,10 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
         if errors:
             raise ProofError(errors[0])
         require_runtime_revision(args.revision)
+        # Exit 0 also covers a run whose only test skipped; only a passed test proves the flow.
+        ran = re.search(r"^\s*\d+ passed\b", (out / "run.log").read_text(errors="replace"), re.M)
+        if run.returncode == 0 and not ran:
+            raise ProofError("no_test_passed")
         receipt["status"] = "passed" if run.returncode == 0 else "failed"
     except BaseException as exc:
         receipt["status"] = "failed"
