@@ -94,6 +94,15 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       ? route.abort('blockedbyclient') : route.continue();
   });
   const page: Page = await context.newPage();
+  // Web-side sync decisions for the CLI-driven turns (finals, stale/ignored
+  // chunks, message persistence). Kept in a private file, never printed.
+  const webSyncLog: string[] = [];
+  page.on('console', (message) => {
+    const text = message.text();
+    if (webSyncLog.length < 1500 && /ChatSyncService|FINAL CHUNK|stale|awaiting|continuation|persist|messages_v|rustCore/i.test(text)) {
+      webSyncLog.push(`${new Date().toISOString()} ${message.type()} ${text.slice(0, 400)}`);
+    }
+  });
   const proof = createVideoProofRuntime(proofContract, {
     device: 'web-laptop', attach: info.attach.bind(info), captureFrame: () => page.screenshot({ type: 'png' }),
   });
@@ -383,6 +392,7 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       if (chatId && drafts.stdout.includes(chatId)) failures.push('a draft of this run remains');
     }
     Object.assign(evidence, { cleanupFailures: failures });
+    fs.writeFileSync(info.outputPath('web-sync.private.log'), webSyncLog.join('\n'), { mode: 0o600 });
     fs.writeFileSync(info.outputPath('agentic-app-real.json'), JSON.stringify(evidence, null, 2), { mode: 0o600 });
     await info.attach('agentic-app-real.json', { path: info.outputPath('agentic-app-real.json'), contentType: 'application/json' });
     fs.rmSync(home, { recursive: true, force: true });
