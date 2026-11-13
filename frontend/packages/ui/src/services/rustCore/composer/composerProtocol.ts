@@ -21,7 +21,7 @@ export interface ComposerDetectOptions {
 export interface ComposerMatch { type: string; startIndex: number; endIndex: number; placeholder: string; id: string }
 export interface ComposerMapping { placeholder: string; original: string; type?: string }
 export interface ComposerModelEntity { label: string; original: string; start: number; end: number; confidence: number }
-export interface ComposerPasteResult { kind: string; reason: string; sheetMarkdown?: string; documentHtml?: string }
+export interface ComposerPasteResult { kind: 'text' | 'code' | 'document' | 'sheet'; reason: string; sheetMarkdown?: string; documentHtml?: string }
 
 export interface ComposerUnitProtocol extends UnitProtocol {
 	pasteClassify: { request: { text: string; html?: string; vsCodeLanguage?: string; detectedLanguage?: string }; response: ComposerPasteResult };

@@ -149,7 +149,7 @@ export async function generateChatFilename(
 ): Promise<string> {
   const { rustGenerateChatFilename } = await import("./rustCore/transfer/rustChatExport");
   const cached = await chatMetadataCache.getDecryptedMetadata(chat);
-  return rustGenerateChatFilename(chat.created_at, cached?.title, chat.title, extension);
+  return rustGenerateChatFilename(chat.created_at, cached?.title, chat.title ?? undefined, extension);
 }
 
 /**
