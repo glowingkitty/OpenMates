@@ -305,7 +305,7 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
         write_receipt(out / "profile-reuse-use-chat.json", shown)
         result["recordings"] = record_views(cli, [
             ("1-save-chat", ["chats", "show", chats[0], "--personal"]),
-            ("2-memories", ["settings", "memories", "list"]),
+            # No Memories list: it shows the account's other private settings.
             ("3-reuse-chat", ["chats", "show", second["chatId"], "--personal"]),
         ])
         text = json.dumps(shown).lower()
