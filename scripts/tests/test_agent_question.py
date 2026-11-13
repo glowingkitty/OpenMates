@@ -73,5 +73,19 @@ def test_post_marker_rate_limit_and_fallback_key(root, monkeypatch):
 def test_unconfirmed_delivery_fails_without_marker(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
     with pytest.raises(aq.QuestionError, match="not confirmed"):
-        aq.ask(args(), root, "chat-1", 1.0, post=lambda **_: None)
+        aq.ask(args(), root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
     assert not aq.marker_path(root, "chat-1").exists()
+
+def test_transient_failure_is_retried_then_delivered(root, monkeypatch):
+    monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
+    results, waits = [None, None, {"message_id": "9"}], []
+    aq.ask(args(), root, "chat-1", 1.0, post=lambda **_: results.pop(0), sleep=waits.append)
+    assert waits == list(aq.RETRY_DELAYS) and not results
+    assert aq.marker_path(root, "chat-1").exists()
+
+def test_gives_up_after_all_attempts(root, monkeypatch):
+    monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
+    calls = []
+    with pytest.raises(aq.QuestionError, match="after 3 attempts"):
+        aq.ask(args(), root, "chat-1", 1.0, post=lambda **_: calls.append(1), sleep=lambda _: None)
+    assert len(calls) == 3

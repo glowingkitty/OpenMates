@@ -9,7 +9,9 @@ then DISCORD_WEBHOOK_DEV_NIGHTLY (environment, then the canonical checkout's ``.
 lookup as scripts/daily_meeting_briefing.py). The URL is never printed or logged. One message per
 chat per 20 minutes unless ``--force``. A success marker
 ``logs/claude-idle-chats/questions/<chat-id>.json`` tells scripts/claude_idle_nudge.py that the
-chat already asked. Failures exit non-zero with a message; there is no silent fallback.
+chat already asked. An unconfirmed delivery (network error, Discord 429/5xx) is retried twice
+after 2 and 5 seconds, because this push is how the user learns a chat needs a decision. Failures
+that remain exit non-zero with a message; there is no silent fallback.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from pending_work_gate import canonical_root
 WEBHOOK_KEYS = ("DISCORD_WEBHOOK_AGENT_QUESTIONS", "DISCORD_WEBHOOK_DAILY_MEETING",
                 "DISCORD_WEBHOOK_DEV_NIGHTLY")
 RATE_LIMIT_SECONDS = 20 * 60
+RETRY_DELAYS = (2.0, 5.0)
 MAX_CHARS = 1800
 SECRET_PATTERNS = (
     re.compile(r"https?://discord(?:app)?\.com/api/webhooks/\S+"),
@@ -113,8 +116,20 @@ def recently_asked(root: Path, chat_id: str, now: float) -> bool:
         return False
 
 
+def deliver(url: str, message: str, post: Callable[..., dict | None],
+            sleep: Callable[[float], None] = time.sleep) -> dict:
+    """Post once, then retry after each RETRY_DELAYS entry; the confirmed result or QuestionError."""
+    for delay in (*RETRY_DELAYS, None):
+        result = post(webhook_url=url, payload={"content": message})
+        if result:
+            return result
+        if delay is not None:
+            sleep(delay)
+    raise QuestionError(f"Discord delivery was not confirmed after {len(RETRY_DELAYS) + 1} attempts")
+
 def ask(args: argparse.Namespace, root: Path, chat_id: str, now: float,
-        post: Callable[..., dict | None] = discord_webhook.post_message) -> str:
+        post: Callable[..., dict | None] = discord_webhook.post_message,
+        sleep: Callable[[float], None] = time.sleep) -> str:
     """Send (or, with --dry-run, build) the message; returns the message text."""
     session_id, task_text = session_info(root, chat_id)
     message = build_message(args.question, args.recommendation or "", args.option or [],
@@ -125,9 +140,7 @@ def ask(args: argparse.Namespace, root: Path, chat_id: str, now: float,
         raise QuestionError("CLAUDE_CODE_SESSION_ID is not set; cannot identify this chat")
     if not args.force and recently_asked(root, chat_id, now):
         raise QuestionError("this chat already sent a question in the last 20 minutes (use --force)")
-    result = post(webhook_url=webhook(root), payload={"content": message})
-    if not result:
-        raise QuestionError("Discord delivery was not confirmed")
+    deliver(webhook(root), message, post, sleep)
     path = marker_path(root, chat_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"ts": now, "question": scrub(args.question)}), encoding="utf-8")
