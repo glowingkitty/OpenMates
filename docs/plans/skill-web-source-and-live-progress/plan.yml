@@ -19,7 +19,10 @@ acceptance:
   - Processing embeds receive progress frames (sources total/done, result count) that are never persisted.
   - Web client shows the live status line; component spec and backend tests green in isolated CI.
   - Result videos on dev for an event discovery request and a product search request.
+  - Event search enabled in production with official schedules and the web source only (no installed providers);
+    priced from the web source's supplier cost (Brave request plus page extraction).
+  - Pages of sites whose terms of use forbid automated collection are never read (built-in list plus
+    WEB_SOURCE_EXCLUDED_HOSTS).
 not_in_scope:
-  - Web source without installed providers on the server; explicit selection of the web source by callers.
-  - Charging the web source on skills served only by installed providers.
+  - Product search web source without installed providers; explicit selection of the web source by callers.
   - Live progress text in the CLI and the Apple apps (web first; follow-up Tasks).

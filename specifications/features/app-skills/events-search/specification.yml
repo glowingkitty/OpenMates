@@ -3,7 +3,8 @@ id: feature.app-skill.events-search
 version: 1
 status: draft
 title: Events Search
-summary: Conference schedule search retains supported licensed schedules; general event discovery is unavailable.
+summary: Event search answers general discovery from public web pages and keeps the supported official conference
+  schedules; no unofficial platform integrations are part of the cloud service.
 
 inherits:
   - architecture.app-skill-execution@1
@@ -13,7 +14,8 @@ scope:
   includes:
   - Known supported conference schedules, optional topics, dates and past-session filtering.
   - Generic saved event cards, grouped results, source safety and cross-surface parity.
-  - Explicit unavailable general discovery and unsupported-provider requests without fallback.
+  - General discovery (a city, country, region or worldwide) from public web pages, and unsupported-provider requests
+    without fallback.
   excludes:
   - Ticket purchasing or RSVP mutation
   - Private attendee data or authenticated organizer management
@@ -95,8 +97,19 @@ assertions:
   - examples.boundary_and_history
 - id: events-search.providers.explicit
   type: behavior
-  must: Explicit providers never broaden to auto discovery. Current provider routing admits only supported conference
-    schedule sources, reports unsupported choices visibly and lists only queried sources.
+  must: Explicit providers never broaden to auto discovery. A request naming pretalx or a known conference uses only
+    that official schedule and never the web; unsupported choices are reported visibly and never contact a source; the
+    response lists only queried sources.
+  depends_on:
+  - examples.boundary_and_history
+- id: events-search.discovery.web-pages
+  type: behavior
+  must: A request item with a topic, no known conference and no named provider is answered from public web pages on
+    every server, also without operator-installed providers. The web source rules of instance-app-packages.web-source
+    apply (search facts only leave the server; a result is kept only when its title and date are written on its page;
+    pages of sites whose terms of use forbid automated collection are never read; every result names its source page
+    and carries provider id web). A failing web search or page only reduces results. A request item without a topic
+    or known conference is rejected without contacting any source.
   depends_on:
   - examples.boundary_and_history
 - id: events-search.results.actionable
@@ -147,7 +160,8 @@ assertions:
 - id: events-search.surface-parity
   type: parity
   must: REST, CLI, npm/pip SDKs and web/Apple preserve the same supported-conference filters, grouped sessions,
-    safe errors and historical event schemas. General discovery is unavailable consistently across these surfaces.
+    safe errors and historical event schemas. General discovery answers from public web pages the same way on every
+    surface.
   depends_on:
   - examples.boundary_and_history
 

@@ -1,4 +1,4 @@
-"""Search documented official conference schedules; other discovery is unavailable."""
+"""Event search: documented official conference schedules plus general discovery from public web pages."""
 import asyncio
 from datetime import datetime, timezone
 import logging
@@ -883,7 +883,7 @@ class SearchSkill(BaseSkill):
                                              **kwargs: Any) -> Tuple:
         """Fetch and validate one bounded candidate pool from built-in and installed providers.
 
-        ``progress`` counts the sources of this item (built-in conference source plus installed providers).
+        ``progress`` counts the sources of this item (built-in conference source, installed providers, web).
         """
         choices = req.get("providers") or [req.get("provider") or "auto"]
         normalized = [_PROVIDER_ALIASES.get(str(value).lower().strip(), str(value).lower().strip())
@@ -898,9 +898,12 @@ class SearchSkill(BaseSkill):
             conference = next((pretalx_provider.resolve_conference(value) for value in choices
                                if pretalx_provider.resolve_conference(value)), None)
         run_builtin = bool(conference) and any(value in _VALID_PROVIDERS for value in normalized)
-        if not run_builtin and not selected_installed:
-            return request_id, [], "Event discovery is unavailable: only known official conference schedules are configured.", 0, [], []
         query = req.get("query") or conference or ""
+        # General discovery (no known conference) also searches public web pages, on every server; the
+        # caller naming providers switches that off. Without secrets there is no web search key.
+        run_web = bool(query) and not conference and "auto" in normalized and secrets_manager is not None
+        if not run_builtin and not selected_installed and not run_web:
+            return request_id, [], "Event search needs a topic or a known conference schedule.", 0, [], []
         criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
         topic = f"Events about {query}" if query and (not conference or query.casefold() != conference.casefold()) else None
         count = max(1, min(req.get("count") or _DEFAULT_COUNT, 50))
@@ -909,9 +912,6 @@ class SearchSkill(BaseSkill):
         total = 0
         dispatched: List[str] = []
         failures: List[str] = []
-        # General discovery (no known conference) on a server with installed event providers also
-        # searches public web pages; the caller naming providers switches that off.
-        run_web = bool(query) and not conference and "auto" in normalized and bool(selected_installed)
         if progress is not None:
             await progress.add_sources(int(run_builtin) + len(selected_installed) + int(run_web))
         web_search = asyncio.create_task(self._search_web(

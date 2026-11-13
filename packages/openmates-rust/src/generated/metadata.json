@@ -2070,7 +2070,7 @@
     "app_namespace_py": "events",
     "skill_method_py": "search",
     "description_key": "events.search.description",
-    "description": "Search only official conference schedules for GPN24, 39C3, 38C3 and 37C3. Set conference to the requested event. General city, concert and online event discovery are unavailable. Include past_events only when requested. Never retry another source or fall back to web search.",
+    "description": "Prefer this over web search for any question about upcoming events or conferences, anywhere: in a city, a country, a region such as Europe, or worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3 and 37C3, from their official schedules (set conference only for those). Without a city give only a topic query. Include past_events only when requested. Never retry another source or fall back to web search.",
     "schema": {
       "type": "object",
       "properties": {
@@ -2079,7 +2079,7 @@
             "basic": false
           },
           "type": "string",
-          "description": "Official conference schedule provider; general event discovery is unavailable.",
+          "description": "Source to limit the search to; omit or use auto to search public web pages and the official schedules. pretalx or a conference id searches only that official schedule.",
           "enum": [
             "auto",
             "pretalx",
@@ -2094,7 +2094,7 @@
             "basic": true
           },
           "type": "array",
-          "description": "Array of official conference schedule searches. Set conference to GPN24, 39C3, 38C3 or 37C3, or name the conference in query. General city and online discovery are unavailable. IDs are generated when omitted.",
+          "description": "Array of event searches. Use for upcoming events and conferences anywhere: in a city (set location), or in a country, a region such as Europe or worldwide (omit location; results come from public web pages). Set conference only for GPN24, 39C3, 38C3 or 37C3. IDs are generated when omitted.",
           "items": {
             "type": "object",
             "x-ui": {
@@ -2117,7 +2117,7 @@
                   "basic": true
                 },
                 "type": "string",
-                "description": "Optional location text retained for compatibility. A location alone does not enable event discovery; a known conference is required."
+                "description": "City or place to search in. Omit for a country, a region such as Europe, or worldwide and give only the topic in query. A location alone is not a query."
               },
               "lat": {
                 "x-ui": {
@@ -2189,7 +2189,7 @@
                   "basic": false
                 },
                 "type": "string",
-                "description": "Official conference schedule provider; general event discovery is unavailable.",
+                "description": "Source of the results (an official conference schedule, web for public web pages, or an installed provider).",
                 "enum": [
                   "auto",
                   "pretalx",
@@ -2282,7 +2282,7 @@
             "38C3",
             "37C3"
           ],
-          "description": "Official conference schedule provider; general event discovery is unavailable."
+          "description": "Source of the results (an official conference schedule, web for public web pages, or an installed provider)."
         },
         "results": {
           "x-ui": {
@@ -2341,7 +2341,7 @@
                   "38C3",
                   "37C3"
                 ],
-                "description": "Official conference schedule provider; general event discovery is unavailable."
+                "description": "Source of the results (an official conference schedule, web for public web pages, or an installed provider)."
               },
               "description": {
                 "x-ui": {
@@ -2478,7 +2478,7 @@
                   "38C3",
                   "37C3"
                 ],
-                "description": "Official conference schedule provider; general event discovery is unavailable."
+                "description": "Source of the results (an official conference schedule, web for public web pages, or an installed provider)."
               },
               "description": {
                 "x-ui": {

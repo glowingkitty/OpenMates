@@ -248,7 +248,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/events-search
-    fingerprint: eca78ee2a94e1246796cb43141a417eb4c99c86d2e2934d126ea6116aa03ff47
+    fingerprint: 1579c8a8e8b5083aaf78a77f65d64df71d5b23df0dcedec7468b4d82f941e751
     required_applies_to:
     - rest_api
     - cli
@@ -746,7 +746,7 @@ specifications:
     version: 1
     status: draft
     path: features/instance-app-packages
-    fingerprint: e8f12debcec97ff5a9925d4e9f95cf3e1596963ac82f80955f3a17d0b1384ca0
+    fingerprint: 8653281b091e3340e99e7fd8022b2c8aeb7b6ca2865501cd7a9338b86b6011ca
     required_applies_to:
     - rest_api
     - cli
@@ -4521,7 +4521,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: validation
-    fingerprint: 83eaafec6d3f5e1f9da60947a786e91be0accb99f4c1a178ff13bde5945f71be
+    fingerprint: 2c1258f34449cae91039a9f9f5464af644e8beaf1004c08914160da9a25e6274
     required_applies_to:
     - rest_api
     - cli
@@ -4533,7 +4533,19 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: behavior
-    fingerprint: 2dd6d2d71929b178f5f4a9d63618f498bf587a84699e4da91d9d14bac4af7ab9
+    fingerprint: 9bca48cbe5b0a9423261a77f39d4753d3941b80b2cc5fa79eb234b02e9d2a6c4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  events-search.discovery.web-pages:
+    specification: feature.app-skill.events-search@1
+    specification_id: feature.app-skill.events-search
+    type: behavior
+    fingerprint: 72e99bd38d15cd176aba2450ea8111627f86598a66e7f89c71d454e1e20c742b
     required_applies_to:
     - rest_api
     - cli
@@ -4545,7 +4557,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: invariant
-    fingerprint: c181a27d5d2f6683243313c0e8121d5ad071aa9e8b17c3d0480d35f4655ecc5e
+    fingerprint: c93afe944a6fa25735c363d6b3be99cbec71e0bb5d068b042449e923fb151883
     required_applies_to:
     - rest_api
     - cli
@@ -4557,7 +4569,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: behavior
-    fingerprint: dd791b3897e8445140b2a4d93352bdb2187eccd7e823ee7c0e5e42433ee1c7a2
+    fingerprint: 02ab33ff24bc82a91cd173da084df9f490fd0d798503e1c5cd8a7c297e0dd455
     required_applies_to:
     - rest_api
     - cli
@@ -4569,7 +4581,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: invariant
-    fingerprint: 9b72f26a0c14f86b8079d5381fe7d1db6dae7c1bd93f27ab179cf1c56b856bcc
+    fingerprint: c066cd27ca44ef2dcd010089f934c20b291c116742fef31844fbedd97c690f71
     required_applies_to:
     - rest_api
     - cli
@@ -4581,7 +4593,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: behavior
-    fingerprint: d9ffeae0ce35b1bdcbcab78daa940ab3295617374e6fc4a0645cd702921f87a1
+    fingerprint: c4b33cdb887e33d360ed1c5457684286528c86af3489d230947c57e7a5ef7923
     required_applies_to:
     - rest_api
     - cli
@@ -4593,7 +4605,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: failure
-    fingerprint: 1ed29b9df78e3a07467f8f6135d18707d84403dd47b1c1948283e64540d72da6
+    fingerprint: b3fffc94c763cf4db50b8b115eb324ca86a8b85b57f29e75342ee6eb75feffdc
     required_applies_to:
     - rest_api
     - cli
@@ -4605,7 +4617,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: behavior
-    fingerprint: d11cd220932d82984299086ab6f9ffb3ccc121db2a5984c91f9ea7d36afda1d1
+    fingerprint: bb79a754115a6c8fe0af1d3396f60b7c17d44fc937bed9eb83371ca9b103064a
     required_applies_to:
     - rest_api
     - cli
@@ -4617,7 +4629,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: security
-    fingerprint: a12528dba16c25f3c8c4e0b60847983aafb08922697c789205290bb803b4647d
+    fingerprint: 5a51a4c72fe167811f6355dbdd295ed149c55ce333316ae2c0f73730c2f939a9
     required_applies_to:
     - rest_api
     - cli
@@ -4629,7 +4641,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: parity
-    fingerprint: cf1f50bb63fa3aa4ba980cbd7aa068375ae44335e03ea9ee5d3d4fc3770714ec
+    fingerprint: 29e3ba36342298bde3c01279cb1f2f4a15769b695407df58130aab98190fc4b9
     required_applies_to:
     - rest_api
     - cli
@@ -9662,7 +9674,7 @@ assertions:
     specification: feature.instance-app-packages@1
     specification_id: feature.instance-app-packages
     type: behavior
-    fingerprint: d265b7410a4ab1ff4dff111c6b092618e621b55474a24853fed383b35aca7b4e
+    fingerprint: 2219301977a4316af4d596932a4f848f103cb87b427d66f2716c50e0ec388369
     required_applies_to:
     - rest_api
     - cli

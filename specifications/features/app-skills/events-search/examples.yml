@@ -4,9 +4,11 @@ boundary_and_history:
 - id: events-search-request-validated
   given: Alice requests a known conference schedule and separately a general event near her city.
   when: The batch is validated and routed.
-  then: The known schedule can run while general discovery returns unavailable without a provider fallback.
+  then: The known schedule runs from its official source and the general request is answered from public web pages,
+    each group listing only the sources it queried.
   assertion_ids:
   - events-search.request.validated
+  - events-search.discovery.web-pages
 - id: events-search-providers-explicit
   given: Alice explicitly selects an unavailable event provider.
   when: Events search processes that request.
@@ -58,6 +60,6 @@ boundary_and_history:
 - id: events-search-surface-parity
   given: Alice requests the same supported schedule through REST and CLI and opens its saved cards on web.
   when: The request succeeds using the conference source.
-  then: The filters, result groups and source evidence agree while unrelated general discovery remains unavailable.
+  then: The filters, result groups and source evidence agree on every surface.
   assertion_ids:
   - events-search.surface-parity

@@ -1,21 +1,50 @@
-"""Offline routing contracts for official conference schedules only."""
+"""Offline routing contracts: official conference schedules, web-page discovery and unknown sources."""
 from unittest.mock import AsyncMock
 import pytest
+from backend.apps.events.skills import search_skill
 from backend.apps.events.skills.search_skill import SearchRequest, SearchSkill
+from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome
 from backend.apps.events.skills.provider_routing import deterministic_auto_providers
 
 # contract-test: direct surface=rest_api assertions=events-search.providers.explicit
 @pytest.mark.anyio
-@pytest.mark.parametrize("choice", ["unknown-source", "auto", None])
-async def test_generic_discovery_unavailable_and_never_contacts_a_source(monkeypatch, choice):
+async def test_unknown_source_is_unavailable_and_never_contacts_a_source(monkeypatch):
     skill = object.__new__(SearchSkill)
     source = AsyncMock(side_effect=AssertionError("must not contact a source"))
     monkeypatch.setattr(skill, "_search_pretalx", source)
-    response = await skill.execute(SearchRequest(requests=[{"id": "city", "query": "concerts", "location": "Berlin", "provider": choice}]))
+    web = AsyncMock(side_effect=AssertionError("must not search the web"))
+    monkeypatch.setattr(search_skill, "run_web_source", web)
+    response = await skill.execute(SearchRequest(requests=[
+        {"id": "city", "query": "concerts", "location": "Berlin", "provider": "unknown-source"}]), secrets_manager=object())
     assert "unavailable" in response.error.lower()
     assert response.results[0]["results"] == []
     assert response.providers == []
     source.assert_not_awaited()
+    web.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=events-search.discovery.web-pages
+@pytest.mark.anyio
+@pytest.mark.parametrize("choice", ["auto", None])
+async def test_general_discovery_without_installed_providers_answers_from_web_pages(monkeypatch, choice):
+    skill = object.__new__(SearchSkill)
+    monkeypatch.setattr(skill, "_search_pretalx", AsyncMock(side_effect=AssertionError("no known conference")))
+    monkeypatch.setattr(search_skill, "_installed_provider_labels", lambda: {})
+    page_event = {"title": "FOSDEM 2027", "date_start": "2099-01-30", "date_end": "2099-01-31",
+                  "url": "https://example.org/fosdem", "venue": {"city": "Brussels", "country": "Belgium"},
+                  "provider": "example.org", "provider_id": "web", "source_page_url": "https://example.org/list",
+                  "source_page_title": "Open source conferences"}
+    web = AsyncMock(return_value=InstalledProviderOutcome("web", results=[page_event]))
+    monkeypatch.setattr(search_skill, "run_web_source", web)
+    response = await skill.execute(SearchRequest(requests=[
+        {"id": "eu", "query": "open source conferences", "provider": choice}]), secrets_manager=object())
+    assert response.error is None
+    assert response.providers == ["web"]
+    rows = response.results[0]["results"]
+    assert [row["title"] for row in rows] == ["FOSDEM 2027"]
+    assert rows[0]["type"] == "event_result" and rows[0]["source_page_url"] == "https://example.org/list"
+    web.assert_awaited_once()
+    assert web.call_args.args[1]["query"] == "open source conferences"
 
 # contract-test: direct surface=rest_api assertions=events-search.conference.supported,events-search.request.validated
 @pytest.mark.anyio

@@ -1502,10 +1502,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'events',
   'app_namespace_py': 'events',
   'app_namespace_ts': 'events',
-  'description': 'Search only official conference schedules for GPN24, 39C3, 38C3 and 37C3. Set '
-                 'conference to the requested event. General city, concert and online event '
-                 'discovery are unavailable. Include past_events only when requested. Never retry '
-                 'another source or fall back to web search.',
+  'description': 'Prefer this over web search for any question about upcoming events or '
+                 'conferences, anywhere: in a city, a country, a region such as Europe, or '
+                 'worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3 and '
+                 '37C3, from their official schedules (set conference only for those). Without a '
+                 'city give only a topic query. Include past_events only when requested. Never '
+                 'retry another source or fall back to web search.',
   'description_key': 'events.search.description',
   'output_schema': {'properties': {'events': {'example': [{'canonical_url': 'https://example.invalid/events/ai',
                                                            'date_end': '2026-09-23T20:00:00+02:00',
@@ -1573,15 +1575,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'type': ['number',
                                                                                                  'null'],
                                                                                         'x-ui': {'basic': False}},
-                                                                       'provider': {'description': 'Official '
+                                                                       'provider': {'description': 'Source '
+                                                                                                   'of '
+                                                                                                   'the '
+                                                                                                   'results '
+                                                                                                   '(an '
+                                                                                                   'official '
                                                                                                    'conference '
-                                                                                                   'schedule '
-                                                                                                   'provider; '
-                                                                                                   'general '
-                                                                                                   'event '
-                                                                                                   'discovery '
-                                                                                                   'is '
-                                                                                                   'unavailable.',
+                                                                                                   'schedule, '
+                                                                                                   'web '
+                                                                                                   'for '
+                                                                                                   'public '
+                                                                                                   'web '
+                                                                                                   'pages, '
+                                                                                                   'or '
+                                                                                                   'an '
+                                                                                                   'installed '
+                                                                                                   'provider).',
                                                                                     'enum': ['auto',
                                                                                              'pretalx',
                                                                                              'GPN24',
@@ -1611,9 +1621,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                    'partial': {'example': False,
                                                'type': 'boolean',
                                                'x-ui': {'basic': False}},
-                                   'provider': {'description': 'Official conference schedule '
-                                                               'provider; general event discovery '
-                                                               'is unavailable.',
+                                   'provider': {'description': 'Source of the results (an official '
+                                                               'conference schedule, web for '
+                                                               'public web pages, or an installed '
+                                                               'provider).',
                                                 'enum': ['auto',
                                                          'pretalx',
                                                          'GPN24',
@@ -1692,15 +1703,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                          'type': ['number',
                                                                                                   'null'],
                                                                                          'x-ui': {'basic': False}},
-                                                                        'provider': {'description': 'Official '
+                                                                        'provider': {'description': 'Source '
+                                                                                                    'of '
+                                                                                                    'the '
+                                                                                                    'results '
+                                                                                                    '(an '
+                                                                                                    'official '
                                                                                                     'conference '
-                                                                                                    'schedule '
-                                                                                                    'provider; '
-                                                                                                    'general '
-                                                                                                    'event '
-                                                                                                    'discovery '
-                                                                                                    'is '
-                                                                                                    'unavailable.',
+                                                                                                    'schedule, '
+                                                                                                    'web '
+                                                                                                    'for '
+                                                                                                    'public '
+                                                                                                    'web '
+                                                                                                    'pages, '
+                                                                                                    'or '
+                                                                                                    'an '
+                                                                                                    'installed '
+                                                                                                    'provider).',
                                                                                      'enum': ['auto',
                                                                                               'pretalx',
                                                                                               'GPN24',
@@ -1735,8 +1754,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                 'type': 'array',
                                                 'x-ui': {'basic': False}}},
                     'type': 'object'},
-  'schema': {'properties': {'provider': {'description': 'Official conference schedule provider; '
-                                                        'general event discovery is unavailable.',
+  'schema': {'properties': {'provider': {'description': 'Source to limit the search to; omit or '
+                                                        'use auto to search public web pages and '
+                                                        'the official schedules. pretalx or a '
+                                                        'conference id searches only that official '
+                                                        'schedule.',
                                          'enum': ['auto',
                                                   'pretalx',
                                                   'GPN24',
@@ -1745,12 +1767,14 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                   '37C3'],
                                          'type': 'string',
                                          'x-ui': {'basic': False}},
-                            'requests': {'description': 'Array of official conference schedule '
-                                                        'searches. Set conference to GPN24, 39C3, '
-                                                        '38C3 or 37C3, or name the conference in '
-                                                        'query. General city and online discovery '
-                                                        'are unavailable. IDs are generated when '
-                                                        'omitted.',
+                            'requests': {'description': 'Array of event searches. Use for upcoming '
+                                                        'events and conferences anywhere: in a '
+                                                        'city (set location), or in a country, a '
+                                                        'region such as Europe or worldwide (omit '
+                                                        'location; results come from public web '
+                                                        'pages). Set conference only for GPN24, '
+                                                        '39C3, 38C3 or 37C3. IDs are generated '
+                                                        'when omitted.',
                                          'items': {'properties': {'concert_tags': {'description': 'Reserved '
                                                                                                   'tags; '
                                                                                                   'no '
@@ -1873,25 +1897,37 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                          'provided.',
                                                                           'type': 'number',
                                                                           'x-ui': {'basic': False}},
-                                                                  'location': {'description': 'Optional '
-                                                                                              'location '
-                                                                                              'text '
-                                                                                              'retained '
+                                                                  'location': {'description': 'City '
+                                                                                              'or '
+                                                                                              'place '
+                                                                                              'to '
+                                                                                              'search '
+                                                                                              'in. '
+                                                                                              'Omit '
                                                                                               'for '
-                                                                                              'compatibility. '
+                                                                                              'a '
+                                                                                              'country, '
+                                                                                              'a '
+                                                                                              'region '
+                                                                                              'such '
+                                                                                              'as '
+                                                                                              'Europe, '
+                                                                                              'or '
+                                                                                              'worldwide '
+                                                                                              'and '
+                                                                                              'give '
+                                                                                              'only '
+                                                                                              'the '
+                                                                                              'topic '
+                                                                                              'in '
+                                                                                              'query. '
                                                                                               'A '
                                                                                               'location '
                                                                                               'alone '
-                                                                                              'does '
-                                                                                              'not '
-                                                                                              'enable '
-                                                                                              'event '
-                                                                                              'discovery; '
-                                                                                              'a '
-                                                                                              'known '
-                                                                                              'conference '
                                                                                               'is '
-                                                                                              'required.',
+                                                                                              'not '
+                                                                                              'a '
+                                                                                              'query.',
                                                                                'type': 'string',
                                                                                'x-ui': {'basic': True}},
                                                                   'lon': {'description': 'Longitude '
@@ -1925,15 +1961,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  'sessions.',
                                                                                   'type': 'boolean',
                                                                                   'x-ui': {'basic': False}},
-                                                                  'provider': {'description': 'Official '
+                                                                  'provider': {'description': 'Source '
+                                                                                              'of '
+                                                                                              'the '
+                                                                                              'results '
+                                                                                              '(an '
+                                                                                              'official '
                                                                                               'conference '
-                                                                                              'schedule '
-                                                                                              'provider; '
-                                                                                              'general '
-                                                                                              'event '
-                                                                                              'discovery '
-                                                                                              'is '
-                                                                                              'unavailable.',
+                                                                                              'schedule, '
+                                                                                              'web '
+                                                                                              'for '
+                                                                                              'public '
+                                                                                              'web '
+                                                                                              'pages, '
+                                                                                              'or '
+                                                                                              'an '
+                                                                                              'installed '
+                                                                                              'provider).',
                                                                                'enum': ['auto',
                                                                                         'pretalx',
                                                                                         'GPN24',
@@ -10653,7 +10697,7 @@ class EventsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search only official conference schedules for GPN24, 39C3, 38C3 and 37C3. Set conference to the requested event. General city, concert and online event discovery are unavailable. Include past_events only when requested. Never retry another source or fall back to web search.
+        """Prefer this over web search for any question about upcoming events or conferences, anywhere: in a city, a country, a region such as Europe, or worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3 and 37C3, from their official schedules (set conference only for those). Without a city give only a topic query. Include past_events only when requested. Never retry another source or fall back to web search.
 
         Description key: events.search.description
         Skill: events/search

@@ -37,14 +37,14 @@ skills:
     description_translation_key: events.search.description
     icon_image: search.svg
     preprocessor_hint: >-
-      Search only official conference schedules for GPN24, 39C3, 38C3 and 37C3. Set conference to the requested
-      event. General city, concert and online event discovery are unavailable. Include past_events only when requested.
-      Never retry another source or fall back to web search.
+      Prefer this over web search for any question about upcoming events or conferences, anywhere: in a city, a
+      country, a region such as Europe, or worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3
+      and 37C3, from their official schedules (set conference only for those). Without a city give only a topic
+      query. Include past_events only when requested. Never retry another source or fall back to web search.
     class_path: |
       backend.apps.events.skills.search_skill.SearchSkill
-    # Operator-installed app packages may add providers implementing this contract.
-    # With such providers the search is no longer limited to official schedules; the
-    # overlay then shows the model these descriptions instead of the built-in ones.
+    # Operator-installed app packages may add providers implementing this contract;
+    # the overlay then shows the model these provider-aware descriptions instead.
     installed_provider_descriptions:
       properties.provider: >-
         Event provider id to limit the search to; omit or use auto to search every available provider.
@@ -58,11 +58,15 @@ skills:
     provider_contract: events.search@1
     pricing:
       per_unit:
-        credits: 1
+        credits: 15
     supplier_costs:
       per_unit:
-        none: true
-        note: Public schedule exports; installed providers have no official cost
+        price: 0.0085
+        currency: USD
+        source_url: https://brave.com/search/api/
+        note: >-
+          Public web pages per request item: one Brave Search API request (USD 0.005) plus Mercury 3 extraction of
+          up to five pages (about USD 0.0035). Official schedule exports and installed providers have no cost.
     providers:
       - name: GPN24
         id: pretalx
@@ -99,7 +103,8 @@ skills:
             basic: false
           type: string
           description: >-
-            Official conference schedule provider; general event discovery is unavailable.
+            Source to limit the search to; omit or use auto to search public web pages and the official schedules.
+            pretalx or a conference id searches only that official schedule.
           enum:
             - auto
             - pretalx
@@ -112,8 +117,9 @@ skills:
             basic: true
           type: array
           description: >-
-            Array of official conference schedule searches. Set conference to GPN24, 39C3, 38C3 or 37C3, or name
-            the conference in query. General city and online discovery are unavailable. IDs are generated when omitted.
+            Array of event searches. Use for upcoming events and conferences anywhere: in a city (set location), or in a
+            country, a region such as Europe or worldwide (omit location; results come from public web pages). Set
+            conference only for GPN24, 39C3, 38C3 or 37C3. IDs are generated when omitted.
           items:
             type: object
             x-ui:
@@ -134,8 +140,8 @@ skills:
                   basic: true
                 type: string
                 description: >-
-                  Optional location text retained for compatibility. A location alone does not enable event discovery;
-                  a known conference is required.
+                  City or place to search in. Omit for a country, a region such as Europe, or worldwide and give only
+                  the topic in query. A location alone is not a query.
               lat:
                 x-ui:
                   basic: false
@@ -205,7 +211,7 @@ skills:
                 x-ui:
                   basic: false
                 type: string
-                description: "Official conference schedule provider; general event discovery is unavailable."
+                description: "Source of the results (an official conference schedule, web for public web pages, or an installed provider)."
                 enum:
                   - auto
                   - pretalx
@@ -288,7 +294,7 @@ skills:
               - 39C3
               - 38C3
               - 37C3
-            description: Official conference schedule provider; general event discovery is unavailable.
+            description: Source of the results (an official conference schedule, web for public web pages, or an installed provider).
           results:
             x-ui:
               basic: true
@@ -333,7 +339,7 @@ skills:
                     - 39C3
                     - 38C3
                     - 37C3
-                  description: Official conference schedule provider; general event discovery is unavailable.
+                  description: Source of the results (an official conference schedule, web for public web pages, or an installed provider).
                 description:
                   x-ui:
                     basic: false
@@ -436,7 +442,7 @@ skills:
                     - 39C3
                     - 38C3
                     - 37C3
-                  description: Official conference schedule provider; general event discovery is unavailable.
+                  description: Source of the results (an official conference schedule, web for public web pages, or an installed provider).
                 description:
                   x-ui:
                     basic: false

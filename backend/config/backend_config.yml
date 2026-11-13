@@ -18,6 +18,9 @@
 feature_overrides:
   enabled:
     - "platform:workflows"
+    # Event search: official schedules plus public web pages (web search and page
+    # extraction). No operator-installed providers are part of this deployment.
+    - "skill:events:search"
   disabled:
     # Browse is still in development; search and public page reading remain enabled.
     - "skill:web:browse"
