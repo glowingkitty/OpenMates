@@ -57,6 +57,10 @@ async function createProject(page: Page, name: string, writeMode: 'always_ask' |
   const body = await response.json() as { project?: { project_id?: string } };
   const projectId = body.project?.project_id;
   expect(projectId).toMatch(/^[0-9a-f-]{36}$/i);
+  // Creating a Project opens its full-page detail view, which hides the chat
+  // composer; return to the chat view so the next step can start a chat.
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 60_000 });
   return projectId as string;
 }
 
@@ -116,12 +120,32 @@ async function approveAnyPendingWrite(page: Page): Promise<void> {
 async function waitForTurn(page: Page): Promise<void> {
   await waitForAssistantMessage(page, { timeout: TURN_TIMEOUT });
   await approveAnyPendingWrite(page);
-  await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-processing', 'false', { timeout: TURN_TIMEOUT });
+  await waitForIdle(page);
   await approveAnyPendingWrite(page);
+  await waitForIdle(page);
+}
+
+/**
+ * The turn is over when the stop button and typing indicator stay hidden for 5 s; a
+ * Project file operation briefly hides them between the paused and resumed phases.
+ */
+async function waitForIdle(page: Page): Promise<void> {
+  const busy = page.locator('[data-testid="stop-processing-button"]:visible, [data-testid="typing-indicator"]:visible');
+  let idleSince = 0;
+  await expect.poll(async () => {
+    if (await busy.count() > 0) {
+      idleSince = 0;
+      return false;
+    }
+    idleSince ||= Date.now();
+    return Date.now() - idleSince >= 5_000;
+  }, { timeout: TURN_TIMEOUT, intervals: [1_000] }).toBe(true);
 }
 
 test.describe('Press style saved in Project Memories is reused (real inference, dev only)', () => {
   test.describe.configure({ mode: 'serial', retries: 0 });
+  // A stuck click must fail within minutes, not consume the whole real-inference run.
+  test.use({ actionTimeout: 60_000, navigationTimeout: 60_000 });
 
   test.beforeAll(() => {
     requireDirectDevRealInference();
@@ -156,20 +180,18 @@ test.describe('Press style saved in Project Memories is reused (real inference, 
       await startNewChat(page);
       await sendWithProjectMention(
         page, projectId, projectName,
-        `Write a press release as a Word document about our app launch. ${NEWS} Skip all questions and the fact check, use your recommended headline and write it now.`,
+        `Write a press release as a Word document about our app launch. ${NEWS} Skip all questions and the fact check, use your recommended headline and write it now. In your chat reply, also quote the release's About paragraph word for word.`,
         'read_write',
       );
       await waitForTurn(page);
+      // "3,000" exists only in the saved Project Memory; document pages are images, so the reply text carries the check.
+      const reply = page.locator('[data-testid="message-assistant"]').last();
+      await expect(reply, 'the saved style (not the news prompt) supplies "3,000"').toContainText('3,000', { timeout: 120_000 });
       const docEmbed = page.locator('[data-testid="embed-preview"][data-app-id="docs"][data-status="finished"]').last();
       await expect(docEmbed).toBeVisible({ timeout: TURN_TIMEOUT });
-      await docEmbed.click();
-      const pages = page.getByTestId('doc-artifact-pages');
-      await expect(pages).toBeVisible({ timeout: 60_000 });
-      await expect(async () => {
-        const answer = await page.getByTestId('mate-message-content').last().innerText();
-        const documentText = await pages.innerText();
-        expect(`${answer}\n${documentText}`, 'the saved style (not the news prompt) supplies "3,000"').toContain('3,000');
-      }).toPass({ timeout: 60_000 });
+      await docEmbed.getByTestId('result-preview-expand').click();
+      await expect(page.getByTestId('doc-artifact-pages')).toBeVisible({ timeout: 60_000 });
+      await page.waitForTimeout(2_000);
       await testInfo.attach('03-document', { body: await page.screenshot(), contentType: 'image/png' });
       await page.screenshot({ path: testInfo.outputPath('03-document.png') });
       await page.keyboard.press('Escape');

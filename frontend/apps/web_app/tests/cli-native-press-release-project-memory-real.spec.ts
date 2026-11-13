@@ -23,7 +23,7 @@ const STYLE = "Our press style: always write 'Example Solar' (never 'ExampleSola
 const NEWS = "All synthetic test data. Company: Example Solar GmbH, Leipzig, founded 2021, 24 employees, makes balcony solar kits for renters. News: on 18 November 2026 we launch SunShare, an app that lets neighbours in one building pool their balcony solar power. Pilot: 120 households in Leipzig saved on average 11 percent on electricity over six months (our own pilot data, May to October 2026). Available from 18 November in Germany, free for Example Solar customers, 2 EUR a month otherwise, at example.org/sunshare. Quote from Mara Example, CEO: she wants renters to share energy like they share a stairwell. Media contact: Jonas Example, press officer, press@example.org, +49 341 0000000. Release for immediate publication.";
 const SAVE_PROMPT = `@Gemini-3.8-Flash Set up our press style for press releases and save it to this project. ${STYLE} Media contact: Jonas Example, press officer, press@example.org. Mara Example, CEO, is usually quoted.`;
 const CONFIRM_PROMPT = "@Gemini-3.8-Flash Thanks. If the press style is not saved to this project's Memories yet, save it now; otherwise just confirm.";
-const REUSE_PROMPT = `@Gemini-3.8-Flash Write a press release as a Word document about our app launch. ${NEWS} Skip all questions and the fact check, use your recommended headline and write it now.`;
+const REUSE_PROMPT = `@Gemini-3.8-Flash Write a press release as a Word document about our app launch. ${NEWS} Skip all questions and the fact check, use your recommended headline and write it now. In your chat reply, also quote the release's About paragraph word for word.`;
 
 test.describe.configure({ mode: 'serial', retries: 0, timeout: 2_400_000 });
 
@@ -163,35 +163,57 @@ test('native CLI saves a press style in Project Memories and a new chat reuses i
     const showRun = await runRust(binary, env, ['chats', 'show', reuseChat, '--personal', '--json'], 120_000);
     const shown = showRun.code === 0 ? parseJson(showRun) : {};
     const embedTexts: string[] = [];
+    const embedReads: Record<string, unknown>[] = [];
     for (const embedId of documentEmbedIds(shown)) {
-      const embedRun = await runRust(binary, env, ['embeds', 'show', embedId, '--json'], 120_000);
-      if (embedRun.code === 0) embedTexts.push(String(embedRun.stdout));
+      // The native CLI reads a document's text as its current version.
+      const listRun = await runRust(binary, env, ['embeds', 'versions', 'list', embedId, '--json'], 120_000);
+      const current = listRun.code === 0 ? Number(parseJson(listRun).current_version) : NaN;
+      const read: Record<string, unknown> = { listExit: listRun.code, current };
+      if (Number.isInteger(current) && current > 0) {
+        const versionRun = await runRust(binary, env, ['embeds', 'versions', 'show', embedId, '--version', String(current), '--json'], 120_000);
+        read.showExit = versionRun.code;
+        if (versionRun.code === 0) embedTexts.push(collect(parseJson(versionRun), ['content']).join('\n'));
+        else read.showError = String(versionRun.stderr).slice(0, 300);
+      } else read.listError = String(listRun.stderr).slice(0, 300);
+      embedReads.push(read);
     }
     const combined = `${JSON.stringify(shown)}\n${embedTexts.join('\n')}`;
     const models = [turn2.modelName, turn2.model_name, ...collect(shown, ['modelName', 'model_name'])].filter(Boolean);
     Object.assign(evidence, { reuseStatus: turn2.status, models, cliShowExit: showRun.code,
       cliShowError: showRun.code === 0 ? '' : String(showRun.stderr).slice(0, 300),
-      documentEmbeds: embedTexts.length, cliHas3000: /3,000/.test(combined) });
+      documentEmbeds: embedTexts.length, embedReads, cliHas3000: /3,000/.test(combined) });
     expect.soft(showRun.code, 'native chats show of the reuse chat').toBe(0);
     expect(models.length, 'persisted assistant model of the reuse turn').toBeGreaterThan(0);
     for (const model of models) expect(String(model)).toMatch(/gemini.*3\.?8.*flash/i);
     expect(turn2.status, 'reuse turn status').toBe('completed');
+    // "3,000" exists only in the saved Project Memory, so the reply proves the Memory reached this turn.
+    const replyHas3000 = /3,000/.test(JSON.stringify(turn2));
+    evidence.cliReplyHas3000 = replyHas3000;
+    expect(replyHas3000, 'saved style fact "3,000" in the native CLI reply of the reuse turn').toBe(true);
 
     // Web proof frames of the CLI-created chat.
     await page.goto(`${APP}/`);
     await page.reload();
     await page.goto(`${APP}/#chat-id=${reuseChat}`);
-    const embed = page.locator('[data-testid="embed-preview"][data-app-id="docs"][data-status="finished"]').first();
-    await expect(embed, 'finished document embed in the CLI-created reuse chat').toBeVisible({ timeout: 120_000 });
+    const reply = page.locator('[data-testid="message-assistant"]').last();
+    await expect(reply, 'saved style fact "3,000" in the reuse reply shown on the web').toContainText('3,000', { timeout: 120_000 });
+    await reply.getByText('3,000').first().scrollIntoViewIfNeeded();
     await shot('01-reuse-chat.png');
-    await embed.click();
-    const pages = page.getByTestId('doc-artifact-pages');
-    await expect(pages).toBeVisible({ timeout: 60_000 });
-    await page.waitForTimeout(2_000);
-    await shot('02-document.png');
-    const documentText = await pages.innerText();
-    evidence.webHas3000 = /3,000/.test(documentText);
-    expect(documentText, 'saved style fact "3,000" in the reuse chat document').toContain('3,000');
+    // Document view: recorded softly (pages are images; the text check above is authoritative).
+    const embed = page.locator('[data-testid="embed-preview"][data-app-id="docs"][data-status="finished"]').last();
+    await expect.soft(embed, 'finished document embed in the CLI-created reuse chat').toBeVisible({ timeout: 60_000 });
+    if (await embed.isVisible()) {
+      await embed.getByTestId('result-preview-expand').click();
+      const pages = page.getByTestId('doc-artifact-pages');
+      await expect.soft(pages, 'document view opens').toBeVisible({ timeout: 60_000 });
+      if (await pages.isVisible()) {
+        await page.waitForTimeout(2_000);
+        await shot('02-document.png');
+        await pages.locator('.doc-canvas-scroll').evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
+        await page.waitForTimeout(1_500);
+        await shot('03-document-end.png');
+      }
+    }
   } finally {
     const failures: string[] = [];
     const attempt = async (label: string, args: string[]) => {

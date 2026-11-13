@@ -52,6 +52,11 @@ MEMORY_WRITE_CAPABILITY = "memory_write_jobs"
 # Load mode of assistant-saved Memories when the model does not choose one.
 # A product decision on this default is pending; keep it in this one constant.
 DEFAULT_ASSISTANT_MEMORY_LOAD_MODE = "ask_first"
+# Project Memories load automatically under authorized active Project Focus
+# (app-memories: Ask first approval exists only for personal/team Memories), so an
+# Ask first Project Memory would never be offered for selection and never load.
+PROJECT_MEMORY_LOAD_MODES = ("auto_include", "mention_only")
+DEFAULT_PROJECT_MEMORY_LOAD_MODE = "auto_include"
 
 MEMORY_WRITE_PROTOCOL = 1
 MEMORY_WRITE_JOB_EVENT = "memory_write_job_available"
@@ -114,7 +119,8 @@ def save_memory_tool(*, project_target: bool = False, personal: bool = True) -> 
             "when_to_use": {"type": "string", "description": "One sentence on when this Memory applies."},
             "content": {"type": "string", "description": "Markdown body, no frontmatter."},
             "load_mode": {"type": "string", "enum": list(LOAD_MODES),
-                          "description": f"Optional; {DEFAULT_ASSISTANT_MEMORY_LOAD_MODE} by default."},
+                          "description": (f"Optional; {DEFAULT_ASSISTANT_MEMORY_LOAD_MODE} by default. A Project "
+                                          f"Memory uses {DEFAULT_PROJECT_MEMORY_LOAD_MODE} (default) or mention_only.")},
             "valid_from": {"type": "string", "description": "Optional ISO date."},
             "valid_until": {"type": "string", "description": "Optional ISO date."},
         }, "required": ["action", "title", "when_to_use", "content"], "additionalProperties": False},
@@ -230,9 +236,11 @@ def project_memory_file_arguments(arguments: Any) -> dict[str, Any]:
         raise MemoryWriteToolError(
             "save_memory only creates Project Memories. To change one, read its file in "
             f"{PROJECT_MEMORY_DIRECTORY} with project_read_text and apply project_update_file.")
-    load_mode = arguments.get("load_mode") or DEFAULT_ASSISTANT_MEMORY_LOAD_MODE
-    if load_mode not in LOAD_MODES:
-        raise MemoryWriteToolError("load_mode must be auto_include, ask_first or mention_only.")
+    load_mode = arguments.get("load_mode") or DEFAULT_PROJECT_MEMORY_LOAD_MODE
+    if load_mode not in PROJECT_MEMORY_LOAD_MODES:
+        raise MemoryWriteToolError(
+            "A Project Memory loads automatically while the Project is active: use load_mode auto_include "
+            "(or mention_only to load it only when mentioned).")
     try:
         fields = validated_memory_document(arguments, load_mode=load_mode)
     except MemoryDocumentError as exc:
