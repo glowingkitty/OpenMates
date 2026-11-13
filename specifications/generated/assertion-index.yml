@@ -2862,7 +2862,7 @@ assertions:
     - &id365
       path: backend/tests/test_feature_availability_service.py
       line: 139
-      name: test_browse_is_release_disabled_while_existing_web_tools_and_dev_remain_enabled
+      name: test_browse_and_existing_web_tools_are_enabled_in_production_and_dev
       surface: rest_api
     - &id366
       path: backend/tests/test_jobs_jobtech_provider.py
@@ -202899,22 +202899,22 @@ assertions:
       surface: rest_api
     - &id25751
       path: backend/tests/test_feature_availability_service.py
-      line: 162
+      line: 160
       name: test_availability_route_returns_sparse_disabled_ids
       surface: rest_api
     - &id25752
       path: backend/tests/test_feature_availability_service.py
-      line: 180
+      line: 178
       name: test_legacy_disabled_apps_migrate_to_feature_overrides
       surface: rest_api
     - &id25753
       path: backend/tests/test_feature_availability_service.py
-      line: 190
+      line: 188
       name: test_raw_manifest_definitions_include_default_disabled_embeds
       surface: rest_api
     - &id25754
       path: backend/tests/test_feature_availability_service.py
-      line: 213
+      line: 211
       name: test_raw_manifest_definitions_include_default_disabled_apps
       surface: rest_api
     - &id25755

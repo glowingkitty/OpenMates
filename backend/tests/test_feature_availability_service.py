@@ -136,25 +136,23 @@ def test_release_config_disables_unreleased_surfaces_while_dev_enables_them() ->
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
-def test_browse_is_release_disabled_while_existing_web_tools_and_dev_remain_enabled() -> None:
+def test_browse_and_existing_web_tools_are_enabled_in_production_and_dev() -> None:
     from backend.core.api.app.services.skill_registry import filter_app_components_by_availability
 
     apps_dir = Path(__file__).resolve().parents[1] / "apps"
     definitions = _definitions_from_raw_manifests(str(apps_dir))
     web_config = yaml.safe_load((apps_dir / "web" / "app.yml").read_text(encoding="utf-8"))
 
-    for config_name, browse_enabled in (("backend_config.yml", False), ("backend_config.dev.yml", True)):
+    for config_name in ("backend_config.yml", "backend_config.dev.yml"):
         config = yaml.safe_load((BACKEND_CONFIG_DIR / config_name).read_text(encoding="utf-8"))
         service = FeatureAvailabilityService(definitions, config)
-        assert service.is_enabled("skill:web:browse") is browse_enabled
-        assert service.is_enabled("embed:web:browse") is browse_enabled
-        for feature_id in ("app:web", "skill:web:search", "skill:web:read", "embed:web:search", "embed:web:read"):
+        for feature_id in ("skill:web:browse", "embed:web:browse", "app:web", "skill:web:search", "skill:web:read", "embed:web:search", "embed:web:read"):
             assert service.is_enabled(feature_id) is True
 
         filtered = filter_app_components_by_availability("web", web_config, service)
         assert filtered is not None
-        assert ("browse" in {skill["id"] for skill in filtered["skills"]}) is browse_enabled
-        assert ("browse" in {embed["id"] for embed in filtered["embed_types"]}) is browse_enabled
+        assert "browse" in {skill["id"] for skill in filtered["skills"]}
+        assert "browse" in {embed["id"] for embed in filtered["embed_types"]}
         assert {"search", "read"} <= {skill["id"] for skill in filtered["skills"]}
 
 

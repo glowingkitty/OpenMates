@@ -1,12 +1,14 @@
 # Browse: production enablement
 
-Status: prepared, not applied. Browse stays disabled in production until the
-owner picks the release that carries the switch below.
+Status: the switch is committed on dev and rides with the next normal
+dev-to-main release (owner decision, 2026-11-13). It is not part of hotfix
+releases built from main. Dev is unaffected: it reads `backend_config.dev.yml`,
+which already enables Browse.
 
 ## The switch
 
-Production reads `backend/config/backend_config.yml`. Browse is off there
-through two feature overrides:
+Production reads `backend/config/backend_config.yml`. Before this change,
+Browse was off there through two feature overrides:
 
 ```yaml
 feature_overrides:
@@ -16,16 +18,24 @@ feature_overrides:
     - "embed:web:browse"
 ```
 
-Enabling Browse removes exactly these two entries (and the comment). Nothing
+Enabling Browse removes exactly these two entries (and the comment); that
+change is on dev and is pinned by
+`backend/tests/test_feature_availability_service.py`. Nothing
 else changes: the dev override file already leaves Browse on, the skill, embed,
 routes, billing and safety code are the same on both servers. Rollback is the
-reverse change, or an admin override `skill:web:browse` in the same list, plus
-an api / app-ai-worker restart.
+reverse change (both entries back in the list) plus an api / app-ai-worker
+restart.
 
 Remove `embed:web:browse` together with the skill: with the skill on and the
 embed off, saved Browse cards could not render.
 
-## Production prerequisites (before the switch ships)
+## Production steps for the release that carries the switch
+
+Order: deploy the release, then steps 1 to 3 below, restart api and
+app-ai-worker, then the smoke run. Between the deploy and the restart, Browse
+is visible but a start fails with the configuration error described below and
+charges nothing; keep that window short (the template build takes about one
+minute).
 
 1. **Template.** Build a fresh template from the release commit with
    `backend/scripts/build_web_browse_template.py --execute --name <versioned alias>`
