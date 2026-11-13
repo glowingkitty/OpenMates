@@ -20,6 +20,7 @@ mod api;
 mod io;
 mod job;
 mod moves;
+mod patch_repair;
 mod policy;
 mod restore;
 pub use adopt::{AdoptEmbedKind, ProjectEmbedAdoptError};
@@ -456,6 +457,31 @@ pub fn apply_exact_patch(original: &str, diff: &str, path: &str) -> HostedResult
         .map_err(|_| HostedFileError::Refused("invalid_patch"))
 }
 
+/// Apply an update diff authored by the assistant: as written when it is
+/// exact, else after [`patch_repair::repair_patch`] rebuilt its hunk headers
+/// from where its old lines verbatim occur. Returns the new text and the diff
+/// to store, which always applies exactly to `original`.
+///
+/// # Errors
+/// `invalid_patch` when the diff neither applies nor can be located
+/// unambiguously; the source is never partially changed.
+pub(crate) fn apply_update_patch(
+    original: &str,
+    diff: &str,
+    path: &str,
+) -> HostedResult<(String, String)> {
+    match apply_exact_patch(original, diff, path) {
+        Ok(next) => Ok((next, diff.to_owned())),
+        Err(HostedFileError::Refused("invalid_patch")) => {
+            let repaired = patch_repair::repair_patch(original, diff)
+                .ok_or(HostedFileError::Refused("invalid_patch"))?;
+            let next = apply_exact_patch(original, &repaired, path)?;
+            Ok((next, repaired))
+        }
+        Err(error) => Err(error),
+    }
+}
+
 /// A whole-file replacement diff from `old` to `next` that
 /// [`apply_exact_patch`] applies exactly (restore and the Workflow writer).
 pub fn replacement_patch(path: &str, old: &str, next: &str) -> String {
@@ -466,5 +492,7 @@ pub fn replacement_patch(path: &str, old: &str, next: &str) -> String {
 mod adopt_tests;
 #[cfg(test)]
 mod moves_tests;
+#[cfg(test)]
+mod patch_repair_tests;
 #[cfg(test)]
 mod tests;

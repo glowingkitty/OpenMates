@@ -433,11 +433,16 @@ async fn write<I: HostedIo>(
     if current.is_some() && Some(content_hash(&original)) != mutation.expected_base {
         return refused("stale_base");
     }
-    let content = Zeroizing::new(match (&mutation.content, &mutation.patch) {
-        (Some(content), _) if creating => content.clone(),
-        (_, Some(patch)) if !creating => apply_exact_patch(&original, patch, path)?,
+    // `stored_patch` is the diff that applies exactly (repaired when the
+    // assistant's hunk headers were off), so history replays byte for byte.
+    let (content, stored_patch) = match (&mutation.content, &mutation.patch) {
+        (Some(content), _) if creating => (Zeroizing::new(content.clone()), None),
+        (_, Some(patch)) if !creating => {
+            let (next, stored) = apply_update_patch(&original, patch, path)?;
+            (Zeroizing::new(next), Some(stored))
+        }
         _ => return refused("invalid_file_mutation"),
-    });
+    };
     if content.len() > MAX_TEXT_BYTES || content.contains('\0') {
         return refused("file_too_large");
     }
@@ -467,7 +472,7 @@ async fn write<I: HostedIo>(
         };
         history.push(json!({"version_number": 1, "encrypted_snapshot": seal(snapshot, &embed_key)?, "created_at": now}));
     }
-    if let (false, Some(patch)) = (creating, &mutation.patch) {
+    if let (false, Some(patch)) = (creating, &stored_patch) {
         let mut row = json!({"version_number": revision, "encrypted_patch": seal(patch, &embed_key)?, "created_at": now});
         // The authorized writer already holds plaintext; checkpoint every 32
         // revisions under the existing embed key in the same CAS transaction.
@@ -520,6 +525,6 @@ async fn write<I: HostedIo>(
     Ok(
         json!({"path": path, "operation_id": job.operation_id, "embed_id": embed_id,
         "revision": result["current_revision"], "expected_base": content_hash(&content),
-        "applied_diff": mutation.patch, "created": creating}),
+        "applied_diff": stored_patch, "created": creating}),
     )
 }

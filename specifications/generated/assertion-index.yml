@@ -152469,7 +152469,7 @@ assertions:
     current_direct_proof: false
   projects.files.exact-patch:
     specification: feature.projects@2
-    fingerprint: 946629fe6ad1f429cd6831d5694d3d57c768e16e638647b22dee35e75d230653
+    fingerprint: 0b8d1ab574ecb86e452899deff4cb6e6779362728539b3bef440d6a7093f8393
     direct_tests:
     - &id19419
       path: frontend/apps/web_app/tests/cli-project-file-chat.spec.ts

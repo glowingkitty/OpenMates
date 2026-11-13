@@ -422,6 +422,9 @@ assertions:
   must: A patch must apply unambiguously to its validated base. Missing, ambiguous, or mismatched patch context produces a
     recoverable failure without changing that file; the system must not silently force a fuzzy replacement, discard intervening
     edits, or fall back to an unconditional whole-file overwrite. A regenerated patch is checked against its new base again.
+    Hunk line numbers and counts are position hints only; a hunk whose context and removed lines occur verbatim at exactly
+    one nearest place in the base applies there, and the stored revision diff is rewritten with the real coordinates. Context
+    lines themselves are never matched loosely.
 - id: projects.files.automatic-recovery
   type: behavior
   must: In Apply and show changes mode, an agent receiving a recoverable stale-file or patch failure may reread authorized
