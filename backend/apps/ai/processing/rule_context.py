@@ -227,12 +227,18 @@ def rule_discovery(rule: RuleDefinition) -> dict[str, str | None]:
     }
 
 
-def catalog_discovery(entry: MemoryCatalogEntry) -> dict[str, str | None]:
-    """Discovery row for a catalog-only personal Memory: title and when-to-use, no body."""
+def catalog_discovery(entry: MemoryCatalogEntry, *, active_project_id: str | None = None) -> dict[str, str | None]:
+    """Discovery row for a catalog-only Memory: title and when-to-use, no body.
+
+    A Project row carries the active Project id: selection keeps a Project row
+    only when it matches the authorized Project, so without it every Ask first
+    Project Memory would be dropped before it could be offered.
+    """
     return {
         "id": entry.id, "title": entry.title, "description": "",
         "when_to_use": entry.when_to_use, "revision": None,
-        "source": entry.source, "app_id": None, "project_id": None,
+        "source": entry.source, "app_id": None,
+        "project_id": active_project_id if entry.source == "project" else None,
         "load_mode": entry.load_mode,
     }
 

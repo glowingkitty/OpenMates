@@ -93,7 +93,7 @@ async def discover_rule_metadata(request: Any, directus: Any, cache: Any,
                     sum(entry.source == "project" for entry in memory_catalog),
                     sum(entry.source == "project" for entry in requestable), bool(project_id), len(body_ids))
         private_rows = [rule_discovery(rule) for rule in catalog if rule.source != "app"] + [
-            catalog_discovery(entry) for entry in requestable if entry.id not in body_ids
+            catalog_discovery(entry, active_project_id=project_id) for entry in requestable if entry.id not in body_ids
         ]
         app_rows = [rule_discovery(rule) for rule in catalog if rule.source == "app"]
         result = []

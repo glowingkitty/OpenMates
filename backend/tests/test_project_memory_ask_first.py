@@ -9,7 +9,7 @@ import pytest
 
 from backend.apps.ai.processing.memory_document import build_memory_document
 from backend.apps.ai.processing.rule_context import (
-    approved_memory_definitions, requestable_catalog, split_selected_rule_snapshots,
+    approved_memory_definitions, catalog_discovery, requestable_catalog, split_selected_rule_snapshots,
 )
 from backend.shared.python_utils.memory_loader import parse_memory_catalog
 
@@ -28,6 +28,17 @@ def test_project_catalog_rows_are_requestable_only_under_an_active_project():
     assert [entry.id for entry in requestable_catalog(CATALOG, active_project_id=None)] == ["career-profile"]
     assert [entry.id for entry in requestable_catalog(CATALOG, active_project_id="project-1")] == [
         "item-style", "career-profile"]
+
+
+# contract-test: direct surface=rest_api assertions=app-memories.load-modes
+def test_project_catalog_discovery_row_carries_the_active_project_for_selection():
+    project_row, personal_row = (catalog_discovery(entry, active_project_id="project-1") for entry in CATALOG)
+    assert (project_row["source"], project_row["project_id"]) == ("project", "project-1")
+    assert personal_row["project_id"] is None
+    # Same filter the selection step applies to Project rows.
+    kept = [row for row in (project_row, personal_row)
+            if row["source"] == "personal" or row["project_id"] == "project-1"]
+    assert [row["id"] for row in kept] == ["item-style", "career-profile"]
 
 
 # contract-test: direct surface=rest_api assertions=app-memories.load-modes
