@@ -92,7 +92,8 @@ class StartChatSkill(_OrchestrationSkill):
         if await jobs.creator_chain_depth(cache_service=cache_service, chat_id=chat_id) >= MAX_CHAIN_DEPTH:
             return _fail("chain_too_deep", "Spawned chats cannot be nested deeper than three levels.")
         if await jobs.count_unfinished_spawned(
-            cache_service=cache_service, user_id=user_id, creator_chat_id=chat_id,
+            cache_service=cache_service, encryption_service=encryption_service,
+            user_id=user_id, creator_chat_id=chat_id,
         ) >= MAX_UNFINISHED_SPAWNED:
             return _fail("spawn_limit_reached", "Too many unfinished spawned chats; wait for some to finish.")
         spawned_chat_id = str(uuid.uuid4())

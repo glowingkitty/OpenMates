@@ -179,7 +179,14 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-11-13T13:20:00Z'
+      command: python3 scripts/ci_coordinator.py submit --mode pytest --no-prepared-builds --spec backend/tests/test_chat_orchestration_skills.py --spec backend/tests/test_chat_orchestration_main_chats_jobs.py
+      run_id: '075b5456cbe1 (GitHub run 43429758782)'
+      subject_commit: c88dd5f969b0f07ba5afc97052fbed5f0b03e611
+      execution_environment: isolated_github_ci
+      notes: CI source bab077105198 is the deployed change minus regenerated SDK bindings and sdk-capabilities classification, which no test here reads.
 - id: T-RUST
   type: unit
   file: packages/openmates-rust/src/client/chat_orchestration_tests.rs
@@ -197,7 +204,14 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-11-13T13:20:00Z'
+      command: python3 scripts/ci_coordinator.py submit --mode rust-check --spec openmates-sdk::chat_orchestration (plus openmates-sdk::web_sync and openmates::embed_update_notice)
+      run_id: '6f0da174361c (GitHub run 43429748281); web_sync cdeff4aac627 (43429753312); embed_update_notice 14a2a6201751 (43429742488)'
+      subject_commit: c88dd5f969b0f07ba5afc97052fbed5f0b03e611
+      execution_environment: isolated_github_ci
+      notes: CI source bab077105198 is the deployed change minus regenerated SDK bindings and sdk-capabilities classification.
 - id: T-E2E
   type: playwright
   file: frontend/apps/web_app/tests/chat-orchestration-main-chats.spec.ts
@@ -282,7 +296,7 @@ attempts:
   outcome: planned
   recorded_at: '2026-11-13T00:00:00Z'
 implementation_state:
-  subject_commit: working-tree
+  subject_commit: c88dd5f969b0f07ba5afc97052fbed5f0b03e611
 handoff:
   current_task_id: TASK-1
   next_action: Implement lanes, run CI, deploy to dev, record proof.

@@ -5,6 +5,7 @@ these tests only cover the skill/hook logic; the real stack is covered by E2E.
 """
 
 import importlib
+import inspect
 import json
 import sys
 import types
@@ -76,7 +77,8 @@ class FakeJobs:
     async def creator_chain_depth(self, *, cache_service, chat_id):
         return self.depth
 
-    async def count_unfinished_spawned(self, *, cache_service, user_id, creator_chat_id):
+    async def count_unfinished_spawned(self, *, cache_service, encryption_service, user_id, creator_chat_id,
+                                       directus_service=None):
         return self.unfinished
 
     async def record_main_chat_spawn(self, *, user_id, creator_chat_id, creator_message_id, spawned_chat_ids):
@@ -121,6 +123,26 @@ def fake(monkeypatch):
             monkeypatch.setattr(jobs, name, attr, raising=False)
     monkeypatch.setattr(jobs, "event_message_id", lambda *a: "evt-" + "-".join(a), raising=False)
     return f
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.spawn.main-chat-is-normal,chat-orchestration.spawn.eligibility-and-limits
+def test_fake_job_layer_matches_real_signatures():
+    """Explicitly typed fakes take exactly the real keyword-only parameters, so a missing argument fails here.
+
+    Regression: the start-chat skill called count_unfinished_spawned without encryption_service; the old fake
+    did not take that argument, so unit tests passed and the real skill raised a TypeError on dev.
+    """
+    for name in dir(FakeJobs):
+        fake_fn = getattr(FakeJobs, name)
+        if name.startswith("_") or not callable(fake_fn):
+            continue
+        fake_params = list(inspect.signature(fake_fn).parameters.values())[1:]  # drop self
+        if any(p.kind is inspect.Parameter.VAR_KEYWORD for p in fake_params):
+            continue
+        real = inspect.signature(getattr(jobs, name)).parameters.values()
+        empty = inspect.Parameter.empty
+        assert {p.name for p in fake_params if p.default is empty} == {p.name for p in real if p.default is empty}, name
+        assert {p.name for p in fake_params} <= {p.name for p in real}, name
 
 
 def make(cls):
