@@ -301,6 +301,8 @@ class GenerateSkill(BaseSkill):
                 # Vault key ID needed by the Celery task to decrypt reference image embeds
                 # (same key used by view_skill.py for embed content decryption).
                 "user_vault_key_id": user_vault_key_id,
+                # The user's AI model and server settings for the drawing author and its review.
+                **({"internal_llm_policy": kwargs["internal_llm_policy"]} if kwargs.get("internal_llm_policy") else {}),
             }
 
             prepared_requests.append(task_args)

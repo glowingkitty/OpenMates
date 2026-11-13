@@ -149,6 +149,10 @@ from backend.apps.ai.processing.wikipedia_context import (
 )
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.config_manager import config_manager
+from backend.shared.python_utils.internal_llm_policy import (
+    POLICY_ARGUMENT as INTERNAL_LLM_POLICY_ARGUMENT,
+    InternalLlmPolicy,
+)
 from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
 
 # Import services for type hinting
@@ -1205,6 +1209,11 @@ def _resolve_app_skill_model_override(
         return None
 
     return model_ref
+
+
+def _internal_llm_policy_payload(request_data: Any) -> Optional[Dict[str, Any]]:
+    """The user's model and server settings for LLM steps inside skills; None when unset."""
+    return InternalLlmPolicy.from_user_preferences(getattr(request_data, "user_preferences", None)).to_payload()
 
 
 # Four tool-enabled passes followed by one answer-only pass. Recovery first
@@ -8860,6 +8869,10 @@ async def handle_main_processing(
                         if parallel_model_override:
                             parallel_arguments = parallel_arguments.copy()
                             parallel_arguments["_full_model_reference_override"] = parallel_model_override
+                        parallel_llm_policy = _internal_llm_policy_payload(request_data)
+                        if parallel_llm_policy:
+                            parallel_arguments = parallel_arguments.copy()
+                            parallel_arguments[INTERNAL_LLM_POLICY_ARGUMENT] = parallel_llm_policy
 
                         parallel_reservation_ids: list[str] = []
                         if directus_service or getattr(request_data, "is_anonymous", False):
@@ -10390,6 +10403,11 @@ async def handle_main_processing(
                             f"{log_prefix} Applying app skill model override for "
                             f"{app_id}.{skill_id}: {model_override}"
                         )
+                    internal_llm_policy = _internal_llm_policy_payload(request_data)
+                    if internal_llm_policy and not parallel_execution:
+                        # The skill's own LLM steps follow the user's model and server settings.
+                        skill_arguments = skill_arguments.copy()
+                        skill_arguments[INTERNAL_LLM_POLICY_ARGUMENT] = internal_llm_policy
 
                     connected_account_token_artifacts: list[dict[str, str]] = []
                     from backend.apps.ai.processing.connected_account_execution import is_connected_account_skill

@@ -40,6 +40,7 @@ from backend.shared.providers.e2b_image_edit import ImageEditError
 from backend.shared.python_utils.billing_utils import BillingError, ensure_credit_headroom
 from backend.shared.python_utils.generated_media_graph import send_generated_media_child
 from backend.shared.python_utils.image_safety import get_pipeline
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
 from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
 
 logger = logging.getLogger(__name__)
@@ -57,6 +58,8 @@ UNREADABLE_INPUT_MESSAGE = (
     "graphics or embroidery results)."
 )
 NO_PICTURE_MESSAGE = "No valid picture could be computed for this request, so nothing was charged."
+NO_MODEL_ALLOWED_MESSAGE = ("Your AI settings turn off every model that can edit pictures, so nothing was made "
+                            "or charged. Allow one of them, or choose a model for complex tasks that accepts images.")
 CREDITS_MESSAGE = "There are not enough credits to modify this picture."
 SAFETY_MESSAGE = "This picture couldn't be modified."
 
@@ -167,8 +170,8 @@ async def _reject(task: Any, rejection: Any, *, instructions: str, user_id: str,
 
 
 async def _ensure_headroom(task: Any, *, user_id: str, team_id: Optional[str], picture_count: int,
-                           log_prefix: str) -> None:
-    estimated = await estimate_modify_credits(picture_count=picture_count, author_model=MODIFY_AUTHOR_MODELS[0])
+                           log_prefix: str, author_model: str = MODIFY_AUTHOR_MODELS[0]) -> None:
+    estimated = await estimate_modify_credits(picture_count=picture_count, author_model=author_model)
     try:
         if team_id:
             from backend.shared.python_utils.team_skill_billing import ensure_team_skill_credit_headroom
@@ -231,9 +234,14 @@ async def run_modify(task: Any, app_id: str, skill_id: str, arguments: dict[str,
             created_at=int(datetime.now(timezone.utc).timestamp()), log_prefix=log_prefix,
         )
 
+    # The user's saved complex model or the permitted defaults write the editing program.
+    llm_policy = InternalLlmPolicy.from_payload(arguments.get("internal_llm_policy"))
+    author_routes = llm_policy.author_routes(MODIFY_AUTHOR_MODELS, required_inputs=("text", "image"),
+                                             task_id=log_prefix)
+    lead_model = author_routes[0].model_id if author_routes else MODIFY_AUTHOR_MODELS[0]
     progress = ModifyProgressPublisher(
         embed_service, embed_id=embed_id, parent_embed_id=parent_embed_id, user_id=user_id, chat_id=chat_id,
-        message_id=message_id, instructions=instructions, model=display_model(MODIFY_AUTHOR_MODELS[0]),
+        message_id=message_id, instructions=instructions, model=display_model(lead_model),
         output_filetype=output_filetype, input_embed_ids=requested_ids, log_prefix=log_prefix,
     )
     input_ids_for_result: list[str] = requested_ids
@@ -247,6 +255,8 @@ async def run_modify(task: Any, app_id: str, skill_id: str, arguments: dict[str,
             raise ModifyFailure(ERROR_INVALID_REQUEST, str(exc)) from exc
         if len(requested_ids) != len(request.images):
             raise ModifyFailure(ERROR_INVALID_REQUEST, "Every picture reference must resolve to a picture.")
+        if not author_routes:
+            raise ModifyFailure(ERROR_NO_PICTURE, NO_MODEL_ALLOWED_MESSAGE)
         await progress.announce()
         s3_service = await initialize_task_storage(task)
         await require_storage_available(s3_service)
@@ -274,12 +284,13 @@ async def run_modify(task: Any, app_id: str, skill_id: str, arguments: dict[str,
         await _check_input_safety(task, instructions=request.instructions, prepared=prepared, user_id=user_id,
                                   message_id=message_id, source_embed_id=plan.embed_ids[0], log_prefix=log_prefix)
         await _ensure_headroom(task, user_id=user_id, team_id=team_id, picture_count=len(prepared),
-                               log_prefix=log_prefix)
+                               log_prefix=log_prefix, author_model=lead_model)
         try:
             authored = await author_modification(
                 task_id=str(task.request.id), instructions=request.instructions, inputs=prepared,
                 requirements=request.requirements, output_type=request.output_filetype,
                 source_program=plan.source_program, secrets_manager=task._secrets_manager, progress=progress,
+                policy=llm_policy,
             )
         except ModifyAuthorError as exc:
             logger.warning("%s No valid picture: %s", log_prefix, exc)

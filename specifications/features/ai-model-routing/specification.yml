@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 10
+version: 11
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -293,6 +293,10 @@ assertions:
     type: behavior
     must: Preprocessing may recognise at most one registered specialised use case per request in its existing pass. No use case is registered at present (vector graphics are drawn inside the images.generate skill, so the chat model stays the ordinary routed model), and while the registry is empty the use-case question is not asked. On automatic selection a recognised use case answers with that use case's ordered model list ahead of the tier recovery chain, honoring disabled models, providers, servers and input capabilities. An exact chat model or a saved tier preference always wins, a missing, weak or unknown answer keeps ordinary tier routing, and a use case never changes the output limit, which stays the selected model's maximum fitted to available credits.
     depends_on: [models.TierModelPreference.default_profiles, examples.use_case_routing]
+  - id: ai-model-routing.skills.internal-llm-follows-settings
+    type: privacy
+    must: LLM steps that run inside an app skill during a chat turn (authoring a drawing, a picture edit or a composed video, choosing a video route, reviewing a result against stated requirements, and ranking or relevance decisions) follow the user's AI settings. When the user saved a model for complex tasks and it accepts the step's inputs, that model alone answers the step, including typed decisions otherwise answered by Jev; a saved model that cannot take the step's inputs leaves the skill's default models, minus every model the user turned off. A turned-off model or hosting server is never called and the server region preference is passed on; when every permitted model is turned off the step is skipped through its unavailable path or the skill fails with a message that names the AI settings and charges nothing. Steps are billed at the price of the model that answered. Without saved choices or restrictions the skills' current default models answer unchanged. Safety and prompt-injection safeguards and PDF upload processing keep their fixed models.
+    depends_on: [examples.skill_internal_models]
   - id: ai-model-routing.reasoning.preprocessor-recommendation
     type: behavior
     must: Jev may recommend LOW, MEDIUM, HIGH or EXTRA_HIGH reasoning independently of request complexity in its existing preprocessing pass. LOW is reserved for trivial work, MEDIUM is the normal recommendation, and HIGH or EXTRA_HIGH is selective. A missing or malformed recommendation does not invalidate otherwise valid routing or trigger a separate generative pass. The recommendation survives continuation and answer recovery, is resolved separately for each actual model and hosting server using verified supported controls, and unsupported levels clamp to the declared maximum. Undeclared controls and fixed-effort model variants preserve native defaults. Assigning effort never changes model selection precedence, automatic-route eligibility or provider restrictions.
@@ -358,4 +362,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [use_case_routing, required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, preprocessing_recovery_policy, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout, answer_recovery]
+  required_groups: [skill_internal_models, use_case_routing, required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, preprocessing_recovery_policy, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout, answer_recovery]

@@ -1,0 +1,24 @@
+schema_version: 2
+profile: concise
+title: App Skills' Internal LLM Steps Follow The User's AI Settings
+status: implementing
+id: skill-internal-llm-user-settings
+goal: >
+  LLM steps that run inside app skills (authoring, routing choices, reviews and
+  relevance decisions) use the user's saved model for complex tasks when one is
+  set, and never use a model or server the user turned off. Without such
+  settings the current default models answer exactly as before.
+decisions:
+  - One policy object is built from the turn's user preferences (default_ai_model_complex, disabled_ai_models, disabled_ai_servers, server_region_preference) and passed to every skill as the hidden _internal_llm_policy argument, then to media worker tasks in their payload.
+  - Author chains (images.generate drawings, images.modify, videos.generate composed) use only the saved complex model when it is set, usable and accepts the required input types; otherwise the default chain filtered by the user's restrictions.
+  - Typed decision steps (videos.generate route choice, drawing and modification reviews, shopping, home and search relevance, result photo relevance) answer through the saved complex model when it is set; otherwise through Jev limited to the servers the user allows, and are skipped through their existing unavailable path when none is allowed.
+  - Safety and prompt-injection safeguards and PDF upload processing keep their fixed models; they are platform protections, not task steps, and run outside a chat turn.
+  - A missing or invalid policy means today's behavior, so the open dev-to-main release is not changed for users without overrides.
+checks:
+  required:
+    - Unit checks for policy parsing, author route selection, restriction filtering and the decision adapter.
+    - Isolated CI pytest for the touched backend tests.
+    - Scoped dev deployment and a real dev chat proof with a test user whose complex model is not the default.
+approval_provenance:
+  source: Explicit user instruction in this Claude chat on 2026-11-13.
+  note: The owning Specification feature.ai-model-routing (draft) gains the assertion for skill-internal model steps.

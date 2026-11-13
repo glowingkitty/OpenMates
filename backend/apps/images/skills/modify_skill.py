@@ -75,6 +75,7 @@ class ModifySkill(BaseSkill):
             "skill_id": self.skill_id,
             "embed_id": embed_id,
             **({"same_turn_batch_id": kwargs["same_turn_batch_id"]} if kwargs.get("same_turn_batch_id") else {}),
+            **({"internal_llm_policy": kwargs["internal_llm_policy"]} if kwargs.get("internal_llm_policy") else {}),
         }
         task_args["requests"] = [{key: value for key, value in task_args.items() if key != "requests"}]
         # Dispatch failures (including RequiredRecoveryOutputError for a turn without

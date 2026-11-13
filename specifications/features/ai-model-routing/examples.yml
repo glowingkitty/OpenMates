@@ -1,5 +1,27 @@
 schema_version: 1
-specification: feature.ai-model-routing@10
+specification: feature.ai-model-routing@11
+
+skill_internal_models:
+  - id: saved-complex-model-authors-and-judges
+    assertion_ids: [ai-model-routing.skills.internal-llm-follows-settings]
+    given: The user saved an image-capable model for complex tasks and asks for a picture edit with a stated requirement.
+    when: images.modify writes the editing program and reviews the result.
+    then: Only the saved model writes the program and judges the requirement, and the charge uses that model's price.
+  - id: auto-video-route-uses-saved-model
+    assertion_ids: [ai-model-routing.skills.internal-llm-follows-settings]
+    given: The user saved a model for complex tasks and asks for a video without naming a mode.
+    when: videos.generate chooses between a generated clip and a composed video.
+    then: The saved model makes the choice; Jev is not called.
+  - id: turned-off-default-is-skipped
+    assertion_ids: [ai-model-routing.skills.internal-llm-follows-settings]
+    given: The user keeps automatic models but turned off the first default drawing model.
+    when: images.generate draws an SVG.
+    then: The next permitted default model draws it; the turned-off model is never called.
+  - id: no-settings-unchanged
+    assertion_ids: [ai-model-routing.skills.internal-llm-follows-settings]
+    given: The user has no saved complex model and no restrictions.
+    when: Any skill runs an internal LLM step.
+    then: The skill's current default models and Jev answer exactly as before.
 
 required_instructions:
   - id: incomplete-cache-does-not-start-inference

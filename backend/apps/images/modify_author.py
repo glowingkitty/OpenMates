@@ -40,12 +40,12 @@ from backend.apps.images.modify_program import (
 from backend.apps.images.modify_review import review_image_with_jev
 from backend.apps.images.vector_author import (
     VECTOR_AUTHOR_MODELS,
-    VECTOR_REVIEW_MODEL,
     VectorReview,
     VectorUsage,
     normalize_requirements,
 )
 from backend.shared.providers.e2b_image_edit import OUTPUT_TYPES, ImageEditInput, ImageEditRun, ImageEditSession
+from backend.shared.python_utils.internal_llm_policy import DEFAULT_POLICY, InternalLlmPolicy
 from backend.shared.python_utils.llm_stream_usage import stream_usage_tokens
 
 logger = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ class _Candidate:
 
 async def _stream_program(
     *, stream_fn: StreamFunction, task_id: str, model_id: str, messages: list[dict[str, Any]],
-    secrets_manager: Any,
+    secrets_manager: Any, stream_options: Optional[dict[str, Any]] = None,
 ) -> tuple[str, int, int]:
     """Run one author call; return its text and reported token usage."""
     text = ""
@@ -135,7 +135,7 @@ async def _stream_program(
         task_id=task_id, model_id=model_id, system_prompt=SYSTEM_PROMPT, message_history=messages,
         temperature=MODIFY_AUTHOR_TEMPERATURE, secrets_manager=secrets_manager,
         max_tokens=MODIFY_AUTHOR_MAX_OUTPUT_TOKENS, requested_reasoning_level=MODIFY_AUTHOR_REASONING,
-        private_logging=True,
+        private_logging=True, **(stream_options or {}),
     ):
         if isinstance(chunk, str):
             text += chunk
@@ -157,6 +157,7 @@ async def author_modification(
     progress: Optional[ProgressCallback] = None, stream_fn: Optional[StreamFunction] = None,
     review_fn: Optional[ReviewFunction] = None, run_fn: Optional[RunFunction] = None,
     models: Sequence[str] = MODIFY_AUTHOR_MODELS, max_attempts: int = MAX_CORRECTION_ROUNDS + 1,
+    policy: Optional[InternalLlmPolicy] = None,
 ) -> ModifyAuthorResult:
     """Write an editing program, run it, check the picture against the requirements and correct it."""
     instructions = " ".join(instructions.split()) if instructions else ""
@@ -196,7 +197,11 @@ async def author_modification(
             background = _BackgroundSession(ImageEditSession(secrets_manager, output_type=output_type))
             stack.push_async_callback(background.close)
             run_fn = background.run
-        for model_id in models:
+        policy = policy or DEFAULT_POLICY
+        # The author always sees the pictures it edits, so it must take image input.
+        routes = policy.author_routes(models, required_inputs=("text", "image"), task_id=task_id)
+        for route in routes:
+            model_id = route.model_id
             messages: list[dict[str, Any]] = [request]
             best: Optional[_Candidate] = None
             attempt = 0
@@ -207,7 +212,7 @@ async def author_modification(
                     started = time.monotonic()
                     text, input_tokens, output_tokens = await _stream_program(
                         stream_fn=stream_fn, task_id=task_id, model_id=model_id, messages=messages,
-                        secrets_manager=secrets_manager,
+                        secrets_manager=secrets_manager, stream_options=policy.stream_options(route),
                     )
                     usage.append(VectorUsage(STAGE_WRITING if attempt == 1 else STAGE_CORRECTING, model_id,
                                              input_tokens, output_tokens))
@@ -235,10 +240,11 @@ async def author_modification(
                         outcome = await review(
                             image=run.image, instructions=instructions, requirements=requirements,
                             input_images=[item.preview for item in inputs],
-                            secrets_manager=secrets_manager, task_id=task_id,
+                            secrets_manager=secrets_manager, task_id=task_id, policy=policy,
                         )
                         if outcome.input_tokens:
-                            usage.append(VectorUsage("review", VECTOR_REVIEW_MODEL, outcome.input_tokens, 0))
+                            usage.append(VectorUsage("review", outcome.model_id, outcome.input_tokens,
+                                                     outcome.output_tokens))
                         if outcome.accepted:
                             return result(candidate, model_id, _final_status(attempt, outcome), attempt)
                         candidate.unmet = outcome.unmet
@@ -264,4 +270,6 @@ async def author_modification(
                 # A provider failure moves on to the next configured author model.
                 logger.warning("[%s] Modify author model %s failed: %s", task_id, model_id, exc)
                 failures.append(f"{model_id}: {exc}")
-    raise ModifyAuthorError("; ".join(failures) or "no modify author model configured")
+    raise ModifyAuthorError("; ".join(failures) or (
+        "every picture editing model is turned off in the user's AI settings" if not routes
+        else "no modify author model configured"))

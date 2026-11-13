@@ -47,11 +47,11 @@ from backend.shared.providers.recraft.recraft import (
     RECRAFT_RASTER_MODEL_MAX,
 )
 from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.shared.python_utils.internal_llm_policy import DEFAULT_POLICY, InternalLlmPolicy
 from backend.apps.images.vector_author import (
     MAX_CORRECTION_ROUNDS,
     MAX_SOURCE_SVG_CHARS,
     VECTOR_AUTHOR_MODELS,
-    VECTOR_REVIEW_MODEL,
     VectorAuthorError,
     VectorAuthorResult,
     VectorUsage,
@@ -702,14 +702,15 @@ async def _flat_image_credits(model_ref: str, log_prefix: str) -> int:
 
 async def _review_and_follow_up_recraft_svg(
     task: BaseServiceTask, svg: str, *, prompt: str, aspect_ratio: str, quality: str,
-    requirements: List[str], task_id: str, on_draft: Any,
+    requirements: List[str], task_id: str, on_draft: Any, policy: Optional[InternalLlmPolicy] = None,
 ) -> VectorAuthorResult:
     """Check a Recraft drawing against the requirements; let the LLM author fix clear misses."""
     review = await review_with_jev(
         svg=svg, prompt=prompt, requirements=requirements, is_modification=False,
-        secrets_manager=task._secrets_manager, task_id=task_id,
+        secrets_manager=task._secrets_manager, task_id=task_id, policy=policy,
     )
-    usage = [VectorUsage("review", VECTOR_REVIEW_MODEL, review.input_tokens, 0)] if review.input_tokens else []
+    usage = ([VectorUsage("review", review.model_id, review.input_tokens, review.output_tokens)]
+             if review.input_tokens else [])
     reviewed = VectorAuthorResult(
         svg=svg, model_id="recraft", attempts=1, review_status=review.status, usage=usage,
         engine=VECTOR_ENGINE_RECRAFT, unmet_requirements=review.unmet,
@@ -725,6 +726,7 @@ async def _review_and_follow_up_recraft_svg(
             requirements=requirements, source_svgs=[svg] if editable else [],
             reference_images=[] if editable else [(render_review_jpeg(svg), "image/jpeg")],
             secrets_manager=task._secrets_manager, on_draft=on_draft, max_attempts=MAX_CORRECTION_ROUNDS,
+            policy=policy,
         )
     except VectorAuthorError as exc:
         # The follow-up produced nothing usable: the Recraft drawing is delivered with what it misses.
@@ -736,10 +738,11 @@ async def _review_and_follow_up_recraft_svg(
 
 
 def _planned_display_model(model_ref: Optional[str], output_filetype: str, use_vector_author: bool,
-                           quality: str) -> Optional[str]:
+                           quality: str, policy: Optional[InternalLlmPolicy] = None) -> Optional[str]:
     """Short id of the model that starts this request, as the client's model metadata knows it."""
     if use_vector_author:
-        return VECTOR_AUTHOR_MODELS[0].split("/")[-1]
+        routes = (policy or DEFAULT_POLICY).author_routes(VECTOR_AUTHOR_MODELS)
+        return (routes[0].model_id if routes else VECTOR_AUTHOR_MODELS[0]).split("/")[-1]
     if output_filetype == "svg":
         return RECRAFT_MODEL_MAX if quality == "max" else RECRAFT_MODEL_DEFAULT
     return model_ref.split("/")[-1] if model_ref else None
@@ -831,6 +834,8 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         style = arguments.get("style")
         # vector_engine: who draws an SVG — the LLM vector author (default) or Recraft.
         vector_engine = _resolve_vector_engine(arguments.get("vector_engine"))
+        # The user's AI model and server settings for the drawing author and its review.
+        llm_policy = InternalLlmPolicy.from_payload(arguments.get("internal_llm_policy"))
         use_vector_author = output_filetype == "svg" and vector_engine != VECTOR_ENGINE_RECRAFT
         # Natural-language requirements a vector result is checked against (no review without them).
         vector_requirements = normalize_requirements(arguments.get("requirements")) if output_filetype == "svg" else []
@@ -863,7 +868,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             task, arguments=arguments, embed_id=embed_id, prompt=prompt, aspect_ratio=aspect_ratio,
             user_id=user_id, chat_id=chat_id, message_id=message_id, log_prefix=log_prefix,
             output_filetype=output_filetype, input_embed_ids=reference_image_embed_ids,
-            model=_planned_display_model(model_ref, output_filetype, use_vector_author, quality),
+            model=_planned_display_model(model_ref, output_filetype, use_vector_author, quality, llm_policy),
             revised_from=image_revision.revision_content_fields(revision)["revised_from"] if revision else None,
         )
         if progress_publisher:
@@ -1066,7 +1071,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 task_id=str(task_id), prompt=str(prompt), aspect_ratio=aspect_ratio, quality=quality,
                 engine=vector_engine, requirements=vector_requirements,
                 source_svgs=source_svgs, reference_images=pixel_references, source_script=source_script,
-                secrets_manager=task._secrets_manager, on_draft=on_draft,
+                secrets_manager=task._secrets_manager, on_draft=on_draft, policy=llm_policy,
             )
             svg_bytes = authored.svg.encode("utf-8")
             model_ref = authored.model_id
@@ -1098,6 +1103,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 authored = await _review_and_follow_up_recraft_svg(
                     task, svg_bytes.decode("utf-8"), prompt=str(prompt), aspect_ratio=aspect_ratio,
                     quality=quality, requirements=vector_requirements, task_id=str(task_id), on_draft=on_draft,
+                    policy=llm_policy,
                 )
                 svg_bytes = authored.svg.encode("utf-8")
                 metered_credits, metered_usage = await _vector_author_credits(

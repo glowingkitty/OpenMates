@@ -13,10 +13,16 @@ from __future__ import annotations
 
 import logging
 from io import BytesIO
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 from uuid import uuid4
 
-from backend.apps.images.vector_author import REVIEW_IMAGE_SIZE, REVIEW_MISMATCH_BELOW, VectorReview
+from backend.apps.images.vector_author import (
+    REVIEW_IMAGE_SIZE,
+    REVIEW_MISMATCH_BELOW,
+    VECTOR_REVIEW_MODEL,
+    VectorReview,
+)
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +55,11 @@ def review_jpeg(image_bytes: bytes) -> bytes:
 
 async def review_image_with_jev(
     *, image: bytes, instructions: str, requirements: Sequence[str], input_images: Sequence[bytes],
-    secrets_manager: Any, task_id: str,
+    secrets_manager: Any, task_id: str, policy: Optional[InternalLlmPolicy] = None,
 ) -> VectorReview:
-    """Ask Jev, per stated requirement, whether the computed picture fulfils it."""
-    from backend.shared.providers.typesafe.client import DecisionProviderError, JevDecisionClient
+    """Ask Jev (or the user's saved complex model), per stated requirement, whether the picture fulfils it."""
+    from backend.apps.ai.utils.internal_decisions import decision_client_for_policy, review_model_of
+    from backend.shared.providers.typesafe.client import DecisionProviderError
     from backend.shared.providers.typesafe.models import NoulAnswer
 
     result_ref = str(uuid4())
@@ -85,9 +92,9 @@ async def review_image_with_jev(
         }
         for key in keyed
     }
-    client = JevDecisionClient(
-        secrets_manager=secrets_manager, max_retries=1,
-        telemetry_task_id=task_id, telemetry_purpose=REVIEW_TASK,
+    client = decision_client_for_policy(
+        policy, secrets_manager=secrets_manager, needs_images=True, max_retries=1,
+        task_id=task_id, purpose=REVIEW_TASK,
     )
     try:
         response = await client.evaluate_with_images(state=state, questions=questions, images=images)
@@ -95,6 +102,7 @@ async def review_image_with_jev(
         logger.warning("[%s] Picture edit review unavailable: %s", task_id, exc)
         return VectorReview(accepted=True, status="unavailable")
     input_tokens = response.usage.input_tokens
+    judged = {"model_id": review_model_of(client, VECTOR_REVIEW_MODEL), "output_tokens": response.usage.output_tokens}
     # Only a clear "no" rejects a picture; an unsure reviewer never forces a correction.
     unmet = tuple(
         text for key, text in keyed.items()
@@ -105,5 +113,5 @@ async def review_image_with_jev(
             f"({index}) {text}" for index, text in enumerate(unmet, start=1)
         )
         return VectorReview(accepted=False, status="rejected", feedback=feedback, input_tokens=input_tokens,
-                            unmet=unmet)
-    return VectorReview(accepted=True, status="accepted", input_tokens=input_tokens)
+                            unmet=unmet, **judged)
+    return VectorReview(accepted=True, status="accepted", input_tokens=input_tokens, **judged)
