@@ -2087,3 +2087,66 @@ def test_final_validator_removes_skill_use_refs_and_shows_their_results(
             aggregated_response=answer, tool_calls_info=None, cache_service=None,
             directus_service=None, encryption_service=None, user_vault_key_id=None,
         ))
+
+
+def _voice_parent_request() -> "AskSkillRequest":
+    return AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="33333333-3333-4333-8333-333333333333",
+        user_id="44444444-4444-4444-8444-444444444444",
+        user_id_hash="a" * 64,
+        message_history=[AIHistoryMessage(role="user", content="compare three laptops", created_at=100)],
+        voice_mode=True,
+        voice_call_id="1" * 32,
+        voice_turn_id="33333333-3333-4333-8333-333333333333",
+        auto_speak_response=True,
+        assistant_response_source_revision=2,
+    )
+
+
+def _dispatch_voice_continuation(monkeypatch, recheck) -> dict:
+    from backend.shared.python_utils import voice_call_admission
+
+    monkeypatch.setattr(voice_call_admission, "require_active_voice_dispatch", recheck)
+    captured: dict = {}
+
+    def fake_send_task(*, name, kwargs, queue, task_id=None):
+        captured.update(kwargs=kwargs)
+        return SimpleNamespace(id="continuation-task")
+
+    monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", fake_send_task)
+    request = _voice_parent_request()
+    asyncio.run(stream_consumer._dispatch_sub_chat_parent_continuation(
+        cache_service=SimpleNamespace(set=AsyncMock(return_value=True)),
+        pending_context={
+            "parent_request_data": request.model_dump(mode="json"), "skill_config_dict": {},
+            "expected_sub_chat_ids": ["child-1"], "completed": {"child-1": {"summary": "Synthetic child result"}},
+        },
+        parent_chat_id=request.chat_id, log_prefix="test",
+    ))
+    return captured["kwargs"]["request_data_dict"]
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.chat.orchestration-continuity
+def test_sub_chat_continuation_during_an_active_call_stays_spoken(monkeypatch) -> None:
+    rechecked = []
+
+    async def active_call(cache, request):
+        rechecked.append(request)
+
+    payload = _dispatch_voice_continuation(monkeypatch, active_call)
+    assert payload["voice_mode"] is True and payload["auto_speak_response"] is True
+    assert payload["voice_turn_id"] == payload["message_id"]
+    assert rechecked and rechecked[0]["chat_id"] == payload["chat_id"]
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.chat.orchestration-continuity
+def test_sub_chat_continuation_after_hangup_continues_as_a_text_turn(monkeypatch) -> None:
+    async def ended_call(cache, request):
+        raise ValueError("Voice call has ended")
+
+    payload = _dispatch_voice_continuation(monkeypatch, ended_call)
+    assert payload["voice_mode"] is False and payload["auto_speak_response"] is False
+    assert payload["voice_call_id"] is None and payload["voice_turn_id"] is None
+    assert payload["is_sub_chat_continuation"] is True
+    assert payload["assistant_response_source_revision"] == 2

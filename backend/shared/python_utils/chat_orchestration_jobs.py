@@ -223,6 +223,16 @@ async def record_job_result(*, cache_service: Any, encryption_service: Any, user
                               user_id=user_id, spawned_chat_id=record["spawned_chat_id"],
                               state="working" if ok else "failed")
     logger.info("[CHAT_ORCH] result job=%s kind=%s ok=%s", job_id, record["kind"], ok)
+    if ok and record["kind"] == "creator_event":
+        from backend.shared.python_utils.chat_orchestration_interpretation import queue_event
+        try:
+            event_payload = await unseal(cache_service, encryption_service, user_id, record["payload"])
+            await queue_event(cache_service=cache_service, encryption_service=encryption_service,
+                              user_id=user_id, payload=event_payload)
+        except (OrchestrationError, RuntimeError, ConnectionError, ValueError) as exc:
+            # The event is stored in the creator chat either way; only its automatic
+            # interpretation is skipped, which the creator can still ask about.
+            logger.warning("[CHAT_ORCH] interpretation not queued job=%s category=%s", job_id, type(exc).__name__)
     return True, "accepted"
 
 

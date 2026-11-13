@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.chat-orchestration@1
+specification: feature.chat-orchestration@2
 unified_kind:
 - id: subchat-unchanged
   assertion_ids:
@@ -50,7 +50,7 @@ creator_events:
   when: '"Kitchen quotes" reports "Three quotes found, cheapest 42 EUR per m2" and then finishes.'
   then: '"Weekly planning" shows, in time order, "Started chat Kitchen quotes", "Report from Kitchen quotes: Three
     quotes found, cheapest 42 EUR per m2" and "Kitchen quotes finished"; tapping any of them opens "Kitchen quotes",
-    and no assistant answer starts in "Weekly planning".'
+    and one automatic assistant answer in "Weekly planning" interprets the report and finish together.'
 - id: two-devices-no-duplicates
   assertion_ids:
   - chat-orchestration.events.creator-system-events
@@ -64,6 +64,41 @@ creator_context:
   given: '"Weekly planning" shows "Started chat Kitchen quotes" and "Kitchen quotes is waiting for you".'
   when: Alice asks "what is happening in my chats?".
   then: The assistant answers that "Kitchen quotes" is waiting for her input, without reading that chat.
+automatic_interpretation:
+- id: report-spoken-in-call
+  assertion_ids:
+  - chat-orchestration.events.automatic-interpretation
+  given: Alice is in a voice call in "Weekly planning", which started "Git overview", and the assistant is still
+    speaking an answer about her calendar.
+  when: '"Git overview" reports "12 commits since Monday, mostly voice fixes" and finishes.'
+  then: The calendar answer is spoken to its end; then one assistant turn in "Weekly planning" says and shows that the
+    Git overview is ready with twelve commits, mostly voice fixes; the report and finished events stay in the history.
+- id: waits-for-user-speech
+  assertion_ids:
+  - chat-orchestration.events.automatic-interpretation
+  given: Alice is in a voice call in "Weekly planning" and is speaking.
+  when: '"Kitchen quotes" finishes while she talks.'
+  then: Her turn is answered first; the interpretation of "Kitchen quotes finished" is spoken only after that answer
+    has played and she is silent.
+- id: close-events-combined
+  assertion_ids:
+  - chat-orchestration.events.automatic-interpretation
+  given: '"Weekly planning" started "Kitchen quotes" and "Flight to Lisbon", and no call is active.'
+  when: Both finish within a few seconds.
+  then: One text-only assistant answer in "Weekly planning" summarizes both results.
+- id: no-endless-ping-pong
+  assertion_ids:
+  - chat-orchestration.events.automatic-interpretation
+  given: The creator assistant keeps sending follow-ups into "Kitchen quotes" from its automatic turns.
+  when: The third automatic turn in a row without a new user message has run.
+  then: Further events from "Kitchen quotes" are stored in "Weekly planning" but start no automatic turn until Alice
+    writes or speaks again.
+- id: started-not-interpreted
+  assertion_ids:
+  - chat-orchestration.events.automatic-interpretation
+  given: Alice asks "Weekly planning" to start "Kitchen quotes".
+  when: The "Started chat Kitchen quotes" event is stored.
+  then: No extra assistant turn starts for it.
 report:
 - id: spawned-reports
   assertion_ids:

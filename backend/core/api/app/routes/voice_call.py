@@ -36,8 +36,9 @@ from backend.shared.providers.voxtral_voice import VoxtralVoiceSession, VOXTRAL_
 from backend.shared.providers.live_voice import LiveVoiceSession
 from backend.shared.python_utils.voice_call_visuals import VoiceCallVisuals
 from backend.shared.python_utils.voice_call_registry import (
-    finalize_active_call, issue_message_id, register_active_call, renew_active_call,
+    ACTIVE_TTL_SECONDS, finalize_active_call, issue_message_id, register_active_call, renew_active_call,
 )
+from backend.core.api.app.routes.voice_call_orchestration import CallInterpretationGate
 from backend.shared.testing.voice_call_fixture import (
     IsolatedVoxtralVoiceFixture, VOICE_ACK_DEFAULT_TIMESTAMP, consume_voice_ack_fixture_write_failure,
     isolated_voice_fixture_enabled, set_voice_ack_fixture_fail_next_write,
@@ -520,6 +521,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     listening = True
     last_activity: tuple[bool, bool, bool] | None = None
     stage = "start_validation"
+    gate: CallInterpretationGate | None = None
 
     async def send(event: dict[str, Any]) -> None:
         await websocket.send_json(event)
@@ -537,6 +539,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             await asyncio.sleep(LOCK_RENEW_SECONDS)
             await renew_active_call(websocket.app.state.cache_service, user_id=user_id,
                                     session_id=session_id, chat_id=chat_id, call_id=call_id)
+            if gate is not None:
+                await gate.bind(ACTIVE_TTL_SECONDS)
 
     async def issue(message_id: str) -> None:
         nonlocal cleanup_eligible
@@ -759,6 +763,13 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         await register_active_call(websocket.app.state.cache_service, user_id=user_id,
                                    session_id=session_id, chat_id=chat_id, call_id=call_id)
         registered = True
+        # Updates from chats this chat started are spoken at quiet moments.
+        gate = CallInterpretationGate(
+            cache_service=websocket.app.state.cache_service, directus_service=websocket.app.state.directus_service,
+            encryption_service=websocket.app.state.encryption_service, user_id=user_id, chat_id=chat_id,
+            call_id=call_id, issue=issue, send=send,
+        )
+        await gate.bind(ACTIVE_TTL_SECONDS)
         registry_task = asyncio.create_task(registry_renewal())
         stage = "provider_open"
         prewarm_task = asyncio.create_task(_prewarm_completion())
@@ -888,6 +899,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     if not isinstance(delta, str):
                         raise ValueError("Invalid transcript delta")
                     if delta:
+                        if gate is not None:
+                            gate.user_spoke()
                         if current is None:
                             current = await new_turn()
                         invalidate_completion(current)
@@ -924,6 +937,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     raise RuntimeError("Voice transcription failed")
                 provider_receive = asyncio.create_task(provider.receive())
             await finish_ready_turns(time.monotonic())
+            await gate.tick(assistant_active=bool(assistant["speaking"] or assistant["generating"]),
+                            speech_pending=current is not None or bool(turns))
             usage = (ledger.audio_bytes, ledger.charged)
             if usage != last_usage:
                 await send(ledger.view(time.monotonic() - started))
@@ -966,6 +981,14 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 cancelled = True
             except Exception:
                 logger.warning("Voice final settlement failed call_id=%s", call_id)
+        if gate is not None:
+            try:
+                await _finish_accepted_job(asyncio.create_task(gate.close()))
+            except asyncio.CancelledError:
+                cancelled = True
+            except (RuntimeError, ValueError, ConnectionError) as exc:
+                # Buffered updates stay stored; the next event or call retries them.
+                logger.warning("Voice call orchestration unbind failed call_id=%s category=%s", call_id, type(exc).__name__)
         if registered:
             try:
                 await _finish_accepted_job(asyncio.create_task(finalize_active_call(

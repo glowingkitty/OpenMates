@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.chat-orchestration
-version: 1
+version: 2
 status: draft
 title: Chat Orchestration of Spawned Main Chats
 summary: 'Any chat can start and coordinate other full main chats for heavy multitasking, for example one voice call that
@@ -24,10 +24,11 @@ scope:
   - Awareness in the creator chat when the user writes in a spawned chat, and a send guard against talking over the
     user.
   - Device-claimed orchestration jobs that keep all chat keys and encryption on the user's client.
+  - One automatic interpreting turn in the creator chat when reports or status changes from spawned chats arrive,
+    with several close events combined, spoken during an active voice call bound to the creator chat.
   excludes:
   - Changes to existing sub-chat behaviour, its carousel, its parent-rolled billing or its result rollup.
   - Showing spawned main chats in the sub-chat carousel.
-  - Starting AI inference in the creator chat automatically when a report or status event arrives.
   - Server-side decryption of any chat, server-held chat keys, or persisting chat titles or content in server-readable
     form beyond the bounded Vault-encrypted job and state records.
   - Spawning from incognito, anonymous, shared/external or public example chats, and Team chats beyond the same-user
@@ -179,8 +180,8 @@ assertions:
     compact style as voice call started and ended events, for example "Started chat Kitchen quotes", "Report from
     Kitchen quotes" with the report text, "Kitchen quotes finished", "Kitchen quotes is waiting for you" and "You wrote
     in Kitchen quotes". Tapping an event opens the spawned chat. Events use stable identities, normal client-encrypted
-    history synchronization and survive reload; repeated delivery never duplicates an event, and an event never starts
-    AI inference in the creator chat.
+    history synchronization and survive reload; repeated delivery never duplicates an event or its automatic
+    interpretation. The event stays in the creator chat's history whether or not it is interpreted.
   depends_on:
   - models.OrchestrationEvent
   - examples.creator_events
@@ -192,6 +193,20 @@ assertions:
   depends_on:
   - models.OrchestrationEvent
   - examples.creator_context
+- id: chat-orchestration.events.automatic-interpretation
+  type: behavior
+  must: A report, finished or waiting-for-you event from a spawned chat, once stored in the creator chat, starts one
+    automatic assistant turn in the creator chat that interprets it for the user through the ordinary pipeline and
+    shows a normal text answer; started and you-wrote events are never interpreted. The turn waits while the creator
+    chat's assistant is still answering, and in an active voice call bound to the creator chat it waits until the
+    current assistant speech has finished playing and the user is not speaking, never cutting either off, and is then
+    spoken in the call. Without an active call it is text only. Events that arrive while the turn waits, or within a
+    few seconds of each other, are combined into one turn. Automatic turns are billed to the creator chat like any
+    turn, use the event context as untrusted data, and are bounded so spawned chats cannot keep the creator answering
+    without the user (at most three automatic turns in a row without a new user message; later events are only stored).
+  depends_on:
+  - models.OrchestrationEvent
+  - examples.automatic_interpretation
 - id: chat-orchestration.report.creator-skill
   type: behavior
   must: Every chat with a creator link automatically has the report-to-creator skill and an instruction to report its
@@ -277,6 +292,7 @@ examples:
   - limits
   - creator_events
   - creator_context
+  - automatic_interpretation
   - report
   - automatic_status
   - list_read_send
@@ -288,4 +304,6 @@ notes:
     Product decisions (one spawn mechanism with a kind, system events instead of the carousel, report-to-creator plus
     automatic status events, skills in the OpenMates app, separate billing for spawned main chats, user-typing
     awareness) were agreed by the founder on 2026-11-13, who also asked for implementation to proceed without waiting
-    for a separate approval round.
+    for a separate approval round. On 2026-11-13 the founder also decided that reports and status changes start one
+    automatic interpreting turn in the creator chat (spoken in an active call after the current speech, never over the
+    user; text only outside a call; close events combined), replacing the earlier no-inference rule.

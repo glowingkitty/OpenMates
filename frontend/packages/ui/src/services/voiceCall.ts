@@ -843,6 +843,15 @@ export class VoiceCallController implements VoiceCallControllerLike {
         // invoke the canonical inference pipeline twice.
         return;
       }
+      case 'orchestration_turn':
+        // The server starts an interpreting turn for updates from chats this chat
+        // started, anchored at the newest stored update event. Accept its answer
+        // and speech as a turn of this call (feature.video-call orchestration-continuity).
+        if (this.state.status === 'live' && message.call_id === this.state.callId &&
+            typeof message.message_id === 'string' && message.message_id.length <= 128) {
+          this.callTurnIds.add(message.message_id);
+        }
+        return;
       case 'transcript.discarded':
         // Echo, backchannel, stop words and empty turns never become messages.
         if (message.call_id === this.state.callId && typeof message.message_id === 'string' &&

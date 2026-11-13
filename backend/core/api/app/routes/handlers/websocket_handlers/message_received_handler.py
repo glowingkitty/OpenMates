@@ -2738,6 +2738,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         ) or 1
 
         db_parent_id = chat_metadata_from_db.get("parent_id") if chat_metadata_from_db else None
+        from backend.shared.python_utils.chat_orchestration_interpretation import reset_streak
+        await reset_streak(cache_service=cache_service, user_id=user_id, chat_id=chat_id)
         creator_chat_id_for_ai = None
         try:
             creator_chat_id_for_ai = await classify_chat_message(

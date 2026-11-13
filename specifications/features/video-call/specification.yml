@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.video-call
-version: 16
-status: approved
+version: 17
+status: draft
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
   pipeline. Normal automatic model and thinking-level routing, app skills and rich embeds are preserved; the old Gemini
@@ -486,6 +486,18 @@ assertions:
     allows resuming continues the same call. Platform limits are never presented as success.
   depends_on:
   - examples.background_resume
+- id: video-call.chat.orchestration-continuity
+  type: behavior
+  must: A call turn may start sub-chats and spawned main chats through the ordinary skills, and the call stays one
+    continuous conversation while they work; the user can keep speaking and is answered as usual. When waited
+    sub-chats finish, the parent turn's continuation is spoken in the call if the call is still active and continues
+    as an ordinary text turn if the call has ended, never failing for that reason. Reports and status changes from
+    spawned main chats start the creator chat's automatic interpreting turn (feature.chat-orchestration
+    chat-orchestration.events.automatic-interpretation); in an active call bound to that chat it plays only after the
+    current assistant speech has finished and while the user is not speaking, and it is spoken in the routed Mate's
+    voice like any answer. Spawned chats never inherit the call; their own turns are text turns.
+  depends_on:
+  - examples.orchestration_continuity
 - id: video-call.audio.complete-turn-admission
   type: invariant
   must: Realtime endpointing separates speech activity from semantic completion and interruption intent. Eager-end preparation
@@ -548,6 +560,7 @@ examples:
   - call_activity
   - call_strip
   - call_events
+  - orchestration_continuity
 
 notes:
   version_12_scope_authorization: >-
@@ -566,3 +579,8 @@ notes:
     uses the routed Mate's voice. The user approved this wording on 2026-11-13 and chose to
     split the former localized-waiting requirement into localized-waiting, waiting-language and
     skills-announcement so each changed requirement maps one or two examples.
+  version_17_orchestration_continuity: >-
+    Direct owner instruction on 2026-11-13 (verified dev-connector receipt) requires voice calls to work with
+    spawned main chats and sub-chats as one continuous conversation: reports and other cross-chat events are
+    interpreted in one automatic turn that is spoken after the current speech and never over the user, close
+    events are combined, and a sub-chat continuation after hangup continues as a text turn.

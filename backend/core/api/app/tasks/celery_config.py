@@ -1264,6 +1264,7 @@ _EXPLICIT_TASK_ROUTES = {
     "apps.ai.tasks.stage_one": "app_ai_routing",
     "apps.ai.tasks.rate_limit_followup": "app_ai",
     "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
+    "apps.ai.tasks.chat_orchestration_interpretation": "app_ai",
     "runtime_health.worker_probe": "app_ai",
     "runtime_health.chat_plumbing_probe": "app_ai",
     "runtime_health.scheduler_heartbeat": "health_check",

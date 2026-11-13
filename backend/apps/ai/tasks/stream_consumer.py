@@ -1355,6 +1355,13 @@ async def _dispatch_sub_chat_parent_continuation(
 
     research_context = pending_context.get("research_context")
     consumed_contexts = [pending_context] + ([research_context] if isinstance(research_context, dict) else [])
+    # Sub-chats can finish long after the user hung up: the call is rechecked
+    # here and an ended call continues the parent as an ordinary text turn.
+    from backend.shared.python_utils.voice_call_admission import resumed_voice_delivery
+    voice_delivery = await resumed_voice_delivery(
+        cache_service, original_request.model_dump(mode="json"),
+        user_id=original_request.user_id, chat_id=original_request.chat_id,
+    )
     continuation_request = AskSkillRequest(
         chat_id=original_request.chat_id,
         message_id=original_request.message_id,
@@ -1363,13 +1370,7 @@ async def _dispatch_sub_chat_parent_continuation(
         message_history=continuation_history,
         chat_has_title=True,
         current_chat_title=original_request.current_chat_title,
-        voice_mode=original_request.voice_mode,
-        voice_call_id=original_request.voice_call_id,
-        voice_turn_id=original_request.voice_turn_id,
-        voice_heard_boundary=original_request.voice_heard_boundary,
-        auto_speak_response=original_request.auto_speak_response,
-        assistant_speech_lazy_dispatch=original_request.assistant_speech_lazy_dispatch,
-        assistant_response_source_revision=original_request.assistant_response_source_revision,
+        **voice_delivery,
         is_incognito=original_request.is_incognito,
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,

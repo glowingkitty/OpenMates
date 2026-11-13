@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@16
+specification: feature.video-call@17
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
@@ -456,3 +456,23 @@ migration_metadata_recovery:
   when: Maya hangs up and reloads.
   then: Normal encrypted recovery retains the response and applies only current metadata; there is no duplicate paid
     generation.
+orchestration_continuity:
+- id: call-starts-chats-and-keeps-talking
+  assertion_ids:
+  - video-call.chat.orchestration-continuity
+  given: Maya is in a voice call in "Weekly planning".
+  when: She says "start a chat that summarizes the recent Git commits", then asks what is on her calendar today.
+  then: The chat "Git commits" starts as a text chat, her calendar question is answered and spoken, and when the
+    Git chat reports, its summary is spoken after the calendar answer has finished.
+- id: subchats-after-hangup
+  assertion_ids:
+  - video-call.chat.orchestration-continuity
+  given: Maya asked in a call to compare three laptops, and the turn waits for three sub-chats.
+  when: She hangs up before they finish.
+  then: The comparison still appears as an ordinary text answer in the chat, and nothing is spoken.
+- id: subchats-during-call
+  assertion_ids:
+  - video-call.chat.orchestration-continuity
+  given: Maya asked in a call to compare three laptops, and the turn waits for three sub-chats.
+  when: They finish while the call is still active.
+  then: The comparison is spoken in the call in the Mate's voice.

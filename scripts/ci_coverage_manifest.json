@@ -1277,6 +1277,9 @@
     "voice-call-real.spec.ts": {
       "next_action": "Real voice calls (ElevenLabs speaker audio as the fake microphone, real Mistral speech-to-text, AI routing, skills and Mate speech): run only on the dev host through scripts/voice_call_web_real_test.py with the personal-dev lease and explicit paid opt-in. Never submit this provider-billed flow to isolated CI; voice-call.spec.ts covers the deterministic call contract there."
     },
+    "voice-call-orchestration-real.spec.ts": {
+      "next_action": "Real voice call that starts a spawned chat and speaks its interpreted report (ElevenLabs speaker audio, real speech-to-text, AI routing, Mate speech): run only on the dev host through scripts/voice_call_orchestration_web_real_test.py with the personal-dev lease and explicit paid opt-in. Never submit this provider-billed flow to isolated CI."
+    },
     "anonymous-cli-skill.spec.ts": {
       "dependency": "official_cloud_eligibility_and_billing",
       "next_action": "Run the public anonymous skill boundary against an isolated official-cloud billing profile. The portable self-host runner intentionally returns 404 for this cloud-only route.",
