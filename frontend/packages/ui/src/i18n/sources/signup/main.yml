@@ -47,7 +47,7 @@ test_for_free:
   he: נסו בחינם
   verified_by_human: []
 version_title:
-  context: Version title on alpha disclaimer page
+  context: Product version title shown in the app header
   en: v0.31
   de: v0.31
   zh: v0.31
@@ -118,102 +118,6 @@ email_ignored:
   sv: "Den här e-postadressen kan inte användas för registrering. Kontakta support om du tror att detta är ett fel."
   he: לא ניתן להשתמש בכתובת אימייל זו להרשמה. אנא צור קשר עם התמיכה אם לדעתך זו טעות.
   verified_by_human: []
-is_alpha_disclaimer:
-  context: Alpha disclaimer text on alpha disclaimer page
-  en: OpenMates is currently an alpha release for early testers.
-  de: OpenMates ist derzeit eine Alpha-Version für frühe Tester.
-  zh: OpenMates 目前是面向早期测试者的测试版。
-  es: OpenMates es actualmente una versión alfa para probadores tempranos.
-  fr: OpenMates est actuellement une version alpha pour les testeurs précoces.
-  pt: OpenMates está atualmente em versão alfa para testadores iniciais.
-  ru: OpenMates в настоящее время является альфа-версией для ранних тестировщиков.
-  ja: OpenMatesは現在、早期テスター向けのアルファリリースです。
-  ko: OpenMates는 현재 초기 테스터를 위한 알파 버전입니다.
-  it: OpenMates è attualmente una versione alpha per i tester precoci.
-  tr: OpenMates şu anda erken test kullanıcıları için bir alfa sürümüdür.
-  vi: OpenMates hiện đang là phiên bản alpha dành cho những người dùng thử nghiệm sớm.
-  id: OpenMates saat ini adalah rilis alpha untuk penguji awal.
-  pl: OpenMates jest obecnie wersją alpha dla wczesnych testerów.
-  nl: OpenMates is momenteel een alpha-release voor vroege testers.
-  ar: OpenMates حاليًا إصدار ألفا للمختبرين الأوائل.
-  hi: OpenMates वर्तमान में प्रारंभिक परीक्षकों के लिए एक अल्फा रिलीज़ है।
-  th: OpenMates อยู่ในช่วงเวอร์ชันอัลฟาสำหรับผู้ทดสอบก่อน
-  cs: OpenMates je v současnosti alfa verze pro rané testery.
-  sv: "OpenMates är för närvarande en alfaversion för tidiga testare."
-  he: OpenMates נמצאת כרגע בגרסת אלפא לנסיינים מוקדמים.
-  verified_by_human: []
-decent_stable:
-  context: Statement about the stability of the alpha release
-  en: This alpha release is decently stable
-  de: Diese Alpha-Version ist recht stabil
-  zh: 此测试版相当稳定
-  es: Esta versión alfa es bastante estable
-  fr: Cette version alpha est raisonnablement stable
-  pt: Esta versão alfa é razoavelmente estável
-  ru: Эта альфа-версия достаточно стабильна
-  ja: このアルファリリースはかなり安定しています
-  ko: 이 알파 버전은 상당히 안정적입니다
-  it: Questa versione alpha è abbastanza stabile
-  tr: Bu alfa sürümü oldukça kararlı
-  vi: Phiên bản alpha này khá ổn định
-  id: Rilis alpha ini cukup stabil
-  pl: Ta wersja alpha jest dość stabilna
-  nl: Deze alpha-release is redelijk stabiel
-  ar: هذا الإصدار ألفا مستقر بشكل معقول
-  hi: यह अल्फा रिलीज़ काफी स्थिर है
-  th: เวอร์ชันอัลฟานี้ค่อนข้างเสถียร
-  cs: Tato alfa verze je poměrně stabilní
-  sv: "Den här alfaversionen är ganska stabil"
-  he: גרסת אלפא זו יציבה למדי
-  verified_by_human: []
-not_all_core_features_implemented:
-  context: Statement about the completeness of the alpha release
-  en: However, not all core features are implemented yet.
-  de: Allerdings sind noch nicht alle Kernfunktionen implementiert.
-  zh: 但是，尚未实现所有核心功能。
-  es: Sin embargo, no todas las funciones principales están implementadas aún.
-  fr: Cependant, toutes les fonctionnalités principales ne sont pas encore implémentées.
-  pt: No entanto, nem todos os recursos principais estão implementados ainda.
-  ru: Однако еще не все основные функции реализованы.
-  ja: ただし、すべてのコア機能がまだ実装されていません。
-  ko: 그러나 모든 핵심 기능이 아직 구현되지 않았습니다.
-  it: Tuttavia, non tutte le funzionalità principali sono ancora implementate.
-  tr: Ancak, henüz tüm temel özellikler uygulanmadı.
-  vi: Tuy nhiên, chưa phải tất cả các tính năng cốt lõi đã được triển khai.
-  id: Namun, belum semua fitur inti diimplementasikan.
-  pl: Jednak nie wszystkie główne funkcje są jeszcze zaimplementowane.
-  nl: Echter zijn nog niet alle kernfuncties geïmplementeerd.
-  ar: ومع ذلك، لم يتم تنفيذ جميع الميزات الأساسية بعد.
-  hi: हालांकि, अभी तक सभी मुख्य सुविधाएं लागू नहीं की गई हैं।
-  th: อย่างไรก็ตาม ยังไม่ได้ใช้งานฟีเจอร์หลักทั้งหมด
-  cs: Nicméně ještě nejsou implementovány všechny základní funkce.
-  sv: "Alla kärnfunktioner är dock inte implementerade ännu."
-  he: עם זאת, לא כל תכונות הליבה הוטמעו עדיין.
-  verified_by_human: []
-expect_bugs_and_missing_features:
-  context: Statement about the expected state of the alpha release
-  en: "Expect some bugs here and there and remember: AI chatbots can make mistakes."
-  de: "Erwarte hier und da einige Fehler und denke daran: KI-Chatbots können Fehler machen."
-  zh: "请预期可能会出现一些错误，并记住：AI 聊天机器人可能会犯错。"
-  es: "Espera algunos errores aquí y allá y recuerda: los chatbots de IA pueden cometer errores."
-  fr: "Attendez-vous à quelques bugs ici et là et rappelez-vous : les chatbots IA peuvent faire des erreurs."
-  pt: "Espere alguns bugs aqui e ali e lembre-se: chatbots de IA podem cometer erros."
-  ru: "Ожидайте некоторые ошибки здесь и там, и помните: AI-чатботы могут ошибаться."
-  ja: "あちこちでバグが発生する可能性があることを予期し、覚えておいてください：AIチャットボットは間違いを犯す可能性があります。"
-  ko: "여기저기 버그가 있을 수 있으며 기억하세요: AI 챗봇은 실수를 할 수 있습니다."
-  it: "Aspettati alcuni bug qua e là e ricorda: i chatbot AI possono commettere errori."
-  tr: "Burada ve orada bazı hatalar bekleyin ve unutmayın: AI sohbet robotları hata yapabilir."
-  vi: "Hãy mong đợi một số lỗi ở đây và đó và nhớ rằng: chatbot AI có thể mắc lỗi."
-  id: "Harap bersiap untuk beberapa bug di sana-sini dan ingat: chatbot AI dapat membuat kesalahan."
-  pl: "Oczekuj niektórych błędów tu i tam oraz pamiętaj: chatboty AI mogą popełniać błędy."
-  nl: "Verwacht hier en daar wat bugs en onthoud: AI-chatbots kunnen fouten maken."
-  ar: "توقع بعض الأخطاء هنا وهناك وتذكر: يمكن لروبوتات الدردشة بالذكاء الاصطناعي أن ترتكب أخطاء."
-  hi: "यहाँ-वहाँ कुछ बग की अपेक्षा करें और याद रखें: AI चैटबॉट गलतियाँ कर सकते हैं।"
-  th: "คาดหวังข้อผิดพลาดบางอย่างที่นี่และที่นั่น และจำไว้ว่า: แชทบอต AI สามารถทำผิดพลาดได้"
-  cs: "Očekávejte některé chyby tu a tam a pamatujte: AI chatboty mohou dělat chyby."
-  sv: "Förvänta dig några buggar här och där och kom ihåg: AI-chatbotar kan göra misstag."
-  he: "צפו לבאגים פה ושם וזכרו: צ'אטבוטים מבוססי בינה מלאכותית עלולים לטעות."
-  verified_by_human: []
 view_on_github:
   context: Button text for viewing the source code on GitHub
   en: View OpenMates on GitHub
@@ -237,102 +141,6 @@ view_on_github:
   cs: Zobrazit OpenMates na GitHub
   sv: "Visa OpenMates på GitHub"
   he: צפה ב-OpenMates ב-GitHub
-  verified_by_human: []
-view_on_github_description:
-  context: Description for the button text for viewing the source code on GitHub
-  en: To discuss bugs, features & stay updated on new releases.
-  de: Um Fehler zu besprechen, Funktionen zu diskutieren und über neue Versionen auf dem Laufenden zu bleiben.
-  zh: 讨论错误、功能并了解新版本更新。
-  es: Para discutir errores, funciones y mantenerse actualizado sobre nuevos lanzamientos.
-  fr: Pour discuter des bugs, des fonctionnalités et rester informé des nouvelles versions.
-  pt: Para discutir bugs, recursos e se manter atualizado sobre novos lançamentos.
-  ru: Для обсуждения ошибок, функций и получения обновлений о новых релизах.
-  ja: バグや機能について議論し、新しいリリースの最新情報を入手するため。
-  ko: 버그 및 기능에 대해 논의하고 새 릴리스에 대한 최신 정보를 받으려면.
-  it: Per discutere bug, funzionalità e rimanere aggiornati sulle nuove versioni.
-  tr: Hataları tartışmak, özellikler hakkında konuşmak ve yeni sürümlerden haberdar olmak için.
-  vi: Để thảo luận về lỗi, tính năng và cập nhật về các phiên bản mới.
-  id: Untuk membahas bug, fitur, dan tetap mengikuti rilis baru.
-  pl: Aby omawiać błędy, funkcje i być na bieżąco z nowymi wersjami.
-  nl: Om bugs te bespreken, functies te bespreken en op de hoogte te blijven van nieuwe releases.
-  ar: لمناقشة الأخطاء والميزات والبقاء محدثًا حول الإصدارات الجديدة.
-  hi: बग, सुविधाओं पर चर्चा करने और नए रिलीज़ पर अपडेट रहने के लिए।
-  th: เพื่อหารือเกี่ยวกับข้อผิดพลาด ฟีเจอร์ และรับข้อมูลอัปเดตเกี่ยวกับการเผยแพร่ใหม่
-  cs: Pro diskusi o chybách, funkcích a aktualizacích o nových verzích.
-  sv: "För att diskutera buggar, funktioner och hålla dig uppdaterad om nya versioner."
-  he: כדי לדון בבאגים, תכונות ולהישאר מעודכנים בגרסאות חדשות.
-  verified_by_human: []
-view_on_instagram:
-  context: Button text for viewing the source code on Instagram
-  en: View OpenMates on Instagram
-  de: OpenMates auf Instagram ansehen
-  zh: 在 Instagram 上查看 OpenMates
-  es: Ver OpenMates en Instagram
-  fr: Voir OpenMates sur Instagram
-  pt: Ver OpenMates no Instagram
-  ru: Посмотреть OpenMates в Instagram
-  ja: InstagramでOpenMatesを表示
-  ko: Instagram에서 OpenMates 보기
-  it: Visualizza OpenMates su Instagram
-  tr: Instagram'da OpenMates'i görüntüle
-  vi: Xem OpenMates trên Instagram
-  id: Lihat OpenMates di Instagram
-  pl: Zobacz OpenMates na Instagram
-  nl: Bekijk OpenMates op Instagram
-  ar: عرض OpenMates على Instagram
-  hi: Instagram पर OpenMates देखें
-  th: ดู OpenMates บน Instagram
-  cs: Zobrazit OpenMates na Instagram
-  sv: "Visa OpenMates på Instagram"
-  he: צפה ב-OpenMates ב-Instagram
-  verified_by_human: []
-view_on_instagram_description:
-  context: Description for the button text for viewing the source code on Instagram
-  en: To stay updated on new releases & other updates.
-  de: Um über neue Versionen und andere Updates auf dem Laufenden zu bleiben.
-  zh: 了解新版本和其他更新。
-  es: Para mantenerse actualizado sobre nuevos lanzamientos y otras actualizaciones.
-  fr: Pour rester informé des nouvelles versions et autres mises à jour.
-  pt: Para se manter atualizado sobre novos lançamentos e outras atualizações.
-  ru: Чтобы быть в курсе новых релизов и других обновлений.
-  ja: 新しいリリースやその他の更新について最新情報を入手するため。
-  ko: 새 릴리스 및 기타 업데이트에 대한 최신 정보를 받으려면.
-  it: Per rimanere aggiornati su nuove versioni e altri aggiornamenti.
-  tr: Yeni sürümler ve diğer güncellemeler hakkında bilgi almak için.
-  vi: Để cập nhật về các phiên bản mới và các cập nhật khác.
-  id: Untuk tetap mengikuti rilis baru dan pembaruan lainnya.
-  pl: Aby być na bieżąco z nowymi wersjami i innymi aktualizacjami.
-  nl: Om op de hoogte te blijven van nieuwe releases en andere updates.
-  ar: للبقاء محدثًا حول الإصدارات الجديدة والتحديثات الأخرى.
-  hi: नए रिलीज़ और अन्य अपडेट पर अपडेट रहने के लिए।
-  th: เพื่อรับข้อมูลอัปเดตเกี่ยวกับการเผยแพร่ใหม่และการอัปเดตอื่นๆ
-  cs: Pro aktualizace o nových verzích a dalších aktualizacích.
-  sv: "För att hålla dig uppdaterad om nya versioner och andra uppdateringar."
-  he: כדי להישאר מעודכנים בגרסאות חדשות ועדכונים נוספים.
-  verified_by_human: []
-continue_with_alpha:
-  context: Button text for continuing with the alpha release
-  en: Continue with {version}
-  de: Mit {version} fortfahren
-  zh: 继续使用 {version}
-  es: Continuar con {version}
-  fr: Continuer avec {version}
-  pt: Continuar com {version}
-  ru: Продолжить с {version}
-  ja: "{version}で続行"
-  ko: "{version}로 계속"
-  it: Continua con {version}
-  tr: "{version} ile devam et"
-  vi: Tiếp tục với {version}
-  id: Lanjutkan dengan {version}
-  pl: Kontynuuj z {version}
-  nl: Doorgaan met {version}
-  ar: متابعة مع {version}
-  hi: "{version} के साथ जारी रखें"
-  th: ดำเนินการต่อด้วย {version}
-  cs: Pokračovat s {version}
-  sv: "Fortsätt med {version}"
-  he: "המשך עם {version}"
   verified_by_human: []
 server_admin:
   context: Heading on signup page indicating server admin signup

@@ -2,7 +2,6 @@ import { writable } from "svelte/store";
 import { authFlowActive, isSettingsStepPushed, isSignupPathPushed, pathFromStepPushed, primeSignupPath, primeSignupStep, signupStepPushed } from "../services/rustCore/auth/flowPush";
 
 // Step name constants
-export const STEP_ALPHA_DISCLAIMER = "alpha_disclaimer";
 export const STEP_BASICS = "basics";
 export const STEP_CONFIRM_EMAIL = "confirm_email";
 export const STEP_SECURE_ACCOUNT = "secure_account";
@@ -167,7 +166,7 @@ export function resetForcedLogoutInProgress(): void {
 }
 
 // Store to track current signup step
-// Initialize to null/empty so that Signup.svelte can properly detect new signups and show alpha disclaimer
+// Initialize to null/empty so that Signup.svelte can properly detect new signups and start at the basics step
 export const currentSignupStep = writable<string>("");
 
 // Store to track if user is resetting 2FA from TFA App Reminder step

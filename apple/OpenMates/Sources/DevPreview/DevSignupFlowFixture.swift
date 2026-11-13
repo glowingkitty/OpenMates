@@ -72,7 +72,6 @@ struct DevSignupFlowFixture: View {
         .task {
             guard !didBootstrap else { return }; didBootstrap = true
             await model.loadRequirements()
-            if configuration.variant != "alpha-disclaimer" { model.continueFromDisclaimer() }
             if ["confirm-email", "secure-account", "password", "creation-uncertain", "passkey", "passkey-prf-error", "passkey-cancel", "passkey-uncertain"].contains(configuration.variant) {
                 model.basicsModel.form = .init(email: "fixture@example.test", username: "Fixture", termsAccepted: true, privacyAccepted: true)
                 if let accepted = await model.basicsModel.submit() { model.acceptRequestedEmailCode(accepted) }

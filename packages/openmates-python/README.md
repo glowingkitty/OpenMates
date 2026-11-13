@@ -315,7 +315,7 @@ it yet; from a source checkout run
 OpenMates shows the short product line, for example `v0.31`, in the web app.
 Python package artifacts use exact release-line versions:
 
-- `0.31.0aN` is an alpha prerelease from the `dev` branch.
+- `0.31.0aN` is a prerelease from the `dev` branch.
 - `0.31.0` is a stable release from `main`.
 
 Install stable releases with `pip install openmates`. Install prereleases with

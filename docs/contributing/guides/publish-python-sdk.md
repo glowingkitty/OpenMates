@@ -42,7 +42,7 @@ The checked-in `packages/openmates-python/pyproject.toml` version should match
 `python.stableBase`. The publish workflow rewrites that version in CI when publishing:
 
 - Pull requests validate tests and package builds only. They never publish to PyPI.
-- `dev` publishes the next alpha on the configured fixed train. For example, `0.31.0a0`, then `0.31.0a1`.
+- `dev` publishes the next prerelease on the configured fixed train. For example, `0.31.0a0`, then `0.31.0a1`.
 - `main` publishes the configured stable base, for example `0.31.0`, and PyPI skips duplicate files if that exact version already exists.
 
 Use prerelease installs only when a prerelease has been published manually or by
@@ -78,7 +78,7 @@ python3 scripts/prepare_python_publish_version.py --channel=main --dry-run
 ## Automated Publish Flow
 
 The `.github/workflows/publish-python-sdk.yml` workflow validates pull requests,
-publishes alpha artifacts from every `dev` push, and publishes stable artifacts
+publishes prerelease artifacts from every `dev` push, and publishes stable artifacts
 after pushes to `main`. Manual `workflow_dispatch` runs validate the package
 without publishing.
 

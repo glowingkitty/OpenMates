@@ -25743,32 +25743,8 @@
     "email_ignored": {
       "text": "This email address cannot be used for signup. Please contact support if you believe this is an error."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates is currently an alpha release for early testers."
-    },
-    "decent_stable": {
-      "text": "This alpha release is decently stable"
-    },
-    "not_all_core_features_implemented": {
-      "text": "However, not all core features are implemented yet."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Expect some bugs here and there and remember: AI chatbots can make mistakes."
-    },
     "view_on_github": {
       "text": "View OpenMates on GitHub"
-    },
-    "view_on_github_description": {
-      "text": "To discuss bugs, features & stay updated on new releases."
-    },
-    "view_on_instagram": {
-      "text": "View OpenMates on Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "To stay updated on new releases & other updates."
-    },
-    "continue_with_alpha": {
-      "text": "Continue with {version}"
     },
     "server_admin": {
       "text": "Server admin"

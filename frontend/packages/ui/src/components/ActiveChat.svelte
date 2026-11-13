@@ -96,7 +96,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         isLoggingOut, 
         forcedLogoutInProgress,
         isSignupPath,
-        STEP_ALPHA_DISCLAIMER,
         STEP_BASICS,
         STEP_CONFIRM_EMAIL,
         STEP_SECURE_ACCOUNT,
@@ -819,13 +818,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // Step sequences for signup status bar (must match Signup.svelte)
     // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up
     const fullStepSequence = [
-        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
+        STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
     const passkeyStepSequence = [
-        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
+        STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
@@ -8243,7 +8242,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS.has(inspiration.feature?.feature_id ?? '')
             )) {
                 console.debug('[ActiveChat] Guest clicked authenticated-only feature inspiration – opening signup interface');
-                currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+                currentSignupStep.set(STEP_BASICS);
                 isInSignupProcess.set(true);
                 loginInterfaceOpen.set(true);
                 if ($panelState.isActivityHistoryOpen) {
@@ -8267,12 +8266,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
 
-        // Unauthenticated users: open the signup screen (alpha disclaimer step) so they
+        // Unauthenticated users: open the signup screen (basics step) so they
         // can register and then start using inspirations.
         // Same pattern as handleOpenSignupInterface (message-input signup button).
         if (!$authStore.isAuthenticated) {
             console.debug('[ActiveChat] Guest clicked inspiration banner – opening signup interface');
-            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            currentSignupStep.set(STEP_BASICS);
             isInSignupProcess.set(true);
             loginInterfaceOpen.set(true);
             if ($panelState.isActivityHistoryOpen) {
@@ -12010,9 +12009,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
         // Listen for event to open signup interface from message input button
         const handleOpenSignupInterface = () => {
-            console.debug("[ActiveChat] Opening signup interface (alpha disclaimer) from message input button");
-            // Set signup state directly to alpha disclaimer
-            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            console.debug("[ActiveChat] Opening signup interface from message input button");
+            // Set signup state directly to the first signup step
+            currentSignupStep.set(STEP_BASICS);
             isInSignupProcess.set(true);
             loginInterfaceOpen.set(true);
             
@@ -13929,9 +13928,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     bind:this={activeChatContainerEl}
 >
     {#if !showChat}
-        <!-- Signup status bar - only show during signup process, not on basics or alpha disclaimer steps -->
+        <!-- Signup status bar - only show during signup process, not on the basics step -->
         <!-- Moved to be a child of active-chat-container for better positioning with gradient -->
-        {#if $isInSignupProcess && $currentSignupStep !== STEP_BASICS && $currentSignupStep !== STEP_ALPHA_DISCLAIMER}
+        {#if $isInSignupProcess && $currentSignupStep !== STEP_BASICS}
             <div class="status-wrapper" transition:fade={fadeParams}>
                 <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} isSelfHosted={isSelfHosted} />
             </div>

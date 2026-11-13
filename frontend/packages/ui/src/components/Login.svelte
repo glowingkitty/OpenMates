@@ -4,7 +4,7 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, devicePasswordFallbackAvailable, devicePasswordCredentialVersion, deviceVerificationReason, checkAuth, logout, bumpLoginSessionGeneration } from '../stores/authStore';
-    import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, primeSignupLocation, STEP_PAYMENT } from '../stores/signupState';
+    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, primeSignupLocation, STEP_PAYMENT } from '../stores/signupState';
     import { clearSignupData } from '../stores/signupStore';
     import { requireInviteCode } from '../stores/signupRequirements';
     import { get } from 'svelte/store';
@@ -430,9 +430,8 @@
             // Continue with signup even if check fails - the Basics component will handle validation
         }
 
-        // Reset the signup step to alpha disclaimer when starting a new signup process
-        // This ensures users see the alpha disclaimer before proceeding with signup
-        currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+        // Reset the signup step to the first step when starting a new signup process
+        currentSignupStep.set(STEP_BASICS);
         
         // Set the signup process flag, which will reactively change the view
         isInSignupProcess.set(true);
@@ -461,9 +460,9 @@
         // This ensures sensitive data is removed if user switches views
         clearSignupData();
 
-        // Reset the signup step to alpha disclaimer for clean state when returning to signup later
+        // Reset the signup step for clean state when returning to signup later
         // This ensures users will start fresh if they switch back to signup
-        currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+        currentSignupStep.set(STEP_BASICS);
 
         // Reset the signup process flag, which will reactively change the view
         isInSignupProcess.set(false);
@@ -2111,11 +2110,11 @@
     });
 
     // Determine if tabs should be visible
-    // Tabs should only be visible on login screen or during alpha disclaimer and basics steps
+    // Tabs should only be visible on login screen or during the basics step
     // Once user reaches confirm email step, tabs should be hidden
     let showTabs = $derived(
         (currentView === 'login' || 
-        (currentView === 'signup' && ($currentSignupStep === STEP_ALPHA_DISCLAIMER || $currentSignupStep === STEP_BASICS)))
+        (currentView === 'signup' && $currentSignupStep === STEP_BASICS))
     );
     
     // State for SignupNav (exposed from Signup component via bindable props)
@@ -2685,7 +2684,7 @@
                     </div> <!-- End content-area for login view -->
                 {:else} <!-- Handles currentView !== 'login' -->
                     <div class="content-area" in:fade={{ duration: 200 }}>
-                        <!-- Login/Signup tabs - only show during alpha disclaimer and basics steps -->
+                        <!-- Login/Signup tabs - only show during the basics step -->
                         {#if showTabs}
                             <div class="login-tabs" data-testid="login-tabs">
                                 <button

@@ -201,15 +201,10 @@ test(`completes passkey signup and account deletion with stay logged in ${stayLo
 		const loginTabs = page.getByTestId('login-tabs');
 		await expect(loginTabs).toBeVisible();
 		await loginTabs.getByRole('button', { name: /sign up/i }).click();
-		await takeStepScreenshot(page, 'signup-alpha');
+		await takeStepScreenshot(page, 'signup-first-step');
 
-		// Alpha disclaimer: verify outbound links exist and continue.
-		const githubLink = page.getByTestId('signup-alpha-github-link');
-		const instagramLink = page.getByTestId('signup-alpha-instagram-link');
-		await expect(githubLink).toBeVisible();
-		await expect(instagramLink).toBeVisible();
-
-		await page.getByRole('button', { name: /continue/i }).click();
+		// Signup opens directly on the basics step; no status step comes before it.
+		await expect(page.locator('input[autocomplete="email"], [data-testid="signup-invite-code-input"]').first()).toBeVisible({ timeout: 10000 });
 		await takeStepScreenshot(page, 'basics-step');
 		logSignupCheckpoint('Reached basics step.');
 

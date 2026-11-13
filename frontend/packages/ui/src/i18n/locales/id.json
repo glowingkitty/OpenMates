@@ -20752,32 +20752,8 @@
     "email_ignored": {
       "text": "Alamat email ini tidak dapat digunakan untuk mendaftar. Silakan hubungi dukungan jika Anda merasa ini adalah kesalahan."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates saat ini adalah rilis alpha untuk penguji awal."
-    },
-    "decent_stable": {
-      "text": "Rilis alpha ini cukup stabil"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Namun, belum semua fitur inti diimplementasikan."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Harap bersiap untuk beberapa bug di sana-sini dan ingat: chatbot AI dapat membuat kesalahan."
-    },
     "view_on_github": {
       "text": "Lihat OpenMates di GitHub"
-    },
-    "view_on_github_description": {
-      "text": "Untuk membahas bug, fitur, dan tetap mengikuti rilis baru."
-    },
-    "view_on_instagram": {
-      "text": "Lihat OpenMates di Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "Untuk tetap mengikuti rilis baru dan pembaruan lainnya."
-    },
-    "continue_with_alpha": {
-      "text": "Lanjutkan dengan {version}"
     },
     "server_admin": {
       "text": "Admin server"

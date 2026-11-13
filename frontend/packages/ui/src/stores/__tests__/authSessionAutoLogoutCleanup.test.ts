@@ -84,9 +84,10 @@ vi.mock("../userProfile", async () => {
   };
 });
 
-vi.mock("svelte-i18n", async () => {
+vi.mock("svelte-i18n", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("svelte-i18n")>();
   const { writable } = await import("svelte/store");
-  return { locale: writable("en") };
+  return { ...actual, locale: writable("en") };
 });
 
 vi.mock("../../services/cryptoService", () => ({
@@ -156,7 +157,7 @@ vi.mock("../signupState", async () => {
     currentSignupStep: { set: vi.fn(() => cleanupCalls.push("currentSignupStep.set")) },
     isInSignupProcess: writable(false),
     getStepFromPath: vi.fn(),
-    STEP_ALPHA_DISCLAIMER: "alpha-disclaimer",
+    STEP_BASICS: "basics",
     isSignupPath: vi.fn(() => false),
     isResettingTFA: { set: vi.fn(() => cleanupCalls.push("isResettingTFA.set")) },
     isLoggingOut: writable(false),

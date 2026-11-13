@@ -13175,7 +13175,7 @@
           "text": "OpenMatesについて"
         },
         "description": {
-          "text": "OpenMatesは現在、初期開発段階にあるクローズドソースのソフトウェアプロジェクトです。この一時的なクローズドソースの状態は、初期開発とベータテスト段階におけるセキュリティと安定性を確保するために維持されています。プロジェクトは、初期ベータテストとセキュリティレビューの完了後、オープンソースに移行する予定です。このウェブサイトは、OpenMatesプロジェクトとその開発進捗に関する情報プラットフォームとして機能します。"
+          "text": "OpenMatesは、AGPL-3.0ライセンスで提供されるオープンソースのAIエージェントプラットフォームです。openmates.orgでクラウドホスト型サービス、連携用の開発者API、CLIツールを提供しています。ソフトウェアはセルフホストすることも可能です - 詳細は[GitHubリポジトリ](https://github.com/glowingkitty/OpenMates)および[ドキュメント](https://docs.openmates.org)をご覧ください。"
         }
       },
       "intellectual_property": {
@@ -20752,32 +20752,8 @@
     "email_ignored": {
       "text": "このメールアドレスは新規登録に使用できません。これがエラーであると思われる場合は、サポートにお問い合わせください。"
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMatesは現在、早期テスター向けのアルファリリースです。"
-    },
-    "decent_stable": {
-      "text": "このアルファリリースはかなり安定しています"
-    },
-    "not_all_core_features_implemented": {
-      "text": "ただし、すべてのコア機能がまだ実装されていません。"
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "あちこちでバグが発生する可能性があることを予期し、覚えておいてください：AIチャットボットは間違いを犯す可能性があります。"
-    },
     "view_on_github": {
       "text": "GitHubでOpenMatesを表示"
-    },
-    "view_on_github_description": {
-      "text": "バグや機能について議論し、新しいリリースの最新情報を入手するため。"
-    },
-    "view_on_instagram": {
-      "text": "InstagramでOpenMatesを表示"
-    },
-    "view_on_instagram_description": {
-      "text": "新しいリリースやその他の更新について最新情報を入手するため。"
-    },
-    "continue_with_alpha": {
-      "text": "{version}で続行"
     },
     "server_admin": {
       "text": "サーバー管理者"

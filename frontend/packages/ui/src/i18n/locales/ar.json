@@ -20752,32 +20752,8 @@
     "email_ignored": {
       "text": "لا يمكن استخدام عنوان البريد الإلكتروني هذا للتسجيل. يرجى الاتصال بالدعم إذا كنت تعتقد أن هذا خطأ."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates حاليًا إصدار ألفا للمختبرين الأوائل."
-    },
-    "decent_stable": {
-      "text": "هذا الإصدار ألفا مستقر بشكل معقول"
-    },
-    "not_all_core_features_implemented": {
-      "text": "ومع ذلك، لم يتم تنفيذ جميع الميزات الأساسية بعد."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "توقع بعض الأخطاء هنا وهناك وتذكر: يمكن لروبوتات الدردشة بالذكاء الاصطناعي أن ترتكب أخطاء."
-    },
     "view_on_github": {
       "text": "عرض OpenMates على GitHub"
-    },
-    "view_on_github_description": {
-      "text": "لمناقشة الأخطاء والميزات والبقاء محدثًا حول الإصدارات الجديدة."
-    },
-    "view_on_instagram": {
-      "text": "عرض OpenMates على Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "للبقاء محدثًا حول الإصدارات الجديدة والتحديثات الأخرى."
-    },
-    "continue_with_alpha": {
-      "text": "متابعة مع {version}"
     },
     "server_admin": {
       "text": "مسؤول الخادم"

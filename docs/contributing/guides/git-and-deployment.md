@@ -307,31 +307,30 @@ After the PR is merged, `Publish GitHub Release` waits for the CLI, Python SDK, 
 
 **IMPORTANT: Only create a release when the user explicitly asks for one**, OR as part of a PR workflow when the user asked to create a PR. Never create a release on your own initiative at other times.
 
-Releases are published automatically as **pre-releases** while the product is in alpha. Publication is fail-closed: all required workflows and artifacts must exist for the same `main` commit. Draft releases are optional editorial preparation; the automated publisher updates a matching draft or creates the release itself.
+Releases are published automatically as **pre-releases** while the product line is below 1.0 (`0.x`). Publication is fail-closed: all required workflows and artifacts must exist for the same `main` commit. Draft releases are optional editorial preparation; the automated publisher updates a matching draft or creates the release itself.
 
 ### Versioning Guidelines
 
 OpenMates separates the **user-facing product line** from exact artifact versions:
 
 - Product UI and marketing copy show `vMAJOR.MINOR`, for example `v0.31`.
-- npm, PyPI, GHCR images, and GitHub release tags use exact SemVer/PEP 440 versions, for example `0.31.0-alpha.1`, `0.31.0a1`, or `v0.31.0-alpha.1` while in alpha.
+- npm, PyPI, GHCR images, and GitHub release tags use exact SemVer/PEP 440 versions, for example `0.31.0-alpha.1`, `0.31.0a1`, or `v0.31.0-alpha.1` on the current prerelease train.
 - `shared/config/product_version.json` is the source of truth: `userFacing` stores the product line, and `cli.stableBase` / `python.stableBase` store the fixed artifact base for that line.
 
-Artifact releases use semantic versioning in the format `vMAJOR.MINOR.PATCH-phase`:
+Artifact releases use semantic versioning in the format `vMAJOR.MINOR.PATCH[-prerelease]`. The prerelease suffix is a version-train identifier only; it is never used as a product label in the UI, README, release titles or marketing copy. Use the status note "OpenMates is under active development, and new functions arrive regularly." wherever a status line is needed.
 
-| Phase  | Example        | When to use                                                                             |
-| ------ | -------------- | --------------------------------------------------------------------------------------- |
-| Alpha  | `v0.5.0-alpha` | Core features still being built; significant bugs expected; not ready for general users |
-| Beta   | `v1.0.0-beta`  | Core features complete; usable for a wider audience; known bugs being fixed             |
-| Stable | `v1.0.0`       | Production-ready; all major user flows work reliably                                    |
+| Suffix        | Example          | When to use                                                                |
+| ------------- | ---------------- | -------------------------------------------------------------------------- |
+| `-alpha[.N]`  | `v0.31.0-alpha.1` | Prerelease artifacts of the `0.x` product lines, published from `dev`      |
+| none          | `v1.0.0`         | Production-ready; all major user flows work reliably                       |
 
-**Current phase:** Alpha — the app currently shows **v0.31** as the user-facing product line. Dev artifacts publish on a fixed alpha train such as `0.31.0-alpha.N` for npm/GHCR and `0.31.0aN` for PyPI. The next minor product line is `v0.31`.
+**Current phase:** `0.x`, under active development — the app currently shows **v0.31** as the user-facing product line. Dev artifacts publish on a fixed prerelease train such as `0.31.0-alpha.N` for npm/GHCR and `0.31.0aN` for PyPI. The next minor product line is `v0.31`.
 
 **How to bump the version:**
 
-- **Alpha artifact** (`v0.31.0-alpha.0` → `v0.31.0-alpha.1`): additional dev publishes inside the same product line
+- **Prerelease artifact** (`v0.31.0-alpha.0` → `v0.31.0-alpha.1`): additional dev publishes inside the same product line
 - **Minor product line** (`v0.31` → `v0.31`): new features added or significant changes
-- **Major / phase change** (`v0.x-alpha` → `v1.0.0-beta`): when core user flows are stable and the app is ready for a broader audience — **always confirm with the user before doing this**
+- **Major change** (`v0.x` → `v1.0.0`): when core user flows are stable and the app is ready for a broader audience — **always confirm with the user before doing this**
 
 **How to determine the next version:**
 
@@ -345,9 +344,9 @@ git tag --sort=-v:refname | head -5
 
 Inspect the commits going into the PR and decide:
 
-- Mostly `fix:` commits → stay in the current product line; dev package/image workflows publish the next alpha artifact automatically
+- Mostly `fix:` commits → stay in the current product line; dev package/image workflows publish the next prerelease artifact automatically
 - Any `feat:` commits → consider a new minor product line (e.g. `v0.31` → `v0.31`)
-- Major milestone reached → consult the user before bumping major or changing phase
+- Major milestone reached → consult the user before bumping major
 
 **Note:** Run `python3 scripts/bump_alpha_version_line.py --minor <X>` when bumping the minor product line. Keep `userFacing` aligned with the short product line, e.g. `v0.31`, while `cli.stableBase` / `python.stableBase` define the fixed artifact base, e.g. `0.31.0`. Dev publishes prereleases on that fixed train (`0.31.0-alpha.0`, then `0.31.0-alpha.1` for npm/GHCR; `0.31.0a0`, then `0.31.0a1` for PyPI). Main publishes the configured stable base (`0.31.0`) and skips if that exact version is already published. After the stable base exists on PyPI, bump the product minor line before publishing more Python prereleases because PEP 440 alpha versions sort below the stable base. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
 
@@ -359,7 +358,7 @@ Inspect the commits going into the PR and decide:
 gh release list --limit 3   # see current latest tag
 ```
 
-Decide on the next tag (e.g. `v0.5.0-alpha`) based on the versioning rules above.
+Decide on the next tag (e.g. `v0.31.0-alpha`) based on the versioning rules above.
 
 **Step 2 — Write release notes**
 
@@ -403,11 +402,11 @@ EOF
 Example:
 
 ```bash
-gh release create v0.5.0-alpha \
+gh release create v0.31.0-alpha \
   --target main \
-  --title "v0.5.0-alpha" \
+  --title "v0.31: short summary of the release" \
   --notes "$(cat <<'EOF'
-## What's new in v0.5.0-alpha
+## What's new in v0.31
 
 This release adds support for X and fixes several issues with Y.
 

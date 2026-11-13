@@ -20752,32 +20752,8 @@
     "email_ignored": {
       "text": "Địa chỉ e-mail này không thể được sử dụng để đăng ký. Vui lòng liên hệ với bộ phận hỗ trợ nếu bạn tin rằng đây là một lỗi."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates hiện đang là phiên bản alpha dành cho những người dùng thử nghiệm sớm."
-    },
-    "decent_stable": {
-      "text": "Phiên bản alpha này khá ổn định"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Tuy nhiên, chưa phải tất cả các tính năng cốt lõi đã được triển khai."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Hãy mong đợi một số lỗi ở đây và đó và nhớ rằng: chatbot AI có thể mắc lỗi."
-    },
     "view_on_github": {
       "text": "Xem OpenMates trên GitHub"
-    },
-    "view_on_github_description": {
-      "text": "Để thảo luận về lỗi, tính năng và cập nhật về các phiên bản mới."
-    },
-    "view_on_instagram": {
-      "text": "Xem OpenMates trên Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "Để cập nhật về các phiên bản mới và các cập nhật khác."
-    },
-    "continue_with_alpha": {
-      "text": "Tiếp tục với {version}"
     },
     "server_admin": {
       "text": "Quản trị viên máy chủ"

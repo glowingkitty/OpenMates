@@ -20752,32 +20752,8 @@
     "email_ignored": {
       "text": "Этот адрес электронной почты не может быть использован для регистрации. Пожалуйста, свяжитесь с поддержкой, если вы считаете, что это ошибка."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates в настоящее время является альфа-версией для ранних тестировщиков."
-    },
-    "decent_stable": {
-      "text": "Эта альфа-версия достаточно стабильна"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Однако еще не все основные функции реализованы."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Ожидайте некоторые ошибки здесь и там, и помните: AI-чатботы могут ошибаться."
-    },
     "view_on_github": {
       "text": "Посмотреть OpenMates на GitHub"
-    },
-    "view_on_github_description": {
-      "text": "Для обсуждения ошибок, функций и получения обновлений о новых релизах."
-    },
-    "view_on_instagram": {
-      "text": "Посмотреть OpenMates в Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "Чтобы быть в курсе новых релизов и других обновлений."
-    },
-    "continue_with_alpha": {
-      "text": "Продолжить с {version}"
     },
     "server_admin": {
       "text": "Администратор сервера"

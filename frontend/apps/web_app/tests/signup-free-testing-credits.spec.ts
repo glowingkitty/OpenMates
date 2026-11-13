@@ -58,11 +58,7 @@ async function openSignupBasics(page: any, path: string = '/') {
 	await expect(loginTabs).toBeVisible({ timeout: 10000 });
 	await loginTabs.getByRole('button', { name: /sign up/i }).click();
 
-	await expect(page.getByText('OpenMates is currently an alpha release for early testers.')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByRole('link', { name: /view openmates on github/i })).toBeVisible();
-	await expect(page.getByRole('link', { name: /view openmates on instagram/i })).toBeVisible();
-
-	await page.getByRole('button', { name: /continue/i }).click();
+	await expect(page.locator('input[autocomplete="email"], [data-testid="signup-invite-code-input"]').first()).toBeVisible({ timeout: 10000 });
 	await expect(page.getByRole('heading', { name: /sign up/i })).toBeVisible({ timeout: 10000 });
     const inviteInput = page.getByTestId('signup-invite-code-input');
     if (await inviteInput.isVisible().catch(() => false)) {

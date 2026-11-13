@@ -142,10 +142,8 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 	const loginTabs = page.getByTestId('login-tabs');
 	await expect(loginTabs).toBeVisible({ timeout: 10000 });
 	await loginTabs.getByRole('button', { name: /sign up/i }).click();
-	await takeStepScreenshot(page, 'signup-alpha');
+	await takeStepScreenshot(page, 'signup-first-step');
 	await assertNoMissingTranslations(page);
-
-	await page.getByRole('button', { name: /continue/i }).click();
 	await takeStepScreenshot(page, 'basics-step');
 
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');

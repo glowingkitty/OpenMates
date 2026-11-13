@@ -13202,7 +13202,7 @@
           "text": "À propos d'OpenMates"
         },
         "description": {
-          "text": "OpenMates est actuellement un projet de logiciel à code source fermé pendant sa phase de développement initiale. Ce statut temporaire de code source fermé est maintenu pour assurer la sécurité et la stabilité pendant les premières phases de développement et de test bêta. Le projet passera en open-source après la fin des premiers tests bêta et des examens de sécurité. Ce site web sert de plateforme d'information sur le projet OpenMates et sa progression de développement."
+          "text": "OpenMates est une plateforme d'agents IA open source disponible sous licence AGPL-3.0. Nous proposons un service hébergé dans le cloud sur openmates.org, une API pour développeurs destinée à l'intégration et un outil CLI. Le logiciel peut aussi être auto-hébergé - consultez notre [dépôt GitHub](https://github.com/glowingkitty/OpenMates) et la [documentation](https://docs.openmates.org) pour plus de détails."
         }
       },
       "intellectual_property": {
@@ -20779,32 +20779,8 @@
     "email_ignored": {
       "text": "Cette adresse e-mail ne peut pas être utilisée pour l'inscription. Veuillez contacter le support si vous pensez qu'il s'agit d'une erreur."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates est actuellement une version alpha pour les testeurs précoces."
-    },
-    "decent_stable": {
-      "text": "Cette version alpha est raisonnablement stable"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Cependant, toutes les fonctionnalités principales ne sont pas encore implémentées."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Attendez-vous à quelques bugs ici et là et rappelez-vous : les chatbots IA peuvent faire des erreurs."
-    },
     "view_on_github": {
       "text": "Voir OpenMates sur GitHub"
-    },
-    "view_on_github_description": {
-      "text": "Pour discuter des bugs, des fonctionnalités et rester informé des nouvelles versions."
-    },
-    "view_on_instagram": {
-      "text": "Voir OpenMates sur Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "Pour rester informé des nouvelles versions et autres mises à jour."
-    },
-    "continue_with_alpha": {
-      "text": "Continuer avec {version}"
     },
     "server_admin": {
       "text": "Administrateur"

@@ -128,7 +128,7 @@ context; generic boolean DELETE confirmation is not supported.
 **Other:** `mentions list/search`, `embeds show/share`, `inspirations`, `newchatsuggestions`, `docs list/search/show/download`, `update`/`upgrade` for updating the globally installed CLI package
 
 **Release channel:** `openmates upgrade --channel dev` selects the dev branch's npm
-`alpha` stream; `--channel stable` (or `main`) selects npm `latest`. The preference
+prerelease (`alpha` tag) stream; `--channel stable` (or `main`) selects npm `latest`. The preference
 is stored in `~/.openmates/updates.json` across authentication profiles and survives
 upgrades. Subsequent `openmates upgrade` and `openmates version` use it. Stable
 installations default to stable and prereleases default to dev when no preference

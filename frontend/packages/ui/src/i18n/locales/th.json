@@ -20752,32 +20752,8 @@
     "email_ignored": {
       "text": "ไม่สามารถใช้ที่อยู่อีเมลนี้เพื่อลงทะเบียนได้ โปรดติดต่อฝ่ายสนับสนุนหากคุณเชื่อว่านี่เป็นข้อผิดพลาด"
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates อยู่ในช่วงเวอร์ชันอัลฟาสำหรับผู้ทดสอบก่อน"
-    },
-    "decent_stable": {
-      "text": "เวอร์ชันอัลฟานี้ค่อนข้างเสถียร"
-    },
-    "not_all_core_features_implemented": {
-      "text": "อย่างไรก็ตาม ยังไม่ได้ใช้งานฟีเจอร์หลักทั้งหมด"
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "คาดหวังข้อผิดพลาดบางอย่างที่นี่และที่นั่น และจำไว้ว่า: แชทบอต AI สามารถทำผิดพลาดได้"
-    },
     "view_on_github": {
       "text": "ดู OpenMates บน GitHub"
-    },
-    "view_on_github_description": {
-      "text": "เพื่อหารือเกี่ยวกับข้อผิดพลาด ฟีเจอร์ และรับข้อมูลอัปเดตเกี่ยวกับการเผยแพร่ใหม่"
-    },
-    "view_on_instagram": {
-      "text": "ดู OpenMates บน Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "เพื่อรับข้อมูลอัปเดตเกี่ยวกับการเผยแพร่ใหม่และการอัปเดตอื่นๆ"
-    },
-    "continue_with_alpha": {
-      "text": "ดำเนินการต่อด้วย {version}"
     },
     "server_admin": {
       "text": "ผู้ดูแลระบบเซิร์ฟเวอร์"

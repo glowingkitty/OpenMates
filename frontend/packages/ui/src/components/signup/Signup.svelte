@@ -16,7 +16,7 @@
     import { clearKeyFromStorage, clearAllEmailData, getEmailEncryptionKeyForApi } from '../../services/cryptoService';
 
     // Import signup state stores
-    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter, getPathFromStep, primeSignupStepLocation, STEP_ALPHA_DISCLAIMER } from '../../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter, getPathFromStep, primeSignupStepLocation } from '../../stores/signupState';
     import { isRecoveryKeyCreationActive } from '../../stores/recoveryKeyUIState';
 
     // Step name constants
@@ -65,7 +65,6 @@
     import TfaAppReminderTopContent from './steps/tfaappreminder/TfaAppReminderTopContent.svelte';
     import SettingsTopContent from './steps/settings/SettingsTopContent.svelte';
     import MateSettingsTopContent from './steps/matesettings/MateSettingsTopContent.svelte';
-    import AlphaDisclaimerContent from './steps/alpha_disclaimer/AlphaDisclaimerContent.svelte';
     import ConfirmEmailBottomContent from './steps/confirmemail/ConfirmEmailBottomContent.svelte';
     import PasswordBottomContent from './steps/password/PasswordBottomContent.svelte';
     import PasskeyRegistrationBottomContent from './steps/passkey/PasskeyRegistrationBottomContent.svelte';
@@ -112,7 +111,7 @@
     } = $props();
 
     // Initialize step from store using Svelte 5 runes
-    let currentStep = $state(STEP_ALPHA_DISCLAIMER);
+    let currentStep = $state(STEP_BASICS);
     let direction = $state<'forward' | 'backward'>('forward');
     // isInviteCodeValidated, is_admin, selectedAppName, and showSkip are now bindable props
     // Reference to signup-content element for scrolling
@@ -224,9 +223,8 @@
         // This is done via $effect after functions are defined
         
         // Check if signup step is already set (e.g., from page reload or auth check)
-        // If not set, start with alpha disclaimer as the first step
-        // This ensures users see the disclaimer before proceeding with signup on new signups,
-        // but preserves the step on page reload
+        // If not set, start with the basics step as the first step of a new signup,
+        // but preserve the step on page reload
         const existingStep = $currentSignupStep;
         
         // If self-hosted and user is on email confirmation step, skip to secure_account
@@ -238,11 +236,11 @@
             console.log(`[Signup] Legacy signup payment step ${existingStep} restored, moving to completion.`);
             currentSignupStep.set(STEP_COMPLETION);
             currentStep = STEP_COMPLETION;
-        } else if (!existingStep || existingStep === STEP_ALPHA_DISCLAIMER) {
-            // Only set to alpha disclaimer if no step is set or it's already at alpha disclaimer
-            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
-            currentStep = STEP_ALPHA_DISCLAIMER;
-            console.log(`[Signup.svelte] Starting signup flow, showing alpha disclaimer first`);
+        } else if (!existingStep) {
+            // New signup: no step is set yet, so start at the basics step
+            currentSignupStep.set(STEP_BASICS);
+            currentStep = STEP_BASICS;
+            console.log(`[Signup.svelte] Starting signup flow at the basics step`);
         } else {
             // Use the existing step (e.g., restored from last_opened on page reload)
             currentStep = existingStep;
@@ -330,17 +328,12 @@
 
         // SECURITY: Clear incomplete signup data from IndexedDB if signup was not completed
         // This ensures username doesn't persist if user leaves signup without completing it
-        // Only do this if we're past the alpha disclaimer step (i.e., actual signup data may exist)
-        if (currentStep !== STEP_ALPHA_DISCLAIMER) {
-            console.log('[Signup] onDestroy: Clearing incomplete signup data from IndexedDB...');
-            try {
-                await clearIncompleteSignupData();
-                console.log('[Signup] onDestroy: Incomplete signup data cleared');
-            } catch (error) {
-                console.error('[Signup] onDestroy: Error clearing incomplete signup data:', error);
-            }
-        } else {
-            console.log('[Signup] onDestroy: Skipping IndexedDB clear (on alpha disclaimer step, no data entered yet)');
+        console.log('[Signup] onDestroy: Clearing incomplete signup data from IndexedDB...');
+        try {
+            await clearIncompleteSignupData();
+            console.log('[Signup] onDestroy: Incomplete signup data cleared');
+        } catch (error) {
+            console.error('[Signup] onDestroy: Error clearing incomplete signup data:', error);
         }
     });
 
@@ -368,7 +361,7 @@
 
     /**
      * Close the login/signup interface and return to demo web app
-     * This is called when user clicks back button during alpha disclaimer or basics step
+     * This is called when user clicks back button during the basics step
      */
     // Set up callbacks to call internal handlers when invoked
     // We'll use onMount to set up the callbacks after all functions are defined
@@ -420,21 +413,16 @@
 
         // SECURITY: Clear incomplete signup data from IndexedDB when closing to demo
         // This ensures username doesn't persist if user interrupts signup
-        // Only do this if we're past the alpha disclaimer step (i.e., actual signup data may exist)
-        if (currentStep !== STEP_ALPHA_DISCLAIMER) {
-            console.log('[Signup] Clearing incomplete signup data from IndexedDB...');
-            try {
-                await clearIncompleteSignupData();
-                console.log('[Signup] Incomplete signup data cleared');
-            } catch (error) {
-                console.error('[Signup] Error clearing incomplete signup data:', error);
-            }
-        } else {
-            console.log('[Signup] Skipping IndexedDB clear (on alpha disclaimer step, no data entered yet)');
+        console.log('[Signup] Clearing incomplete signup data from IndexedDB...');
+        try {
+            await clearIncompleteSignupData();
+            console.log('[Signup] Incomplete signup data cleared');
+        } catch (error) {
+            console.error('[Signup] Error clearing incomplete signup data:', error);
         }
 
-        // Reset signup step to alpha disclaimer for next time
-        currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+        // Reset signup step so the next signup starts at the basics step
+        currentSignupStep.set(STEP_BASICS);
 
         // Close the login interface and return to the new-chat screen.
         window.dispatchEvent(new CustomEvent('closeLoginInterface'));
@@ -457,17 +445,12 @@
 
         // SECURITY: Clear incomplete signup data from IndexedDB when switching to login
         // This ensures username doesn't persist if user interrupts signup
-        // Only do this if we're past the alpha disclaimer step (i.e., actual signup data may exist)
-        if (currentStep !== STEP_ALPHA_DISCLAIMER) {
-            console.log('[Signup] Clearing incomplete signup data from IndexedDB...');
-            try {
-                await clearIncompleteSignupData();
-                console.log('[Signup] Incomplete signup data cleared');
-            } catch (error) {
-                console.error('[Signup] Error clearing incomplete signup data:', error);
-            }
-        } else {
-            console.log('[Signup] Skipping IndexedDB clear (on alpha disclaimer step, no data entered yet)');
+        console.log('[Signup] Clearing incomplete signup data from IndexedDB...');
+        try {
+            await clearIncompleteSignupData();
+            console.log('[Signup] Incomplete signup data cleared');
+        } catch (error) {
+            console.error('[Signup] Error clearing incomplete signup data:', error);
         }
 
         console.log('[Signup] Calling onswitchToLogin callback');
@@ -611,9 +594,9 @@
         }
         
         // Update last_opened to reflect current signup step
-        // Skip alpha_disclaimer, basics, and confirm_email - we only track steps beyond these initial steps
+        // Skip basics and confirm_email - we only track steps beyond these initial steps
         // This ensures the signup flow can be restored on page reload only if user has progressed beyond initial steps
-        if (newStep !== STEP_ALPHA_DISCLAIMER && newStep !== STEP_BASICS && newStep !== STEP_CONFIRM_EMAIL) {
+        if (newStep !== STEP_BASICS && newStep !== STEP_CONFIRM_EMAIL) {
             if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupStepLocation(newStep);
             const signupPath = getPathFromStep(newStep);
             console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${newStep}`);
@@ -739,9 +722,9 @@
         }
         
         // Update last_opened to reflect current signup step
-        // Skip alpha_disclaimer, basics, and confirm_email - we only track steps beyond these initial steps
+        // Skip basics and confirm_email - we only track steps beyond these initial steps
         // This ensures the signup flow can be restored on page reload only if user has progressed beyond initial steps
-        if (step !== STEP_ALPHA_DISCLAIMER && step !== STEP_BASICS && step !== STEP_CONFIRM_EMAIL) {
+        if (step !== STEP_BASICS && step !== STEP_CONFIRM_EMAIL) {
             if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupStepLocation(step);
             const signupPath = getPathFromStep(step);
             console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${step}`);
@@ -793,8 +776,8 @@
             isLoggingOut.set(true);
             isInSignupProcess.set(false);
             
-            // Reset signup step to alpha disclaimer when logging out
-            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            // Reset signup step to the first step when logging out
+            currentSignupStep.set(STEP_BASICS);
 
             // SECURITY: Clear incomplete signup data from IndexedDB before logout
             // This ensures username doesn't persist if user logs out during signup
@@ -829,8 +812,8 @@
             // Even on error, ensure we exit signup mode properly
             isInSignupProcess.set(false);
             
-            // Reset signup step to alpha disclaimer when logging out
-            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            // Reset signup step to the first step when logging out
+            currentSignupStep.set(STEP_BASICS);
             
             // SECURITY: Even on error, clear all cryptographic data from storage
             clearKeyFromStorage(); // Clear master key from both session and local storage
@@ -1414,7 +1397,6 @@
     // Helper function to get step number for documentation links (temporary)
     function getStepNumber(stepName) {
         const fullStepMap = {
-            [STEP_ALPHA_DISCLAIMER]: 0,
             [STEP_BASICS]: 1,
             [STEP_CONFIRM_EMAIL]: 2,
             [STEP_SECURE_ACCOUNT]: 3,
@@ -1453,9 +1435,7 @@
 <div class="signup-content visible" bind:this={signupContentElement} in:fade={{ duration: 400 }}>
 
     <div>
-        {#if currentStep === STEP_ALPHA_DISCLAIMER}
-            <AlphaDisclaimerContent on:continue={() => goToStep(STEP_BASICS)} />
-        {:else if currentStep === STEP_BASICS}
+        {#if currentStep === STEP_BASICS}
             <Basics
                 on:switchToLogin={handleSwitchToLogin}
                 on:validated={(e) => { isInviteCodeValidated = e.detail.isValidated; is_admin = e.detail.is_admin; }}

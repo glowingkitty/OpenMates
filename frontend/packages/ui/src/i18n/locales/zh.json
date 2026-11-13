@@ -13175,7 +13175,7 @@
           "text": "关于 OpenMates"
         },
         "description": {
-          "text": "OpenMates 目前是一个处于初始开发阶段的闭源软件项目。 这种临时的闭源状态旨在确保早期开发和 beta 测试阶段的安全性和稳定性。 该项目将在完成初始 beta 测试和安全审查后过渡到开源。 本网站作为有关 OpenMates 项目及其开发进度的信息平台。"
+          "text": "OpenMates 是一个基于 AGPL-3.0 许可证提供的开源 AI 智能体平台。我们在 openmates.org 提供云托管服务、用于集成的开发者 API 以及 CLI 工具。该软件也可以自行托管 - 详情请参阅我们的 [GitHub 仓库](https://github.com/glowingkitty/OpenMates) 和 [文档](https://docs.openmates.org)。"
         }
       },
       "intellectual_property": {
@@ -20752,32 +20752,8 @@
     "email_ignored": {
       "text": "此电子邮件地址不能用于注册。如果您认为这是一个错误，请联系支持。"
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates 目前是面向早期测试者的测试版。"
-    },
-    "decent_stable": {
-      "text": "此测试版相当稳定"
-    },
-    "not_all_core_features_implemented": {
-      "text": "但是，尚未实现所有核心功能。"
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "请预期可能会出现一些错误，并记住：AI 聊天机器人可能会犯错。"
-    },
     "view_on_github": {
       "text": "在 GitHub 上查看 OpenMates"
-    },
-    "view_on_github_description": {
-      "text": "讨论错误、功能并了解新版本更新。"
-    },
-    "view_on_instagram": {
-      "text": "在 Instagram 上查看 OpenMates"
-    },
-    "view_on_instagram_description": {
-      "text": "了解新版本和其他更新。"
-    },
-    "continue_with_alpha": {
-      "text": "继续使用 {version}"
     },
     "server_admin": {
       "text": "服务器管理员"

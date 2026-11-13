@@ -20752,32 +20752,8 @@
     "email_ignored": {
       "text": "Tato e-mailová adresa nemůže být použita pro registraci. Pokud si myslíte, že se jedná o chybu, kontaktujte prosím podporu."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates je v současnosti alfa verze pro rané testery."
-    },
-    "decent_stable": {
-      "text": "Tato alfa verze je poměrně stabilní"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Nicméně ještě nejsou implementovány všechny základní funkce."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Očekávejte některé chyby tu a tam a pamatujte: AI chatboty mohou dělat chyby."
-    },
     "view_on_github": {
       "text": "Zobrazit OpenMates na GitHub"
-    },
-    "view_on_github_description": {
-      "text": "Pro diskusi o chybách, funkcích a aktualizacích o nových verzích."
-    },
-    "view_on_instagram": {
-      "text": "Zobrazit OpenMates na Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "Pro aktualizace o nových verzích a dalších aktualizacích."
-    },
-    "continue_with_alpha": {
-      "text": "Pokračovat s {version}"
     },
     "server_admin": {
       "text": "Správce serveru"

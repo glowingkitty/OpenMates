@@ -62,7 +62,7 @@ openmates whoami --json
 The CLI displays a QR code or pair PIN. Approve it in the OpenMates web app.
 During login, the CLI never asks for your account password.
 
-Switch to a dev account using an isolated profile; upgrading to an alpha release
+Switch to a dev account using an isolated profile; upgrading to a prerelease
 preserves your existing login and does not change the API server:
 
 ```bash

@@ -127,9 +127,7 @@ test.describe('Create persistent test account', () => {
 		await expect(loginTabs).toBeVisible();
 		await loginTabs.getByRole('button', { name: /sign up/i }).click();
 
-		// Alpha disclaimer: continue
-		await page.getByRole('button', { name: /continue/i }).click();
-		logCheckpoint('Passed alpha disclaimer.');
+		// Signup opens directly on the basics step.
 
 		// ─── Basics step ──────────────────────────────────────────────────
 		const emailInput = page.locator('input[type="email"][autocomplete="email"]');

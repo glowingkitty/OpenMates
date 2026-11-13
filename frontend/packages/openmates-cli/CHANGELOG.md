@@ -1,7 +1,7 @@
 # Changelog — `openmates` npm package (CLI and SDK)
 
 Only SDK-relevant compatibility notes are recorded here. Release versions follow
-the product line (`0.29.x` alpha prereleases from `dev`, stable from `main`).
+the product line (`0.29.x` prereleases from `dev`, stable from `main`).
 
 ## Unreleased
 

@@ -20752,32 +20752,8 @@
     "email_ignored": {
       "text": "לא ניתן להשתמש בכתובת אימייל זו להרשמה. אנא צור קשר עם התמיכה אם לדעתך זו טעות."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates נמצאת כרגע בגרסת אלפא לנסיינים מוקדמים."
-    },
-    "decent_stable": {
-      "text": "גרסת אלפא זו יציבה למדי"
-    },
-    "not_all_core_features_implemented": {
-      "text": "עם זאת, לא כל תכונות הליבה הוטמעו עדיין."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "צפו לבאגים פה ושם וזכרו: צ'אטבוטים מבוססי בינה מלאכותית עלולים לטעות."
-    },
     "view_on_github": {
       "text": "צפה ב-OpenMates ב-GitHub"
-    },
-    "view_on_github_description": {
-      "text": "כדי לדון בבאגים, תכונות ולהישאר מעודכנים בגרסאות חדשות."
-    },
-    "view_on_instagram": {
-      "text": "צפה ב-OpenMates ב-Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "כדי להישאר מעודכנים בגרסאות חדשות ועדכונים נוספים."
-    },
-    "continue_with_alpha": {
-      "text": "המשך עם {version}"
     },
     "server_admin": {
       "text": "מנהל שרת"

@@ -208,7 +208,7 @@ import XCTest
 
     private func preparedModel(_ runtime: PasskeySignupCoordinatorAdapter) async -> SignupViewModel {
         let model = SignupViewModel(runtime: runtime, configuration: configuration)
-        await model.loadRequirements(); model.continueFromDisclaimer()
+        await model.loadRequirements()
         model.basicsModel.form = form
         guard let accepted = await model.basicsModel.submit() else { XCTFail("Basics did not submit"); return model }
         model.acceptRequestedEmailCode(accepted)

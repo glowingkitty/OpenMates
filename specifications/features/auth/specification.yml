@@ -46,11 +46,11 @@ models:
     password:
       type: ordered_array
       required: true
-      constraints: {value: [alpha_disclaimer, basics, confirm_email, secure_account, password, completion]}
+      constraints: {value: [basics, confirm_email, secure_account, password, completion]}
     passkey:
       type: ordered_array
       required: true
-      constraints: {value: [alpha_disclaimer, basics, confirm_email, secure_account, completion]}
+      constraints: {value: [basics, confirm_email, secure_account, completion]}
     self_hosted_adjustment:
       type: string
       required: true
@@ -199,7 +199,7 @@ models:
 assertions:
   - id: auth.signup.current-flow
     type: behavior
-    must: First-party signup is available through web and CLI, not SDK-owned account creation; web signup uses the current short account-creation flow, with password signup ending after alpha disclaimer, basics, email confirmation when required, secure-account selection, password setup, and completion; passkey signup skips only the password step; self-hosted mode may remove only the email confirmation step; CLI signup creates web-compatible account material through the same auth routes and access gates; legacy credits, payment, and auto-top-up steps are not part of signup.
+    must: First-party signup is available through web and CLI, not SDK-owned account creation; web signup uses the current short account-creation flow, starting directly at the basics step with no disclaimer or status step before it, then email confirmation when required, secure-account selection, password setup, and completion for password signup; passkey signup skips only the password step; self-hosted mode may remove only the email confirmation step; CLI signup creates web-compatible account material through the same auth routes and access gates; legacy credits, payment, and auto-top-up steps are not part of signup.
     depends_on: [models.SignupStepSequence, models.SignupClientSurface, examples.signup_flows, examples.signup_client_surfaces]
   - id: auth.signup.access-gates
     type: security

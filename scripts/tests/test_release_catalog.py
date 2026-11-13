@@ -5,6 +5,7 @@ Regression tests for the tag-backed milestone release catalog.
 The fixtures use synthetic release metadata so validation and note rendering stay
 deterministic without querying GitHub, registries, or maintainer credentials.
 """
+# contract-test-file: tooling
 
 from __future__ import annotations
 
@@ -32,7 +33,7 @@ def valid_catalog() -> dict:
             {
                 "tag": "v0.10.0-alpha",
                 "commit": "a" * 40,
-                "title": "v0.10 Alpha: apps, sharing, and payments",
+                "title": "v0.10: apps, sharing, and payments",
                 "prerelease": True,
                 "historical_backfill": True,
                 "original_release_window": "May 2026",

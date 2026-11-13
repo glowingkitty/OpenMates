@@ -9,7 +9,7 @@ import {
   currentSignupStep,
   isInSignupProcess,
   getStepFromPath,
-  STEP_ALPHA_DISCLAIMER,
+  STEP_BASICS,
   isSignupPath,
   primeSignupLocation,
 } from "./signupState";
@@ -937,8 +937,8 @@ async function performAuthCheck(
             );
           });
 
-          // Reset signup step to alpha disclaimer for next time
-          currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+          // Reset signup step so the next signup starts at the first step
+          currentSignupStep.set(STEP_BASICS);
 
           // CRITICAL: Clear all sessionStorage drafts when returning to demo mode
           // This ensures drafts don't persist if user interrupts login/signup

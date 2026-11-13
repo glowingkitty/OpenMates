@@ -7,7 +7,6 @@
  * The helper returns a fresh plain array to avoid Svelte derived-signal shape bugs.
  */
 import {
-  STEP_ALPHA_DISCLAIMER,
   STEP_BASICS,
   STEP_COMPLETION,
   STEP_CONFIRM_EMAIL,
@@ -23,7 +22,6 @@ type SignupStepSequenceOptions = {
 };
 
 const FULL_STEP_SEQUENCE = [
-  STEP_ALPHA_DISCLAIMER,
   STEP_BASICS,
   STEP_CONFIRM_EMAIL,
   STEP_SECURE_ACCOUNT,
@@ -32,7 +30,6 @@ const FULL_STEP_SEQUENCE = [
 ];
 
 const PASSKEY_STEP_SEQUENCE = [
-  STEP_ALPHA_DISCLAIMER,
   STEP_BASICS,
   STEP_CONFIRM_EMAIL,
   STEP_SECURE_ACCOUNT,

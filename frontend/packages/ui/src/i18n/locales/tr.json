@@ -20752,32 +20752,8 @@
     "email_ignored": {
       "text": "Bu e-posta adresi kayıt için kullanılamaz. Bunun bir hata olduğunu düşünüyorsanız lütfen destekle iletişime geçin."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates şu anda erken test kullanıcıları için bir alfa sürümüdür."
-    },
-    "decent_stable": {
-      "text": "Bu alfa sürümü oldukça kararlı"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Ancak, henüz tüm temel özellikler uygulanmadı."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Burada ve orada bazı hatalar bekleyin ve unutmayın: AI sohbet robotları hata yapabilir."
-    },
     "view_on_github": {
       "text": "GitHub'da OpenMates'i görüntüle"
-    },
-    "view_on_github_description": {
-      "text": "Hataları tartışmak, özellikler hakkında konuşmak ve yeni sürümlerden haberdar olmak için."
-    },
-    "view_on_instagram": {
-      "text": "Instagram'da OpenMates'i görüntüle"
-    },
-    "view_on_instagram_description": {
-      "text": "Yeni sürümler ve diğer güncellemeler hakkında bilgi almak için."
-    },
-    "continue_with_alpha": {
-      "text": "{version} ile devam et"
     },
     "server_admin": {
       "text": "Sunucu yöneticisi"

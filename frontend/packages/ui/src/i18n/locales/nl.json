@@ -20752,32 +20752,8 @@
     "email_ignored": {
       "text": "Dit e-mailadres kan niet worden gebruikt voor registratie. Neem contact op met de ondersteuning als u denkt dat dit een fout is."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates is momenteel een alpha-release voor vroege testers."
-    },
-    "decent_stable": {
-      "text": "Deze alpha-release is redelijk stabiel"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Echter zijn nog niet alle kernfuncties geïmplementeerd."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Verwacht hier en daar wat bugs en onthoud: AI-chatbots kunnen fouten maken."
-    },
     "view_on_github": {
       "text": "Bekijk OpenMates op GitHub"
-    },
-    "view_on_github_description": {
-      "text": "Om bugs te bespreken, functies te bespreken en op de hoogte te blijven van nieuwe releases."
-    },
-    "view_on_instagram": {
-      "text": "Bekijk OpenMates op Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "Om op de hoogte te blijven van nieuwe releases en andere updates."
-    },
-    "continue_with_alpha": {
-      "text": "Doorgaan met {version}"
     },
     "server_admin": {
       "text": "Serverbeheerder"

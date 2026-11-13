@@ -20752,32 +20752,8 @@
     "email_ignored": {
       "text": "इस ई-मेल पते का उपयोग पंजीकरण के लिए नहीं किया जा सकता है। यदि आपको लगता है कि यह एक त्रुटि है, तो कृपया समर्थन से संपर्क करें।"
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates वर्तमान में प्रारंभिक परीक्षकों के लिए एक अल्फा रिलीज़ है।"
-    },
-    "decent_stable": {
-      "text": "यह अल्फा रिलीज़ काफी स्थिर है"
-    },
-    "not_all_core_features_implemented": {
-      "text": "हालांकि, अभी तक सभी मुख्य सुविधाएं लागू नहीं की गई हैं।"
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "यहाँ-वहाँ कुछ बग की अपेक्षा करें और याद रखें: AI चैटबॉट गलतियाँ कर सकते हैं।"
-    },
     "view_on_github": {
       "text": "GitHub पर OpenMates देखें"
-    },
-    "view_on_github_description": {
-      "text": "बग, सुविधाओं पर चर्चा करने और नए रिलीज़ पर अपडेट रहने के लिए।"
-    },
-    "view_on_instagram": {
-      "text": "Instagram पर OpenMates देखें"
-    },
-    "view_on_instagram_description": {
-      "text": "नए रिलीज़ और अन्य अपडेट पर अपडेट रहने के लिए।"
-    },
-    "continue_with_alpha": {
-      "text": "{version} के साथ जारी रखें"
     },
     "server_admin": {
       "text": "सर्वर व्यवस्थापक"

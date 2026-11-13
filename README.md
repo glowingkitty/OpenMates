@@ -9,7 +9,7 @@ OpenMates is an open-source, provider-independent AI assistant platform with bui
 [![OpenMates daily inspiration screenshot](./docs/images/readme-daily-inspiration.png)](https://app.openmates.org)
 
 > [!NOTE]
-> OpenMates is alpha software. The web app is the most complete product surface, and capabilities can differ between the web app, CLI, SDKs, and native clients. The current user-facing product line is **v0.31**.
+> OpenMates is under active development, and new functions arrive regularly. The web app is the most complete product surface, and capabilities can differ between the web app, CLI, SDKs, and native clients. The current user-facing product line is **v0.31**.
 
 ## See it in action
 
