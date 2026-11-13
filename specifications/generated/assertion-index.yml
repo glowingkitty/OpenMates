@@ -37895,42 +37895,42 @@ assertions:
       surface: rest_api
     - &id4806
       path: backend/tests/test_code_test_result_embed.py
-      line: 38
+      line: 39
       name: test_unit_content_is_summary_only
       surface: rest_api
     - &id4807
       path: backend/tests/test_code_test_result_embed.py
-      line: 47
+      line: 48
       name: test_browser_content_keeps_steps_order_and_evidence_asset_ids
       surface: rest_api
     - &id4808
       path: backend/tests/test_code_test_result_embed.py
-      line: 70
+      line: 71
       name: test_cli_content_carries_command_and_output
       surface: rest_api
     - &id4809
       path: backend/tests/test_code_test_result_embed.py
-      line: 82
+      line: 83
       name: test_staleness_follows_result_is_current
       surface: rest_api
     - &id4810
       path: backend/tests/test_code_test_result_embed.py
-      line: 145
+      line: 146
       name: test_create_links_tested_embeds_and_marks_stale_on_new_revision
       surface: rest_api
     - &id4811
       path: backend/tests/test_code_test_result_embed.py
-      line: 171
+      line: 172
       name: test_create_raises_when_delivery_fails
       surface: rest_api
     - &id4812
       path: backend/tests/test_code_test_result_embed.py
-      line: 196
+      line: 197
       name: test_final_result_pairs_each_evidence_with_its_stored_asset_and_variant
       surface: rest_api
     - &id4813
       path: backend/tests/test_code_test_result_embed.py
-      line: 215
+      line: 216
       name: test_chat_test_run_stores_evidence_under_its_result_embed
       surface: rest_api
     - &id4814

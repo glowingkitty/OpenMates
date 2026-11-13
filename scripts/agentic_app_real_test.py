@@ -21,16 +21,37 @@ Never run in CI.
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 
 from design_embroidery_web_real_test import ROOT, installed_chromium, main
 
 SPEC = "tests/cli-native-agentic-app-real.spec.ts"
 CLI_BINARY = ROOT / "target/debug/openmates"
+# Sources compiled into the native CLI; a binary older than their last change
+# would prove an earlier client than the revision under test.
+CLI_SOURCES = ("packages/openmates-rust", "frontend/packages/openmates-tui-native", "Cargo.lock")
+
+
+def require_fresh_cli() -> None:
+    """Refuse a CLI binary built before the last committed or edited CLI source."""
+    git = ["git", "-C", str(ROOT)]
+    last = int(subprocess.run([*git, "log", "-1", "--format=%ct", "HEAD", "--", *CLI_SOURCES],
+                              capture_output=True, text=True, check=True, timeout=30).stdout.strip() or 0)
+    dirty = subprocess.run([*git, "status", "--porcelain", "--", *CLI_SOURCES],
+                           capture_output=True, text=True, check=True, timeout=30).stdout.splitlines()
+    for line in dirty:
+        path = ROOT / line[3:].split(" -> ")[-1]
+        if path.is_file():
+            last = max(last, int(path.stat().st_mtime))
+    if CLI_BINARY.stat().st_mtime < last:
+        raise SystemExit("native CLI is older than its sources: rebuild it first "
+                         "(python3 scripts/heavy_slot.py run -- cargo build -p openmates)")
 
 if __name__ == "__main__":
     if not Path(CLI_BINARY).is_file():
         raise SystemExit(f"native CLI missing: build it first ({CLI_BINARY})")
+    require_fresh_cli()
     # The account environment copies os.environ, so the spec's own switches go here.
     os.environ.update(AGENTIC_APP_REAL_AI_DEV="1", PW_CHROMIUM=str(installed_chromium()),
                       OPENMATES_NATIVE_CLI=str(CLI_BINARY))

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 
 import pytest
 from toon_format import decode, encode
@@ -217,9 +218,12 @@ def test_chat_test_run_stores_evidence_under_its_result_embed() -> None:
     from backend.apps.code.tasks.test_result_embed import run_result_embed_id
 
     chat_run = {"chat_id": "chat-1", "test_run": {"kind": "browser"}}
-    assert run_result_embed_id("exec-1") == run_result_embed_id("exec-1") != run_result_embed_id("exec-2")
     # The download-url route needs an owned embed with the asset id: the result embed.
-    assert _artifact_asset_id("exec-1", chat_run) == run_result_embed_id("exec-1")
+    asset_id = _artifact_asset_id("exec-1", chat_run)
+    assert asset_id == run_result_embed_id(chat_run)
+    # Random v4: the embed transaction reserves UUIDv5 ids for sealed AI children.
+    assert uuid.UUID(asset_id).version == 4
+    assert run_result_embed_id({"chat_id": "chat-1"}) != asset_id
     # A run bound to a target embed and a direct API run keep their ids.
     assert _artifact_asset_id("exec-1", {**chat_run, "target_embed_id": "code-1"}) == "code-1"
     assert _artifact_asset_id("exec-1", {"test_run": {"kind": "browser"}}) == "exec-1"

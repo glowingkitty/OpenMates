@@ -152,7 +152,7 @@ def _artifact_asset_id(execution_id: str, payload: dict[str, Any]) -> str:
     if isinstance(target_embed_id, str) and target_embed_id:
         return target_embed_id
     if payload.get("test_run") and payload.get("chat_id"):
-        return run_result_embed_id(execution_id)
+        return run_result_embed_id(payload)
     return execution_id
 
 
