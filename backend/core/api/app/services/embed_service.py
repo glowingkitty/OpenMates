@@ -2105,13 +2105,25 @@ class EmbedService(SlidesEmbedMixin):
     ) -> Optional[Dict[str, Any]]:
         """Create a finished generated-application parent embed for code file embeds.
 
-        Passing an existing ``embed_id`` re-publishes that parent with a fuller file list.
+        Passing an existing ``embed_id`` re-publishes that parent with a fuller file
+        list as its next ``version_number``: a finished version is sealed for chat
+        recovery once, so the fuller manifest must be a new version, never a
+        rewrite of version 1 (that is refused as ``replay_output_mismatch``).
         """
         try:
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
+            version_number: Optional[int] = None
+            if embed_id:
+                client = await self.cache_service.client
+                cached_json = await client.get(f"embed:{embed_id}") if client else None
+                if not cached_json:
+                    logger.warning(f"{log_prefix} Application embed {embed_id} to re-publish is not cached")
+                    return None
+                cached_embed = json.loads(cached_json.decode("utf-8") if isinstance(cached_json, bytes) else cached_json)
+                version_number = int(cached_embed.get("version_number") or 1) + 1
             embed_id = embed_id or str(uuid.uuid4())
             child_embed_ids = [str(ref.get("embed_id")) for ref in file_refs if ref.get("embed_id")]
             embed_ref = self._generate_direct_embed_ref(
@@ -2135,6 +2147,8 @@ class EmbedService(SlidesEmbedMixin):
             }
             if provenance:
                 content["provenance"] = provenance
+            if version_number is not None:
+                content["version_number"] = version_number
             content_toon = encode(_flatten_for_toon_tabular(content))
             text_length_chars = len(content_toon)
             encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
@@ -2162,10 +2176,13 @@ class EmbedService(SlidesEmbedMixin):
                 "created_at": created_at,
                 "updated_at": created_at,
             }
+            if version_number is not None:
+                embed_data["version_number"] = version_number
 
             delivered = await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="application",
+                version_number=version_number,
                 content_toon=content_toon,
                 chat_id=chat_id,
                 message_id=message_id,

@@ -607,6 +607,31 @@ async def test_application_parent_is_cached_before_plaintext_publish():
     )
 
 
+
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,projects.files.application-single-source
+@pytest.mark.asyncio
+async def test_application_republish_with_late_files_is_the_next_version():
+    cache = FakeCacheService({})
+    service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
+    service._schedule_embed_persistence_fallback = lambda embed_id: None
+    common = dict(name="Recipe Box", framework="vanilla", runtime="static", entrypoints=[],
+                  chat_id="chat-1", message_id="message-1", user_id="user-1",
+                  user_id_hash="user-hash", user_vault_key_id="vault-1", task_id="task-1")
+    first = await service.create_application_embed(
+        file_refs=[{"path": "index.html", "embed_id": "file-1"}], **common)
+    assert first
+    refreshed = await service.create_application_embed(
+        file_refs=[{"path": "index.html", "embed_id": "file-1"}, {"path": "app.js", "embed_id": "file-2"}],
+        embed_id=first["embed_id"], **common)
+
+    assert refreshed and refreshed["embed_id"] == first["embed_id"]
+    assert json.loads(cache._client.values[f"embed:{first['embed_id']}"])["version_number"] == 2
+    payload = cache._client.published[-1][1]["payload"]
+    assert payload["version_number"] == 2 and payload["embed_ids"] == ["file-1", "file-2"]
+    # A parent that is no longer cached is not re-published blindly.
+    assert await service.create_application_embed(
+        file_refs=[{"path": "index.html", "embed_id": "file-1"}], embed_id="missing", **common) is None
+
 # contract-test: infrastructure
 @pytest.mark.asyncio
 async def test_embed_cache_budget_refusal_stops_publication():
