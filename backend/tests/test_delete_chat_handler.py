@@ -45,6 +45,7 @@ class _CacheService:
         self.remove_chat_from_ids_versions = AsyncMock(return_value=True)
         self.delete_chat_app_settings_memories = AsyncMock(return_value=0)
         self.delete_chat_embed_cache = AsyncMock(return_value=0)
+        self.delete_ai_messages_history = AsyncMock(return_value=True)
         self.delete = AsyncMock(return_value=True)
         self.increment_and_tombstone_user_draft = AsyncMock(return_value=4)
 
@@ -102,6 +103,8 @@ async def test_delete_chat_handler_forwards_remove_project_embeds(monkeypatch) -
     queue_delete_chat_task.assert_called_once_with("user-1", "chat-1", True)
     delete_chat_handler.invalidate_recovery_jobs_for_chat_deletion.assert_awaited_once()
     cache_service.mark_chat_deleted.assert_awaited_once_with("chat-1")
+    # The deleted chat's AI context leaves the LRU so it cannot block admission.
+    cache_service.delete_ai_messages_history.assert_awaited_once_with("user-1", "chat-1")
     assert cache_service.delete.await_count == 2
 
 

@@ -11090,22 +11090,22 @@ assertions:
       surface: gui.web
     - &id1412
       path: backend/tests/test_delete_chat_handler.py
-      line: 141
+      line: 144
       name: test_delete_unpersisted_draft_shell_cleans_cache_when_no_saved_chat_fence_exists
       surface: gui.web
     - &id1413
       path: backend/tests/test_delete_chat_handler.py
-      line: 187
+      line: 190
       name: test_draft_shell_cleanup_fails_closed_without_confirmed_absence
       surface: gui.web
     - &id1414
       path: backend/tests/test_delete_chat_handler.py
-      line: 257
+      line: 260
       name: test_deleting_draft_shell_deletes_only_the_owners_persisted_draft_rows
       surface: rest_api
     - &id1415
       path: backend/tests/test_delete_chat_handler.py
-      line: 286
+      line: 289
       name: test_draft_shell_deletion_fails_closed_when_draft_removal_fails
       surface: rest_api
     - &id1416
@@ -99397,47 +99397,47 @@ assertions:
       surface: gui.web
     - &id12479
       path: backend/tests/test_delete_chat_handler.py
-      line: 110
+      line: 113
       name: test_delete_chat_stops_before_cache_removal_when_durable_fence_fails
       surface: gui.web
     - &id12480
       path: backend/tests/test_delete_chat_handler.py
-      line: 187
+      line: 190
       name: test_draft_shell_cleanup_fails_closed_without_confirmed_absence
       surface: gui.web
     - &id12481
       path: backend/tests/test_delete_chat_handler.py
-      line: 257
+      line: 260
       name: test_deleting_draft_shell_deletes_only_the_owners_persisted_draft_rows
       surface: rest_api
     - &id12482
       path: backend/tests/test_delete_chat_handler.py
-      line: 286
+      line: 289
       name: test_draft_shell_deletion_fails_closed_when_draft_removal_fails
       surface: rest_api
     - &id12483
       path: backend/tests/test_delete_chat_handler.py
-      line: 306
+      line: 309
       name: test_delete_chat_rejects_another_users_saved_chat
       surface: gui.web
     - &id12484
       path: backend/tests/test_delete_chat_handler.py
-      line: 333
+      line: 336
       name: test_delete_chat_retry_uses_existing_fence_after_chat_row_is_removed
       surface: gui.web
     - &id12485
       path: backend/tests/test_delete_chat_handler.py
-      line: 364
+      line: 367
       name: test_conditional_cleanup_fans_out_only_canonical_transaction_guard
       surface: rest_api
     - &id12486
       path: backend/tests/test_delete_chat_handler.py
-      line: 386
+      line: 389
       name: test_conditional_cleanup_rejection_never_falls_back_to_generic_delete
       surface: rest_api
     - &id12487
       path: backend/tests/test_delete_chat_handler.py
-      line: 405
+      line: 408
       name: test_cli_or_native_connections_do_not_disqualify_conditional_cleanup
       surface: rest_api
     - &id12488

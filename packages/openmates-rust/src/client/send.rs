@@ -182,7 +182,9 @@ fn write_protocol_phase(
     enabled: bool,
     writer: &mut impl std::io::Write,
 ) {
-    if error == Error::Protocol && enabled {
+    // Offline is included: a turn that ends `turn_recovery_required` names
+    // the phase where the socket or deadline gave up, still without ids.
+    if matches!(error, Error::Protocol | Error::Offline) && enabled {
         // Diagnostic output cannot replace the original send error.
         let _ = writeln!(
             writer,
@@ -224,7 +226,10 @@ mod send_phase_tests {
             for enabled in [false, true] {
                 let mut bytes = vec![];
                 write_protocol_phase(error, &trace, enabled, &mut bytes);
-                assert_eq!(bytes.is_empty(), error != Error::Protocol || !enabled);
+                assert_eq!(
+                    bytes.is_empty(),
+                    !matches!(error, Error::Protocol | Error::Offline) || !enabled
+                );
                 if !bytes.is_empty() {
                     assert_eq!(
                         bytes,
@@ -443,9 +448,9 @@ impl Client {
         // Keep the failing phase of the turn itself: only a turn that came
         // back whole enters the release phase.
         let result=match result{Ok(outcome)=>{trace.phase = SendPhase::Release;self.release_send_outcome(&release_scope,&id,&cancel,outcome)},Err(error)=>Err(error)};
-        // Read the opt-in flag only for the original Protocol failure, after
+        // Read the opt-in flag only for an original Protocol or Offline failure, after
         // the existing socket close; normal output and errors are unchanged.
-        if matches!(&result, Err(Error::Protocol)) {
+        if matches!(&result, Err(Error::Protocol | Error::Offline)) {
             trace.report_protocol_error();
         }
         if matches!(&result, Err(Error::Forbidden)) {

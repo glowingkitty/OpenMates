@@ -185,7 +185,7 @@ impl Client {
             Ok(parts) => parts,
             Err(error) => {
                 let _ = ws.close(None).await;
-                if matches!(&error, Error::Protocol) {
+                if matches!(&error, Error::Protocol | Error::Offline) {
                     trace.report_protocol_error();
                 }
                 if matches!(&error, Error::Forbidden) {
@@ -317,7 +317,7 @@ impl AdmittedTurn {
             }
             Err(error) => Err(error),
         };
-        if matches!(&result, Err(Error::Protocol)) {
+        if matches!(&result, Err(Error::Protocol | Error::Offline)) {
             trace.report_protocol_error();
         }
         if matches!(&result, Err(Error::Forbidden)) {

@@ -229,6 +229,13 @@ async def handle_delete_chat(
             deleted_embed_count = await cache_service.delete_chat_embed_cache(chat_id)
             if deleted_embed_count > 0:
                 logger.info(f"Deleted {deleted_embed_count} embed cache entries for deleted chat {chat_id}")
+
+            # The AI inference context of a deleted chat must leave the per-user
+            # LRU too: a leftover entry whose embeds are still pending cannot be
+            # evicted, so after a few deleted chats every new chat's message is
+            # refused AI-cache admission until the TTL ends.
+            if not await cache_service.delete_ai_messages_history(user_id, chat_id):
+                logger.warning(f"Failed to delete AI context cache for deleted chat {chat_id}")
         
             tombstone_success = tombstone_written or removed_from_set or deleted_specific_keys_count > 0
             if tombstone_success:
