@@ -230,12 +230,9 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       // versions upward from 1; the last readable one is the latest. Version 1
       // must exist: its failure is reported.
       const readResult = async (id: string) => {
-        let latest = await run(['embeds', 'test-result', id, '--version', '1', '--json']);
-        for (let version = 2; version <= 20; version += 1) {
-          const next = await runRust(binary, env, ['embeds', 'test-result', id, '--version', String(version), '--json'], 120_000);
-          if (next.code !== 0) break;
-          latest = parseJson(next);
-        }
+        // Without --version the CLI reads the embed's current content; a fresh
+        // test result has no version history to walk.
+        const latest = await run(['embeds', 'test-result', id, '--json']);
         return (latest.test_result ?? {}) as Record<string, unknown>;
       };
       // Outcome of every run of this turn: run status, error and failing step (no command output).

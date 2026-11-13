@@ -381,6 +381,23 @@ fn write_version_output(
 #[path = "embed_commands_tests.rs"]
 mod tests;
 
+/// `embeds test-result <id>` without `--version`: the current embed, read and
+/// decrypted by the shared Client (`embeds show` path), rendered like a
+/// version read. `version_number` is the embed's own, when it reports one.
+async fn current_test_result(
+    i:&Invocation,client:&mut openmates_sdk::Client,cancel:CancellationToken,
+)->Result<CliOutput,CliError>{
+    let id=first(i)?;
+    if cancel.is_cancelled(){return Err(Error::Cancelled.into());}
+    client.set_operation_cancel(cancel);
+    let item=client.detail(openmates_sdk::model::Workspace::Apps,&format!("embed:{id}")).await?;
+    let mut content=serde_json::to_string(&item.fields["content"]).map_err(|_|CliError::Client(Error::Protocol))?;
+    let value=serde_json::json!({"embed_id":id,"version_number":item.fields["content"]["version_number"],"content":content});
+    let result=super::test_result_cmd::output(i.boolean("json"),&value);
+    use zeroize::Zeroize;content.zeroize();
+    result
+}
+
 /// Personal Cookie facade: shared Client owns auth/key/read/reconstruction;
 /// preserve the exact same JSON/human/atomic fsync output implementation.
 pub(super) async fn execute_cookie_version(
@@ -388,6 +405,11 @@ pub(super) async fn execute_cookie_version(
 )->Result<CliOutput,CliError>{
     let test_result=i.command_path()=="embeds test-result";
     super::handlers::flags(i,if test_result{&["version"][..]}else{&["version","output"][..]})?;
+    // A fresh test result has no version history yet (the code worker
+    // creates it whole), so without --version read the current embed.
+    if test_result && !i.has("version") {
+        return current_test_result(i,client,cancel).await;
+    }
     let id=first(i)?;let number=version(i)?;
     if cancel.is_cancelled(){return Err(Error::Cancelled.into());}
     client.set_operation_cancel(cancel.clone());

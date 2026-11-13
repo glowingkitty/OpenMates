@@ -1,6 +1,7 @@
-//! `openmates embeds test-result <embed-id> --version <n> [--json]`: prints one
-//! Code test result embed in full. CLI/TUI adapter only: the decrypted version
-//! content comes from the shared SDK read (same path as `embeds versions show`),
+//! `openmates embeds test-result <embed-id> [--version <n>] [--json]`: prints one
+//! Code test result embed in full (current content without `--version`). CLI/TUI
+//! adapter only: the decrypted content comes from the shared SDK read (same path
+//! as `embeds show` / `embeds versions show`),
 //! decoding and the render model live in `openmates_sdk::test_result_embed`.
 //! Spec: `code-run.tests.recorded-evidence`.
 use super::{CliError, CliOutput};
