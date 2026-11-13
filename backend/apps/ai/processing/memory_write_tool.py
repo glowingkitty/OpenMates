@@ -111,7 +111,10 @@ def save_memory_tool(*, project_target: bool = False, personal: bool = True) -> 
             "action": {"type": "string", "enum": ["create", "update"]},
             "memory_id": {"type": "string", "description": "Required for update: id of a Memory loaded in this conversation."},
             "title": {"type": "string", "description": "Short title."},
-            "when_to_use": {"type": "string", "description": "One sentence on when this Memory applies."},
+            "when_to_use": {"type": "string", "description": (
+                "One sentence naming the tasks and topics this Memory applies to, in the words a user would "
+                "use when asking, e.g. 'Writing, editing or reviewing press releases for this company'. "
+                "Later chats offer the Memory only when a request matches this sentence.")},
             "content": {"type": "string", "description": "Markdown body, no frontmatter."},
             "load_mode": {"type": "string", "enum": list(LOAD_MODES),
                           "description": f"Optional; {DEFAULT_ASSISTANT_MEMORY_LOAD_MODE} by default."},

@@ -700,6 +700,25 @@ def test_project_activation_after_preflight_preserves_immutable_user_request(mon
     dispatched["message"] = {"content": "a different user request"}
     assert chat_turn_preflight_handler.build_inference_commitment(prepared) != chat_turn_preflight_handler.build_inference_commitment(dispatched)
 
+
+# contract-test: supporting surface=gui.web assertions=projects.focus.mention-activation,projects.memories.active-access
+def test_project_memories_added_after_mention_activation_keep_the_commitment(monkeypatch) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    personal = {"id": "personal:1", "title": "Tone", "when_to_use": "Writing", "load_mode": "ask_first", "source": "personal"}
+    prepared = {**_payload()["inference_request"], "memory_catalog": [personal]}
+    dispatched = deepcopy(prepared)
+    project_row = {"id": "item-1", "title": "Press style", "when_to_use": "Press releases", "load_mode": "ask_first", "source": "project"}
+    dispatched["memory_catalog"].append(project_row)
+    dispatched["custom_memory_documents"] = [{"id": "item-2", "source": "project", "project_id": "p", "document": "x", "item_revision": "r"}]
+    commit = chat_turn_preflight_handler.build_inference_commitment
+    assert commit(prepared) == commit(dispatched)
+    # A field that only exists after activation commits like an absent one.
+    only_project = {**_payload()["inference_request"]}
+    assert commit(only_project) == commit({**only_project, "memory_catalog": [project_row]})
+    # Personal rows stay bound to the preflight.
+    dispatched["memory_catalog"][0] = {**personal, "title": "Changed"}
+    assert commit(prepared) != commit(dispatched)
+
 @pytest.mark.asyncio
 # contract-test: supporting surface=gui.web assertions=projects.focus.mention-activation,chats.message.identity-idempotent
 async def test_preflight_commitment_ignores_untrusted_project_fields_without_focus_read(monkeypatch) -> None:

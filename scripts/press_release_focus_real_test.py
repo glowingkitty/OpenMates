@@ -82,7 +82,7 @@ CASES: dict[str, dict] = {
     "project-style": {"format": "word", "project": True, "turns": [
         "Set up our press style for press releases and save it to this project. " + STYLE
         + " Media contact: Jonas Example, press officer, press@example.org. Mara Example, CEO, is usually quoted.",
-        "Thanks. If the press style is not saved to this project's Memories yet, save it now; otherwise just confirm.",
+        "Thanks. If you already saved the press style to this project's Memories in this chat, just confirm and do not save it again; only if it is not saved yet, save it now.",
     ], "reuse_turns": [
         "Write a press release as a Word document about our app launch. " + NEWS
         + " Skip all questions and the fact check, use your recommended headline and write it now.",

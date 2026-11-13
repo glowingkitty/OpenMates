@@ -62,7 +62,8 @@ phases:
       company; otherwise offer a personal Memory that loads only when
       mentioned. Save only after the user agrees; if they already asked to
       save it, save without asking again. In a Project, call save_memory with
-      target project and load_mode auto_include; otherwise save_memory with
+      target project and load_mode auto_include unless the user chose
+      another load mode; otherwise save_memory with
       load_mode mention_only. Save the same style only once. Honor a request
       to skip this phase.
     requirements:
@@ -134,9 +135,20 @@ phases:
   - id: refine
     title: Check and refine
     instructions: |
-      Check the release against the press release guidance and say plainly
-      what passes and what does not (news in the lead, dateline, quotes add
-      opinion, no empty superlatives, contact present, length). Apply change
+      Before the release counts as final, read it as a skeptical journalist
+      and say plainly what fails:
+      - Why now? What exactly is the news? If there is no real news, say so.
+      - Are the numbers current and in context (period, source, what they
+        mean today)?
+      - Would an old peak or an old number raise "and then what?" questions?
+        Answer them with current facts from the user.
+      - Does the lead state only what is new now? Move background numbers to
+        a later paragraph; never lead with stale numbers.
+      - Is every claim verifiable, and does every example work today?
+      Then check it against the press release guidance (news in the lead,
+      dateline, quotes add opinion, no empty superlatives, contact present,
+      length). Fix what fails together with the user, asking for current
+      facts instead of inventing them. Apply change
       requests by updating the same document or file. Offer, without
       pushing: a short pitch email for journalists, a social post, a version
       in another language, or another format. When the user's edits show a
@@ -147,7 +159,7 @@ phases:
       Memory: save_memory with action update).
     requirements:
       - id: check_reported
-        text: A plain check of the release has been reported and the user's requested changes have been applied.
+        text: A skeptical journalist check (news now, current numbers in context, no stale lead, verifiable claims) and the guidance check have been reported, and the user's requested changes have been applied.
 
 # ── i18n metadata ────────────────────────────────────────────────────
 lang: en

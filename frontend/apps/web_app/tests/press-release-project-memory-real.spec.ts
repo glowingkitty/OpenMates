@@ -177,7 +177,7 @@ test.describe('Press style saved in Project Memories is reused (real inference, 
         'read_write',
       );
       await waitForTurn(page);
-      await sendMessage(page, "Thanks. If the press style is not saved to this project's Memories yet, save it now; otherwise just confirm.");
+      await sendMessage(page, "Thanks. If you already saved the press style to this project's Memories in this chat, just confirm and do not save it again; only if it is not saved yet, save it now.");
       await waitForTurn(page);
       await testInfo.attach('01-style-saved', { body: await page.screenshot(), contentType: 'image/png' });
       await page.screenshot({ path: testInfo.outputPath('01-style-saved.png') });
