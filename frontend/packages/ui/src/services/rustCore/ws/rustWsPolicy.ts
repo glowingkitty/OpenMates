@@ -1,7 +1,7 @@
 /**
- * Flag-on (VITE_OPENMATES_RUST_CORE) WebSocket lifecycle decisions: the page
- * adapter over the shared Rust core Worker `ws` unit. Loaded only by the guarded
- * branches of websocketService.ts, so default builds never bundle it.
+ * WebSocket lifecycle decisions: the page
+ * adapter over the shared Rust core Worker `ws` unit. Loaded by
+ * websocketService.ts.
  *
  * Rust (packages/openmates-rust/src/web_ws) decides: what a close event means
  * (1008 policy violation with 2FA/passkey hints, repeated or auth-worded 1006

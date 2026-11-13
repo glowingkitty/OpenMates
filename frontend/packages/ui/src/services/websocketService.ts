@@ -22,17 +22,14 @@ import {
 import { websocketStatus } from "../stores/websocketStatusStore"; // Import the new shared store
 import { notificationStore } from "../stores/notificationStore"; // Import notification store
 
-/** Opt-in shared Rust core build: lifecycle decisions run in the shared Worker `ws` unit. */
-// Measurement-only opt-out (`openmates_rust_core_ws` = 'ts'), read once per page load.
-const RUST_WS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_ws") === "ts");
+/** Lifecycle decisions run in the shared Rust core Worker `ws` unit. */
 function rustWsPolicy() {
   return import("./rustCore/ws/rustWsPolicy");
 }
 // The policy decides what happens when the connection drops, so it is loaded now, while the
 // app is online: fetching it on the first lost connection would fail and leave the close
 // unhandled. A failed load here is not handled: each lifecycle event imports it again.
-if (RUST_WS_BUILD) void rustWsPolicy().catch(() => undefined);
+void rustWsPolicy().catch(() => undefined);
 
 /**
  * Sanitize sensitive data from URLs for logging
@@ -212,8 +209,6 @@ class WebSocketService extends EventTarget {
   private url: string | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
-  private reconnectInterval = 1000; // Start with 1 second
-  private maxReconnectInterval = 5000; // Max 5 seconds (reduced from 30s for faster offline detection)
   private periodicRetryIntervalId: ReturnType<typeof setInterval> | null = null;
   private readonly PERIODIC_RETRY_INTERVAL = 30000; // 30 seconds between periodic retries after max attempts exhausted
   private messageHandlers: Map<string, MessageHandler[]> = new Map();
@@ -232,7 +227,6 @@ class WebSocketService extends EventTarget {
   private lastActivityTimestamp = 0; // Track last incoming data activity (any message received)
   private hasEverConnected = false; // Tracks whether a WebSocket connection was ever established (suppresses initial network change event)
   private consecutiveAbnormalClosures = 0; // Track consecutive 1006 (abnormal closure) failures for auth detection
-  private readonly AUTH_FAILURE_THRESHOLD = 4; // After 4 consecutive 1006 failures, treat as auth error
   private sessionRefreshPromise: Promise<boolean> | null = null;
   // Rationale: 2 was too aggressive — transient network events (WiFi handoff, brief server
   // restart, mobile network change) can produce 2 rapid 1006 closures without the session
@@ -327,26 +321,7 @@ class WebSocketService extends EventTarget {
         // 2. reconnectAttempts === 0 but WS is dead: Connection silently died during device sleep/hibernate
         //    without onclose firing, so reconnectAttempts was never incremented
         this.clearStaleLogoutFlags("online");
-        if (RUST_WS_BUILD) {
-          void rustWsPolicy().then((policy) => policy.handleLifecycle(rustWsHost(this), "online"));
-          return;
-        }
-        if (
-          get(authStore).isAuthenticated &&
-          !this.isConnected() &&
-          !this.connectionPromise
-        ) {
-          this.reconnectAttempts = 0; // Reset to allow immediate connection
-          console.debug(
-            "[WebSocketService] Resetting reconnect attempts and connecting immediately",
-          );
-          this.connect().catch((err) => {
-            console.warn(
-              "[WebSocketService] Immediate reconnection after network online failed:",
-              err,
-            );
-          });
-        }
+        void rustWsPolicy().then((policy) => policy.handleLifecycle(rustWsHost(this), "online"));
       });
 
       // Listen for page visibility changes to detect device wake / tab resume.
@@ -395,23 +370,7 @@ class WebSocketService extends EventTarget {
             "[WebSocketService] Network connection type changed — checking connection",
           );
           this.clearStaleLogoutFlags("connection-change");
-          if (RUST_WS_BUILD) {
-            void rustWsPolicy().then((policy) => policy.handleLifecycle(rustWsHost(this), "connectionChange"));
-            return;
-          }
-          if (
-            get(authStore).isAuthenticated &&
-            !this.isConnected() &&
-            !this.connectionPromise
-          ) {
-            this.reconnectAttempts = 0;
-            this.connect().catch((err) => {
-              console.warn(
-                "[WebSocketService] Reconnection after network change failed:",
-                err,
-              );
-            });
-          }
+          void rustWsPolicy().then((policy) => policy.handleLifecycle(rustWsHost(this), "connectionChange"));
         });
       }
     }
@@ -443,46 +402,7 @@ class WebSocketService extends EventTarget {
     // Emit "resuming" event so the OfflineBanner can start a grace period
     // and suppress the offline notification during the reconnection attempt.
     this.dispatchEvent(new CustomEvent("resuming"));
-    if (RUST_WS_BUILD) {
-      void rustWsPolicy().then((policy) => policy.handleLifecycle(rustWsHost(this), "resume"));
-      return;
-    }
-
-    if (!this.isConnected() && !this.connectionPromise) {
-      // WebSocket is dead (either ws is null or readyState is not OPEN).
-      // This commonly happens after device sleep where onclose may not have fired.
-      console.info(
-        `[WebSocketService] Connection is dead after resume (${source}) — reconnecting immediately`,
-      );
-      this.reconnectAttempts = 0;
-      this.connect().catch((err) => {
-        console.warn(
-          `[WebSocketService] Reconnection after ${source} failed:`,
-          err,
-        );
-      });
-    } else if (this.isConnected()) {
-      // WebSocket appears connected but may be stale (server may have already
-      // cleaned up our connection during the sleep period).
-      // Send an immediate ping to verify liveness. If the pong doesn't come
-      // back, the existing pong timeout logic will close and reconnect.
-      console.debug(
-        "[WebSocketService] Connection appears alive after resume — sending liveness ping",
-      );
-      try {
-        this.sendMessage("ping", {}).catch(() => {
-          // If sending fails, the connection is dead — onclose will handle reconnection
-          console.warn(
-            "[WebSocketService] Liveness ping failed to send — connection likely dead",
-          );
-        });
-      } catch {
-        // Sync error from sendMessage, connection is dead
-        console.warn(
-          "[WebSocketService] Liveness ping threw — connection likely dead",
-        );
-      }
-    }
+    void rustWsPolicy().then((policy) => policy.handleLifecycle(rustWsHost(this), "resume"));
   }
 
   /**
@@ -758,7 +678,6 @@ class WebSocketService extends EventTarget {
           console.info("[WebSocketService] Connection established.");
           this.hasEverConnected = true;
           this.reconnectAttempts = 0; // Reset on successful connection
-          this.reconnectInterval = 1000; // Reset interval
           this.consecutiveAbnormalClosures = 0; // Reset auth failure counter on successful connection
           this.stopPeriodicRetry(); // Stop periodic retry since we're now connected
           this.dispatchEvent(new CustomEvent("open"));
@@ -1054,190 +973,7 @@ class WebSocketService extends EventTarget {
             this.dispatchEvent(new CustomEvent("close", { detail: event }));
           }
 
-          if (RUST_WS_BUILD) {
-            await (await rustWsPolicy()).handleClose(rustWsHost(this), event);
-            return;
-          }
-
-          // Handle specific close codes
-          if (event.code === status.WS_1008_POLICY_VIOLATION) {
-            console.error(
-              "[WebSocketService] Connection closed due to policy violation (Auth Error/Device Mismatch). Won't reconnect automatically.",
-            );
-            websocketStatus.setError(
-              event.reason || "Connection closed due to policy violation.",
-              "error",
-            );
-            this.consecutiveAbnormalClosures = 0; // Reset counter on explicit policy violation
-            if (event.reason?.includes("2FA required")) {
-              this.dispatchEvent(
-                new CustomEvent("reAuthRequired", { detail: { type: "2fa" } }),
-              );
-            } else if (event.reason?.includes("Passkey required")) {
-              this.dispatchEvent(
-                new CustomEvent("reAuthRequired", {
-                  detail: { type: "passkey" },
-                }),
-              );
-            } else {
-              this.dispatchEvent(new CustomEvent("authError"));
-            }
-            // Reject and clear the main connection promise only if this close event corresponds to the current attempt's promise
-            if (
-              this.rejectConnectionPromise &&
-              this.connectionPromise &&
-              !this.ws
-            ) {
-              // Check if a promise exists and no ws is active
-              this.rejectConnectionPromise(
-                `Connection closed: ${event.reason}`,
-              );
-              this.connectionPromise = null;
-            }
-            return; // Do not attempt reconnect on auth errors
-          }
-
-          // Detect auth failures: Close code 1006 (abnormal closure) often indicates connection rejection
-          // When server returns 403 Forbidden during handshake, WebSocket fails with 1006
-          // After multiple consecutive 1006 failures, treat as auth error
-          if (event.code === 1006 && !event.wasClean) {
-            this.consecutiveAbnormalClosures++;
-            console.warn(
-              `[WebSocketService] Abnormal closure (code 1006) detected. Consecutive count: ${this.consecutiveAbnormalClosures}/${this.AUTH_FAILURE_THRESHOLD}`,
-            );
-
-            // Check if close reason or error indicates auth failure
-            const reason = event.reason?.toLowerCase() || "";
-            const isAuthRelated =
-              reason.includes("forbidden") ||
-              reason.includes("403") ||
-              reason.includes("invalid") ||
-              reason.includes("expired") ||
-              reason.includes("token") ||
-              reason.includes("unauthorized");
-
-            // If we have multiple consecutive failures OR explicit auth-related reason, treat as auth error
-            if (
-              this.consecutiveAbnormalClosures >= this.AUTH_FAILURE_THRESHOLD ||
-              isAuthRelated
-            ) {
-              const sessionStillValid = await this.refreshSessionForWebSocket(
-                isAuthRelated
-                  ? "auth-related close reason"
-                  : "repeated abnormal closures",
-              );
-
-              if (!sessionStillValid) {
-                console.error(
-                  "[WebSocketService] REST session check also failed after WebSocket auth signal. Emitting authError.",
-                );
-                websocketStatus.setError(
-                  "Authentication failed. Please log in again.",
-                  "error",
-                );
-                this.consecutiveAbnormalClosures = 0; // Reset counter
-                this.dispatchEvent(
-                  new CustomEvent("authError", {
-                    detail: { reason: "Session expired or invalid token" },
-                  }),
-                );
-
-                // Reject and clear the main connection promise
-                if (
-                  this.rejectConnectionPromise &&
-                  this.connectionPromise &&
-                  !this.ws
-                ) {
-                  this.rejectConnectionPromise("Authentication failed");
-                  this.connectionPromise = null;
-                }
-                return; // Do not attempt reconnect on confirmed auth errors
-              }
-
-              console.info(
-                "[WebSocketService] REST session is still valid after WebSocket auth signal. Retrying with refreshed token.",
-              );
-              this.consecutiveAbnormalClosures = 0;
-              this.reconnectAttempts = 0;
-            }
-          } else {
-            // Reset counter on successful connection or other close codes
-            if (event.wasClean || event.code !== 1006) {
-              this.consecutiveAbnormalClosures = 0;
-            }
-          }
-
-          // Attempt to reconnect if not a deliberate disconnect or auth error
-          // This logic should only run if the closing WS was the "main" one or if no "main" one exists (this.ws is null)
-          if (
-            get(authStore).isAuthenticated &&
-            this.reconnectAttempts < this.maxReconnectAttempts
-          ) {
-            websocketStatus.setStatus("reconnecting");
-            this.reconnectAttempts++;
-            const delay = Math.min(
-              this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1),
-              this.maxReconnectInterval,
-            );
-            console.info(
-              `[WebSocketService] Attempting reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms...`,
-            );
-
-            // Clear the current connection promise before scheduling a new connect,
-            // if this onclose pertains to the promise of the current attempt.
-            if (
-              this.rejectConnectionPromise &&
-              this.connectionPromise &&
-              !this.ws
-            ) {
-              // Don't reject, as a reconnect is pending. Just clear.
-              // Or, the promise is for a single attempt, so it should be rejected.
-              // Let's assume promise is for single attempt for now.
-              this.rejectConnectionPromise(
-                new Error(
-                  `Connection closed (code ${event.code}), attempting reconnect.`,
-                ),
-              );
-              this.connectionPromise = null;
-            } else if (this.connectionPromise && !this.ws) {
-              // If rejectConnectionPromise is null but promise exists (e.g. resolved by a racing onopen)
-              this.connectionPromise = null;
-            }
-
-            setTimeout(() => this.connect(), delay);
-          } else if (get(authStore).isAuthenticated) {
-            // Max reconnect attempts reached — start periodic retry instead of giving up forever
-            console.error(
-              "[WebSocketService] Max reconnect attempts reached. Starting periodic retry.",
-            );
-            websocketStatus.setError(
-              "Max reconnect attempts reached. Will keep retrying.",
-              "error",
-            );
-            this.dispatchEvent(new CustomEvent("connection_failed_reconnect"));
-            this.startPeriodicRetry();
-            if (
-              this.rejectConnectionPromise &&
-              this.connectionPromise &&
-              !this.ws
-            ) {
-              this.rejectConnectionPromise("Max reconnect attempts reached");
-              this.connectionPromise = null;
-            }
-          } else {
-            // User logged out
-            websocketStatus.setStatus("disconnected");
-            if (
-              this.rejectConnectionPromise &&
-              this.connectionPromise &&
-              !this.ws
-            ) {
-              this.rejectConnectionPromise(
-                "User logged out during connection attempt.",
-              );
-            }
-            this.connectionPromise = null; // Clear promise
-          }
+          await (await rustWsPolicy()).handleClose(rustWsHost(this), event);
         };
       } catch (error) {
         console.error("[WebSocketService] Failed to create WebSocket:", error);
@@ -1305,70 +1041,7 @@ class WebSocketService extends EventTarget {
             clearTimeout(this.pongTimeoutId);
           }
           this.pongTimeoutId = setTimeout(() => {
-            if (RUST_WS_BUILD) {
-              void rustWsPolicy().then((policy) => policy.handlePongTimeout(rustWsHost(this)));
-              return;
-            }
-            // Before declaring the connection stale, check if we received any
-            // real data recently (e.g., AI streaming chunks). If data arrived
-            // within the pong timeout window, the connection is alive – the
-            // server was just too busy streaming to respond to our ping.
-            const timeSinceLastActivity =
-              Date.now() - this.lastActivityTimestamp;
-            if (timeSinceLastActivity < this.PONG_TIMEOUT) {
-              console.debug(
-                `[WebSocketService] Pong timeout fired but connection has recent activity (${timeSinceLastActivity}ms ago). Skipping close.`,
-              );
-              this.pongTimeoutId = null;
-              return;
-            }
-            console.warn(
-              "[WebSocketService] Pong not received within timeout after ping. Connection is likely stale. Attempting to close and trigger reconnect.",
-            );
-            if (this.ws) {
-              // Attempt to close the WebSocket. This should trigger the onclose handler,
-              // which contains the reconnection logic.
-              console.log(
-                "[WebSocketService] Pong Timeout: Closing current WebSocket with code 1000 to trigger reconnect sequence.",
-              );
-              this.ws.close(1000, "Pong timeout - client initiated close"); // Use code 1000
-              // No need to call this.ws = null or this.stopPing() here, as onclose should handle it.
-            } else {
-              // If ws is already null (e.g., due to a race condition or prior error),
-              // directly attempt a reconnect if authenticated.
-              console.warn(
-                "[WebSocketService] Pong Timeout: this.ws is already null. Directly attempting reconnect if authenticated.",
-              );
-              if (
-                get(authStore).isAuthenticated &&
-                this.reconnectAttempts < this.maxReconnectAttempts
-              ) {
-                // Manually trigger parts of the onclose logic for reconnection
-                websocketStatus.setStatus("reconnecting");
-                this.reconnectAttempts++;
-                const delay = Math.min(
-                  this.reconnectInterval *
-                    Math.pow(2, this.reconnectAttempts - 1),
-                  this.maxReconnectInterval,
-                );
-                console.info(
-                  `[WebSocketService] Pong Timeout: Attempting direct reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms...`,
-                );
-                setTimeout(() => this.connect(), delay);
-              } else if (get(authStore).isAuthenticated) {
-                console.error(
-                  "[WebSocketService] Pong Timeout: Max reconnect attempts reached during direct attempt. Starting periodic retry.",
-                );
-                websocketStatus.setError(
-                  "Max reconnect attempts reached after pong timeout. Will keep retrying.",
-                  "error",
-                );
-                this.dispatchEvent(
-                  new CustomEvent("connection_failed_reconnect"),
-                );
-                this.startPeriodicRetry();
-              }
-            }
+            void rustWsPolicy().then((policy) => policy.handlePongTimeout(rustWsHost(this)));
           }, this.PONG_TIMEOUT);
         } catch (error) {
           console.warn("[WebSocketService] Error sending ping:", error);
@@ -1400,29 +1073,7 @@ class WebSocketService extends EventTarget {
       `[WebSocketService] Starting periodic retry every ${this.PERIODIC_RETRY_INTERVAL / 1000}s after max reconnect attempts exhausted`,
     );
     this.periodicRetryIntervalId = setInterval(() => {
-      if (RUST_WS_BUILD) {
-        void rustWsPolicy().then((policy) => policy.handlePeriodicRetry(rustWsHost(this)));
-        return;
-      }
-      if (
-        get(authStore).isAuthenticated &&
-        !this.isConnected() &&
-        !this.connectionPromise
-      ) {
-        console.info(
-          "[WebSocketService] Periodic retry: attempting reconnection...",
-        );
-        this.reconnectAttempts = 0; // Reset so connect() doesn't immediately bail
-        this.connect().catch((err) => {
-          console.warn(
-            "[WebSocketService] Periodic retry: connection attempt failed:",
-            err,
-          );
-        });
-      } else if (!get(authStore).isAuthenticated) {
-        // User logged out, stop retrying
-        this.stopPeriodicRetry();
-      }
+      void rustWsPolicy().then((policy) => policy.handlePeriodicRetry(rustWsHost(this)));
     }, this.PERIODIC_RETRY_INTERVAL);
   }
 
@@ -1764,7 +1415,7 @@ interface RustWsInternals {
   dispatchEvent(event: Event): boolean;
 }
 
-/** Host bridge of the flag-on `ws` lifecycle executors (rustCore/ws/rustWsPolicy.ts). */
+/** Host bridge of the `ws` lifecycle executors (rustCore/ws/rustWsPolicy.ts). */
 function rustWsHost(service: WebSocketService): import("./rustCore/ws/rustWsPolicy").RustWsHost {
   const s = service as unknown as RustWsInternals;
   const idle = () => Boolean(s.connectionPromise) && !s.ws;

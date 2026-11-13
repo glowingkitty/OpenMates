@@ -11,12 +11,11 @@ capabilities:
 - id: transport
   what: WebSocket/REST connect, auth handshake, reconnect, message routing
   web:
-    status: rust-default
-    old:
-    - frontend/packages/ui/src/services/websocketService.ts
+    status: rust-only
+    old: []
     unit: ws
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists
-    last_commit: 06da1b2448
+    note: WebSocket lifecycle decisions (online, connection change, resume, close, pong timeout, periodic retry) run only in the Worker ws unit; the TypeScript reconnect branches, flag and opt-out are deleted. The socket itself stays in the shell.
+    last_commit: pending
   apple:
     status: rust-twin
     old:

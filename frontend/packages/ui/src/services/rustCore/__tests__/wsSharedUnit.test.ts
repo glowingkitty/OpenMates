@@ -1,6 +1,6 @@
 // `ws` unit of the shared Rust core Worker: the real router and installer over a
 // binding that answers the committed outcomes (web_ws/ts_vectors.json; the Rust
-// decisions themselves are proven by web_ws/tests.rs), and the flag-on page
+// decisions themselves are proven by web_ws/tests.rs), and the page
 // executors (rustWsPolicy.ts) applying those decisions to a recording host, with
 // no TypeScript fallback.
 import { readFileSync } from 'node:fs';

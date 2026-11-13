@@ -99689,7 +99689,7 @@ assertions:
       surface: gui.web
     - &id12613
       path: frontend/apps/web_app/tests/web-rust-core-ws.spec.ts
-      line: 30
+      line: 26
       name: websocket close and reconnect decisions run on the shared Rust ws unit
         and the connection recovers
       surface: gui.web
@@ -204744,7 +204744,7 @@ assertions:
       surface: gui.web
     - &id25999
       path: frontend/apps/web_app/tests/web-rust-core-ws.spec.ts
-      line: 30
+      line: 26
       name: websocket close and reconnect decisions run on the shared Rust ws unit
         and the connection recovers
       surface: gui.web
@@ -206022,7 +206022,7 @@ assertions:
       surface: gui.web
     - &id26170
       path: frontend/apps/web_app/tests/web-rust-core-ws.spec.ts
-      line: 30
+      line: 26
       name: websocket close and reconnect decisions run on the shared Rust ws unit
         and the connection recovers
       surface: gui.web
