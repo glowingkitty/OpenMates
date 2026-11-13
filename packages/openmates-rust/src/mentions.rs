@@ -72,6 +72,7 @@ const CHAT_MODELS: &[ModelRow] = &[
     ("gpt-oss-120b", "GPT-OSS-120b", None, None, None),
     ("gemma-4-31b", "Gemma 4 31B", None, None, None),
     ("gemini-3-flash-preview", "Gemini 3 Flash", None, None, None),
+    ("gemini-4-carbon", "Gemini 4 Carbon", None, None, None),
     ("gemini-3.8-flash", "Gemini 3.8 Flash", None, None, None),
     ("gemini-3.7-flash", "Gemini 3.7 Flash", None, None, None),
     ("gemini-3-pro-image-preview", "Gemini 3 Pro", None, None, None),
