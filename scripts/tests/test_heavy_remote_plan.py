@@ -27,6 +27,18 @@ ROOT = Path("/w/repo")
     ["cargo", "clippy", "--all-targets"],
     ["npx", "vitest", "run", "src/a.test.ts"],
     ["pnpm", "--dir", "/w/repo/frontend/packages/ui", "exec", "vitest", "run", "a.test.ts"],
+    ["cargo", "build", "-p", "openmates", "--bin", "openmates"],
+    ["npm", "run", "build:translations"],
+    ["npm", "--prefix", "/w/repo/frontend/packages/ui", "run", "build:translations"],
+    ["node", "scripts/build-translations.js"],
+    ["pnpm", "exec", "svelte-check", "--threshold", "error"],
+    ["bash", "-c", "cargo build && cargo test"],
+    # 2026-11-13: quoted `|` in grep patterns and `;` sent these to the local queue.
+    ["bash", "-c", "cargo test --lib -- cli::send 2>&1 | grep -E '^test result|FAILED|panicked'"],
+    ["bash", "-c", "cargo check --workspace 2>&1 | grep -E '^(error|warning)' | head -20; "
+                   "cargo test -p openmates-sdk --lib memory_ 2>&1 | tail -3"],
+    ["bash", "-c", "cd frontend/apps/web_app && export NODE_OPTIONS=--max-old-space-size=6144 && "
+                   "pnpm exec svelte-kit sync && pnpm exec svelte-check 2>/dev/null; echo done"],
 ])
 def test_result_only_commands_run_remotely(argv: list[str]) -> None:
     planned = plan.plan_command(argv, ROOT, ROOT)
@@ -36,17 +48,19 @@ def test_result_only_commands_run_remotely(argv: list[str]) -> None:
 
 
 @pytest.mark.parametrize("argv", [
-    ["cargo", "build", "--release"],  # artifacts are used locally
+    ["cargo", "build", "--release", "--target", "aarch64-unknown-linux-musl"],
     ["cargo", "test", "--target", "wasm32-unknown-unknown"],
     ["cargo", "+nightly", "test"],
     ["npx", "vitest", "-u"],
     ["npx", "vitest", "--update"],
-    ["svelte-check"],
     ["docker", "run", "image"],
     ["bash", "-c", "cargo test > out.txt"],
     ["bash", "-c", "cargo test; rm -rf x"],
     ["bash", "-c", "cd /tmp && cargo test"],
-    ["bash", "-c", "cargo build && cargo test"],
+    ["bash", "-c", "cargo test & sleep 1"],
+    ["bash", "-c", "cargo test $(echo -p x)"],
+    ["bash", "-c", "cargo test && npx vitest run"],  # two kinds in one run
+    ["npx", "playwright", "test", "--config", "/etc/hosts"],  # config outside worktree and /tmp
 ])
 def test_other_commands_stay_local(argv: list[str]) -> None:
     assert plan.plan_command(argv, ROOT, ROOT) is None
@@ -136,10 +150,49 @@ def test_heavy_slot_treats_remote_infra_failure_as_local_fallback(monkeypatch, t
     assert heavy_slot.try_remote(["cargo", "test"], 60, local=False) is None
     fake_call.code = 101  # a failing test is the command's result, not a fallback
     assert heavy_slot.try_remote(["cargo", "test"], 60, local=False) == 101
-    assert heavy_slot.try_remote(["cargo", "build"], 60, local=False) is None
+    assert heavy_slot.try_remote(["cargo", "build", "--target", "x86_64-unknown-linux-musl"], 60,
+                                 local=False) is None
     assert len(calls) == 2
 
 
 def test_remote_exit_code_matches_runner() -> None:
     text = (Path(heavy_slot.SCRIPTS_DIR) / "heavy_remote.py").read_text()
     assert f"EXIT_REMOTE_UNAVAILABLE = {heavy_slot.REMOTE_EXIT_UNAVAILABLE}" in text
+
+
+def test_cargo_build_copies_outputs_back() -> None:
+    planned = plan.plan_command(["bash", "-c", "cargo build -p openmates 2>&1 | tail -3"], ROOT, ROOT)
+    assert planned is not None and planned.cargo_build
+    assert not plan.plan_command(["cargo", "test"], ROOT, ROOT).cargo_build
+
+
+def test_canonical_checkout_paths_map_into_the_sandbox() -> None:
+    canonical = Path("/w")
+    root = Path("/w/.wt/agent-1")
+    planned = plan.plan_command(["npx", "vitest", "run", "/w/frontend/a.test.ts"], root, root, canonical)
+    assert planned is not None and "/home/user/repo/frontend/a.test.ts" in planned.shell
+    planned = plan.plan_command(["npx", "vitest", "run", "/w/.wt/agent-1/b.test.ts"], root, root, canonical)
+    assert "/home/user/repo/b.test.ts" in planned.shell
+
+
+def test_playwright_proof_folder_under_tmp_is_mirrored(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(plan, "EXTERNAL_ROOTS", (str(tmp_path) + "/",))
+    proof = tmp_path / "proof" / "run-1"
+    proof.mkdir(parents=True)
+    (proof / "playwright.proof.config.cjs").write_text("module.exports = {}")
+    cli = ROOT / "frontend/apps/web_app/node_modules/@playwright/test/cli.js"
+    planned = plan.plan_command(["node", str(cli), "test", "--config", str(proof / "playwright.proof.config.cjs"),
+                                 "tests/x.spec.ts"], proof, ROOT)
+    assert planned is not None and planned.kind == "playwright"
+    assert planned.external_dirs == (str(proof),)
+    assert planned.cwd == str(proof)
+    assert "/home/user/repo/frontend/apps/web_app/node_modules/@playwright/test/cli.js" in planned.shell
+
+
+def test_oversized_proof_folder_stays_local(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(plan, "EXTERNAL_ROOTS", (str(tmp_path) + "/",))
+    monkeypatch.setattr(plan, "MAX_EXTERNAL_DIR_BYTES", 10)
+    proof = tmp_path / "proof"
+    proof.mkdir()
+    (proof / "c.cjs").write_text("x" * 100)
+    assert plan.plan_command(["npx", "playwright", "test", "--config", str(proof / "c.cjs")], ROOT, ROOT) is None

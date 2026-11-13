@@ -43,19 +43,28 @@ paths:
   `rustc`, `wasm-pack`, vitest, `svelte-check` (several GB per run),
   `vite`/`svelte-kit`/`pnpm build`, local
   headless-browser benches) may run on the dev server only through
-  `python3 scripts/heavy_slot.py run -- <command>`: it waits until
-  `host_load_guard` reports a healthy host, allows at most 2 heavy commands
-  host-wide at once, starts one only when its 6 GB fit in free memory, and runs
-  each in a systemd scope capped at 4 CPUs and 6 GB RAM with low priority. One
-  heavy command per chat at a time; parallel lanes queue, they never bypass it. `.claude/hooks/bash-guard.sh` blocks direct runs.
-  The same wrapper runs `cargo test/check/clippy` (host target) and `vitest`
-  without `-u` in an E2B sandbox (8 CPUs, 8 GB, no local slot): it uploads the
-  worktree's differences from the template baseline and streams output and exit
-  code back. Write such commands directly (`cargo test -p openmates-sdk`,
-  `pnpm --dir frontend/packages/ui exec vitest run <file>`, or `bash -c "cd DIR &&
-  CMD | tail -N"`); other shell syntax runs locally. If E2B is unavailable it
-  says so and runs locally; `--local` forces a local run. Refresh the template
-  with `heavy_slot.py remote-template` when it reports a stale baseline.
+  `python3 scripts/heavy_slot.py run -- <command>`. `.claude/hooks/bash-guard.sh`
+  blocks direct runs. One heavy command per chat at a time; parallel lanes
+  queue, they never bypass it.
+  - E2B first: `cargo test/check/clippy/build` (host target), `vitest` without
+    `-u`, the translation build, `svelte-check`/`svelte-kit sync` and Playwright
+    runs (a proof config folder under `/tmp` is copied in, its results, videos
+    and the files the command changed are copied back) run in an E2B sandbox
+    (8 CPUs, 8 GB, no local slot). Write such commands directly (`cargo test -p
+    openmates-sdk`, `npm --prefix frontend/packages/ui run build:translations`,
+    or `bash -c "cd DIR && CMD 2>&1 | grep -E 'a|b'; echo done"`); file
+    redirection, `&` and substitution run locally.
+  - Dev E2B use is capped at 70% of the team's concurrency limit (E2B Pro: 100;
+    the rest stays free for product usage) with a daily budget
+    (`scripts/e2b_dev_capacity.py status`). At the cap, cargo/vitest/Playwright
+    runs wait in the E2B queue; the translation build runs locally instead.
+    If E2B is unavailable or the budget is used up it says so and runs
+    locally; `--local` forces a local run. Refresh the template with
+    `heavy_slot.py remote-template` when it reports a stale baseline.
+  - Local runs wait for a healthy host and size by class: heavy (builds,
+    other Rust, docker; 6 GB, 4 CPUs, max 2 at once), browser (3 GB) and light
+    (translation build, pytest, tsc, eslint; 2 GB), each started only when its
+    cap fits in free memory, in a systemd scope at low priority.
   Prefer isolated GitHub CI (`ci_coordinator.py submit --mode
   rust-check|rust-wasm|rust-native-dev|vitest|pytest`) for full suites.
 - Product REST/WebSocket, CLI/SDK and browser E2E: isolated GitHub CI only (one
