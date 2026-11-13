@@ -81,10 +81,8 @@ test('native CLI saves a press style in Project Memories and a new chat reuses i
   let projectId = '';
   const chatIds: string[] = [];
   let signedIn = false;
-  let lastStderr = '';
   const run = async (args: string[], timeoutMs = 120_000) => {
     const r = await runRust(binary, env, args, timeoutMs);
-    lastStderr = String(r.stderr);
     // Never print stdout wholesale: client metadata can contain key material.
     expect(r.code, `${args.slice(0, 3).join(' ')} exit ${r.code}\nstderr: ${r.stderr}\nstdout tail: ${String(r.stdout).slice(-600)}`).toBe(0);
     return parseJson(r);
@@ -161,8 +159,6 @@ test('native CLI saves a press style in Project Memories and a new chat reuses i
     // Chat 2: new chat of the same Project reuses the saved style.
     // The Ask first Project Memory is requested by id; --auto-approve-memories approves it.
     const turn2 = await run(['chats', 'new', REUSE_PROMPT, '--project', projectId, '--personal', '--auto-approve', '--auto-approve-memories', '--response-timeout-seconds', '420', '--json'], 600_000);
-    evidence.memoryApproved = /Approved the requested memory categories/.test(lastStderr);
-    expect.soft(evidence.memoryApproved, 'Ask first Project Memory approved on the reuse turn').toBe(true);
     const reuseChat = pickString(turn2, ['chatId', 'chat_id']);
     expect(reuseChat).toMatch(/^[0-9a-f-]{36}$/);
     chatIds.push(reuseChat);
@@ -185,6 +181,13 @@ test('native CLI saves a press style in Project Memories and a new chat reuses i
       embedReads.push(read);
     }
     const combined = `${JSON.stringify(shown)}\n${embedTexts.join('\n')}`;
+    // --auto-approve-memories approves inside the core (no consent line on stderr), so the
+    // persisted history is the proof: a memories_loaded event with the Ask first Memory or
+    // the stored approval (raw event or its readable line).
+    const shownText = JSON.stringify(shown);
+    evidence.memoryApproved = (/memories_loaded/.test(shownText) && /ask_first/.test(shownText))
+      || /app_settings_memories_response|Memories shared with the assistant/.test(shownText);
+    expect(evidence.memoryApproved, 'Ask first Project Memory approved and loaded on the reuse turn').toBe(true);
     const models = [turn2.modelName, turn2.model_name, ...collect(shown, ['modelName', 'model_name'])].filter(Boolean);
     Object.assign(evidence, { reuseStatus: turn2.status, models, cliShowExit: showRun.code,
       cliShowError: showRun.code === 0 ? '' : String(showRun.stderr).slice(0, 300),
