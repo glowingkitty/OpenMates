@@ -94,6 +94,10 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       ? route.abort('blockedbyclient') : route.continue();
   });
   const page: Page = await context.newPage();
+  // Own browser, so the config's action timeout does not apply: bound every
+  // action so one stuck click cannot consume the test timeout and skip the
+  // evidence and cleanup in `finally`.
+  page.setDefaultTimeout(60_000);
   // Web-side sync decisions for the CLI-driven turns (finals, stale/ignored
   // chunks, message persistence). Kept in a private file, never printed.
   const webSyncLog: string[] = [];
@@ -344,8 +348,12 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
           await card.scrollIntoViewIfNeeded({ timeout: 5_000 });
           await expect(card).toBeInViewport({ timeout: 2_000 });
         }, 'test result card scrolled into view').toPass({ timeout: 60_000 });
+        // Centre the card: scrolled only "into view", its expand button sits
+        // under the sticky chat header, which intercepts the click.
+        await card.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+        await page.waitForTimeout(500);
         await page.screenshot({ path: info.outputPath('chat-test-result-card.png') });
-        await card.getByTestId('result-preview-expand').click();
+        await card.getByTestId('result-preview-expand').click({ timeout: 30_000 });
         const body = page.getByTestId('test-result-fullscreen-body');
         await expect.soft(body).toBeVisible({ timeout: 30_000 });
         await expect.soft(page.getByTestId('test-result-video'), 'recorded test video').toBeVisible({ timeout: 60_000 });
