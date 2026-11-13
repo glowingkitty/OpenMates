@@ -13,7 +13,7 @@ use super::{
 };
 use crate::{
     client::{
-        ReservedTurnIds, SendEmbed, SendOptions, SendOutcome, SendPiiMapping, SendQueueMode,
+        MachineProjectDecision, ReservedTurnIds, SendEmbed, SendOptions, SendOutcome, SendPiiMapping, SendQueueMode,
         SendStatus, VoiceCallTurn,
     },
     error::{Error, Result},
@@ -50,6 +50,14 @@ pub struct SendTurnOptions {
     pub project_id: Option<String>,
     /// The turn is a live voice call utterance (saved personal chats only).
     pub voice_call: Option<VoiceCallTurn>,
+    /// Opt in to assistant-initiated Project creation: the shell renders the
+    /// created-Project card and offers undo.
+    pub project_create_requests: bool,
+    /// The shell's answer to a machine Project confirmation card; `None`
+    /// leaves the card pending.
+    pub machine_project: Option<MachineProjectDecision>,
+    /// Opt in to assistant Project file jobs executed on this device.
+    pub project_file_jobs: bool,
 }
 
 impl Default for SendTurnOptions {
@@ -64,6 +72,9 @@ impl Default for SendTurnOptions {
             pii_mappings: Vec::new(),
             project_id: None,
             voice_call: None,
+            project_create_requests: false,
+            machine_project: None,
+            project_file_jobs: false,
         }
     }
 }
@@ -109,6 +120,9 @@ impl SendTurnOptions {
             pii_mappings: self.pii_mappings.clone(),
             project_id: self.project_id.clone(),
             voice_call: self.voice_call.clone(),
+            project_create_requests: self.project_create_requests,
+            machine_project: self.machine_project.clone(),
+            project_file_jobs: self.project_file_jobs,
             ..SendOptions::default()
         }
     }

@@ -503,6 +503,22 @@ fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt32: FfiConverterPrimitive {
+    typealias FfiType = Int32
+    typealias SwiftType = Int32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int32, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
@@ -2837,6 +2853,56 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func updateMemoryDocument(id: String, fields: MemoryFieldsRecord, cancellation: CoreCancellation?) async throws  -> MemoryDocumentRecord
     
     /**
+     * Commit every change of the chat worktree (approved on the device by
+     * `operation_id`).
+     *
+     * # Errors
+     * `Authentication`; `Invalid` for a malformed operation id or empty
+     * message; `Offline`; `Cancelled`. Host refusals are `Refused`.
+     */
+    func gitCommit(project: String, source: String?, chatId: String, operationId: String, message: String, cancellation: CoreCancellation?) async throws  -> GitCommitOutcomeRecord
+    
+    /**
+     * Land the chat worktree on its target branch; a rebase conflict is the
+     * `Conflict` result.
+     *
+     * # Errors
+     * `Authentication`; `Invalid` for a malformed operation id; `Offline`;
+     * `Cancelled`. Host refusals are `Refused`.
+     */
+    func gitLand(project: String, source: String?, chatId: String, operationId: String, cancellation: CoreCancellation?) async throws  -> GitLandOutcomeRecord
+    
+    /**
+     * Read the Git state of the chat worktree on the Project source.
+     *
+     * # Errors
+     * `Authentication`; `Offline`; `Cancelled`. A missing worktree is
+     * `Refused` (`no_worktree`).
+     */
+    func gitStatus(project: String, source: String?, chatId: String, cancellation: CoreCancellation?) async throws  -> GitStatusOutcomeRecord
+    
+    /**
+     * Run a confined command on the source of Project `project` for
+     * `chat_id`. `operation_id` binds the single-use approval to the request
+     * (a fresh lowercase UUID per run). Runs on the actor.
+     *
+     * # Errors
+     * `Authentication`; `Invalid` for a malformed operation id or empty
+     * argv; `Offline`; `Cancelled`. Host refusals are `Refused`.
+     */
+    func runRemoteCommand(project: String, source: String?, chatId: String, operationId: String, command: RemoteCommandRecord, cancellation: CoreCancellation?) async throws  -> RemoteCommandOutcomeRecord
+    
+    /**
+     * Undo the Project an assistant turn created for `chat_id`: removes the
+     * chat's focus and the Project; the chat stays. Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Forbidden` when the chat has no
+     * assistant-created Project; `Offline`; `Cancelled`.
+     */
+    func undoCreatedProject(chatId: String, cancellation: CoreCancellation?) async throws  -> CreatedProjectRecord
+    
+    /**
      * Revise queued follow-up `message_id` of `chat_id` (new `text`, a new
      * `mode`, or both). `revision` is the queue revision the turn last
      * reported (`SendReceiptRecord.queueRevision` or the receipt of the
@@ -4682,6 +4748,126 @@ open func updateMemoryDocument(id: String, fields: MemoryFieldsRecord, cancellat
 }
     
     /**
+     * Commit every change of the chat worktree (approved on the device by
+     * `operation_id`).
+     *
+     * # Errors
+     * `Authentication`; `Invalid` for a malformed operation id or empty
+     * message; `Offline`; `Cancelled`. Host refusals are `Refused`.
+     */
+open func gitCommit(project: String, source: String?, chatId: String, operationId: String, message: String, cancellation: CoreCancellation?)async throws  -> GitCommitOutcomeRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_git_commit(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(project),FfiConverterOptionString.lower(source),FfiConverterString.lower(chatId),FfiConverterString.lower(operationId),FfiConverterString.lower(message),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeGitCommitOutcomeRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Land the chat worktree on its target branch; a rebase conflict is the
+     * `Conflict` result.
+     *
+     * # Errors
+     * `Authentication`; `Invalid` for a malformed operation id; `Offline`;
+     * `Cancelled`. Host refusals are `Refused`.
+     */
+open func gitLand(project: String, source: String?, chatId: String, operationId: String, cancellation: CoreCancellation?)async throws  -> GitLandOutcomeRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_git_land(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(project),FfiConverterOptionString.lower(source),FfiConverterString.lower(chatId),FfiConverterString.lower(operationId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeGitLandOutcomeRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Read the Git state of the chat worktree on the Project source.
+     *
+     * # Errors
+     * `Authentication`; `Offline`; `Cancelled`. A missing worktree is
+     * `Refused` (`no_worktree`).
+     */
+open func gitStatus(project: String, source: String?, chatId: String, cancellation: CoreCancellation?)async throws  -> GitStatusOutcomeRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_git_status(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(project),FfiConverterOptionString.lower(source),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeGitStatusOutcomeRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Run a confined command on the source of Project `project` for
+     * `chat_id`. `operation_id` binds the single-use approval to the request
+     * (a fresh lowercase UUID per run). Runs on the actor.
+     *
+     * # Errors
+     * `Authentication`; `Invalid` for a malformed operation id or empty
+     * argv; `Offline`; `Cancelled`. Host refusals are `Refused`.
+     */
+open func runRemoteCommand(project: String, source: String?, chatId: String, operationId: String, command: RemoteCommandRecord, cancellation: CoreCancellation?)async throws  -> RemoteCommandOutcomeRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_run_remote_command(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(project),FfiConverterOptionString.lower(source),FfiConverterString.lower(chatId),FfiConverterString.lower(operationId),FfiConverterTypeRemoteCommandRecord_lower(command),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeRemoteCommandOutcomeRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Undo the Project an assistant turn created for `chat_id`: removes the
+     * chat's focus and the Project; the chat stays. Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Forbidden` when the chat has no
+     * assistant-created Project; `Offline`; `Cancelled`.
+     */
+open func undoCreatedProject(chatId: String, cancellation: CoreCancellation?)async throws  -> CreatedProjectRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_undo_created_project(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeCreatedProjectRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
      * Revise queued follow-up `message_id` of `chat_id` (new `text`, a new
      * `mode`, or both). `revision` is the queue revision the turn last
      * reported (`SendReceiptRecord.queueRevision` or the receipt of the
@@ -6309,6 +6495,145 @@ public func FfiConverterTypeCoreConfig_lower(_ value: CoreConfig) -> RustBuffer 
 
 
 /**
+ * The Project an assistant turn created for a chat.
+ */
+public struct CreatedProjectRecord: Equatable, Hashable {
+    /**
+     * Request that produced the Project.
+     */
+    public var requestId: String
+    /**
+     * Chat the Project was created for.
+     */
+    public var chatId: String
+    /**
+     * New Project id.
+     */
+    public var projectId: String
+    /**
+     * Default focus id that was activated.
+     */
+    public var focusId: String
+    /**
+     * Decrypted Project name.
+     */
+    public var name: String
+    /**
+     * `web_app` or `native_app`.
+     */
+    public var kind: String
+    /**
+     * Folder the application's files go to.
+     */
+    public var subfolder: String
+    /**
+     * Team of the Project, nil for a personal Project.
+     */
+    public var teamId: String?
+    /**
+     * True while the Project exists and can be undone.
+     */
+    public var undoAvailable: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Request that produced the Project.
+         */requestId: String, 
+        /**
+         * Chat the Project was created for.
+         */chatId: String, 
+        /**
+         * New Project id.
+         */projectId: String, 
+        /**
+         * Default focus id that was activated.
+         */focusId: String, 
+        /**
+         * Decrypted Project name.
+         */name: String, 
+        /**
+         * `web_app` or `native_app`.
+         */kind: String, 
+        /**
+         * Folder the application's files go to.
+         */subfolder: String, 
+        /**
+         * Team of the Project, nil for a personal Project.
+         */teamId: String?, 
+        /**
+         * True while the Project exists and can be undone.
+         */undoAvailable: Bool) {
+        self.requestId = requestId
+        self.chatId = chatId
+        self.projectId = projectId
+        self.focusId = focusId
+        self.name = name
+        self.kind = kind
+        self.subfolder = subfolder
+        self.teamId = teamId
+        self.undoAvailable = undoAvailable
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CreatedProjectRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCreatedProjectRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CreatedProjectRecord {
+        return
+            try CreatedProjectRecord(
+                requestId: FfiConverterString.read(from: &buf), 
+                chatId: FfiConverterString.read(from: &buf), 
+                projectId: FfiConverterString.read(from: &buf), 
+                focusId: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterString.read(from: &buf), 
+                subfolder: FfiConverterString.read(from: &buf), 
+                teamId: FfiConverterOptionString.read(from: &buf), 
+                undoAvailable: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CreatedProjectRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.requestId, into: &buf)
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterString.write(value.projectId, into: &buf)
+        FfiConverterString.write(value.focusId, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.kind, into: &buf)
+        FfiConverterString.write(value.subfolder, into: &buf)
+        FfiConverterOptionString.write(value.teamId, into: &buf)
+        FfiConverterBool.write(value.undoAvailable, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCreatedProjectRecord_lift(_ buf: RustBuffer) throws -> CreatedProjectRecord {
+    return try FfiConverterTypeCreatedProjectRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCreatedProjectRecord_lower(_ value: CreatedProjectRecord) -> RustBuffer {
+    return FfiConverterTypeCreatedProjectRecord.lower(value)
+}
+
+
+/**
  * Opaque credential snapshot for the Keychain. `payload` is the serialized core
  * `Session` (JSON, includes the master key): Swift stores and returns it
  * unchanged and never parses, logs or shows it.
@@ -7552,6 +7877,283 @@ public func FfiConverterTypeEncryptedMessageRecord_lift(_ buf: RustBuffer) throw
 #endif
 public func FfiConverterTypeEncryptedMessageRecord_lower(_ value: EncryptedMessageRecord) -> RustBuffer {
     return FfiConverterTypeEncryptedMessageRecord.lower(value)
+}
+
+
+/**
+ * One changed file of a worktree status.
+ */
+public struct GitChangedFileRecord: Equatable, Hashable {
+    /**
+     * Root-relative path.
+     */
+    public var path: String
+    /**
+     * Porcelain status code.
+     */
+    public var status: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Root-relative path.
+         */path: String, 
+        /**
+         * Porcelain status code.
+         */status: String) {
+        self.path = path
+        self.status = status
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GitChangedFileRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGitChangedFileRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GitChangedFileRecord {
+        return
+            try GitChangedFileRecord(
+                path: FfiConverterString.read(from: &buf), 
+                status: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GitChangedFileRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterString.write(value.status, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitChangedFileRecord_lift(_ buf: RustBuffer) throws -> GitChangedFileRecord {
+    return try FfiConverterTypeGitChangedFileRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitChangedFileRecord_lower(_ value: GitChangedFileRecord) -> RustBuffer {
+    return FfiConverterTypeGitChangedFileRecord.lower(value)
+}
+
+
+/**
+ * The commit a `git commit` made.
+ */
+public struct GitCommitRecord: Equatable, Hashable {
+    /**
+     * New commit id.
+     */
+    public var commit: String
+    /**
+     * Commits ahead of the target branch.
+     */
+    public var ahead: UInt64
+    /**
+     * Branch the worktree lands on.
+     */
+    public var targetBranch: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * New commit id.
+         */commit: String, 
+        /**
+         * Commits ahead of the target branch.
+         */ahead: UInt64, 
+        /**
+         * Branch the worktree lands on.
+         */targetBranch: String) {
+        self.commit = commit
+        self.ahead = ahead
+        self.targetBranch = targetBranch
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GitCommitRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGitCommitRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GitCommitRecord {
+        return
+            try GitCommitRecord(
+                commit: FfiConverterString.read(from: &buf), 
+                ahead: FfiConverterUInt64.read(from: &buf), 
+                targetBranch: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GitCommitRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.commit, into: &buf)
+        FfiConverterUInt64.write(value.ahead, into: &buf)
+        FfiConverterString.write(value.targetBranch, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitCommitRecord_lift(_ buf: RustBuffer) throws -> GitCommitRecord {
+    return try FfiConverterTypeGitCommitRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitCommitRecord_lower(_ value: GitCommitRecord) -> RustBuffer {
+    return FfiConverterTypeGitCommitRecord.lower(value)
+}
+
+
+/**
+ * The chat worktree state.
+ */
+public struct GitStatusRecord: Equatable, Hashable {
+    /**
+     * False when the chat has no worktree yet (other fields default).
+     */
+    public var exists: Bool
+    /**
+     * Worktree head commit.
+     */
+    public var head: String?
+    /**
+     * Branch the worktree lands on.
+     */
+    public var targetBranch: String?
+    /**
+     * Commits ahead of the target branch.
+     */
+    public var ahead: UInt64
+    /**
+     * Uncommitted changes exist.
+     */
+    public var dirty: Bool
+    /**
+     * Everything is already on the target branch.
+     */
+    public var landed: Bool
+    /**
+     * Changed files (possibly truncated).
+     */
+    public var changedFiles: [GitChangedFileRecord]
+    /**
+     * The file list was cut.
+     */
+    public var truncated: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * False when the chat has no worktree yet (other fields default).
+         */exists: Bool, 
+        /**
+         * Worktree head commit.
+         */head: String?, 
+        /**
+         * Branch the worktree lands on.
+         */targetBranch: String?, 
+        /**
+         * Commits ahead of the target branch.
+         */ahead: UInt64, 
+        /**
+         * Uncommitted changes exist.
+         */dirty: Bool, 
+        /**
+         * Everything is already on the target branch.
+         */landed: Bool, 
+        /**
+         * Changed files (possibly truncated).
+         */changedFiles: [GitChangedFileRecord], 
+        /**
+         * The file list was cut.
+         */truncated: Bool) {
+        self.exists = exists
+        self.head = head
+        self.targetBranch = targetBranch
+        self.ahead = ahead
+        self.dirty = dirty
+        self.landed = landed
+        self.changedFiles = changedFiles
+        self.truncated = truncated
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GitStatusRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGitStatusRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GitStatusRecord {
+        return
+            try GitStatusRecord(
+                exists: FfiConverterBool.read(from: &buf), 
+                head: FfiConverterOptionString.read(from: &buf), 
+                targetBranch: FfiConverterOptionString.read(from: &buf), 
+                ahead: FfiConverterUInt64.read(from: &buf), 
+                dirty: FfiConverterBool.read(from: &buf), 
+                landed: FfiConverterBool.read(from: &buf), 
+                changedFiles: FfiConverterSequenceTypeGitChangedFileRecord.read(from: &buf), 
+                truncated: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GitStatusRecord, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.exists, into: &buf)
+        FfiConverterOptionString.write(value.head, into: &buf)
+        FfiConverterOptionString.write(value.targetBranch, into: &buf)
+        FfiConverterUInt64.write(value.ahead, into: &buf)
+        FfiConverterBool.write(value.dirty, into: &buf)
+        FfiConverterBool.write(value.landed, into: &buf)
+        FfiConverterSequenceTypeGitChangedFileRecord.write(value.changedFiles, into: &buf)
+        FfiConverterBool.write(value.truncated, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitStatusRecord_lift(_ buf: RustBuffer) throws -> GitStatusRecord {
+    return try FfiConverterTypeGitStatusRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitStatusRecord_lower(_ value: GitStatusRecord) -> RustBuffer {
+    return FfiConverterTypeGitStatusRecord.lower(value)
 }
 
 
@@ -9364,6 +9966,326 @@ public func FfiConverterTypeQueuedRevisionReceiptRecord_lower(_ value: QueuedRev
 
 
 /**
+ * A command to run on a Project source: a program and arguments, never a
+ * shell string.
+ */
+public struct RemoteCommandRecord: Equatable, Hashable {
+    /**
+     * Program and arguments (1 to 128 entries).
+     */
+    public var argv: [String]
+    /**
+     * Root-relative working directory; nil runs in the root.
+     */
+    public var cwd: String?
+    /**
+     * Wall-clock limit in milliseconds (100 ms to 30 minutes).
+     */
+    public var timeoutMs: UInt64
+    /**
+     * Per-stream output cap in bytes (1 KiB to 96 KiB); nil: host default.
+     */
+    public var maxOutputBytes: UInt64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Program and arguments (1 to 128 entries).
+         */argv: [String], 
+        /**
+         * Root-relative working directory; nil runs in the root.
+         */cwd: String? = nil, 
+        /**
+         * Wall-clock limit in milliseconds (100 ms to 30 minutes).
+         */timeoutMs: UInt64, 
+        /**
+         * Per-stream output cap in bytes (1 KiB to 96 KiB); nil: host default.
+         */maxOutputBytes: UInt64? = nil) {
+        self.argv = argv
+        self.cwd = cwd
+        self.timeoutMs = timeoutMs
+        self.maxOutputBytes = maxOutputBytes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RemoteCommandRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRemoteCommandRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RemoteCommandRecord {
+        return
+            try RemoteCommandRecord(
+                argv: FfiConverterSequenceString.read(from: &buf), 
+                cwd: FfiConverterOptionString.read(from: &buf), 
+                timeoutMs: FfiConverterUInt64.read(from: &buf), 
+                maxOutputBytes: FfiConverterOptionUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RemoteCommandRecord, into buf: inout [UInt8]) {
+        FfiConverterSequenceString.write(value.argv, into: &buf)
+        FfiConverterOptionString.write(value.cwd, into: &buf)
+        FfiConverterUInt64.write(value.timeoutMs, into: &buf)
+        FfiConverterOptionUInt64.write(value.maxOutputBytes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandRecord_lift(_ buf: RustBuffer) throws -> RemoteCommandRecord {
+    return try FfiConverterTypeRemoteCommandRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandRecord_lower(_ value: RemoteCommandRecord) -> RustBuffer {
+    return FfiConverterTypeRemoteCommandRecord.lower(value)
+}
+
+
+/**
+ * The host's answer to a remote command.
+ */
+public struct RemoteCommandResultRecord: Equatable, Hashable {
+    /**
+     * Exit code; nil when a signal ended the command.
+     */
+    public var exitCode: Int32?
+    /**
+     * Terminating signal, if any.
+     */
+    public var signal: Int32?
+    /**
+     * The time limit ended the command.
+     */
+    public var timedOut: Bool
+    /**
+     * Wall-clock duration in milliseconds.
+     */
+    public var durationMs: UInt64
+    /**
+     * Captured standard output.
+     */
+    public var stdout: String
+    /**
+     * Captured standard error.
+     */
+    public var stderr: String
+    /**
+     * Standard output was cut at the cap.
+     */
+    public var stdoutTruncated: Bool
+    /**
+     * Standard error was cut at the cap.
+     */
+    public var stderrTruncated: Bool
+    /**
+     * The confinement the host used.
+     */
+    public var sandbox: String
+    /**
+     * The root the command ran under.
+     */
+    public var root: String
+    /**
+     * The working directory the command ran in.
+     */
+    public var cwd: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Exit code; nil when a signal ended the command.
+         */exitCode: Int32?, 
+        /**
+         * Terminating signal, if any.
+         */signal: Int32?, 
+        /**
+         * The time limit ended the command.
+         */timedOut: Bool, 
+        /**
+         * Wall-clock duration in milliseconds.
+         */durationMs: UInt64, 
+        /**
+         * Captured standard output.
+         */stdout: String, 
+        /**
+         * Captured standard error.
+         */stderr: String, 
+        /**
+         * Standard output was cut at the cap.
+         */stdoutTruncated: Bool, 
+        /**
+         * Standard error was cut at the cap.
+         */stderrTruncated: Bool, 
+        /**
+         * The confinement the host used.
+         */sandbox: String, 
+        /**
+         * The root the command ran under.
+         */root: String, 
+        /**
+         * The working directory the command ran in.
+         */cwd: String) {
+        self.exitCode = exitCode
+        self.signal = signal
+        self.timedOut = timedOut
+        self.durationMs = durationMs
+        self.stdout = stdout
+        self.stderr = stderr
+        self.stdoutTruncated = stdoutTruncated
+        self.stderrTruncated = stderrTruncated
+        self.sandbox = sandbox
+        self.root = root
+        self.cwd = cwd
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RemoteCommandResultRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRemoteCommandResultRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RemoteCommandResultRecord {
+        return
+            try RemoteCommandResultRecord(
+                exitCode: FfiConverterOptionInt32.read(from: &buf), 
+                signal: FfiConverterOptionInt32.read(from: &buf), 
+                timedOut: FfiConverterBool.read(from: &buf), 
+                durationMs: FfiConverterUInt64.read(from: &buf), 
+                stdout: FfiConverterString.read(from: &buf), 
+                stderr: FfiConverterString.read(from: &buf), 
+                stdoutTruncated: FfiConverterBool.read(from: &buf), 
+                stderrTruncated: FfiConverterBool.read(from: &buf), 
+                sandbox: FfiConverterString.read(from: &buf), 
+                root: FfiConverterString.read(from: &buf), 
+                cwd: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RemoteCommandResultRecord, into buf: inout [UInt8]) {
+        FfiConverterOptionInt32.write(value.exitCode, into: &buf)
+        FfiConverterOptionInt32.write(value.signal, into: &buf)
+        FfiConverterBool.write(value.timedOut, into: &buf)
+        FfiConverterUInt64.write(value.durationMs, into: &buf)
+        FfiConverterString.write(value.stdout, into: &buf)
+        FfiConverterString.write(value.stderr, into: &buf)
+        FfiConverterBool.write(value.stdoutTruncated, into: &buf)
+        FfiConverterBool.write(value.stderrTruncated, into: &buf)
+        FfiConverterString.write(value.sandbox, into: &buf)
+        FfiConverterString.write(value.root, into: &buf)
+        FfiConverterString.write(value.cwd, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandResultRecord_lift(_ buf: RustBuffer) throws -> RemoteCommandResultRecord {
+    return try FfiConverterTypeRemoteCommandResultRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandResultRecord_lower(_ value: RemoteCommandResultRecord) -> RustBuffer {
+    return FfiConverterTypeRemoteCommandResultRecord.lower(value)
+}
+
+
+/**
+ * A refusal of the Project source host or relay.
+ */
+public struct RemoteRefusalRecord: Equatable, Hashable {
+    /**
+     * Stable wire code (`no_worktree`, `nothing_to_commit`,
+     * `write_authorization_denied`, ...).
+     */
+    public var code: String
+    /**
+     * English reason from the host.
+     */
+    public var message: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable wire code (`no_worktree`, `nothing_to_commit`,
+         * `write_authorization_denied`, ...).
+         */code: String, 
+        /**
+         * English reason from the host.
+         */message: String) {
+        self.code = code
+        self.message = message
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RemoteRefusalRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRemoteRefusalRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RemoteRefusalRecord {
+        return
+            try RemoteRefusalRecord(
+                code: FfiConverterString.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RemoteRefusalRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.code, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteRefusalRecord_lift(_ buf: RustBuffer) throws -> RemoteRefusalRecord {
+    return try FfiConverterTypeRemoteRefusalRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteRefusalRecord_lower(_ value: RemoteRefusalRecord) -> RustBuffer {
+    return FfiConverterTypeRemoteRefusalRecord.lower(value)
+}
+
+
+/**
  * One embed the composer attaches to the turn (an upload, a recording, a
  * pasted code or text block, a URL preview, or an embed already stored).
  */
@@ -9542,6 +10464,21 @@ public struct SendOptionsRecord: Equatable, Hashable {
      * chats only); the core adds the call fields to the message.
      */
     public var voiceCall: VoiceCallTurnRecord?
+    /**
+     * Opt in to assistant-initiated Project creation: the core executes the
+     * request; set it only when the shell renders the created-Project card.
+     */
+    public var projectCreateRequests: Bool
+    /**
+     * The user's answer to a machine Project confirmation card, applied
+     * during the turn; nil leaves the card pending.
+     */
+    public var machineProject: MachineProjectDecisionRecord?
+    /**
+     * Opt in to assistant Project file jobs the core runs on this device;
+     * always-ask writes are declined with a notice.
+     */
+    public var projectFileJobs: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -9587,7 +10524,19 @@ public struct SendOptionsRecord: Equatable, Hashable {
         /**
          * The turn is the user's utterance of a live voice call (saved personal
          * chats only); the core adds the call fields to the message.
-         */voiceCall: VoiceCallTurnRecord? = nil) {
+         */voiceCall: VoiceCallTurnRecord? = nil, 
+        /**
+         * Opt in to assistant-initiated Project creation: the core executes the
+         * request; set it only when the shell renders the created-Project card.
+         */projectCreateRequests: Bool = false, 
+        /**
+         * The user's answer to a machine Project confirmation card, applied
+         * during the turn; nil leaves the card pending.
+         */machineProject: MachineProjectDecisionRecord? = nil, 
+        /**
+         * Opt in to assistant Project file jobs the core runs on this device;
+         * always-ask writes are declined with a notice.
+         */projectFileJobs: Bool = false) {
         self.piiDetection = piiDetection
         self.incognito = incognito
         self.slug = slug
@@ -9599,6 +10548,9 @@ public struct SendOptionsRecord: Equatable, Hashable {
         self.piiMappings = piiMappings
         self.projectId = projectId
         self.voiceCall = voiceCall
+        self.projectCreateRequests = projectCreateRequests
+        self.machineProject = machineProject
+        self.projectFileJobs = projectFileJobs
     }
 
     
@@ -9627,7 +10579,10 @@ public struct FfiConverterTypeSendOptionsRecord: FfiConverterRustBuffer {
                 excludedPiiPlaceholders: FfiConverterSequenceString.read(from: &buf), 
                 piiMappings: FfiConverterSequenceTypePiiMappingRecord.read(from: &buf), 
                 projectId: FfiConverterOptionString.read(from: &buf), 
-                voiceCall: FfiConverterOptionTypeVoiceCallTurnRecord.read(from: &buf)
+                voiceCall: FfiConverterOptionTypeVoiceCallTurnRecord.read(from: &buf), 
+                projectCreateRequests: FfiConverterBool.read(from: &buf), 
+                machineProject: FfiConverterOptionTypeMachineProjectDecisionRecord.read(from: &buf), 
+                projectFileJobs: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -9643,6 +10598,9 @@ public struct FfiConverterTypeSendOptionsRecord: FfiConverterRustBuffer {
         FfiConverterSequenceTypePiiMappingRecord.write(value.piiMappings, into: &buf)
         FfiConverterOptionString.write(value.projectId, into: &buf)
         FfiConverterOptionTypeVoiceCallTurnRecord.write(value.voiceCall, into: &buf)
+        FfiConverterBool.write(value.projectCreateRequests, into: &buf)
+        FfiConverterOptionTypeMachineProjectDecisionRecord.write(value.machineProject, into: &buf)
+        FfiConverterBool.write(value.projectFileJobs, into: &buf)
     }
 }
 
@@ -12688,6 +13646,370 @@ public func FfiConverterTypeFieldDecryptOutcome_lower(_ value: FieldDecryptOutco
 
 
 /**
+ * Outcome of a worktree commit.
+ */
+
+public enum GitCommitOutcomeRecord: Equatable, Hashable {
+    
+    /**
+     * The commit was made.
+     */
+    case done(
+        /**
+         * The commit.
+         */commit: GitCommitRecord
+    )
+    /**
+     * The host refused (`nothing_to_commit`, `identity_missing`, ...).
+     */
+    case refused(
+        /**
+         * The refusal.
+         */refusal: RemoteRefusalRecord
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension GitCommitOutcomeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGitCommitOutcomeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = GitCommitOutcomeRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GitCommitOutcomeRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .done(commit: try FfiConverterTypeGitCommitRecord.read(from: &buf)
+        )
+        
+        case 2: return .refused(refusal: try FfiConverterTypeRemoteRefusalRecord.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: GitCommitOutcomeRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .done(commit):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeGitCommitRecord.write(commit, into: &buf)
+            
+        
+        case let .refused(refusal):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeRemoteRefusalRecord.write(refusal, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitCommitOutcomeRecord_lift(_ buf: RustBuffer) throws -> GitCommitOutcomeRecord {
+    return try FfiConverterTypeGitCommitOutcomeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitCommitOutcomeRecord_lower(_ value: GitCommitOutcomeRecord) -> RustBuffer {
+    return FfiConverterTypeGitCommitOutcomeRecord.lower(value)
+}
+
+
+
+/**
+ * Outcome of landing the worktree.
+ */
+
+public enum GitLandOutcomeRecord: Equatable, Hashable {
+    
+    /**
+     * The host answered (landed or conflict).
+     */
+    case done(
+        /**
+         * What landing did.
+         */result: GitLandResultRecord
+    )
+    /**
+     * The host refused (`worktree_dirty`, `land_failed`, ...).
+     */
+    case refused(
+        /**
+         * The refusal.
+         */refusal: RemoteRefusalRecord
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension GitLandOutcomeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGitLandOutcomeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = GitLandOutcomeRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GitLandOutcomeRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .done(result: try FfiConverterTypeGitLandResultRecord.read(from: &buf)
+        )
+        
+        case 2: return .refused(refusal: try FfiConverterTypeRemoteRefusalRecord.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: GitLandOutcomeRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .done(result):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeGitLandResultRecord.write(result, into: &buf)
+            
+        
+        case let .refused(refusal):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeRemoteRefusalRecord.write(refusal, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitLandOutcomeRecord_lift(_ buf: RustBuffer) throws -> GitLandOutcomeRecord {
+    return try FfiConverterTypeGitLandOutcomeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitLandOutcomeRecord_lower(_ value: GitLandOutcomeRecord) -> RustBuffer {
+    return FfiConverterTypeGitLandOutcomeRecord.lower(value)
+}
+
+
+
+/**
+ * What landing the worktree did.
+ */
+
+public enum GitLandResultRecord: Equatable, Hashable {
+    
+    /**
+     * The target branch moved (`commits` is 0 when already landed).
+     */
+    case landed(
+        /**
+         * Landed commit id.
+         */commit: String, 
+        /**
+         * Number of commits landed.
+         */commits: UInt64, 
+        /**
+         * Branch that moved.
+         */targetBranch: String, 
+        /**
+         * The target branch is checked out on the machine.
+         */checkedOut: Bool
+    )
+    /**
+     * A rebase conflict; the worktree is unchanged.
+     */
+    case conflict(
+        /**
+         * Stable code (`land_conflict`).
+         */code: String, 
+        /**
+         * Paths in conflict.
+         */conflictingPaths: [String]
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension GitLandResultRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGitLandResultRecord: FfiConverterRustBuffer {
+    typealias SwiftType = GitLandResultRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GitLandResultRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .landed(commit: try FfiConverterString.read(from: &buf), commits: try FfiConverterUInt64.read(from: &buf), targetBranch: try FfiConverterString.read(from: &buf), checkedOut: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 2: return .conflict(code: try FfiConverterString.read(from: &buf), conflictingPaths: try FfiConverterSequenceString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: GitLandResultRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .landed(commit,commits,targetBranch,checkedOut):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(commit, into: &buf)
+            FfiConverterUInt64.write(commits, into: &buf)
+            FfiConverterString.write(targetBranch, into: &buf)
+            FfiConverterBool.write(checkedOut, into: &buf)
+            
+        
+        case let .conflict(code,conflictingPaths):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(code, into: &buf)
+            FfiConverterSequenceString.write(conflictingPaths, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitLandResultRecord_lift(_ buf: RustBuffer) throws -> GitLandResultRecord {
+    return try FfiConverterTypeGitLandResultRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitLandResultRecord_lower(_ value: GitLandResultRecord) -> RustBuffer {
+    return FfiConverterTypeGitLandResultRecord.lower(value)
+}
+
+
+
+/**
+ * Outcome of a worktree status read.
+ */
+
+public enum GitStatusOutcomeRecord: Equatable, Hashable {
+    
+    /**
+     * The status.
+     */
+    case done(
+        /**
+         * Worktree state.
+         */status: GitStatusRecord
+    )
+    /**
+     * The host refused (for example `no_worktree`).
+     */
+    case refused(
+        /**
+         * The refusal.
+         */refusal: RemoteRefusalRecord
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension GitStatusOutcomeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGitStatusOutcomeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = GitStatusOutcomeRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GitStatusOutcomeRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .done(status: try FfiConverterTypeGitStatusRecord.read(from: &buf)
+        )
+        
+        case 2: return .refused(refusal: try FfiConverterTypeRemoteRefusalRecord.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: GitStatusOutcomeRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .done(status):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeGitStatusRecord.write(status, into: &buf)
+            
+        
+        case let .refused(refusal):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeRemoteRefusalRecord.write(refusal, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitStatusOutcomeRecord_lift(_ buf: RustBuffer) throws -> GitStatusOutcomeRecord {
+    return try FfiConverterTypeGitStatusOutcomeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGitStatusOutcomeRecord_lower(_ value: GitStatusOutcomeRecord) -> RustBuffer {
+    return FfiConverterTypeGitStatusOutcomeRecord.lower(value)
+}
+
+
+
+/**
  * What saving an Enhance result did.
  */
 
@@ -12969,6 +14291,97 @@ public func FfiConverterTypeListCompletenessRecord_lift(_ buf: RustBuffer) throw
 #endif
 public func FfiConverterTypeListCompletenessRecord_lower(_ value: ListCompletenessRecord) -> RustBuffer {
     return FfiConverterTypeListCompletenessRecord.lower(value)
+}
+
+
+
+/**
+ * The shell's answer to a machine Project confirmation card.
+ */
+
+public enum MachineProjectDecisionRecord: Equatable, Hashable {
+    
+    /**
+     * Create the Project on a machine; nil host picks the only machine.
+     */
+    case confirm(
+        /**
+         * Device hash of the chosen machine.
+         */hostDeviceHash: String?
+    )
+    /**
+     * The user does not want the Project.
+     */
+    case decline
+    /**
+     * The shell cannot ask; reported to the assistant as a failure.
+     */
+    case unavailable
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MachineProjectDecisionRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMachineProjectDecisionRecord: FfiConverterRustBuffer {
+    typealias SwiftType = MachineProjectDecisionRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MachineProjectDecisionRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .confirm(hostDeviceHash: try FfiConverterOptionString.read(from: &buf)
+        )
+        
+        case 2: return .decline
+        
+        case 3: return .unavailable
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MachineProjectDecisionRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .confirm(hostDeviceHash):
+            writeInt(&buf, Int32(1))
+            FfiConverterOptionString.write(hostDeviceHash, into: &buf)
+            
+        
+        case .decline:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .unavailable:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMachineProjectDecisionRecord_lift(_ buf: RustBuffer) throws -> MachineProjectDecisionRecord {
+    return try FfiConverterTypeMachineProjectDecisionRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMachineProjectDecisionRecord_lower(_ value: MachineProjectDecisionRecord) -> RustBuffer {
+    return FfiConverterTypeMachineProjectDecisionRecord.lower(value)
 }
 
 
@@ -13518,6 +14931,93 @@ public func FfiConverterTypePiiRestorationRecord_lift(_ buf: RustBuffer) throws 
 #endif
 public func FfiConverterTypePiiRestorationRecord_lower(_ value: PiiRestorationRecord) -> RustBuffer {
     return FfiConverterTypePiiRestorationRecord.lower(value)
+}
+
+
+
+/**
+ * Outcome of a remote command.
+ */
+
+public enum RemoteCommandOutcomeRecord: Equatable, Hashable {
+    
+    /**
+     * The command ran (any exit code).
+     */
+    case done(
+        /**
+         * The host's answer.
+         */result: RemoteCommandResultRecord
+    )
+    /**
+     * The host refused to run it.
+     */
+    case refused(
+        /**
+         * The refusal.
+         */refusal: RemoteRefusalRecord
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension RemoteCommandOutcomeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRemoteCommandOutcomeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = RemoteCommandOutcomeRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RemoteCommandOutcomeRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .done(result: try FfiConverterTypeRemoteCommandResultRecord.read(from: &buf)
+        )
+        
+        case 2: return .refused(refusal: try FfiConverterTypeRemoteRefusalRecord.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: RemoteCommandOutcomeRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .done(result):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeRemoteCommandResultRecord.write(result, into: &buf)
+            
+        
+        case let .refused(refusal):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeRemoteRefusalRecord.write(refusal, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandOutcomeRecord_lift(_ buf: RustBuffer) throws -> RemoteCommandOutcomeRecord {
+    return try FfiConverterTypeRemoteCommandOutcomeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandOutcomeRecord_lower(_ value: RemoteCommandOutcomeRecord) -> RustBuffer {
+    return FfiConverterTypeRemoteCommandOutcomeRecord.lower(value)
 }
 
 
@@ -15001,6 +16501,30 @@ fileprivate struct FfiConverterOptionUInt32: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionInt32: FfiConverterRustBuffer {
+    typealias SwiftType = Int32?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterInt32.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterInt32.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
     typealias SwiftType = UInt64?
 
@@ -15433,6 +16957,30 @@ fileprivate struct FfiConverterOptionTypeFieldDecryptOutcome: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeMachineProjectDecisionRecord: FfiConverterRustBuffer {
+    typealias SwiftType = MachineProjectDecisionRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeMachineProjectDecisionRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeMachineProjectDecisionRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeMemoryLoadModeRecord: FfiConverterRustBuffer {
     typealias SwiftType = MemoryLoadModeRecord?
 
@@ -15820,6 +17368,31 @@ fileprivate struct FfiConverterSequenceTypeEncryptedMessageRecord: FfiConverterR
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeEncryptedMessageRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeGitChangedFileRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [GitChangedFileRecord]
+
+    public static func write(_ value: [GitChangedFileRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeGitChangedFileRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [GitChangedFileRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [GitChangedFileRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeGitChangedFileRecord.read(from: &buf))
         }
         return seq
     }
@@ -16706,6 +18279,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_update_memory_document() != 35185) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_git_commit() != 18370) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_git_land() != 32683) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_git_status() != 64632) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_run_remote_command() != 48264) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_undo_created_project() != 38373) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_revise_queued_message() != 55808) {

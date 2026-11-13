@@ -65,6 +65,20 @@ protocol QueuedRevisionCoreClient: AnyObject, Sendable {
                              options: SendOptionsRecord) async throws -> QueuedRevisionReceiptRecord
 }
 
+/// The core call behind `CoreChatActions.undoCreatedProject`; separate so a
+/// client without Project support stays valid.
+@MainActor
+protocol CreatedProjectUndoCoreClient: AnyObject, Sendable {
+    /// Deletes the Project the assistant created for `chatId` and drops its focus.
+    func undoCreatedProject(chatId: String) async throws -> CreatedProjectRecord
+}
+
+/// Why the core refused to undo an assistant-created Project.
+enum CoreCreatedProjectUndoError: Error, Equatable {
+    /// The chat has no assistant-created Project (the core's `Forbidden`).
+    case forbidden
+}
+
 /// Why the core rejected a queued-message revision.
 enum CoreQueuedRevisionRejection: Error, Equatable {
     /// The message left the queue or its revision moved on.
@@ -76,7 +90,7 @@ enum CoreQueuedRevisionRejection: Error, Equatable {
 
 /// The app's core calls, each with a `CoreCancellation` tied to the calling task.
 @MainActor
-final class CoreSessionChatActionsClient: ChatActionsCoreClient, QueuedRevisionCoreClient {
+final class CoreSessionChatActionsClient: ChatActionsCoreClient, QueuedRevisionCoreClient, CreatedProjectUndoCoreClient {
     private let session: CoreSession
 
     init(session: CoreSession) {
@@ -139,6 +153,12 @@ final class CoreSessionChatActionsClient: ChatActionsCoreClient, QueuedRevisionC
         try await session.perform { core, cancellation in
             try await core.reviseQueuedMessage(chatId: chatId, messageId: messageId, revision: revision, text: text,
                                                modeChange: modeChange, options: options, cancellation: cancellation)
+        }
+    }
+
+    func undoCreatedProject(chatId: String) async throws -> CreatedProjectRecord {
+        try await session.perform { core, cancellation in
+            try await core.undoCreatedProject(chatId: chatId, cancellation: cancellation)
         }
     }
 
@@ -250,6 +270,7 @@ final class CoreChatActions: ObservableObject {
 
     private var client: ChatActionsCoreClient?
     private var revisionClient: QueuedRevisionCoreClient?
+    private var projectUndoClient: CreatedProjectUndoCoreClient?
     private let window: CoreChatWindow
     private var subscription: AnyCancellable?
     private var runtimes: [UInt64: Runtime] = [:]
@@ -273,6 +294,7 @@ final class CoreChatActions: ObservableObject {
     func attach(client: ChatActionsCoreClient, events: AnyPublisher<ViewEventRecord, Never>) {
         self.client = client
         revisionClient = client as? QueuedRevisionCoreClient
+        projectUndoClient = client as? CreatedProjectUndoCoreClient
         subscription = events.sink { [weak self] event in
             self?.apply(event)
         }
@@ -403,6 +425,24 @@ final class CoreChatActions: ObservableObject {
         } catch let failure as CoreError {
             guard let rejection = Self.rejection(failure) else { throw failure }
             throw rejection
+        }
+    }
+
+    /// Undoes the Project the assistant created for `chatId` (the core decides
+    /// whether it may). Throws `CoreCreatedProjectUndoError.forbidden` when the
+    /// chat has no assistant-created Project; other core errors pass through.
+    @discardableResult
+    func undoCreatedProject(chatId: String) async throws -> CreatedProjectRecord {
+        guard let projectUndoClient else {
+            NativeSyncPerfLog.warning("phase=core.actions outcome=no_core ms=0")
+            throw CoreChatActionsError.noCore
+        }
+        do {
+            return try await timed("undo_created_project") {
+                try await projectUndoClient.undoCreatedProject(chatId: chatId)
+            }
+        } catch CoreError.Forbidden {
+            throw CoreCreatedProjectUndoError.forbidden
         }
     }
 

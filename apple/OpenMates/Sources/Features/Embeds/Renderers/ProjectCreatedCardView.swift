@@ -17,11 +17,13 @@
 //          GradientTokens.generated.swift (iconFocus)
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/projects/specification.yml
-// Assertions: projects.focus.inferred-consent
+// Assertions: projects.focus.inferred-consent, projects.creation.assistant-inferred
 // Plan: docs/plans/apple-client-core-migration/plan.yml (parity_audit_2026_11_12, assistant-created Projects card)
 //
-// Undo is not offered: the web leaves onUndoCreatedProject unwired because the
-// client core's `undo_created` has no binding yet; the Apple binding has none either.
+// Undo runs in the client core (`ViewModelCore.undoCreatedProject`, via
+// `CoreChatActions.undoCreatedProject`); the card offers it only with a chat id.
+// Gap: the web also shows the undone state after a reload by checking that the
+// Project is gone; here the undone state lasts for the card's lifetime.
 
 import SwiftUI
 
@@ -43,6 +45,38 @@ struct ProjectCreatedFocus: Equatable {
     }
 }
 
+/// Undo state of the card (`FocusModeActivationEmbed.svelte` undoing / undoError / creationUndone).
+@MainActor
+final class ProjectCreatedUndoModel: ObservableObject {
+    @Published private(set) var isUndone = false
+    @Published private(set) var isUndoing = false
+    @Published private(set) var failed = false
+    private let chatID: String?
+    private let undo: (String) async throws -> Void
+
+    init(chatID: String?,
+         undo: @escaping (String) async throws -> Void = { _ = try await CoreChatActions.shared.undoCreatedProject(chatId: $0) }) {
+        self.chatID = chatID
+        self.undo = undo
+    }
+
+    /// Undo is offered while the chat is known and the Project is not undone.
+    var canUndo: Bool { chatID != nil && !isUndone }
+
+    func performUndo() async {
+        guard let chatID, !isUndoing, !isUndone else { return }
+        isUndoing = true
+        failed = false
+        do {
+            try await undo(chatID)
+            isUndone = true
+        } catch {
+            failed = true
+        }
+        isUndoing = false
+    }
+}
+
 struct ProjectCreatedCardView: View {
     private enum Layout {
         /// `.project-created-card` width: 380px (max-width: 100%).
@@ -59,6 +93,13 @@ struct ProjectCreatedCardView: View {
 
     let created: ProjectCreatedFocus
     let focusID: String
+    @StateObject private var undoModel: ProjectCreatedUndoModel
+
+    init(created: ProjectCreatedFocus, focusID: String, chatID: String? = nil) {
+        self.created = created
+        self.focusID = focusID
+        _undoModel = StateObject(wrappedValue: ProjectCreatedUndoModel(chatID: chatID))
+    }
 
     var body: some View {
         // Card gap spacing2 between rows; the second row adds a 1px grey25
@@ -91,17 +132,47 @@ struct ProjectCreatedCardView: View {
                 }
                 .accessibilityHidden(true)
                 .accessibilityIdentifier("focus-app-icon")
-            HStack(alignment: .firstTextBaseline, spacing: .spacing2) {
-                Text(AppStrings.projectCreatedLabel).foregroundStyle(Color.grey100)
-                projectLink(identifier: "project-created-name")
+            VStack(alignment: .leading, spacing: .spacing1) {
+                if undoModel.isUndone {
+                    Text(AppStrings.projectCreatedUndone)
+                        .font(.omP.weight(.semibold))
+                        .foregroundStyle(Color.grey100)
+                        .accessibilityIdentifier("project-created-status")
+                } else {
+                    HStack(alignment: .firstTextBaseline, spacing: .spacing2) {
+                        Text(AppStrings.projectCreatedLabel).foregroundStyle(Color.grey100)
+                        projectLink(identifier: "project-created-name")
+                    }
+                    .font(.omP.weight(.semibold))
+                }
+                if undoModel.failed {
+                    Text(AppStrings.projectCreatedUndoFailed)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.error)
+                        .accessibilityIdentifier("project-created-undo-error")
+                }
             }
-            .font(.omP.weight(.semibold))
             .frame(maxWidth: .infinity, alignment: .leading)
+            if undoModel.canUndo {
+                Button { Task { await undoModel.performUndo() } } label: {
+                    Text(AppStrings.projectCreatedUndo)
+                        .font(.omP)
+                        .foregroundStyle(Color.grey100)
+                        .padding(.horizontal, .spacing4)
+                        .padding(.vertical, .spacing2)
+                        .background(Color.grey25)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                }
+                .buttonStyle(.plain)
+                .disabled(undoModel.isUndoing)
+                .opacity(undoModel.isUndoing ? 0.5 : 1)
+                .accessibilityIdentifier("project-created-undo")
+            }
         }
         .frame(minHeight: Layout.rowMinHeight)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("project-created-row")
-        .accessibilityValue("created")
+        .accessibilityValue(undoModel.isUndone ? "undone" : "created")
     }
 
     private var focusRow: some View {
@@ -113,12 +184,16 @@ struct ProjectCreatedCardView: View {
             VStack(alignment: .leading, spacing: .spacing1) {
                 HStack(alignment: .firstTextBaseline, spacing: .spacing2) {
                     Text(AppStrings.projectWorkOnLabel).foregroundStyle(Color.grey100)
-                    projectLink(identifier: "project-focus-name")
+                    if undoModel.isUndone {
+                        Text(created.projectName).foregroundStyle(Color.grey100)
+                    } else {
+                        projectLink(identifier: "project-focus-name")
+                    }
                 }
                 .font(.omP.weight(.semibold))
-                Text(AppStrings.focusModeActivated)
+                Text(undoModel.isUndone ? AppStrings.projectFocusNotActive : AppStrings.focusModeActivated)
                     .font(.omP)
-                    .foregroundStyle(Color.success)
+                    .foregroundStyle(undoModel.isUndone ? Color.grey70 : Color.success)
                     .accessibilityIdentifier("focus-status-value")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -126,7 +201,7 @@ struct ProjectCreatedCardView: View {
         .frame(minHeight: Layout.rowMinHeight)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("project-focus-row")
-        .accessibilityValue("activated")
+        .accessibilityValue(undoModel.isUndone ? "inactive" : "activated")
     }
 
     /// `.project-link`: underlined primary-colored inline button with the Project name.

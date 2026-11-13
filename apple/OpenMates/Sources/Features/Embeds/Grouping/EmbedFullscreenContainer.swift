@@ -1838,6 +1838,11 @@ struct EmbedFullscreenHeader: View {
             return [raw["framework"]?.value as? String, raw["runtime"]?.value as? String]
                 .compactMap { $0 }.joined(separator: " · ")
         }
+        if embedType == .codeTestResult {
+            let run = TestResultView(data: embed.rawData)
+            return [AppStrings.localized(run.runStatus.labelKey), TestResultView.formatDuration(run.durationMs)]
+                .filter { !$0.isEmpty }.joined(separator: " · ")
+        }
         if embedType == .socialMediaPost {
             let raw = embed.rawData ?? [:]
             let platform = (raw["platform"]?.value as? String ?? "").capitalized

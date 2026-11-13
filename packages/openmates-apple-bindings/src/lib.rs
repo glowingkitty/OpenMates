@@ -23,6 +23,7 @@ mod view_account;
 mod view_adopt;
 mod view_chat_actions;
 mod view_consent;
+mod view_projects;
 mod view_queued_revision;
 #[cfg(test)]
 mod view_consent_tests;
@@ -113,10 +114,16 @@ pub use view_records::{
     SessionEventRecord, StreamEventRecord, SyncPhaseRecord, ViewErrorKindRecord, ViewEventRecord,
 };
 /// Server region preference of sends (`view_region`).
+pub use view_projects::{
+    CreatedProjectRecord, GitChangedFileRecord, GitCommitOutcomeRecord, GitCommitRecord,
+    GitLandOutcomeRecord, GitLandResultRecord, GitStatusOutcomeRecord, GitStatusRecord,
+    RemoteCommandOutcomeRecord, RemoteCommandRecord, RemoteCommandResultRecord,
+    RemoteRefusalRecord,
+};
 pub use view_region::ServerRegionPreferenceRecord;
 /// Per-turn send options and the delivery receipt (`view_send_options`).
 pub use view_send_options::{
-    SendOptionsRecord, SendQueueModeRecord, SendReceiptRecord, SendStatusRecord,
+    MachineProjectDecisionRecord, SendOptionsRecord, SendQueueModeRecord, SendReceiptRecord, SendStatusRecord,
 };
 /// A composer attachment of a turn (`view_send_attachments`).
 pub use view_send_attachments::SendEmbedRecord;
@@ -164,6 +171,8 @@ mod view_login_passkey_tests;
 mod view_memories_tests;
 #[cfg(test)]
 mod view_pair_cancel_tests;
+#[cfg(test)]
+mod view_projects_tests;
 #[cfg(test)]
 mod view_region_tests;
 #[cfg(test)]

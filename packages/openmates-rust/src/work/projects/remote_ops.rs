@@ -307,7 +307,7 @@ impl RemoteOpCode {
     }
 
     /// The wire code of this variant (inverse of [`RemoteOpCode::from_wire`]).
-    pub(crate) fn wire(&self) -> &str {
+    pub fn wire(&self) -> &str {
         match self {
             Self::InvalidRequest => "invalid_request",
             Self::NoWorktree => "no_worktree",

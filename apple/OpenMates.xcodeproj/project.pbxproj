@@ -48,6 +48,10 @@
 		04CF1090A48D5A321496F8B1 /* EmbedVersionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2ADC5296CC2952882DE6B89 /* EmbedVersionHistoryView.swift */; };
 		04FB9BB03D44C66490481B1E /* FocusPhaseNoticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5B540D7BA22FF99E04DE59F /* FocusPhaseNoticeView.swift */; };
 		0C0EC0DE1A2B3C4D5E6F7A11 /* EmbedUpdatedNoticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7A10 /* EmbedUpdatedNoticeView.swift */; };
+		0C0EC0DE1A2B3C4D5E6FAA11 /* TestResultEmbedModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FAA10 /* TestResultEmbedModel.swift */; };
+		0C0EC0DE1A2B3C4D5E6FAA12 /* TestResultEmbedModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FAA10 /* TestResultEmbedModel.swift */; };
+		0C0EC0DE1A2B3C4D5E6FAA21 /* TestResultEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FAA20 /* TestResultEmbedRenderer.swift */; };
+		0C0EC0DE1A2B3C4D5E6FAA22 /* TestResultEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FAA20 /* TestResultEmbedRenderer.swift */; };
 		0C0EC0DE1A2B3C4D5E6F7C02 /* CoreConsentRequestOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7C01 /* CoreConsentRequestOverlay.swift */; };
 		0C0EC0DE1A2B3C4D5E6F7A12 /* EmbedUpdatedNoticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7A10 /* EmbedUpdatedNoticeView.swift */; };
 		0C0EC0DE1A2B3C4D5E6F7C03 /* CoreConsentRequestOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7C01 /* CoreConsentRequestOverlay.swift */; };
@@ -1100,7 +1104,10 @@
 		0C0EC0DE1A2B3C4D5E6F7B06 /* ChatViewModel+CoreActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7B04 /* ChatViewModel+CoreActions.swift */; };
 		0C0EC0DE1A2B3C4D5E6F7311 /* CoreChatWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7310 /* CoreChatWindowTests.swift */; };
 		0C0EC0DE1A2B3C4D5E6F7B08 /* CoreChatActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7B07 /* CoreChatActionsTests.swift */; };
+		0C0EC0DE1A2B3C4D5E6FAA02 /* ApplicationTestRunEmbedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FAA01 /* ApplicationTestRunEmbedTests.swift */; };
 		0C0EC0DE1A2B3C4D5E6F7E02 /* ChatViewModelCoreTurnsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7E01 /* ChatViewModelCoreTurnsTests.swift */; };
+		0C0EC0DE1A2B3C4D5E6FAB02 /* ProjectApplicationFolderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FAB01 /* ProjectApplicationFolderTests.swift */; };
+		0C0EC0DE1A2B3C4D5E6FBB02 /* CoreProjectCreateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FBB01 /* CoreProjectCreateTests.swift */; };
 		0C0EC0DE1A2B3C4D5E6FA502 /* AskOpenMatesIntentCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FA501 /* AskOpenMatesIntentCoreTests.swift */; };
 		0C0EC0DE1A2B3C4D5E6F7F02 /* CoreQueuedRevisionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7F01 /* CoreQueuedRevisionTests.swift */; };
 		0D0EC0DE1A2B3C4D5E6F7C05 /* CoreDraftsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D0EC0DE1A2B3C4D5E6F7C04 /* CoreDraftsTests.swift */; };
@@ -2541,6 +2548,8 @@
 		A8CCCF77F54F65B5BC3E4593 /* embeds.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = embeds.json; sourceTree = "<group>"; };
 		A95C65A43B6B49192FB561A5 /* TodaysInspirationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaysInspirationIntent.swift; sourceTree = "<group>"; };
 		A96FD0743F1004F561497E56 /* WhistleNativeOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhistleNativeOutput.swift; sourceTree = "<group>"; };
+		0C0EC0DE1A2B3C4D5E6FAA10 /* TestResultEmbedModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestResultEmbedModel.swift; sourceTree = "<group>"; };
+		0C0EC0DE1A2B3C4D5E6FAA20 /* TestResultEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestResultEmbedRenderer.swift; sourceTree = "<group>"; };
 		A98F02DE4068A8C68591A0FA /* CodeRenderers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeRenderers.swift; sourceTree = "<group>"; };
 		A9E63A99CBA7F9D27E450F10 /* ChatSidebarDisplayPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSidebarDisplayPolicyTests.swift; sourceTree = "<group>"; };
 		A9EA07F6DD4573380C2EC670 /* SettingsAccountChatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAccountChatsView.swift; sourceTree = "<group>"; };
@@ -2625,7 +2634,10 @@
 		0C0EC0DE1A2B3C4D5E6F7B04 /* ChatViewModel+CoreActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatViewModel+CoreActions.swift"; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6F7310 /* CoreChatWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreChatWindowTests.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6F7B07 /* CoreChatActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreChatActionsTests.swift; sourceTree = "<group>"; };
+		0C0EC0DE1A2B3C4D5E6FAA01 /* ApplicationTestRunEmbedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationTestRunEmbedTests.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6F7E01 /* ChatViewModelCoreTurnsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModelCoreTurnsTests.swift; sourceTree = "<group>"; };
+		0C0EC0DE1A2B3C4D5E6FAB01 /* ProjectApplicationFolderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectApplicationFolderTests.swift; sourceTree = "<group>"; };
+		0C0EC0DE1A2B3C4D5E6FBB01 /* CoreProjectCreateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreProjectCreateTests.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6FA501 /* AskOpenMatesIntentCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskOpenMatesIntentCoreTests.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6F7F01 /* CoreQueuedRevisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreQueuedRevisionTests.swift; sourceTree = "<group>"; };
 		0D0EC0DE1A2B3C4D5E6F7C04 /* CoreDraftsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDraftsTests.swift; sourceTree = "<group>"; };
@@ -3019,6 +3031,8 @@
 			children = (
 				B13AE4EBFDECF4A895666F48 /* AppSkillUseRenderer.swift */,
 				A98F02DE4068A8C68591A0FA /* CodeRenderers.swift */,
+				0C0EC0DE1A2B3C4D5E6FAA20 /* TestResultEmbedRenderer.swift */,
+				0C0EC0DE1A2B3C4D5E6FAA10 /* TestResultEmbedModel.swift */,
 				6C512C52AC61491DAFC10757 /* DocumentCanvas.swift */,
 				04AC636270130CB17D81A97A /* EventEmbedRenderer.swift */,
 				C9CF6B1D5DCF5BED2843D83F /* EventsSearchEmbedRenderer.swift */,
@@ -3487,6 +3501,9 @@
 				0C0EC0DE1A2B3C4D5E6F7310 /* CoreChatWindowTests.swift */,
 				0C0EC0DE1A2B3C4D5E6F7B07 /* CoreChatActionsTests.swift */,
 				0C0EC0DE1A2B3C4D5E6F7E01 /* ChatViewModelCoreTurnsTests.swift */,
+				0C0EC0DE1A2B3C4D5E6FAB01 /* ProjectApplicationFolderTests.swift */,
+				0C0EC0DE1A2B3C4D5E6FBB01 /* CoreProjectCreateTests.swift */,
+				0C0EC0DE1A2B3C4D5E6FAA01 /* ApplicationTestRunEmbedTests.swift */,
 				0C0EC0DE1A2B3C4D5E6FA501 /* AskOpenMatesIntentCoreTests.swift */,
 				0C0EC0DE1A2B3C4D5E6F7F01 /* CoreQueuedRevisionTests.swift */,
 				0D0EC0DE1A2B3C4D5E6F7C04 /* CoreDraftsTests.swift */,
@@ -5675,6 +5692,8 @@
 				0C0EC0DE1A2B3C4D5E6F7C05 /* ChatViewModel+CoreTurns.swift in Sources */,
 				6B5C543C408D09573E8F3C14 /* CodeDocsIntent.swift in Sources */,
 				93B5C3191A0D7A6263BA6B55 /* CodeRenderers.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6FAA21 /* TestResultEmbedRenderer.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6FAA11 /* TestResultEmbedModel.swift in Sources */,
 				8AFE774A1A2937CB5D956A3A /* CodeRunService.swift in Sources */,
 				84798D8F7D3041289514A489 /* ColorTokens.generated.swift in Sources */,
 				B6292CD72F5D4A7F59D82FA7 /* ComponentTokens.generated.swift in Sources */,
@@ -6502,6 +6521,8 @@
 				0C0EC0DE1A2B3C4D5E6F7C06 /* ChatViewModel+CoreTurns.swift in Sources */,
 				3A40AF5474D6F83F75C14C18 /* CodeDocsIntent.swift in Sources */,
 				D14972057B12884045513203 /* CodeRenderers.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6FAA22 /* TestResultEmbedRenderer.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6FAA12 /* TestResultEmbedModel.swift in Sources */,
 				18A0C0F1129E41E0351460AC /* CodeRunService.swift in Sources */,
 				E9D666CD2B24DC8BBB718DD4 /* ColorTokens.generated.swift in Sources */,
 				C994603B359922F124CCE467 /* ComponentTokens.generated.swift in Sources */,
@@ -7075,6 +7096,9 @@
 				0C0EC0DE1A2B3C4D5E6F7311 /* CoreChatWindowTests.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6F7B08 /* CoreChatActionsTests.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6F7E02 /* ChatViewModelCoreTurnsTests.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6FAB02 /* ProjectApplicationFolderTests.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6FBB02 /* CoreProjectCreateTests.swift in Sources */,
+				0C0EC0DE1A2B3C4D5E6FAA02 /* ApplicationTestRunEmbedTests.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6FA502 /* AskOpenMatesIntentCoreTests.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6F7F02 /* CoreQueuedRevisionTests.swift in Sources */,
 				0D0EC0DE1A2B3C4D5E6F7C05 /* CoreDraftsTests.swift in Sources */,

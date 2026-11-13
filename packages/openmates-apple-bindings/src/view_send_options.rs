@@ -13,7 +13,7 @@ use crate::view_send::SendSettings;
 use crate::view_send_attachments::{SendEmbedRecord, exclusions, pii_mapping};
 use crate::{CoreError, view_records::ChatWindowViewRecord};
 use openmates_sdk::client::{
-    ReservedTurnIds, SendQueueMode, SendStatus, VoiceCallTurn, VoiceHeardBoundary,
+    MachineProjectDecision, ReservedTurnIds, SendQueueMode, SendStatus, VoiceCallTurn, VoiceHeardBoundary,
 };
 use openmates_sdk::view_model::{RequestId, SendReceipt, SendTurnOptions};
 use std::sync::Arc;
@@ -102,6 +102,44 @@ pub struct SendOptionsRecord {
     /// chats only); the core adds the call fields to the message.
     #[uniffi(default = None)]
     pub voice_call: Option<VoiceCallTurnRecord>,
+    /// Opt in to assistant-initiated Project creation: the core executes the
+    /// request; set it only when the shell renders the created-Project card.
+    #[uniffi(default = false)]
+    pub project_create_requests: bool,
+    /// The user's answer to a machine Project confirmation card, applied
+    /// during the turn; nil leaves the card pending.
+    #[uniffi(default = None)]
+    pub machine_project: Option<MachineProjectDecisionRecord>,
+    /// Opt in to assistant Project file jobs the core runs on this device;
+    /// always-ask writes are declined with a notice.
+    #[uniffi(default = false)]
+    pub project_file_jobs: bool,
+}
+
+/// The shell's answer to a machine Project confirmation card.
+#[derive(Clone, Debug, PartialEq, Eq, uniffi::Enum)]
+pub enum MachineProjectDecisionRecord {
+    /// Create the Project on a machine; nil host picks the only machine.
+    Confirm {
+        /// Device hash of the chosen machine.
+        host_device_hash: Option<String>,
+    },
+    /// The user does not want the Project.
+    Decline,
+    /// The shell cannot ask; reported to the assistant as a failure.
+    Unavailable,
+}
+
+impl From<MachineProjectDecisionRecord> for MachineProjectDecision {
+    fn from(record: MachineProjectDecisionRecord) -> Self {
+        match record {
+            MachineProjectDecisionRecord::Confirm { host_device_hash } => {
+                Self::Confirm { host_device_hash }
+            }
+            MachineProjectDecisionRecord::Decline => Self::Decline,
+            MachineProjectDecisionRecord::Unavailable => Self::Unavailable,
+        }
+    }
 }
 
 impl std::fmt::Debug for SendOptionsRecord {
@@ -122,6 +160,9 @@ impl std::fmt::Debug for SendOptionsRecord {
             .field("pii_mappings", &self.pii_mappings.len())
             .field("project_id", &self.project_id)
             .field("voice_call", &self.voice_call)
+            .field("project_create_requests", &self.project_create_requests)
+            .field("machine_project", &self.machine_project)
+            .field("project_file_jobs", &self.project_file_jobs)
             .finish()
     }
 }
@@ -144,6 +185,9 @@ impl From<SendOptionsRecord> for SendTurnOptions {
             pii_mappings: record.pii_mappings.into_iter().map(pii_mapping).collect(),
             project_id: record.project_id,
             voice_call: record.voice_call.map(Into::into),
+            project_create_requests: record.project_create_requests,
+            machine_project: record.machine_project.map(Into::into),
+            project_file_jobs: record.project_file_jobs,
         }
     }
 }

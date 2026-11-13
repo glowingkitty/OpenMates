@@ -487,7 +487,7 @@ enum WatchEmbedPreviewMapper {
             return .image
         case .recording:
             return .audioRecording
-        case .codeCode, .codeGetDocs, .codeRepo, .codeNotebook, .codeApplication:
+        case .codeCode, .codeGetDocs, .codeRepo, .codeNotebook, .codeApplication, .codeTestResult:
             return .code
         case .pdf:
             return .pdf

@@ -133,6 +133,10 @@ struct EmbedContentView: View {
                 CodeRepoEmbedRenderer(data: rawData, mode: mode)
             case .codeApplication:
                 ApplicationEmbedRenderer(data: rawData, mode: mode)
+            case .codeTestResult:
+                TestResultEmbedRenderer(data: rawData, mode: mode) { assetId in
+                    allEmbedRecords[assetId].flatMap { FileEmbedPayload($0.rawData).availableDownloadURL }
+                }
             case .codeCode:
                 CodeEmbedRenderer(
                     data: rawData,

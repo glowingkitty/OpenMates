@@ -72,7 +72,7 @@ final class CoreSendMappingTests: XCTestCase {
             reservedMessageId: "message-1", embeds: [embed], excludedPiiOriginals: ["Ada", "Bob"],
             excludedPiiPlaceholders: ["[NAME_1]", "[NAME_2]"],
             piiMappings: [PiiMappingRecord(placeholder: "[EMAIL_1]", original: "ada@example.org", kind: "EMAIL")],
-            projectId: "project-1"))
+            projectId: "project-1", projectCreateRequests: true, machineProject: .unavailable))
     }
 
     // contract-test: supporting surface=gui.apple assertions=client-core.viewmodel.capability-contract

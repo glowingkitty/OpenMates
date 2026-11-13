@@ -109,7 +109,9 @@ enum CoreSendMapping {
             excludedPiiPlaceholders: excludedPiiPlaceholders.sorted(),
             piiMappings: piiMappings.map(piiMapping),
             projectId: projectId,
-            voiceCall: voiceCall)
+            voiceCall: voiceCall,
+            projectCreateRequests: true,
+            machineProject: .unavailable)
     }
 
     /// The voice-call fields of a transcribed turn (call id, turn id and what the user heard of the interrupted reply).

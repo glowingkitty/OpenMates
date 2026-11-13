@@ -622,6 +622,7 @@ struct EmbedPreviewCard: View {
             || embedType == .travelConnection
             || embedType == .travelStay
             || embedType == .codeApplication
+            || embedType == .codeTestResult
             || embedType == .designIconResult
             || embedType == .electronicsPcbSchematic
             || embedType == .mindmapsMindmap
@@ -640,6 +641,7 @@ struct EmbedPreviewCard: View {
             return websiteUsesFullWidthImage
         }
         return embedType == .travelStay
+            || embedType == .codeTestResult
             || embedType == .codeCode
             || embedType == .docsDoc
             || embedType == .image
@@ -696,8 +698,9 @@ struct EmbedPreviewCard: View {
             return firstString(in: embed.rawData ?? [:], keys: ["filename"]) ?? "notebook.ipynb"
         }
         if embedType == .codeApplication {
-            return firstString(in: embed.rawData ?? [:], keys: ["name"]) ?? "Application"
+            return firstString(in: embed.rawData ?? [:], keys: ["name"]) ?? AppStrings.localized("embeds.application_title")
         }
+        if embedType == .codeTestResult { return TestResultView(data: embed.rawData).title }
         if embedType == .designIconResult {
             return firstString(in: embed.rawData ?? [:], keys: ["display_name", "name", "icon_id"]) ?? "Icon"
         }
@@ -856,8 +859,16 @@ struct EmbedPreviewCard: View {
             let framework = firstString(in: raw, keys: ["framework"])
             let runtime = firstString(in: raw, keys: ["runtime"])
             let count = (raw["file_refs"]?.value as? [Any])?.count ?? 0
-            return [framework, runtime, count > 0 ? "\(count) files" : nil]
+            let files = count > 0
+                ? AppStrings.localized("embeds.application_file_count").replacingOccurrences(of: "{count}", with: String(count))
+                : nil
+            return [framework, runtime, files]
                 .compactMap { $0 }.joined(separator: " · ")
+        }
+        if embedType == .codeTestResult {
+            let run = TestResultView(data: embed.rawData)
+            return [AppStrings.localized(run.runStatus.labelKey), TestResultView.formatDuration(run.durationMs)]
+                .filter { !$0.isEmpty }.joined(separator: " · ")
         }
         if embedType == .codeRepo {
             let raw = embed.rawData ?? [:]

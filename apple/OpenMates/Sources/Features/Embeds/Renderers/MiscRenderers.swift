@@ -1754,7 +1754,7 @@ struct FocusModeRenderer: View {
     var body: some View {
         // Assistant-created Project: FocusModeActivationEmbed.svelte {#if projectCreated}.
         if mode == .preview, let created = ProjectCreatedFocus(data: data, focusName: focusName) {
-            ProjectCreatedCardView(created: created, focusID: focusID)
+            ProjectCreatedCardView(created: created, focusID: focusID, chatID: chatID)
         } else {
             focusBody
         }

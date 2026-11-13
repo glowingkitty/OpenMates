@@ -23,6 +23,9 @@ pub(crate) fn options() -> SendOptionsRecord {
         pii_mappings: vec![],
         project_id: None,
         voice_call: None,
+        project_create_requests: false,
+        machine_project: None,
+        project_file_jobs: false,
     }
 }
 
