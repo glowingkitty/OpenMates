@@ -414,7 +414,7 @@ for (const width of [390, 1440]) {
     await expect(privacy).toHaveAttribute('data-story-state', 'playing');
     // Playing starts at the reading line, before smooth scrolling reaches top.
     await expectSectionAtTop(privacy);
-    await expect(privacy.getByTestId('landing-feature-animation')).toContainText('Only your devices can decrypt all your data.');
+    await expect(privacy.getByTestId('landing-feature-animation')).toContainText('Your chats are encrypted on your device before they are stored.');
     await expect(privacy.locator('.story-copy')).toHaveCount(0);
     await privacy.getByTestId('landing-skip-privacy').click();
     await expect(privacy).toHaveAttribute('data-story-state', 'complete');
@@ -463,7 +463,7 @@ test('desktop privacy story naturally completes every encryption, PII and permis
   await expect(story.locator('.pii-value.revealed')).toHaveText('alex@example.com', { timeout: 2000 });
   await expect(story).toHaveAttribute('data-active-stage', 'personalized-copy', { timeout: 3000 });
   await expect(story).toHaveAttribute('data-active-stage', 'trip-request', { timeout: 3500 });
-  await expect(story).toContainText('Recommended places for my next trip?');
+  await expect(story).toContainText('Recommend places for my next trip.');
   await expect(story).toHaveAttribute('data-active-stage', 'memory-permission', { timeout: 3500 });
   const permission = story.getByTestId('app-settings-memories-permission-card');
   await expect(permission).toContainText('Include these memories in this chat, for a more personalized response?');
