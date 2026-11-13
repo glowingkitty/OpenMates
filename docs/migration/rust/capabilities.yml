@@ -299,12 +299,14 @@ capabilities:
 - id: apps-skills
   what: app/skill inventory and invocation
   web:
-    status: rust-default
+    status: rust-only
     old: []
     unit: apps
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
-      apps unit
-    last_commit: 06da1b2448
+    note: Apps result retention, outbox scope checks and recommendation freshness run only in the shared Worker apps unit;
+      deleted the TypeScript retainAppsResult body (normalizedStatus, extractResults, existingResultIds, stableChildId),
+      the outbox validateRecord and the library and results opt-out branches. freshAppsRecommendations stays as a
+      synchronous UI helper for AppsWorkspace.svelte derived state.
+    last_commit: pending
   apple:
     status: swift-only
     old: []

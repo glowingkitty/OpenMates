@@ -1,18 +1,16 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
 /**
- * Opt-in shared Rust core (WASM) — Apps skill execution policy on the shared
- * Worker `apps` unit, VITE_OPENMATES_RUST_CORE=1 build.
+ * Shared Rust core (WASM) — Apps skill execution policy on the shared Worker
+ * `apps` unit (the only apps path).
  *
- * Engineering migration check (web lane: apps). A guest runs the natural-language
- * Web search request of apps-workspace.spec.ts (fixture interpreter, details,
+ * Engineering check (web lane: apps). A guest runs the natural-language Web
+ * search request of apps-workspace.spec.ts (fixture interpreter, details,
  * request quote and provider response): the result fullscreen must show both
- * results. Alternating reloads run the same request on the TypeScript policy
- * (measurement opt-out `openmates_rust_core_apps=ts`) and on the Rust unit; the
- * Rust arm must route its decisions through the unit (stats hook): skill
+ * results. The decisions must route through the unit (stats hook): skill
  * execution, the natural-language request plan/body/interpretation, input
  * validation and result retention, with exactly one shared Worker, one WASM
- * instance and none on the page. Request -> result-ready latency runs as 12
- * ABBA pairs against the web Rust budget (web-rust-core-apps-bench.ts).
+ * instance and none on the page. Request -> result-ready latency is logged for
+ * a few fresh page loads.
  * Runs only in the CI lane that builds the Rust core package (web-rust-core-* specs).
  */
 export {};
@@ -20,9 +18,8 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const { rustCoreInstances } = require('./helpers/rust-core-instances');
-const { APPS_BENCH_PAIRS, runAppsLatencyPairs } = require('./helpers/web-rust-core-apps-bench');
 
-const APPS_OPT_OUT_KEY = 'openmates_rust_core_apps';
+const LATENCY_SAMPLES = 3;
 
 async function fixtureRoutes(page: any): Promise<{ providerPosts: () => number }> {
 	let providerPosts = 0;
@@ -65,48 +62,45 @@ async function runRequest(page: any): Promise<number> {
 	return elapsed;
 }
 
-// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,apps.requests.natural-language,sdk.web.before-after-performance
+// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,apps.requests.natural-language
 test('guest Apps skill runs on the shared Rust apps unit with one Worker and one WASM instance', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
-	test.setTimeout(900000);
+	test.setTimeout(300000);
 	await page.setViewportSize({ width: 1180, height: 844 });
 	const routes = await fixtureRoutes(page);
-	const samples: Record<'ts' | 'rust', Record<string, any>[]> = { ts: [], rust: [] };
-	const sample = async (path: 'ts' | 'rust'): Promise<number> => {
+	// Diagnostics: a hung request leaves no UI error, so keep page console/errors and apps-unit stats on failure.
+	const diagnostics: string[] = [];
+	page.on('console', (message: any) => { if (['error', 'warning'].includes(message.type())) diagnostics.push(`[console.${message.type()}] ${message.text()}`); });
+	page.on('pageerror', (error: Error) => diagnostics.push(`[pageerror] ${error.message}`));
+	page.on('requestfailed', (request: any) => diagnostics.push(`[requestfailed] ${request.url()} ${request.failure()?.errorText}`));
+	const samples: Record<string, any>[] = [];
+	for (let index = 0; index < LATENCY_SAMPLES; index++) {
+		// Fresh realm per sample: the unit client is per page load.
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.evaluate(([key, ts]: [string, boolean]) => { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); },
-			[APPS_OPT_OUT_KEY, path === 'ts']);
-		// Fresh realm per sample: the policy choice and the unit client are per page load.
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		const posts = routes.providerPosts();
-		const requestMs = await runRequest(page);
-		expect(routes.providerPosts() - posts, `${path}: one provider dispatch`).toBe(1);
-		const stats = await page.evaluate(() => (window as any).__openmatesRustAppsStats?.() ?? null);
-		if (path === 'rust') {
-			expect(stats, 'Rust arm loaded the apps unit client').not.toBeNull();
-			// Skill execution (details, admission, quote, provider response) plus the
-			// request plan, interpreter body, interpretation, input validation and retention plan.
-			expect(stats.calls, 'Rust arm routed its decisions through the apps unit').toBeGreaterThanOrEqual(10);
-			expect(stats.failures, 'no apps unit call failed').toBe(0);
-		} else {
-			expect(stats, 'TS arm never loaded the Rust apps adapter').toBeNull();
+		let requestMs: number;
+		try {
+			requestMs = await runRequest(page);
+		} catch (error) {
+			const unitStats = await page.evaluate(() => (window as any).__openmatesRustAppsStats?.() ?? null).catch(() => null);
+			await testInfo.attach('apps-request-diagnostics.json', { body: JSON.stringify({ unitStats, diagnostics }, null, 2), contentType: 'application/json' });
+			throw error;
 		}
+		expect(routes.providerPosts() - posts, 'one provider dispatch').toBe(1);
+		const stats = await page.evaluate(() => (window as any).__openmatesRustAppsStats?.() ?? null);
+		expect(stats, 'the apps unit client loaded').not.toBeNull();
+		// Skill execution (details, admission, quote, provider response) plus the
+		// request plan, interpreter body, interpretation, input validation and retention plan.
+		expect(stats.calls, 'decisions were routed through the apps unit').toBeGreaterThanOrEqual(10);
+		expect(stats.failures, 'no apps unit call failed').toBe(0);
 		const instances = await rustCoreInstances(page);
-		expect(instances.wasmMainThreadInstantiations, `${path}: no WASM on the page realm`).toBe(0);
-		expect(instances.workers.filter((worker: { name: string }) => worker.name === 'shared.worker').length, `${path}: one shared Rust core Worker`).toBe(1);
-		expect(instances.rustWorkers, `${path}: no other Rust core Worker`).toBe(1);
-		if (path === 'rust') expect(instances.sharedWorkerWasm, 'rust: one WASM instance in the shared Worker').toBe(1);
-		samples[path].push({ requestMs, ...instances, stats });
-		return requestMs;
-	};
-	// Warm-up sample (index 0 of pairOrder's scheme) is not part of the paired set.
-	await sample('ts');
-	samples.ts.length = 0;
-	const bench = await runAppsLatencyPairs(sample, APPS_BENCH_PAIRS);
-	await page.evaluate((key: string) => localStorage.removeItem(key), APPS_OPT_OUT_KEY);
-	const summary = { pairs: bench.pairs, ratio: bench.ratio, difference: bench.difference, tsP95: bench.tsP95, rustP95: bench.rustP95, verdict: bench.verdict };
-	console.log(`[web-rust-core-apps] ${JSON.stringify(summary)}`);
-	await testInfo.attach('apps-skill-latency.json', { body: JSON.stringify({ ...bench, samples }, null, 2), contentType: 'application/json' });
-	expect(bench.pairs, 'budget needs at least 12 pairs').toBeGreaterThanOrEqual(12);
-	expect.soft(bench.verdict, `app request latency budget: ${JSON.stringify(summary)}`).toBe('rust_not_worse');
+		expect(instances.wasmMainThreadInstantiations, 'no WASM on the page realm').toBe(0);
+		expect(instances.workers.filter((worker: { name: string }) => worker.name === 'shared.worker').length, 'one shared Rust core Worker').toBe(1);
+		expect(instances.rustWorkers, 'no other Rust core Worker').toBe(1);
+		expect(instances.sharedWorkerWasm, 'one WASM instance in the shared Worker').toBe(1);
+		samples.push({ requestMs, ...instances, stats });
+	}
+	console.log(`[web-rust-core-apps] ${JSON.stringify(samples.map((sample) => sample.requestMs))}`);
+	await testInfo.attach('apps-skill-latency.json', { body: JSON.stringify({ samples }, null, 2), contentType: 'application/json' });
 });

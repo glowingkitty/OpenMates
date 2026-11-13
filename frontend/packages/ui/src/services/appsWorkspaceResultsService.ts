@@ -1,7 +1,5 @@
 /** Chatless Apps result graphs using the normal encrypted embed store. */
 import { getApiEndpoint } from "../config/api";
-import { appsResultRequestFields } from "../utils/appsResultRequestFields";
-import { EMBED_CHILD_TYPE_MAP } from "../data/embedRegistry.generated";
 import { get, writable } from "svelte/store";
 import { userProfile } from "../stores/userProfile";
 import { authStore } from "../stores/authStore";
@@ -12,14 +10,12 @@ import { clearEmbedError } from "./embedResolver";
 import {
   decryptWithEmbedKey,
   encryptWithEmbedKey,
-  generateEmbedKey,
   unwrapEmbedKeyWithChatKey,
   unwrapEmbedKeyWithMasterKey,
-  wrapEmbedKeyWithChatKey,
   wrapEmbedKeyWithMasterKey,
 } from "./cryptoService";
 import { getTeamKey } from "./teamService";
-import { unwrapAnonymousChatKey, wrapAnonymousChatKey } from "./anonymousChatKeyWrapping";
+import { unwrapAnonymousChatKey } from "./anonymousChatKeyWrapping";
 import { pollAppsSkillTask } from "./appsWorkspaceService";
 import { chatDB } from "./db";
 import { activeTeamId } from "../stores/teamStore";
@@ -32,14 +28,6 @@ import {
   stagePendingAppsResult, getPendingAppsResult, listPendingAppsResults, deletePendingAppsResult,
   makePendingAppsResultId, type PendingAppsResult,
 } from "./appsWorkspaceResultOutbox";
-
-/** Opt-in shared Rust core build: the result-graph policy runs in the shared Worker `apps` unit. */
-const RUST_APPS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
-/** Measurement-only opt-out shared with appsWorkspaceService.ts: `'ts'` keeps this TypeScript policy. */
-function rustAppsResults(): Promise<typeof import('./rustCore/apps/rustAppsRetention')> | null {
-  if (typeof localStorage === 'undefined' || localStorage.getItem('openmates_rust_core_apps') === 'ts') return null;
-  return import('./rustCore/apps/rustAppsRetention');
-}
 
 export type AppsResultStatus = "processing" | "finished" | "error" | "cancelled";
 export interface AppsResultItem {
@@ -202,47 +190,6 @@ async function deleteGuest(rootId: string): Promise<void> {
       tx.onabort = () => reject(tx.error);
     });
   } finally { db.close(); }
-}
-
-function normalizedStatus(response: unknown): AppsResultStatus {
-  const data = response && typeof response === "object" ? response as Record<string, unknown> : {};
-  const nested = data.data && typeof data.data === "object" ? data.data as Record<string, unknown> : {};
-  const raw = nested.status ?? data.status;
-  return raw === "processing" || raw === "error" || raw === "cancelled" ? raw : "finished";
-}
-
-function extractResults(response: unknown): unknown[] {
-  if (!response || typeof response !== "object") return [];
-  const outer = response as Record<string, unknown>;
-  const data = outer.data && typeof outer.data === "object" ? outer.data as Record<string, unknown> | unknown[] : outer;
-  if (Array.isArray(data)) return data.flatMap((item) => {
-    const nested = extractResults(item);
-    return nested.length ? nested : [item];
-  });
-  if (!Array.isArray(data.results)) {
-    return typeof data.embed_id === "string" && /^[0-9a-f-]{36}$/i.test(data.embed_id) ? [data] : [];
-  }
-  const groups = data.results as unknown[];
-  if (groups.some((group) => group && typeof group === "object" && Array.isArray((group as Record<string, unknown>).results))) {
-    return groups.flatMap((group) => group && typeof group === "object" && Array.isArray((group as Record<string, unknown>).results) ? (group as { results: unknown[] }).results : [group]);
-  }
-  return groups;
-}
-
-function existingResultIds(response: unknown): string[] {
-  if (!response || typeof response !== "object") return [];
-  const outer = response as Record<string, unknown>;
-  const data = outer.data && typeof outer.data === "object" ? outer.data as Record<string, unknown> : outer;
-  const ids = data.child_embed_ids ?? data.embed_ids;
-  return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id)) : [];
-}
-
-async function stableChildId(rootId: string, index: number): Promise<string> {
-  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${rootId}:child:${index}`))).slice(0, 16);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 function uploadGraph(graph: StoredGraph, expectedUserId: string, signal?: AbortSignal): Promise<{ root_embed_id: string; linked_embed_ids: string[] }> {
@@ -777,152 +724,11 @@ export async function refreshAppsGeneratedAssetUrls(embedIds: string[], teamId?:
 
 /** Persist one request graph, including a processing parent before provider dispatch. */
 export async function retainAppsResult(args: RetainAppsResultInput): Promise<string> {
-  if (RUST_APPS_BUILD) {
-    const rust = rustAppsResults();
-    if (rust) {
-      return (await rust).retainRustAppsResult(args, {
-        activeKeys, activeContexts, pendingGraphs, saveStates: appsResultSaveStates, guestRecords, getAppsResult, hydrateRows, writeGuest,
-        assertSameAuthenticatedUser, stagePendingAppsResult, setSaveState, notifyResultUpdated, uploadPendingResult, uploadGraph,
-        refreshAppsGeneratedAssetUrls, saveKey: appsResultSaveKey, savePendingError: (rootId) => new AppsResultSavePendingError(rootId),
-      });
-    }
-  }
-  const rootId = args.rootEmbedId || args.requestId || crypto.randomUUID();
-  const guest = Boolean(args.guest);
-  if (!guest && !get(userProfile).user_id) throw new Error("Apps result owner is unavailable");
-  const submittedContext = { teamId: args.teamId ?? null, guest, userId: guest ? null : get(userProfile).user_id };
-  const previousContext = activeContexts.get(rootId);
-  if (previousContext && (previousContext.teamId !== submittedContext.teamId || previousContext.guest !== guest || previousContext.userId !== submittedContext.userId)) {
-    throw new Error("Apps result account changed while request was processing");
-  }
-  if (!previousContext) activeContexts.set(rootId, submittedContext);
-  const existingGuest = guest ? (await guestRecords()).find((row) => row.root_embed_id === rootId) : undefined;
-  let key = activeKeys.get(rootId) ?? await embedStore.getEmbedKey(rootId);
-  if (!key && existingGuest) key = await unwrapAnonymousChatKey(existingGuest.encrypted_embed_key);
-  if (!key && !guest && !args.newRequest) {
-    try { await getAppsResult(rootId, args.teamId); key = activeKeys.get(rootId) ?? await embedStore.getEmbedKey(rootId); } catch { /* New result. */ }
-  }
-  key ||= generateEmbedKey();
-  activeKeys.set(rootId, key);
-  const status = normalizedStatus(args.response);
-  const results = status === "processing" ? [] : extractResults(args.response);
-  const resultIds = new Set(results.flatMap((result) => result && typeof result === "object"
-      && typeof (result as Record<string, unknown>).embed_id === "string"
-      && /^[0-9a-f-]{36}$/i.test((result as { embed_id: string }).embed_id)
-      ? [(result as { embed_id: string }).embed_id] : []));
-  const persistedIds = Array.from(new Set(existingResultIds(args.response).filter((id) => !resultIds.has(id))));
-  const childType = EMBED_CHILD_TYPE_MAP[`${args.appId}:${args.skillId}`];
-  const children: CipherRow[] = [];
-  if (results.length > 500) throw new Error("Apps result exceeds the supported graph size");
-  for (let index = 0; index < results.length; index++) {
-    const result = results[index];
-    const resultObject = result && typeof result === "object" ? result as Record<string, unknown> : {};
-    const assetId = typeof resultObject.embed_id === "string" && /^[0-9a-f-]{36}$/i.test(resultObject.embed_id) ? resultObject.embed_id : null;
-    if (!childType && !assetId) continue;
-    const childId = assetId || await stableChildId(rootId, index);
-    const resultType = typeof resultObject.type === "string" ? resultObject.type
-      : typeof resultObject.embed_type === "string" ? resultObject.embed_type
-      : childType || ({ images: "image", audio: "audio", videos: "video", music: "music" } as Record<string, string>)[args.appId] || "app_skill_use";
-    children.push({
-      embed_id: childId,
-      encrypted_type: await encryptWithEmbedKey(resultType, key),
-      encrypted_content: await encryptWithEmbedKey(JSON.stringify({ app_id: args.appId, skill_id: args.skillId, ...resultObject, result }), key),
-      status: "finished",
-      parent_embed_id: rootId,
-    });
-  }
-  const childIds = children.map((child) => child.embed_id);
-  const responseData = args.response && typeof args.response === "object" && "data" in args.response
-    && (args.response as { data?: unknown }).data && typeof (args.response as { data?: unknown }).data === "object"
-    ? (args.response as { data: Record<string, unknown> }).data : args.response;
-  const metadata = responseData && typeof responseData === "object" ? responseData as Record<string, unknown> : {};
-  const { results: _nestedResults, ...responseMetadata } = metadata;
-  // Trademark rows live under matches so inference retains zero-match coverage.
-  const resultCount = args.appId === "business" && args.skillId === "search_trademarks"
-    && typeof metadata.result_count === "number" && Number.isInteger(metadata.result_count) && metadata.result_count >= 0
-    ? metadata.result_count : results.length;
-  let acceptedTaskIds: string[] = [];
-  if (status === "processing") {
-    const previous = await embedStore.get(`embed:${rootId}`);
-    if (previous && typeof previous === "object" && typeof previous.content === "string") {
-      try {
-        const content = JSON.parse(previous.content) as { task_id?: unknown; task_ids?: unknown };
-        if (typeof content.task_id === "string") acceptedTaskIds.push(content.task_id);
-        if (Array.isArray(content.task_ids)) acceptedTaskIds.push(...content.task_ids.filter((id): id is string => typeof id === "string"));
-      } catch { /* A new processing row has no prior task IDs. */ }
-    }
-    if (typeof metadata.task_id === "string") acceptedTaskIds.push(metadata.task_id);
-    if (Array.isArray(metadata.task_ids)) acceptedTaskIds.push(...metadata.task_ids.filter((id): id is string => typeof id === "string"));
-    acceptedTaskIds = Array.from(new Set(acceptedTaskIds));
-  }
-  const rootContent = {
-    ...appsResultRequestFields(args.input),
-    ...responseMetadata,
-    app_id: args.appId, skill_id: args.skillId, input: args.input,
-    ...(args.requestText ? { request_text: args.requestText } : {}),
-    ...(acceptedTaskIds.length ? { task_ids: acceptedTaskIds } : {}),
-    ...(childType ? {} : { results }), result_count: resultCount,
-    embed_ids: [...childIds, ...persistedIds], status,
-  };
-  const root: CipherRow = {
-    embed_id: rootId,
-    encrypted_type: await encryptWithEmbedKey("app_skill_use", key),
-    encrypted_content: await encryptWithEmbedKey(JSON.stringify(rootContent), key),
-    status,
-    embed_ids: [...childIds, ...persistedIds],
-  };
-  const createdAt = existingGuest?.created_at ?? Math.floor(Date.now() / 1000);
-  const wrapper = previousContext?.wrapper || existingGuest?.encrypted_embed_key || (guest ? await wrapAnonymousChatKey(key)
-    : args.teamId ? await wrapEmbedKeyWithChatKey(key, await getTeamKey(args.teamId))
-    : await wrapEmbedKeyWithMasterKey(key));
-  if (!wrapper) throw new Error("Apps result key could not be wrapped");
-  activeContexts.set(rootId, { ...submittedContext, wrapper });
-  const graph: StoredGraph = { app_id: args.appId, skill_id: args.skillId, root_embed_id: rootId,
-    ...(args.teamId ? { team_id: args.teamId } : {}), embeds: [root, ...children], linked_embed_ids: persistedIds,
-    encrypted_embed_key: wrapper, created_at: createdAt };
-  if (guest) {
-    await hydrateRows([root, ...children], args.appId, args.skillId, key, createdAt);
-    await writeGuest(graph);
-  } else {
-    assertSameAuthenticatedUser(submittedContext.userId!);
-    if (args.persistence === "background") {
-      const record: PendingAppsResult = {
-        id: makePendingAppsResultId(submittedContext.userId!, submittedContext.teamId, rootId),
-        userId: submittedContext.userId!, teamId: submittedContext.teamId, rootEmbedId: rootId,
-        revision: crypto.randomUUID(), graph, updatedAt: Date.now(), deferredChildIds: Array.from(resultIds),
-      };
-      pendingGraphs.set(record.id, record);
-      let staged = false;
-      try { await stagePendingAppsResult(record); staged = true; setSaveState(record, "saving"); }
-      catch { setSaveState(record, "error"); }
-      assertSameAuthenticatedUser(submittedContext.userId!);
-      await hydrateRows([root, ...children.filter((row) => !resultIds.has(row.embed_id))], args.appId, args.skillId, key, createdAt, submittedContext.userId!);
-      notifyResultUpdated(record);
-      // A quick synchronous request needs only a local processing draft. Sending
-      // it first would compete with dispatch and add an unnecessary round trip.
-      if (staged && (status !== "processing" || acceptedTaskIds.length)) {
-        const uploaded = uploadPendingResult(record);
-        // Existing provider assets must be validated/reconciled before exposing
-        // their original IDs. Ordinary search children are immediately usable.
-        if (resultIds.size) {
-          await uploaded;
-          if (get(appsResultSaveStates)[appsResultSaveKey(record.userId, record.teamId, rootId)] !== "saved") throw new AppsResultSavePendingError(rootId);
-        }
-      }
-    } else {
-      const saved = await uploadGraph(graph, submittedContext.userId!);
-      assertSameAuthenticatedUser(submittedContext.userId!);
-      const linked = new Set(saved.linked_embed_ids);
-      await hydrateRows([root, ...children.filter((row) => !linked.has(row.embed_id))], args.appId, args.skillId, key, createdAt, submittedContext.userId!);
-    }
-  }
-  if (status === "finished") {
-    // The encrypted graph is already durable; a transient URL refresh must not
-    // report the provider result as unsaved.
-    try { if (["images", "audio", "music", "videos"].includes(args.appId)) await refreshAppsGeneratedAssetUrls(children.map((row) => row.embed_id), args.teamId, submittedContext.userId); }
-    catch { /* Reopening the result retries the refresh. */ }
-  }
-  return rootId;
+  return (await import('./rustCore/apps/rustAppsRetention')).retainRustAppsResult(args, {
+    activeKeys, activeContexts, pendingGraphs, saveStates: appsResultSaveStates, guestRecords, getAppsResult, hydrateRows, writeGuest,
+    assertSameAuthenticatedUser, stagePendingAppsResult, setSaveState, notifyResultUpdated, uploadPendingResult, uploadGraph,
+    refreshAppsGeneratedAssetUrls, saveKey: appsResultSaveKey, savePendingError: (rootId) => new AppsResultSavePendingError(rootId),
+  });
 }
 
 export async function listAppsResults(appId: string, teamId?: string | null, offset = 0, limit = 20): Promise<AppsResultsPage> {

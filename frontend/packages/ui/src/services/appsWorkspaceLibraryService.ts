@@ -9,14 +9,6 @@ import { notificationStore } from '../stores/notificationStore';
 import { text } from '../i18n/translations';
 import type { AppsRequestContext } from './appsWorkspaceRequestService';
 
-/** Opt-in shared Rust core build: recommendation freshness runs in the shared Worker `apps` unit. */
-const RUST_APPS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
-/** Measurement-only opt-out shared with appsWorkspaceService.ts: `'ts'` keeps this TypeScript policy. */
-function rustAppsResults(): Promise<typeof import('./rustCore/apps/rustAppsRetention')> | null {
-  if (typeof localStorage === 'undefined' || localStorage.getItem('openmates_rust_core_apps') === 'ts') return null;
-  return import('./rustCore/apps/rustAppsRetention');
-}
-
 export interface AppsSavedSearch {
   id: string;
   skill_id: string;
@@ -80,8 +72,8 @@ async function libraryRequest(appId: string, suffix: string, teamId?: string, bo
   if (owner !== ownerGeneration || get(userProfile).user_id !== userId || !get(authStore).isAuthenticated ||
       (get(activeTeamContext).teamId ?? undefined) !== teamId) throw new Error('account_context_changed');
   if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : 'library_unavailable');
-  const rust = RUST_APPS_BUILD ? rustAppsResults() : null;
-  return { ...result, recommendations: rust ? await (await rust).freshRustRecommendations(result.recommendations ?? []) : freshAppsRecommendations(result.recommendations ?? []) };
+  const { freshRustRecommendations } = await import('./rustCore/apps/rustAppsRetention');
+  return { ...result, recommendations: await freshRustRecommendations(result.recommendations ?? []) };
 }
 
 /** Expiry is checked in the server as well; sleeping tabs also filter on wake. */
@@ -98,9 +90,8 @@ export async function getPublicAppsRecommendations(appId: string, signal?: Abort
   });
   if (!response.ok) return [];
   const result = await response.json();
-  const rust = RUST_APPS_BUILD ? rustAppsResults() : null;
   const recommendations: AppsRecommendation[] = Array.isArray(result.recommendations) ? result.recommendations : [];
-  return rust ? (await rust).freshRustRecommendations(recommendations) : freshAppsRecommendations(recommendations);
+  return (await import('./rustCore/apps/rustAppsRetention')).freshRustRecommendations(recommendations);
 }
 export const saveAppsSearch = (appId: string, skillId: string, parameters: Record<string, unknown>, query: string, teamId?: string) =>
   libraryRequest(appId, '/saved-searches', teamId, { skill_id: skillId, parameters, query, title: query.slice(0, 200) });

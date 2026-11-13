@@ -37,14 +37,6 @@ export type PendingAppsResult = {
 type StoredPendingAppsResult = PendingAppsResult & { teamScope: string };
 
 const DB_NAME = "openmates_apps_result_outbox";
-/** Opt-in shared Rust core build: the outbox scope check runs in the shared Worker `apps` unit. */
-const RUST_APPS_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
-/** Measurement-only opt-out shared with appsWorkspaceService.ts: `'ts'` keeps this TypeScript policy. */
-function rustAppsResults(): Promise<typeof import('./rustCore/apps/rustAppsRetention')> | null {
-  if (typeof localStorage === 'undefined' || localStorage.getItem('openmates_rust_core_apps') === 'ts') return null;
-  return import('./rustCore/apps/rustAppsRetention');
-}
-
 const DB_VERSION = 1;
 const STORE_NAME = "pending_results";
 const SCOPE_INDEX = "owner_team";
@@ -83,15 +75,6 @@ function openOutboxDb(): Promise<IDBDatabase> {
       reject(new Error("Apps result outbox upgrade blocked"));
     };
   });
-}
-
-function validateRecord(record: PendingAppsResult): void {
-  if (!record.userId || !record.rootEmbedId || !record.revision ||
-      record.id !== makePendingAppsResultId(record.userId, record.teamId, record.rootEmbedId) ||
-      record.graph.root_embed_id !== record.rootEmbedId ||
-      (record.graph.team_id ?? null) !== record.teamId) {
-    throw new Error("Invalid Apps result outbox scope");
-  }
 }
 
 /** Copy only encrypted fields so accidental plaintext additions never reach disk. */
@@ -155,9 +138,7 @@ async function withTransaction<T>(mode: IDBTransactionMode, operation: (store: I
 }
 
 export async function stagePendingAppsResult(record: PendingAppsResult): Promise<void> {
-  const rust = RUST_APPS_BUILD ? rustAppsResults() : null;
-  if (rust) await (await rust).assertRustOutboxScope(record);
-  else validateRecord(record);
+  await (await import('./rustCore/apps/rustAppsRetention')).assertRustOutboxScope(record);
   await withTransaction<void>("readwrite", (store) => { store.put(storedRecord(record)); });
 }
 
@@ -181,9 +162,7 @@ export async function listPendingAppsResults(userId: string, teamId: string | nu
 
 /** An upload acknowledgement may only clear the revision it actually uploaded. */
 export async function deletePendingAppsResult(record: PendingAppsResult): Promise<void> {
-  const rust = RUST_APPS_BUILD ? rustAppsResults() : null;
-  if (rust) await (await rust).assertRustOutboxScope(record);
-  else validateRecord(record);
+  await (await import('./rustCore/apps/rustAppsRetention')).assertRustOutboxScope(record);
   await withTransaction<void>("readwrite", (store) => {
     const request = store.get(record.id);
     request.onsuccess = () => {
