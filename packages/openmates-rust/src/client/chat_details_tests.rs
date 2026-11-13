@@ -448,3 +448,20 @@ fn memory_response_rows_expose_the_mappings_stored_in_their_content() {
             .contains("ada@example.org")
     );
 }
+#[test]
+fn page_local_restoration_uses_memory_response_mappings() {
+    let id = "22222222-2222-4222-8222-222222222222";
+    let content = r#"{"type":"app_settings_memories_response","action":"included","pii_mappings":[{"placeholder":"[EMAIL_1]","original":"ada@example.org"}]}"#;
+    let row = json!({"id":"sys-row","client_message_id":"sys","chat_id":id,"role":"system","created_at":0,"encrypted_content":encrypted(content),"encrypted_sender_name":encrypted(""),"encrypted_category":encrypted(""),"encrypted_model_name":encrypted("")});
+    let mut seen = std::collections::HashSet::new();
+    let (raw, decoded) = sync::decode_chat_message_stored(&row, id, &[7; 32], &mut seen).unwrap();
+    let system = project_message(&raw, decoded, &[7; 32]).unwrap();
+    let answer = "Reach me at [EMAIL_1].";
+    let mut assistant = ChatDetailsMessage::default();
+    assistant.role = "assistant".into();
+    assistant.content = answer.into();
+    let parsed = page_restore_mappings(&[system, assistant]).unwrap();
+    let mappings = parsed.iter().filter_map(Value::as_array).flatten().collect::<Vec<_>>();
+    let restored = crate::privacy::restore_page_refs(answer, &mappings).unwrap();
+    assert_eq!(restored, "Reach me at ada@example.org.");
+}

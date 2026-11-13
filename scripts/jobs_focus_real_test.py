@@ -43,6 +43,15 @@ from workflow_schedule_real_test import API_URL, ProofError, sessions, write_rec
 ROOT = Path(__file__).resolve().parents[1]
 APP_URL = "https://app.dev.openmates.org"
 NATIVE = {"enabled": False}
+NARRATE = {"enabled": False}
+
+
+def narrate(title: str, body: str = "") -> None:
+    """Readable progress for terminal recordings (--narrate); synthetic data only."""
+    if NARRATE["enabled"]:
+        print(f"\n=== {title} ===", flush=True)
+        if body:
+            print(body.strip()[:1800], flush=True)
 
 
 def totp(secret: str, offset: int = 0) -> str:
@@ -209,8 +218,9 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
     try:
         before = command(cli, ["settings", "memories", "list"])
         baseline = {json.dumps(entry, sort_keys=True) for entry in before} if isinstance(before, list) else set()
-        first = command(cli, ["chats", "new", f"{MODEL} Please save my career profile as a memory so I never have to "
-                              "repeat it. " + PERSON, *flags], timeout=timeout + 30)
+        save_prompt = f"{MODEL} Please save my career profile as a memory so I never have to repeat it. " + PERSON
+        narrate("Chat 1: you ask the assistant to remember your career profile", save_prompt)
+        first = command(cli, ["chats", "new", save_prompt, *flags], timeout=timeout + 30)
         write_receipt(out / "profile-reuse-save.json", first)
         if not isinstance(first, dict) or not first.get("chatId"):
             raise ProofError("created_chat_id_missing")
@@ -219,20 +229,28 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
         result["memory_writes"] = [{k: w.get(k) for k in ("action", "status", "errorCode", "undoAvailable")}
                                    for w in writes if isinstance(w, dict)]
         result["saved"] = any(w.get("status") == "applied" for w in writes if isinstance(w, dict))
+        narrate("Assistant answer (chat 1)", str(first.get("assistant") or ""))
+        narrate("Memory written by the assistant", json.dumps(
+            [{k: w.get(k) for k in ("action", "status", "title", "undoAvailable")} for w in writes
+             if isinstance(w, dict)], indent=2))
         listed = command(cli, ["settings", "memories", "list"])
         write_receipt(out / "profile-reuse-memories.json", listed)
         added = [entry for entry in listed if json.dumps(entry, sort_keys=True) not in baseline] \
             if isinstance(listed, list) else []
         result["memories_added"] = len(added)
         result["memory_listed"] = "example retail" in json.dumps(added).lower()
+        narrate("Settings > Memories now lists", "\n".join(
+            str(((entry.get("data") or {}).get("title")) if isinstance(entry, dict) else entry) for entry in added))
         # Assistant-saved Memories load as ask_first; the native CLI approves a
         # Memory-load consent request only with --auto-approve-memories.
         second_slug = f"profile-reuse-{uuid4().hex}"
         slugs.append(second_slug)
         transport = out / "profile-reuse-use-transport.json"
         try:
-            second = command(cli, ["chats", "new", f"{MODEL} Write a short cover letter in English for this job, using what "
-                                   "you know about me. " + POSTING, "--slug", second_slug, *flags,
+            use_prompt = (f"{MODEL} Write a short cover letter in English for this job, using what you know about me. "
+                          + POSTING)
+            narrate("Chat 2 (new chat): you ask for a cover letter, without repeating your profile", use_prompt)
+            second = command(cli, ["chats", "new", use_prompt, "--slug", second_slug, *flags,
                                    "--auto-approve-memories"], timeout=timeout + 30, diagnostic_path=transport)
         except ProofError:
             admitted = admitted_chat_id(transport)
@@ -249,8 +267,23 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
             raise ProofError("created_chat_id_missing")
         chats.append(second["chatId"])
         result["second_status"] = second.get("status")
-        shown = command(cli, ["chats", "show", second["chatId"], "--personal"],
-                        diagnostic_path=out / "profile-reuse-use-show-transport.json")
+        narrate("Memory load request in chat 2 (Ask first, approved)", json.dumps(
+            second.get("appSettingsMemoryRequests"), indent=2))
+        narrate("Assistant answer (chat 2) uses the saved profile", str(second.get("assistant") or ""))
+        try:
+            shown = command(cli, ["chats", "show", second["chatId"], "--personal"],
+                            diagnostic_path=out / "profile-reuse-use-show-transport.json")
+        except ProofError:
+            # Evidence for the failure: does another reader decrypt the same
+            # chat, and does the native reader still open the saving chat?
+            if NATIVE.get("npm_reader"):
+                write_receipt(out / "profile-reuse-use-chat-npm.json", npm_show(second["chatId"]))
+            try:
+                write_receipt(out / "profile-reuse-save-chat.json",
+                              command(cli, ["chats", "show", chats[0], "--personal"]))
+            except ProofError as exc:
+                write_receipt(out / "profile-reuse-save-chat.json", {"error": str(exc)})
+            raise
         write_receipt(out / "profile-reuse-use-chat.json", shown)
         text = json.dumps(shown).lower()
         result["profile_used"] = "example retail" in text and "15" in text
@@ -264,6 +297,7 @@ def run_profile_reuse(cli: str, out: Path, timeout: int) -> dict:
         if chats and result.get("saved"):
             try:
                 undone = command(cli, ["settings", "memories", "undo", "--chat", chats[0]])
+                narrate("Undo the assistant's memory write", json.dumps(undone, indent=2))
                 write_receipt(out / "profile-reuse-undo.json", undone)
                 after = command(cli, ["settings", "memories", "list"])
                 write_receipt(out / "profile-reuse-memories-after-undo.json", after)
@@ -300,9 +334,11 @@ def main() -> int:
     parser.add_argument("--case", action="append", choices=sorted([*CASES, "profile-reuse"]))
     parser.add_argument("--timeout-seconds", type=int, default=420)
     parser.add_argument("--allow-paid-dev-inference", action="store_true")
+    parser.add_argument("--narrate", action="store_true", help="Print prompts and answers for a terminal recording")
     parser.add_argument("--personal-only", action="store_true",
                         help="Wait for the personal account instead of using a throwaway account when it is busy")
     args = parser.parse_args()
+    NARRATE["enabled"] = args.narrate
     if any(os.getenv(key) for key in ("CI", "GITHUB_ACTIONS", "BUILDKITE", "GITLAB_CI")):
         parser.error("real inference is dev-only and cannot run in CI")
     if not args.allow_paid_dev_inference or not 60 <= args.timeout_seconds <= 1200:

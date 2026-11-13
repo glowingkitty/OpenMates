@@ -488,6 +488,24 @@ fn project_message(row: &Value, decoded: Message, key: &[u8; 32]) -> Result<Chat
     output.pii_mappings = raw_pii.into_inner();
     Ok(output.into_inner())
 }
+/// Parsed placeholder mappings that page-local restoration applies to every
+/// message: user rows carry their own mappings, and Memory response rows
+/// (system) carry the mappings of released Memory bodies (plan decision D-5).
+///
+/// # Errors
+/// `chat_details_mapping_utf16` when a stored mapping is not representable by
+/// the shared Rust string policy.
+fn page_restore_mappings(messages: &[ChatDetailsMessage]) -> Result<Plain<Vec<Value>>> {
+    let mut parsed = Plain::new(Vec::<Value>::new());
+    for json in messages
+        .iter()
+        .filter(|m| m.role == "user" || m.role == "system")
+        .filter_map(|m| m.pii_mappings.as_ref())
+    {
+        parsed.push(serde_json::from_str(&Zeroizing::new(json.encoded_json()?)).map_err(|_|Error::Unavailable{code:"chat_details_mapping_utf16",reason:"Page-local restoration requires mappings representable by the shared Rust string policy."})?);
+    }
+    Ok(parsed)
+}
 /// A cache hit already decoded through the fresh path's per-row validation.
 struct CachedAssembly {
     decoded: Plain<Vec<ChatDetailsMessage>>,
@@ -925,15 +943,7 @@ impl Client {
             // Parse the original user mapping JSON once for the existing typed
             // restoration policy, then borrow entries; never clone mapping rows.
             // Stored output retains its validated original JSON losslessly.
-            let mut parsed = Plain::new(Vec::<Value>::new());
-            for json in result
-                .messages
-                .iter()
-                .filter(|m| m.role == "user")
-                .filter_map(|m| m.pii_mappings.as_ref())
-            {
-                parsed.push(serde_json::from_str(&Zeroizing::new(json.encoded_json()?)).map_err(|_|Error::Unavailable{code:"chat_details_mapping_utf16",reason:"Page-local restoration requires mappings representable by the shared Rust string policy."})?);
-            }
+            let parsed = page_restore_mappings(&result.messages)?;
             let mappings = parsed
                 .iter()
                 .filter_map(Value::as_array)
