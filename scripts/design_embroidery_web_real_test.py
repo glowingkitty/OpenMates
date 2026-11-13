@@ -81,6 +81,11 @@ def spec_name(spec: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", Path(spec).name.lower()).strip("-")[:40] or "web-real-test"
 
 
+# heavy_slot.py: the host had no memory/slot for the run within its --timeout.
+HEAVY_SLOT_UNAVAILABLE_EXIT = 3
+HEAVY_SLOT_WAIT_SECONDS = 3600
+
+
 def require_runtime_revision(revision: str) -> None:
     """The backend runtime checkout serves ``revision``: same commit, or an ancestor with identical backend files.
 
@@ -241,13 +246,18 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
         heartbeat.start()
         draft_guard = start_draft_guard(env, cli_state, receipt) if real_account.kind == "personal" else None
         cli = WEB_APP / "node_modules/@playwright/test/cli.js"
-        command = [sys.executable, str(ROOT / "scripts/heavy_slot.py"), "run", "--", "node", str(cli), "test",
+        # heavy_slot first waits for host memory and a slot (its --timeout); only
+        # then does the Playwright run start, so the run limit excludes that wait.
+        command = [sys.executable, str(ROOT / "scripts/heavy_slot.py"), "run",
+                   "--timeout", str(HEAVY_SLOT_WAIT_SECONDS), "--", "node", str(cli), "test",
                    "--config", str(config), "--trace", "off", spec,
                    *(["--grep", args.grep] if getattr(args, "grep", None) else [])]
         with (out / "run.log").open("w") as log:
             run = subprocess.run(command, cwd=out, env=env, stdout=log, stderr=subprocess.STDOUT,
-                                 check=False, timeout=args.timeout_seconds)
+                                 check=False, timeout=HEAVY_SLOT_WAIT_SECONDS + args.timeout_seconds)
         receipt["playwright_exit_code"] = run.returncode
+        if run.returncode == HEAVY_SLOT_UNAVAILABLE_EXIT:
+            raise ProofError("heavy_slot_unavailable")
         if errors:
             raise ProofError(errors[0])
         require_runtime_revision(args.revision)
