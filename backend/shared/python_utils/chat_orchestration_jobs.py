@@ -57,7 +57,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 JOB_KINDS = ("start_chat", "creator_event", "read_chat", "send_message")
-EVENT_ACTIONS = ("started", "report", "finished", "waiting_for_user", "user_wrote")
+EVENT_ACTIONS = ("started", "report", "finished", "waiting_for_user", "user_wrote", "sent", "reported")
 PENDING_KINDS = ("start_chat", "creator_event")
 JOB_TTL_SECONDS = 24 * 3600
 STALE_CLAIM_SECONDS = 120
@@ -106,6 +106,7 @@ async def enqueue_job(*, cache_service: Any, encryption_service: Any, user_id: s
     record = {
         "job_id": job_id, "kind": kind, "created_at": now, "expires_at": now + JOB_TTL_SECONDS,
         "spawned_chat_id": payload.get("spawned_chat_id"), "creator_chat_id": payload.get("creator_chat_id"),
+        "origin_hop": int(payload.get("origin_hop") or 0),
         "payload": await seal(cache_service, encryption_service, user_id, payload),
     }
     if not await cache_service.set(_job_key(user_id, job_id), record, ttl=JOB_TTL_SECONDS):

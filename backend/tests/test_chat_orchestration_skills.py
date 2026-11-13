@@ -42,17 +42,44 @@ except ImportError:  # job layer lands in a parallel lane; tests patch every fun
 from backend.apps.ai.processing import chat_orchestration_hooks as hooks  # noqa: E402
 from backend.apps.openmates.skills import chat_orchestration_skills as skills  # noqa: E402
 from backend.apps.ai.utils.llm_utils import _transform_message_history_for_llm  # noqa: E402
+from backend.shared.python_utils import chat_orchestration_safety as safety  # noqa: E402
 
 jobs = skills.jobs
 USER, CHAT = "user-1", "creator-chat"
 
 
+class FakeRedis:
+    def __init__(self):
+        self.store: Dict[str, str] = {}
+
+    async def set(self, key, value, nx=False, ex=None):
+        if nx and key in self.store:
+            return None
+        self.store[key] = value
+        return True
+
+
 class FakeCache:
+    """Active-task marker plus the plain get/set and Redis client the safety layer uses."""
+
     def __init__(self, active: Optional[str] = None):
         self.active = active
+        self.values: Dict[str, object] = {}
+        self._redis = FakeRedis()
 
     async def get_active_ai_task(self, chat_id: str):
         return self.active
+
+    async def get(self, key):
+        return self.values.get(key)
+
+    async def set(self, key, value, ttl=None):
+        self.values[key] = value
+        return True
+
+    @property
+    async def client(self):
+        return self._redis
 
 
 class FakeJobs:
@@ -149,9 +176,21 @@ def make(cls):
     return cls(app=None, app_id="openmates", skill_id="x", skill_name="x", skill_description="x")
 
 
-async def run(cls, cache=None, **kw):
-    return await make(cls).execute(cache_service=cache or FakeCache(), encryption_service=None,
-                                   user_id=kw.pop("user_id", USER), chat_id=kw.pop("chat_id", CHAT), **kw)
+async def turn(cache, chat_id=CHAT, message_id="m-user", origin="user", hop=0, sender=None):
+    """Record why a turn runs, as the message handler or the interpretation dispatcher does."""
+    await safety.record_turn_origin(cache_service=cache, user_id=USER, chat_id=chat_id, message_id=message_id,
+                                    origin=origin, hop=hop, sender_chat_id=sender)
+
+
+async def run(cls, cache=None, origin="user", **kw):
+    """Run a skill in a turn of the given origin (None: no recorded origin)."""
+    cache = cache or FakeCache()
+    chat_id = kw.pop("chat_id", CHAT)
+    kw.setdefault("message_id", "m-user")
+    if origin is not None and chat_id and chat_id != "incognito" and kw["message_id"]:
+        await turn(cache, chat_id=chat_id, message_id=kw["message_id"], origin=origin)
+    return await make(cls).execute(cache_service=cache, encryption_service=None,
+                                   user_id=kw.pop("user_id", USER), chat_id=chat_id, **kw)
 
 
 # contract-test: supporting surface=rest_api assertions=chat-orchestration.spawn.main-chat-is-normal,chat-orchestration.privacy.device-executed,chat-orchestration.spawn.unified-kind
@@ -323,3 +362,133 @@ def test_spawned_request_has_no_ancestry_so_billing_uses_own_chat_id():
     assert fields["root_chat_id"].default is None
     assert "parent_chat_id" not in fields or fields["parent_chat_id"].default is None
     assert hooks.APP_ID == "openmates"
+
+
+# --- Cross-chat write safety (Marco 2026-11-13: chats never message each other without a good reason) ---
+
+WRITES = [
+    (skills.StartChatSkill, {"title": "T", "brief": "B"}),
+    (skills.SendToSpawnedChatSkill, {"spawned_chat_id": "c1", "text": "hi"}),
+    (skills.ReportToCreatorSkill, {"text": "done"}),
+]
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.safety.user-requested-writes-only
+@pytest.mark.asyncio
+@pytest.mark.parametrize("origin", ["automatic", None])
+async def test_automatic_or_unknown_turns_never_write_to_another_chat(fake, origin):
+    fake.creators.update({"c1": CHAT, CHAT: "parent"})
+    for cls, kw in WRITES:
+        r = await run(cls, origin=origin, message_id="evt-1", **kw)
+        assert not r.success and r.error_code == "not_user_requested", cls
+    assert not fake.enqueued and not fake.events
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.safety.user-requested-writes-only
+@pytest.mark.asyncio
+async def test_creator_sent_brief_may_delegate_until_the_relay_limit(fake):
+    cache = FakeCache()
+    await turn(cache, message_id="brief", origin="creator", hop=1, sender="parent")
+    r = await run(skills.StartChatSkill, cache=cache, origin=None, message_id="brief", title="T", brief="B")
+    assert r.success and fake.enqueued[0]["payload"]["origin_hop"] == 1
+    await turn(cache, message_id="deep", origin="creator", hop=safety.MAX_RELAY_HOPS, sender="parent")
+    r = await run(skills.StartChatSkill, cache=cache, origin=None, message_id="deep", title="T", brief="B")
+    assert r.error_code == "relay_limit_reached" and len(fake.enqueued) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.safety.loop-limits
+@pytest.mark.asyncio
+async def test_ping_pong_between_two_chats_is_stopped(fake):
+    """A -> B -> A without user input: the bounce back is refused, a new user message allows it again."""
+    cache = FakeCache()
+    fake.creators.update({"c1": CHAT})
+    assert (await run(skills.SendToSpawnedChatSkill, cache=cache, spawned_chat_id="c1", text="go")).success
+    # B (c1) works on the creator-sent message and reports back to A.
+    await turn(cache, chat_id="c1", message_id="m-b", origin="creator", hop=1, sender=CHAT)
+    fake.creators["c1"] = CHAT
+    r = await make(skills.ReportToCreatorSkill).execute(
+        text="result", cache_service=cache, encryption_service=None, user_id=USER, chat_id="c1", message_id="m-b")
+    assert r.success
+    # A's automatic interpreting turn tries to write back: refused.
+    await turn(cache, message_id="evt-report", origin="automatic")
+    r = await run(skills.SendToSpawnedChatSkill, cache=cache, origin=None, message_id="evt-report",
+                  spawned_chat_id="c1", text="again")
+    assert r.error_code == "not_user_requested"
+    # Even a relayed (non-user) turn in A may not bounce straight back to B.
+    await turn(cache, message_id="relay", origin="creator", hop=1, sender="grandparent")
+    r = await run(skills.SendToSpawnedChatSkill, cache=cache, origin=None, message_id="relay",
+                  spawned_chat_id="c1", text="again")
+    assert r.error_code == "ping_pong"
+    assert [job["kind"] for job in fake.enqueued] == ["send_message"]
+    # The user asks in A for a follow-up: allowed.
+    r = await run(skills.SendToSpawnedChatSkill, cache=cache, message_id="m-user-2",
+                  spawned_chat_id="c1", text="also check Asia")
+    assert r.success and [job["kind"] for job in fake.enqueued] == ["send_message", "send_message"]
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.safety.loop-limits,chat-orchestration.report.creator-skill
+@pytest.mark.asyncio
+async def test_several_reports_work_and_an_identical_repeat_is_dropped(fake):
+    cache = FakeCache()
+    fake.creators.update({"c1": CHAT, "c2": CHAT})
+    for chat_id in ("c1", "c2"):
+        await turn(cache, chat_id=chat_id, message_id=f"m-{chat_id}", origin="creator", hop=1, sender=CHAT)
+    async def report(chat_id, text):
+        return await make(skills.ReportToCreatorSkill).execute(
+            text=text, cache_service=cache, encryption_service=None, user_id=USER, chat_id=chat_id,
+            message_id=f"m-{chat_id}")
+    assert (await report("c1", "first half")).success
+    assert (await report("c1", "second half")).success
+    assert (await report("c2", "other result")).success
+    repeated = await report("c1", "first half")
+    assert repeated.success and repeated.status == "already_reported"
+    reports = [e for e in fake.events if e["action"] == "report"]
+    assert [e["text"] for e in reports] == ["first half", "second half", "other result"]
+    assert len({e["discriminator"] for e in reports}) == 3  # two reports in one turn stay two events
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.safety.visible-both-sides
+@pytest.mark.asyncio
+async def test_send_and_report_leave_a_visible_event_in_both_chats(fake):
+    fake.creators.update({"c1": CHAT})
+    assert (await run(skills.SendToSpawnedChatSkill, spawned_chat_id="c1", text="also Asia")).success
+    sent = fake.events[-1]
+    assert (sent["action"], sent["creator_chat_id"], sent["spawned_chat_id"], sent["text"]) == \
+        ("sent", CHAT, "c1", "also Asia")
+    fake.creators[CHAT] = "parent"
+    assert (await run(skills.ReportToCreatorSkill, text="done")).success
+    report, reported = fake.events[-2:]
+    assert (report["action"], report["creator_chat_id"], report["spawned_chat_id"]) == ("report", "parent", CHAT)
+    # Stored in the reporting chat itself; it links to the creator chat.
+    assert (reported["action"], reported["creator_chat_id"], reported["spawned_chat_id"]) == \
+        ("reported", CHAT, "parent")
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.safety.user-requested-writes-only
+@pytest.mark.asyncio
+async def test_pipeline_hides_write_skills_from_non_user_turns(fake):
+    cache = FakeCache()
+    request = SimpleNamespace(chat_id=CHAT, user_id=USER, message_id="evt-9", is_incognito=False)
+    await turn(cache, message_id="evt-9", origin="automatic")
+    blocked, note = await hooks.orchestration_blocked_skills(cache_service=cache, request_data=request)
+    assert blocked == set(hooks.WRITE_SKILLS) and "not started by a message the user sent" in note
+    await turn(cache, message_id="evt-9", origin="user")
+    assert await hooks.orchestration_blocked_skills(cache_service=cache, request_data=request) == (set(), None)
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.safety.user-requested-writes-only
+@pytest.mark.asyncio
+async def test_message_origin_creator_sent_vs_user_typed(fake, monkeypatch):
+    cache = FakeCache()
+    async def is_creator_sent(*, cache_service, user_id, spawned_chat_id, job_id):
+        return job_id == "job-1"
+    async def get_job_record(*, cache_service, user_id, job_id):
+        return {"creator_chat_id": "parent", "origin_hop": 1}
+    monkeypatch.setattr(jobs, "is_creator_sent", is_creator_sent, raising=False)
+    monkeypatch.setattr(jobs, "get_job_record", get_job_record, raising=False)
+    sent = await safety.record_message_origin(cache_service=cache, user_id=USER, chat_id="c1",
+                                              message_id="m1", job_id="job-1")
+    typed = await safety.record_message_origin(cache_service=cache, user_id=USER, chat_id="c1",
+                                               message_id="m2", job_id=None)
+    assert sent == {"origin": "creator", "hop": 2, "sender_chat_id": "parent"}
+    assert typed["origin"] == "user"

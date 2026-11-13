@@ -23,6 +23,16 @@ user_wrote:
   en: 'You wrote in "{title}"'
   de: 'Du hast in "{title}" geschrieben'
   verified_by_human: []
+sent:
+  context: System event in the creator chat when it wrote a message into a spawned chat; {title} is the spawned chat's title
+  en: 'Sent to "{title}"'
+  de: 'An "{title}" gesendet'
+  verified_by_human: []
+reported:
+  context: System event in a spawned chat when it reported to its creator chat; {title} is the creator chat's title
+  en: 'Reported to "{title}"'
+  de: 'An "{title}" berichtet'
+  verified_by_human: []
 creator_link:
   context: Link at the top of a chat that another chat started; {title} is the starting chat's title
   en: 'Started from {title}'

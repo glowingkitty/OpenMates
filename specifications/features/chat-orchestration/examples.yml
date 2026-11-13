@@ -177,3 +177,38 @@ user_awareness:
   given: '"Weekly planning" sends "Please also check Leipzig" into "Kitchen quotes".'
   when: Alice opens "Kitchen quotes".
   then: The message is marked as sent from "Weekly planning", not as typed by Alice.
+cross_chat_safety:
+- id: report-turn-cannot-write
+  assertion_ids:
+  - chat-orchestration.safety.user-requested-writes-only
+  given: '"Kitchen quotes" reported its three quotes to "Weekly planning".'
+  when: The automatic turn in "Weekly planning" interprets the report.
+  then: It tells Alice the result in "Weekly planning" and writes nothing into "Kitchen quotes" or any other chat; a
+    send-to-spawned-chat call in that turn fails with a not-user-requested error.
+- id: ping-pong-stopped
+  assertion_ids:
+  - chat-orchestration.safety.loop-limits
+  given: '"Weekly planning" sent "check Leipzig" to "Kitchen quotes" and "Kitchen quotes" reported back.'
+  when: A turn in "Weekly planning" that Alice did not start tries to write to "Kitchen quotes" again.
+  then: The write is refused; once Alice writes "also check Dresden" in "Weekly planning", the follow-up is sent.
+- id: several-reports-and-follow-up
+  assertion_ids:
+  - chat-orchestration.safety.loop-limits
+  - chat-orchestration.safety.user-requested-writes-only
+  given: '"Weekly planning" started "Kitchen quotes" and "Flight to Lisbon".'
+  when: Both report, "Kitchen quotes" reports twice with different results, and Alice then asks to tell "Flight to
+    Lisbon" to prefer morning flights.
+  then: All three reports appear and are interpreted, and the follow-up is sent to "Flight to Lisbon".
+- id: unlinked-chat-refused
+  assertion_ids:
+  - chat-orchestration.safety.linked-chats-only
+  given: Alice has a chat "Tax return 2025" that "Weekly planning" did not start.
+  when: The assistant in "Weekly planning" tries to send a message to "Tax return 2025".
+  then: The skill refuses with a not-spawned-by-this-chat error and nothing is sent.
+- id: visible-in-both-chats
+  assertion_ids:
+  - chat-orchestration.safety.visible-both-sides
+  given: Alice asked "Weekly planning" to tell "Kitchen quotes" to also check Leipzig.
+  when: The message is sent and "Kitchen quotes" later reports.
+  then: '"Weekly planning" shows "Sent to Kitchen quotes" with the text and "Report from Kitchen quotes"; "Kitchen
+    quotes" shows the message and "Reported to Weekly planning" with the report text.'

@@ -4246,6 +4246,12 @@
     "user_wrote": {
       "text": "You wrote in \"{title}\""
     },
+    "sent": {
+      "text": "Sent to \"{title}\""
+    },
+    "reported": {
+      "text": "Reported to \"{title}\""
+    },
     "creator_link": {
       "text": "Started from {title}"
     },

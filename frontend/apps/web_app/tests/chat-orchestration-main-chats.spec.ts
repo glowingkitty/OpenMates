@@ -8,11 +8,20 @@
  * 2. The creator chat shows a "Started chat" event; clicking it opens the spawned chat,
  *    whose first message is the brief and which links back to its creator.
  * 3. The spawned chat answers; via the creator link the creator shows a report and/or finished event.
+ * 4. Cross-chat safety: the automatic turn that interprets the report writes nothing to the spawned
+ *    chat; a follow-up the user asks for is sent and shows "Sent to" in the creator chat, and the
+ *    spawned chat shows the message and its own "Reported to" event.
  *
  * REQUIRED ENV VARS: OPENMATES_TEST_ACCOUNT_EMAIL / _PASSWORD / _OTP_KEY, PLAYWRIGHT_TEST_BASE_URL
  */
 
-import { test, expect, attachConsoleListeners, attachNetworkListeners } from './console-monitor';
+import {
+	test,
+	expect,
+	attachConsoleListeners,
+	attachNetworkListeners,
+	allowConsoleErrorPatterns
+} from './console-monitor';
 import {
 	createSignupLogger,
 	archiveExistingScreenshots,
@@ -43,13 +52,17 @@ const proofContract = defineVideoProof({
 		{ id: 'started', text: 'The creator chat shows a Started chat event for the new chat.', checkpoint: 'creator-started-event', devices: ['web-laptop'] },
 		{ id: 'spawned', text: 'Tapping the event opens the spawned chat: the brief is its first message and it links back to its creator.', checkpoint: 'spawned-chat-opened', devices: ['web-laptop'] },
 		{ id: 'answer', text: 'The spawned chat answers the brief like any chat.', checkpoint: 'spawned-chat-answer', devices: ['web-laptop'] },
-		{ id: 'report', text: 'Back in the creator chat a report or finished event from the spawned chat appears.', checkpoint: 'creator-report-or-finished', devices: ['web-laptop'] }
+		{ id: 'report', text: 'Back in the creator chat a report or finished event from the spawned chat appears.', checkpoint: 'creator-report-or-finished', devices: ['web-laptop'] },
+		{ id: 'follow-up', text: 'The automatic answer sent nothing on its own; the user asks for a follow-up and the creator chat shows Sent to.', checkpoint: 'creator-sent-follow-up', devices: ['web-laptop'] },
+		{ id: 'both-sides', text: 'The spawned chat shows the follow-up message and its own Reported to event.', checkpoint: 'spawned-both-sides', devices: ['web-laptop'] }
 	],
 	assertions: [
 		{ id: 'chat_orchestration.started_event', checkpoint: 'creator-started-event', visual: 'A compact system event reads Started chat with the new chat title.', devices: ['web-laptop'] },
 		{ id: 'chat_orchestration.spawned_chat', checkpoint: 'spawned-chat-opened', visual: 'The spawned chat shows the brief as its first message and a Started from link.', devices: ['web-laptop'] },
 		{ id: 'chat_orchestration.answer', checkpoint: 'spawned-chat-answer', visual: 'An assistant answer listing kitchen floor tiles is visible in the spawned chat.', devices: ['web-laptop'] },
-		{ id: 'chat_orchestration.report', checkpoint: 'creator-report-or-finished', visual: 'The creator chat shows a Report from or finished event for the spawned chat.', devices: ['web-laptop'] }
+		{ id: 'chat_orchestration.report', checkpoint: 'creator-report-or-finished', visual: 'The creator chat shows a Report from or finished event for the spawned chat.', devices: ['web-laptop'] },
+		{ id: 'chat_orchestration.sent_follow_up', checkpoint: 'creator-sent-follow-up', visual: 'The creator chat shows a Sent to event with the follow-up text.', devices: ['web-laptop'] },
+		{ id: 'chat_orchestration.visible_both_sides', checkpoint: 'spawned-both-sides', visual: 'The spawned chat shows the follow-up message and a Reported to event.', devices: ['web-laptop'] }
 	],
 	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
 });
@@ -58,13 +71,27 @@ const PROMPT =
 	"Start a new chat titled 'Kitchen tile quotes' with the brief: list three kinds of kitchen floor tiles " +
 	'in one short sentence each, then report back to me.';
 
-// contract-test: direct surface=gui.web assertions=chat-orchestration.spawn.main-chat-is-normal,chat-orchestration.events.creator-system-events,chat-orchestration.report.creator-skill,chat-orchestration.status.automatic
+const FOLLOW_UP = 'Please tell the chat you started to also name one tile that suits underfloor heating.';
+
+// Old chats of the shared dev account fail output recovery at login; that is unrelated account
+// history. The orchestrated chats are still checked: any console error naming them fails the test.
+const ACCOUNT_HISTORY_NOISE = [
+	/\[ChatSyncService:Recovery\] Output recovery failed: .*Canonical store_embed storage was rejected/,
+	/\[WebSocketService\] Connection failed, cannot send message: \{type: get_chat_model_preference/
+];
+
+// contract-test: direct surface=gui.web assertions=chat-orchestration.spawn.main-chat-is-normal,chat-orchestration.events.creator-system-events,chat-orchestration.report.creator-skill,chat-orchestration.status.automatic,chat-orchestration.safety.user-requested-writes-only,chat-orchestration.safety.visible-both-sides
 test('a chat starts another main chat, follows its work and receives its report', async (
 	{ page }: { page: any },
 	testInfo: any
 ) => {
 	attachConsoleListeners(page);
 	attachNetworkListeners(page);
+	allowConsoleErrorPatterns(ACCOUNT_HISTORY_NOISE);
+	const consoleErrors: string[] = [];
+	page.on('console', (msg: any) => {
+		if (msg.type() === 'error') consoleErrors.push(msg.text());
+	});
 	test.slow();
 	test.setTimeout(600000);
 
@@ -132,6 +159,43 @@ test('a chat starts another main chat, follows its work and receives its report'
 	).toHaveCount(0);
 	await screenshot(page, 'creator-report-or-finished');
 	await proof.checkpoint('creator-report-or-finished');
+
+	// The automatic turn interprets the report in the creator chat and writes to no other chat.
+	await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+	await expect(page.getByTestId('stop-processing-button')).not.toBeVisible({ timeout: 180000 });
+	const sentEvents = page.getByTestId('chat-orchestration-event').filter({ hasText: /Sent to/ });
+	await expect(sentEvents).toHaveCount(0);
+
+	// A follow-up the user explicitly asks for is sent and shows "Sent to" here.
+	await sendMessage(page, FOLLOW_UP, log, screenshot, 'creator-follow-up');
+	const sentEvent = sentEvents.first();
+	await expect(sentEvent).toBeVisible({ timeout: 240000 });
+	await sentEvent.scrollIntoViewIfNeeded();
+	await expect(sentEvent).toContainText(/underfloor heating/i);
+	await screenshot(page, 'creator-sent-follow-up');
+	await proof.checkpoint('creator-sent-follow-up');
+
+	// The spawned chat shows the follow-up message and its own "Reported to" event.
+	await sentEvent.click();
+	await expect(page).toHaveURL(new RegExp(`chat-id=${spawnedChatId}`), { timeout: 30000 });
+	await expect(
+		page.getByTestId('message-user').filter({ hasText: /underfloor heating/i }).first()
+	).toBeVisible({ timeout: 120000 });
+	const reportedEvent = page
+		.getByTestId('chat-orchestration-event')
+		.filter({ hasText: /Reported to/ })
+		.first();
+	await expect(reportedEvent).toBeVisible({ timeout: 120000 });
+	await reportedEvent.scrollIntoViewIfNeeded();
+	await screenshot(page, 'spawned-both-sides');
+	await proof.checkpoint('spawned-both-sides');
+	await expect(page.getByTestId('stop-processing-button')).not.toBeVisible({ timeout: 180000 });
+	await page.getByTestId('chat-creator-link').click();
+	await expect(page).toHaveURL(new RegExp(`chat-id=${creatorChatId}`), { timeout: 30000 });
+	const orchestratedErrors = consoleErrors.filter(
+		(text) => text.includes(creatorChatId!) || text.includes(spawnedChatId!)
+	);
+	expect(orchestratedErrors).toEqual([]);
 
 	// Cleanup: delete the creator chat, then the spawned chat.
 	await deleteActiveChat(page, log, screenshot);

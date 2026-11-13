@@ -27,6 +27,8 @@ fn event_of(value: &Value) -> Option<OrchestrationEvent> {
         "finished" => Action::Finished,
         "waiting_for_user" => Action::WaitingForUser,
         "user_wrote" => Action::UserWrote,
+        "sent" => Action::Sent,
+        "reported" => Action::Reported,
         _ => return None,
     };
     let opt = |key: &str| value.get(key).and_then(Value::as_str).map(str::to_owned);

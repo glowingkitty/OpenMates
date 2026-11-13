@@ -116,6 +116,15 @@ pub enum Action {
     WaitingForUser,
     /// The user wrote in the spawned chat.
     UserWrote,
+    /// The creator chat wrote a message into a spawned chat. Stored in the
+    /// creator chat; `chat_id` is the spawned chat; carries the sent text.
+    Sent,
+    /// The spawned chat reported to its creator. Stored in the spawned chat;
+    /// `chat_id` is the creator chat; carries the report text. On the wire this
+    /// is still a `creator_event` job: `creator_chat_id` is where the event is
+    /// stored (the spawned chat) and `spawned_chat_id` is what it links to (the
+    /// creator), so the two roles are swapped for this action.
+    Reported,
 }
 
 impl Action {
@@ -126,8 +135,15 @@ impl Action {
             "finished" => Self::Finished,
             "waiting_for_user" => Self::WaitingForUser,
             "user_wrote" => Self::UserWrote,
+            "sent" => Self::Sent,
+            "reported" => Self::Reported,
             _ => return None,
         })
+    }
+
+    /// Whether events of this action carry text.
+    fn has_text(self) -> bool {
+        matches!(self, Self::Report | Self::Sent | Self::Reported)
     }
 
     /// Wire name of the action.
@@ -138,6 +154,8 @@ impl Action {
             Self::Finished => "finished",
             Self::WaitingForUser => "waiting_for_user",
             Self::UserWrote => "user_wrote",
+            Self::Sent => "sent",
+            Self::Reported => "reported",
         }
     }
 }
@@ -174,7 +192,7 @@ pub struct OrchestrationEvent {
     pub chat_id: String,
     /// Label of the spawned chat.
     pub title: Option<String>,
-    /// Report text (`report` only).
+    /// Text (`report`, `sent` and `reported` only).
     pub text: Option<String>,
     /// Stable id (also the system message id).
     pub event_id: String,
@@ -354,7 +372,7 @@ fn check_payload(kind: JobKind, payload: &Value) -> Result<(), OrchestrationErro
             let action = action.ok_or(OrchestrationError::Invalid)?;
             opt_text_field(payload, "title", MAX_TITLE)?;
             let text = opt_text_field(payload, "text", MAX_TEXT)?;
-            if (action == Action::Report) != text.is_some() {
+            if action.has_text() != text.is_some() {
                 return Err(OrchestrationError::Invalid);
             }
             id_field(payload, "event_message_id")?;
@@ -375,7 +393,7 @@ fn check_payload(kind: JobKind, payload: &Value) -> Result<(), OrchestrationErro
 ///
 /// `now_s` enables the expiry check; pass `None` when re-parsing a job that was
 /// already accepted. Bounds: ids are uuids, title <= 200, brief <= 8000, text
-/// <= 2000 characters, limit 1..=20, report text exactly on `report` events.
+/// <= 2000 characters, limit 1..=20, text exactly on `report`, `sent` and `reported` events.
 ///
 /// # Errors
 /// [`OrchestrationError::Invalid`] for any malformed field,
@@ -531,7 +549,7 @@ fn event_valid(event: &OrchestrationEvent) -> bool {
         && event.created_at >= 0
         && bounded(&event.title, MAX_TITLE)
         && bounded(&event.text, MAX_TEXT)
-        && (event.action == Action::Report) == event.text.is_some()
+        && event.action.has_text() == event.text.is_some()
 }
 
 /// Parses system message content; `None` for other system events, plain text,
@@ -563,6 +581,11 @@ pub fn event_line(event: &OrchestrationEvent, resolved_title: Option<&str>) -> S
         Action::Started => format!("Started chat {title}"),
         Action::Report => format!(
             "Report from {title}: {}",
+            event.text.as_deref().unwrap_or("")
+        ),
+        Action::Sent => format!("Sent to {title}: {}", event.text.as_deref().unwrap_or("")),
+        Action::Reported => format!(
+            "Reported to {title}: {}",
             event.text.as_deref().unwrap_or("")
         ),
         Action::Finished => format!("{title} finished"),

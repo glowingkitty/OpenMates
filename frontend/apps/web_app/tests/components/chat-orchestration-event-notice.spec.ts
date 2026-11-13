@@ -10,6 +10,8 @@ test.use({ viewport: { width: 800, height: 400 }, trace: 'retain-on-failure' });
 const CASES: [string, RegExp][] = [
   ['', /Started chat "Kitchen tile quotes"/],
   ['report', /Report from "Kitchen tile quotes"/],
+  ['sent', /Sent to "Kitchen tile quotes"/],
+  ['reported', /Reported to "Kitchen tile quotes"/],
   ['finished', /"Kitchen tile quotes" finished/],
   ['waiting_for_user', /"Kitchen tile quotes" is waiting for you/],
   ['user_wrote', /You wrote in "Kitchen tile quotes"/],
@@ -27,6 +29,14 @@ for (const [variant, line] of CASES) {
     if (variant === 'report') {
       await expect(page.getByTestId('chat-orchestration-report')).toContainText(/porcelain/);
     }
+    if (variant === 'sent') {
+      await expect(page.getByTestId('chat-orchestration-report')).toContainText(/compare porcelain/);
+    }
+    if (variant === 'reported') {
+      await expect(page.getByTestId('chat-orchestration-report')).toContainText(/best fit/);
+    }
+    // Regression: the global button style (fixed 41px height) clipped the text below the line.
+    expect(await notice.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
     await testInfo.attach(`${variant || 'started'}-event`, {
       body: await notice.screenshot(), contentType: 'image/png',
     });

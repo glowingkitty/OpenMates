@@ -19,7 +19,18 @@ CHAT = "11111111-1111-4111-8111-111111111111"
 
 class FakeRedis:
     def __init__(self):
-        self.store, self.hashes = {}, {}
+        self.store, self.hashes, self.zsets = {}, {}, {}
+
+    async def zadd(self, key, mapping):
+        self.zsets.setdefault(key, {}).update(mapping)
+
+    async def zremrangebyscore(self, key, low, high):
+        members = self.zsets.get(key, {})
+        for member in [m for m, score in members.items() if low <= score <= high]:
+            members.pop(member)
+
+    async def zcard(self, key):
+        return len(self.zsets.get(key, {}))
 
     async def set(self, key, value, nx=False, ex=None):
         if nx and key in self.store:
@@ -55,7 +66,14 @@ class FakeRedis:
 
 class FakeCache:
     def __init__(self, busy=False):
-        self._redis, self.busy, self.claimed = FakeRedis(), busy, []
+        self._redis, self.busy, self.claimed, self.values = FakeRedis(), busy, [], {}
+
+    async def set(self, key, value, ttl=None):
+        self.values[key] = value
+        return True
+
+    async def get(self, key):
+        return self.values.get(key)
 
     @property
     async def client(self):
@@ -203,3 +221,28 @@ def test_voice_delivery_is_merged(recorder):
     request = recorder.applied[0]["kwargs"]["request_data_dict"]
     assert request["voice_mode"] is True and request["voice_call_id"] == "call-1"
     assert request["auto_speak_response"] is True and "ignored" not in request
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.safety.loop-limits
+def test_hourly_cap_stops_interpretation_even_with_user_input_between(recorder):
+    cache = FakeCache()
+    for n in range(interp.MAX_AUTOMATIC_PER_HOUR):
+        assert _queue(cache, _event("report", n)) is True
+        assert _dispatch(cache, _claim(cache)) is not None
+        asyncio.run(interp.reset_streak(cache_service=cache, user_id=USER, chat_id=CHAT))
+    assert _queue(cache, _event("report", 999)) is False
+    # Older than an hour: the window slides and interpretation resumes.
+    window = cache._redis.zsets[interp._k("hourly", USER, CHAT)]
+    for member in window:
+        window[member] -= interp.HOUR_SECONDS + 1
+    assert _queue(cache, _event("report", 1000)) is True
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.safety.user-requested-writes-only
+def test_automatic_turn_is_recorded_as_automatic_origin(recorder):
+    from backend.shared.python_utils import chat_orchestration_safety as safety
+    cache = FakeCache()
+    assert _dispatch(cache, [_event("report", 1)]) is not None
+    origin = asyncio.run(safety.get_turn_origin(cache_service=cache, user_id=USER, chat_id=CHAT,
+                                                message_id="evt-report-1"))
+    assert origin["origin"] == "automatic"

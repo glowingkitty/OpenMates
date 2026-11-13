@@ -632,7 +632,7 @@ specifications:
     version: 2
     status: draft
     path: features/chat-orchestration
-    fingerprint: 7a8f7302b69c1dc63866eba13dcf57d0546d087b92114dbe277697d605d601b6
+    fingerprint: f4a2f417f4fee280da59da625cfc0128c8498bda0cf6770d019c3cf105baff48
     required_applies_to:
     - rest_api
     - cli
@@ -8574,7 +8574,7 @@ assertions:
     specification: feature.chat-orchestration@2
     specification_id: feature.chat-orchestration
     type: behavior
-    fingerprint: 93591da2b6f253d379525a616752c7301aef60f371e0545a672ca662c5d6244e
+    fingerprint: bb96af1e6e7312622ad134801e11d9cc64d46fca36a1e00bb6ce0871b4d8c302
     required_applies_to:
     - rest_api
     - cli
@@ -8592,7 +8592,7 @@ assertions:
     specification: feature.chat-orchestration@2
     specification_id: feature.chat-orchestration
     type: behavior
-    fingerprint: bee620e6b8b73221d1394453c166523f4f5d7326c96d9f486c4994e524888456
+    fingerprint: f0e499593f91041baa8e020ecee12edc9571a7c5cef77f8f8f5857e705d3c021
     required_applies_to:
     - rest_api
     - cli
@@ -8656,6 +8656,42 @@ assertions:
     specification_id: feature.chat-orchestration
     type: behavior
     fingerprint: b40fda9f3b7c37e9fd0f1c10db880886401ce500b5f4a61b03cace3fc466e950
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.safety.user-requested-writes-only:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: security
+    fingerprint: 4a1122fd1734353bf51e2dffb3885a788bf5e153f43d599d9aad5d3cfb2010be
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.safety.linked-chats-only:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: security
+    fingerprint: 3867c2d00b796781855cbb4b041376b5c950a910d88853cfc44686a63cddb008
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.safety.loop-limits:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: security
+    fingerprint: 3ab0d20eb7a2594974ffc6851efc3879c69e6837df05f9ee255f8a29902e5633
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.safety.visible-both-sides:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: 00da24543ad2b2b74367239372dadbc3e9ea8bdfebd8eed0324efe1f3bddd84e
     required_applies_to:
     - rest_api
     - cli

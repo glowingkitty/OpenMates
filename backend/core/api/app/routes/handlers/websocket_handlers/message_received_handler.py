@@ -2743,9 +2743,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
         db_parent_id = chat_metadata_from_db.get("parent_id") if chat_metadata_from_db else None
         from backend.shared.python_utils.chat_orchestration_interpretation import reset_streak
-        await reset_streak(cache_service=cache_service, user_id=user_id, chat_id=chat_id)
+        from backend.shared.python_utils.chat_orchestration_safety import record_message_origin
         creator_chat_id_for_ai = None
         try:
+            # Turn origin gates cross-chat writes; only real user input ends the automatic streak.
+            turn_origin = await record_message_origin(
+                cache_service=cache_service, user_id=user_id, chat_id=chat_id,
+                message_id=str(message_payload_from_client.get("message_id")),
+                job_id=client_orchestration_job_id(payload, message_payload_from_client),
+            )
+            if turn_origin["origin"] == "user":
+                await reset_streak(cache_service=cache_service, user_id=user_id, chat_id=chat_id)
             creator_chat_id_for_ai = await classify_chat_message(
                 cache_service=cache_service, encryption_service=encryption_service, user_id=user_id,
                 chat_id=chat_id, message_id=str(message_payload_from_client.get("message_id")),

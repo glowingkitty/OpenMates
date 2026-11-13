@@ -211,7 +211,10 @@ from backend.apps.ai.processing.audio_recording_guard import (
 from backend.apps.ai.processing.connected_account_receipts import (
     attach_connected_account_action_metadata,
 )
-from backend.apps.ai.processing.chat_orchestration_hooks import orchestration_skill_additions
+from backend.apps.ai.processing.chat_orchestration_hooks import (
+    orchestration_blocked_skills,
+    orchestration_skill_additions,
+)
 from backend.apps.ai.processing.focus_mode_routing import (
     brand_naming_research_skill_scope,
     DelegatedPrimaryReadState,
@@ -4647,6 +4650,13 @@ async def handle_main_processing(
             selected_app_ids.add("openmates")
     if orchestration_instruction:
         prompt_parts.append(orchestration_instruction)
+    blocked_write_skills, blocked_write_note = await orchestration_blocked_skills(
+        cache_service=cache_service, request_data=request_data,
+    )
+    if blocked_write_skills and preselected_skills:
+        preselected_skills = preselected_skills - blocked_write_skills
+    if blocked_write_note and (orchestration_skills or orchestration_instruction):
+        prompt_parts.append(blocked_write_note)
     if preselected_skills and "workflows-create-or-modify" in preselected_skills:
         prompt_parts.append(WORKFLOW_AUTHORING_TOOL_INSTRUCTION)
 

@@ -4,7 +4,10 @@ Spec: chat-orchestration.events.automatic-interpretation. A report, finished or
 waiting_for_user creator event that a device stored successfully starts one
 automatic assistant turn in the creator chat. Close events are combined
 (debounce), at most MAX_AUTOMATIC_STREAK automatic turns run without a new user
-message, and the turn waits while the chat has an active AI task. A voice call
+message and at most MAX_AUTOMATIC_PER_HOUR per chat in a sliding hour (loop guard
+that ordinary multi-chat use does not reach), and the turn waits while the chat
+has an active AI task. Automatic turns are recorded with origin ``automatic`` so
+they can never write to another chat (chat_orchestration_safety). A voice call
 bound to the creator chat owns dispatch: the server dispatcher stops and the
 call claims the events when it is idle (claim_events + dispatch_interpretation
 with voice_delivery).
@@ -39,7 +42,9 @@ logger = logging.getLogger(__name__)
 INTERPRETED_ACTIONS = ("report", "finished", "waiting_for_user")
 DEBOUNCE_SECONDS = 4
 MAX_DEBOUNCE_SECONDS = 15
-MAX_AUTOMATIC_STREAK = 3
+MAX_AUTOMATIC_STREAK = 8
+MAX_AUTOMATIC_PER_HOUR = 20
+HOUR_SECONDS = 3600
 BUFFER_TTL_SECONDS = 24 * 3600
 BUSY_RETRY_SECONDS = 3
 GIVE_UP_SECONDS = 600
@@ -70,6 +75,12 @@ async def _streak(client: Any, user_id: str, chat_id: str) -> int:
     return int(_text(value)) if value is not None else 0
 
 
+async def _hourly_count(client: Any, user_id: str, chat_id: str) -> int:
+    """Automatic turns started in this chat during the last hour (sorted-set sliding window)."""
+    window_key = _k("hourly", user_id, chat_id)
+    await client.zremrangebyscore(window_key, 0, time.time() - HOUR_SECONDS)
+    return int(await client.zcard(window_key))
+
 async def queue_event(*, cache_service: Any, encryption_service: Any, user_id: str, payload: dict) -> bool:
     """Buffer one stored creator event for interpretation; False when it is only stored."""
     chat_id = payload.get("creator_chat_id")
@@ -80,6 +91,9 @@ async def queue_event(*, cache_service: Any, encryption_service: Any, user_id: s
     client = await redis_client(cache_service)
     if await _streak(client, user_id, chat_id) >= MAX_AUTOMATIC_STREAK:
         logger.info("[CHAT_ORCH] interpretation streak limit reached chat=%s", chat_id)
+        return False
+    if await _hourly_count(client, user_id, chat_id) >= MAX_AUTOMATIC_PER_HOUR:
+        logger.info("[CHAT_ORCH] interpretation hourly limit reached chat=%s", chat_id)
         return False
     if not await client.set(_k("seen", user_id, chat_id, event_id), "1", nx=True, ex=BUFFER_TTL_SECONDS):
         return False
@@ -221,6 +235,9 @@ async def dispatch_interpretation(*, cache_service: Any, directus_service: Any, 
     if not events:
         return None
     task_id = str(uuid.uuid4())
+    from backend.shared.python_utils.chat_orchestration_safety import record_turn_origin
+    await record_turn_origin(cache_service=cache_service, user_id=user_id, chat_id=chat_id,
+                             message_id=events[-1]["event_message_id"], origin="automatic")
     if not await cache_service.try_claim_active_ai_task(chat_id, task_id):
         await requeue_events(cache_service=cache_service, encryption_service=encryption_service,
                              user_id=user_id, chat_id=chat_id, events=events)
@@ -260,6 +277,9 @@ async def dispatch_interpretation(*, cache_service: Any, directus_service: Any, 
     streak_key = _k("streak", user_id, chat_id)
     await client.incr(streak_key)
     await client.expire(streak_key, BUFFER_TTL_SECONDS)
+    window_key = _k("hourly", user_id, chat_id)
+    await client.zadd(window_key, {task_id: time.time()})
+    await client.expire(window_key, HOUR_SECONDS)
     logger.info("[CHAT_ORCH] interpretation dispatched chat=%s events=%d task=%s", chat_id, len(events), task_id)
     return task_id
 

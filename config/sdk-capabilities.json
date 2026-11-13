@@ -6678,6 +6678,8 @@
             "client.chat_orchestration.Action",
             "client.chat_orchestration.Action.Finished",
             "client.chat_orchestration.Action.Report",
+            "client.chat_orchestration.Action.Reported",
+            "client.chat_orchestration.Action.Sent",
             "client.chat_orchestration.Action.Started",
             "client.chat_orchestration.Action.UserWrote",
             "client.chat_orchestration.Action.WaitingForUser",

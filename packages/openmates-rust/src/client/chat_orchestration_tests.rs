@@ -285,6 +285,27 @@ fn event_lines_use_resolved_then_event_title() {
     event.action = Action::Report;
     event.text = Some("hi".into());
     assert_eq!(event_line(&event, Some("X")), "Report from X: hi");
+    event.action = Action::Sent;
+    assert_eq!(event_line(&event, Some("X")), "Sent to X: hi");
+    event.action = Action::Reported;
+    assert_eq!(event_line(&event, Some("X")), "Reported to X: hi");
+}
+
+#[test]
+fn sent_and_reported_events_require_text() {
+    for action in ["sent", "reported"] {
+        assert!(parse_job(&creator_event(action, Some("hello")), None).is_ok());
+        assert!(parse_job(&creator_event(action, None), None).is_err());
+    }
+    let sent = OrchestrationEvent {
+        action: Action::Sent,
+        chat_id: SPAWNED.into(),
+        title: None,
+        text: Some("hello".into()),
+        event_id: "e2".into(),
+        created_at: 7,
+    };
+    assert_eq!(parse_event(&build_event(&sent).unwrap()), Some(sent));
 }
 
 fn msg(role: &str, content: &str, at: i64) -> ReadMessage {

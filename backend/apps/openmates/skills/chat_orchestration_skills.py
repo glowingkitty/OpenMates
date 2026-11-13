@@ -3,6 +3,8 @@
 Skills: start-chat, list-spawned-chats, read-spawned-chat, send-to-spawned-chat,
 report-to-creator. Chat content is client-encrypted, so read/send/start run as
 device jobs through ``chat_orchestration_jobs``; the server never sees plaintext.
+The three writing skills are gated by ``chat_orchestration_safety`` (turn origin,
+relay hops, ping-pong) and leave a visible system event in both chats.
 Spec: specifications/features/chat-orchestration/specification.yml.
 """
 
@@ -14,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.python_utils import chat_orchestration_jobs as jobs
+from backend.shared.python_utils import chat_orchestration_safety as safety
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +72,16 @@ class _OrchestrationSkill(BaseSkill):
         return None
 
     @staticmethod
+    async def _write_error(cache_service, user_id: str, chat_id: str, message_id: Optional[str],
+                           target_chat_id: Optional[str]) -> Optional[OrchestrationResponse]:
+        refusal = await safety.write_refusal(cache_service=cache_service, user_id=user_id, chat_id=chat_id,
+                                             message_id=message_id, target_chat_id=target_chat_id)
+        if refusal:
+            logger.info("[CHAT_ORCH] cross-chat write refused chat=%s code=%s", chat_id, refusal[0])
+            return _fail(*refusal)
+        return None
+
+    @staticmethod
     async def _ownership_error(cache_service, chat_id: str, current_chat_id: str) -> Optional[OrchestrationResponse]:
         creator = await jobs.get_creator_chat_id(cache_service=cache_service, chat_id=chat_id)
         if creator != current_chat_id:
@@ -89,6 +102,11 @@ class StartChatSkill(_OrchestrationSkill):
         brief = (brief or "").strip()
         if not title or not brief or len(brief) > MAX_BRIEF_CHARS:
             return _fail("job_failed", f"title and brief are required (brief up to {MAX_BRIEF_CHARS} characters).")
+        error = await self._write_error(cache_service, user_id, chat_id, message_id, None)
+        if error:
+            return error
+        origin = await safety.get_turn_origin(cache_service=cache_service, user_id=user_id, chat_id=chat_id,
+                                              message_id=message_id) or {}
         if await jobs.creator_chain_depth(cache_service=cache_service, chat_id=chat_id) >= MAX_CHAIN_DEPTH:
             return _fail("chain_too_deep", "Spawned chats cannot be nested deeper than three levels.")
         if await jobs.count_unfinished_spawned(
@@ -118,11 +136,14 @@ class StartChatSkill(_OrchestrationSkill):
             payload={
                 "spawned_chat_id": spawned_chat_id, "creator_chat_id": chat_id, "title": title, "brief": brief,
                 "event_message_id": jobs.event_message_id(chat_id, spawned_chat_id, "started", "0"),
+                "origin_hop": int(origin.get("hop") or 0),
             },
             wait_claim_s=6.0, wait_result_s=8.0,
         )
         if outcome.state == "failed":
             return _outcome_failure(outcome)
+        await safety.record_write(cache_service=cache_service, user_id=user_id, from_chat_id=chat_id,
+                                  to_chat_id=spawned_chat_id)
         return OrchestrationResponse(
             success=True, chat_id=spawned_chat_id, title=title,
             status="started" if outcome.state == "done" else "queued",
@@ -181,7 +202,8 @@ class SendToSpawnedChatSkill(_OrchestrationSkill):
 
     async def execute(self, spawned_chat_id: str, text: str, cache_service=None,
                       encryption_service=None, user_id: Optional[str] = None,
-                      chat_id: Optional[str] = None, **kwargs) -> OrchestrationResponse:
+                      chat_id: Optional[str] = None, message_id: Optional[str] = None,
+                      **kwargs) -> OrchestrationResponse:
         error = self._eligibility_error(user_id, chat_id)
         if error:
             return error
@@ -191,17 +213,31 @@ class SendToSpawnedChatSkill(_OrchestrationSkill):
         error = await self._ownership_error(cache_service, spawned_chat_id, chat_id)
         if error:
             return error
+        error = await self._write_error(cache_service, user_id, chat_id, message_id, spawned_chat_id)
+        if error:
+            return error
+        origin = await safety.get_turn_origin(cache_service=cache_service, user_id=user_id, chat_id=chat_id,
+                                              message_id=message_id) or {}
         active_task = await cache_service.get_active_ai_task(spawned_chat_id)
         if active_task or await jobs.is_user_active(cache_service=cache_service, spawned_chat_id=spawned_chat_id):
             return _fail("user_active", "The user or an AI task is currently active in that chat; try again later.")
         outcome = await jobs.enqueue_job(
             cache_service=cache_service, encryption_service=encryption_service, user_id=user_id,
             kind="send_message",
-            payload={"spawned_chat_id": spawned_chat_id, "creator_chat_id": chat_id, "text": text},
+            payload={"spawned_chat_id": spawned_chat_id, "creator_chat_id": chat_id, "text": text,
+                     "origin_hop": int(origin.get("hop") or 0)},
             wait_claim_s=6.0, wait_result_s=8.0,
         )
         if outcome.state != "done":
             return _outcome_failure(outcome)
+        await safety.record_write(cache_service=cache_service, user_id=user_id, from_chat_id=chat_id,
+                                  to_chat_id=spawned_chat_id)
+        # Visible in the creator chat too: "Sent to <title>" with the text (the spawned chat shows the message).
+        await jobs.emit_creator_event(
+            cache_service=cache_service, encryption_service=encryption_service, user_id=user_id,
+            creator_chat_id=chat_id, spawned_chat_id=spawned_chat_id, action="sent", text=text,
+            discriminator=outcome.job_id,
+        )
         return OrchestrationResponse(success=True, chat_id=spawned_chat_id, status="sent")
 
 
@@ -221,10 +257,27 @@ class ReportToCreatorSkill(_OrchestrationSkill):
         creator = await jobs.get_creator_chat_id(cache_service=cache_service, chat_id=chat_id)
         if not creator:
             return _fail("no_creator", "This chat was not started by another chat.")
+        # A report is the sanctioned answer to the creator's brief (A -> B -> A), so it skips the ping-pong
+        # check; the creator turn it starts is automatic and cannot write back.
+        error = await self._write_error(cache_service, user_id, chat_id, message_id, None)
+        if error:
+            return error
+        if await safety.is_repeated_report(cache_service=cache_service, user_id=user_id, chat_id=chat_id, text=text):
+            return OrchestrationResponse(success=True, status="already_reported",
+                                         note="The same report was already sent; it was not repeated.")
+        discriminator = safety.report_discriminator(message_id, text)
         outcome = await jobs.emit_creator_event(
             cache_service=cache_service, encryption_service=encryption_service, user_id=user_id,
             creator_chat_id=creator, spawned_chat_id=chat_id, action="report", text=text,
-            discriminator=message_id,
+            discriminator=discriminator,
+        )
+        await safety.record_write(cache_service=cache_service, user_id=user_id, from_chat_id=chat_id,
+                                  to_chat_id=creator)
+        # Visible in this (spawned) chat too: the event is stored here and links to the creator.
+        await jobs.emit_creator_event(
+            cache_service=cache_service, encryption_service=encryption_service, user_id=user_id,
+            creator_chat_id=chat_id, spawned_chat_id=creator, action="reported", text=text,
+            discriminator=discriminator,
         )
         return OrchestrationResponse(
             success=True, status="reported" if outcome.state == "done" else "queued",

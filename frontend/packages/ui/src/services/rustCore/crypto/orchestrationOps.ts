@@ -36,7 +36,7 @@ export type OrchestrationEffect =
   | { kind: 'read_chat'; chat_id: string; limit: number; job_id: string }
   | { kind: 'send_message'; chat_id: string; text: string; sender_name: string; job_id: string }
   | { kind: 'reject'; job_id: string; error_code: string };
-export type OrchestrationEvent = { action: 'started'|'report'|'finished'|'waiting_for_user'|'user_wrote'; chat_id: string; title: string|null; text: string|null; event_id: string; created_at: number };
+export type OrchestrationEvent = { action: 'started'|'report'|'finished'|'waiting_for_user'|'user_wrote'|'sent'|'reported'; chat_id: string; title: string|null; text: string|null; event_id: string; created_at: number };
 
 async function call<T>(op: WebCryptoOp, ...args: unknown[]): Promise<T> {
   const client = rustWebCrypto();

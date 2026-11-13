@@ -184,8 +184,8 @@ assertions:
   type: behavior
   must: Each start, report and status change shows as one timestamped system event in the creator chat in the same
     compact style as voice call started and ended events, for example "Started chat Kitchen quotes", "Report from
-    Kitchen quotes" with the report text, "Kitchen quotes finished", "Kitchen quotes is waiting for you" and "You wrote
-    in Kitchen quotes". Tapping an event opens the spawned chat. Events use stable identities, normal client-encrypted
+    Kitchen quotes" with the report text, "Kitchen quotes finished", "Kitchen quotes is waiting for you", "You wrote
+    in Kitchen quotes" and "Sent to Kitchen quotes" with the sent text. Tapping an event opens the linked chat. Events use stable identities, normal client-encrypted
     history synchronization and survive reload; repeated delivery never duplicates an event or its automatic
     interpretation. The event stays in the creator chat's history whether or not it is interpreted.
   depends_on:
@@ -208,8 +208,8 @@ assertions:
     current assistant speech has finished playing and the user is not speaking, never cutting either off, and is then
     spoken in the call. Without an active call it is text only. Events that arrive while the turn waits, or within a
     few seconds of each other, are combined into one turn. Automatic turns are billed to the creator chat like any
-    turn, use the event context as untrusted data, and are bounded so spawned chats cannot keep the creator answering
-    without the user (at most three automatic turns in a row without a new user message; later events are only stored).
+    turn, use the event context as untrusted data, and are bounded by chat-orchestration.safety.loop-limits so spawned
+    chats cannot keep the creator answering without the user; events over a limit are only stored.
   depends_on:
   - models.OrchestrationEvent
   - examples.automatic_interpretation
@@ -274,6 +274,45 @@ assertions:
   depends_on:
   - models.SpawnedChatState
   - examples.user_awareness
+- id: chat-orchestration.safety.user-requested-writes-only
+  type: security
+  must: A chat writes to another chat (start-chat, send-to-spawned-chat, report-to-creator) only in a turn that traces
+    back to a message the user sent - the user's own message in that chat, or a brief or message a creator chat sent
+    on the user's request, passed on through at most three chats. The automatic interpreting turn started by reports
+    or platform events, and any turn whose origin is unknown, never writes to another chat; the server refuses such a
+    call with a not-user-requested tool error and the pipeline does not offer the writing skills in that turn. A
+    spawned chat tells its creator only through report-to-creator and the platform's finished and waiting-for-you
+    events.
+  depends_on:
+  - examples.cross_chat_safety
+- id: chat-orchestration.safety.linked-chats-only
+  type: security
+  must: A chat can only write to chats it is linked to - chats it spawned (start, send) and its own creator (report).
+    No skill writes to an unlinked chat, and every call with another chat id is refused.
+  depends_on:
+  - models.ChatCreatorLink
+  - examples.cross_chat_safety
+- id: chat-orchestration.safety.loop-limits
+  type: security
+  must: Loops between chats are stopped by structural limits, not a low credit cap. A write from chat A to chat B is
+    refused as ping-pong when the latest write between the two went from B to A and A had no user input since; a
+    report to the creator is the one answer this allows, and the creator turn it starts cannot write back.
+    Automatic interpreting turns per chat stop after eight in a row without a new user message and after twenty within
+    any hour; later events are only stored. The same event is interpreted at most once, and the same report text from
+    the same chat within an hour is stored once. Ordinary use - several spawned chats reporting, user-requested
+    follow-ups - stays below these limits. Each turn's normal billing and the user's credit balance remain the only
+    credit limit.
+  depends_on:
+  - examples.cross_chat_safety
+- id: chat-orchestration.safety.visible-both-sides
+  type: behavior
+  must: Every cross-chat message is visible in both chats. Starting a chat shows "Started chat" in the creator chat and
+    the brief with a "Started from" link in the new chat; sending shows "Sent to" with the text in the creator chat and
+    the message in the spawned chat; reporting shows "Report from" with the text in the creator chat and "Reported to"
+    with the text in the reporting chat.
+  depends_on:
+  - models.OrchestrationEvent
+  - examples.cross_chat_safety
 applies_to:
   rest_api:
     required: true
@@ -312,6 +351,7 @@ examples:
   - device_jobs
   - billing
   - user_awareness
+  - cross_chat_safety
 notes:
   design_authorization: >-
     Product decisions (one spawn mechanism with a kind, system events instead of the carousel, report-to-creator plus
@@ -319,4 +359,7 @@ notes:
     awareness) were agreed by the founder on 2026-11-13, who also asked for implementation to proceed without waiting
     for a separate approval round. On 2026-11-13 the founder also decided that reports and status changes start one
     automatic interpreting turn in the creator chat (spoken in an active call after the current speech, never over the
-    user; text only outside a call; close events combined), replacing the earlier no-inference rule.
+    user; text only outside a call; close events combined), replacing the earlier no-inference rule. Later the same day
+    the founder asked that chats never message each other without a good reason: only user-requested turns write to
+    other chats, linked chats only, structural loop limits (hops, ping-pong, automatic-turn caps, dedupe) instead of a
+    low credit cap, and every cross-chat message visible in both chats.

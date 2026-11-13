@@ -17,7 +17,7 @@
     <span class="event-icon" aria-hidden="true"></span>
     <span>{$text(`chat_orchestration_events.${event.action}`, { values: { title: shownTitle } })} – <time datetime={timestamp.toISOString()}>{time}</time></span>
   </span>
-  {#if event.action === 'report' && event.text}
+  {#if (event.action === 'report' || event.action === 'sent' || event.action === 'reported') && event.text}
     <span class="report-text" data-testid="chat-orchestration-report">{event.text}</span>
   {/if}
 </button>
@@ -26,7 +26,11 @@
     display: inline-flex; flex-direction: column; align-items: center; gap: var(--spacing-2, 8px);
     background: none; border: 0; padding: 0; font: inherit; cursor: pointer; color: var(--color-grey-60);
     max-width: 100%; text-align: center;
+    /* Reset the global button look (fixed 41px height, drop shadow, min width, margin) so the
+       up-to-four-line text is not clipped and the line stays a plain system event. */
+    height: auto; min-width: 0; margin: 0; filter: none;
   }
+  .orchestration-event:hover, .orchestration-event:active { background: none; scale: none; filter: none; }
   .orchestration-event:hover .line, .orchestration-event:focus-visible .line { color: var(--color-grey-80); text-decoration: underline; }
   .line { display: inline-flex; align-items: center; gap: var(--spacing-2, 8px); }
   .event-icon {
