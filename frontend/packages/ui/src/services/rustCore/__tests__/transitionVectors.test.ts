@@ -19,10 +19,8 @@ import {
 	rustAggregateRunningChats, rustComposerIndicator, rustMergeTimelineEntries, rustPairTimelineExchange, rustPreserveExpandedWindow,
 	rustProcessingAncestorIds, rustPruneWindow, rustTimelineExchangeIndex, rustTimelineResponseId, rustTitleIndicator,
 } from '../chatState/rustTransitions';
-import { buildComposerIndicatorInput, buildPruneInput, buildTitleIndicatorInput, messageIds, timelineRows } from '../chatState/transitionInput';
-import { pruneDecryptedMessageWindow, shouldPreserveExpandedMessageWindow } from '../../../utils/messageWindowPruning';
-import { buildTimelineExchangeIndex, mergeTimelineEntries, pairTimelineExchange, timelineResponseId } from '../../../utils/chatTimeline';
-import { aggregateRunningChats, processingAncestorIds } from '../../../utils/chatActivity';
+import { buildComposerIndicatorInput, buildPruneInput, buildTitleIndicatorInput } from '../chatState/transitionInput';
+import { pruneDecryptedMessageWindow } from '../../../utils/messageWindowPruning';
 import { referenceComposer, referenceTitle } from './helpers/indicatorReference';
 import { ACTIVITY_CASES, INDICATOR_CASES, MERGE_CASES, PRESERVE_CASES, PRUNE_CASES, TIMELINE_CASES, TITLE_CASES } from './helpers/transitionCases';
 
@@ -34,46 +32,13 @@ type Any = any;
 
 describe('transition parity vectors (TypeScript side)', () => {
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
-	it('window pruning and preservation match the committed vectors', () => {
+	it('window pruning matches the committed vectors', () => {
 		expect(vectors.prune).toHaveLength(PRUNE_CASES.length);
 		vectors.prune.forEach((c: Any, i: number) => {
 			const { messages, options } = PRUNE_CASES[i];
 			expect(json(buildPruneInput(messages as Any, options as Any)), c.name).toEqual(c.input);
 			const indexed = messages.map((m, n) => ({ ...m, __i: n }));
 			expect(pruneDecryptedMessageWindow(indexed as Any, options as Any).messages.map((m: Any) => m.__i), c.name).toEqual(c.out);
-		});
-		vectors.preserve.forEach((c: Any, i: number) => {
-			const { current, incoming } = PRESERVE_CASES[i];
-			expect({ current: messageIds(current as Any), incoming: messageIds(incoming as Any) }, c.name).toEqual(c.input);
-			expect(shouldPreserveExpandedMessageWindow(current as Any, incoming as Any), c.name).toBe(c.out);
-		});
-	});
-
-	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
-	it('timeline merge, exchange index, response and pairing match the committed vectors', () => {
-		vectors.timeline.forEach((c: Any, i: number) => {
-			const { entries, bookmarks, id, pendingUserId } = TIMELINE_CASES[i];
-			expect(json(timelineRows(entries as Any)), c.name).toEqual(c.entries);
-			const index = buildTimelineExchangeIndex(entries as Any, new Set(bookmarks));
-			expect([...index.bookmarkedExchanges], c.name).toEqual(c.index.bookmarkedExchanges);
-			expect(index.answeredCount, c.name).toBe(c.index.answeredCount);
-			expect(timelineResponseId(entries as Any, id), c.name).toBe(c.response);
-			if (c.pair.error) expect(() => pairTimelineExchange(entries as Any, id, pendingUserId), c.name).toThrow();
-			else expect(pairTimelineExchange(entries as Any, id, pendingUserId).pending, c.name).toBe(c.pair.pending);
-		});
-		vectors.merge.forEach((c: Any, i: number) => {
-			const merged = mergeTimelineEntries(...(MERGE_CASES[i].pages as Any[]));
-			const flat = MERGE_CASES[i].pages.flat();
-			expect(c.out.map((index: number) => flat[index].message_id), c.name).toEqual(merged.map((row) => row.message_id));
-		});
-	});
-
-	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
-	it('activity grouping matches the committed vectors', () => {
-		vectors.activity.forEach((c: Any, i: number) => {
-			const { chats, running } = ACTIVITY_CASES[i];
-			expect([...processingAncestorIds(chats as Any, new Set(running))], c.name).toEqual(c.ancestors);
-			expect(aggregateRunningChats(chats as Any, new Set(running)).map((g) => g.activeSubChatCount), c.name).toEqual(c.aggregate.map((g: number[]) => g[1]));
 		});
 	});
 
@@ -147,39 +112,35 @@ describe('flag-on transition adapter over the shared chatState unit', () => {
 	afterEach(() => unregister?.());
 
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
-	it('prunes, merges, indexes, pairs and groups like the TypeScript it replaces', async () => {
+	it('prunes, merges, indexes, pairs and groups like the committed vectors', async () => {
 		for (const [i, c] of vectors.prune.entries()) {
 			const { messages, options } = PRUNE_CASES[i];
 			const indexed = messages.map((m, n) => ({ ...m, __i: n }));
 			const rust = await rustPruneWindow(indexed as Any, options as Any);
-			expect(rust.messages.map((m: Any) => m.__i), c.name).toEqual(pruneDecryptedMessageWindow(indexed as Any, options as Any).messages.map((m: Any) => m.__i));
+			expect(rust.messages.map((m: Any) => m.__i), c.name).toEqual(c.out);
 		}
 		for (const [i, c] of vectors.preserve.entries()) {
 			expect(await rustPreserveExpandedWindow(PRESERVE_CASES[i].current as Any, PRESERVE_CASES[i].incoming as Any), c.name).toBe(c.out);
 		}
 		for (const [i, c] of vectors.merge.entries()) {
 			const rust = await rustMergeTimelineEntries(...(MERGE_CASES[i].pages as Any[]));
-			expect(rust, c.name).toEqual(mergeTimelineEntries(...(MERGE_CASES[i].pages as Any[])));
+			const flat = MERGE_CASES[i].pages.flat();
+			expect(rust.map((row) => row.message_id), c.name).toEqual(c.out.map((index: number) => flat[index].message_id));
 		}
 		for (const [i, c] of vectors.timeline.entries()) {
 			const { entries, bookmarks, id, pendingUserId } = TIMELINE_CASES[i];
-			const ts = buildTimelineExchangeIndex(entries as Any, new Set(bookmarks));
 			const rust = await rustTimelineExchangeIndex(entries as Any, new Set(bookmarks));
-			expect(rust.entries, c.name).toEqual(ts.entries);
-			expect([...rust.assistantBookmarks], c.name).toEqual([...ts.assistantBookmarks]);
-			expect([...rust.legacyAliases], c.name).toEqual([...ts.legacyAliases]);
-			expect([...rust.assistantUsers], c.name).toEqual([...ts.assistantUsers]);
-			expect(await rustTimelineResponseId(entries as Any, id), c.name).toBe(timelineResponseId(entries as Any, id));
-			let expected: unknown;
-			try { expected = pairTimelineExchange(entries as Any, id, pendingUserId); } catch (error) { expected = (error as Error).message; }
+			expect([...rust.bookmarkedExchanges], c.name).toEqual(c.index.bookmarkedExchanges);
+			expect(rust.answeredCount, c.name).toBe(c.index.answeredCount);
+			expect(await rustTimelineResponseId(entries as Any, id), c.name).toBe(c.response);
 			let actual: unknown;
-			try { actual = await rustPairTimelineExchange(entries as Any, id, pendingUserId); } catch (error) { actual = (error as Error).message; }
-			expect(actual, c.name).toEqual(expected);
+			try { actual = (await rustPairTimelineExchange(entries as Any, id, pendingUserId)).pending; } catch { actual = 'error'; }
+			expect(actual, c.name).toEqual(c.pair.error ? 'error' : c.pair.pending);
 		}
 		for (const [i, c] of vectors.activity.entries()) {
 			const { chats, running } = ACTIVITY_CASES[i];
-			expect([...(await rustProcessingAncestorIds(chats as Any, new Set(running)))], c.name).toEqual([...processingAncestorIds(chats as Any, new Set(running))]);
-			expect(await rustAggregateRunningChats(chats as Any, new Set(running)), c.name).toEqual(aggregateRunningChats(chats as Any, new Set(running)));
+			expect([...(await rustProcessingAncestorIds(chats as Any, new Set(running)))], c.name).toEqual(c.ancestors);
+			expect((await rustAggregateRunningChats(chats as Any, new Set(running))).map((g) => g.activeSubChatCount), c.name).toEqual(c.aggregate.map((g: number[]) => g[1]));
 		}
 	});
 

@@ -45,34 +45,6 @@ export function buildTimelineExchangeIndex(entries: TimelineEntry[], bookmarks: 
     assistantBookmarks, legacyAliases, assistantUsers, bookmarkedExchanges: result };
 }
 
-export function mergeTimelineEntries(...pages: TimelineEntry[][]): TimelineEntry[] {
-  const byId = new Map<string, TimelineEntry>();
-  for (const page of pages) for (const row of page) byId.set(row.message_id, {
-    message_id: row.message_id, created_at: row.created_at, role: row.role, user_message_id: row.user_message_id,
-  });
-  return [...byId.values()].sort((a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id));
-}
-
-export function timelineResponseId(entries: TimelineEntry[], id: string): string | null {
-  const index = entries.findIndex(entry => entry.message_id === id && entry.role === 'user');
-  if (index < 0) return null;
-  const linked = entries.find(entry => entry.role === 'assistant' && entry.user_message_id === id);
-  if (linked) return linked.message_id;
-  for (let i = index + 1; i < entries.length && entries[i].role !== 'user'; i++) {
-    if (entries[i].role === 'assistant' && !entries[i].user_message_id) return entries[i].message_id;
-  }
-  return null;
-}
-
-export function pairTimelineExchange(messages: Message[], id: string, pendingUserId?: string): TimelinePreview {
-  const user = messages.find(message => message.message_id === id && message.role === 'user');
-  if (!user) throw new Error('Timeline exchange unavailable');
-  if (user.encrypted_content && !user.content) throw new Error('Timeline message could not be decrypted');
-  const responseId = timelineResponseId(messages, id);
-  const assistant = messages.find(message => message.message_id === responseId) ?? null;
-  return { user, assistant, pending: !assistant && pendingUserId === id };
-}
-
 export function timelinePreviewText(message: Message): string {
   const parts: string[] = [];
   let remaining = 400;

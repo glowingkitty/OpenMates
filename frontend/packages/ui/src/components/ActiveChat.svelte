@@ -43,7 +43,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
-    import { markChatRead, markReadIfLatestReplySeen, hasUnread, hasUnreadRust, RUST_READ_STATE } from '../services/chatReadState';
+    import { markChatRead, markReadIfLatestReplySeen, hasUnreadRust } from '../services/chatReadState';
     import { unreadMessagesStore } from '../stores/unreadMessagesStore';
     import ContinueCardUnreadBadge from './workspace/ContinueCardUnreadBadge.svelte';
     import { isChatMetadataTurnCurrent, getChatMetadataTurnKey } from '../services/lateChatMetadataGuard';
@@ -54,7 +54,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { VisibleMessageReceipts } from '../services/visibleMessageReceipts';
     import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
-    import { recordRecentReplayDiagnostic, getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, reconcileRecentChatMessages, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
+    import { recordRecentReplayDiagnostic, getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
     import { chatAllowsComposerGhostSuggestion, decryptComposerGhostSuggestion, type ComposerGhostSuggestion } from '../services/composerGhostSuggestion';
@@ -119,8 +119,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { projectFileProgressKey, projectFileProgressMatchesChat, type ProjectFileProgress, type ProjectFileProgressPhase } from '../services/projectFileProgress';
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
-    import { pruneDecryptedMessageWindow, shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
-    import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
+        import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
     import { getMatesById } from '../data/matesMetadata';
     import { mateDisplayName } from '../utils/mateDisplayName';
     import { matchesProcessingFeedbackTerminal } from './activeChatProcessingFeedback';
@@ -5511,16 +5510,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
           return [...responses].some((id) => !questions.has(id));
       });
       let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
-      function pruneCurrentDecryptedMessageWindow(messages: ChatMessageModel[]): ChatMessageModel[] {
-        const prunedWindow = pruneDecryptedMessageWindow(messages, {
-            compressionCheckpoints: currentCompressionCheckpoints,
-        });
-        if (prunedWindow.prunedCount > 0) {
-            console.debug(`[ActiveChat] Pruned ${prunedWindow.prunedCount} decrypted normal message(s) from active window`);
-        }
-        return prunedWindow.messages;
-      }
-      // Flag on: the chatState unit prunes the window (no TypeScript fallback); the callers await it.
+      // The chatState unit prunes the window; the callers await it.
       async function pruneCurrentDecryptedMessageWindowRust(messages: ChatMessageModel[]): Promise<ChatMessageModel[]> {
         const rust = await import('../services/rustCore/chatState/rustTransitions');
         const prunedWindow = await rust.rustPruneWindow(messages, { compressionCheckpoints: currentCompressionCheckpoints });
@@ -6498,12 +6488,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         ))
     );
 
-    // Flag on: the chatState unit decides the composer indicator; the page resolves its state into the
+    // The chatState unit decides the composer indicator; the page resolves its state into the
     // request (buildComposerIndicatorInput) and localises the answer in the deriveds below.
-    const RUST_CHAT_TRANSITIONS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
-        && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
     let rustComposerIndicator = $state<{ lines: IndicatorLine[]; statusType: 'typing' | 'processing' | null }>({ lines: [], statusType: null });
-    if (RUST_CHAT_TRANSITIONS) $effect(() => {
+    $effect(() => {
         void _aiTaskStateTrigger;
         const typing = currentTypingStatus;
         const state = {
@@ -6525,137 +6513,18 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         return () => { stale = true; };
     });
 
-    let typingIndicatorLines = $derived((() => {
-        // _aiTaskStateTrigger is a top-level reactive variable.
-        // Its change will trigger re-evaluation of this derived value.
+    let typingIndicatorLines = $derived.by(() => {
+        // _aiTaskStateTrigger is a top-level reactive variable; its change re-evaluates this value.
         void _aiTaskStateTrigger;
-
-        if (RUST_CHAT_TRANSITIONS) return rustComposerIndicator.lines.map((line) => localizeIndicatorLine(line, $text));
-
-        if (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id)) {
-            return [$text(`embeds.projects.progress.${projectFileProgressKey(projectFileProgress)}`)];
-        }
-
-        if (typingStatusIsTerminal) return [];
-        
-        // The accepted-turn selection is composer-only. Once exact typing metadata
-        // arrives, it replaces selection there even while centered step cards remain.
-        // Require an accepted turn: two missing chat IDs also compare equal on the landing page.
-        if (processingFeedbackTurn && processingFeedbackTurn.chatId === currentChat?.chat_id && !typingStatusMatchesProcessingFeedback) {
-            return [$text(processingFeedbackTurn.explicitMateCategory
-                ? 'enter_message.status.selecting_model'
-                : 'enter_message.status.selecting_mate_and_model')];
-        }
-
-        // When the centered indicator is active (processingPhase is not null),
-        // hide the bottom typing indicator to avoid duplicate text.
-        // The centered overlay handles sending, processing steps, and typing phases.
-        // Exception: 'compressing' phase shows the shimmer in the bottom indicator
-        // since there is no centered overlay for compression.
-        if (processingPhase !== null && processingPhase.phase !== 'compressing' && !typingStatusMatchesProcessingFeedback) {
-            if (currentChat?.is_anonymous) {
-                return processingPhase.statusLines;
-            }
-            return [];
-        }
-        
-        // Show "Compressing chat..." shimmer during chat compression
-        if (processingPhase?.phase === 'compressing') {
-            return processingPhase.statusLines;
-        }
-        
-        // Show detailed AI typing indicator once streaming has started
-        // (processingPhase is null, meaning the centered indicator has faded out,
-        //  but aiTypingStore still shows isTyping = true during streaming)
-        if (
-            currentTypingStatus?.isTyping
-            && currentTypingStatus.chatId === currentChat?.chat_id
-            && currentTypingStatus.category
-            && (!processingFeedbackTurn || typingStatusMatchesProcessingFeedback)
-        ) {
-            const mateName = mateDisplayName(currentTypingStatus.category, $text);
-            const modelName = currentTypingStatus.modelName || ''; 
-            const providerName = currentTypingStatus.providerName || '';
-            const serverRegion = currentTypingStatus.serverRegion || '';
-            
-            // Get region flag for display — must match all region values in backend/providers/*.yml
-            const getRegionFlag = (region: string): string => {
-                switch (region) {
-                    case 'EU': return '🇪🇺';
-                    case 'US': return '🇺🇸';
-                    case 'APAC': return '🌏';
-                    case 'global': return '🌐';
-                    case 'Local': return '🏠';
-                    default: return '';
-                }
-            };
-            
-            // Build multi-line indicator matching the centered overlay format:
-            //   Line 1: "{mate} is typing..." or "{mate} is thinking..." for reasoning models
-            //   Line 2: "Powered by {model_name}" (if available)
-            //   Line 3: "via {provider} {flag}" (if available)
-            // Check if the current model is a reasoning/thinking model (same logic as Chat.svelte)
-            const isReasoningModelForIndicator = (() => {
-                if (!modelName) return false;
-                const model = modelsMetadata.find(m => m.name === modelName || m.id === modelName);
-                return model?.reasoning === true;
-            })();
-            const primaryLine = isReasoningModelForIndicator
-                ? $text('enter_message.is_thinking').replace('{mate}', mateName)
-                : $text('enter_message.is_typing').replace('{mate}', mateName);
-            const lines: string[] = [primaryLine];
-            
-            // Line 2: "Powered by {model_name}" — convert technical IDs to human-readable names
-            const displayModelName = modelName ? getModelDisplayName(modelName) : '';
-            if (displayModelName) {
-                lines.push(`Powered by ${displayModelName}`);
-            }
-            
-            // Line 3: "via {provider} {flag}" — with country flag at the bottom
-            if (providerName) {
-                const regionFlag = serverRegion ? getRegionFlag(serverRegion) : '';
-                const providerLine = regionFlag ? `via ${providerName} ${regionFlag}` : `via ${providerName}`;
-                lines.push(providerLine);
-            }
-            
-            console.debug('[ActiveChat] AI typing indicator lines:', lines);
-            return lines;
-        }
-        console.debug('[ActiveChat] Typing indicator: no status to show');
-        return []; // No indicator
-    })());
+        return rustComposerIndicator.lines.map((line) => localizeIndicatorLine(line, $text));
+    });
 
     // Track the current status type for CSS styling (shimmer animation) on the BOTTOM indicator.
     // Returns: 'typing' | null
     // 'sending', 'processing', and 'waiting_for_user' are no longer shown at the bottom.
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
-
-        if (RUST_CHAT_TRANSITIONS) return rustComposerIndicator.statusType;
-
-        if (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id)) return 'processing';
-
-        if (typingStatusIsTerminal) return null;
-        
-        
-        if (processingFeedbackTurn && processingFeedbackTurn.chatId === currentChat?.chat_id) {
-            return typingStatusMatchesProcessingFeedback ? 'typing' : 'processing';
-        }
-
-        // When centered indicator is active, bottom shows nothing
-        // Exception: 'compressing' phase shows as 'typing' shimmer at the bottom
-        if (processingPhase !== null && processingPhase.phase !== 'compressing') {
-            return currentChat?.is_anonymous ? 'typing' : null;
-        }
-        
-        if (processingPhase?.phase === 'compressing') return 'typing';
-        
-        // During streaming, show the typing shimmer
-        if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id) {
-            return 'typing';
-        }
-        
-        return null;
+        return rustComposerIndicator.statusType;
     });
 
 
@@ -7458,7 +7327,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // the follow-up reply then counts as a single new unread message.
         if (!newChat && currentChat?.chat_id === message.chat_id && $authStore.isAuthenticated
             && !isPublicChat(message.chat_id)
-            && (RUST_READ_STATE ? await hasUnreadRust(message.chat_id, currentChat.unread_count) : hasUnread(message.chat_id, currentChat.unread_count))) {
+            && await hasUnreadRust(message.chat_id, currentChat.unread_count)) {
             currentChat = { ...currentChat, unread_count: 0 };
             void markChatRead(message.chat_id, 'follow-up sent').catch((error) =>
                 console.error('[ActiveChat] Error marking chat read on send:', error));
@@ -9595,9 +9464,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
                 // Refresh same-ID edits/status changes as well as membership. A full
                 // latest window is authoritative; a partial page retains older rows.
-                const reconciledMessages = RUST_CHAT_TRANSITIONS
-                    ? await (await import('../services/rustCore/chatState/rustTransitions')).rustReconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore)
-                    : reconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore);
+                const reconciledMessages = await (await import('../services/rustCore/chatState/rustTransitions')).rustReconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore);
                 if (JSON.stringify(currentMessages) !== JSON.stringify(reconciledMessages)) {
                     console.info(`[ActiveChat] handleChatUpdated: Message set changed after IndexedDB reload (${currentMessages.length} → ${freshMessages.length}). Updating display.`);
                     currentMessages = reconciledMessages;
@@ -10029,13 +9896,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 ...olderWindow.messages.filter((message) => !existingIds.has(message.message_id)),
                 ...currentMessages,
             ];
-            if (RUST_CHAT_TRANSITIONS) {
-                const prunedRows = await pruneCurrentDecryptedMessageWindowRust(olderWindowRows);
-                if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch() || windowRevision !== getRecentChatRevision(openedChatId)) return;
-                currentMessages = prunedRows;
-            } else {
-                currentMessages = pruneCurrentDecryptedMessageWindow(olderWindowRows);
-            }
+            const prunedRows = await pruneCurrentDecryptedMessageWindowRust(olderWindowRows);
+            if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch() || windowRevision !== getRecentChatRevision(openedChatId)) return;
+            currentMessages = prunedRows;
             currentMessageWindowHasMoreBefore = olderWindow.hasMoreBefore;
             chatHistoryRef?.updateMessages(currentMessages);
             cacheDisplayedChatWindow(openedChatId, openedEpoch, windowRevision);
@@ -11068,8 +10931,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     left.created_at - right.created_at || left.message_id.localeCompare(right.message_id),
                 );
                 currentMessageWindowHasMoreBefore = repairedWindow.hasMoreBefore;
-                const prunedMergedMessages = RUST_CHAT_TRANSITIONS ? await pruneCurrentDecryptedMessageWindowRust(mergedMessages) : pruneCurrentDecryptedMessageWindow(mergedMessages);
-                if (RUST_CHAT_TRANSITIONS && (!isCurrentLoadTarget() || currentChat?.chat_id !== repairChatId)) return;
+                const prunedMergedMessages = await pruneCurrentDecryptedMessageWindowRust(mergedMessages);
+                if ((!isCurrentLoadTarget() || currentChat?.chat_id !== repairChatId)) return;
                 currentMessages = prunedMergedMessages;
                 chatLoadState = 'ready';
                 chatHistoryRef?.updateMessages(currentMessages);
@@ -11254,9 +11117,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
 
-        // Flag on: prune with the chatState unit before the revision guard so nothing awaits between the guard and the commit.
+        // Prune with the chatState unit before the revision guard so nothing awaits between the guard and the commit.
         let rustPrunedNewMessages: ChatMessageModel[] | null = null;
-        if (RUST_CHAT_TRANSITIONS && currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous) {
+        if (currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous) {
             rustPrunedNewMessages = await pruneCurrentDecryptedMessageWindowRust(newMessages);
         }
         if (thisLoadRevision !== getRecentChatRevision(chat.chat_id)) {
@@ -11271,11 +11134,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
 
-        currentMessages = RUST_CHAT_TRANSITIONS
-            ? (rustPrunedNewMessages ?? newMessages)
-            : currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous
-            ? pruneCurrentDecryptedMessageWindow(newMessages)
-            : newMessages;
+        currentMessages = rustPrunedNewMessages ?? newMessages;
         // Commit the canonical window to ChatHistory before the follow-up
         // metadata awaits below. Its same-chat prop effect deliberately keeps
         // an already rendered document until updateMessages is called.
@@ -13448,9 +13307,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     direction: 'latest',
                     compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
                 });
-                const preserveExpanded = RUST_CHAT_TRANSITIONS
-                    ? await (await import('../services/rustCore/chatState/rustTransitions')).rustPreserveExpandedWindow(currentMessages, messageWindow.messages)
-                    : shouldPreserveExpandedMessageWindow(currentMessages, messageWindow.messages);
+                const preserveExpanded = await (await import('../services/rustCore/chatState/rustTransitions')).rustPreserveExpandedWindow(currentMessages, messageWindow.messages);
                 currentMessages = preserveExpanded
                     ? currentMessages
                     : messageWindow.messages;

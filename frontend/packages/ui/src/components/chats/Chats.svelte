@@ -13,8 +13,7 @@
 	import { chatDB } from '../../services/db';
 	import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
 	import { getSharedChatUrl, saveSharedChatKey } from '../../services/sharedChatKeyStorage';
-	import { sharedSubChatForList, rustGlobalSelectedPlan, rustSkipDraftActivation, RUST_CHAT_VIEW } from './utils/chatViewForList';
-	import { planGlobalSelected, skipDraftActivation } from './utils/chatSelectionPlan';
+	import { sharedSubChatForList, rustGlobalSelectedPlan, rustSkipDraftActivation } from './utils/chatViewForList';
 	import { loadSharedSubChatPage, type SharedChatCursor } from '../../services/sharedChatDetailsService';
 	import SharedAuxiliaryLoadButton from '../SharedAuxiliaryLoadButton.svelte';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
@@ -26,9 +25,8 @@
 	import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
 	import { chatSyncService } from '../../services/chatSyncService';
 	import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
-	import { sortChats } from './utils/chatSortUtils'; // Refactored sorting logic
-	import { groupChats, getLocalizedGroupTitle } from './utils/chatGroupUtils'; // Refactored grouping logic
-	import { buildGroupInput, buildSortInput } from './utils/chatListInput'; // Opt-in Rust chat-list policy input (flag-on only)
+	import { getLocalizedGroupTitle } from './utils/chatGroupUtils'; // Refactored grouping logic
+	import { buildGroupInput, buildSortInput } from './utils/chatListInput'; // Rust chat-list policy input
 	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle and reactivity in visiblePublicChats
 	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
 	import { chatListCache } from '../../services/chatListCache'; // Global cache for chat list
@@ -806,25 +804,20 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	});
 
 	// Sort all chats (demo + real) using the utility function
-	// Measurement-only opt-out (`openmates_rust_core_chatstate` = 'ts'), read once per page load.
-	const RUST_CHAT_LIST: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
-	  && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
-	// Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === '1'): the chatState unit
+	// The chatState unit
 	// decides the order and grouping; the result arrives one render after its inputs change.
 	let rustSortedAllChats = $state.raw<ChatType[]>([]);
-	if (RUST_CHAT_LIST) {
-		$effect(() => {
-			const chats = allChats;
-			const input = buildSortInput(chats, currentServerSortOrder);
-			let stale = false;
-			void import('../../services/rustCore/chatState/rustChatList')
-				.then((rust) => rust.rustSortChats(chats, input))
-				.then((sorted) => { if (!stale) rustSortedAllChats = sorted; })
-				.catch((error) => console.error('[Chats] Rust chat-list sort failed', error));
-			return () => { stale = true; };
-		});
-	}
-	let sortedAllChats = $derived(RUST_CHAT_LIST ? rustSortedAllChats : sortChats(allChats, currentServerSortOrder));
+	$effect(() => {
+		const chats = allChats;
+		const input = buildSortInput(chats, currentServerSortOrder);
+		let stale = false;
+		void import('../../services/rustCore/chatState/rustChatList')
+			.then((rust) => rust.rustSortChats(chats, input))
+			.then((sorted) => { if (!stale) rustSortedAllChats = sorted; })
+			.catch((error) => console.error('[Chats] Rust chat-list sort failed', error));
+		return () => { stale = true; };
+	});
+	let sortedAllChats = $derived(rustSortedAllChats);
 
 	// CRITICAL CHANGE: Show all chats immediately, even those waiting for metadata
 	// Chats with waiting_for_metadata will display with status indicators (Sending/Processing)
@@ -858,19 +851,17 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 	// Group hidden chats for display
 	let rustGroupedHiddenChats = $state.raw<Record<string, ChatType[]>>({});
-	if (RUST_CHAT_LIST) {
-		$effect(() => {
-			const chats = hiddenChats;
-			const input = buildGroupInput(chats);
-			let stale = false;
-			void import('../../services/rustCore/chatState/rustChatList')
-				.then((rust) => rust.rustGroupChats(chats, input))
-				.then((groups) => { if (!stale) rustGroupedHiddenChats = groups; })
-				.catch((error) => console.error('[Chats] Rust chat-list grouping failed', error));
-			return () => { stale = true; };
-		});
-	}
-	let groupedHiddenChats = $derived(RUST_CHAT_LIST ? rustGroupedHiddenChats : groupChats(hiddenChats));
+	$effect(() => {
+		const chats = hiddenChats;
+		const input = buildGroupInput(chats);
+		let stale = false;
+		void import('../../services/rustCore/chatState/rustChatList')
+			.then((rust) => rust.rustGroupChats(chats, input))
+			.then((groups) => { if (!stale) rustGroupedHiddenChats = groups; })
+			.catch((error) => console.error('[Chats] Rust chat-list grouping failed', error));
+		return () => { stale = true; };
+	});
+	let groupedHiddenChats = $derived(rustGroupedHiddenChats);
 	let orderedGroupedHiddenChats = $derived((() => {
 		const groups = groupedHiddenChats;
 		const orderedEntries: [string, ChatType[]][] = [];
@@ -966,19 +957,17 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
 	let rustGroupedChatsForDisplay = $state.raw<Record<string, ChatType[]>>({});
-	if (RUST_CHAT_LIST) {
-		$effect(() => {
-			const chats = chatsForDisplay;
-			const input = buildGroupInput(chats);
-			let stale = false;
-			void import('../../services/rustCore/chatState/rustChatList')
-				.then((rust) => rust.rustGroupChats(chats, input))
-				.then((groups) => { if (!stale) rustGroupedChatsForDisplay = groups; })
-				.catch((error) => console.error('[Chats] Rust chat-list grouping failed', error));
-			return () => { stale = true; };
-		});
-	}
-	let groupedChatsForDisplay = $derived(RUST_CHAT_LIST ? rustGroupedChatsForDisplay : groupChats(chatsForDisplay));
+	$effect(() => {
+		const chats = chatsForDisplay;
+		const input = buildGroupInput(chats);
+		let stale = false;
+		void import('../../services/rustCore/chatState/rustChatList')
+			.then((rust) => rust.rustGroupChats(chats, input))
+			.then((groups) => { if (!stale) rustGroupedChatsForDisplay = groups; })
+			.catch((error) => console.error('[Chats] Rust chat-list grouping failed', error));
+		return () => { stale = true; };
+	});
+	let groupedChatsForDisplay = $derived(rustGroupedChatsForDisplay);
 	
 	// Get ordered group entries for display
 	// Split grouped chats into user groups (time-based) and static groups (intro, examples, legal).
@@ -2086,9 +2075,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 				console.debug(`[Chats] draftEditorUIState signals new chat to select: ${persistedChatId}`);
 				draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null })); // Use renamed store; Reset trigger
 				const selectedChatId = activeChatStore.get();
-				const skipStaleDraft = RUST_CHAT_VIEW
-					? await rustSkipDraftActivation(selectedChatId, persistedChatId)
-					: skipDraftActivation(selectedChatId, persistedChatId);
+				const skipStaleDraft = await rustSkipDraftActivation(selectedChatId, persistedChatId);
 				if (skipStaleDraft) {
 					recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'chat_list', result: 'skipped' });
 					console.debug('[Chats] Skipping stale persisted draft activation because another chat is selected:', {
@@ -2139,12 +2126,8 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 					}
 				};
 				const facts = { selected: selectedChatId, newId: newChatId, active: activeChatStore.get() };
-				if (RUST_CHAT_VIEW) {
-					void rustGlobalSelectedPlan(facts).then(applyPlan)
-						.catch((error) => console.error('[Chats] Rust selection plan failed', error));
-				} else {
-					applyPlan(planGlobalSelected(facts));
-				}
+				void rustGlobalSelectedPlan(facts).then(applyPlan)
+					.catch((error) => console.error('[Chats] Rust selection plan failed', error));
 			}
 		};
 		window.addEventListener('globalChatSelected', handleGlobalChatSelectedEvent);

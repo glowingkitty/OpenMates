@@ -12,7 +12,6 @@ import {
   DECRYPTED_WINDOW_TARGET,
   NORMAL_MESSAGE_PAGE_LIMIT,
   pruneDecryptedMessageWindow,
-  shouldPreserveExpandedMessageWindow,
 } from "../../utils/messageWindowPruning";
 
 function makeMessages(count: number, offset = 0): Message[] {
@@ -30,6 +29,7 @@ function makeMessages(count: number, offset = 0): Message[] {
 }
 
 describe("pruneDecryptedMessageWindow", () => {
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
   it("keeps decrypted normal state at the 60-message target after exceeding the 90-message hard cap", () => {
     const result = pruneDecryptedMessageWindow(makeMessages(120));
 
@@ -43,6 +43,7 @@ describe("pruneDecryptedMessageWindow", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
   it("preserves unsafe in-flight rows even when they are outside the retained edge pages", () => {
     const messages = makeMessages(120);
     messages[60] = { ...messages[60], status: "streaming" };
@@ -54,6 +55,7 @@ describe("pruneDecryptedMessageWindow", () => {
     expect(result.messages.some((message) => message.message_id === "msg-61" && message.status === "streaming")).toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
   it("does not prune forgotten messages behind a compression boundary", () => {
     const checkpoints: ChatCompressionCheckpoint[] = [{
       id: "checkpoint-1",
@@ -68,13 +70,5 @@ describe("pruneDecryptedMessageWindow", () => {
 
     expect(result.messages.filter((message) => message.created_at <= 10)).toHaveLength(10);
     expect(result.messages.filter((message) => message.created_at > 10)).toHaveLength(DECRYPTED_WINDOW_TARGET);
-  });
-
-  it("preserves an expanded older-message window when a latest-window refresh is a subset", () => {
-    const currentMessages = makeMessages(60);
-    const incomingLatestMessages = currentMessages.slice(30);
-
-    expect(shouldPreserveExpandedMessageWindow(currentMessages, incomingLatestMessages)).toBe(true);
-    expect(shouldPreserveExpandedMessageWindow(incomingLatestMessages, currentMessages)).toBe(false);
   });
 });

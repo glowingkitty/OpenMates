@@ -1,3 +1,5 @@
+// Used only by the TypeScript CLI sidebar (openmates-cli/src/tuiChatSidebar.ts); the web chat list
+// sorts in the Rust chatState unit.
 import type { Chat as ChatType } from '../../../types/chat';
 
 /**

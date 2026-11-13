@@ -14,7 +14,6 @@ import {
   putRecentChatWindow,
   recentChatHeaderMatches,
   RecentChatWarmReadGuard,
-  reconcileRecentChatMessages,
   subscribeRecentChatWindowInvalidation,
   type RecentChatWindow,
 } from '../recentChatWindowCache';
@@ -40,20 +39,6 @@ afterEach(() => {
 });
 
 describe('recent decrypted chat windows', () => {
-  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
-  it('refreshes same-ID edits in an expanded window without dropping older pages', () => {
-    const older = message('older', 'a');
-    const latest = message('latest', 'a');
-    const edited = { ...latest, content: 'new canonical text', status: 'delivered' as const };
-    expect(reconcileRecentChatMessages([older, latest], [edited], true)).toEqual([older, edited]);
-    expect(latest.content).toBe('latest');
-  });
-
-  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
-  it('removes absent rows when the canonical latest window has no older page', () => {
-    const retained = message('retained', 'a');
-    expect(reconcileRecentChatMessages([message('deleted', 'a'), retained], [retained], false)).toEqual([retained]);
-  });
 
   // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
   it('replays an isolated window and matching header before an asynchronous read', () => {

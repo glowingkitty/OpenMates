@@ -39,26 +39,12 @@ import { chatSyncService } from "./chatSyncService";
 import { webSocketService } from "./websocketService";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { text } from "@repo/ui";
-import {
-  encryptWithChatKey,
-  decryptWithChatKey,
-} from "./cryptoService";
 import { get } from "svelte/store";
 import type { Message, Chat } from "../types/chat";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 
-// How many messages to encrypt per "tick" before yielding to the event loop.
-// Keeps the UI responsive during large chats.
-const BATCH_SIZE = 10;
-
-// Compile-time flag: default builds fold this to false and drop the Rust adapter.
-// The measurement-only opt-out `openmates_rust_core_chatstate=ts` keeps the TS arm (same switch as the chat list).
-const RUST_FORK: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_chatstate") === "ts");
-
 // Delay between batches (ms) to allow the UI to breathe.
 const BATCH_DELAY_MS = 0; // Use microtask-level yield (requestAnimationFrame below)
-const EXPLAIN_SELECTION_MAX_CHARS = 500;
 
 interface StartForkOptions {
   suppressCompleteNotification?: boolean;
@@ -111,26 +97,9 @@ export async function startFork(
     throw err;
   }
 
-  let messagesToCopy: Message[];
-  if (RUST_FORK) {
-    // Rust selects (stable created_at sort, up to and including the fork point).
-    const rust = await import("./rustCore/chatState/rustFork");
-    messagesToCopy = await rust.rustForkSelect(messages, upToMessageId);
-  } else {
-  // Sort by created_at ascending (IndexedDB returns them sorted already, but be safe)
-  messages.sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0));
-
-  // Slice: include only messages up to and including the fork point
-  const forkIndex = messages.findIndex((m) => m.message_id === upToMessageId);
-  if (forkIndex === -1) {
-    console.error(
-      "[ForkChatService] upToMessageId not found in messages:",
-      upToMessageId,
-    );
-    throw new Error("Fork point message not found");
-  }
-  messagesToCopy = messages.slice(0, forkIndex + 1);
-  }
+  // Rust selects (stable created_at sort, up to and including the fork point).
+  const rust = await import("./rustCore/chatState/rustFork");
+  const messagesToCopy: Message[] = await rust.rustForkSelect(messages, upToMessageId);
 
   // Register in the progress store — UI components can now render progress
   forkProgressStore.start(
@@ -155,9 +124,7 @@ export async function startFork(
 export async function startExplainInNewChat({
   selectedText,
 }: ExplainInNewChatOptions): Promise<string> {
-  const normalizedSelection = RUST_FORK
-    ? await (await import("./rustCore/chatState/rustFork")).rustNormalizeExplainSelection(selectedText)
-    : normalizeExplainSelection(selectedText);
+  const normalizedSelection = await (await import("./rustCore/chatState/rustFork")).rustNormalizeExplainSelection(selectedText);
   if (!normalizedSelection) {
     throw new Error("Selected text is required to start an explanation chat");
   }
@@ -202,184 +169,11 @@ async function runForkAsync(
       `(${messagesToCopy.length} messages)`,
   );
 
-  if (RUST_FORK) {
-    return runRustForkAsync(sourceChatId, newChatId, forkTitle, messagesToCopy, options);
-  }
-
-  // Step 1+2: Atomically create and persist the chat key through ChatKeyManager.
-  // This ensures the key is tracked with provenance and persisted to IDB before
-  // any data is encrypted with it.
-  const { chatKey: newChatKey, encryptedChatKey: encryptedNewChatKey } =
-    await chatKeyManager.createAndPersistKey(newChatId);
-
-  // Step 3: Encrypt the fork title with the new chat key
-  const encryptedTitle = await encryptWithChatKey(forkTitle, newChatKey);
-
-  // Step 4: Build the new Chat record
-  const nowTimestamp = Math.floor(Date.now() / 1000);
-  const newChatRecord: Chat = {
-    chat_id: newChatId,
-    encrypted_title: encryptedTitle,
-    encrypted_chat_key: encryptedNewChatKey,
-    messages_v: messagesToCopy.length,
-    title_v: 1,
-    last_edited_overall_timestamp: nowTimestamp,
-    unread_count: 0,
-    created_at: nowTimestamp,
-    updated_at: nowTimestamp,
-    // Inherit user ownership from the source chat (resolved below)
-    user_id: undefined,
-  };
-
-  // Step 5: Copy category and icon from the source chat.
-  //
-  // The source chat's encrypted_category and encrypted_icon are decrypted using
-  // the source chat key, then re-encrypted with the new chat key. This ensures
-  // the forked chat appears in the chats list with the correct category and icon
-  // immediately — without waiting for the AI to re-categorize on the first message.
-  let encryptedNewCategory: string | undefined;
-  let encryptedNewIcon: string | undefined;
-
-  try {
-    const sourceChat = await chatDB.getChat(sourceChatId);
-    if (sourceChat?.user_id) {
-      newChatRecord.user_id = sourceChat.user_id;
-    }
-
-    const sourceChatKey = await chatKeyManager.getKey(sourceChatId);
-    if (sourceChatKey) {
-      // Re-encrypt category
-      if (sourceChat?.encrypted_category) {
-        const category = await decryptWithChatKey(
-          sourceChat.encrypted_category,
-          sourceChatKey,
-        );
-        if (category) {
-          encryptedNewCategory = await encryptWithChatKey(category, newChatKey);
-          newChatRecord.encrypted_category = encryptedNewCategory;
-          console.debug(
-            `[ForkChatService] Copied category from source chat: "${category}"`,
-          );
-        }
-      }
-
-      // Re-encrypt icon
-      if (sourceChat?.encrypted_icon) {
-        const icon = await decryptWithChatKey(
-          sourceChat.encrypted_icon,
-          sourceChatKey,
-        );
-        if (icon) {
-          encryptedNewIcon = await encryptWithChatKey(icon, newChatKey);
-          newChatRecord.encrypted_icon = encryptedNewIcon;
-          console.debug(
-            `[ForkChatService] Copied icon from source chat: "${icon}"`,
-          );
-        }
-      }
-    } else {
-      console.warn(
-        "[ForkChatService] Source chat key not in cache — cannot copy category/icon",
-      );
-    }
-  } catch (err) {
-    // Non-fatal: fork continues even if category/icon copy fails
-    console.warn(
-      "[ForkChatService] Failed to copy category/icon from source chat:",
-      err,
-    );
-  }
-
-  // Step 6: Re-encrypt all messages with the new chat key in batches.
-  const reencryptedMessages: Message[] = [];
-
-  const newChatSuffix = newChatId.slice(-10);
-  let processed = 0;
-
-  for (let i = 0; i < messagesToCopy.length; i += BATCH_SIZE) {
-    const batch = messagesToCopy.slice(i, i + BATCH_SIZE);
-
-    for (const sourceMsg of batch) {
-      const newMessageId = `${newChatSuffix}-${crypto.randomUUID()}`;
-      const reencrypted = await reencryptMessage(
-        sourceMsg,
-        newChatId,
-        newMessageId,
-        newChatKey,
-      );
-      reencryptedMessages.push(reencrypted);
-    }
-
-    processed += batch.length;
-    forkProgressStore.updateProgress(processed);
-
-    // Yield to the event loop so the UI stays responsive
-    await yieldToEventLoop();
-  }
-
-  // Step 7: Save the new chat to IndexedDB.
-  // We set the chat key in the db instance cache directly so encryptChatForStorage
-  // will find it and skip re-generation.
-  chatDB.setChatKey(newChatId, newChatKey);
-  // Save the pre-built record (already has encrypted_chat_key set)
-  await chatDB.addChat(newChatRecord);
-
-  // Step 8: Save all re-encrypted messages
-  await chatDB.batchSaveMessages(reencryptedMessages);
-
-  // Step 9: Sync fork messages + metadata to the server via encrypted_chat_metadata.
-  //         This provides permanent encrypted storage in Directus, and also
-  //         stores the chat metadata (title, category, icon) server-side so
-  //         that other devices can sync the forked chat correctly.
-  //
-  //         AI context on first follow-up is handled by the request_chat_history
-  //         mechanism: the backend detects an empty AI cache for this chat and
-  //         asks the client for history. The client responds with all IndexedDB
-  //         messages + active_focus_id via handleRequestChatHistoryImpl.
-  const storageSync = syncForkEncryptedToStorage(
-    newChatId,
-    encryptedNewChatKey,
-    encryptedTitle,
-    encryptedNewCategory,
-    encryptedNewIcon,
-    reencryptedMessages,
-    nowTimestamp,
-    messagesToCopy.length,
-  );
-
-  if (options.awaitStorageSync) {
-    await storageSync;
-  }
-
-  if (options.afterForkComplete) {
-    await options.afterForkComplete(newChatId);
-  }
-
-  // Done!
-  forkProgressStore.complete();
-  console.info(`[ForkChatService] Fork complete: new chat ${newChatId}`);
-
-  if (options.suppressCompleteNotification) {
-    return;
-  }
-
-  // Show a "fork complete" notification that opens the forked chat on click
-  const $text = get(text);
-  notificationStore.addNotificationWithOptions("success", {
-    message: $text("chats.fork.complete_notification"),
-    duration: 12000,
-    dismissible: true,
-    onAction: () => {
-      void openChatWhenAvailable(newChatId).finally(() => {
-        forkProgressStore.reset();
-      });
-    },
-    actionLabel: $text("chats.fork.complete_notification"),
-  });
+  return runRustForkAsync(sourceChatId, newChatId, forkTitle, messagesToCopy, options);
 }
 
 /**
- * Flag-on fork: Rust re-encrypts the messages and builds the chat record and the
+ * Fork: Rust re-encrypts the messages and builds the chat record and the
  * `encrypted_chat_metadata` payload; the page keeps key creation, IndexedDB,
  * progress, the socket send and the notification.
  */
@@ -429,10 +223,6 @@ async function runRustForkAsync(
     },
     actionLabel: $text("chats.fork.complete_notification"),
   });
-}
-
-function normalizeExplainSelection(selectedText: string): string {
-  return selectedText.replace(/\s+/g, " ").trim().slice(0, EXPLAIN_SELECTION_MAX_CHARS);
 }
 
 async function sendBackgroundExplanationPrompt(chatId: string, prompt: string): Promise<void> {
@@ -510,169 +300,6 @@ async function openChatWhenAvailable(chatId: string): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   notificationStore.error(get(text)("chats.explain_in_new_chat.failed"));
-}
-
-// ---------------------------------------------------------------------------
-// Re-encrypt a single message with a new chat key
-// ---------------------------------------------------------------------------
-
-/**
- * Create a copy of `sourceMsg` with:
- * - New message_id (based on the new chat's suffix)
- * - New chat_id (the fork's chat ID)
- * - All encrypted fields re-encrypted with the new chat key
- * - Plaintext fields removed (zero-knowledge)
- */
-async function reencryptMessage(
-  sourceMsg: Message,
-  newChatId: string,
-  newMessageId: string,
-  newChatKey: Uint8Array,
-): Promise<Message> {
-  // Start with a clean copy (no encrypted_ fields yet)
-  const newMsg: Message = {
-    message_id: newMessageId,
-    chat_id: newChatId,
-    role: sourceMsg.role,
-    created_at: sourceMsg.created_at,
-    status: "synced",
-    // Preserve pair linkage semantics — note: user_message_id will point to the
-    // source chat's original IDs, which won't exist in the fork. We clear it to
-    // avoid stale references. This is acceptable: pair linking is only used for
-    // the "delete paired message" feature.
-    user_message_id: undefined,
-  };
-
-  // Re-encrypt content (should already be decrypted since getMessagesForChat decrypts)
-  if (sourceMsg.content) {
-    const contentString =
-      typeof sourceMsg.content === "string"
-        ? sourceMsg.content
-        : JSON.stringify(sourceMsg.content);
-    newMsg.encrypted_content = await encryptWithChatKey(
-      contentString,
-      newChatKey,
-    );
-  } else if (sourceMsg.encrypted_content) {
-    // Fallback: content wasn't decrypted (demo chat or already-encrypted blob)
-    // For demo chats we store as-is; for others this should not normally happen
-    newMsg.encrypted_content = sourceMsg.encrypted_content;
-  }
-
-  // Re-encrypt sender_name
-  if (sourceMsg.sender_name) {
-    newMsg.encrypted_sender_name = await encryptWithChatKey(
-      sourceMsg.sender_name,
-      newChatKey,
-    );
-  }
-
-  // Re-encrypt category
-  if (sourceMsg.category) {
-    newMsg.encrypted_category = await encryptWithChatKey(
-      sourceMsg.category,
-      newChatKey,
-    );
-  }
-
-  // Re-encrypt model_name
-  if (sourceMsg.model_name) {
-    newMsg.encrypted_model_name = await encryptWithChatKey(
-      sourceMsg.model_name,
-      newChatKey,
-    );
-  }
-
-  // We intentionally do NOT copy thinking_content, thinking_signature, or
-  // pii_mappings — they are sensitive and not needed in a fork context.
-
-  return newMsg;
-}
-
-// ---------------------------------------------------------------------------
-// Server sync helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Sync the fork's encrypted messages and chat metadata to the server via a
- * single encrypted_chat_metadata event. The server's History Injection Flow
- * (in encrypted_chat_metadata_handler.py) picks up the message_history array
- * and persists each message to Directus via persist_new_chat_message tasks.
- *
- * Also stores the encrypted title, category, and icon so that the chat appears
- * correctly on other devices (and after a full sync cycle).
- *
- * Normal forks treat this as fire-and-forget because it happens after the fork
- * is considered complete from the user's perspective. Explain-in-new-chat waits
- * for the frame to be sent before sending its automatic follow-up prompt.
- */
-function syncForkEncryptedToStorage(
-  newChatId: string,
-  encryptedChatKey: string,
-  encryptedTitle: string,
-  encryptedCategory: string | undefined,
-  encryptedIcon: string | undefined,
-  reencryptedMessages: Message[],
-  nowTimestamp: number,
-  messageCount: number,
-): Promise<void> {
-  const isConnected = get(websocketStatus).status === "connected";
-  if (!isConnected) {
-    console.info(
-      "[ForkChatService] WebSocket offline — encrypted storage sync will be reconciled via phased_sync on reconnect",
-    );
-    return Promise.resolve();
-  }
-
-  // Build the message_history array for the History Injection Flow.
-  // The handler only persists messages that have both message_id AND encrypted_content.
-  const messageHistory = reencryptedMessages
-    .filter((m) => m.message_id && m.encrypted_content)
-    .map((m) => ({
-      message_id: m.message_id,
-      chat_id: newChatId,
-      role: m.role,
-      encrypted_content: m.encrypted_content,
-      encrypted_sender_name: m.encrypted_sender_name,
-      encrypted_category: m.encrypted_category,
-      encrypted_model_name: m.encrypted_model_name,
-      created_at: m.created_at,
-    }));
-
-  const payload: Record<string, unknown> = {
-    chat_id: newChatId,
-    encrypted_chat_key: encryptedChatKey,
-    encrypted_title: encryptedTitle,
-    message_history: messageHistory,
-    versions: {
-      messages_v: messageCount,
-      title_v: 1,
-      last_edited_overall_timestamp: nowTimestamp,
-    },
-  };
-
-  // Include category and icon if we successfully copied them from the source chat
-  if (encryptedCategory) {
-    payload.encrypted_chat_category = encryptedCategory;
-  }
-  if (encryptedIcon) {
-    payload.encrypted_icon = encryptedIcon;
-  }
-
-  return webSocketService
-    .sendMessage("encrypted_chat_metadata", payload)
-    .then(() => {
-      console.info(
-        `[ForkChatService] Encrypted storage sync sent for chat ${newChatId} ` +
-          `(${messageHistory.length} messages, category=${!!encryptedCategory}, icon=${!!encryptedIcon})`,
-      );
-    })
-    .catch((err) => {
-      console.warn(
-        "[ForkChatService] Encrypted storage sync failed (will reconcile via phased_sync):",
-        err,
-      );
-    });
 }
 
 // ---------------------------------------------------------------------------

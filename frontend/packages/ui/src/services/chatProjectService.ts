@@ -6,8 +6,7 @@
 import type { Chat } from '../types/chat';
 import { isDemoChat, isLegalChat, isPublicChat } from '../demo_chats';
 import type { ChatProjectLocation, SidebarProject } from '../utils/chatProjectNavigation';
-import { chatsOrganizable, planPlacement, type OrganizableInput, type PlacementInput } from '../utils/chatProjectPlacement';
-import { RUST_CHAT_VIEW } from '../components/chats/utils/chatViewForList';
+import { type OrganizableInput, type PlacementInput } from '../utils/chatProjectPlacement';
 import { computeSHA256 } from '../message_parsing/utils';
 import { getApiEndpoint } from '../config/api';
 import { getActiveTeamContextSnapshot } from '../stores/teamStore';
@@ -73,24 +72,20 @@ function organizableInput(chats: Chat[]): OrganizableInput {
 
 const NOT_ORGANIZABLE = 'These chats cannot be organized in this workspace';
 
-export function assertOrganizableChats(chats: Chat[]): void {
-  if (!chatsOrganizable(organizableInput(chats)).ok) throw new Error(NOT_ORGANIZABLE);
-}
-
-/** Flag on: the chatState unit decides; flag off: the synchronous TypeScript reference. */
+/** The chatState unit decides whether the chats can be organized. */
 async function guardOrganizable(chats: Chat[]): Promise<void> {
   const { rustChatsOrganizable } = await import('./rustCore/chatState/rustPlacement');
   if (!await rustChatsOrganizable(organizableInput(chats))) throw new Error(NOT_ORGANIZABLE);
 }
 
 export async function placeChatsInProject(chats: Chat[], location: ChatProjectLocation, mode: 'add' | 'move' = 'add'): Promise<void> {
-  if (RUST_CHAT_VIEW) await guardOrganizable(chats); else assertOrganizableChats(chats);
+  await guardOrganizable(chats);
   const identity = getWorkspaceCacheIdentity();
   const context = { teamId: getActiveTeamContextSnapshot().teamId };
   const index = await loadChatProjectIndex(true);
   const project = await getProject(location.projectId, context);
   const request: PlacementInput = { chatIds: chats.map(chat => chat.chat_id), location, mode, index };
-  const plan = RUST_CHAT_VIEW ? await (await import('./rustCore/chatState/rustPlacement')).rustPlacementPlan(request) : planPlacement(request);
+  const plan = await (await import('./rustCore/chatState/rustPlacement')).rustPlacementPlan(request);
   if ('error' in plan) throw new Error(plan.error === 'project_unavailable' ? 'Project is unavailable' : 'Folder is unavailable');
   try {
   for (const step of plan.steps) {
@@ -110,7 +105,7 @@ export async function placeChatsInProject(chats: Chat[], location: ChatProjectLo
 }
 
 export async function createChatProject(chats: Chat[]): Promise<ProjectViewModel> {
-  if (RUST_CHAT_VIEW) await guardOrganizable(chats); else assertOrganizableChats(chats);
+  await guardOrganizable(chats);
   const identity = getWorkspaceCacheIdentity();
   const context = { teamId: getActiveTeamContextSnapshot().teamId };
   const name = await suggestChatProjectName(chats);

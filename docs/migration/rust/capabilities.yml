@@ -125,10 +125,10 @@ capabilities:
 - id: chat-list
   what: ordered chat list view model, pins, unread, hidden chats
   web:
-    status: rust-default
+    status: rust-only
     old: []
     unit: chatState
-    note: chatListUnit installed in the chatState unit; the TS chat-list path still exists
+    note: chat list sort/group, selection and URL plans, read state, unread counts, activity, highlights, bookmarks, fork, hide/unhide and history-window transitions run only in the chatState unit; the TypeScript arms and the openmates_rust_core_chatstate opt-out are deleted
     last_commit: 06da1b2448
   apple:
     status: rust-default

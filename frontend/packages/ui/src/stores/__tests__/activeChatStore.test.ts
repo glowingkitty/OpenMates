@@ -33,20 +33,33 @@ vi.mock("$app/navigation", () => ({
     locationMock.hash = hashIndex === -1 ? "" : url.slice(hashIndex + 1);
   }),
 }));
+// The shared Rust chatState unit plans every URL update; the TypeScript plan stands in for its answer.
+vi.mock("../../services/rustCore/chatState/chatListUnitClient", async () => {
+  const { planUrlUpdate } = await import("../activeChatUrlPlan");
+  return { chatStateCall: async (_op: string, facts: Parameters<typeof planUrlUpdate>[0]) => planUrlUpdate(facts) };
+});
 
 // Import after mocks are set up
 import {
   activeChatStore,
+  activeChatUrlRevision,
   deepLinkProcessing,
   isProgrammaticHashUpdate,
 } from "../activeChatStore";
 
+/** Waits until the queued core URL plan has been applied to the hash. */
+async function settleUrlPlan(): Promise<void> {
+  const before = get(activeChatUrlRevision);
+  await vi.waitFor(() => expect(get(activeChatUrlRevision)).toBeGreaterThan(before));
+}
+
 describe("activeChatStore", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     locationMock.hash = "";
     locationMock.pathname = "/";
     locationMock.search = "";
     activeChatStore.clearActiveChat();
+    await settleUrlPlan();
   });
 
   // ──────────────────────────────────────────────────────────────────
@@ -72,8 +85,9 @@ describe("activeChatStore", () => {
     });
 
     // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
-    it("updates URL hash with chat ID", () => {
+    it("updates URL hash with chat ID", async () => {
       activeChatStore.setActiveChat("chat-456");
+      await settleUrlPlan();
       expect(locationMock.hash).toBe("chat-id=chat-456");
     });
 
@@ -97,64 +111,6 @@ describe("activeChatStore", () => {
       expect(activeChatStore.get()).toBeNull();
     });
 
-    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
-    it("clears only chat navigation parameters from URL hash", () => {
-      locationMock.hash = "#chat-id=example-privacy-first-local-ai&e2e-debug=run-1&e2e-token=test-token&settings=privacy/pii";
-      activeChatStore.clearActiveChat();
-      expect(locationMock.hash).not.toContain("chat-id=");
-      expect(locationMock.hash).toContain("e2e-debug=run-1");
-      expect(locationMock.hash).toContain("e2e-token=test-token");
-      expect(locationMock.hash).toContain("settings=privacy/hide-personal-data");
-    });
-
-    // contract-test: supporting surface=gui.web assertions=apps.navigation.hash-and-forwarding
-    it("preserves an Apps result route when a stale chat selection clears during reload", () => {
-      const appsHash = "#apps/web/search&tab=overview&embed-id=child-result&root-id=root-result";
-      activeChatStore.setWithoutHashUpdate("stale-chat");
-      locationMock.hash = appsHash;
-      activeChatStore.clearActiveChat();
-      expect(activeChatStore.get()).toBeNull();
-      expect(locationMock.hash).toBe(appsHash);
-
-      activeChatStore.setActiveChat(null);
-      expect(locationMock.hash).toBe(appsHash);
-    });
-
-    // contract-test: supporting surface=gui.web assertions=apps.navigation.hash-and-forwarding,chat-navigation.draft-only.addressable
-    it("still clears a chat ID accidentally mixed into an Apps route", () => {
-      locationMock.hash = "#apps/web/search&chat-id=private-chat&embed-id=chat-embed";
-      activeChatStore.clearActiveChat();
-      expect(locationMock.hash).not.toContain("chat-id=");
-    });
-
-    // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
-    it("preserves an exact Workflow completion target during startup chat resets", () => {
-      const completionHash = "#chat-id=chat-1&message-id=message-1&delivery-id=delivery-1&workflow-id=workflow-1&run-id=run-1";
-      locationMock.hash = completionHash;
-      activeChatStore.clearActiveChat();
-      expect(activeChatStore.get()).toBeNull();
-      expect(locationMock.hash).toBe(completionHash);
-    });
-
-    // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
-    it("still clears ordinary chat targets and incomplete Workflow targets", () => {
-      locationMock.hash = "#chat-id=chat-1&message-id=message-1";
-      activeChatStore.clearActiveChat();
-      expect(locationMock.hash).toBe("");
-
-      locationMock.hash = "#workflow-id=workflow-1&workflow-tab=runs&run-id=run-1&chat-id=chat-1&message-id=message-1";
-      activeChatStore.clearActiveChat();
-      expect(locationMock.hash).toBe("workflow-id=workflow-1&workflow-tab=runs&run-id=run-1");
-    });
-
-    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
-    it("continues normal chat navigation after an ordinary chat clear", () => {
-      locationMock.hash = "#chat-id=chat-1&message-id=message-1";
-      activeChatStore.clearActiveChat();
-      activeChatStore.setActiveChat("chat-2");
-      expect(activeChatStore.get()).toBe("chat-2");
-      expect(locationMock.hash).toBe("chat-id=chat-2");
-    });
   });
 
   // ──────────────────────────────────────────────────────────────────
@@ -169,6 +125,74 @@ describe("activeChatStore", () => {
       expect(activeChatStore.get()).toBe("chat-789");
       // Hash should NOT be updated
       expect(locationMock.hash).toBe("");
+    });
+
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
+    it("clears only chat navigation parameters from URL hash", async () => {
+      locationMock.hash = "#chat-id=example-privacy-first-local-ai&e2e-debug=run-1&e2e-token=test-token&settings=privacy/pii";
+      activeChatStore.clearActiveChat();
+      await settleUrlPlan();
+      expect(locationMock.hash).not.toContain("chat-id=");
+      expect(locationMock.hash).toContain("e2e-debug=run-1");
+      expect(locationMock.hash).toContain("e2e-token=test-token");
+      expect(locationMock.hash).toContain("settings=privacy/hide-personal-data");
+    });
+
+    // contract-test: supporting surface=gui.web assertions=apps.navigation.hash-and-forwarding
+    it("preserves an Apps result route when a stale chat selection clears during reload", async () => {
+      const appsHash = "#apps/web/search&tab=overview&embed-id=child-result&root-id=root-result";
+      activeChatStore.setWithoutHashUpdate("stale-chat");
+      locationMock.hash = appsHash;
+      activeChatStore.clearActiveChat();
+      await settleUrlPlan();
+      expect(activeChatStore.get()).toBeNull();
+      expect(locationMock.hash).toBe(appsHash);
+
+      activeChatStore.setActiveChat(null);
+      await settleUrlPlan();
+      expect(locationMock.hash).toBe(appsHash);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=apps.navigation.hash-and-forwarding,chat-navigation.draft-only.addressable
+    it("still clears a chat ID accidentally mixed into an Apps route", async () => {
+      locationMock.hash = "#apps/web/search&chat-id=private-chat&embed-id=chat-embed";
+      activeChatStore.clearActiveChat();
+      await settleUrlPlan();
+      expect(locationMock.hash).not.toContain("chat-id=");
+    });
+
+    // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
+    it("preserves an exact Workflow completion target during startup chat resets", async () => {
+      const completionHash = "#chat-id=chat-1&message-id=message-1&delivery-id=delivery-1&workflow-id=workflow-1&run-id=run-1";
+      locationMock.hash = completionHash;
+      activeChatStore.clearActiveChat();
+      await settleUrlPlan();
+      expect(activeChatStore.get()).toBeNull();
+      expect(locationMock.hash).toBe(completionHash);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
+    it("still clears ordinary chat targets and incomplete Workflow targets", async () => {
+      locationMock.hash = "#chat-id=chat-1&message-id=message-1";
+      activeChatStore.clearActiveChat();
+      await settleUrlPlan();
+      expect(locationMock.hash).toBe("");
+
+      locationMock.hash = "#workflow-id=workflow-1&workflow-tab=runs&run-id=run-1&chat-id=chat-1&message-id=message-1";
+      activeChatStore.clearActiveChat();
+      await settleUrlPlan();
+      expect(locationMock.hash).toBe("workflow-id=workflow-1&workflow-tab=runs&run-id=run-1");
+    });
+
+    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
+    it("continues normal chat navigation after an ordinary chat clear", async () => {
+      locationMock.hash = "#chat-id=chat-1&message-id=message-1";
+      activeChatStore.clearActiveChat();
+      await settleUrlPlan();
+      activeChatStore.setActiveChat("chat-2");
+      await settleUrlPlan();
+      expect(activeChatStore.get()).toBe("chat-2");
+      expect(locationMock.hash).toBe("chat-id=chat-2");
     });
   });
 
@@ -241,11 +265,6 @@ describe("activeChatStore", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("isProgrammaticHashUpdate", () => {
-    // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
-    it("returns true immediately after setActiveChat", () => {
-      activeChatStore.setActiveChat("chat-123");
-      expect(isProgrammaticHashUpdate()).toBe(true);
-    });
 
     // contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable
     it("returns false when no recent programmatic update", async () => {

@@ -16,8 +16,3 @@ export interface ReadGateFacts {
 	/** Result of the caller's isChatStillOpen, null when it gave none. */
 	stillOpen: boolean | null;
 }
-
-export function readGateAllows(facts: ReadGateFacts): boolean {
-	if (facts.stage === 'post' && facts.stillOpen === false) return false;
-	return facts.visible && !facts.manual && facts.hasUnread && facts.endVisible;
-}

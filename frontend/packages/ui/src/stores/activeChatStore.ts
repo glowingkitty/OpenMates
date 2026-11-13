@@ -21,7 +21,7 @@ import { replaceState } from "$app/navigation";
 import { isOnSemanticChatPath } from "../services/chatUrlService";
 import { getHashParam, updateHashParams } from "../utils/settingsHashUtils";
 import { readAppsWorkspaceRoute } from "../utils/appsWorkspaceRoute";
-import { planUrlUpdate, type UrlPlan, type UrlPlanFacts } from "./activeChatUrlPlan";
+import type { UrlPlan, UrlPlanFacts } from "./activeChatUrlPlan";
 
 /**
  * Store to track when deep link processing is happening
@@ -46,10 +46,7 @@ const CLEARED_HASH_PARAMS = {
   embed_id: null,
 };
 
-// Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === '1'): the chatState unit
-// plans the URL update; there is no TypeScript fallback. Default builds keep the sync plan.
-const RUST_URL_PLAN: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" &&
-  !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_chatstate") === "ts");
+// The shared Rust chatState unit plans the URL update; there is no TypeScript fallback.
 /** Serialises Rust-planned updates so facts are read in call order. */
 let rustUrlQueue: Promise<void> = Promise.resolve();
 /**
@@ -64,7 +61,7 @@ let pendingHashUpdates = 0;
 /**
  * Advances each time queued Rust URL plans have been applied and the address bar is current
  * again. A plan may keep the hash (Workflow handoff, Apps route), so effects that fall back to
- * the hash read this to look at the real hash once it has settled. Never advances flag-off.
+ * the hash read this to look at the real hash once it has settled. 
  */
 export const activeChatUrlRevision = writable(0);
 
@@ -124,26 +121,21 @@ function applyUrlPlan(plan: UrlPlan, targetHash: string) {
  */
 function updateUrlHash(chatId: string | null) {
   if (!browser) return;
-  if (RUST_URL_PLAN) {
-    pendingHashUpdates += 1;
-    pendingHashSelection = { chatId };
-    rustUrlQueue = rustUrlQueue
-      .then(async () => {
-        const facts = urlPlanFacts(chatId);
-        const { chatStateCall } = await import("../services/rustCore/chatState/chatListUnitClient");
-        applyUrlPlan(await chatStateCall("selectionUrlPlan", facts), facts.targetHash);
-      })
-      .catch((error) => console.error("[activeChatStore] Rust URL plan failed", error))
-      .finally(() => {
-        pendingHashUpdates -= 1;
-        if (pendingHashUpdates > 0) return;
-        pendingHashSelection = null;
-        activeChatUrlRevision.update((revision) => revision + 1);
-      });
-    return;
-  }
-  const facts = urlPlanFacts(chatId);
-  applyUrlPlan(planUrlUpdate(facts), facts.targetHash);
+  pendingHashUpdates += 1;
+  pendingHashSelection = { chatId };
+  rustUrlQueue = rustUrlQueue
+    .then(async () => {
+      const facts = urlPlanFacts(chatId);
+      const { chatStateCall } = await import("../services/rustCore/chatState/chatListUnitClient");
+      applyUrlPlan(await chatStateCall("selectionUrlPlan", facts), facts.targetHash);
+    })
+    .catch((error) => console.error("[activeChatStore] Rust URL plan failed", error))
+    .finally(() => {
+      pendingHashUpdates -= 1;
+      if (pendingHashUpdates > 0) return;
+      pendingHashSelection = null;
+      activeChatUrlRevision.update((revision) => revision + 1);
+    });
 }
 
 /**

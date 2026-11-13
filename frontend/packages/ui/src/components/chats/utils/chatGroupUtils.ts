@@ -1,35 +1,5 @@
-import type { Chat as ChatType } from "../../../types/chat";
-import { chatTimeGroupKey } from "../../../utils/chatTimeGroups";
 import { get } from "svelte/store";
 import { locale as svelteLocaleStore } from "svelte-i18n";
-
-/**
- * Groups chats by time periods (e.g., "today", "yesterday", "previous_7_days").
- *
- * @param chatsToGroup An array of `ChatType` objects to be grouped.
- * @returns A record where keys are group identifiers (e.g., "today") and values are arrays of `ChatType` objects.
- */
-export function groupChats(
-  chatsToGroup: ChatType[],
-): Record<string, ChatType[]> {
-  return chatsToGroup.reduce<Record<string, ChatType[]>>((groups, chat) => {
-    // If chat has a predefined group key (e.g., 'intro', 'examples', 'legal'), use it directly
-    // This allows manual overrides of the automatic time-based grouping
-    if (chat.group_key) {
-      const groupKey = chat.group_key;
-      if (!groups[groupKey]) {
-        groups[groupKey] = [];
-      }
-      groups[groupKey].push(chat);
-      return groups;
-    }
-
-    const groupKey = chatTimeGroupKey(chat.last_edited_overall_timestamp);
-    if (!groups[groupKey]) groups[groupKey] = [];
-    groups[groupKey].push(chat);
-    return groups;
-  }, {});
-}
 
 /**
  * Provides a localized title for a given group key.

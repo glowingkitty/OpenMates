@@ -10,10 +10,10 @@ flag:
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
   total: 21
-  done: 7
-  partial: 9
+  done: 8
+  partial: 8
   missing: 5
-  percent: 33.3
+  percent: 38.1
 worker_namespaces_installed_not_progress:
   installed: 18
   total: 19

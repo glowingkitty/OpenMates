@@ -1,5 +1,5 @@
 /**
- * Rust-core adapter for `hiddenChatService` (flag-on only). Same public
+ * Rust-core adapter for `hiddenChatService`. Same public
  * results as the TypeScript service: the combined secret never leaves the
  * WASM vault, wrappers stay byte-compatible (PBKDF2-SHA256 over
  * base64(master || code), email salt[0..16], 100k; IV || AES-GCM), and the

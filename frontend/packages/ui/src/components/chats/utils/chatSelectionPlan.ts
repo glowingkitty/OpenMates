@@ -14,13 +14,3 @@ export interface GlobalSelectedPlan {
 	writeStore: boolean;
 }
 
-/** `globalChatSelected` mirror: rewrite the store only while another chat is active. */
-export function planGlobalSelected(f: GlobalSelectedFacts): GlobalSelectedPlan {
-	const setSelected = f.selected !== f.newId;
-	return { setSelected, writeStore: setSelected && f.active !== null && f.active !== f.newId };
-}
-
-/** A persisted draft must not activate while a different chat is selected. */
-export function skipDraftActivation(selected: string | null, persisted: string): boolean {
-	return !!selected && selected !== persisted;
-}

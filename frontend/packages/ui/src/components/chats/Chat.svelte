@@ -35,7 +35,6 @@
     getLucideIcon
   } from '../../utils/categoryUtils';
   import { modelsMetadata } from '../../data/modelsMetadata'; // For model name lookup in mentions
-  import { mateDisplayName } from '../../utils/mateDisplayName';
   import { convertMentionSyntaxToDisplayName } from '../../utils/mentionDisplay'; // Shared mention display names
   import { skillPreviewService } from '../../services/skillPreviewService'; // For tracking skill usage in background chats
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
@@ -346,11 +345,9 @@
   // 1. App skill usage: "Using Search..." (when an app skill is actively processing)
   // 2. Thinking model: "{mate} is thinking..." (when a reasoning model is in thinking phase)
   // 3. Default: "{mate} is typing..." (standard typing indicator)
-  // Flag on (VITE_OPENMATES_RUST_CORE): the chatState unit decides the title indicator; the page localises it.
-  const RUST_CHAT_INDICATORS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
-    && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
+  // The chatState unit decides the title indicator; the page localises it.
   let rustTitleIndicator = $state<IndicatorLine | null>(null);
-  if (RUST_CHAT_INDICATORS) $effect(() => {
+  $effect(() => {
     const typing = currentTypingMateInfo ? { isTyping: currentTypingMateInfo.isTyping, category: currentTypingMateInfo.category } : null;
     const skill = activeSkillInfo ? { appId: activeSkillInfo.appId, skillId: activeSkillInfo.skillId } : null;
     const reasoning = isReasoningModel;
@@ -360,28 +357,7 @@
       .then((line) => { if (!stale) rustTitleIndicator = line; });
     return () => { stale = true; };
   });
-  let typingIndicatorInTitleView = $derived((() => {
-    if (RUST_CHAT_INDICATORS) return rustTitleIndicator ? localizeIndicatorLine(rustTitleIndicator, $text) : null;
-    if (currentTypingMateInfo?.isTyping && currentTypingMateInfo.category) {
-      const mateName = mateDisplayName(currentTypingMateInfo.category, $text);
-      
-      // Priority 1: Show active app skill usage (e.g., "Using Search...")
-      if (activeSkillInfo) {
-        const skillTranslationKey = `app_skills.${activeSkillInfo.appId}.${activeSkillInfo.skillId}`;
-        const skillName = $text(skillTranslationKey);
-        return $text('enter_message.using_skill').replace('{skill}', skillName);
-      }
-      
-      // Priority 2: Show "thinking" for reasoning models
-      if (isReasoningModel) {
-        return $text('enter_message.is_thinking').replace('{mate}', mateName);
-      }
-      
-      // Default: "{mate} is typing..."
-      return $text('enter_message.is_typing').replace('{mate}', mateName);
-    }
-    return null;
-  })());
+  let typingIndicatorInTitleView = $derived(rustTitleIndicator ? localizeIndicatorLine(rustTitleIndicator, $text) : null);
 
   // Store cached metadata at component level
   let cachedMetadata: DecryptedChatMetadata | null = $state(null);
