@@ -101,6 +101,10 @@ def _trend(now: int, before: int | None) -> str:
     return f" (previous period: {before}, {'+' if delta >= 0 else ''}{delta}, {delta * 100 / before:+.0f}%)"
 
 
+def _accounts(count: int) -> str:
+    return f"{count} account" + ("" if count == 1 else "s")
+
+
 def render(growth: dict | None) -> list[str]:
     out = ["", "## Marketing and growth numbers (production)", ""]
     if not growth:
@@ -115,7 +119,7 @@ def render(growth: dict | None) -> list[str]:
     total_note = (f" (last meeting snapshot {prev['date']}: {prev['total_users']})"
                   if prev.get("total_users") is not None else "")
     out += [f"Aggregate counts from production, since {str(m.get('since', '?'))[:16].replace('T', ' ')} UTC. "
-            f"Admin, test and the founder's own accounts are left out ({m.get('excluded_accounts', 0)} accounts); "
+            f"Admin, test and the founder's own accounts are left out ({_accounts(m.get('excluded_accounts', 0))}); "
             "no personal data.", "",
             f"- **Total users:** {m.get('total_users')}{total_note}; paying users ever: {m.get('paying_users_total')}",
             f"- **New signups since the last meeting:** {since.get('signups_completed', 0)}"

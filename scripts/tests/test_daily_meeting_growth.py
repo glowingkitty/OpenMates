@@ -50,7 +50,8 @@ def test_render_shows_trends_and_unavailable_state():
     assert "since the last meeting:** 9 (previous period: 4, +5, +125%); started but not finished: 3" in lines
     assert "41 in the last 24 h (previous period: 30, +11, +37%)" in lines
     assert "6 in the last 7 days (previous period: 0, +6)" in lines
-    assert "9 accounts" in lines
+    assert "(9 accounts)" in lines
+    assert "(1 account)" in "\n".join(growth.render({"metrics": {**METRICS, "excluded_accounts": 1}}))
     missing = "\n".join(growth.render(None))
     assert "unavailable" in missing and "do not guess" in missing
 
