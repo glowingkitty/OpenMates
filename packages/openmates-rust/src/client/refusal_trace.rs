@@ -51,3 +51,13 @@ pub(in crate::client) fn take() -> String {
         .and_then(|mut last| last.take())
         .unwrap_or_else(|| "none".into())
 }
+
+/// `Error::Protocol` that also notes its source location (file:line, a static
+/// label) for the opt-in send diagnostic.
+macro_rules! protocol_at {
+    () => {{
+        $crate::client::send::refusal_trace::note(concat!(file!(), ":", line!()));
+        $crate::Error::Protocol
+    }};
+}
+pub(in crate::client) use protocol_at;

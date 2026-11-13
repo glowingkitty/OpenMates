@@ -56,7 +56,7 @@ impl SavedTurnClientPhases for BorrowedTurnPhases<'_>{
             .await?;
         let row = current["chats"]
             .as_array()
-            .ok_or(Error::Protocol)?
+            .ok_or_else(|| super::send::refusal_trace::protocol_at!())?
             .iter()
             .find(|r| text(r, "id") == id)
             .ok_or(Error::Forbidden)?
@@ -65,9 +65,9 @@ impl SavedTurnClientPhases for BorrowedTurnPhases<'_>{
         if self.client.chat_key_with_capability(&row,&wrapping).await?.as_ref() != key {
             return Err(Error::Crypto);
         }
-        let latest = row["messages_v"].as_u64().ok_or(Error::Protocol)?;
+        let latest = row["messages_v"].as_u64().ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
         if latest < version {
-            return Err(Error::Protocol);
+            return Err(super::send::refusal_trace::protocol_at!());
         }
         self.client.insert_chat_row(id.into(), row);
         Ok(latest)
@@ -209,12 +209,12 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 let mode = match frame["queue_mode"].as_str() {
                     Some("follow_up") => SendQueueMode::FollowUp,
                     Some("steer") => SendQueueMode::Steer,
-                    _ => return Err(Error::Protocol),
+                    _ => return Err(super::send::refusal_trace::protocol_at!()),
                 };
                 let revision = frame["queue_revision"]
                     .as_u64()
                     .filter(|v| *v > 0)
-                    .ok_or(Error::Protocol)?;
+                    .ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                 chat.messages.push(Message {
                     id: message.into(),
                     role: "user".into(),
@@ -348,7 +348,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 prepared.mappings.extend(added);
                 deferred.extend(frames);
                 if observed.memories.len() >= 64 {
-                    return Err(Error::Protocol);
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
                 observed.memories.push(record);
             }
@@ -399,11 +399,11 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                     // diagnostic (fixed labels only, never payload content).
                     if p["recovery_protocol_version"] != 1 {
                         trace.observe_frame("final_without_recovery_protocol");
-                        return Err(Error::Protocol);
+                        return Err(super::send::refusal_trace::protocol_at!());
                     }
                     if text(&p, "recovery_turn_id") != turn {
                         trace.observe_frame("final_for_other_recovery_turn");
-                        return Err(Error::Protocol);
+                        return Err(super::send::refusal_trace::protocol_at!());
                     }
                     if text(&p, "recovery_job_id").is_empty() {
                         trace.observe_frame("final_without_recovery_job");
@@ -419,7 +419,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             if same
                 && ["ai_task_error", "ai_error", "queued_handoff_paused"].contains(&kind.as_str())
             {
-                return Err(Error::Protocol);
+                return Err(super::send::refusal_trace::protocol_at!());
             }
             if let Some(refusal) = terminal_refusal(&kind, &p, id, message, &task_id, &earlier_tasks) {
                 return Err(refusal);
@@ -499,7 +499,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             }
         }
         trace.phase = SendPhase::FrameValidation;
-        let final_frame=Plain::new(final_frame.take().ok_or(Error::Protocol)?);
+        let final_frame=Plain::new(final_frame.take().ok_or_else(|| super::send::refusal_trace::protocol_at!())?);
         let job = required(&final_frame, "recovery_job_id")?;
         let assistant_id = required(&final_frame, "message_id")?;
         trace.phase = SendPhase::Claim;
@@ -523,7 +523,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             || text(&claim, "assistant_message_id") != assistant_id
             || claim["chat_key_version"] != 1
         {
-            return Err(Error::Protocol);
+            return Err(super::send::refusal_trace::protocol_at!());
         }
         if text(&claim, "state") == "TERMINAL" {
             // Read the canonical ciphertext rather than treating transient text
@@ -567,9 +567,9 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             trace.phase = SendPhase::Metadata;
             let chat = Plain::new(phases.open_chat_live(id).await?);
             if !chat.messages.iter().any(|m| m.id == assistant_id) {
-                return Err(Error::Protocol);
+                return Err(super::send::refusal_trace::protocol_at!());
             }
-            let content=Plain::new(chat.messages.iter().find(|m|m.id==assistant_id).ok_or(Error::Protocol)?.content.clone());
+            let content=Plain::new(chat.messages.iter().find(|m|m.id==assistant_id).ok_or_else(|| super::send::refusal_trace::protocol_at!())?.content.clone());
             trace.phase = SendPhase::TaskFinalize;
             phases.finish_task_jobs(ws, &mut observed, id, message, key, cancel, options)
                 .await?;
@@ -584,7 +584,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
         if text(&claim, "state") != "LEASED"
             || claim["lease_generation"].as_u64().is_none_or(|v| v < 1)
         {
-            return Err(Error::Protocol);
+            return Err(super::send::refusal_trace::protocol_at!());
         }
         trace.phase = SendPhase::Decode;
         let envelope=Plain::new(serde_json::from_str::<Value>(required(&claim,"sealed_payload")?)?);
@@ -600,7 +600,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
         let recovered=Plain::new(crate::client::completion_recovery::decode_main_completion(&envelope,key,&identity)?);
         observed.capture_owned("recovered_completion", &recovered)?;
         replace_text(&mut content,required(&recovered,"content")?.into());
-        let created = final_frame["created_at"].as_u64().ok_or(Error::Protocol)?;
+        let created = final_frame["created_at"].as_u64().ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
         let encrypted = crate::client::completion_recovery::encrypt_main_assistant(
             &recovered,
             &identity,

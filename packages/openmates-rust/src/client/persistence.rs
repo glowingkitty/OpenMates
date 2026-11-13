@@ -36,7 +36,7 @@ impl Client {
             .get("id")
             .or_else(|| self.user.get("user_id"))
             .and_then(Value::as_str)
-            .ok_or(Error::Protocol)?
+            .ok_or_else(|| super::send::refusal_trace::protocol_at!())?
             .to_owned();
         let user_hash = sha256(&user);
         let chat_hash = sha256(chat);
@@ -58,7 +58,7 @@ impl Client {
                 .ok_or(Error::Invalid(
                     "An artifact's parent key is unavailable; its output remains pending.",
                 ))?;
-            let row = Plain::new(pending.remove(&ready).ok_or(Error::Protocol)?);
+            let row = Plain::new(pending.remove(&ready).ok_or_else(|| super::send::refusal_trace::protocol_at!())?);
             if text(&row, "message_id") != message
                 && !super::send::frame_task_matches(text(&row, "task_id"), task)
             {
@@ -89,7 +89,7 @@ impl Client {
                 Err(e) => return Err(e),
             };
             if let Some(canonical) = canonical {
-                let head = canonical.get("embed").ok_or(Error::Protocol)?;
+                let head = canonical.get("embed").ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                 if text(head, "hashed_chat_id") != chat_hash
                     || text(head, "hashed_embed_id") != sha256(&ready)
                     || head["version_number"].as_u64().unwrap_or(1) != version
@@ -101,7 +101,7 @@ impl Client {
                     } else {
                         "stream_artifact_identity_differs"
                     });
-                    return Err(Error::Protocol);
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
                 let canonical_source = zeroize::Zeroizing::new(crypto::decrypt_combined(
                     required(head, "encrypted_content")?,
@@ -113,14 +113,14 @@ impl Client {
                 )?);
                 if canonical_source.as_str() != source || canonical_kind.as_str() != kind {
                     super::send::refusal_trace::note("stream_artifact_content_differs");
-                    return Err(Error::Protocol);
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
                 scope.check_chat(self, chat)?;
                 self.embeds.insert(ready.clone(), head.clone());
                 self.embed_keys.extend(
                     canonical["embed_keys"]
                         .as_array()
-                        .ok_or(Error::Protocol)?
+                        .ok_or_else(|| super::send::refusal_trace::protocol_at!())?
                         .iter()
                         .cloned(),
                 );
@@ -154,7 +154,7 @@ impl Client {
                 if receipt["canonical_source"] != "head"
                     || text(&receipt, "canonical_digest") != sha256(&encrypted)
                 {
-                    return Err(Error::Protocol);
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
                 if parent.is_empty() {
                     let request = uuid::Uuid::new_v4().to_string();
@@ -173,29 +173,29 @@ impl Client {
                         &request
                     ))?;
                     if ack["failed_count"] != 0 || ack["created_count"] != 2 {
-                        return Err(Error::Protocol);
+                        return Err(super::send::refusal_trace::protocol_at!());
                     }
                     scope.check_chat(self, chat)?;
                     self.embed_keys
-                        .extend(wrappers.as_array().ok_or(Error::Protocol)?.iter().cloned());
+                        .extend(wrappers.as_array().ok_or_else(|| super::send::refusal_trace::protocol_at!())?.iter().cloned());
                 }
                 let stored = scoped_await!(self.request(Method::GET, &path, None))?;
-                let head = stored.get("embed").ok_or(Error::Protocol)?;
+                let head = stored.get("embed").ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                 if text(head, "encrypted_content") != encrypted
                     || text(head, "encrypted_type") != encrypted_type
                     || text(head, "hashed_chat_id") != chat_hash
                     || text(head, "hashed_embed_id") != sha256(&ready)
                 {
-                    return Err(Error::Protocol);
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
                 scope.check_chat(self, chat)?;
                 self.embeds.insert(ready.clone(), head.clone());
             }
             for history in row["version_history_rows"].as_array().into_iter().flatten() {
                 if text(history, "embed_id") != ready {
-                    return Err(Error::Protocol);
+                    return Err(super::send::refusal_trace::protocol_at!());
                 }
-                let history_version = history["version_number"].as_u64().ok_or(Error::Protocol)?;
+                let history_version = history["version_number"].as_u64().ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
                 self.persist_canonical_embed_diff(
                     ws,
                     HistoryWrite {
@@ -224,7 +224,7 @@ impl Client {
                 .get("summary_content")
                 .or_else(|| checkpoint.get("summary"))
                 .and_then(Value::as_str)
-                .ok_or(Error::Protocol)?;
+                .ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
             scoped_await!(send(
                 ws,
                 "store_chat_compression_checkpoint",
@@ -242,7 +242,7 @@ impl Client {
                     != checkpoint["compressed_up_to_message_id"]
                 || stored["covered_message_ids"] != checkpoint["covered_message_ids"]
             {
-                return Err(Error::Protocol);
+                return Err(super::send::refusal_trace::protocol_at!());
             }
         }
         scope.check_chat(self, chat)?;
@@ -286,7 +286,7 @@ impl Client {
                 "This artifact history requires sealed replay; its output remains pending.",
             ));
         }
-        if !write.allow_missing_revision && write.snapshot.is_none() { return Err(Error::Protocol); }
+        if !write.allow_missing_revision && write.snapshot.is_none() { return Err(super::send::refusal_trace::protocol_at!()); }
         let snapshot = write.snapshot.map(|plain| crypto::server_fields::encrypt_text(plain, write.key, &[])).transpose()?;
         let patch = write.patch.map(|plain| crypto::server_fields::encrypt_text(plain, write.key, &[])).transpose()?;
         let digest = sha256(&json!([snapshot, patch]).to_string());
@@ -298,7 +298,7 @@ impl Client {
         let outcome = guarded!(wait_embed_diff_receipt(ws, &request, write.embed, write.version))?;
         if let Some(receipt) = outcome {
             if receipt["canonical_source"] != "version_row" || text(&receipt, "canonical_digest") != digest {
-                return Err(Error::Protocol);
+                return Err(super::send::refusal_trace::protocol_at!());
             }
             return Ok(digest);
         }
@@ -311,12 +311,12 @@ impl Client {
 /// Validate the bounded response envelope before selecting exactly one row.
 pub(super) fn canonical_history_row<'a>(page: &'a Value, embed: &str, version: u64) -> Result<&'a Value> {
     if page["embed_id"] != embed || page["version_number"].as_u64() != Some(version) {
-        return Err(Error::Protocol);
+        return Err(super::send::refusal_trace::protocol_at!());
     }
-    let mut matches = page["rows"].as_array().ok_or(Error::Protocol)?.iter()
+    let mut matches = page["rows"].as_array().ok_or_else(|| super::send::refusal_trace::protocol_at!())?.iter()
         .filter(|row| row["version_number"].as_u64() == Some(version));
-    let row = matches.next().ok_or(Error::Protocol)?;
-    if matches.next().is_some() { return Err(Error::Protocol); }
+    let row = matches.next().ok_or_else(|| super::send::refusal_trace::protocol_at!())?;
+    if matches.next().is_some() { return Err(super::send::refusal_trace::protocol_at!()); }
     Ok(row)
 }
 fn equivalent_history_digest(page: &Value, write: &HistoryWrite<'_>) -> Result<String> {
@@ -325,7 +325,7 @@ fn equivalent_history_digest(page: &Value, write: &HistoryWrite<'_>) -> Result<S
         let cipher = match row.get(field) {
             None | Some(Value::Null) => None,
             Some(Value::String(value)) => Some(value.as_str()),
-            _ => return Err(Error::Protocol),
+            _ => return Err(super::send::refusal_trace::protocol_at!()),
         };
         let plaintext = Plain::new(cipher.map(|value| crypto::decrypt_combined(value, write.key)).transpose()?);
         if plaintext.as_deref() != expected { return Err(Error::Crypto); }
@@ -341,7 +341,7 @@ async fn wait_embed_diff_receipt(
 ) -> Result<Option<Value>> {
     let (kind, receipt) = super::transport::wait_embed_diff_outcome(ws, request).await?;
     if receipt["embed_id"] != embed || receipt["version_number"].as_u64() != Some(version) {
-        return Err(Error::Protocol);
+        return Err(super::send::refusal_trace::protocol_at!());
     }
     if kind == "error" {
         return if receipt["code"] == "embed_diff_conflict" { Ok(None) } else { Err(Error::Protocol) };
@@ -379,7 +379,7 @@ pub(super) async fn wait_embed_receipt(
 ) -> Result<Value> {
     let receipt = wait(ws, response, "request_id", request).await?;
     if receipt["embed_id"] != embed {
-        return Err(Error::Protocol);
+        return Err(super::send::refusal_trace::protocol_at!());
     }
     Ok(receipt)
 }
