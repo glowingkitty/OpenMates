@@ -207,9 +207,9 @@ test.afterAll(() => { if (enabled && stateDir.startsWith('/tmp/openmates-browse-
 
 // contract-test: direct surface=gui.web assertions=web-browse.structured-data,web-browse.embed-and-observation,web-browse.lifecycle,web-browse.private-storage-and-api
 test('real Browse JSON, watch, pause/resume and closed saved history on laptop and phone', async ({ browser }, info) => {
-  // `web.browse` is the identifier the explicit-skill resolver recognises; the
-  // phrase "the Browse skill" is left to model routing and can be skipped.
-  const created = await createChat('Use web.browse to open https://httpbin.org/html and return the exact main heading and source URL as JSON. Use the browser session for this task.');
+  // "the Browse skill" is a skill named in words; the explicit-skill resolver
+  // must select Browse for it without the `web.browse` identifier.
+  const created = await createChat('Use the Browse skill to open https://httpbin.org/html and return the exact main heading and source URL as JSON. Use the browser session for this task.');
   receipt(info, { ...created, phase: 'chat-created' });
   let sid: string | undefined;
   const ctx = await context(browser, info, 1280), page = ctx.pages()[0] || await ctx.newPage();
@@ -238,7 +238,7 @@ test('real Browse JSON, watch, pause/resume and closed saved history on laptop a
       .then(() => true, () => false);
     if (!restored) { await expandActivities(page); await preview(page).last().click(); }
     await expect(page.getByTestId('browse-session-viewer')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId('browse-session-viewer')).toContainText('Session expired');
+    await expect(page.getByTestId('browse-session-viewer')).toContainText('Browser closed');
     await expect(page.getByRole('button', { name: 'Take control', exact: true })).toHaveCount(0);
     await page.getByText('Structured data', { exact: true }).click();
     await expect(page.getByTestId('browse-json')).toContainText('Herman Melville - Moby-Dick');

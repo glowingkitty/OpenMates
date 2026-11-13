@@ -1027,6 +1027,19 @@ async def test_distinct_followup_keeps_original_result_after_browser_close(servi
     assert service.driver.calls == calls
 
 
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.embed-and-observation,web-browse.lifecycle
+async def test_closed_browser_reads_as_closed_without_live_state(service):
+    first = await run(service)
+    await service.control(first.session_id, "owner", BrowseControl(operation="close"))
+    state = await service.state(first.session_id, "owner")
+    assert state["status"] == "closed"
+    assert state["steps"] == []
+    with pytest.raises(HTTPException) as exc:
+        await service.frame(first.session_id, "owner")
+    assert exc.value.status_code == 410
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.control-loop
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.control-loop

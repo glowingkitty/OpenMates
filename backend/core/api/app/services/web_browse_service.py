@@ -1081,6 +1081,10 @@ class BrowseService:
             return self.public_state(record)
         async with self.store.lease(session_id):
             record = await self.store.load(session_id, user_id)
+            if record["status"] == "closed":
+                # A browser the owner closed reads as closed, not expired; its
+                # private live state was already removed by close.
+                return self.public_state(record)
             await self.ensure_live(record)
             if (
                 record["status"] not in ("paused", "closed", "expired")
@@ -1097,6 +1101,8 @@ class BrowseService:
         if record is None:
             await self.state(session_id, user_id)
             record = await self.store.load(session_id, user_id)
+        if record["status"] == "closed":
+            raise HTTPException(410, "This browser was closed.")
         if not record.get("provider"):
             raise HTTPException(
                 404, "The browser has not produced its first frame yet."
