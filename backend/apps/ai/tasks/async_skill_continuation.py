@@ -293,6 +293,38 @@ async def claim_async_recovery_handoff(
     return True
 
 
+async def release_unoffered_async_recovery_handoff(
+    *, cache: Any, directus: Any, request: AskSkillRequest, producer_id: str, awaiting_before: bool,
+) -> None:
+    """Undo the pause of a Project operation that was never offered to a client.
+
+    ``cache_async_skill_continuation_context`` pauses the source inference before
+    the operation is created. When creating it fails (for example an invalid
+    path), nothing will ever claim that pause: left in place it rejects every
+    later Project operation of the turn and holds back the turn's completion.
+    The source delivery keeps the turn, so no client event is sent.
+    """
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    if getattr(request, "_pending_async_recovery_handoff", None) == producer_id:
+        request.__dict__.pop("_pending_async_recovery_handoff", None)
+        request.awaiting_async_skill_continuation = awaiting_before
+    key = _async_handoff_key(producer_id)
+    authority = await cache.get(key)
+    if not isinstance(authority, dict) or authority.get("claimed"):
+        return
+    resumed = await ChatRecoveryService(directus).execute("resume_inference_for_skill", {
+        "protocol_version": 1, "inference_task_id": authority["inference_task_id"],
+        "delivery_task_id": authority["source_delivery_id"], "step_id": authority["step_id"],
+    })
+    if resumed.get("claimed") is not True:
+        raise RuntimeError("Unoffered Project operation pause could not be released")
+    source_key = f"{ASYNC_RECOVERY_HANDOFF_PREFIX}:source:{authority['source_delivery_id']}"
+    if await cache.get(source_key) == producer_id:
+        await cache.delete(source_key)
+    await cache.delete(key)
+
+
 async def settle_async_recovery_handoff(
     *, cache: Any, directus: Any, producer_id: str, category: str,
 ) -> bool:

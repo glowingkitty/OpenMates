@@ -147,7 +147,7 @@ test('native CLI saves a press style in Project Memories and a new chat reuses i
     Object.assign(evidence, { saveStatus: turn1.status, confirmStatus: turn1b.status });
 
     // Memories folder: soft-checked because the listing shape may differ.
-    const listing = await runRust(binary, env, ['projects', 'files', 'list', projectId, '--path', '.openmates/memories', '--json'], 120_000);
+    const listing = await runRust(binary, env, ['projects', 'items', 'list', projectId, '--personal', '--json'], 120_000);
     const listingText = `${listing.stdout}`;
     const memoryFiles = collect(parseJson(listing), ['path', 'name']).filter((p) => /\.md$/.test(p));
     const hasMemory = memoryFiles.length > 0 || (/memories\//.test(listingText) && /\.md/.test(listingText));
@@ -159,32 +159,39 @@ test('native CLI saves a press style in Project Memories and a new chat reuses i
     const reuseChat = pickString(turn2, ['chatId', 'chat_id']);
     expect(reuseChat).toMatch(/^[0-9a-f-]{36}$/);
     chatIds.push(reuseChat);
-    const shown = await run(['chats', 'show', reuseChat, '--personal', '--json']);
+    // Native read-back is recorded softly; the document assertion runs in the web app below.
+    const showRun = await runRust(binary, env, ['chats', 'show', reuseChat, '--personal', '--json'], 120_000);
+    const shown = showRun.code === 0 ? parseJson(showRun) : {};
     const embedTexts: string[] = [];
     for (const embedId of documentEmbedIds(shown)) {
-      embedTexts.push(JSON.stringify(await run(['embeds', 'show', embedId, '--chat', reuseChat, '--json'])));
+      const embedRun = await runRust(binary, env, ['embeds', 'show', embedId, '--json'], 120_000);
+      if (embedRun.code === 0) embedTexts.push(String(embedRun.stdout));
     }
     const combined = `${JSON.stringify(shown)}\n${embedTexts.join('\n')}`;
     const models = [turn2.modelName, turn2.model_name, ...collect(shown, ['modelName', 'model_name'])].filter(Boolean);
-    Object.assign(evidence, { reuseStatus: turn2.status, models, documentEmbeds: embedTexts.length,
-      has3000: /3,000/.test(combined) });
+    Object.assign(evidence, { reuseStatus: turn2.status, models, cliShowExit: showRun.code,
+      cliShowError: showRun.code === 0 ? '' : String(showRun.stderr).slice(0, 300),
+      documentEmbeds: embedTexts.length, cliHas3000: /3,000/.test(combined) });
+    expect.soft(showRun.code, 'native chats show of the reuse chat').toBe(0);
     expect(models.length, 'persisted assistant model of the reuse turn').toBeGreaterThan(0);
     for (const model of models) expect(String(model)).toMatch(/gemini.*3\.?8.*flash/i);
-    expect.soft(turn2.status).toBe('completed');
-    expect(combined, 'saved style fact "3,000" in the reuse chat document').toContain('3,000');
+    expect(turn2.status, 'reuse turn status').toBe('completed');
 
     // Web proof frames of the CLI-created chat.
     await page.goto(`${APP}/`);
     await page.reload();
     await page.goto(`${APP}/#chat-id=${reuseChat}`);
-    const embed = page.locator('[data-testid="embed-preview"][data-app-id="docs"]').first();
-    await expect.soft(embed).toBeVisible({ timeout: 90_000 });
+    const embed = page.locator('[data-testid="embed-preview"][data-app-id="docs"][data-status="finished"]').first();
+    await expect(embed, 'finished document embed in the CLI-created reuse chat').toBeVisible({ timeout: 120_000 });
     await shot('01-reuse-chat.png');
-    if (await embed.isVisible()) {
-      await embed.click();
-      await page.waitForTimeout(3_000);
-      await shot('02-document.png');
-    }
+    await embed.click();
+    const pages = page.getByTestId('doc-artifact-pages');
+    await expect(pages).toBeVisible({ timeout: 60_000 });
+    await page.waitForTimeout(2_000);
+    await shot('02-document.png');
+    const documentText = await pages.innerText();
+    evidence.webHas3000 = /3,000/.test(documentText);
+    expect(documentText, 'saved style fact "3,000" in the reuse chat document').toContain('3,000');
   } finally {
     const failures: string[] = [];
     const attempt = async (label: string, args: string[]) => {

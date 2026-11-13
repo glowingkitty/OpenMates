@@ -9511,6 +9511,7 @@ async def handle_main_processing(
                                 from backend.apps.ai.tasks.async_skill_continuation import (
                                     cache_async_skill_continuation_context,
                                     async_skill_continuation_key,
+                                    release_unoffered_async_recovery_handoff,
                                 )
                                 from backend.core.api.app.services.project_file_operation_service import (
                                     PROJECT_FILE_MUTATIONS, PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS,
@@ -9568,6 +9569,7 @@ async def handle_main_processing(
                                         raise PermissionError("Project source is unavailable or not authorized")
                                     dispatch_focus["source_id"] = str(requested_source_id)
 
+                                awaiting_before_operation = bool(request_data.awaiting_async_skill_continuation)
                                 await cache_async_skill_continuation_context(
                                     cache_service=cache_service,
                                     async_task_id=operation_id,
@@ -9599,6 +9601,13 @@ async def handle_main_processing(
                                     )
                                 except Exception:
                                     await cache_service.delete(async_skill_continuation_key(operation_id))
+                                    # The operation was never offered: release its pause so later
+                                    # Project operations and the turn's completion are not blocked.
+                                    await release_unoffered_async_recovery_handoff(
+                                        cache=cache_service, directus=directus_service,
+                                        request=request_data, producer_id=operation_id,
+                                        awaiting_before=awaiting_before_operation,
+                                    )
                                     raise
                                 operation_record = await operation_service.get_job(
                                     user_id=request_data.user_id,

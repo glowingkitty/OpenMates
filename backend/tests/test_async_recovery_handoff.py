@@ -341,3 +341,39 @@ async def test_registration_failure_settles_exact_pause_instead_of_stranding_sou
     assert lifecycle.state == "FAILED"
     assert await cache.get(module._async_handoff_key(PRODUCER)) is None
     assert cache.events[-1][1]["reason_code"] == "durable_output_unavailable"
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.same-turn-completion
+async def test_unoffered_project_operation_releases_its_pause_for_the_next_operation(subject):
+    """A Project operation that fails before it is offered (invalid path) frees the turn."""
+    module, lifecycle, _queued, _timers, _failure = subject
+    cache, original = Cache(), request()
+    await cache.set(cache._get_active_task_key("chat"), SOURCE)
+    await cache.set(module.async_skill_latest_user_turn_key("owner", "chat"), "user-message")
+    common = dict(
+        cache_service=cache, request_data=original, app_id="system",
+        skill_config_dict={"default_llms": {"preprocessing_model": "configured"}},
+        requires_current_turn=True, defer_until_initial_response_complete=True,
+        ttl_seconds=300, source_delivery_task_id=SOURCE, directus_service=object(),
+    )
+    await module.cache_async_skill_continuation_context(
+        async_task_id=PRODUCER, skill_id="project-list-files", tool_name="project-list-files",
+        tool_arguments={}, **common,
+    )
+    assert lifecycle.step == f"async:{PRODUCER}"
+    await module.release_unoffered_async_recovery_handoff(
+        cache=cache, directus=object(), request=original, producer_id=PRODUCER, awaiting_before=False,
+    )
+    assert lifecycle.step is None and lifecycle.current == SOURCE
+    assert original.awaiting_async_skill_continuation is False
+    assert getattr(original, "_pending_async_recovery_handoff", None) is None
+    assert await cache.get(module._async_handoff_key(PRODUCER)) is None
+
+    second = "018f4444-4444-7444-8444-444444444444"
+    await module.cache_async_skill_continuation_context(
+        async_task_id=second, skill_id="project-create-file", tool_name="project-create-file",
+        tool_arguments={}, **common,
+    )
+    assert lifecycle.step == f"async:{second}"
+    assert original._pending_async_recovery_handoff == second
