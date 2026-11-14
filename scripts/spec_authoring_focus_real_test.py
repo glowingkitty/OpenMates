@@ -6,9 +6,11 @@ Example (after deploying the candidate to dev; paid inference needs opt-in):
   python3 scripts/spec_authoring_focus_real_test.py --session ID --revision SHA \
     --output-dir /tmp/spec-focus-UNIQUE --allow-paid-dev-inference
 
-A realistic persona (a bakery owner, synthetic data) talks to the focus in one
-CLI chat of a disposable Project, from idea to approved Specification to a
-started Plan with Tasks. The persona's replies and the final verdict come from
+A realistic persona (a bakery owner, synthetic data) picks the focus explicitly
+and talks to it in one CLI chat, from idea to approved Specification to a
+started Plan with Tasks. By default the chat runs outside a Project on a
+throwaway account (an active Project focus currently blocks app focus
+mentions); --in-project uses a disposable Project instead. The persona's replies and the final verdict come from
 stateless incognito chats with @Gemini-3.8-Flash, so neither leaves history.
 Deterministic checks (focus active, Gemini only, Specification with open
 assumptions, Checks, Plan and Tasks only after the approval message) and the
@@ -79,6 +81,8 @@ def chat_reply(cli: str, args: list[str], timeout: int, path: Path) -> dict:
     return reply
 
 
+SPEC_REF = re.compile(r'"app_id":\s*"plans",\s*"skill_id":\s*"specification"')
+TASKS_REF = re.compile(r'"app_id":\s*"tasks"')
 NO_CREDITS = re.compile(r"don't have enough credits", re.IGNORECASE)
 ERROR_KEY = re.compile(r"[a-z_]+(\.[a-z_]+)+")
 
@@ -97,8 +101,10 @@ def incognito(cli: str, prompt: str, path: Path) -> str:
 
 
 def plain(text: str, limit: int) -> str:
-    """Assistant text without embed JSON fences, shortened for the persona and the judge."""
+    """Assistant text without embed JSON fences or wire mentions, shortened for the persona and the judge."""
     text = re.sub(r"```json\s*\{[^`]*?\"embed_id\"[^`]*?\}\s*```", "[embed]", text)
+    # Mentions in quoted text are parsed again by the CLI ("Unknown mention @ai-model:...").
+    text = re.sub(r"@(?:ai-model|focus):\S+\s*", "", text.replace(MODEL, "")).strip()
     return text if len(text) <= limit else text[:limit] + " [...]"
 
 
@@ -143,13 +149,21 @@ def classify_embeds(cli: str, chat_id: str, messages: list[dict], out: Path) -> 
             write_receipt(out / f"embed-{embed_id[:8]}.json", embed)
             content = embed.get("content") if isinstance(embed, dict) and isinstance(embed.get("content"), dict) else {}
             app, skill = content.get("app_id") or content.get("appId"), content.get("skill_id") or content.get("skillId")
-            kind = content.get("type") if content.get("type") in {"specification", "check"} else f"{app}.{skill}"
+            typed = content.get("type") in {"specification", "check", "focus_mode_activation"}
+            kind = content.get("type") if typed else f"{app}.{skill}"
             found.append({"message": index, "embed_id": embed_id, "kind": kind,
                           "status": content.get("status") or embed.get("status"), "title": content.get("title"),
                           "requirements": len(content.get("requirements") or []),
                           "assumptions": len(content.get("assumptions") or []),
-                          "role": content.get("role") or ""})
+                          "role": content.get("role") or "",
+                          "focus_id": content.get("focus_id") or content.get("focusId")})
     return found
+
+
+def created_tasks(reply: dict) -> list[str]:
+    """Task ids the turn created, from its task events."""
+    events = reply.get("taskEvents") if isinstance(reply.get("taskEvents"), list) else []
+    return [str(e.get("task_id")) for e in events if isinstance(e, dict) and e.get("event_type") == "created"]
 
 
 def deterministic_checks(shown: dict, messages: list[dict], embeds: list[dict]) -> dict:
@@ -158,21 +172,27 @@ def deterministic_checks(shown: dict, messages: list[dict], embeds: list[dict]) 
         return min(hits) if hits else None
 
     specs = [e for e in embeds if e.get("kind") in {"specification", "plans.specification"}]
-    spec_at, plan_at = first({"specification", "plans.specification"}), first({"plans.create", "tasks.create"})
+    spec_at = first({"specification", "plans.specification"})
+    # Hand-off Tasks arrive as created task events, not always as a tasks.create embed.
+    task_events = [i for i, m in enumerate(messages) if m.get("role") == "assistant" and created_tasks(m)]
+    handoff = [i for i in (first({"plans.create", "tasks.create"}), *task_events) if i is not None]
+    plan_at = min(handoff) if handoff else None
     approvals = [i for i, m in enumerate(messages) if m.get("role") == "user"
                  and isinstance(m.get("content"), str) and APPROVAL.search(m["content"])
                  and spec_at is not None and i > spec_at]
     models = [str(m.get("modelName") or "") for m in messages if m.get("role") == "assistant"]
     chat = shown.get("chat") if isinstance(shown.get("chat"), dict) else {}
     return {
-        "focus_active": chat.get("activeFocusId") == FOCUS_ID,
+        # The CLI does not expose the encrypted active focus; the activation embed proves it.
+        "focus_active": chat.get("activeFocusId") == FOCUS_ID or any(
+            e.get("kind") == "focus_mode_activation" and e.get("focus_id") == FOCUS_ID for e in embeds),
         "gemini_only": bool(models) and all("gemini 3.8 flash" in m.lower() for m in models),
         "specification_with_assumptions": any(s.get("status") == "finished" and s["requirements"] >= 3
                                               and s["assumptions"] >= 1 for s in specs),
         "single_specification": len({s.get("title") for s in specs}) == 1 and not any(s.get("role") for s in specs),
         "checks_drafted": any(e.get("kind") in {"check", "plans.check"} and e.get("status") == "finished" for e in embeds),
         "plan_created": first({"plans.create"}) is not None,
-        "tasks_created": first({"tasks.create"}) is not None,
+        "tasks_created": first({"tasks.create"}) is not None or bool(task_events),
         "approval_before_plan": bool(approvals) and plan_at is not None and min(approvals) < plan_at,
     }
 
@@ -182,7 +202,9 @@ def judge(cli: str, messages: list[dict], embeds: list[dict], out: Path) -> dict
     for index, message in enumerate(messages):
         if message.get("role") in {"user", "assistant"} and isinstance(message.get("content"), str):
             tags = [f"{e.get('kind')}: {e.get('title') or ''}" for e in embeds if e["message"] == index]
-            lines.append(f"[{index}] {message['role'].upper()}: {plain(message['content'], 2200)}"
+            created = len(created_tasks(message))
+            tags += [f"{created} Tasks created"] if created else []
+            lines.append(f"[{index}] {message['role'].upper()}: {plain(message['content'], 1200)}"
                          + (f"\n    (embeds created: {'; '.join(tags)})" if tags else ""))
     rubric = "\n".join(f"- {key}: {text}" for key, text in RUBRIC.items())
     prompt = (f"{MODEL} You are a strict reviewer of a product assistant's conversation. Judge ONLY from the "
@@ -209,6 +231,9 @@ def main() -> int:
     parser.add_argument("--cli", default="openmates")
     parser.add_argument("--timeout-seconds", type=int, default=420)
     parser.add_argument("--allow-paid-dev-inference", action="store_true")
+    parser.add_argument("--in-project", action="store_true",
+                        help="run inside a disposable Project; its active Project focus currently blocks app focus "
+                             "mentions, so the default runs outside a Project on a throwaway account")
     parser.add_argument("--throwaway-account", action="store_true",
                         help="use a fresh throwaway dev account (gifted dev credits) instead of the personal one")
     args = parser.parse_args()
@@ -216,6 +241,8 @@ def main() -> int:
         parser.error("real inference is dev-only and cannot run in CI")
     if not args.allow_paid_dev_inference or not 60 <= args.timeout_seconds <= 1200:
         parser.error("explicit paid-dev opt-in and a 60-1200 second timeout required")
+    if not args.in_project and not args.throwaway_account:
+        parser.error("outside a Project, Plans and Specifications are removed only with the throwaway account")
     out = args.output_dir.resolve()
     if out == Path("/tmp") or not out.is_relative_to(Path("/tmp")) or out.exists():
         parser.error("--output-dir must be a fresh path below /tmp")
@@ -254,33 +281,41 @@ def main() -> int:
             guard = DraftGuard.start(cli, api_url=API_URL)
         except DraftGuardError as exc:
             raise ProofError(str(exc)) from exc
-        project = command(cli, ["projects", "create", natural_project_name("Sourdough bakery"),
-                                "--write-policy", "apply_and_show", "--personal"])
-        project_id = (project.get("project") or {}).get("project_id") if isinstance(project, dict) else None
-        if not project_id:
-            raise ProofError("disposable_project_missing")
-        receipt["project_id"] = project_id
-        # Suggested focus modes activate at once, as after accepting the countdown on the web.
-        command(cli, ["projects", "settings", project_id, "--focus-activation", "immediate", "--personal"])
+        if args.in_project:
+            project = command(cli, ["projects", "create", natural_project_name("Sourdough bakery"),
+                                    "--write-policy", "apply_and_show", "--personal"])
+            project_id = (project.get("project") or {}).get("project_id") if isinstance(project, dict) else None
+            if not project_id:
+                raise ProofError("disposable_project_missing")
+            receipt["project_id"] = project_id
+            # Suggested focus modes activate at once, as after accepting the countdown on the web.
+            command(cli, ["projects", "settings", project_id, "--focus-activation", "immediate", "--personal"])
         history: list[tuple[str, str]] = []
+        # `chats show --all` returns only the latest 20 messages, so the transcript is kept per turn.
+        messages: list[dict] = []
         message = OPENING
         for turn in range(1, MAX_TURNS + 1):
-            base = ["chats", "new", message, "--project", project_id] if chat_id is None else \
+            scope = ["--project", project_id] if project_id else []
+            base = ["chats", "new", message, *scope] if chat_id is None else \
                 ["chats", "send", "--chat", chat_id, message]
             reply = chat_reply(cli, base, args.timeout_seconds, out / f"turn-{turn:02d}.json")
             chat_id = chat_id or reply.get("chatId")
             if not chat_id:
                 raise ProofError("created_chat_id_missing")
             receipt["chat_id"] = chat_id
-            history += [("Lena", message.removeprefix(MODEL).strip().removeprefix(FOCUS_MENTION).strip()), ("Assistant", str(reply.get("assistant") or ""))]
-            print(f"turn {turn}: {plain(str(reply.get('assistant') or ''), 160)!r}", flush=True)
-            if re.search(r'"app_id":\s*"tasks"', str(reply.get("assistant") or "")) and turn > 2:
+            assistant = str(reply.get("assistant") or "")
+            history += [("Lena", plain(message, 4000)), ("Assistant", assistant)]
+            messages += [{"role": "user", "content": message},
+                         {"role": "assistant", "content": assistant, "modelName": reply.get("modelName"),
+                          "taskEvents": reply.get("taskEvents")}]
+            print(f"turn {turn}: {plain(assistant, 160)!r}", flush=True)
+            spec_seen = any(SPEC_REF.search(m["content"]) for m in messages if m["role"] == "assistant")
+            if turn > 2 and spec_seen and (TASKS_REF.search(assistant) or created_tasks(reply)):
                 break
             message = f"{MODEL} {persona_reply(cli, history, out, turn)}"
         receipt["turns"] = turn
         shown = command(cli, ["chats", "show", chat_id, "--all", "--personal"])
         write_receipt(out / "chat.json", shown)
-        messages = [m for m in shown.get("messages", []) if isinstance(m, dict)] if isinstance(shown, dict) else []
         receipt["active_focus_id"] = (shown.get("chat") or {}).get("activeFocusId") if isinstance(shown, dict) else None
         embeds = classify_embeds(cli, chat_id, messages, out)
         receipt["embeds"] = embeds

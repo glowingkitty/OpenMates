@@ -134,7 +134,10 @@ phases:
       open the Specification embed, save it to the Project and approve it
       there, or reply that they approve. Apply requested changes by drafting
       the updated Specification or Check again. Do not plan or start any
-      implementation before the user approved the Specification.
+      implementation before the user approved the Specification. Asking to
+      move on or to "go ahead" is not approval: then ask once, plainly,
+      whether they approve the Specification and its Checks as drafted, and
+      wait for a yes.
     requirements:
       - id: specification_drafted
         text: The Specification (or each agreed linked Specification) was drafted with the plans specification skill, including the open assumptions, and acceptance Checks covering its requirements were drafted with the plans check skill.
@@ -144,9 +147,10 @@ phases:
   - id: handoff
     title: Plan and Tasks
     instructions: |
-      Hand the approved Specification over to execution. Create the Plan with
-      the plans create skill: the Specification title as the Plan title and
-      its outcome as the goal. Create Tasks with the tasks create skill, one
+      Hand the approved Specification over to execution. First call the
+      plans create skill: the Specification title as the Plan title and its
+      outcome as the goal. A Plan written only as chat text does not count.
+      Then create Tasks with the tasks create skill, one
       per independently verifiable step in build order, each naming the
       requirement ids it delivers; assign build and test work to openmates
       and every human confirmation or decision to the user, all linked to
