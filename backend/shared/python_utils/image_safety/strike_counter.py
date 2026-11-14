@@ -1,6 +1,6 @@
 # backend/shared/python_utils/image_safety/strike_counter.py
 #
-# Severity-weighted strike counter with single-response debounce.
+# One-strike-per-violation counter with single-response debounce.
 #
 # Architecture: docs/architecture/image-safety-pipeline.md §5
 #
@@ -14,7 +14,7 @@
 # counter is debounced.
 #
 # Redis schema:
-#   chat_image_rejects:<user_id>       24h TTL  — severity-weighted counter
+#   chat_image_rejects:<user_id>       24h TTL  — one strike per rejected request
 #   safety_response_strike:<user_id>:<assistant_response_id>  24h TTL  — debounce flag
 #
 # "chat_image_rejects" is the SAME key used by the upload-content-safety-reject
@@ -26,11 +26,13 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-# Severity → weight (must match policy §Strike severity mapping)
+# Every rejected request counts as exactly one strike, whatever its severity.
+# No single request can reach the ban threshold on its own. The mapping is kept
+# so audit entries still record a weight per severity.
 SEVERITY_WEIGHTS = {
-    "critical": 4,  # instant ban at 4
-    "adversarial": 2,
-    "severe": 2,
+    "critical": 1,
+    "adversarial": 1,
+    "severe": 1,
     "moderate": 1,
 }
 
@@ -42,7 +44,7 @@ COUNTER_TTL_SECONDS = 86400
 
 class StrikeCounter:
     """
-    Async wrapper over Redis that implements severity-weighted strike counting
+    Async wrapper over Redis that counts one strike per rejected request
     with a single-response debounce.
 
     Depends on an injected cache client with `.get()`, `.set()` (with optional

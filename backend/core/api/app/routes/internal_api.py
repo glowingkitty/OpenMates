@@ -2832,6 +2832,19 @@ class ContentSafetyRejectRequest(BaseModel):
         default="chat_image",
         description="'chat_image' or 'profile_image' — separate Redis counters per type"
     )
+    strike_count: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Set by image/video generation, whose strike counter already recorded this "
+            "violation; the endpoint then uses this count and does not increment again"
+        ),
+    )
+
+
+# Rejection reasons that mean the safety check itself failed. They are never a
+# user violation and never count towards an account deletion.
+TECHNICAL_REJECTION_REASONS = frozenset({"safety_service_unavailable"})
 
 
 @router.post("/uploads/content-safety-reject")
@@ -2866,14 +2879,22 @@ async def content_safety_reject(
     # tracked independently (the original settings.py used "profile_image_rejects:" only).
     reject_key = f"{payload.upload_type}_rejects:{payload.user_id}"
 
-    try:
-        # Fetch current reject count from Redis
-        raw = await cache_service.get(reject_key)
-        reject_count = int(raw) if raw else 0
+    if payload.rejection_reason in TECHNICAL_REJECTION_REASONS:
+        logger.warning(f"{log_prefix} Safety check unavailable; not counted as a violation")
+        return {"result": "not_counted", "reject_count": 0}
 
-        # Increment and persist with 24-hour TTL
-        reject_count += 1
-        await cache_service.set(reject_key, reject_count, ttl=86400)
+    try:
+        if payload.strike_count is not None:
+            # Generation already counted this violation in the shared counter.
+            reject_count = payload.strike_count
+        else:
+            # Fetch current reject count from Redis
+            raw = await cache_service.get(reject_key)
+            reject_count = int(raw) if raw else 0
+
+            # Increment and persist with 24-hour TTL
+            reject_count += 1
+            await cache_service.set(reject_key, reject_count, ttl=86400)
 
         logger.info(f"{log_prefix} Rejection count updated → {reject_count}")
 

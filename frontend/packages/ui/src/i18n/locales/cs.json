@@ -135,6 +135,12 @@
         "description": {
           "text": "Spočítejte, kolik získat, jaký nástroj se hodí, ředění podílu a časový plán, s upravitelnou tabulkou kapitalizace."
         }
+      },
+      "write_press_release": {
+        "text": "Napsat tiskovou zprávu",
+        "description": {
+          "text": "Napište tiskovou zprávu, kterou mohou novináři použít, ve vlastním tiskovém stylu vaší firmy, jako dokument Word nebo v jiném požadovaném formátu."
+        }
       }
     },
     "code": {
@@ -3941,6 +3947,12 @@
     },
     "download": {
       "text": "Stáhnout"
+    },
+    "download_pdf": {
+      "text": "Stáhnout PDF"
+    },
+    "download_word": {
+      "text": "Stáhnout Word"
     },
     "loading": {
       "text": "Načítání..."
@@ -10735,6 +10747,21 @@
         "text": "Připravte krátký e-mail jednomu investorovi, přeposlatelné představení pro společného známého a dvě navazující zprávy."
       }
     },
+    "business_write_press_release": {
+      "text": "Napsat tiskovou zprávu",
+      "description": {
+        "text": "Napište tiskovou zprávu, kterou mohou novináři použít, ve vlastním tiskovém stylu vaší firmy, jako dokument Word nebo v jiném požadovaném formátu."
+      },
+      "process": {
+        "text": "- Používá váš uložený tiskový styl (názvy, medailonek firmy, mluvčí, kontakt, tón), nebo si jej nejprve vytvoří z dřívějších zpráv, několika otázek či neutrálních výchozích hodnot\n\n- Nabídne uložení stylu do vašeho projektu, aby každá další zpráva zněla stejně\n\n- Ptá se jen na to, co o novince chybí, vždy na jednu věc, a upřímně řekne, pokud je zpravodajský háček slabý\n\n- Ukáže varianty titulku, úvod a fakta, která použije, abyste je mohli opravit dřív, než se cokoli napíše\n\n- Napíše zprávu s titulkem, místem a datem, úvodem, citacemi, medailonkem firmy a kontaktem pro média, ve výchozím nastavení jako dokument Word, na požádání jako PDF, HTML nebo React\n\n- Používá jen fakta, která jste potvrdili, nikdy si nevymýšlí citace a každou označí ke schválení\n\n- Zkontroluje výsledek a nabídne pitch e-mail pro novináře, příspěvek na sociální sítě nebo překlad"
+      },
+      "how_to_use": {
+        "text": "- Napiš **tiskovou zprávu** o spuštění naší aplikace 18. listopadu. Tady jsou naše poslední dvě zprávy\n\n- Vytvoř náš **tiskový styl** z našeho webu a ulož ho do tohoto projektu\n\n- Přeměň toto oznámení na **tiskovou zprávu v PDF** a krátký pitch e-mail pro novináře"
+      },
+      "systemprompt": {
+        "text": "Pomáháte uživateli napsat tiskovou zprávu, kterou může novinář použít tak, jak je: nejdřív skutečná zpráva, ověřitelná fakta, jmenovaný hlas a kontakt, který odpovídá. Tiskový styl firmy a výslovná přání uživatele mají přednost před obecnými konvencemi.\n\nŘiďte se jen pokyny aktuální fáze. Ptejte se jednou otázkou za kolo, s konkrétním příkladem a doporučením, a počkejte na odpověď. Respektujte žádosti o přeskočení otázek, odpověď na všechno najednou nebo přechod rovnou ke konceptu.\n\nDůležité zásady:\n\n- Nikdy se neptejte na informace, které už obsahuje načtená vzpomínka, nahraný soubor nebo chat. Vyjděte z nich a nechte je potvrdit.\n\n- Fakta uživatele jsou jediným zdrojem. Vylepšujte formulace, pořadí a důraz; nikdy nevymýšlejte ani nenafukujte čísla, data, zákazníky, partnery, ocenění, výsledky ani jména. Pokud uživatel žádá, abyste něco vymysleli, odmítněte a nabídněte pravdivou alternativu.\n\n- Nikdy nepředkládejte citaci jako konečnou. Citace pište jako koncepty ke schválení jmenovanou osobou a nikdy nepřisuzujte slova skutečné osobě mimo organizaci uživatele bez zdroje.\n\n- Pište jednoduše a konkrétně. Odstraňte prázdné superlativy a módní slova nebo je nahraďte faktem.\n\n- Informace pod embargem nebo dosud nezveřejněné nechte jen v tomto chatu a v projektu uživatele; nikdy je nezveřejňujte, neodesílejte ani nesdílejte a nikdy neoslovujte novináře ani nikoho jiného. Vy píšete koncepty; odesílá je uživatel.\n\n- Výchozí výstup je Word. PDF, HTML nebo React vytvářejte jen na požádání, podle formátových pravidel fáze konceptu.\n\n- Tiskový styl patří jedné firmě. Doporučte uložit jej do Vzpomínek aktivního projektu; bez aktivního projektu nabídněte osobní vzpomínku, která se načte, jen když je zmíněna. Ukládejte až po souhlasu uživatele.\n\n- Že byla vzpomínka uložena nebo aktualizována, řekněte až po úspěšném volání nástroje pro ukládání. Pokud dostupný nástroj nemůže ukládat do projektu, řekněte to, nabídněte osobní vzpomínku nebo uživateli sdělte, že může styl vložit na kartu Vzpomínky v projektu.\n\n- Neposkytujte právní poradenství k oznamovacím povinnostem, burzovním pravidlům ani ochranným známkám; řekněte, kdy by se uživatel měl poradit s právníkem nebo týmem pro vztahy s investory.\n\n- Odpovědi v chatu držte krátké. Obsah nese dokument.\n\n- Hodnoty jako [EMAIL_1_org] nebo [PHONE_1_000] jsou zástupné symboly ochrany soukromí. Aplikace na jejich místě zobrazuje skutečné údaje uživatele na obrazovce i v dokumentu. Používejte je beze změny jako skutečnou hodnotu; nikdy je nenazývejte zástupnými, chybějícími ani neplatnými a nikdy nežádejte uživatele, aby je nahradil."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analyzovat protokoly",
       "description": {
@@ -11429,6 +11456,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Tento požadavek byl zamítnut. Sexuální nebo sugestivní obrázky s nezletilými se nikdy nevytvářejí."
+    },
+    "reason_intimate_real_person": {
+      "text": "Tento požadavek byl zamítnut. Sexuální nebo intimní obrázky skutečných osob se nikdy nevytvářejí."
+    },
+    "reason_bypass": {
+      "text": "Tento požadavek byl zamítnut, protože se pokusil obejít bezpečnostní pravidla."
+    },
+    "reason_minor": {
+      "text": "Realistické obrázky nezletilých se nevytvářejí a fotky nezletilých lze upravovat jen v pozadí, osvětlení nebo barvách, protože by takové obrázky mohly být zneužity, například pro falešné profily vydávající se za nezletilé."
+    },
+    "alternative_minor": {
+      "text": "Možná je zjevně stylizovaná verze, například 3D render, ilustrace nebo kreslená postava, pokud scéna není sexuální."
+    },
+    "reason_sexual": {
+      "text": "Sexuální nebo explicitní obrázky se nevytvářejí."
+    },
+    "alternative_sexual": {
+      "text": "Možná je neexplicitní verze scény."
+    },
+    "reason_violent": {
+      "text": "Obrázky zobrazující skutečné osoby zraněné, napadené nebo na místě činu se nevytvářejí, protože by mohly být použity k jejich poškození nebo pomluvě."
+    },
+    "alternative_violent": {
+      "text": "Možná je scéna s fiktivními postavami místo skutečných osob."
+    },
+    "reason_public_figure": {
+      "text": "Obrázky skutečných veřejně známých osob se v tuto chvíli nevytvářejí, protože by mohly být použity jako deepfaky nebo pro nepravdivá tvrzení."
+    },
+    "alternative_public_figure": {
+      "text": "Možná je původní fiktivní postava ve stejné scéně."
+    },
+    "reason_identity": {
+      "text": "Výměna obličejů a nahrazení identity osoby se neprovádějí, protože by mohly být použity k vydávání se za někoho jiného."
+    },
+    "alternative_identity": {
+      "text": "Možné jsou úpravy, které zachovají identitu osoby, například nové pozadí, osvětlení nebo umělecký styl."
+    },
+    "reason_id_document": {
+      "text": "Obrázky dokladů totožnosti, jako jsou pasy, občanské průkazy nebo řidičské průkazy, se nevytvářejí, protože by mohly být použity k podvodu."
+    },
+    "reason_hate": {
+      "text": "Obrázky se symboly nenávisti nebo obrázky, které cílí na lidi kvůli tomu, kým jsou, se nevytvářejí."
+    },
+    "reason_self_harm": {
+      "text": "Obrázky, které zobrazují sebepoškozování nebo k němu vybízejí, se nevytvářejí."
+    },
+    "alternative_self_harm": {
+      "text": "Pokud máš těžké období, může pomoct promluvit si s někým, komu věříš, nebo s místní linkou pomoci."
+    },
+    "reason_weapons": {
+      "text": "Obrázky s návody nebo plány na zbraně či výbušniny se nevytvářejí."
+    },
+    "reason_scam": {
+      "text": "Média pro podvody, falešné dokumenty nebo vydávání se za někoho jiného se nevytvářejí."
+    },
+    "alternative_scam": {
+      "text": "Možný je původní design, který nenapodobuje skutečnou osobu, značku ani dokument."
+    },
+    "reason_spam": {
+      "text": "Hromadná výroba vatového obsahu nebo odstraňování označení AI není podporována."
+    },
+    "alternative_spam": {
+      "text": "Možných je několik obrázků pro konkrétní účel."
+    },
+    "reason_deceptive": {
+      "text": "Obrázky, které mají působit jako skutečné záběry, skutečné prohlášení nebo oficiální doporučení, se nevytvářejí."
+    },
+    "alternative_deceptive": {
+      "text": "Možná je zjevně fiktivní nebo kreslená verze."
+    },
+    "reason_other": {
+      "text": "Tento požadavek nelze podle bezpečnostních pravidel vytvořit."
+    },
+    "alternative_other": {
+      "text": "Může fungovat jiné téma nebo jiná formulace."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktura"
@@ -14396,6 +14503,11 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "unavailable": {
+      "text": "Bezpečnostní kontrola je dočasně nedostupná, proto nešlo požadavek zpracovat. Zkus to prosím za chvíli znovu."
+    }
+  },
   "settings": {
     "account": {
       "username": {

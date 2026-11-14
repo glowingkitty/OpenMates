@@ -1,0 +1,28 @@
+# frontend/packages/ui/src/i18n/sources/safety_strikes.yml
+# Safety check wording shown to users when an image or video request is refused.
+# Read by backend/shared/python_utils/image_safety/unavailable.py.
+
+unavailable:
+  context: "Shown when the safety check itself failed; the request is refused without any strike"
+  en: "The safety check is temporarily unavailable, so this request could not be processed. Please try again in a moment."
+  de: "Die Sicherheitsprüfung ist vorübergehend nicht verfügbar, deshalb konnte die Anfrage nicht verarbeitet werden. Bitte versuche es gleich noch einmal."
+  zh: "安全检查暂时不可用，因此无法处理此请求。请稍后再试。"
+  es: "La comprobación de seguridad no está disponible temporalmente, así que no se pudo procesar la solicitud. Inténtalo de nuevo en un momento."
+  fr: "La vérification de sécurité est temporairement indisponible, la demande n'a donc pas pu être traitée. Réessaie dans un instant."
+  pt: "A verificação de segurança está temporariamente indisponível, por isso o pedido não pôde ser processado. Tenta novamente daqui a pouco."
+  ru: "Проверка безопасности временно недоступна, поэтому запрос не удалось обработать. Попробуй ещё раз чуть позже."
+  ja: "安全チェックが一時的に利用できないため、このリクエストを処理できませんでした。しばらくしてからもう一度お試しください。"
+  ko: "안전 검사를 일시적으로 사용할 수 없어 이 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
+  it: "Il controllo di sicurezza è temporaneamente non disponibile, quindi la richiesta non ha potuto essere elaborata. Riprova tra un momento."
+  tr: "Güvenlik kontrolü geçici olarak kullanılamıyor, bu yüzden istek işlenemedi. Lütfen birazdan tekrar deneyin."
+  vi: "Kiểm tra an toàn tạm thời không khả dụng nên yêu cầu này chưa thể được xử lý. Vui lòng thử lại sau một lát."
+  id: "Pemeriksaan keamanan sedang tidak tersedia sementara, sehingga permintaan ini tidak dapat diproses. Silakan coba lagi sebentar lagi."
+  pl: "Kontrola bezpieczeństwa jest chwilowo niedostępna, więc nie udało się przetworzyć tej prośby. Spróbuj ponownie za chwilę."
+  nl: "De veiligheidscontrole is tijdelijk niet beschikbaar, dus het verzoek kon niet worden verwerkt. Probeer het zo meteen opnieuw."
+  ar: "فحص الأمان غير متاح مؤقتًا، لذا تعذرت معالجة هذا الطلب. حاول مرة أخرى بعد قليل."
+  hi: "सुरक्षा जाँच अस्थायी रूप से उपलब्ध नहीं है, इसलिए यह अनुरोध प्रोसेस नहीं हो सका। कृपया थोड़ी देर बाद फिर कोशिश करें।"
+  th: "การตรวจสอบความปลอดภัยไม่พร้อมใช้งานชั่วคราว จึงประมวลผลคำขอนี้ไม่ได้ โปรดลองใหม่อีกครั้งในอีกสักครู่"
+  cs: "Bezpečnostní kontrola je dočasně nedostupná, proto nešlo požadavek zpracovat. Zkus to prosím za chvíli znovu."
+  sv: "Säkerhetskontrollen är tillfälligt otillgänglig, så begäran kunde inte behandlas. Försök igen om en stund."
+  he: "בדיקת הבטיחות אינה זמינה זמנית, ולכן לא ניתן היה לעבד את הבקשה. נסה שוב בעוד רגע."
+  verified_by_human: []

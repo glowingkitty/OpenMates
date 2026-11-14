@@ -195,40 +195,72 @@ class GroqSafeguardClient:
             }
         ]
 
-        try:
-            response = await self._client.chat.completions.create(
+        async def request_completion():
+            return await self._client.chat.completions.create(
                 model=SAFEGUARD_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message},
                 ],
                 temperature=0.0,
-                max_tokens=800,
+                # Reasoning tokens count against the limit; 800 left the long policy
+                # without room for the tool call ("model did not call a tool").
+                max_tokens=2000,
                 tools=tools,
                 tool_choice={
                     "type": "function",
                     "function": {"name": "report_safeguard_verdict"},
                 },
             )
-        except Exception as e:
-            logger.error(f"[GroqSafeguard] API error: {e}", exc_info=True)
-            return SafeguardVerdict(
-                decision="block",
-                category="safeguard_error",
-                severity="severe",
-                error=str(e),
-            )
 
+        # Groq rejects a forced tool call whose arguments miss the schema (most
+        # often an "allow" verdict with an empty severity) and returns the
+        # rejected generation. A complete decision in it is the model's real
+        # verdict; only an unreadable one costs one retry. Anything else is a
+        # technical error (safeguard_error: no strike, request refused).
+        response = None
         raw_text = ""
         try:
-            message = response.choices[0].message
-            tool_calls = getattr(message, "tool_calls", None) or []
-            if tool_calls:
-                raw_text = tool_calls[0].function.arguments or ""
-            else:
-                raw_text = (message.content or "").strip()
-        except Exception:
-            pass
+            response = await request_completion()
+        except Exception as e:
+            if not _is_groq_output_parse_failure(e):
+                logger.error(f"[GroqSafeguard] API error: {e}", exc_info=True)
+                return SafeguardVerdict(
+                    decision="block",
+                    category="safeguard_error",
+                    severity="severe",
+                    error=str(e),
+                )
+            raw_text = _recovered_verdict_text(e)
+            if not raw_text:
+                logger.warning("[GroqSafeguard] Tool-call validation failed; retrying once")
+                try:
+                    response = await request_completion()
+                except Exception as retry_exc:
+                    raw_text = (_recovered_verdict_text(retry_exc)
+                                if _is_groq_output_parse_failure(retry_exc) else "")
+                    if not raw_text:
+                        logger.error(
+                            f"[GroqSafeguard] API retry failed: {retry_exc}",
+                            exc_info=True,
+                        )
+                        return SafeguardVerdict(
+                            decision="block",
+                            category="safeguard_error",
+                            severity="severe",
+                            error=str(retry_exc),
+                        )
+
+        if response is not None:
+            try:
+                message = response.choices[0].message
+                tool_calls = getattr(message, "tool_calls", None) or []
+                if tool_calls:
+                    raw_text = tool_calls[0].function.arguments or ""
+                else:
+                    raw_text = (message.content or "").strip()
+            except (AttributeError, IndexError, TypeError):
+                raw_text = ""
 
         verdict = _parse_verdict(raw_text)
         verdict.raw_text = raw_text
@@ -662,6 +694,28 @@ def _failed_generation_verdict_text(exc: BaseException) -> str:
     return json.dumps({"decision": decisions.pop(),
                        "category": category.group(1) if category else "",
                        "severity": "", "reasoning": "", "discrepancies": ""})
+
+
+def _recovered_verdict_text(exc: BaseException) -> str:
+    """The rejected tool call's full arguments when they are a readable verdict.
+
+    Keeps the model's reasoning for the audit log; falls back to the
+    decision-only recovery of ``_failed_generation_verdict_text``.
+    """
+    body = getattr(exc, "body", None)
+    error = body.get("error") if isinstance(body, dict) else None
+    generation = error.get("failed_generation") if isinstance(error, dict) else None
+    if isinstance(generation, str) and generation:
+        try:
+            data = json.loads(generation)
+            arguments = data.get("arguments") if isinstance(data, dict) else None
+            if isinstance(arguments, str):
+                arguments = json.loads(arguments)
+        except (ValueError, TypeError):
+            arguments = None
+        if isinstance(arguments, dict) and arguments.get("decision") in ("allow", "block", "escalate"):
+            return json.dumps(arguments)
+    return _failed_generation_verdict_text(exc)
 
 
 def _is_groq_output_parse_failure(exc: BaseException) -> bool:

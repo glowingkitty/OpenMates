@@ -135,6 +135,12 @@
         "description": {
           "text": "Hitung berapa dana yang dihimpun, instrumen yang cocok, dilusi, dan jadwal, lengkap dengan lembar cap table yang bisa diedit."
         }
+      },
+      "write_press_release": {
+        "text": "Tulis siaran pers",
+        "description": {
+          "text": "Tulis siaran pers yang bisa langsung dipakai jurnalis, dengan gaya pers perusahaan Anda sendiri, sebagai dokumen Word atau format lain yang Anda minta."
+        }
       }
     },
     "code": {
@@ -3941,6 +3947,12 @@
     },
     "download": {
       "text": "Unduh"
+    },
+    "download_pdf": {
+      "text": "Unduh PDF"
+    },
+    "download_word": {
+      "text": "Unduh Word"
     },
     "loading": {
       "text": "Memuat..."
@@ -10735,6 +10747,21 @@
         "text": "Susun email singkat untuk satu investor, pengantar yang bisa diteruskan untuk kenalan bersama, dan dua tindak lanjut."
       }
     },
+    "business_write_press_release": {
+      "text": "Tulis siaran pers",
+      "description": {
+        "text": "Tulis siaran pers yang bisa langsung dipakai jurnalis, dengan gaya pers perusahaan Anda sendiri, sebagai dokumen Word atau format lain yang Anda minta."
+      },
+      "process": {
+        "text": "- Memakai gaya pers yang sudah Anda simpan (nama, profil perusahaan, juru bicara, kontak, nada) atau lebih dulu membuatnya dari siaran pers sebelumnya, beberapa pertanyaan, atau nilai bawaan netral\n\n- Menawarkan untuk menyimpan gaya itu di proyek Anda, supaya setiap siaran pers berikutnya terdengar sama\n\n- Hanya menanyakan yang kurang tentang beritanya, satu pertanyaan sekali waktu, dan jujur memberi tahu jika nilai beritanya lemah\n\n- Menampilkan pilihan judul, paragraf pembuka, dan fakta yang akan dipakai, agar Anda bisa mengoreksinya sebelum apa pun ditulis\n\n- Menulis siaran pers dengan judul, baris tempat dan tanggal, paragraf pembuka, kutipan, profil perusahaan, dan kontak media, secara bawaan sebagai dokumen Word, atau PDF, HTML, atau React jika diminta\n\n- Hanya memakai fakta yang sudah Anda konfirmasi, tidak pernah mengarang kutipan, dan menandai setiap kutipan untuk disetujui\n\n- Memeriksa hasilnya dan menawarkan email pitch untuk jurnalis, unggahan media sosial, atau terjemahan"
+      },
+      "how_to_use": {
+        "text": "- Tulis **siaran pers** tentang peluncuran aplikasi kami pada 18 November. Ini dua siaran pers terakhir kami\n\n- Buat **gaya pers** kami dari situs web kami dan simpan ke proyek ini\n\n- Ubah pengumuman ini menjadi **siaran pers dalam PDF** dan email pitch singkat untuk jurnalis"
+      },
+      "systemprompt": {
+        "text": "Anda membantu pengguna menulis siaran pers yang bisa dipakai jurnalis apa adanya: berita nyata lebih dulu, fakta yang bisa diperiksa, suara yang disebut namanya, dan kontak yang membalas. Gaya pers perusahaan dan permintaan eksplisit pengguna lebih diutamakan daripada konvensi umum.\n\nIkuti hanya instruksi fase saat ini. Ajukan satu pertanyaan per putaran dengan contoh konkret dan rekomendasi, lalu tunggu balasan. Penuhi permintaan untuk melewati pertanyaan, menjawab semuanya sekaligus, atau langsung membuat draf.\n\nPedoman penting:\n\n- Jangan pernah menanyakan informasi yang sudah ada di memori yang dimuat, unggahan, atau chat. Mulailah dari situ dan minta konfirmasi.\n\n- Fakta pengguna adalah satu-satunya sumber. Perbaiki kata-kata, urutan, dan penekanan; jangan pernah mengarang atau menggelembungkan angka, tanggal, pelanggan, mitra, penghargaan, hasil, atau nama. Jika pengguna memintamu mengarang sesuatu, tolak dan tawarkan alternatif yang jujur.\n\n- Jangan pernah menyajikan kutipan sebagai final. Tulis kutipan sebagai draf untuk disetujui orang yang disebut, dan jangan pernah mengaitkan ucapan dengan orang nyata di luar organisasi pengguna tanpa sumber.\n\n- Tulis dengan lugas dan spesifik. Hapus superlatif kosong dan kata-kata tren, atau ganti dengan fakta.\n\n- Simpan informasi embargo atau yang belum dirilis di chat ini dan proyek pengguna; jangan pernah memublikasikan, mengirim, atau membagikannya, dan jangan pernah menghubungi jurnalis atau siapa pun. Anda menulis draf; pengguna yang mengirimnya.\n\n- Word adalah keluaran bawaan. Buat PDF, HTML, atau React hanya jika diminta, mengikuti aturan format fase draf.\n\n- Gaya pers milik satu perusahaan. Sarankan menyimpannya di Memori proyek yang aktif; tanpa proyek aktif, tawarkan memori pribadi yang hanya dimuat saat disebut. Simpan hanya setelah pengguna setuju.\n\n- Katakan memori sudah disimpan atau diperbarui hanya setelah panggilan alat penyimpanan berhasil. Jika alat yang tersedia tidak bisa menyimpan ke proyek, katakan itu, tawarkan memori pribadi, atau beri tahu bahwa pengguna bisa menempelkan gaya itu di tab Memori proyek.\n\n- Jangan memberi nasihat hukum soal kewajiban keterbukaan, aturan pasar saham, atau merek dagang; katakan kapan pengguna sebaiknya bertanya ke pengacara atau tim hubungan investor.\n\n- Jaga jawaban chat tetap singkat. Dokumenlah yang memuat isinya.\n\n- Nilai seperti [EMAIL_1_org] atau [PHONE_1_000] adalah penampung privasi. Aplikasi menampilkan data asli pengguna di tempatnya, di layar dan di dokumen. Gunakan apa adanya sebagai nilai asli; jangan pernah menyebutnya penampung, hilang, atau tidak valid, dan jangan minta pengguna menggantinya."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analisis log",
       "description": {
@@ -11429,6 +11456,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Permintaan ini ditolak. Gambar seksual atau sugestif yang melibatkan anak di bawah umur tidak pernah dibuat."
+    },
+    "reason_intimate_real_person": {
+      "text": "Permintaan ini ditolak. Gambar seksual atau intim dari orang nyata tidak pernah dibuat."
+    },
+    "reason_bypass": {
+      "text": "Permintaan ini ditolak karena mencoba menghindari aturan keamanan."
+    },
+    "reason_minor": {
+      "text": "Gambar realistis anak di bawah umur tidak dibuat, dan foto anak di bawah umur hanya bisa diedit pada latar belakang, pencahayaan, atau warna, karena gambar semacam itu bisa disalahgunakan, misalnya untuk profil palsu yang berpura-pura sebagai anak di bawah umur."
+    },
+    "alternative_minor": {
+      "text": "Versi yang jelas bergaya artistik dimungkinkan, misalnya render 3D, ilustrasi, atau kartun, selama adegannya tidak bersifat seksual."
+    },
+    "reason_sexual": {
+      "text": "Gambar seksual atau eksplisit tidak dibuat."
+    },
+    "alternative_sexual": {
+      "text": "Versi adegan yang tidak eksplisit dimungkinkan."
+    },
+    "reason_violent": {
+      "text": "Gambar yang menunjukkan orang nyata terluka, diserang, atau berada di tempat kejadian kejahatan tidak dibuat, karena bisa digunakan untuk merugikan atau mencemarkan nama mereka."
+    },
+    "alternative_violent": {
+      "text": "Adegan dengan tokoh fiksi sebagai pengganti orang nyata dimungkinkan."
+    },
+    "reason_public_figure": {
+      "text": "Saat ini gambar tokoh publik nyata tidak dibuat, karena bisa digunakan sebagai deepfake atau untuk klaim palsu."
+    },
+    "alternative_public_figure": {
+      "text": "Tokoh fiksi orisinal dalam adegan yang sama dimungkinkan."
+    },
+    "reason_identity": {
+      "text": "Penukaran wajah dan penggantian identitas seseorang tidak dilakukan, karena bisa digunakan untuk menyamar sebagai orang tersebut."
+    },
+    "alternative_identity": {
+      "text": "Pengeditan yang mempertahankan identitas orang tersebut, seperti latar belakang baru, pencahayaan, atau gaya seni, dimungkinkan."
+    },
+    "reason_id_document": {
+      "text": "Gambar dokumen identitas seperti paspor, KTP, atau SIM tidak dibuat, karena bisa digunakan untuk penipuan."
+    },
+    "reason_hate": {
+      "text": "Gambar dengan simbol kebencian atau yang menyerang orang karena jati diri mereka tidak dibuat."
+    },
+    "reason_self_harm": {
+      "text": "Gambar yang menunjukkan atau mendorong tindakan menyakiti diri sendiri tidak dibuat."
+    },
+    "alternative_self_harm": {
+      "text": "Jika kamu sedang melalui masa sulit, berbicara dengan seseorang yang kamu percaya atau layanan bantuan setempat bisa membantu."
+    },
+    "reason_weapons": {
+      "text": "Gambar berisi petunjuk atau cetak biru senjata atau bahan peledak tidak dibuat."
+    },
+    "reason_scam": {
+      "text": "Media untuk penipuan, dokumen palsu, atau penyamaran tidak dibuat."
+    },
+    "alternative_scam": {
+      "text": "Desain orisinal yang tidak meniru orang, merek, atau dokumen nyata dimungkinkan."
+    },
+    "reason_spam": {
+      "text": "Pembuatan massal konten pengisi atau penghapusan label AI tidak didukung."
+    },
+    "alternative_spam": {
+      "text": "Beberapa gambar untuk tujuan tertentu dimungkinkan."
+    },
+    "reason_deceptive": {
+      "text": "Gambar yang dibuat agar tampak seperti rekaman asli, pernyataan asli, atau dukungan resmi tidak dibuat."
+    },
+    "alternative_deceptive": {
+      "text": "Versi yang jelas fiktif atau berupa ilustrasi dimungkinkan."
+    },
+    "reason_other": {
+      "text": "Permintaan ini tidak dapat dibuat sesuai aturan keamanan."
+    },
+    "alternative_other": {
+      "text": "Subjek atau kalimat yang berbeda mungkin berhasil."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktur"
@@ -14396,6 +14503,11 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "unavailable": {
+      "text": "Pemeriksaan keamanan sedang tidak tersedia sementara, sehingga permintaan ini tidak dapat diproses. Silakan coba lagi sebentar lagi."
+    }
+  },
   "settings": {
     "account": {
       "username": {

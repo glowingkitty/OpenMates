@@ -135,6 +135,12 @@
         "description": {
           "text": "Bepaal hoeveel je ophaalt, welk instrument past, de verwatering en een tijdlijn, met een bewerkbare cap-tablesheet."
         }
+      },
+      "write_press_release": {
+        "text": "Persbericht schrijven",
+        "description": {
+          "text": "Schrijf een persbericht dat journalisten kunnen gebruiken, in de eigen perstoon van je bedrijf, als Word-document of in een ander gewenst formaat."
+        }
       }
     },
     "code": {
@@ -3941,6 +3947,12 @@
     },
     "download": {
       "text": "Downloaden"
+    },
+    "download_pdf": {
+      "text": "PDF downloaden"
+    },
+    "download_word": {
+      "text": "Word downloaden"
     },
     "loading": {
       "text": "Laden..."
@@ -10735,6 +10747,21 @@
         "text": "Schrijf een korte e-mail aan één investeerder, een doorstuurbare introductie voor een gemeenschappelijk contact en twee follow-ups."
       }
     },
+    "business_write_press_release": {
+      "text": "Persbericht schrijven",
+      "description": {
+        "text": "Schrijf een persbericht dat journalisten kunnen gebruiken, in de eigen perstoon van je bedrijf, als Word-document of in een ander gewenst formaat."
+      },
+      "process": {
+        "text": "- Gebruikt je opgeslagen perstoon (namen, bedrijfsomschrijving, woordvoerders, contact, toon) of stelt eerst een toon op uit eerdere persberichten, een paar vragen of neutrale standaarden\n\n- Biedt aan de stijl in je project op te slaan, zodat elk volgend persbericht hetzelfde klinkt\n\n- Vraagt alleen wat er over het nieuws nog ontbreekt, één vraag per keer, en zegt eerlijk als de nieuwswaarde zwak is\n\n- Toont kopopties, de lead en de feiten die gebruikt worden, zodat je ze kunt corrigeren voordat er iets geschreven wordt\n\n- Schrijft het persbericht met kop, plaats en datum, lead, citaten, bedrijfsomschrijving en perscontact, standaard als Word-document of op verzoek als PDF, HTML of React\n\n- Gebruikt alleen feiten die jij hebt bevestigd, verzint nooit citaten en markeert elk citaat ter goedkeuring\n\n- Controleert het resultaat en biedt een pitchmail voor journalisten, een socialmediabericht of een vertaling aan"
+      },
+      "how_to_use": {
+        "text": "- Schrijf een **persbericht** over de lancering van onze app op 18 november. Hier zijn onze laatste twee persberichten\n\n- Stel onze **perstoon** samen vanaf onze website en sla die op in dit project\n\n- Maak van deze aankondiging een **persbericht als PDF** en een korte pitchmail voor journalisten"
+      },
+      "systemprompt": {
+        "text": "Je helpt de gebruiker een persbericht te schrijven dat een journalist zo kan gebruiken: eerst echt nieuws, controleerbare feiten, een stem met naam en een contactpersoon die antwoordt. De perstoon van het bedrijf en de uitdrukkelijke wensen van de gebruiker gaan voor op algemene conventies.\n\nVolg alleen de instructies van de huidige fase. Stel per ronde één vraag met een concreet voorbeeld en een aanbeveling en wacht op het antwoord. Honoreer verzoeken om vragen over te slaan, alles in één keer te beantwoorden of meteen een concept te maken.\n\nBelangrijke richtlijnen:\n\n- Vraag nooit naar informatie die een geladen herinnering, een upload of de chat al bevat. Ga ervan uit en laat het bevestigen.\n\n- De feiten van de gebruiker zijn de enige bron. Verbeter formulering, volgorde en nadruk; verzin of overdrijf nooit cijfers, data, klanten, partners, prijzen, resultaten of namen. Vraagt de gebruiker je iets te verzinnen, weiger dan en bied een waarheidsgetrouw alternatief.\n\n- Presenteer een citaat nooit als definitief. Schrijf citaten als concepten die de genoemde persoon moet goedkeuren, en leg nooit woorden in de mond van een echte persoon buiten de organisatie van de gebruiker zonder bron.\n\n- Schrijf eenvoudig en concreet. Haal lege superlatieven en buzzwoorden weg of vervang ze door een feit.\n\n- Houd embargo- of onuitgebrachte informatie in deze chat en het project van de gebruiker; publiceer, verstuur of deel haar nooit en neem nooit contact op met journalisten of anderen. Jij schrijft concepten; de gebruiker verstuurt ze.\n\n- Word is het standaardformaat. Maak PDF, HTML of React alleen op verzoek, volgens de formaatregels van de conceptfase.\n\n- Een perstoon hoort bij één bedrijf. Raad aan hem op te slaan in de Herinneringen van het actieve project; zonder actief project bied je een persoonlijke herinnering aan die alleen wordt geladen als hij genoemd wordt. Sla pas op nadat de gebruiker akkoord is.\n\n- Zeg pas dat een herinnering is opgeslagen of bijgewerkt nadat de aanroep van het opslaan-hulpmiddel is geslaagd. Kan het beschikbare hulpmiddel niet in het project opslaan, zeg dat dan, bied een persoonlijke herinnering aan of laat weten dat de gebruiker de stijl in het tabblad Herinneringen van het project kan plakken.\n\n- Geef geen juridisch advies over openbaarmakingsplichten, beursregels of merkenrecht; zeg wanneer de gebruiker een jurist of het investor-relationsteam moet raadplegen.\n\n- Houd chatantwoorden kort. Het document draagt de inhoud.\n\n- Waarden zoals [EMAIL_1_org] of [PHONE_1_000] zijn privacyplaatshouders. De app toont op hun plek de echte gegevens van de gebruiker op het scherm en in het document. Gebruik ze ongewijzigd als de echte waarde; noem ze nooit plaatshouders, ontbrekend of ongeldig en vraag de gebruiker nooit ze te vervangen."
+      }
+    },
     "code_analyze_logs": {
       "text": "Logs analyseren",
       "description": {
@@ -11429,6 +11456,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Dit verzoek is geweigerd. Seksuele of suggestieve beelden van minderjarigen worden nooit gemaakt."
+    },
+    "reason_intimate_real_person": {
+      "text": "Dit verzoek is geweigerd. Seksuele of intieme beelden van echte personen worden nooit gemaakt."
+    },
+    "reason_bypass": {
+      "text": "Dit verzoek is geweigerd omdat het probeerde de veiligheidsregels te omzeilen."
+    },
+    "reason_minor": {
+      "text": "Realistische beelden van minderjarigen worden niet gemaakt, en foto's van minderjarigen kunnen alleen worden bewerkt wat betreft achtergrond, licht of kleur, omdat zulke beelden misbruikt kunnen worden, bijvoorbeeld voor nepprofielen die zich voordoen als minderjarige."
+    },
+    "alternative_minor": {
+      "text": "Een duidelijk gestileerde versie is mogelijk, zoals een 3D-render, een illustratie of een cartoon, zolang de scène niet seksueel is."
+    },
+    "reason_sexual": {
+      "text": "Seksuele of expliciete beelden worden niet gemaakt."
+    },
+    "alternative_sexual": {
+      "text": "Een niet-expliciete versie van de scène is mogelijk."
+    },
+    "reason_violent": {
+      "text": "Beelden die echte personen gewond, aangevallen of op een plaats delict tonen worden niet gemaakt, omdat ze gebruikt kunnen worden om hen te schaden of te belasteren."
+    },
+    "alternative_violent": {
+      "text": "Een scène met fictieve personages in plaats van echte personen is mogelijk."
+    },
+    "reason_public_figure": {
+      "text": "Beelden van echte publieke figuren worden momenteel niet gemaakt, omdat ze gebruikt kunnen worden als deepfakes of voor valse beweringen."
+    },
+    "alternative_public_figure": {
+      "text": "Een eigen, fictief personage in dezelfde scène is mogelijk."
+    },
+    "reason_identity": {
+      "text": "Gezichten verwisselen en iemands identiteit vervangen doen we niet, omdat dit gebruikt kan worden om je voor iemand anders voor te doen."
+    },
+    "alternative_identity": {
+      "text": "Bewerkingen die de identiteit van de persoon behouden, zoals een nieuwe achtergrond, ander licht of een kunststijl, zijn mogelijk."
+    },
+    "reason_id_document": {
+      "text": "Beelden van identiteitsbewijzen zoals paspoorten, identiteitskaarten of rijbewijzen worden niet gemaakt, omdat ze gebruikt kunnen worden voor fraude."
+    },
+    "reason_hate": {
+      "text": "Beelden met haatsymbolen of beelden die mensen aanvallen om wie ze zijn worden niet gemaakt."
+    },
+    "reason_self_harm": {
+      "text": "Beelden die zelfbeschadiging tonen of aanmoedigen worden niet gemaakt."
+    },
+    "alternative_self_harm": {
+      "text": "Als je het moeilijk hebt, kan praten met iemand die je vertrouwt of met een hulplijn bij jou in de buurt helpen."
+    },
+    "reason_weapons": {
+      "text": "Beelden met instructies of bouwtekeningen voor wapens of explosieven worden niet gemaakt."
+    },
+    "reason_scam": {
+      "text": "Media voor oplichting, valse documenten of het zich voordoen als iemand anders worden niet gemaakt."
+    },
+    "alternative_scam": {
+      "text": "Een eigen ontwerp dat geen echte persoon, merk of document nabootst, is mogelijk."
+    },
+    "reason_spam": {
+      "text": "Het massaal produceren van opvulcontent of het verwijderen van AI-labels wordt niet ondersteund."
+    },
+    "alternative_spam": {
+      "text": "Een paar beelden voor een specifiek doel zijn mogelijk."
+    },
+    "reason_deceptive": {
+      "text": "Beelden die moeten doorgaan voor echte opnamen, een echte uitspraak of een officiële aanbeveling worden niet gemaakt."
+    },
+    "alternative_deceptive": {
+      "text": "Een duidelijk fictieve of getekende versie is mogelijk."
+    },
+    "reason_other": {
+      "text": "Dit verzoek kan volgens de veiligheidsregels niet worden uitgevoerd."
+    },
+    "alternative_other": {
+      "text": "Een ander onderwerp of een andere formulering kan werken."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Factuur"
@@ -14396,6 +14503,11 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "unavailable": {
+      "text": "De veiligheidscontrole is tijdelijk niet beschikbaar, dus het verzoek kon niet worden verwerkt. Probeer het zo meteen opnieuw."
+    }
+  },
   "settings": {
     "account": {
       "username": {

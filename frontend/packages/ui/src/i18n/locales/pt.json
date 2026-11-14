@@ -135,6 +135,12 @@
         "description": {
           "text": "Calcule quanto captar, qual instrumento se encaixa, a diluição e um cronograma, com uma planilha de cap table editável."
         }
+      },
+      "write_press_release": {
+        "text": "Redigir comunicado de imprensa",
+        "description": {
+          "text": "Redija um comunicado de imprensa que os jornalistas possam usar, no estilo de imprensa da sua empresa, como documento Word ou em outro formato que você pedir."
+        }
       }
     },
     "code": {
@@ -3968,6 +3974,12 @@
     },
     "download": {
       "text": "Baixar"
+    },
+    "download_pdf": {
+      "text": "Baixar PDF"
+    },
+    "download_word": {
+      "text": "Baixar Word"
     },
     "loading": {
       "text": "Carregando..."
@@ -10762,6 +10774,21 @@
         "text": "Redija um e-mail curto para um investidor, uma apresentação encaminhável para um contato em comum e dois follow-ups."
       }
     },
+    "business_write_press_release": {
+      "text": "Redigir comunicado de imprensa",
+      "description": {
+        "text": "Redija um comunicado de imprensa que os jornalistas possam usar, no estilo de imprensa da sua empresa, como documento Word ou em outro formato que você pedir."
+      },
+      "process": {
+        "text": "- Usa seu estilo de imprensa salvo (nomes, sobre a empresa, porta-vozes, contato, tom) ou cria um antes, a partir de comunicados anteriores, de algumas perguntas ou de padrões neutros\n\n- Oferece salvar o estilo no seu projeto, para que todo comunicado futuro tenha o mesmo tom\n\n- Pergunta só o que falta sobre a novidade, uma pergunta por vez, e diz com honestidade se o gancho jornalístico é fraco\n\n- Mostra opções de título, o lide e os fatos que serão usados, para você corrigir antes de escrever qualquer coisa\n\n- Escreve o comunicado com título, local e data, lide, citações, sobre a empresa e contato de imprensa, por padrão como documento Word, ou como PDF, HTML ou React se pedir\n\n- Usa apenas fatos que você confirmou, nunca inventa citações e marca cada citação para aprovação\n\n- Confere o resultado e oferece um e-mail de pauta para jornalistas, uma publicação para redes sociais ou uma tradução"
+      },
+      "how_to_use": {
+        "text": "- Escreva um **comunicado de imprensa** sobre o lançamento do nosso app em 18 de novembro. Aqui estão nossos dois últimos comunicados\n\n- Crie nosso **estilo de imprensa** a partir do nosso site e salve neste projeto\n\n- Transforme este anúncio em um **comunicado de imprensa em PDF** e um e-mail de pauta curto para jornalistas"
+      },
+      "systemprompt": {
+        "text": "Você ajuda o usuário a escrever um comunicado de imprensa que um jornalista possa usar como está: primeiro uma notícia real, fatos verificáveis, uma voz com nome e um contato que responde. O estilo de imprensa da empresa e os pedidos explícitos do usuário têm prioridade sobre convenções gerais.\n\nSiga apenas as instruções da fase atual. Faça uma pergunta por rodada, com um exemplo concreto e uma recomendação, e aguarde a resposta. Atenda a pedidos para pular perguntas, responder tudo de uma vez ou ir direto ao rascunho.\n\nDiretrizes importantes:\n\n- Nunca peça informações que uma memória carregada, um upload ou o chat já contenham. Parta delas e peça confirmação.\n\n- Os fatos do usuário são a única fonte. Melhore redação, ordem e ênfase; nunca invente nem infle números, datas, clientes, parceiros, prêmios, resultados ou nomes. Se o usuário pedir para inventar algo, recuse e ofereça uma alternativa verdadeira.\n\n- Nunca apresente uma citação como final. Escreva as citações como rascunhos para a pessoa citada aprovar e nunca atribua falas a uma pessoa real de fora da organização do usuário sem fonte.\n\n- Escreva de forma simples e específica. Remova superlativos vazios e jargões ou troque-os por um fato.\n\n- Mantenha informações sob embargo ou não divulgadas neste chat e no projeto do usuário; nunca as publique, envie ou compartilhe, e nunca contate jornalistas ou qualquer outra pessoa. Você escreve rascunhos; o usuário os envia.\n\n- Word é o formato padrão. Gere PDF, HTML ou React somente quando pedido, seguindo as regras de formato da fase de rascunho.\n\n- Um estilo de imprensa pertence a uma empresa. Recomende salvá-lo nas Memórias do projeto ativo; sem projeto ativo, ofereça uma memória pessoal que só é carregada quando mencionada. Salve apenas depois que o usuário concordar.\n\n- Só diga que uma memória foi salva ou atualizada depois que a chamada da ferramenta de salvar tiver dado certo. Se a ferramenta disponível não puder salvar no projeto, diga isso, ofereça uma memória pessoal ou avise que o usuário pode colar o estilo na aba Memórias do projeto.\n\n- Não dê aconselhamento jurídico sobre deveres de divulgação, regras do mercado de ações ou questões de marca; diga quando o usuário deve consultar um advogado ou a equipe de relações com investidores.\n\n- Mantenha as respostas do chat curtas. O documento carrega o conteúdo.\n\n- Valores como [EMAIL_1_org] ou [PHONE_1_000] são marcadores de privacidade. O app mostra no lugar deles os dados reais do usuário na tela e no documento. Use-os sem alteração como o valor real; nunca os chame de marcadores, ausentes ou inválidos e nunca peça ao usuário para substituí-los."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analisar logs",
       "description": {
@@ -11456,6 +11483,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Este pedido foi recusado. Imagens sexuais ou sugestivas envolvendo menores nunca são criadas."
+    },
+    "reason_intimate_real_person": {
+      "text": "Este pedido foi recusado. Imagens sexuais ou íntimas de pessoas reais nunca são criadas."
+    },
+    "reason_bypass": {
+      "text": "Este pedido foi recusado porque tentou contornar as regras de segurança."
+    },
+    "reason_minor": {
+      "text": "Imagens realistas de menores não são criadas, e fotos de menores só permitem alterações de fundo, iluminação ou cor, porque essas imagens podem ser usadas indevidamente, por exemplo em perfis falsos que se passam por menores."
+    },
+    "alternative_minor": {
+      "text": "É possível uma versão claramente estilizada, como um render 3D, uma ilustração ou um desenho animado, desde que a cena não seja sexual."
+    },
+    "reason_sexual": {
+      "text": "Imagens sexuais ou explícitas não são criadas."
+    },
+    "alternative_sexual": {
+      "text": "É possível uma versão não explícita da cena."
+    },
+    "reason_violent": {
+      "text": "Imagens que mostram pessoas reais feridas, atacadas ou em uma cena de crime não são criadas, porque poderiam ser usadas para prejudicá-las ou difamá-las."
+    },
+    "alternative_violent": {
+      "text": "É possível uma cena com personagens fictícios em vez de pessoas reais."
+    },
+    "reason_public_figure": {
+      "text": "Imagens de figuras públicas reais não são criadas no momento, porque poderiam ser usadas como deepfakes ou para afirmações falsas."
+    },
+    "alternative_public_figure": {
+      "text": "É possível um personagem original e fictício na mesma cena."
+    },
+    "reason_identity": {
+      "text": "Trocas de rosto e a substituição da identidade de alguém não são feitas, porque poderiam ser usadas para se passar por uma pessoa."
+    },
+    "alternative_identity": {
+      "text": "São possíveis edições que mantêm a identidade da pessoa, como um novo fundo, outra iluminação ou um estilo artístico."
+    },
+    "reason_id_document": {
+      "text": "Imagens de documentos de identificação, como passaportes, cartões de cidadão ou cartas de condução, não são criadas, porque poderiam ser usadas para fraude."
+    },
+    "reason_hate": {
+      "text": "Imagens com símbolos de ódio ou que atacam pessoas por quem elas são não são criadas."
+    },
+    "reason_self_harm": {
+      "text": "Imagens que mostram ou incentivam a automutilação não são criadas."
+    },
+    "alternative_self_harm": {
+      "text": "Se estás a passar por um momento difícil, falar com alguém em quem confias ou com uma linha de apoio local pode ajudar."
+    },
+    "reason_weapons": {
+      "text": "Imagens com instruções ou planos para armas ou explosivos não são criadas."
+    },
+    "reason_scam": {
+      "text": "Conteúdos para golpes, documentos falsos ou falsificação de identidade não são criados."
+    },
+    "alternative_scam": {
+      "text": "É possível um design original que não imite uma pessoa, marca ou documento real."
+    },
+    "reason_spam": {
+      "text": "A produção em massa de conteúdo de enchimento ou a remoção de rótulos de IA não é suportada."
+    },
+    "alternative_spam": {
+      "text": "É possível criar algumas imagens para uma finalidade específica."
+    },
+    "reason_deceptive": {
+      "text": "Imagens feitas para passar por registos reais, uma declaração real ou um apoio oficial não são criadas."
+    },
+    "alternative_deceptive": {
+      "text": "É possível uma versão claramente fictícia ou ilustrada."
+    },
+    "reason_other": {
+      "text": "Este pedido não pode ser criado de acordo com as regras de segurança."
+    },
+    "alternative_other": {
+      "text": "Outro tema ou outra formulação pode funcionar."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Fatura"
@@ -14423,6 +14530,11 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "unavailable": {
+      "text": "A verificação de segurança está temporariamente indisponível, por isso o pedido não pôde ser processado. Tenta novamente daqui a pouco."
+    }
+  },
   "settings": {
     "account": {
       "username": {

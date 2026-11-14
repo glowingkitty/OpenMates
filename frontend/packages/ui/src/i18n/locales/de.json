@@ -135,6 +135,12 @@
         "description": {
           "text": "Ermittle, wie viel du aufnimmst, welches Instrument passt, die Verwässerung und einen Zeitplan, mit editierbarer Cap-Table."
         }
+      },
+      "write_press_release": {
+        "text": "Pressemitteilung schreiben",
+        "description": {
+          "text": "Schreib eine Pressemitteilung, die Journalisten direkt nutzen können, im Pressestil deines Unternehmens, als Word-Dokument oder in einem anderen Format deiner Wahl."
+        }
       }
     },
     "code": {
@@ -5023,6 +5029,12 @@
     },
     "download": {
       "text": "Herunterladen"
+    },
+    "download_pdf": {
+      "text": "PDF herunterladen"
+    },
+    "download_word": {
+      "text": "Word herunterladen"
     },
     "loading": {
       "text": "Lade..."
@@ -12605,6 +12617,21 @@
         "text": "Entwirf eine kurze E-Mail an einen Investor, eine weiterleitbare Vorstellung für einen gemeinsamen Kontakt und zwei Nachfassmails."
       }
     },
+    "business_write_press_release": {
+      "text": "Pressemitteilung schreiben",
+      "description": {
+        "text": "Schreib eine Pressemitteilung, die Journalisten direkt nutzen können, im Pressestil deines Unternehmens, als Word-Dokument oder in einem anderen Format deiner Wahl."
+      },
+      "process": {
+        "text": "- Nutzt deinen gespeicherten Pressestil (Namen, Unternehmensprofil, Ansprechpersonen, Kontakt, Ton) oder richtet zuerst einen ein, anhand früherer Mitteilungen, ein paar Fragen oder neutraler Standards\n\n- Bietet an, den Stil in deinem Projekt zu speichern, damit jede künftige Mitteilung gleich klingt\n\n- Fragt nur nach dem, was zur Neuigkeit noch fehlt, eine Frage nach der anderen, und sagt dir ehrlich, wenn der Nachrichtenwert schwach ist\n\n- Zeigt Überschriftenvarianten, den Einstieg und die Fakten, die genutzt werden, damit du sie korrigieren kannst, bevor etwas geschrieben wird\n\n- Schreibt die Mitteilung mit Überschrift, Ortszeile, Einstieg, Zitaten, Unternehmensprofil und Pressekontakt, standardmäßig als Word-Dokument, auf Wunsch als PDF, HTML oder React\n\n- Verwendet nur von dir bestätigte Fakten, erfindet nie Zitate und markiert jedes Zitat zur Freigabe\n\n- Prüft das Ergebnis und bietet eine Pitch-E-Mail für Journalisten, einen Social-Post oder eine Übersetzung an"
+      },
+      "how_to_use": {
+        "text": "- Schreib eine **Pressemitteilung** über unseren App-Launch am 18. November. Hier sind unsere letzten zwei Mitteilungen\n\n- Richte unseren **Pressestil** anhand unserer Website ein und speichere ihn in diesem Projekt\n\n- Mach aus dieser Ankündigung eine **Pressemitteilung als PDF** und eine kurze Pitch-E-Mail für Journalisten"
+      },
+      "systemprompt": {
+        "text": "Du hilfst dem Nutzer, eine Pressemitteilung zu schreiben, die ein Journalist so übernehmen kann: echte Neuigkeit zuerst, überprüfbare Fakten, eine benannte Stimme und ein Ansprechpartner, der antwortet. Der Pressestil des Unternehmens und die ausdrücklichen Wünsche des Nutzers haben Vorrang vor allgemeinen Konventionen.\n\nFolge nur den Anweisungen der aktuellen Phase. Stelle pro Runde eine Frage mit konkretem Beispiel und einer Empfehlung und warte auf die Antwort. Halte dich an Wünsche, Fragen zu überspringen, alles auf einmal zu beantworten oder direkt einen Entwurf zu erhalten.\n\nWichtige Richtlinien:\n\n- Frage nie nach Informationen, die eine geladene Erinnerung, ein Upload oder der Chat bereits enthält. Gehe davon aus und lass sie bestätigen.\n\n- Die Fakten des Nutzers sind die einzige Quelle. Verbessere Wortwahl, Reihenfolge und Gewichtung; erfinde oder übertreibe nie Zahlen, Daten, Kunden, Partner, Auszeichnungen, Ergebnisse oder Namen. Bittet der Nutzer dich, etwas zu erfinden, lehne ab und biete eine wahrheitsgemäße Alternative an.\n\n- Stelle ein Zitat nie als final dar. Schreibe Zitate als Entwürfe, die die genannte Person freigeben muss, und lege niemals Personen außerhalb der Organisation des Nutzers ohne Quelle Worte in den Mund.\n\n- Schreibe schlicht und konkret. Streiche leere Superlative und Buzzwords oder ersetze sie durch einen Fakt.\n\n- Halte gesperrte oder unveröffentlichte Informationen in diesem Chat und im Projekt des Nutzers; veröffentliche, versende oder teile sie nie und kontaktiere niemals Journalisten oder andere. Du schreibst Entwürfe; der Nutzer verschickt sie.\n\n- Word ist das Standardformat. Erstelle PDF, HTML oder React nur auf Wunsch und nach den Formatregeln der Entwurfsphase.\n\n- Ein Pressestil gehört zu einem Unternehmen. Empfiehl, ihn in den Erinnerungen des aktiven Projekts zu speichern; ohne aktives Projekt biete eine persönliche Erinnerung an, die nur geladen wird, wenn sie erwähnt wird. Speichere erst, wenn der Nutzer zustimmt.\n\n- Sage nur dann, eine Erinnerung sei gespeichert oder aktualisiert, wenn der Tool-Aufruf zum Speichern erfolgreich war. Kann das verfügbare Tool nicht im Projekt speichern, sag das, biete stattdessen eine persönliche Erinnerung an oder weise darauf hin, dass der Nutzer den Stil in den Tab „Erinnerungen“ des Projekts einfügen kann.\n\n- Gib keine Rechtsberatung zu Offenlegungspflichten, Börsenregeln oder Markenfragen; sage, wann der Nutzer einen Anwalt oder die Investor-Relations-Abteilung fragen sollte.\n\n- Halte Chat-Antworten kurz. Das Dokument trägt den Inhalt.\n\n- Werte wie [EMAIL_1_org] oder [PHONE_1_000] sind Datenschutz-Platzhalter. Die App zeigt an ihrer Stelle die echten Daten des Nutzers auf dem Bildschirm und im Dokument. Verwende sie unverändert als echten Wert; nenne sie nie Platzhalter, fehlend oder ungültig und bitte den Nutzer nie, sie zu ersetzen."
+      }
+    },
     "code_analyze_logs": {
       "text": "Logs analysieren",
       "description": {
@@ -13583,6 +13610,86 @@
     },
     "area_unavailable": {
       "text": "Die Ausdehnung des ungefähren Gebiets ist unbekannt; es wird keine Standortmarkierung angezeigt."
+    }
+  },
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Diese Anfrage wurde abgelehnt. Sexuelle oder anzügliche Bilder mit Minderjährigen werden niemals erstellt."
+    },
+    "reason_intimate_real_person": {
+      "text": "Diese Anfrage wurde abgelehnt. Sexuelle oder intime Bilder echter Personen werden niemals erstellt."
+    },
+    "reason_bypass": {
+      "text": "Diese Anfrage wurde abgelehnt, weil sie versucht hat, die Sicherheitsregeln zu umgehen."
+    },
+    "reason_minor": {
+      "text": "Realistische Bilder von Minderjährigen werden nicht erstellt, und bei Fotos von Minderjährigen sind nur Änderungen an Hintergrund, Licht oder Farbe möglich, weil solche Bilder missbraucht werden könnten, zum Beispiel für gefälschte Profile, die sich als minderjährig ausgeben."
+    },
+    "alternative_minor": {
+      "text": "Eine klar stilisierte Version ist möglich, zum Beispiel als 3D-Rendering, Illustration oder Cartoon, solange die Szene nicht sexuell ist."
+    },
+    "reason_sexual": {
+      "text": "Sexuelle oder explizite Bilder werden nicht erstellt."
+    },
+    "alternative_sexual": {
+      "text": "Eine nicht explizite Version der Szene ist möglich."
+    },
+    "reason_violent": {
+      "text": "Bilder, die echte Personen verletzt, angegriffen oder an einem Tatort zeigen, werden nicht erstellt, weil sie ihnen schaden oder sie verleumden könnten."
+    },
+    "alternative_violent": {
+      "text": "Eine Szene mit erfundenen Figuren statt echter Personen ist möglich."
+    },
+    "reason_public_figure": {
+      "text": "Bilder von echten Personen des öffentlichen Lebens werden derzeit nicht erstellt, weil sie als Deepfakes oder für falsche Behauptungen genutzt werden könnten."
+    },
+    "alternative_public_figure": {
+      "text": "Eine eigene, erfundene Figur in derselben Szene ist möglich."
+    },
+    "reason_identity": {
+      "text": "Gesichtstausch und das Ersetzen der Identität einer Person werden nicht gemacht, weil sie genutzt werden könnten, um sich als diese Person auszugeben."
+    },
+    "alternative_identity": {
+      "text": "Änderungen, bei denen die Person erkennbar sie selbst bleibt, etwa ein neuer Hintergrund, anderes Licht oder ein Kunststil, sind möglich."
+    },
+    "reason_id_document": {
+      "text": "Bilder von Ausweisdokumenten wie Reisepässen, Personalausweisen oder Führerscheinen werden nicht erstellt, weil sie für Betrug genutzt werden könnten."
+    },
+    "reason_hate": {
+      "text": "Bilder mit Hasssymbolen oder Bilder, die Menschen wegen ihrer Identität angreifen, werden nicht erstellt."
+    },
+    "reason_self_harm": {
+      "text": "Bilder, die Selbstverletzung zeigen oder dazu ermutigen, werden nicht erstellt."
+    },
+    "alternative_self_harm": {
+      "text": "Wenn es dir gerade nicht gut geht, kann es helfen, mit jemandem zu sprechen, dem du vertraust, oder mit einer Beratungsstelle in deiner Nähe."
+    },
+    "reason_weapons": {
+      "text": "Bilder mit Anleitungen oder Bauplänen für Waffen oder Sprengstoffe werden nicht erstellt."
+    },
+    "reason_scam": {
+      "text": "Medien für Betrug, gefälschte Dokumente oder das Ausgeben als jemand anderes werden nicht erstellt."
+    },
+    "alternative_scam": {
+      "text": "Ein eigenes Design, das keine echte Person, Marke oder kein echtes Dokument nachahmt, ist möglich."
+    },
+    "reason_spam": {
+      "text": "Massenhaft erzeugte Füllinhalte oder das Entfernen von KI-Kennzeichnungen werden nicht unterstützt."
+    },
+    "alternative_spam": {
+      "text": "Einige Bilder für einen bestimmten Zweck sind möglich."
+    },
+    "reason_deceptive": {
+      "text": "Bilder, die wie echte Aufnahmen, eine echte Aussage oder eine offizielle Empfehlung wirken sollen, werden nicht erstellt."
+    },
+    "alternative_deceptive": {
+      "text": "Eine klar erkennbar fiktive oder gezeichnete Version ist möglich."
+    },
+    "reason_other": {
+      "text": "Diese Anfrage kann nach den Sicherheitsregeln nicht erstellt werden."
+    },
+    "alternative_other": {
+      "text": "Ein anderes Motiv oder eine andere Formulierung kann funktionieren."
     }
   },
   "invoices_and_credit_notes": {
@@ -17334,6 +17441,11 @@
     },
     "job_waiting": {
       "text": "Wartet auf eine Aktualisierung."
+    }
+  },
+  "safety_strikes": {
+    "unavailable": {
+      "text": "Die Sicherheitsprüfung ist vorübergehend nicht verfügbar, deshalb konnte die Anfrage nicht verarbeitet werden. Bitte versuche es gleich noch einmal."
     }
   },
   "settings": {

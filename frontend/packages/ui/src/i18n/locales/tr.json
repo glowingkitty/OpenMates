@@ -135,6 +135,12 @@
         "description": {
           "text": "Ne kadar fon toplanacağını, hangi aracın uygun olduğunu, hisse seyrelmesini ve zaman çizelgesini düzenlenebilir bir hisse tablosuyla hesaplayın."
         }
+      },
+      "write_press_release": {
+        "text": "Basın bülteni yaz",
+        "description": {
+          "text": "Gazetecilerin kullanabileceği bir basın bülteni yazın; şirketinizin kendi basın üslubuyla, Word belgesi veya istediğiniz başka bir biçimde."
+        }
       }
     },
     "code": {
@@ -3941,6 +3947,12 @@
     },
     "download": {
       "text": "İndir"
+    },
+    "download_pdf": {
+      "text": "PDF indir"
+    },
+    "download_word": {
+      "text": "Word indir"
     },
     "loading": {
       "text": "Yükleniyor..."
@@ -10735,6 +10747,21 @@
         "text": "Bir yatırımcıya kısa bir e-posta, ortak tanıdık için iletilebilir bir tanıtım metni ve iki takip mesajı taslağı hazırlayın."
       }
     },
+    "business_write_press_release": {
+      "text": "Basın bülteni yaz",
+      "description": {
+        "text": "Gazetecilerin kullanabileceği bir basın bülteni yazın; şirketinizin kendi basın üslubuyla, Word belgesi veya istediğiniz başka bir biçimde."
+      },
+      "process": {
+        "text": "- Kayıtlı basın üslubunuzu (isimler, kurum tanıtımı, sözcüler, iletişim, ton) kullanır; yoksa önce eski bültenlerden, birkaç sorudan veya nötr varsayılanlardan bir üslup oluşturur\n\n- Sonraki her bültenin aynı tonda olması için üslubu projenize kaydetmeyi önerir\n\n- Haberle ilgili yalnızca eksik olanı sorar, her seferinde tek soru, ve haber değeri zayıfsa bunu dürüstçe söyler\n\n- Herhangi bir şey yazılmadan önce düzeltebilmeniz için başlık seçeneklerini, girişi ve kullanılacak bilgileri gösterir\n\n- Başlık, yer ve tarih satırı, giriş, alıntılar, kurum tanıtımı ve basın iletişim bilgisiyle bülteni yazar; varsayılan olarak Word belgesi, isterseniz PDF, HTML veya React\n\n- Yalnızca sizin onayladığınız bilgileri kullanır, asla alıntı uydurmaz ve her alıntıyı onay için işaretler\n\n- Sonucu kontrol eder; gazetecilere tanıtım e-postası, sosyal medya gönderisi veya çeviri önerir"
+      },
+      "how_to_use": {
+        "text": "- 18 Kasım'daki uygulama lansmanımız için bir **basın bülteni** yaz. İşte son iki bültenimiz\n\n- Web sitemizden **basın üslubumuzu** oluştur ve bu projeye kaydet\n\n- Bu duyuruyu **PDF basın bültenine** ve gazetecilere kısa bir tanıtım e-postasına dönüştür"
+      },
+      "systemprompt": {
+        "text": "Kullanıcının, bir gazetecinin olduğu gibi kullanabileceği bir basın bülteni yazmasına yardım ediyorsun: önce gerçek haber, doğrulanabilir bilgiler, adı belli bir ses ve yanıt veren bir iletişim kişisi. Şirketin basın üslubu ve kullanıcının açık istekleri genel kuralların önüne geçer.\n\nYalnızca geçerli aşamanın talimatlarını izle. Her turda somut bir örnek ve bir öneriyle tek soru sor ve yanıtı bekle. Soruları atlama, her şeyi tek seferde yanıtlama veya doğrudan taslağa geçme isteklerine uy.\n\nÖnemli kurallar:\n\n- Yüklü bir anının, bir yüklemenin veya sohbetin zaten içerdiği bilgiyi asla sorma. Ondan yola çık ve onaylat.\n\n- Tek kaynak kullanıcının bilgileridir. İfadeyi, sırayı ve vurguyu iyileştir; rakamları, tarihleri, müşterileri, ortakları, ödülleri, sonuçları veya isimleri asla uydurma ya da şişirme. Kullanıcı bir şey uydurmanı isterse reddet ve doğru bir alternatif sun.\n\n- Bir alıntıyı asla kesin olarak sunma. Alıntıları, adı geçen kişinin onaylayacağı taslak olarak yaz ve kullanıcının kurumu dışındaki gerçek bir kişiye kaynaksız söz atfetme.\n\n- Sade ve somut yaz. Boş üstünlük sıfatlarını ve moda sözcükleri çıkar ya da bir bilgiyle değiştir.\n\n- Ambargolu veya henüz yayımlanmamış bilgiyi bu sohbette ve kullanıcının projesinde tut; asla yayımlama, gönderme ya da paylaşma, gazetecilerle veya başkasıyla iletişime geçme. Sen taslak yazarsın; göndermek kullanıcıya aittir.\n\n- Varsayılan çıktı Word'dür. PDF, HTML veya React'i yalnızca istenirse, taslak aşamasının biçim kurallarına göre üret.\n\n- Bir basın üslubu tek bir şirkete aittir. Etkin projenin Anılar bölümüne kaydetmeyi öner; etkin proje yoksa yalnızca anıldığında yüklenen kişisel bir anı öner. Yalnızca kullanıcı kabul ettikten sonra kaydet.\n\n- Bir anının kaydedildiğini veya güncellendiğini yalnızca kaydetme aracı çağrısı başarılı olduktan sonra söyle. Mevcut araç projeye kaydedemiyorsa bunu söyle, kişisel bir anı öner veya kullanıcının üslubu projenin Anılar sekmesine yapıştırabileceğini belirt.\n\n- Bilgilendirme yükümlülükleri, borsa kuralları veya marka konularında hukuki tavsiye verme; kullanıcının ne zaman bir avukata veya yatırımcı ilişkileri ekibine danışması gerektiğini söyle.\n\n- Sohbet yanıtlarını kısa tut. İçeriği belge taşır.\n\n- [EMAIL_1_org] veya [PHONE_1_000] gibi değerler gizlilik yer tutucularıdır. Uygulama, ekranda ve belgede onların yerinde kullanıcının gerçek bilgilerini gösterir. Bunları değiştirmeden gerçek değer olarak kullan; asla yer tutucu, eksik veya geçersiz deme ve kullanıcıdan değiştirmesini isteme."
+      }
+    },
     "code_analyze_logs": {
       "text": "Logları analiz et",
       "description": {
@@ -11429,6 +11456,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Bu istek reddedildi. Reşit olmayanları içeren cinsel veya müstehcen görseller asla oluşturulmaz."
+    },
+    "reason_intimate_real_person": {
+      "text": "Bu istek reddedildi. Gerçek kişilerin cinsel veya mahrem görselleri asla oluşturulmaz."
+    },
+    "reason_bypass": {
+      "text": "Bu istek, güvenlik kurallarını aşmaya çalıştığı için reddedildi."
+    },
+    "reason_minor": {
+      "text": "Reşit olmayanların gerçekçi görselleri oluşturulmaz ve reşit olmayanların fotoğraflarında yalnızca arka plan, ışık veya renk düzenlemesi yapılabilir; çünkü bu tür görseller kötüye kullanılabilir, örneğin reşit olmayan biri gibi davranan sahte profiller için."
+    },
+    "alternative_minor": {
+      "text": "Sahnenin cinsel olmaması koşuluyla, 3D render, illüstrasyon veya çizgi film gibi açıkça stilize bir sürüm mümkündür."
+    },
+    "reason_sexual": {
+      "text": "Cinsel veya açık içerikli görseller oluşturulmaz."
+    },
+    "alternative_sexual": {
+      "text": "Sahnenin açık içerik barındırmayan bir sürümü mümkündür."
+    },
+    "reason_violent": {
+      "text": "Gerçek kişileri yaralı, saldırıya uğramış veya suç mahallinde gösteren görseller oluşturulmaz; çünkü bunlar onlara zarar vermek veya onları itibarsızlaştırmak için kullanılabilir."
+    },
+    "alternative_violent": {
+      "text": "Gerçek kişiler yerine kurgusal karakterlerle bir sahne mümkündür."
+    },
+    "reason_public_figure": {
+      "text": "Gerçek kamu figürlerinin görselleri şu an için oluşturulmaz; çünkü deepfake olarak veya yanlış iddialar için kullanılabilirler."
+    },
+    "alternative_public_figure": {
+      "text": "Aynı sahnede özgün, kurgusal bir karakter mümkündür."
+    },
+    "reason_identity": {
+      "text": "Yüz değiştirme ve bir kişinin kimliğini değiştirme işlemleri yapılmaz; çünkü bir kişiyi taklit etmek için kullanılabilirler."
+    },
+    "alternative_identity": {
+      "text": "Yeni bir arka plan, farklı ışık veya sanat stili gibi kişinin kimliğini koruyan düzenlemeler mümkündür."
+    },
+    "reason_id_document": {
+      "text": "Pasaport, kimlik kartı veya ehliyet gibi kimlik belgelerinin görselleri oluşturulmaz; çünkü dolandırıcılık için kullanılabilirler."
+    },
+    "reason_hate": {
+      "text": "Nefret sembolleri içeren veya insanları kimlikleri nedeniyle hedef alan görseller oluşturulmaz."
+    },
+    "reason_self_harm": {
+      "text": "Kendine zarar vermeyi gösteren veya teşvik eden görseller oluşturulmaz."
+    },
+    "alternative_self_harm": {
+      "text": "Zor bir dönemden geçiyorsan, güvendiğin biriyle ya da bulunduğun yerdeki bir yardım hattıyla konuşmak yardımcı olabilir."
+    },
+    "reason_weapons": {
+      "text": "Silah veya patlayıcılara ilişkin talimatlar ya da planlar içeren görseller oluşturulmaz."
+    },
+    "reason_scam": {
+      "text": "Dolandırıcılık, sahte belgeler veya taklit amaçlı medya oluşturulmaz."
+    },
+    "alternative_scam": {
+      "text": "Gerçek bir kişiyi, markayı veya belgeyi taklit etmeyen özgün bir tasarım mümkündür."
+    },
+    "reason_spam": {
+      "text": "Dolgu içeriklerin toplu üretimi veya yapay zeka etiketlerinin kaldırılması desteklenmez."
+    },
+    "alternative_spam": {
+      "text": "Belirli bir amaç için birkaç görsel mümkündür."
+    },
+    "reason_deceptive": {
+      "text": "Gerçek görüntü, gerçek bir açıklama veya resmi bir onay gibi görünmesi amaçlanan görseller oluşturulmaz."
+    },
+    "alternative_deceptive": {
+      "text": "Açıkça kurgusal veya çizim olduğu belli bir sürüm mümkündür."
+    },
+    "reason_other": {
+      "text": "Bu istek güvenlik kuralları gereği oluşturulamaz."
+    },
+    "alternative_other": {
+      "text": "Farklı bir konu veya farklı bir ifade işe yarayabilir."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Fatura"
@@ -14396,6 +14503,11 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "unavailable": {
+      "text": "Güvenlik kontrolü geçici olarak kullanılamıyor, bu yüzden istek işlenemedi. Lütfen birazdan tekrar deneyin."
+    }
+  },
   "settings": {
     "account": {
       "username": {

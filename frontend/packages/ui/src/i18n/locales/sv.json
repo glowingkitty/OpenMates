@@ -135,6 +135,12 @@
         "description": {
           "text": "Räkna ut hur mycket du ska ta in, vilket instrument som passar, utspädningen och en tidsplan, med ett redigerbart cap table-ark."
         }
+      },
+      "write_press_release": {
+        "text": "Skriv pressmeddelande",
+        "description": {
+          "text": "Skriv ett pressmeddelande som journalister kan använda, i företagets egen pressstil, som Word-dokument eller i ett annat format du ber om."
+        }
       }
     },
     "code": {
@@ -3941,6 +3947,12 @@
     },
     "download": {
       "text": "Ladda ned"
+    },
+    "download_pdf": {
+      "text": "Ladda ned PDF"
+    },
+    "download_word": {
+      "text": "Ladda ned Word"
     },
     "loading": {
       "text": "Laddar..."
@@ -10735,6 +10747,21 @@
         "text": "Skriv ett kort mejl till en investerare, en vidarebefordringsbar introduktion för en gemensam kontakt och två uppföljningar."
       }
     },
+    "business_write_press_release": {
+      "text": "Skriv pressmeddelande",
+      "description": {
+        "text": "Skriv ett pressmeddelande som journalister kan använda, i företagets egen pressstil, som Word-dokument eller i ett annat format du ber om."
+      },
+      "process": {
+        "text": "- Använder din sparade pressstil (namn, företagsbeskrivning, talespersoner, kontakt, ton) eller skapar först en utifrån tidigare meddelanden, några frågor eller neutrala standardvärden\n\n- Erbjuder sig att spara stilen i ditt projekt så att alla framtida pressmeddelanden låter likadant\n\n- Frågar bara efter det som saknas om nyheten, en fråga i taget, och säger ärligt om nyhetsvinkeln är svag\n\n- Visar rubrikförslag, ingressen och de fakta som ska användas, så att du kan rätta dem innan något skrivs\n\n- Skriver pressmeddelandet med rubrik, ort och datum, ingress, citat, företagsbeskrivning och presskontakt, som standard som Word-dokument eller som PDF, HTML eller React på begäran\n\n- Använder bara fakta som du har bekräftat, hittar aldrig på citat och markerar varje citat för godkännande\n\n- Kontrollerar resultatet och erbjuder ett pitchmejl till journalister, ett inlägg för sociala medier eller en översättning"
+      },
+      "how_to_use": {
+        "text": "- Skriv ett **pressmeddelande** om lanseringen av vår app den 18 november. Här är våra två senaste meddelanden\n\n- Skapa vår **pressstil** utifrån vår webbplats och spara den i det här projektet\n\n- Gör om det här tillkännagivandet till ett **pressmeddelande som PDF** och ett kort pitchmejl till journalister"
+      },
+      "systemprompt": {
+        "text": "Du hjälper användaren att skriva ett pressmeddelande som en journalist kan använda som det är: verklig nyhet först, kontrollerbara fakta, en namngiven röst och en kontakt som svarar. Företagets pressstil och användarens uttryckliga önskemål går före allmänna konventioner.\n\nFölj bara instruktionerna för den aktuella fasen. Ställ en fråga per runda med ett konkret exempel och en rekommendation, och vänta på svar. Följ önskemål om att hoppa över frågor, svara på allt på en gång eller gå direkt till ett utkast.\n\nViktiga riktlinjer:\n\n- Fråga aldrig efter information som ett laddat minne, en uppladdning eller chatten redan innehåller. Utgå från den och be om bekräftelse.\n\n- Användarens fakta är den enda källan. Förbättra formuleringar, ordning och betoning; hitta aldrig på eller blås upp siffror, datum, kunder, partner, utmärkelser, resultat eller namn. Om användaren ber dig hitta på något, avböj och erbjud ett sanningsenligt alternativ.\n\n- Presentera aldrig ett citat som slutgiltigt. Skriv citat som utkast som den namngivna personen ska godkänna, och lägg aldrig ord i munnen på en verklig person utanför användarens organisation utan källa.\n\n- Skriv enkelt och konkret. Ta bort tomma superlativ och modeord eller byt ut dem mot ett faktum.\n\n- Håll embargobelagd eller opublicerad information i den här chatten och användarens projekt; publicera, skicka eller dela den aldrig och kontakta aldrig journalister eller någon annan. Du skriver utkast; användaren skickar dem.\n\n- Word är standardformatet. Skapa PDF, HTML eller React bara på begäran, enligt utkastfasens formatregler.\n\n- En pressstil tillhör ett företag. Rekommendera att spara den i det aktiva projektets Minnen; utan aktivt projekt, erbjud ett personligt minne som bara laddas när det nämns. Spara först när användaren går med på det.\n\n- Säg att ett minne har sparats eller uppdaterats först efter att anropet till sparverktyget lyckats. Om det tillgängliga verktyget inte kan spara i projektet, säg det, erbjud ett personligt minne eller berätta att användaren kan klistra in stilen under fliken Minnen i projektet.\n\n- Ge inga juridiska råd om upplysningsskyldighet, börsregler eller varumärkesfrågor; säg när användaren bör kontrollera med en jurist eller sitt investerarrelationsteam.\n\n- Håll chattsvaren korta. Dokumentet bär innehållet.\n\n- Värden som [EMAIL_1_org] eller [PHONE_1_000] är sekretessplatshållare. Appen visar användarens riktiga uppgifter i deras ställe på skärmen och i dokumentet. Använd dem oförändrade som det verkliga värdet; kalla dem aldrig platshållare, saknade eller ogiltiga och be aldrig användaren ersätta dem."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analysera loggar",
       "description": {
@@ -11429,6 +11456,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Den här begäran avslogs. Sexuella eller antydande bilder med minderåriga skapas aldrig."
+    },
+    "reason_intimate_real_person": {
+      "text": "Den här begäran avslogs. Sexuella eller intima bilder av verkliga personer skapas aldrig."
+    },
+    "reason_bypass": {
+      "text": "Den här begäran avslogs eftersom den försökte kringgå säkerhetsreglerna."
+    },
+    "reason_minor": {
+      "text": "Realistiska bilder av minderåriga skapas inte, och foton av minderåriga får bara ändras i bakgrund, ljus eller färg, eftersom sådana bilder kan missbrukas, till exempel för falska profiler som utger sig för att vara minderåriga."
+    },
+    "alternative_minor": {
+      "text": "En tydligt stiliserad version är möjlig, till exempel som 3D-rendering, illustration eller tecknad serie, så länge scenen inte är sexuell."
+    },
+    "reason_sexual": {
+      "text": "Sexuella eller explicita bilder skapas inte."
+    },
+    "alternative_sexual": {
+      "text": "En icke-explicit version av scenen är möjlig."
+    },
+    "reason_violent": {
+      "text": "Bilder som visar verkliga personer skadade, attackerade eller på en brottsplats skapas inte, eftersom de kan användas för att skada eller smäda dem."
+    },
+    "alternative_violent": {
+      "text": "En scen med fiktiva figurer i stället för verkliga personer är möjlig."
+    },
+    "reason_public_figure": {
+      "text": "Bilder av verkliga offentliga personer skapas för närvarande inte, eftersom de kan användas som deepfakes eller för falska påståenden."
+    },
+    "alternative_public_figure": {
+      "text": "En egen, fiktiv figur i samma scen är möjlig."
+    },
+    "reason_identity": {
+      "text": "Ansiktsbyten och utbyte av någons identitet görs inte, eftersom de kan användas för att utge sig för att vara en annan person."
+    },
+    "alternative_identity": {
+      "text": "Ändringar som bevarar personens identitet, till exempel en ny bakgrund, annat ljus eller en konststil, är möjliga."
+    },
+    "reason_id_document": {
+      "text": "Bilder av id-handlingar som pass, id-kort eller körkort skapas inte, eftersom de kan användas för bedrägeri."
+    },
+    "reason_hate": {
+      "text": "Bilder med hatsymboler eller bilder som riktar sig mot människor på grund av vilka de är skapas inte."
+    },
+    "reason_self_harm": {
+      "text": "Bilder som visar eller uppmuntrar till självskada skapas inte."
+    },
+    "alternative_self_harm": {
+      "text": "Om du går igenom en svår tid kan det hjälpa att prata med någon du litar på eller med en lokal stödlinje."
+    },
+    "reason_weapons": {
+      "text": "Bilder med instruktioner eller ritningar för vapen eller sprängämnen skapas inte."
+    },
+    "reason_scam": {
+      "text": "Medier för bedrägerier, falska dokument eller identitetsstöld skapas inte."
+    },
+    "alternative_scam": {
+      "text": "En egen design som inte imiterar en verklig person, ett varumärke eller ett dokument är möjlig."
+    },
+    "reason_spam": {
+      "text": "Massproduktion av utfyllnadsinnehåll eller borttagning av AI-märkning stöds inte."
+    },
+    "alternative_spam": {
+      "text": "Några få bilder för ett specifikt syfte är möjliga."
+    },
+    "reason_deceptive": {
+      "text": "Bilder som ska framstå som äkta material, ett äkta uttalande eller ett officiellt stöd skapas inte."
+    },
+    "alternative_deceptive": {
+      "text": "En tydligt fiktiv eller tecknad version är möjlig."
+    },
+    "reason_other": {
+      "text": "Den här begäran kan inte skapas enligt säkerhetsreglerna."
+    },
+    "alternative_other": {
+      "text": "Ett annat motiv eller en annan formulering kan fungera."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktura"
@@ -14396,6 +14503,11 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "unavailable": {
+      "text": "Säkerhetskontrollen är tillfälligt otillgänglig, så begäran kunde inte behandlas. Försök igen om en stund."
+    }
+  },
   "settings": {
     "account": {
       "username": {

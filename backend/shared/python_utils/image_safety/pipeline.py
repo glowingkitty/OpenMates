@@ -38,7 +38,7 @@ from backend.shared.providers.sightengine.client import (
     get_sightengine_safety_client,
 )
 
-from .messages import build_rejection_payload, category_info
+from .messages import build_rejection_payload, category_info, is_technical_category
 from .policy import get_policy_markdown
 
 logger = logging.getLogger(__name__)
@@ -61,6 +61,13 @@ class SafetyRejection:
     sightengine_audit: Dict[str, Any] = field(default_factory=dict)
     vlm_audit: Dict[str, Any] = field(default_factory=dict)
     safeguard_audit: Dict[str, Any] = field(default_factory=dict)
+    # True when a check could not reach a decision (provider error, missing
+    # configuration). Such a refusal is never a user violation.
+    technical: bool = False
+
+    def __post_init__(self) -> None:
+        if is_technical_category(self.category):
+            self.technical = True
 
 
 @dataclass
@@ -247,6 +254,7 @@ class ImageSafetyPipeline:
                     stage=stage,
                     sightengine_audit=se_audit,
                     vlm_audit=vlm_audit,
+                    technical=bool(se_findings.error),
                 ),
             )
 
@@ -266,6 +274,7 @@ class ImageSafetyPipeline:
                     stage=stage,
                     sightengine_audit=se_audit,
                     vlm_audit=vlm_audit,
+                    technical=bool(vlm_findings.error),
                 ),
             )
 

@@ -131,23 +131,42 @@ def user_facing_message(category: str) -> str:
 
 def build_rejection_payload(category: str) -> Dict[str, Any]:
     """
-    Build the structured tool response returned to the LLM on rejection.
+    Build the structured tool response returned to the LLM on rejection, in
+    English. The image task replaces it with the user's language
+    (explanations.localized_rejection_payload) before it is shown or cached.
 
-    The LLM relays `user_facing_message` to the user and MUST NOT retry in the
-    same response — `do_not_retry: true` is enforced by the pipeline auto-reject
-    cache keyed on assistant_response_id.
+    The LLM explains the reason and offers the allowed alternative, and MUST NOT
+    retry in the same response — `do_not_retry: true` is enforced by the
+    pipeline auto-reject cache keyed on assistant_response_id.
     """
-    info = category_info(category)
+    from .explanations import localized_rejection_payload
+
+    return localized_rejection_payload(category, "en")
+
+TECHNICAL_CATEGORIES = frozenset({
+    "safeguard_error",
+    "safeguard_not_configured",
+    "safeguard_parse_error",
+    "sightengine_not_configured",
+})
+
+
+def is_technical_category(category: str) -> bool:
+    """True when the category marks an unavailable or failing safety check."""
+    return category in TECHNICAL_CATEGORIES
+
+
+def build_unavailable_payload(message: str) -> Dict[str, Any]:
+    """Tool response for a request refused because a safety check was unavailable."""
     return {
-        "error": "safety_rejection",
-        "category": category or "unknown",
-        "severity": info["severity"],
-        "user_facing_message": info["message"],
+        "error": "safety_check_unavailable",
+        "category": "safety_check_unavailable",
+        "user_facing_message": message,
         "instructions_to_llm": (
-            "Do not retry this request. Do not attempt reformulations. Do not "
-            "call images-generate again in this response. Relay the "
-            "user_facing_message verbatim or paraphrase very closely. Do not "
-            "speculate about what would be allowed."
+            "The safety check is temporarily unavailable; this is not a policy "
+            "violation. Do not call images-generate again in this response. "
+            "Tell the user, in their language, that the image could not be "
+            "checked right now and that they can try again in a moment."
         ),
         "do_not_retry": True,
     }
