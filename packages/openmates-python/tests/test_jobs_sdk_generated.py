@@ -18,7 +18,7 @@ def test_jobs_search_metadata_and_native_method() -> None:
     metadata = next(item for item in APP_SKILL_METADATA if (item["app_id"], item["skill_id"]) == ("jobs", "search"))
     request = metadata["schema"]["properties"]["requests"]["items"]["properties"]
     assert metadata["schema"]["properties"]["countries"]["default"] == ["DE"]
-    assert metadata["schema"]["properties"]["countries"]["maxItems"] == 2
+    assert metadata["schema"]["properties"]["countries"]["maxItems"] == 10
     assert metadata["schema"]["properties"]["countries"]["x-ui"]["basic"] is True
     assert "default" not in request["country"]
     assert request["countries"]["x-ui"]["basic"] is False
