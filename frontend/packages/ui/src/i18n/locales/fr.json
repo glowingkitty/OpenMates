@@ -78,6 +78,11 @@
       }
     }
   },
+  "ai_response_notices": {
+    "output_limit": {
+      "text": "Cette réponse a été coupée car elle a atteint la longueur maximale du modèle. Tu peux demander à l'IA de continuer."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -11455,6 +11460,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Cette demande a été refusée. Les images sexuelles ou suggestives impliquant des mineurs ne sont jamais créées."
+    },
+    "reason_intimate_real_person": {
+      "text": "Cette demande a été refusée. Les images sexuelles ou intimes de personnes réelles ne sont jamais créées."
+    },
+    "reason_bypass": {
+      "text": "Cette demande a été refusée parce qu'elle tentait de contourner les règles de sécurité."
+    },
+    "reason_minor": {
+      "text": "Les images réalistes de mineurs ne sont pas créées, et les photos de mineurs ne peuvent être modifiées que pour l'arrière-plan, la lumière ou les couleurs, car de telles images pourraient être détournées, par exemple pour de faux profils se faisant passer pour des mineurs."
+    },
+    "alternative_minor": {
+      "text": "Une version clairement stylisée est possible, par exemple en rendu 3D, en illustration ou en dessin animé, tant que la scène n'est pas sexuelle."
+    },
+    "reason_sexual": {
+      "text": "Les images sexuelles ou explicites ne sont pas créées."
+    },
+    "alternative_sexual": {
+      "text": "Une version non explicite de la scène est possible."
+    },
+    "reason_violent": {
+      "text": "Les images montrant de vraies personnes blessées, agressées ou sur une scène de crime ne sont pas créées, car elles pourraient servir à leur nuire ou à les diffamer."
+    },
+    "alternative_violent": {
+      "text": "Une scène avec des personnages fictifs à la place de vraies personnes est possible."
+    },
+    "reason_public_figure": {
+      "text": "Les images de personnalités publiques réelles ne sont pas créées pour le moment, car elles pourraient servir de deepfakes ou à de fausses affirmations."
+    },
+    "alternative_public_figure": {
+      "text": "Un personnage original et fictif dans la même scène est possible."
+    },
+    "reason_identity": {
+      "text": "Les échanges de visage et le remplacement de l'identité d'une personne ne sont pas réalisés, car cela pourrait servir à usurper l'identité de quelqu'un."
+    },
+    "alternative_identity": {
+      "text": "Les modifications qui conservent l'identité de la personne, comme un nouvel arrière-plan, un autre éclairage ou un style artistique, sont possibles."
+    },
+    "reason_id_document": {
+      "text": "Les images de pièces d'identité comme les passeports, cartes d'identité ou permis de conduire ne sont pas créées, car elles pourraient servir à la fraude."
+    },
+    "reason_hate": {
+      "text": "Les images avec des symboles haineux ou qui visent des personnes en raison de leur identité ne sont pas créées."
+    },
+    "reason_self_harm": {
+      "text": "Les images qui montrent l'automutilation ou y incitent ne sont pas créées."
+    },
+    "alternative_self_harm": {
+      "text": "Si tu traverses une période difficile, parler à une personne de confiance ou à une ligne d'écoute près de chez toi peut aider."
+    },
+    "reason_weapons": {
+      "text": "Les images contenant des instructions ou des plans pour fabriquer des armes ou des explosifs ne sont pas créées."
+    },
+    "reason_scam": {
+      "text": "Les contenus destinés à des arnaques, à de faux documents ou à l'usurpation d'identité ne sont pas créés."
+    },
+    "alternative_scam": {
+      "text": "Un design original qui n'imite aucune personne, marque ou document réel est possible."
+    },
+    "reason_spam": {
+      "text": "La production en masse de contenu de remplissage ou la suppression des mentions IA n'est pas prise en charge."
+    },
+    "alternative_spam": {
+      "text": "Quelques images pour un usage précis sont possibles."
+    },
+    "reason_deceptive": {
+      "text": "Les images conçues pour passer pour des prises de vue réelles, une déclaration réelle ou un soutien officiel ne sont pas créées."
+    },
+    "alternative_deceptive": {
+      "text": "Une version clairement fictive ou illustrée est possible."
+    },
+    "reason_other": {
+      "text": "Cette demande ne peut pas être traitée selon les règles de sécurité."
+    },
+    "alternative_other": {
+      "text": "Un autre sujet ou une autre formulation peut fonctionner."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Facture"
@@ -14143,6 +14228,30 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Je n'ai pas pu utiliser {skill_name} correctement. Pourriez-vous clarifier ce que vous aimeriez que je fasse pour que je puisse réessayer?"
+    },
+    "provider_block_child_safety": {
+      "text": "Je ne peux pas aider avec cette demande, car elle concerne des mineurs et relève des règles de protection de l'enfance du fournisseur d'IA. Ces règles protègent les enfants contre les abus, comme les faux profils ou les contenus d'exploitation. Si cela peut vous aider, je peux travailler avec un personnage illustré ou clairement fictif à la place."
+    },
+    "provider_block_child_safety_strict": {
+      "text": "Je ne peux pas aider avec cette demande, car elle concerne des mineurs et relève des règles de protection de l'enfance du fournisseur d'IA. Ces règles protègent les enfants contre l'exploitation et les abus."
+    },
+    "provider_block_sexual": {
+      "text": "Je ne peux pas aider avec cette demande, car elle relève des règles du fournisseur d'IA sur les contenus sexuels. Ces règles évitent le contenu explicite dans des réponses où le consentement et l'âge ne peuvent pas être vérifiés. Je peux vous aider avec une version non explicite de votre demande."
+    },
+    "provider_block_dangerous": {
+      "text": "Je ne peux pas aider avec cette demande, car elle relève des règles du fournisseur d'IA sur les activités dangereuses. Ces règles garantissent que les réponses ne puissent pas servir à causer de graves dommages. Je peux plutôt vous aider avec des informations de sécurité ou le contexte du sujet."
+    },
+    "provider_block_harassment_hate": {
+      "text": "Je ne peux pas aider avec cette demande, car elle relève des règles du fournisseur d'IA contre le harcèlement et la haine. Ces règles protègent les personnes contre le fait d'être ciblées ou rabaissées. Je peux plutôt vous aider à formuler votre point de vue de manière respectueuse."
+    },
+    "provider_block_personal_data": {
+      "text": "Je ne peux pas aider avec cette demande, car elle relève des règles du fournisseur d'IA sur les informations personnelles sensibles. Ces règles protègent les données privées des personnes contre l'exposition ou l'utilisation abusive. Je peux vous aider si vous retirez les informations personnelles."
+    },
+    "provider_block_copyright": {
+      "text": "Je ne peux pas donner cette réponse, car elle reproduirait un texte protégé par le droit d'auteur, ce que les règles du fournisseur d'IA n'autorisent pas. Cela protège le travail des auteurs et des éditeurs. Je peux plutôt le résumer ou l'expliquer avec mes propres mots."
+    },
+    "provider_block_other": {
+      "text": "Je ne peux pas aider avec cette demande, car elle relève des règles de sécurité du fournisseur d'IA. Ces règles existent pour empêcher les réponses nuisibles. Vous pouvez reformuler votre demande, ou je peux vous aider avec autre chose."
     }
   },
   "projects": {},
@@ -14423,6 +14532,29 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} a été refusée. {reason} C'est l'avertissement {strike} sur {max}. Au troisième, ton compte est supprimé."
+    },
+    "what_image_generate": {
+      "text": "Ta demande d'image"
+    },
+    "what_image_edit": {
+      "text": "Ta demande de modification d'image"
+    },
+    "what_video": {
+      "text": "Ta demande de vidéo"
+    },
+    "what_upload": {
+      "text": "Ton image importée"
+    },
+    "deleted": {
+      "text": "Ton compte a été supprimé après la troisième violation des règles de contenu. Les achats éligibles sont remboursés automatiquement."
+    },
+    "unavailable": {
+      "text": "La vérification de sécurité est temporairement indisponible, la demande n'a donc pas pu être traitée. Réessaie dans un instant."
+    }
+  },
   "settings": {
     "account": {
       "username": {

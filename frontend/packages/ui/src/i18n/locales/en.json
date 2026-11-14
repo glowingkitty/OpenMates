@@ -78,6 +78,11 @@
       }
     }
   },
+  "ai_response_notices": {
+    "output_limit": {
+      "text": "This response was cut short because it reached the model's maximum output length. You can ask the AI to continue."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -14058,6 +14063,86 @@
       "text": "Approximate area extent unavailable; no location pin is shown."
     }
   },
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "This request was refused. Sexual or suggestive images involving minors are never created."
+    },
+    "reason_intimate_real_person": {
+      "text": "This request was refused. Sexual or intimate images of real people are never created."
+    },
+    "reason_bypass": {
+      "text": "This request was refused because it tried to get around the safety rules."
+    },
+    "reason_minor": {
+      "text": "Realistic images of minors aren't created, and photos of minors only get background, lighting or color edits, because such images could be misused, for example for fake profiles pretending to be a minor."
+    },
+    "alternative_minor": {
+      "text": "A clearly stylized version works, such as a 3D render, an illustration or a cartoon, as long as the scene is non-sexual."
+    },
+    "reason_sexual": {
+      "text": "Sexual or explicit images aren't created."
+    },
+    "alternative_sexual": {
+      "text": "A non-explicit version of the scene is possible."
+    },
+    "reason_violent": {
+      "text": "Images showing real people hurt, attacked or at a crime scene aren't created, because they could be used to harm or defame them."
+    },
+    "alternative_violent": {
+      "text": "A scene with fictional characters instead of real people is possible."
+    },
+    "reason_public_figure": {
+      "text": "Images of real public figures aren't created at the moment, because they could be used as deepfakes or for false claims."
+    },
+    "alternative_public_figure": {
+      "text": "An original, fictional character in the same scene is possible."
+    },
+    "reason_identity": {
+      "text": "Face swaps and replacing someone's identity aren't done, because they could be used to impersonate a person."
+    },
+    "alternative_identity": {
+      "text": "Edits that keep the person's identity, such as a new background, lighting or art style, are possible."
+    },
+    "reason_id_document": {
+      "text": "Images of ID documents such as passports, ID cards or driver's licenses aren't created, because they could be used for fraud."
+    },
+    "reason_hate": {
+      "text": "Images with hate symbols or images that target people for who they are aren't created."
+    },
+    "reason_self_harm": {
+      "text": "Images that show or encourage self-harm aren't created."
+    },
+    "alternative_self_harm": {
+      "text": "If you're going through a hard time, talking to someone you trust or a local helpline can help."
+    },
+    "reason_weapons": {
+      "text": "Images with instructions or blueprints for weapons or explosives aren't created."
+    },
+    "reason_scam": {
+      "text": "Media for scams, fake documents or impersonation isn't created."
+    },
+    "alternative_scam": {
+      "text": "An original design that doesn't imitate a real person, brand or document is possible."
+    },
+    "reason_spam": {
+      "text": "Mass-producing filler content or removing AI labels isn't supported."
+    },
+    "alternative_spam": {
+      "text": "A few images for a specific purpose are possible."
+    },
+    "reason_deceptive": {
+      "text": "Images made to pass as real footage, a real statement or an official endorsement aren't created."
+    },
+    "alternative_deceptive": {
+      "text": "A clearly fictional or illustrated version is possible."
+    },
+    "reason_other": {
+      "text": "This request can't be created under the safety rules."
+    },
+    "alternative_other": {
+      "text": "A different subject or phrasing may work."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Invoice"
@@ -17525,6 +17610,30 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... I wasn't able to use {skill_name} properly. Could you clarify what you'd like me to do so I can try again?"
+    },
+    "provider_block_child_safety": {
+      "text": "I can't help with this request because it concerns minors, which falls under the AI provider's child-safety rules. These rules protect children from misuse, such as fake profiles or exploitative content. If it helps, I can work with an illustrated or clearly fictional character instead."
+    },
+    "provider_block_child_safety_strict": {
+      "text": "I can't help with this request because it concerns minors, which falls under the AI provider's child-safety rules. These rules protect children from exploitation and misuse."
+    },
+    "provider_block_sexual": {
+      "text": "I can't help with this request because it falls under the AI provider's rules on sexual content. These rules keep explicit material out of answers where consent and age can't be checked. I can help with a non-explicit version of your request instead."
+    },
+    "provider_block_dangerous": {
+      "text": "I can't help with this request because it falls under the AI provider's rules on dangerous activities. These rules make sure answers can't be used to cause serious harm. I can help with safety information or the background of the topic instead."
+    },
+    "provider_block_harassment_hate": {
+      "text": "I can't help with this request because it falls under the AI provider's rules against harassment and hate. These rules protect people from being targeted or demeaned. I can help you make your point in a respectful way instead."
+    },
+    "provider_block_personal_data": {
+      "text": "I can't help with this request because it falls under the AI provider's rules on sensitive personal information. These rules protect people's private data from being exposed or misused. I can help if you leave out the personal details."
+    },
+    "provider_block_copyright": {
+      "text": "I can't give this answer because it would reproduce copyrighted text, which the AI provider's rules don't allow. This protects the work of authors and publishers. I can summarize it or explain it in my own words instead."
+    },
+    "provider_block_other": {
+      "text": "I can't help with this request because it falls under the AI provider's safety rules. These rules exist to prevent harmful output. You can rephrase your request, or I can help with something else."
     }
   },
   "projects": {
@@ -18652,6 +18761,29 @@
     },
     "job_waiting": {
       "text": "Waiting for a job update."
+    }
+  },
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} was rejected. {reason} This is strike {strike} of {max}. A third strike deletes your account."
+    },
+    "what_image_generate": {
+      "text": "Your image request"
+    },
+    "what_image_edit": {
+      "text": "Your image edit request"
+    },
+    "what_video": {
+      "text": "Your video request"
+    },
+    "what_upload": {
+      "text": "Your uploaded image"
+    },
+    "deleted": {
+      "text": "Your account was deleted after a third content-rule violation. Eligible purchases are refunded automatically."
+    },
+    "unavailable": {
+      "text": "The safety check is temporarily unavailable, so this request could not be processed. Please try again in a moment."
     }
   },
   "settings": {

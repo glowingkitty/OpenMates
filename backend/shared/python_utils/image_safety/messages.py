@@ -131,23 +131,14 @@ def user_facing_message(category: str) -> str:
 
 def build_rejection_payload(category: str) -> Dict[str, Any]:
     """
-    Build the structured tool response returned to the LLM on rejection.
+    Build the structured tool response returned to the LLM on rejection, in
+    English. The image task replaces it with the user's language
+    (explanations.localized_rejection_payload) before it is shown or cached.
 
-    The LLM relays `user_facing_message` to the user and MUST NOT retry in the
-    same response — `do_not_retry: true` is enforced by the pipeline auto-reject
-    cache keyed on assistant_response_id.
+    The LLM explains the reason and offers the allowed alternative, and MUST NOT
+    retry in the same response — `do_not_retry: true` is enforced by the
+    pipeline auto-reject cache keyed on assistant_response_id.
     """
-    info = category_info(category)
-    return {
-        "error": "safety_rejection",
-        "category": category or "unknown",
-        "severity": info["severity"],
-        "user_facing_message": info["message"],
-        "instructions_to_llm": (
-            "Do not retry this request. Do not attempt reformulations. Do not "
-            "call images-generate again in this response. Relay the "
-            "user_facing_message verbatim or paraphrase very closely. Do not "
-            "speculate about what would be allowed."
-        ),
-        "do_not_retry": True,
-    }
+    from .explanations import localized_rejection_payload
+
+    return localized_rejection_payload(category, "en")

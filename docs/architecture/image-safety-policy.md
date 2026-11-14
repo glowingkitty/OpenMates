@@ -10,7 +10,7 @@
 
 ## Prohibited absolutely — always block, regardless of context
 
-1. **Child sexual abuse material (CSAM)** — any sexualized or suggestive depiction of anyone appearing under 18, real or synthetic, clothed or unclothed. Zero tolerance. First strike triggers immediate ban.
+1. **Child sexual abuse material (CSAM)** — any sexualized or suggestive depiction of anyone appearing under 18, real or synthetic, clothed or unclothed. Zero tolerance: refused every time and counted as a strike (the account is deleted at the third strike, never on the first).
 2. **Non-consensual intimate imagery (NCII) of real people:**
    - Nudification, undressing, clothing removal edits
    - Sexual recontextualization (placing a recognizable person in a sexual scene)
@@ -24,6 +24,23 @@
 8. **Weapon manufacturing** — instructions, schematics, or builds of firearms, explosives, chemical/biological agents rendered as image
 
 ## Special handling — minors (anyone appearing under 18)
+
+### Creating new images of minors (text-to-image or a new scene)
+
+**BLOCKED (`S5_minor_restricted_edit`):**
+- Any photorealistic or realistic-photo depiction of a minor: "photo of", "portrait photo", "realistic", "photorealistic", "hyperrealistic", "DSLR", "4k photo", "selfie" or similar, including any photo-like depiction of a specific real child or teen (for example a named or described participant, classmate or neighbour)
+- Any request that combines a minor with sexual, suggestive, romantic, swimwear/underwear or body-focused framing is `S1_csam`, never `S5`, whatever the art style
+
+**ALLOWED (non-sexual subject only):**
+- Clearly stylized, non-photorealistic depictions of a minor in an ordinary, non-sexual scene: 3D render or 3D cartoon, illustration, drawing, painting, watercolor, anime, cartoon, comic, pixel art, clay or toy figure
+- Examples that must be allowed: "3D cartoon-style portrait of a 12-year-old girl reading a book", "children's book illustration of kids building a sandcastle", "anime-style teenage soccer team celebrating"
+- A request that names no art style is judged by its format: a card, poster, sticker, storybook page, comic or similar illustrative format is allowed (for example "a birthday card with my daughter holding balloons"); a "portrait", "headshot", "photo" or "profile picture" of a real or realistic child or teen with no style named is treated as photorealistic and blocked
+
+**At output validation:** a generated image whose request was allowed is not blocked only because the provider rendered a minor in a realistic style; it is blocked for the S1 rules above, or when the request itself asked for a photo-like depiction of a minor.
+
+Rationale: realistic images of minors could be misused, for example for fake profiles pretending to be a minor, and we cannot verify consent from a guardian. A clearly stylized picture of a non-sexual everyday scene does not carry that risk.
+
+### Editing uploaded photos that contain minors
 
 **ALLOWED:**
 - Background replacement
@@ -81,7 +98,7 @@ Treat as "unknown private individual with no verifiable consent." We cannot tell
 
 ## Adversarial behavior — immediate action
 
-**BLOCKED IMMEDIATELY (adversarial strike weight = 2):**
+**BLOCKED IMMEDIATELY (always blocked, with no alternative offered):**
 - Embedded text in an image that attempts to inject instructions into the model
 - User prompts that reference "instructions in the image" or similar
 - Attempts to use fictional framing to bypass policy ("pretend this is legal", "for educational purposes", "in a fictional universe where")
@@ -90,32 +107,29 @@ Treat as "unknown private individual with no verifiable consent." We cannot tell
 
 ## Category taxonomy
 
-Emitted by the safeguard model in its structured output `category` field. Used for tiered user-facing messages and audit log classification.
+Emitted by the safeguard model in its structured output `category` field. Used for tiered user-facing messages and audit log classification. Every user-facing reason is category level and localized; it never names the check, classifier, score or threshold that fired. Wording: `frontend/packages/ui/src/i18n/sources/image_safety.yml`.
 
 | Category | Severity | User-facing tier |
 |---|---|---|
-| `S1_csam` | critical | vague |
-| `S2_ncii` | critical | vague |
-| `S3_sexual_other` | severe | vague |
-| `S4_violent_recontextualization` | severe | category-level |
-| `S5_minor_restricted_edit` | severe | category-level |
-| `S6_public_figure_blocked` | moderate | category-level |
-| `S7_identity_replacement` | severe | category-level |
-| `S8_id_document` | severe | vague |
-| `S9_hate_symbol` | critical | vague |
-| `S10_self_harm` | critical | vague |
-| `S11_weapon_instruction` | severe | vague |
-| `S12_adversarial_bypass` | adversarial | vague |
+| `S1_csam` | critical | hard limit: short firm reason, no alternative |
+| `S2_ncii` | critical | hard limit: short firm reason, no alternative |
+| `S3_sexual_other` | severe | reason + alternative |
+| `S4_violent_recontextualization` | severe | reason + alternative |
+| `S5_minor_restricted_edit` | severe | reason + alternative (stylized, non-sexual depiction) |
+| `S6_public_figure_blocked` | moderate | reason + alternative |
+| `S7_identity_replacement` | severe | reason + alternative |
+| `S8_id_document` | severe | reason |
+| `S9_hate_symbol` | critical | reason |
+| `S10_self_harm` | critical | reason + support hint |
+| `S11_weapon_instruction` | severe | reason |
+| `S12_adversarial_bypass` | adversarial | hard limit: short firm reason, no alternative |
 | `ALLOW_BENIGN_WHITELIST` | — | (not shown) |
 | `ALLOW_GENERAL` | — | (not shown) |
 
 ## Strike severity mapping
 
-| Severity | Strike weight | Ban threshold |
-|---|---|---|
-| critical | 4 (instant ban) | 4 |
-| adversarial | 2 | 4 in 24h |
-| severe | 2 | 4 in 24h |
-| moderate | 1 | 4 in 24h |
+Every violation is exactly **one strike**, whatever its category or severity (generation, edit, video, upload). Strikes 1 and 2 return a localized warning ("This is strike N of 3."); only the **third strike within 24h** deletes the account, through the regular account-deletion task with refund of eligible purchases. No single request can delete an account. `StrikeCounter` is the only owner of the counter.
+
+**Technical failures are not violations:** when the classifier itself fails or is unavailable (`safeguard_error`, `safeguard_parse_error`, `safeguard_not_configured`, `sightengine_not_configured`) the request is refused (fail closed) with a "temporarily unavailable, try again" message, and no strike, ban or violation audit entry is recorded.
 
 **Single-response cap:** at most one strike can be recorded per assistant response regardless of how many `images-generate` sub-calls trip safety. This protects users from LLM autonomy (see `image-safety-pipeline.md` §5).

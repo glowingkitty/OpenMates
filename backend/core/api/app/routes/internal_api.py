@@ -2841,83 +2841,56 @@ async def content_safety_reject(
     cache_service: CacheService = Depends(get_cache_service),
 ) -> Dict[str, Any]:
     """
-    Track a content safety rejection for a user and delete the account on the 4th violation.
+    Count a rejected upload as exactly one safety strike; the third strike deletes the account.
 
-    Called by the app-uploads microservice when SightEngine (nudity-2.0, offensive, gore
-    models) rejects a user-uploaded image.  Mirrors the rejection tracking logic that was
-    previously inline in settings.py's update_profile_image endpoint.
+    Called by the app-uploads microservice when SightEngine rejects a user-uploaded image.
+    StrikeCounter is the only owner of the strike counter (shared with image/video
+    generation and editing), so an upload is never counted twice. The third strike queues the regular account-deletion
+    task, which refunds eligible purchases like a user-requested deletion.
 
-    Rejection counter logic:
-    - Redis key: "{upload_type}_rejects:{user_id}" — separate counter per upload type
-    - TTL: 24 hours (same as the original settings.py implementation)
-    - On 4th rejection (>= 4): delete the user account immediately
-    - Returns "tracked" on normal increments, "account_deleted" when the account is removed
-
-    Security:
-    - Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes)
-    - Never modifies anything other than the reject counter and optional account deletion
+    Returns "tracked" (with ``reject_count``) or "account_deleted".
+    Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes).
     """
     log_prefix = f"[ContentSafetyReject] [user:{payload.user_id[:8]}...] [{payload.upload_type}]"
     logger.info(
         f"{log_prefix} Received rejection — reason: {payload.rejection_reason[:80]}"
     )
 
-    # Redis key uses upload_type as prefix so chat_image and profile_image counters are
-    # tracked independently (the original settings.py used "profile_image_rejects:" only).
-    reject_key = f"{payload.upload_type}_rejects:{payload.user_id}"
-
     try:
-        # Fetch current reject count from Redis
-        raw = await cache_service.get(reject_key)
-        reject_count = int(raw) if raw else 0
+        from backend.shared.python_utils.image_safety.strike_counter import get_strike_counter
+        from backend.shared.python_utils.image_safety.strike_policy import (
+            delete_account_for_strikes,
+            strike_warning,
+            user_language,
+        )
 
-        # Increment and persist with 24-hour TTL
-        reject_count += 1
-        await cache_service.set(reject_key, reject_count, ttl=86400)
+        strike = await get_strike_counter(cache_service).record_strike(
+            user_id=payload.user_id, severity="", assistant_response_id=None
+        )
+        if strike.error:
+            raise HTTPException(status_code=500, detail="Content safety strike could not be recorded")
+        logger.info(f"{log_prefix} Strike count updated → {strike.new_count}")
 
-        logger.info(f"{log_prefix} Rejection count updated → {reject_count}")
-
-        if reject_count >= 4:
-            # Policy violation threshold reached — delete the account.
-            # We do NOT have the client IP / device fingerprint here (the upload server
-            # doesn't forward them to internal endpoints).  We pass None for those fields
-            # so the deletion is still logged correctly in Directus.
-            logger.warning(
-                f"{log_prefix} Threshold reached (count={reject_count}). "
-                f"Deleting user account."
+        if strike.ban_triggered:
+            await delete_account_for_strikes(
+                user_id=payload.user_id,
+                strike_count=strike.new_count,
+                reason=f"repeated_safety_violations:{payload.upload_type}",
+                directus_service=directus_service,
             )
-            try:
-                await directus_service.delete_user(
-                    payload.user_id,
-                    deletion_type="policy_violation",
-                    reason=f"repeated_inappropriate_{payload.upload_type}s",
-                    ip_address=None,
-                    device_fingerprint=None,
-                    details={
-                        "reject_count": reject_count,
-                        "upload_type": payload.upload_type,
-                        "timestamp": int(time.time()),
-                    },
-                )
-            except Exception as del_err:
-                logger.error(
-                    f"{log_prefix} Account deletion FAILED: {del_err}", exc_info=True
-                )
-                # Still clean up cache so subsequent requests don't keep incrementing
-                # a now-orphaned counter.  Fall through to return tracked.
+            return {"result": "account_deleted", "reject_count": strike.new_count}
 
-            # Clean up cache regardless of deletion success
-            await cache_service.delete_user_cache(payload.user_id)
-            await cache_service.delete(reject_key)
-
-            return {
-                "result": "account_deleted",
-                "reject_count": reject_count,
-            }
-
+        reason = payload.rejection_reason.lower()
+        category = (
+            "S3_sexual_other" if any(w in reason for w in ("sexual", "nudity", "porn", "erotic"))
+            else "S4_violent_recontextualization" if any(w in reason for w in ("gore", "violence", "weapon"))
+            else "unknown"
+        )
+        language = await user_language(cache_service, payload.user_id)
         return {
             "result": "tracked",
-            "reject_count": reject_count,
+            "reject_count": strike.new_count,
+            "warning": strike_warning(category, "upload", strike.new_count, language),
         }
 
     except HTTPException:

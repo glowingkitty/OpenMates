@@ -78,6 +78,11 @@
       }
     }
   },
+  "ai_response_notices": {
+    "output_limit": {
+      "text": "Tato odpověď byla zkrácena, protože dosáhla maximální délky modelu. Můžeš AI požádat, ať pokračuje."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -11428,6 +11433,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Tento požadavek byl zamítnut. Sexuální nebo sugestivní obrázky s nezletilými se nikdy nevytvářejí."
+    },
+    "reason_intimate_real_person": {
+      "text": "Tento požadavek byl zamítnut. Sexuální nebo intimní obrázky skutečných osob se nikdy nevytvářejí."
+    },
+    "reason_bypass": {
+      "text": "Tento požadavek byl zamítnut, protože se pokusil obejít bezpečnostní pravidla."
+    },
+    "reason_minor": {
+      "text": "Realistické obrázky nezletilých se nevytvářejí a fotky nezletilých lze upravovat jen v pozadí, osvětlení nebo barvách, protože by takové obrázky mohly být zneužity, například pro falešné profily vydávající se za nezletilé."
+    },
+    "alternative_minor": {
+      "text": "Možná je zjevně stylizovaná verze, například 3D render, ilustrace nebo kreslená postava, pokud scéna není sexuální."
+    },
+    "reason_sexual": {
+      "text": "Sexuální nebo explicitní obrázky se nevytvářejí."
+    },
+    "alternative_sexual": {
+      "text": "Možná je neexplicitní verze scény."
+    },
+    "reason_violent": {
+      "text": "Obrázky zobrazující skutečné osoby zraněné, napadené nebo na místě činu se nevytvářejí, protože by mohly být použity k jejich poškození nebo pomluvě."
+    },
+    "alternative_violent": {
+      "text": "Možná je scéna s fiktivními postavami místo skutečných osob."
+    },
+    "reason_public_figure": {
+      "text": "Obrázky skutečných veřejně známých osob se v tuto chvíli nevytvářejí, protože by mohly být použity jako deepfaky nebo pro nepravdivá tvrzení."
+    },
+    "alternative_public_figure": {
+      "text": "Možná je původní fiktivní postava ve stejné scéně."
+    },
+    "reason_identity": {
+      "text": "Výměna obličejů a nahrazení identity osoby se neprovádějí, protože by mohly být použity k vydávání se za někoho jiného."
+    },
+    "alternative_identity": {
+      "text": "Možné jsou úpravy, které zachovají identitu osoby, například nové pozadí, osvětlení nebo umělecký styl."
+    },
+    "reason_id_document": {
+      "text": "Obrázky dokladů totožnosti, jako jsou pasy, občanské průkazy nebo řidičské průkazy, se nevytvářejí, protože by mohly být použity k podvodu."
+    },
+    "reason_hate": {
+      "text": "Obrázky se symboly nenávisti nebo obrázky, které cílí na lidi kvůli tomu, kým jsou, se nevytvářejí."
+    },
+    "reason_self_harm": {
+      "text": "Obrázky, které zobrazují sebepoškozování nebo k němu vybízejí, se nevytvářejí."
+    },
+    "alternative_self_harm": {
+      "text": "Pokud máš těžké období, může pomoct promluvit si s někým, komu věříš, nebo s místní linkou pomoci."
+    },
+    "reason_weapons": {
+      "text": "Obrázky s návody nebo plány na zbraně či výbušniny se nevytvářejí."
+    },
+    "reason_scam": {
+      "text": "Média pro podvody, falešné dokumenty nebo vydávání se za někoho jiného se nevytvářejí."
+    },
+    "alternative_scam": {
+      "text": "Možný je původní design, který nenapodobuje skutečnou osobu, značku ani dokument."
+    },
+    "reason_spam": {
+      "text": "Hromadná výroba vatového obsahu nebo odstraňování označení AI není podporována."
+    },
+    "alternative_spam": {
+      "text": "Možných je několik obrázků pro konkrétní účel."
+    },
+    "reason_deceptive": {
+      "text": "Obrázky, které mají působit jako skutečné záběry, skutečné prohlášení nebo oficiální doporučení, se nevytvářejí."
+    },
+    "alternative_deceptive": {
+      "text": "Možná je zjevně fiktivní nebo kreslená verze."
+    },
+    "reason_other": {
+      "text": "Tento požadavek nelze podle bezpečnostních pravidel vytvořit."
+    },
+    "alternative_other": {
+      "text": "Může fungovat jiné téma nebo jiná formulace."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktura"
@@ -14116,6 +14201,30 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Nepodařilo se mi správně použít {skill_name}. Mohl bys upřesnit, co bys chtěl, abych udělal, a já to zkusím znovu?"
+    },
+    "provider_block_child_safety": {
+      "text": "S tímto požadavkem nemohu pomoci, protože se týká nezletilých a spadá pod pravidla poskytovatele AI na ochranu dětí. Tato pravidla chrání děti před zneužitím, například falešnými profily nebo vykořisťujícím obsahem. Pokud to pomůže, mohu místo toho pracovat s nakreslenou nebo jasně fiktivní postavou."
+    },
+    "provider_block_child_safety_strict": {
+      "text": "S tímto požadavkem nemohu pomoci, protože se týká nezletilých a spadá pod pravidla poskytovatele AI na ochranu dětí. Tato pravidla chrání děti před vykořisťováním a zneužitím."
+    },
+    "provider_block_sexual": {
+      "text": "S tímto požadavkem nemohu pomoci, protože spadá pod pravidla poskytovatele AI týkající se sexuálního obsahu. Tato pravidla brání tomu, aby se v odpovědích, kde nelze ověřit souhlas ani věk, objevoval explicitní obsah. Místo toho mohu pomoci s neexplicitní verzí tvého požadavku."
+    },
+    "provider_block_dangerous": {
+      "text": "S tímto požadavkem nemohu pomoci, protože spadá pod pravidla poskytovatele AI týkající se nebezpečných činností. Tato pravidla zajišťují, aby odpovědi nemohly být použity k způsobení vážné újmy. Místo toho mohu pomoci s bezpečnostními informacemi nebo pozadím tématu."
+    },
+    "provider_block_harassment_hate": {
+      "text": "S tímto požadavkem nemohu pomoci, protože spadá pod pravidla poskytovatele AI proti obtěžování a nenávisti. Tato pravidla chrání lidi před tím, aby byli napadáni nebo ponižováni. Místo toho ti mohu pomoci vyjádřit svůj názor s respektem."
+    },
+    "provider_block_personal_data": {
+      "text": "S tímto požadavkem nemohu pomoci, protože spadá pod pravidla poskytovatele AI týkající se citlivých osobních údajů. Tato pravidla chrání soukromá data lidí před odhalením nebo zneužitím. Mohu pomoci, pokud osobní údaje vynecháš."
+    },
+    "provider_block_copyright": {
+      "text": "Tuto odpověď nemohu dát, protože by reprodukovala text chráněný autorským právem, což pravidla poskytovatele AI nepovolují. To chrání práci autorů a nakladatelů. Místo toho ho mohu shrnout nebo vysvětlit vlastními slovy."
+    },
+    "provider_block_other": {
+      "text": "S tímto požadavkem nemohu pomoci, protože spadá pod bezpečnostní pravidla poskytovatele AI. Tato pravidla existují, aby zabránila škodlivým výstupům. Můžeš svůj požadavek přeformulovat, nebo ti mohu pomoci s něčím jiným."
     }
   },
   "projects": {},
@@ -14396,6 +14505,29 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} bylo zamítnuto. {reason} Toto je porušení {strike} z {max}. Při třetím porušení bude tvůj účet smazán."
+    },
+    "what_image_generate": {
+      "text": "Tvůj požadavek na obrázek"
+    },
+    "what_image_edit": {
+      "text": "Tvůj požadavek na úpravu obrázku"
+    },
+    "what_video": {
+      "text": "Tvůj požadavek na video"
+    },
+    "what_upload": {
+      "text": "Tvůj nahraný obrázek"
+    },
+    "deleted": {
+      "text": "Tvůj účet byl smazán po třetím porušení pravidel pro obsah. Způsobilé nákupy se vracejí automaticky."
+    },
+    "unavailable": {
+      "text": "Bezpečnostní kontrola je dočasně nedostupná, proto nešlo požadavek zpracovat. Zkus to prosím za chvíli znovu."
+    }
+  },
   "settings": {
     "account": {
       "username": {

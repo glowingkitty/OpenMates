@@ -78,6 +78,11 @@
       }
     }
   },
+  "ai_response_notices": {
+    "output_limit": {
+      "text": "Dit antwoord is afgebroken omdat het de maximale lengte van het model bereikte. Je kunt de AI vragen verder te gaan."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -11428,6 +11433,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Dit verzoek is geweigerd. Seksuele of suggestieve beelden van minderjarigen worden nooit gemaakt."
+    },
+    "reason_intimate_real_person": {
+      "text": "Dit verzoek is geweigerd. Seksuele of intieme beelden van echte personen worden nooit gemaakt."
+    },
+    "reason_bypass": {
+      "text": "Dit verzoek is geweigerd omdat het probeerde de veiligheidsregels te omzeilen."
+    },
+    "reason_minor": {
+      "text": "Realistische beelden van minderjarigen worden niet gemaakt, en foto's van minderjarigen kunnen alleen worden bewerkt wat betreft achtergrond, licht of kleur, omdat zulke beelden misbruikt kunnen worden, bijvoorbeeld voor nepprofielen die zich voordoen als minderjarige."
+    },
+    "alternative_minor": {
+      "text": "Een duidelijk gestileerde versie is mogelijk, zoals een 3D-render, een illustratie of een cartoon, zolang de scène niet seksueel is."
+    },
+    "reason_sexual": {
+      "text": "Seksuele of expliciete beelden worden niet gemaakt."
+    },
+    "alternative_sexual": {
+      "text": "Een niet-expliciete versie van de scène is mogelijk."
+    },
+    "reason_violent": {
+      "text": "Beelden die echte personen gewond, aangevallen of op een plaats delict tonen worden niet gemaakt, omdat ze gebruikt kunnen worden om hen te schaden of te belasteren."
+    },
+    "alternative_violent": {
+      "text": "Een scène met fictieve personages in plaats van echte personen is mogelijk."
+    },
+    "reason_public_figure": {
+      "text": "Beelden van echte publieke figuren worden momenteel niet gemaakt, omdat ze gebruikt kunnen worden als deepfakes of voor valse beweringen."
+    },
+    "alternative_public_figure": {
+      "text": "Een eigen, fictief personage in dezelfde scène is mogelijk."
+    },
+    "reason_identity": {
+      "text": "Gezichten verwisselen en iemands identiteit vervangen doen we niet, omdat dit gebruikt kan worden om je voor iemand anders voor te doen."
+    },
+    "alternative_identity": {
+      "text": "Bewerkingen die de identiteit van de persoon behouden, zoals een nieuwe achtergrond, ander licht of een kunststijl, zijn mogelijk."
+    },
+    "reason_id_document": {
+      "text": "Beelden van identiteitsbewijzen zoals paspoorten, identiteitskaarten of rijbewijzen worden niet gemaakt, omdat ze gebruikt kunnen worden voor fraude."
+    },
+    "reason_hate": {
+      "text": "Beelden met haatsymbolen of beelden die mensen aanvallen om wie ze zijn worden niet gemaakt."
+    },
+    "reason_self_harm": {
+      "text": "Beelden die zelfbeschadiging tonen of aanmoedigen worden niet gemaakt."
+    },
+    "alternative_self_harm": {
+      "text": "Als je het moeilijk hebt, kan praten met iemand die je vertrouwt of met een hulplijn bij jou in de buurt helpen."
+    },
+    "reason_weapons": {
+      "text": "Beelden met instructies of bouwtekeningen voor wapens of explosieven worden niet gemaakt."
+    },
+    "reason_scam": {
+      "text": "Media voor oplichting, valse documenten of het zich voordoen als iemand anders worden niet gemaakt."
+    },
+    "alternative_scam": {
+      "text": "Een eigen ontwerp dat geen echte persoon, merk of document nabootst, is mogelijk."
+    },
+    "reason_spam": {
+      "text": "Het massaal produceren van opvulcontent of het verwijderen van AI-labels wordt niet ondersteund."
+    },
+    "alternative_spam": {
+      "text": "Een paar beelden voor een specifiek doel zijn mogelijk."
+    },
+    "reason_deceptive": {
+      "text": "Beelden die moeten doorgaan voor echte opnamen, een echte uitspraak of een officiële aanbeveling worden niet gemaakt."
+    },
+    "alternative_deceptive": {
+      "text": "Een duidelijk fictieve of getekende versie is mogelijk."
+    },
+    "reason_other": {
+      "text": "Dit verzoek kan volgens de veiligheidsregels niet worden uitgevoerd."
+    },
+    "alternative_other": {
+      "text": "Een ander onderwerp of een andere formulering kan werken."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Factuur"
@@ -14116,6 +14201,30 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Ik kon {skill_name} niet goed gebruiken. Kun je verduidelijken wat je wilt dat ik doe, zodat ik het opnieuw kan proberen?"
+    },
+    "provider_block_child_safety": {
+      "text": "Hier kan ik niet bij helpen, omdat het om minderjarigen gaat en dat onder de kinderveiligheidsregels van de AI-aanbieder valt. Deze regels beschermen kinderen tegen misbruik, zoals nepprofielen of uitbuitende inhoud. Als het helpt, kan ik in plaats daarvan werken met een getekend of duidelijk fictief personage."
+    },
+    "provider_block_child_safety_strict": {
+      "text": "Hier kan ik niet bij helpen, omdat het om minderjarigen gaat en dat onder de kinderveiligheidsregels van de AI-aanbieder valt. Deze regels beschermen kinderen tegen uitbuiting en misbruik."
+    },
+    "provider_block_sexual": {
+      "text": "Hier kan ik niet bij helpen, omdat het onder de regels van de AI-aanbieder over seksuele inhoud valt. Deze regels houden expliciet materiaal buiten antwoorden waarin toestemming en leeftijd niet te controleren zijn. Ik kan je in plaats daarvan helpen met een niet-expliciete versie van je verzoek."
+    },
+    "provider_block_dangerous": {
+      "text": "Hier kan ik niet bij helpen, omdat het onder de regels van de AI-aanbieder over gevaarlijke activiteiten valt. Deze regels zorgen ervoor dat antwoorden niet gebruikt kunnen worden om ernstige schade aan te richten. Ik kan je in plaats daarvan helpen met veiligheidsinformatie of de achtergrond van het onderwerp."
+    },
+    "provider_block_harassment_hate": {
+      "text": "Hier kan ik niet bij helpen, omdat het onder de regels van de AI-aanbieder tegen intimidatie en haat valt. Deze regels beschermen mensen ertegen dat ze doelwit worden of vernederd worden. Ik kan je in plaats daarvan helpen je punt op een respectvolle manier te maken."
+    },
+    "provider_block_personal_data": {
+      "text": "Hier kan ik niet bij helpen, omdat het onder de regels van de AI-aanbieder over gevoelige persoonlijke informatie valt. Deze regels beschermen de privégegevens van mensen tegen blootstelling of misbruik. Ik kan helpen als je de persoonlijke gegevens weglaat."
+    },
+    "provider_block_copyright": {
+      "text": "Dit antwoord kan ik niet geven, omdat het auteursrechtelijk beschermde tekst zou reproduceren, wat de regels van de AI-aanbieder niet toestaan. Dit beschermt het werk van auteurs en uitgevers. Ik kan het in plaats daarvan samenvatten of in mijn eigen woorden uitleggen."
+    },
+    "provider_block_other": {
+      "text": "Hier kan ik niet bij helpen, omdat het onder de veiligheidsregels van de AI-aanbieder valt. Deze regels bestaan om schadelijke uitvoer te voorkomen. Je kunt je verzoek anders formuleren, of ik kan je met iets anders helpen."
     }
   },
   "projects": {},
@@ -14396,6 +14505,29 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} is geweigerd. {reason} Dit is waarschuwing {strike} van {max}. Bij de derde waarschuwing wordt je account verwijderd."
+    },
+    "what_image_generate": {
+      "text": "Je afbeeldingsverzoek"
+    },
+    "what_image_edit": {
+      "text": "Je verzoek om een afbeelding te bewerken"
+    },
+    "what_video": {
+      "text": "Je videoverzoek"
+    },
+    "what_upload": {
+      "text": "Je geüploade afbeelding"
+    },
+    "deleted": {
+      "text": "Je account is verwijderd na de derde overtreding van de inhoudsregels. In aanmerking komende aankopen worden automatisch terugbetaald."
+    },
+    "unavailable": {
+      "text": "De veiligheidscontrole is tijdelijk niet beschikbaar, dus het verzoek kon niet worden verwerkt. Probeer het zo meteen opnieuw."
+    }
+  },
   "settings": {
     "account": {
       "username": {

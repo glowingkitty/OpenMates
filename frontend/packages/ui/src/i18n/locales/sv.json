@@ -78,6 +78,11 @@
       }
     }
   },
+  "ai_response_notices": {
+    "output_limit": {
+      "text": "Det här svaret avbröts eftersom det nådde modellens maximala längd. Du kan be AI:n att fortsätta."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -11428,6 +11433,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Den här begäran avslogs. Sexuella eller antydande bilder med minderåriga skapas aldrig."
+    },
+    "reason_intimate_real_person": {
+      "text": "Den här begäran avslogs. Sexuella eller intima bilder av verkliga personer skapas aldrig."
+    },
+    "reason_bypass": {
+      "text": "Den här begäran avslogs eftersom den försökte kringgå säkerhetsreglerna."
+    },
+    "reason_minor": {
+      "text": "Realistiska bilder av minderåriga skapas inte, och foton av minderåriga får bara ändras i bakgrund, ljus eller färg, eftersom sådana bilder kan missbrukas, till exempel för falska profiler som utger sig för att vara minderåriga."
+    },
+    "alternative_minor": {
+      "text": "En tydligt stiliserad version är möjlig, till exempel som 3D-rendering, illustration eller tecknad serie, så länge scenen inte är sexuell."
+    },
+    "reason_sexual": {
+      "text": "Sexuella eller explicita bilder skapas inte."
+    },
+    "alternative_sexual": {
+      "text": "En icke-explicit version av scenen är möjlig."
+    },
+    "reason_violent": {
+      "text": "Bilder som visar verkliga personer skadade, attackerade eller på en brottsplats skapas inte, eftersom de kan användas för att skada eller smäda dem."
+    },
+    "alternative_violent": {
+      "text": "En scen med fiktiva figurer i stället för verkliga personer är möjlig."
+    },
+    "reason_public_figure": {
+      "text": "Bilder av verkliga offentliga personer skapas för närvarande inte, eftersom de kan användas som deepfakes eller för falska påståenden."
+    },
+    "alternative_public_figure": {
+      "text": "En egen, fiktiv figur i samma scen är möjlig."
+    },
+    "reason_identity": {
+      "text": "Ansiktsbyten och utbyte av någons identitet görs inte, eftersom de kan användas för att utge sig för att vara en annan person."
+    },
+    "alternative_identity": {
+      "text": "Ändringar som bevarar personens identitet, till exempel en ny bakgrund, annat ljus eller en konststil, är möjliga."
+    },
+    "reason_id_document": {
+      "text": "Bilder av id-handlingar som pass, id-kort eller körkort skapas inte, eftersom de kan användas för bedrägeri."
+    },
+    "reason_hate": {
+      "text": "Bilder med hatsymboler eller bilder som riktar sig mot människor på grund av vilka de är skapas inte."
+    },
+    "reason_self_harm": {
+      "text": "Bilder som visar eller uppmuntrar till självskada skapas inte."
+    },
+    "alternative_self_harm": {
+      "text": "Om du går igenom en svår tid kan det hjälpa att prata med någon du litar på eller med en lokal stödlinje."
+    },
+    "reason_weapons": {
+      "text": "Bilder med instruktioner eller ritningar för vapen eller sprängämnen skapas inte."
+    },
+    "reason_scam": {
+      "text": "Medier för bedrägerier, falska dokument eller identitetsstöld skapas inte."
+    },
+    "alternative_scam": {
+      "text": "En egen design som inte imiterar en verklig person, ett varumärke eller ett dokument är möjlig."
+    },
+    "reason_spam": {
+      "text": "Massproduktion av utfyllnadsinnehåll eller borttagning av AI-märkning stöds inte."
+    },
+    "alternative_spam": {
+      "text": "Några få bilder för ett specifikt syfte är möjliga."
+    },
+    "reason_deceptive": {
+      "text": "Bilder som ska framstå som äkta material, ett äkta uttalande eller ett officiellt stöd skapas inte."
+    },
+    "alternative_deceptive": {
+      "text": "En tydligt fiktiv eller tecknad version är möjlig."
+    },
+    "reason_other": {
+      "text": "Den här begäran kan inte skapas enligt säkerhetsreglerna."
+    },
+    "alternative_other": {
+      "text": "Ett annat motiv eller en annan formulering kan fungera."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktura"
@@ -14116,6 +14201,30 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Jag kunde inte använda {skill_name} korrekt. Kan du förtydliga vad du vill att jag ska göra så att jag kan försöka igen?"
+    },
+    "provider_block_child_safety": {
+      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den rör minderåriga, vilket omfattas av AI-leverantörens regler för barnsäkerhet. Reglerna skyddar barn mot missbruk, till exempel falska profiler eller exploaterande innehåll. Om det hjälper kan jag i stället arbeta med en tecknad eller tydligt fiktiv karaktär."
+    },
+    "provider_block_child_safety_strict": {
+      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den rör minderåriga, vilket omfattas av AI-leverantörens regler för barnsäkerhet. Reglerna skyddar barn mot exploatering och missbruk."
+    },
+    "provider_block_sexual": {
+      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den omfattas av AI-leverantörens regler om sexuellt innehåll. Reglerna håller explicit material borta från svar där samtycke och ålder inte kan kontrolleras. Jag kan i stället hjälpa till med en icke-explicit version av din förfrågan."
+    },
+    "provider_block_dangerous": {
+      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den omfattas av AI-leverantörens regler om farliga aktiviteter. Reglerna ser till att svar inte kan användas för att orsaka allvarlig skada. Jag kan i stället hjälpa till med säkerhetsinformation eller bakgrunden till ämnet."
+    },
+    "provider_block_harassment_hate": {
+      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den omfattas av AI-leverantörens regler mot trakasserier och hat. Reglerna skyddar människor från att bli angripna eller nedvärderade. Jag kan i stället hjälpa dig att framföra din poäng på ett respektfullt sätt."
+    },
+    "provider_block_personal_data": {
+      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den omfattas av AI-leverantörens regler om känsliga personuppgifter. Reglerna skyddar människors privata data från att avslöjas eller missbrukas. Jag kan hjälpa till om du utelämnar de personliga uppgifterna."
+    },
+    "provider_block_copyright": {
+      "text": "Jag kan inte ge det här svaret eftersom det skulle återge upphovsrättsskyddad text, vilket AI-leverantörens regler inte tillåter. Det skyddar författares och förlags arbete. Jag kan i stället sammanfatta det eller förklara det med egna ord."
+    },
+    "provider_block_other": {
+      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den omfattas av AI-leverantörens säkerhetsregler. Reglerna finns för att förhindra skadligt innehåll. Du kan formulera om din förfrågan, eller så kan jag hjälpa dig med något annat."
     }
   },
   "projects": {},
@@ -14396,6 +14505,29 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} avvisades. {reason} Det här är överträdelse {strike} av {max}. Vid den tredje överträdelsen raderas ditt konto."
+    },
+    "what_image_generate": {
+      "text": "Din bildbegäran"
+    },
+    "what_image_edit": {
+      "text": "Din begäran om bildredigering"
+    },
+    "what_video": {
+      "text": "Din videobegäran"
+    },
+    "what_upload": {
+      "text": "Din uppladdade bild"
+    },
+    "deleted": {
+      "text": "Ditt konto raderades efter den tredje överträdelsen av innehållsreglerna. Berättigade köp återbetalas automatiskt."
+    },
+    "unavailable": {
+      "text": "Säkerhetskontrollen är tillfälligt otillgänglig, så begäran kunde inte behandlas. Försök igen om en stund."
+    }
+  },
   "settings": {
     "account": {
       "username": {

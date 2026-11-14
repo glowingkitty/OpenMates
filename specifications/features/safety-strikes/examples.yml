@@ -1,0 +1,89 @@
+schema_version: 1
+specification: feature.safety-strikes@1
+
+strikes:
+  - id: first-rejection-warns-strike-one
+    assertion_ids: [safety-strikes.one-strike-per-violation, safety-strikes.warning-localized]
+    given: Alice, whose interface language is German, has no strikes.
+    when: Her image request is rejected by the image safety check in the child-safety category.
+    then: She sees in German that the image request was rejected, a category-level reason and "Das ist Verstoß 1 von 3"; her account stays active.
+  - id: blocked-reference-image-never-generates
+    assertion_ids: [safety-strikes.screening-rejects]
+    given: Dana uploads a reference photo that the image check flags in the public-figure category.
+    when: She asks for an edited version of it.
+    then: Nothing is generated, the request is rejected with a category-level reason, and one strike is recorded.
+  - id: repeated-attempts-in-one-response-count-once
+    assertion_ids: [safety-strikes.one-strike-per-violation]
+    given: Alice has one strike.
+    when: The same assistant response retries the rejected image request three times.
+    then: She still has one strike.
+
+technical:
+  - id: classifier-error-is-not-a-violation
+    assertion_ids: [safety-strikes.technical-failure-no-strike]
+    given: The image safety classifier returns an API error.
+    when: Bob asks for an image twice in a row.
+    then: Both requests are refused with "safety check temporarily unavailable, please try again" in Bob's language; Bob has no strikes and no violation is logged.
+
+explanations:
+  - id: photo-of-a-teen-participant-is-explained
+    assertion_ids: [safety-strikes.rejection-explained, safety-strikes.minors-stylized-only]
+    given: At a hackathon, a participant whose interface language is German asks for a portrait photo of another participant, a 14-year-old.
+    when: The assistant calls images.generate with that prompt.
+    then: Nothing is drawn. The image card and the assistant's reply say in German that realistic images of minors aren't created because they could be misused, for example for fake profiles, and that a clearly stylized version such as a 3D render, an illustration or a cartoon is possible.
+  - id: stylized-teen-portrait-is-drawn
+    assertion_ids: [safety-strikes.minors-stylized-only]
+    given: The same participant asks for a 3D cartoon-style portrait of a 12-year-old girl reading a book.
+    when: The assistant calls images.generate with that prompt.
+    then: The picture is drawn.
+  - id: public-figure-gets-an-alternative
+    assertion_ids: [safety-strikes.rejection-explained]
+    given: The user asks for a picture of a world-famous politician giving a speech.
+    when: The safety checks refuse it as a public figure.
+    then: The image card says images of real public figures aren't created at the moment because they could be used as deepfakes or for false claims, and that an original, fictional character in the same scene is possible; the assistant offers that and does not retry.
+  - id: hard-limit-is-firm
+    assertion_ids: [safety-strikes.hard-limits-firm]
+    given: The user asks for an intimate picture of a named real person.
+    when: The safety checks refuse it.
+    then: The image card and the assistant's reply say only that sexual or intimate images of real people are never created; no alternative or rephrasing hint is given and nothing says which check fired.
+
+suspension:
+  - id: third-strike-suspends-and-alerts
+    assertion_ids: [safety-strikes.third-strike-suspends]
+    given: Carol has two strikes.
+    when: A third image request is rejected.
+    then: Her account is suspended for 7 days, her sessions end, the admin is alerted and she gets an email in her language with the category-level reason, the deletion date and an appeal option.
+  - id: suspended-login-offers-appeal
+    assertion_ids: [safety-strikes.third-strike-suspends, safety-strikes.never-wrong-login-data]
+    given: Carol's account was suspended yesterday.
+    when: She tries to log in.
+    then: She sees in her language that the account is suspended, when it will be deleted and an appeal option, not "wrong login data".
+  - id: appeal-shares-only-flagged-requests
+    assertion_ids: [safety-strikes.appeal-consented-review]
+    given: Carol is suspended and appeals.
+    when: She confirms that her three flagged requests may be shown to the admin.
+    then: The admin sees those three requests decrypted and nothing else from her chats; the deletion is paused until the admin decides.
+  - id: admin-lifts-suspension
+    assertion_ids: [safety-strikes.appeal-consented-review]
+    given: The admin reviews Carol's appeal and finds the rejections were false positives.
+    when: The admin lifts the suspension.
+    then: Carol's account is active again with no strikes.
+
+deletion:
+  - id: unappealed-suspension-deletes-and-refunds
+    assertion_ids: [safety-strikes.deletion-after-suspension-refunds, safety-strikes.deletion-email, safety-strikes.legal-retention]
+    given: Carol was suspended 7 days ago, did not appeal and has 4,000 credits left from purchases made months ago.
+    when: The suspension period ends.
+    then: Her account is deleted, all 4,000 remaining credits are refunded, she receives an email in her language with the category-level reason and the refund, and her invoices and the compliance deletion record are kept for their legal retention periods.
+
+login:
+  - id: deleted-account-login-explains
+    assertion_ids: [safety-strikes.deletion-marker-login-message, safety-strikes.never-wrong-login-data]
+    given: Carol's account was deleted after her suspension two days ago.
+    when: She tries to log in with her email.
+    then: She sees in her language that the account was deleted for a policy violation and her remaining credits were refunded, not "wrong login data".
+  - id: marker-expires-after-fourteen-days
+    assertion_ids: [safety-strikes.deletion-marker-login-message]
+    given: Carol's deletion marker is 14 days old.
+    when: The daily clean-up runs.
+    then: The marker is gone and nothing else about Carol remains.

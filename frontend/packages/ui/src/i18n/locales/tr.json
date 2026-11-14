@@ -78,6 +78,11 @@
       }
     }
   },
+  "ai_response_notices": {
+    "output_limit": {
+      "text": "Bu yanıt, modelin azami uzunluğuna ulaştığı için kısa kesildi. Yapay zekâdan devam etmesini isteyebilirsiniz."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -11428,6 +11433,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Bu istek reddedildi. Reşit olmayanları içeren cinsel veya müstehcen görseller asla oluşturulmaz."
+    },
+    "reason_intimate_real_person": {
+      "text": "Bu istek reddedildi. Gerçek kişilerin cinsel veya mahrem görselleri asla oluşturulmaz."
+    },
+    "reason_bypass": {
+      "text": "Bu istek, güvenlik kurallarını aşmaya çalıştığı için reddedildi."
+    },
+    "reason_minor": {
+      "text": "Reşit olmayanların gerçekçi görselleri oluşturulmaz ve reşit olmayanların fotoğraflarında yalnızca arka plan, ışık veya renk düzenlemesi yapılabilir; çünkü bu tür görseller kötüye kullanılabilir, örneğin reşit olmayan biri gibi davranan sahte profiller için."
+    },
+    "alternative_minor": {
+      "text": "Sahnenin cinsel olmaması koşuluyla, 3D render, illüstrasyon veya çizgi film gibi açıkça stilize bir sürüm mümkündür."
+    },
+    "reason_sexual": {
+      "text": "Cinsel veya açık içerikli görseller oluşturulmaz."
+    },
+    "alternative_sexual": {
+      "text": "Sahnenin açık içerik barındırmayan bir sürümü mümkündür."
+    },
+    "reason_violent": {
+      "text": "Gerçek kişileri yaralı, saldırıya uğramış veya suç mahallinde gösteren görseller oluşturulmaz; çünkü bunlar onlara zarar vermek veya onları itibarsızlaştırmak için kullanılabilir."
+    },
+    "alternative_violent": {
+      "text": "Gerçek kişiler yerine kurgusal karakterlerle bir sahne mümkündür."
+    },
+    "reason_public_figure": {
+      "text": "Gerçek kamu figürlerinin görselleri şu an için oluşturulmaz; çünkü deepfake olarak veya yanlış iddialar için kullanılabilirler."
+    },
+    "alternative_public_figure": {
+      "text": "Aynı sahnede özgün, kurgusal bir karakter mümkündür."
+    },
+    "reason_identity": {
+      "text": "Yüz değiştirme ve bir kişinin kimliğini değiştirme işlemleri yapılmaz; çünkü bir kişiyi taklit etmek için kullanılabilirler."
+    },
+    "alternative_identity": {
+      "text": "Yeni bir arka plan, farklı ışık veya sanat stili gibi kişinin kimliğini koruyan düzenlemeler mümkündür."
+    },
+    "reason_id_document": {
+      "text": "Pasaport, kimlik kartı veya ehliyet gibi kimlik belgelerinin görselleri oluşturulmaz; çünkü dolandırıcılık için kullanılabilirler."
+    },
+    "reason_hate": {
+      "text": "Nefret sembolleri içeren veya insanları kimlikleri nedeniyle hedef alan görseller oluşturulmaz."
+    },
+    "reason_self_harm": {
+      "text": "Kendine zarar vermeyi gösteren veya teşvik eden görseller oluşturulmaz."
+    },
+    "alternative_self_harm": {
+      "text": "Zor bir dönemden geçiyorsan, güvendiğin biriyle ya da bulunduğun yerdeki bir yardım hattıyla konuşmak yardımcı olabilir."
+    },
+    "reason_weapons": {
+      "text": "Silah veya patlayıcılara ilişkin talimatlar ya da planlar içeren görseller oluşturulmaz."
+    },
+    "reason_scam": {
+      "text": "Dolandırıcılık, sahte belgeler veya taklit amaçlı medya oluşturulmaz."
+    },
+    "alternative_scam": {
+      "text": "Gerçek bir kişiyi, markayı veya belgeyi taklit etmeyen özgün bir tasarım mümkündür."
+    },
+    "reason_spam": {
+      "text": "Dolgu içeriklerin toplu üretimi veya yapay zeka etiketlerinin kaldırılması desteklenmez."
+    },
+    "alternative_spam": {
+      "text": "Belirli bir amaç için birkaç görsel mümkündür."
+    },
+    "reason_deceptive": {
+      "text": "Gerçek görüntü, gerçek bir açıklama veya resmi bir onay gibi görünmesi amaçlanan görseller oluşturulmaz."
+    },
+    "alternative_deceptive": {
+      "text": "Açıkça kurgusal veya çizim olduğu belli bir sürüm mümkündür."
+    },
+    "reason_other": {
+      "text": "Bu istek güvenlik kuralları gereği oluşturulamaz."
+    },
+    "alternative_other": {
+      "text": "Farklı bir konu veya farklı bir ifade işe yarayabilir."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Fatura"
@@ -14116,6 +14201,30 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... {skill_name} özelliğini düzgün kullanamadım. Tekrar deneyebilmem için ne yapmamı istediğinizi açıklayabilir misiniz?"
+    },
+    "provider_block_child_safety": {
+      "text": "Bu istekte yardımcı olamam çünkü reşit olmayanları ilgilendiriyor ve yapay zeka sağlayıcısının çocuk güvenliği kurallarına giriyor. Bu kurallar çocukları sahte profiller veya istismar içeren içerikler gibi kötüye kullanımlardan korur. İşine yarayacaksa bunun yerine çizilmiş veya açıkça kurgusal bir karakterle çalışabilirim."
+    },
+    "provider_block_child_safety_strict": {
+      "text": "Bu istekte yardımcı olamam çünkü reşit olmayanları ilgilendiriyor ve yapay zeka sağlayıcısının çocuk güvenliği kurallarına giriyor. Bu kurallar çocukları istismardan ve kötüye kullanımdan korur."
+    },
+    "provider_block_sexual": {
+      "text": "Bu istekte yardımcı olamam çünkü yapay zeka sağlayıcısının cinsel içerik kurallarına giriyor. Bu kurallar, rıza ve yaşın doğrulanamadığı yanıtlarda açık içeriğin yer almasını önler. Bunun yerine isteğinin açık içermeyen bir sürümünde yardımcı olabilirim."
+    },
+    "provider_block_dangerous": {
+      "text": "Bu istekte yardımcı olamam çünkü yapay zeka sağlayıcısının tehlikeli faaliyetlere ilişkin kurallarına giriyor. Bu kurallar, yanıtların ciddi zarar vermek için kullanılamamasını sağlar. Bunun yerine güvenlik bilgileri veya konunun arka planı konusunda yardımcı olabilirim."
+    },
+    "provider_block_harassment_hate": {
+      "text": "Bu istekte yardımcı olamam çünkü yapay zeka sağlayıcısının taciz ve nefrete karşı kurallarına giriyor. Bu kurallar insanları hedef alınmaktan veya aşağılanmaktan korur. Bunun yerine görüşünü saygılı bir şekilde ifade etmene yardımcı olabilirim."
+    },
+    "provider_block_personal_data": {
+      "text": "Bu istekte yardımcı olamam çünkü yapay zeka sağlayıcısının hassas kişisel bilgilere ilişkin kurallarına giriyor. Bu kurallar insanların özel verilerini ifşa edilmekten veya kötüye kullanılmaktan korur. Kişisel ayrıntıları çıkarırsan yardımcı olabilirim."
+    },
+    "provider_block_copyright": {
+      "text": "Bu yanıtı veremem çünkü telif hakkıyla korunan bir metni aynen yeniden üretmiş olurdum ve yapay zeka sağlayıcısının kuralları buna izin vermiyor. Bu, yazarların ve yayıncıların emeğini korur. Bunun yerine özetleyebilir veya kendi sözlerimle açıklayabilirim."
+    },
+    "provider_block_other": {
+      "text": "Bu istekte yardımcı olamam çünkü yapay zeka sağlayıcısının güvenlik kurallarına giriyor. Bu kurallar zararlı çıktıları önlemek için vardır. İsteğini yeniden ifade edebilirsin ya da başka bir konuda yardımcı olabilirim."
     }
   },
   "projects": {},
@@ -14396,6 +14505,29 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} reddedildi. {reason} Bu, {max} ihlalin {strike}. ihlali. Üçüncü ihlalde hesabınız silinir."
+    },
+    "what_image_generate": {
+      "text": "Görsel isteğiniz"
+    },
+    "what_image_edit": {
+      "text": "Görsel düzenleme isteğiniz"
+    },
+    "what_video": {
+      "text": "Video isteğiniz"
+    },
+    "what_upload": {
+      "text": "Yüklediğiniz görsel"
+    },
+    "deleted": {
+      "text": "Hesabınız, içerik kurallarının üçüncü ihlali nedeniyle silindi. Uygun satın alımlar otomatik olarak iade edilir."
+    },
+    "unavailable": {
+      "text": "Güvenlik kontrolü geçici olarak kullanılamıyor, bu yüzden istek işlenemedi. Lütfen birazdan tekrar deneyin."
+    }
+  },
   "settings": {
     "account": {
       "username": {

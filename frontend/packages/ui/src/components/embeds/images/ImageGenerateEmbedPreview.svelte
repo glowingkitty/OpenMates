@@ -536,7 +536,7 @@
         <!-- Error state -->
         <div class="error-state">
           <span class="error-icon">!</span>
-          <span class="error-text">{error || $text('embeds.image_generate.error')}</span>
+          <span class="error-text" data-testid="image-generate-error-text">{error || $text('embeds.image_generate.error')}</span>
         </div>
       {/if}
     </div>

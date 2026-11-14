@@ -279,7 +279,7 @@ async def _reject(task: Any, rejection: Any, *, instructions: str, user_id: str,
     tool_response = await _handle_safety_rejection(
         task, rejection, user_id=user_id, prompt=instructions, assistant_response_id=message_id,
         source_embed_id=source_embed_id, output_embed_id=output_embed_id, provider=None, model=model,
-        log_prefix=log_prefix,
+        log_prefix=log_prefix, subject="video",
     )
     raise VideoFailure(ERROR_SAFETY, str(tool_response.get("user_facing_message") or SAFETY_MESSAGE),
                        made_by=MADE_BY_COMPOSED)

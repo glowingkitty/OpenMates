@@ -40,7 +40,6 @@ try:
     )
     from backend.shared.python_utils.image_safety.strike_counter import (
         BAN_THRESHOLD,
-        SEVERITY_WEIGHTS,
         StrikeCounter,
     )
 except ImportError as _exc:
@@ -52,6 +51,7 @@ except ImportError as _exc:
 # ---------------------------------------------------------------------------
 
 class TestSightengineClient:
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     @pytest.mark.asyncio
     async def test_analyze_uses_mock_aware_http_client(self):
         client = SightengineSafetyClient()
@@ -91,12 +91,14 @@ class TestSightengineClient:
 
 
 class TestSightengineThresholds:
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_clean_image_passes(self):
         f = SightengineFindings()
         SightengineSafetyClient._apply_thresholds(f, stage="input")
         assert not f.hard_block
         assert f.category_hint is None
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_sexual_activity_blocks(self):
         f = SightengineFindings(sexual_activity=0.5)
         SightengineSafetyClient._apply_thresholds(f, stage="input")
@@ -104,6 +106,7 @@ class TestSightengineThresholds:
         assert f.category_hint == "S3_sexual_other"
         assert "sexual_activity" in (f.hard_block_reason or "")
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_minor_plus_nudity_is_csam(self):
         f = SightengineFindings(
             minor_confidence=0.9,
@@ -114,6 +117,7 @@ class TestSightengineThresholds:
         assert f.hard_block
         assert f.category_hint == "S1_csam"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_minor_plus_suggestive_blocks(self):
         f = SightengineFindings(
             minor_detected=True,
@@ -124,6 +128,7 @@ class TestSightengineThresholds:
         assert f.hard_block
         assert f.category_hint == "S1_csam"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_minor_clothed_safe(self):
         # Minor in completely clean photo should NOT hard-block at Sightengine level;
         # the safeguard reasoner decides the edit policy.
@@ -134,6 +139,7 @@ class TestSightengineThresholds:
         SightengineSafetyClient._apply_thresholds(f, stage="input")
         assert not f.hard_block
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_celebrity_match_blocks_strict(self):
         f = SightengineFindings(
             celebrity_match=True,
@@ -144,6 +150,7 @@ class TestSightengineThresholds:
         assert f.hard_block
         assert f.category_hint == "S6_public_figure_blocked"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_output_stricter_minor_any_nudity(self):
         # Output stage: ANY minor + any suggestive/sexual signal is blocked
         f = SightengineFindings(
@@ -155,6 +162,7 @@ class TestSightengineThresholds:
         assert f.hard_block
         assert f.category_hint == "S1_csam"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_gore_blocks_at_threshold(self):
         f = SightengineFindings(gore=0.6)
         SightengineSafetyClient._apply_thresholds(f, stage="input")
@@ -167,6 +175,7 @@ class TestSightengineThresholds:
 # ---------------------------------------------------------------------------
 
 class TestVisionSafetyDerivation:
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_clean_adult_scene_passes(self):
         f = VisionSafetyFindings(
             scene="Adult hiking on a mountain trail",
@@ -178,6 +187,7 @@ class TestVisionSafetyDerivation:
         assert not f.minor_present
         assert not f.public_figure_detected
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_minor_partial_clothing_is_csam(self):
         f = VisionSafetyFindings(
             people=[{"approximate_age": "child", "clothing_state": "partial"}],
@@ -187,6 +197,7 @@ class TestVisionSafetyDerivation:
         assert f.category_hint == "S1_csam"
         assert f.minor_present
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_public_figure_strict_block(self):
         f = VisionSafetyFindings(
             people=[
@@ -206,6 +217,7 @@ class TestVisionSafetyDerivation:
         assert f.category_hint == "S6_public_figure_blocked"
         assert f.public_figure_detected
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_public_figure_low_confidence_does_not_block(self):
         f = VisionSafetyFindings(
             people=[
@@ -222,12 +234,14 @@ class TestVisionSafetyDerivation:
         _derive_flags(f)
         assert not f.hard_block
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_injection_attempt_is_adversarial(self):
         f = VisionSafetyFindings(detected_injection_attempt=True)
         _derive_flags(f)
         assert f.hard_block
         assert f.category_hint == "S12_adversarial_bypass"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_hard_block_recommended_maps_hate_symbol(self):
         f = VisionSafetyFindings(
             hard_block_recommended=True,
@@ -237,6 +251,7 @@ class TestVisionSafetyDerivation:
         assert f.hard_block
         assert f.category_hint == "S9_hate_symbol"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     def test_hard_block_recommended_maps_id_document(self):
         f = VisionSafetyFindings(
             hard_block_recommended=True,
@@ -252,6 +267,7 @@ class TestVisionSafetyDerivation:
 # ---------------------------------------------------------------------------
 
 class TestSafeguardParsing:
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects,safety-strikes.technical-failure-no-strike
     def test_parse_clean_allow(self):
         v = _parse_verdict(
             '{"decision":"allow","category":"ALLOW_GENERAL","severity":"moderate",'
@@ -260,6 +276,7 @@ class TestSafeguardParsing:
         assert v.decision == "allow"
         assert v.category == "ALLOW_GENERAL"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects,safety-strikes.technical-failure-no-strike
     def test_parse_block_with_fenced_json(self):
         text = '```json\n{"decision":"block","category":"S6_public_figure_blocked",\
 "severity":"moderate","reasoning":"celebrity detected","discrepancies":""}\n```'
@@ -268,6 +285,7 @@ class TestSafeguardParsing:
         assert v.category == "S6_public_figure_blocked"
         assert v.severity == "moderate"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects,safety-strikes.technical-failure-no-strike
     def test_parse_embedded_json(self):
         text = 'Thinking... {"decision":"block","category":"S1_csam","severity":"critical","reasoning":"...","discrepancies":""} done'
         v = _parse_verdict(text)
@@ -275,26 +293,31 @@ class TestSafeguardParsing:
         assert v.category == "S1_csam"
         assert v.severity == "critical"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects,safety-strikes.technical-failure-no-strike
     def test_parse_garbage_fails_closed(self):
         v = _parse_verdict("not json at all")
         assert v.decision == "block"
         assert v.category == "safeguard_parse_error"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects,safety-strikes.technical-failure-no-strike
     def test_parse_empty_fails_closed(self):
         v = _parse_verdict("")
         assert v.decision == "block"
         assert v.error
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects,safety-strikes.technical-failure-no-strike
     def test_invalid_decision_coerced_to_block(self):
         v = _parse_verdict('{"decision":"maybe","category":"x","severity":"moderate"}')
         assert v.decision == "block"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects,safety-strikes.technical-failure-no-strike
     def test_invalid_severity_coerced(self):
         v = _parse_verdict(
             '{"decision":"block","category":"x","severity":"nuclear"}'
         )
         assert v.severity == "severe"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects,safety-strikes.technical-failure-no-strike
     @pytest.mark.asyncio
     async def test_reason_uses_forced_tool_call_for_verdict(self):
         captured_kwargs = {}
@@ -352,27 +375,37 @@ class TestSafeguardParsing:
 # ---------------------------------------------------------------------------
 
 class TestRejectionMessages:
-    def test_csam_is_vague(self):
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.warning-localized
+    def test_csam_is_a_firm_hard_limit(self):
         payload = build_rejection_payload("S1_csam")
         assert payload["severity"] == "critical"
-        assert payload["user_facing_message"] == "This image couldn't be generated."
+        assert payload["hard_limit"] is True
+        assert "alternative" not in payload
+        assert payload["user_facing_message"] == (
+            "This request was refused. Sexual or suggestive images involving "
+            "minors are never created."
+        )
         assert payload["do_not_retry"] is True
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.warning-localized
     def test_public_figure_is_category_level(self):
         payload = build_rejection_payload("S6_public_figure_blocked")
         assert "public figures" in payload["user_facing_message"]
         assert payload["severity"] == "moderate"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.warning-localized
     def test_minor_restricted_edit_message(self):
         payload = build_rejection_payload("S5_minor_restricted_edit")
         assert "minor" in payload["user_facing_message"].lower()
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.warning-localized
     def test_unknown_category_falls_back_to_moderate(self):
         payload = build_rejection_payload("does_not_exist")
         info = category_info("does_not_exist")
         assert info["severity"] == "moderate"
         assert payload["category"] == "does_not_exist"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.warning-localized
     def test_instructions_forbid_retry(self):
         payload = build_rejection_payload("S3_sexual_other")
         assert "Do not retry" in payload["instructions_to_llm"]
@@ -404,6 +437,7 @@ def mock_cache():
 
 
 class TestStrikeCounter:
+    # contract-test: direct surface=rest_api assertions=safety-strikes.one-strike-per-violation
     @pytest.mark.asyncio
     async def test_first_strike_records(self, mock_cache):
         mock_cache._mock_client.incrby.return_value = 2
@@ -418,9 +452,10 @@ class TestStrikeCounter:
         assert result.new_count == 2
         assert not result.ban_triggered
         mock_cache._mock_client.incrby.assert_called_once_with(
-            "chat_image_rejects:user-1", SEVERITY_WEIGHTS["severe"]
+            "chat_image_rejects:user-1", 1
         )
 
+    # contract-test: direct surface=rest_api assertions=safety-strikes.one-strike-per-violation
     @pytest.mark.asyncio
     async def test_second_strike_same_response_debounced(self, mock_cache):
         # First call: SET nx=True succeeds
@@ -444,10 +479,11 @@ class TestStrikeCounter:
         # incrby should only have been called once
         assert mock_cache._mock_client.incrby.call_count == 1
 
+    # contract-test: direct surface=rest_api assertions=safety-strikes.one-strike-per-violation
     @pytest.mark.asyncio
     async def test_different_responses_both_record(self, mock_cache):
         mock_cache._mock_client.set.return_value = True  # both nx=True succeed
-        mock_cache._mock_client.incrby.side_effect = [2, 4]
+        mock_cache._mock_client.incrby.side_effect = [2, 3]
         counter = StrikeCounter(mock_cache)
 
         r1 = await counter.record_strike(
@@ -461,13 +497,14 @@ class TestStrikeCounter:
             assistant_response_id="resp-2",
         )
         assert r1.recorded and r2.recorded
-        assert r2.ban_triggered  # count crossed 4
+        assert r2.ban_triggered  # count crossed 3
 
+    # contract-test: direct surface=rest_api assertions=safety-strikes.one-strike-per-violation
     @pytest.mark.asyncio
-    async def test_critical_severity_instant_ban(self, mock_cache):
-        # Critical = weight 4 → crosses BAN_THRESHOLD (4) on first strike
+    async def test_critical_severity_is_one_strike(self, mock_cache):
+        # Critical is still one strike: the first never reaches BAN_THRESHOLD
         mock_cache._mock_client.set.return_value = True
-        mock_cache._mock_client.incrby.return_value = 4
+        mock_cache._mock_client.incrby.return_value = 1
         counter = StrikeCounter(mock_cache)
 
         result = await counter.record_strike(
@@ -476,8 +513,27 @@ class TestStrikeCounter:
             assistant_response_id="resp-1",
         )
         assert result.recorded
-        assert result.ban_triggered
-        assert result.new_count == BAN_THRESHOLD
+        assert not result.ban_triggered
+        mock_cache._mock_client.incrby.assert_called_once_with("chat_image_rejects:user-1", 1)
+
+    # contract-test: direct surface=rest_api assertions=safety-strikes.one-strike-per-violation
+    @pytest.mark.asyncio
+    async def test_ban_only_after_threshold_separate_violations(self, mock_cache):
+        # Only the BAN_THRESHOLD-th separate violation triggers the deletion.
+        mock_cache._mock_client.set.return_value = True
+        mock_cache._mock_client.incrby.side_effect = list(range(1, BAN_THRESHOLD + 1))
+        counter = StrikeCounter(mock_cache)
+
+        results = [
+            await counter.record_strike(
+                user_id="user-1",
+                severity="critical",
+                assistant_response_id=f"resp-{i}",
+            )
+            for i in range(BAN_THRESHOLD)
+        ]
+        assert [r.ban_triggered for r in results] == [False] * (BAN_THRESHOLD - 1) + [True]
+        assert BAN_THRESHOLD > 1
 
 
 # ---------------------------------------------------------------------------
@@ -485,6 +541,7 @@ class TestStrikeCounter:
 # ---------------------------------------------------------------------------
 
 class TestPipelineOrchestration:
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     @pytest.mark.asyncio
     async def test_sightengine_hard_block_short_circuits(self):
         pipeline = ImageSafetyPipeline()
@@ -520,6 +577,7 @@ class TestPipelineOrchestration:
         assert decision.rejection.category == "S3_sexual_other"
         assert decision.rejection.severity == "severe"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     @pytest.mark.asyncio
     async def test_vlm_public_figure_blocks_without_sightengine(self):
         pipeline = ImageSafetyPipeline()
@@ -553,6 +611,7 @@ class TestPipelineOrchestration:
         assert not decision.allowed
         assert decision.rejection.category == "S6_public_figure_blocked"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     @pytest.mark.asyncio
     async def test_injection_attempt_is_adversarial(self):
         pipeline = ImageSafetyPipeline()
@@ -586,6 +645,7 @@ class TestPipelineOrchestration:
         assert not decision.allowed
         assert decision.rejection.category == "S12_adversarial_bypass"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     @pytest.mark.asyncio
     async def test_clean_image_allows(self):
         pipeline = ImageSafetyPipeline()
@@ -614,6 +674,7 @@ class TestPipelineOrchestration:
         assert decision.allowed
         assert decision.rejection is None
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     @pytest.mark.asyncio
     async def test_ambiguous_defers_to_safeguard_allow(self):
         pipeline = ImageSafetyPipeline()
@@ -662,6 +723,7 @@ class TestPipelineOrchestration:
         assert decision.allowed
         mock_safeguard.reason.assert_called_once()
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     @pytest.mark.asyncio
     async def test_safeguard_block_rejects(self):
         pipeline = ImageSafetyPipeline()
@@ -711,6 +773,7 @@ class TestPipelineOrchestration:
         assert decision.rejection.category == "S3_sexual_other"
         assert decision.rejection.severity == "severe"
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     @pytest.mark.asyncio
     async def test_text_to_image_no_images_calls_safeguard(self):
         pipeline = ImageSafetyPipeline()
@@ -736,6 +799,7 @@ class TestPipelineOrchestration:
 
         assert decision.allowed
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     @pytest.mark.asyncio
     async def test_text_to_image_public_figure_named_blocks(self):
         pipeline = ImageSafetyPipeline()

@@ -389,7 +389,8 @@ async def _read_validate_and_scan_profile_image(
             return file_bytes, filename, content_type, rejection_response_class(
                 status="rejected",
                 reject_count=rejection_report.get("reject_count", 0),
-                detail="Image rejected: content violates community guidelines (nudity, violence, or gore)",
+                detail=rejection_report.get("warning")
+                or "Image rejected: content violates community guidelines (nudity, violence, or gore)",
             )
     return file_bytes, filename, content_type, None
 
@@ -1166,7 +1167,8 @@ async def upload_file(
                 status_code=422,
                 detail={
                     "code": "content_rejected",
-                    "message": "Image rejected: content violates community guidelines (nudity, violence, or gore)",
+                    "message": rejection_report.get("warning")
+                    or "Image rejected: content violates community guidelines (nudity, violence, or gore)",
                     "reject_count": reject_count,
                 },
             )
@@ -2294,7 +2296,8 @@ async def upload_profile_image(
             return ProfileImageUploadResponse(
                 status="rejected",
                 reject_count=reject_count,
-                detail="Image rejected: content violates community guidelines (nudity, violence, or gore)",
+                detail=rejection_report.get("warning")
+                or "Image rejected: content violates community guidelines (nudity, violence, or gore)",
             )
         else:
             logger.info(

@@ -44,8 +44,8 @@
 | **Text-to-image scope** | Prompt → safeguard → (if allowed) generate → output scan | Text-to-image gets intent classification before we pay provider cost |
 | **Rollout** | Straight cutover, enforce from day 1 | Gap is real and exploitable; relax later if false positives warrant |
 | **Policy file location** | `docs/architecture/image-safety-policy.md` (committed, PR-reviewed) | Version-controlled, peer-reviewed, publicly visible for trust |
-| **User-facing messages** | Tiered by severity | Vague for critical/adversarial (CSAM, injection, nudification); category-level for moderate (public figure, ambiguous). Never reveal classifier details. |
-| **LLM tool response on rejection** | Structured response with explicit `do_not_retry: true` + pre-written `user_facing_message` | LLM relays prepared message; pipeline auto-rejects any subsequent `images-generate` call within the same response without re-invoking classifiers |
+| **User-facing messages** | Localized category-level reason + allowed alternative | Every rejection explains the reason in the user's language and, where one fits, the allowed alternative. Hard limits (CSAM, intimate images of real people, safety-rule bypass) get a short, firm reason with no alternative. Never reveal which check, classifier, score or threshold fired. See §9. |
+| **LLM tool response on rejection** | Structured response with explicit `do_not_retry: true`, a localized `reason`, an optional `alternative` and `user_facing_message` | LLM explains the reason plainly and offers the alternative, never retries itself; pipeline auto-rejects any subsequent `images-generate` call within the same response without re-invoking classifiers |
 | **Emergency kill switch** | ❌ None | Fix forward via deploy if a classifier bug causes mass false positives |
 | **Fail-closed behavior** | Image-to-image rejected when safeguard + fallback both fail; text-to-image degrades to Sightengine-on-output-only | Safety-critical path prefers rejection over provider uncertainty |
 | **Upload flow changes** | ❌ None | Existing Sightengine check stays; safety happens at skill processing because reference images can come from any source (uploads, other skills, prior generations) |
@@ -196,7 +196,7 @@ nudity-2.0 + face-attributes + minor + deepfake + celebrities + offensive + gore
 | `nudity.sexual_display` | > 0.3 | reject |
 | `nudity.erotica` | > 0.4 | reject |
 | `nudity.sextoy` | > 0.3 | reject |
-| `minor detected` + any `nudity.*` | > 0.05 | reject + CSAM audit trail (instant ban) |
+| `minor detected` + any `nudity.*` | > 0.05 | reject + CSAM audit trail (one strike) |
 | `minor detected` + any `suggestive` | > 0.2 | reject |
 | `gore` | > 0.5 | reject |
 | `blood` | > 0.6 | reject |
@@ -357,7 +357,7 @@ Same parallel Sightengine + Gemini call as Step 1, but with stricter thresholds:
 | Signal | Threshold | Action |
 |---|---|---|
 | All Step 1a thresholds | Same | reject + alert |
-| `minor detected` + **any** nudity/suggestive | > 0 | reject + alert + ban |
+| `minor detected` + **any** nudity/suggestive | > 0 | reject as S1 + alert (one strike) |
 | `minor detected` not in input | detected | reject (provider invented a child) |
 | `celebrity match` not in input | detected | reject (provider invented celebrity) |
 | `deepfake > 0.7` + face not in input | detected | reject |
@@ -379,6 +379,16 @@ Same parallel Sightengine + Gemini call as Step 1, but with stricter thresholds:
 ---
 
 ## 4. Fallback chain
+
+**Safeguard tool-call rejections.** Groq rejects a forced tool call whose
+arguments miss the schema (most often an "allow" verdict with an empty
+severity) and returns the rejected generation. The verdict in it is the model's
+real decision and is used; an empty or unreadable one is retried once. Only a
+second failure, or any other API error, is a technical `safeguard_error`: the
+request is refused as "temporarily unavailable" and no strike is recorded. The
+reasoner gets 2000 output tokens, because its reasoning counts against the limit
+and 800 often left no room for the tool call. Measured on dev (2026-11-14): 50-70%
+of calls failed before this recovery, 0 of 24 after it.
 
 When Gemini 3 Flash is unavailable (quota, outage, regional issue):
 
@@ -430,7 +440,7 @@ Hard reject all image-to-image requests with reference_images
 **Implementation:**
 - Strike counter is keyed on `(user_id, assistant_response_id)` for debouncing
 - `assistant_response_id` is the message ID of the in-flight AI response (available in `ask_skill_task.py`)
-- First safety rejection in a response: records strike at full severity weight
+- First safety rejection in a response: records one strike
 - Subsequent rejections in the same response: logged to audit log (full detail preserved) but `strike_weight = 0` — do not increment the counter
 - Audit log still records every rejection with the full classifier output and reasoning — the debounce only affects the counter, not the audit trail
 
@@ -438,19 +448,19 @@ Hard reject all image-to-image requests with reference_images
 - User: *"generate 4 variations of my selfie in medieval armor"*
 - LLM calls `images-generate` 4 times
 - 2 of the 4 trip Gemini's `detected_injection_attempt: false but concerning_elements: [minor_in_suggestive_context]` (spurious false positive)
-- **Old behavior:** 2 adversarial strikes × weight 2 = 4 strikes → instant ban
-- **New behavior:** 1 strike recorded (max severity of the 2), other logged but counter unchanged → user can try again with a different prompt
+- **Without the cap:** 2 strikes from one response, two thirds of the way to account deletion
+- **With the cap:** 1 strike recorded, the other logged but the counter unchanged → user can try again with a different prompt
 
 ### Existing system (upload)
 
 Already implemented at `backend/upload/routes/upload_route.py:369-421`:
-- 4 rejections in 24h → account deleted
+- Historical: 4 rejections in 24h → account deleted (now the shared counter below, 3 strikes)
 - Redis 24h TTL counter per user
 
 ### New for image generation
 
 - **Shared counter** between upload rejections and generation rejections (user can't dodge by splitting across endpoints)
-- **Severity-weighted:** critical violations increment counter by 4 (= instant ban), adversarial by 2, moderate by 1
+- **One strike per violation:** every category and severity counts exactly one strike; the third strike within 24h deletes the account (no single request can)
 - **Per-response debounce** applies to generation only (uploads are direct user actions, each counts)
 - **On ban:**
   1. Stop all in-flight Celery tasks for user
@@ -497,7 +507,7 @@ backend/shared/providers/
 backend/shared/python_utils/image_safety/
 ├── __init__.py
 ├── pipeline.py                  # NEW — orchestrates Steps 0-5
-├── strike_counter.py            # NEW — severity-weighted counter
+├── strike_counter.py            # shared counter, one strike per violation
 ├── policy.py                    # NEW — loads policy.md, prompt templates
 └── audit_log.py                 # NEW — writes safety_audit_log collection
 
@@ -532,17 +542,39 @@ backend/core/directus/schemas/
 
 ## 9. Rejection handling — LLM and user
 
-### Tiered user-facing messages
+### Localized reasons and alternatives
 
-Pre-written in `policy.py` per category. Never generated by the LLM, never revealed to classifier output.
+Each category has a category-level reason and, where one fits, the alternative
+that is allowed, in all supported languages
+(`frontend/packages/ui/src/i18n/sources/image_safety.yml`). The image task
+(`_handle_safety_rejection`, `backend/shared/python_utils/image_safety/explanations.py`)
+builds them in the user's interface language. The images-generate embed shows
+`user_facing_message` (reason + alternative) in place of "This image couldn't be
+generated", and the LLM gets the same text to explain. Reasons are never
+generated by the LLM and never mention the check, classifier, score or threshold
+that fired.
 
-| Category group | Example categories | User message |
+| Category | Reason (English) | Alternative |
 |---|---|---|
-| **Critical (vague)** | CSAM, nudification intent, prompt injection, identity fraud | *"This image couldn't be generated."* (nothing more) |
-| **Adversarial (vague)** | Prompt injection, bypass attempts | *"This image couldn't be generated."* |
-| **Public figure (category-level)** | Public figure detected | *"I can't generate or edit images of public figures at the moment."* |
-| **Minor-safe rule (category-level)** | Minor + non-benign edit | *"I can only apply background, lighting, or colorization edits to images containing minors."* |
-| **Moderate (category-level)** | Suggestive ambiguous, weapon context | *"This specific image or prompt couldn't be used. You can try a different subject or phrasing."* |
+| `S1_csam` (hard limit) | Sexual or suggestive images involving minors are never created. | none |
+| `S2_ncii` (hard limit) | Sexual or intimate images of real people are never created. | none |
+| `S12_adversarial_bypass` (hard limit) | The request tried to get around the safety rules. | none |
+| `S5_minor_restricted_edit` | Realistic images of minors aren't created, and photos of minors only get background, lighting or color edits, because such images could be misused, for example for fake profiles pretending to be a minor. | A clearly stylized version (3D render, illustration, cartoon) of a non-sexual scene |
+| `S3_sexual_other` | Sexual or explicit images aren't created. | A non-explicit version |
+| `S4_violent_recontextualization` | Real people hurt, attacked or at a crime scene could be used to harm or defame them. | Fictional characters instead of real people |
+| `S6_public_figure_blocked`, `G3_*` | Public figures could be used as deepfakes or for false claims. | An original, fictional character |
+| `S7_identity_replacement` | Face swaps could be used to impersonate a person. | Edits that keep the identity (background, lighting, art style) |
+| `S8_id_document` | ID documents could be used for fraud. | none |
+| `S9_hate_symbol` | Hate symbols or images targeting people for who they are. | none |
+| `S10_self_harm` | Images showing or encouraging self-harm. | Supportive hint (someone you trust, a local helpline) |
+| `S11_weapon_instruction` | Instructions or blueprints for weapons or explosives. | none |
+| `G1_*`, `G2_*`, `G4_*` (rule-based media gate) | Scams and impersonation; mass-produced filler; media passing as real footage. | Original design; a few images for a purpose; clearly fictional version |
+| anything else | Can't be created under the safety rules. | A different subject or phrasing |
+
+Minors: the policy blocks photorealistic depictions of minors and allows clearly
+stylized, non-photorealistic depictions (3D, illustration, cartoon, anime) of a
+non-sexual scene. Any sexual or suggestive framing of a minor stays a hard
+limit (`S1_csam`) in every art style.
 
 ### Tool response shape returned to the LLM
 
@@ -551,11 +583,18 @@ Pre-written in `policy.py` per category. Never generated by the LLM, never revea
   "error": "safety_rejection",
   "category": "S6_public_figure_blocked",
   "severity": "moderate",
-  "user_facing_message": "I can't generate or edit images of public figures at the moment.",
-  "instructions_to_llm": "Do not retry this request. Do not attempt reformulations. Do not call images-generate again in this response. Relay the user_facing_message verbatim or paraphrase very closely. Do not speculate about what would be allowed.",
+  "reason": "Images of real public figures aren't created at the moment, because they could be used as deepfakes or for false claims.",
+  "alternative": "An original, fictional character in the same scene is possible.",
+  "user_facing_message": "Images of real public figures aren't created at the moment, because they could be used as deepfakes or for false claims. An original, fictional character in the same scene is possible.",
+  "hard_limit": false,
+  "instructions_to_llm": "The safety rules refused this request. Do not retry or reformulate it yourself and do not call images-generate again in this response. Explain the reason to the user plainly, in their language, based on user_facing_message. If `alternative` is present, offer it as something the user can ask for next. Do not say which check, classifier or signal made the decision.",
   "do_not_retry": true
 }
 ```
+
+A hard-limit response has `hard_limit: true`, no `alternative`, and tells the
+LLM to state the reason briefly and firmly without suggesting alternatives or
+how the request could be changed to pass.
 
 ### `do_not_retry` auto-reject behavior
 
@@ -570,7 +609,7 @@ This prevents the LLM from iterating through bypass reformulations within a sing
 ### What happens to the rejected output image (if generation happened)
 
 - **If output was generated and rejected at Step 4:** image is immediately deleted from provider response (never written to S3); only the classifier findings and prompt hash are retained in the audit log
-- **If output contains CSAM indicators:** image is deleted, audit log entry is flagged `critical: true`, user is instantly banned per strike rules (1 strike = ban), admin notification sent (see decision D4 below if enabled)
+- **If output contains CSAM indicators:** image is deleted, audit log entry is flagged `critical: true`, one strike is recorded like any other violation (no single request deletes an account), admin notification sent (see decision D4 below if enabled)
 
 ## 10. Success criteria for P0
 
@@ -580,7 +619,7 @@ A P0 implementation is complete when:
 2. ✅ Gemini uses function calling with explicit injection-defense system prompt
 3. ✅ Either classifier can hard-block independently; both findings feed gpt-oss-safeguard on ambiguous cases
 4. ✅ Output image goes through the same dual scan before storage
-5. ✅ Strike counter with severity weights replaces upload-only counter; covers generation too
+5. ✅ Shared strike counter (one strike per violation) replaces the upload-only counter; covers generation too
 6. ✅ On ban: credits auto-refunded, email blocked, IP soft-flagged, account deleted
 7. ✅ Audit log entry per generation request (allowed or blocked)
 8. ✅ Fallback chain: Gemini → GPT-5 mini → degraded mode → hard reject

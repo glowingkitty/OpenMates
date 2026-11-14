@@ -87,6 +87,17 @@ from backend.shared.python_utils.image_safety import (
     get_strike_counter,
 )
 from backend.shared.python_utils.image_safety.audit_log import write_audit_entry
+from backend.shared.python_utils.image_safety.explanations import (
+    has_explanation,
+    localized_rejection_payload,
+)
+from backend.shared.python_utils.image_safety.strike_policy import (
+    delete_account_for_strikes,
+    is_technical_failure,
+    strike_warning,
+    unavailable_message,
+    user_language,
+)
 from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 
 logger = logging.getLogger(__name__)
@@ -501,12 +512,32 @@ async def _handle_safety_rejection(
     provider: Optional[str],
     model: Optional[str],
     log_prefix: str,
+    subject: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Unified rejection handler: records the strike, writes the audit log,
-    caches the rejection for the remainder of the assistant response, and
-    returns the structured tool response for the LLM.
+    Unified rejection handler: records exactly one strike (StrikeCounter is the
+    only owner of the count), writes the audit log, caches the rejection for the
+    remainder of the assistant response, and returns the structured tool
+    response for the LLM. Strike 1 and 2 carry a localized warning
+    ("This is strike N of 3."); the third strike deletes the account with the
+    regular refund-on-deletion task.
     """
+    if is_technical_failure(rejection.category):
+        # The safety check itself failed: refuse (fail closed) but never count a
+        # strike, never ban and never audit it as a violation.
+        tool_response = dict(rejection.tool_response)
+        tool_response["user_facing_message"] = unavailable_message(
+            await user_language(task._cache_service, user_id)
+        )
+        logger.error(
+            f"{log_prefix} [ImageSafety] Safety check unavailable "
+            f"(category={rejection.category} reason={rejection.reason}); refused without strike"
+        )
+        await _cache_safety_rejection(
+            task, user_id, assistant_response_id, tool_response
+        )
+        return tool_response
+
     strike_counter = get_strike_counter(task._cache_service)
     strike_result = await strike_counter.record_strike(
         user_id=user_id,
@@ -521,9 +552,7 @@ async def _handle_safety_rejection(
         decision="block",
         category=rejection.category,
         severity=rejection.severity,
-        strike_weight=(0 if strike_result.debounced else
-                       {"critical": 4, "adversarial": 2, "severe": 2,
-                        "moderate": 1}.get(rejection.severity, 1)),
+        strike_weight=0 if strike_result.debounced else 1,
         sightengine_json=rejection.sightengine_audit,
         vlm_json=rejection.vlm_audit,
         safeguard_reasoning=(rejection.safeguard_audit or {}).get("reasoning"),
@@ -535,8 +564,24 @@ async def _handle_safety_rejection(
         assistant_response_id=assistant_response_id,
     )
 
+    language = await user_language(task._cache_service, user_id)
+    tool_response = localized_rejection_payload(
+        rejection.category,
+        language,
+        severity=rejection.severity,
+        error=str(rejection.tool_response.get("error") or "safety_rejection"),
+    )
+    if strike_result.error is None:
+        tool_response["user_facing_message"] = strike_warning(
+            rejection.category,
+            subject or ("image_edit" if source_embed_id else "image_generate"),
+            max(strike_result.new_count, 1),
+            language,
+        )
+        tool_response["strike"] = strike_result.new_count
+
     await _cache_safety_rejection(
-        task, user_id, assistant_response_id, rejection.tool_response
+        task, user_id, assistant_response_id, tool_response
     )
 
     logger.warning(
@@ -546,50 +591,15 @@ async def _handle_safety_rejection(
         f"ban={strike_result.ban_triggered} debounced={strike_result.debounced}"
     )
 
-    # Ban path — kept best-effort; delegated to internal ban endpoint if the
-    # strike counter crossed the threshold. Current upload-content-safety-reject
-    # endpoint already implements account deletion, so we reuse the pattern
-    # here when weight pushes the counter over the threshold.
     if strike_result.ban_triggered and not strike_result.debounced:
-        await _trigger_safety_ban(
+        await delete_account_for_strikes(
             user_id=user_id,
-            category=rejection.category,
-            log_prefix=log_prefix,
+            strike_count=strike_result.new_count,
+            reason=f"repeated_safety_violations:{rejection.category}",
+            directus_service=task._directus_service,
         )
 
-    return rejection.tool_response
-
-
-async def _trigger_safety_ban(
-    *,
-    user_id: str,
-    category: str,
-    log_prefix: str,
-) -> None:
-    """
-    Call the internal API ban endpoint. Best-effort; logs on failure.
-    Mirrors the existing upload-content-safety-reject behavior.
-    """
-    try:
-        headers = {"Content-Type": "application/json"}
-        if INTERNAL_API_SHARED_TOKEN:
-            headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
-        async with httpx.AsyncClient(timeout=15) as client:
-            await client.post(
-                f"{INTERNAL_API_BASE_URL}/internal/uploads/content-safety-reject",
-                json={
-                    "user_id": user_id,
-                    "rejection_reason": f"image_generation_safety:{category}",
-                    "upload_type": "chat_image",
-                },
-                headers=headers,
-            )
-        logger.warning(f"{log_prefix} [ImageSafety] Ban triggered for user")
-    except Exception as e:
-        logger.error(
-            f"{log_prefix} [ImageSafety] Ban trigger failed (non-fatal): {e}",
-            exc_info=True,
-        )
+    return tool_response
 
 
 async def _emit_safety_rejection_embed(
@@ -908,6 +918,13 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         )
         if not media_decision.allowed:
             tool_response = media_decision.to_rejection_payload()
+            if has_explanation(media_decision.category or ""):
+                tool_response = localized_rejection_payload(
+                    str(media_decision.category),
+                    await user_language(task._cache_service, user_id),
+                    severity=media_decision.severity,
+                    error=str(tool_response["error"]),
+                )
             logger.warning(
                 "%s [MediaSafety] REJECTED category=%s reason=%s",
                 log_prefix,

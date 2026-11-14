@@ -78,6 +78,11 @@
       }
     }
   },
+  "ai_response_notices": {
+    "output_limit": {
+      "text": "Ta odpowiedź została ucięta, ponieważ osiągnęła maksymalną długość modelu. Możesz poprosić AI o kontynuację."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -11428,6 +11433,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Ta prośba została odrzucona. Obrazy seksualne lub sugestywne z udziałem nieletnich nigdy nie są tworzone."
+    },
+    "reason_intimate_real_person": {
+      "text": "Ta prośba została odrzucona. Obrazy seksualne lub intymne prawdziwych osób nigdy nie są tworzone."
+    },
+    "reason_bypass": {
+      "text": "Ta prośba została odrzucona, ponieważ próbowała obejść zasady bezpieczeństwa."
+    },
+    "reason_minor": {
+      "text": "Realistyczne obrazy nieletnich nie są tworzone, a zdjęcia nieletnich można edytować tylko pod kątem tła, oświetlenia lub kolorów, ponieważ takie obrazy mogłyby zostać nadużyte, na przykład do fałszywych profili podszywających się pod nieletnich."
+    },
+    "alternative_minor": {
+      "text": "Możliwa jest wyraźnie stylizowana wersja, na przykład render 3D, ilustracja lub kreskówka, o ile scena nie jest seksualna."
+    },
+    "reason_sexual": {
+      "text": "Obrazy seksualne lub o charakterze jednoznacznym nie są tworzone."
+    },
+    "alternative_sexual": {
+      "text": "Możliwa jest wersja tej sceny bez jednoznacznych treści."
+    },
+    "reason_violent": {
+      "text": "Obrazy przedstawiające prawdziwe osoby ranne, zaatakowane lub na miejscu zbrodni nie są tworzone, ponieważ mogłyby posłużyć do wyrządzenia im krzywdy lub zniesławienia."
+    },
+    "alternative_violent": {
+      "text": "Możliwa jest scena z fikcyjnymi postaciami zamiast prawdziwych osób."
+    },
+    "reason_public_figure": {
+      "text": "Obrazy prawdziwych osób publicznych nie są obecnie tworzone, ponieważ mogłyby zostać użyte jako deepfake'i lub do fałszywych twierdzeń."
+    },
+    "alternative_public_figure": {
+      "text": "Możliwa jest oryginalna, fikcyjna postać w tej samej scenie."
+    },
+    "reason_identity": {
+      "text": "Zamiana twarzy i podmiana tożsamości osoby nie są wykonywane, ponieważ mogłyby posłużyć do podszywania się pod kogoś."
+    },
+    "alternative_identity": {
+      "text": "Możliwe są edycje zachowujące tożsamość osoby, takie jak nowe tło, oświetlenie lub styl artystyczny."
+    },
+    "reason_id_document": {
+      "text": "Obrazy dokumentów tożsamości, takich jak paszporty, dowody osobiste czy prawa jazdy, nie są tworzone, ponieważ mogłyby posłużyć do oszustwa."
+    },
+    "reason_hate": {
+      "text": "Obrazy z symbolami nienawiści lub wymierzone w ludzi z powodu tego, kim są, nie są tworzone."
+    },
+    "reason_self_harm": {
+      "text": "Obrazy przedstawiające samookaleczenie lub do niego zachęcające nie są tworzone."
+    },
+    "alternative_self_harm": {
+      "text": "Jeśli przechodzisz trudny czas, rozmowa z kimś zaufanym albo z lokalną infolinią pomocową może pomóc."
+    },
+    "reason_weapons": {
+      "text": "Obrazy z instrukcjami lub planami budowy broni albo materiałów wybuchowych nie są tworzone."
+    },
+    "reason_scam": {
+      "text": "Materiały do oszustw, fałszywych dokumentów lub podszywania się pod kogoś nie są tworzone."
+    },
+    "alternative_scam": {
+      "text": "Możliwy jest oryginalny projekt, który nie naśladuje prawdziwej osoby, marki ani dokumentu."
+    },
+    "reason_spam": {
+      "text": "Masowe tworzenie treści zapychaczy lub usuwanie oznaczeń AI nie jest obsługiwane."
+    },
+    "alternative_spam": {
+      "text": "Możliwe jest kilka obrazów do konkretnego celu."
+    },
+    "reason_deceptive": {
+      "text": "Obrazy mające uchodzić za prawdziwe nagrania, prawdziwą wypowiedź lub oficjalne poparcie nie są tworzone."
+    },
+    "alternative_deceptive": {
+      "text": "Możliwa jest wersja wyraźnie fikcyjna lub ilustrowana."
+    },
+    "reason_other": {
+      "text": "Tej prośby nie można zrealizować zgodnie z zasadami bezpieczeństwa."
+    },
+    "alternative_other": {
+      "text": "Może zadziałać inny temat lub inne sformułowanie."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktura"
@@ -14116,6 +14201,30 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Nie udało mi się poprawnie użyć {skill_name}. Czy mógłbyś wyjaśnić, co chciałbyś, żebym zrobił, abym mógł spróbować ponownie?"
+    },
+    "provider_block_child_safety": {
+      "text": "Nie mogę pomóc w tej sprawie, ponieważ dotyczy ona osób niepełnoletnich i podlega zasadom dostawcy AI dotyczącym ochrony dzieci. Zasady te chronią dzieci przed nadużyciami, takimi jak fałszywe profile czy treści wykorzystujące dzieci. Jeśli to pomoże, mogę zamiast tego pracować z postacią narysowaną lub wyraźnie fikcyjną."
+    },
+    "provider_block_child_safety_strict": {
+      "text": "Nie mogę pomóc w tej sprawie, ponieważ dotyczy ona osób niepełnoletnich i podlega zasadom dostawcy AI dotyczącym ochrony dzieci. Zasady te chronią dzieci przed wykorzystywaniem i nadużyciami."
+    },
+    "provider_block_sexual": {
+      "text": "Nie mogę pomóc w tej sprawie, ponieważ podlega ona zasadom dostawcy AI dotyczącym treści seksualnych. Zasady te nie dopuszczają jednoznacznych treści w odpowiedziach, w których nie da się sprawdzić zgody ani wieku. Mogę zamiast tego pomóc w wersji twojej prośby bez treści jednoznacznych."
+    },
+    "provider_block_dangerous": {
+      "text": "Nie mogę pomóc w tej sprawie, ponieważ podlega ona zasadom dostawcy AI dotyczącym niebezpiecznych działań. Zasady te zapewniają, że odpowiedzi nie mogą zostać użyte do wyrządzenia poważnej krzywdy. Mogę zamiast tego pomóc z informacjami o bezpieczeństwie lub tłem tematu."
+    },
+    "provider_block_harassment_hate": {
+      "text": "Nie mogę pomóc w tej sprawie, ponieważ podlega ona zasadom dostawcy AI przeciwko nękaniu i nienawiści. Zasady te chronią ludzi przed byciem celem ataków lub poniżaniem. Mogę zamiast tego pomóc ci wyrazić swoje zdanie w sposób pełen szacunku."
+    },
+    "provider_block_personal_data": {
+      "text": "Nie mogę pomóc w tej sprawie, ponieważ podlega ona zasadom dostawcy AI dotyczącym wrażliwych danych osobowych. Zasady te chronią prywatne dane ludzi przed ujawnieniem lub niewłaściwym wykorzystaniem. Mogę pomóc, jeśli pominiesz dane osobowe."
+    },
+    "provider_block_copyright": {
+      "text": "Nie mogę udzielić tej odpowiedzi, ponieważ powielałaby ona tekst chroniony prawem autorskim, na co zasady dostawcy AI nie pozwalają. Chroni to pracę autorów i wydawców. Mogę zamiast tego streścić go lub wyjaśnić własnymi słowami."
+    },
+    "provider_block_other": {
+      "text": "Nie mogę pomóc w tej sprawie, ponieważ podlega ona zasadom bezpieczeństwa dostawcy AI. Zasady te istnieją, aby zapobiegać szkodliwym odpowiedziom. Możesz przeformułować swoją prośbę albo mogę pomóc w czymś innym."
     }
   },
   "projects": {},
@@ -14396,6 +14505,29 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} została odrzucona. {reason} To naruszenie {strike} z {max}. Trzecie naruszenie usuwa Twoje konto."
+    },
+    "what_image_generate": {
+      "text": "Twoja prośba o obraz"
+    },
+    "what_image_edit": {
+      "text": "Twoja prośba o edycję obrazu"
+    },
+    "what_video": {
+      "text": "Twoja prośba o wideo"
+    },
+    "what_upload": {
+      "text": "Przesłany przez Ciebie obraz"
+    },
+    "deleted": {
+      "text": "Twoje konto zostało usunięte po trzecim naruszeniu zasad dotyczących treści. Kwalifikujące się zakupy są zwracane automatycznie."
+    },
+    "unavailable": {
+      "text": "Kontrola bezpieczeństwa jest chwilowo niedostępna, więc nie udało się przetworzyć tej prośby. Spróbuj ponownie za chwilę."
+    }
+  },
   "settings": {
     "account": {
       "username": {

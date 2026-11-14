@@ -925,6 +925,16 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.safety-strikes:
+    version: 1
+    status: draft
+    path: features/safety-strikes
+    fingerprint: 93134f5e98a61fa6f17a783268732cc6757eee76569293b3af8d66fb6e66e934
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
   feature.settings-ui:
     version: 1
     status: draft
@@ -12403,6 +12413,146 @@ assertions:
     fingerprint: 8889d50aee981e8bfa40f0ab68a8acda6f21e5ea0f2484c621b3451a31d86522
     required_applies_to:
     - gui.web
+  safety-strikes.screening-rejects:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 50002c0ba29ff475ecb052b26aff6b51451adc1b832c0331a2f535d01d0d4895
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.one-strike-per-violation:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: 5d571561e4582e2107250984bdd7bd530c9d7fdd15061c259ffe85a523eca642
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.technical-failure-no-strike:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: 185c116a75f5b371ad91053831f4d5eea5b3d7e7f8398071f1bfc991b0455f21
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.warning-localized:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 7d4b45a99870ec4c350f0196ca400d1763ff8627ca5b72414985e39c74258114
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.third-strike-suspends:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: d08783afbe47904cbc4be2228c0f3ba37237d06862ebb692105344c1cf17a24d
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.appeal-consented-review:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: c9e3e6bacb83560b9fb4bf80eb014c389882d6cdfe09752ecb957c2b9a586b74
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.deletion-after-suspension-refunds:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: ec05fb9b2be2218763af579028bbaacf99b4f3df9c47f2d71d027dba7aa09f21
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.legal-retention:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: 0a6c24719345bd87b62a531b7fb38bcdc95613531af06a8a9ac601a20c135c3c
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.deletion-email:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: f41026e22f61a339b4ef1b30f9dde1560d121f4968b7770fbf6def2ea230029d
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.deletion-marker-login-message:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: f524c2d10b67095fa6df1ec95bc0339b7e9c4eea4e781f442f1b3d0c4fd0e11a
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.never-wrong-login-data:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: 1d005ecd7822a3fc8e3447efaca9cd04ed90f8f452fb72b68473f36957c0d2ab
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.rejection-explained:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 2db351bf8381cb7a7afb8e6c0eaa23f812f5ea958f383b8151462510e1ba961e
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.hard-limits-firm:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: efe9139a581e292f62fb8118bc9c2d49a87a3e99f3029f5e321d4ea8fb8bbcd4
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.minors-stylized-only:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 698b7ca2741be710c796bc3c50b45606e727c1e3d280fa2bedf44291b6d449ca
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
   settings-ui.shell.lifecycle-and-routing:
     specification: feature.settings-ui@1
     specification_id: feature.settings-ui

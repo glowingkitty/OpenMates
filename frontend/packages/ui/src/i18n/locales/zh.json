@@ -78,6 +78,11 @@
       }
     }
   },
+  "ai_response_notices": {
+    "output_limit": {
+      "text": "此回答已达到模型的最大长度，因此被截断。你可以让 AI 继续。"
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -11428,6 +11433,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "此请求已被拒绝。涉及未成年人的性相关或暗示性图像永远不会被创建。"
+    },
+    "reason_intimate_real_person": {
+      "text": "此请求已被拒绝。涉及真实人物的性相关或私密图像永远不会被创建。"
+    },
+    "reason_bypass": {
+      "text": "此请求已被拒绝，因为它试图绕过安全规则。"
+    },
+    "reason_minor": {
+      "text": "不会创建逼真的未成年人图像，对未成年人的照片也只能编辑背景、光线或颜色，因为此类图像可能被滥用，例如用于冒充未成年人的虚假资料。"
+    },
+    "alternative_minor": {
+      "text": "可以使用明显风格化的版本，例如 3D 渲染、插画或卡通，只要场景不涉及性内容。"
+    },
+    "reason_sexual": {
+      "text": "不会创建性相关或露骨的图像。"
+    },
+    "alternative_sexual": {
+      "text": "可以提供该场景的非露骨版本。"
+    },
+    "reason_violent": {
+      "text": "不会创建显示真实人物受伤、遭到攻击或身处犯罪现场的图像，因为这些图像可能被用来伤害或诽谤他们。"
+    },
+    "alternative_violent": {
+      "text": "可以使用虚构角色而不是真实人物来呈现场景。"
+    },
+    "reason_public_figure": {
+      "text": "目前不会创建真实公众人物的图像，因为这些图像可能被用作深度伪造或用于虚假说法。"
+    },
+    "alternative_public_figure": {
+      "text": "可以在同一场景中使用一个原创的虚构角色。"
+    },
+    "reason_identity": {
+      "text": "不会进行换脸或替换他人身份，因为这可能被用来冒充他人。"
+    },
+    "alternative_identity": {
+      "text": "可以进行保留人物身份的编辑，例如更换背景、光线或艺术风格。"
+    },
+    "reason_id_document": {
+      "text": "不会创建护照、身份证或驾驶证等身份证件的图像，因为这些图像可能被用于欺诈。"
+    },
+    "reason_hate": {
+      "text": "不会创建带有仇恨符号的图像，或因人们的身份而针对他们的图像。"
+    },
+    "reason_self_harm": {
+      "text": "不会创建展示或鼓励自残的图像。"
+    },
+    "alternative_self_harm": {
+      "text": "如果你正经历艰难时期，和你信任的人聊聊或拨打当地求助热线可能会有帮助。"
+    },
+    "reason_weapons": {
+      "text": "不会创建包含武器或爆炸物制作说明或设计图的图像。"
+    },
+    "reason_scam": {
+      "text": "不会创建用于诈骗、伪造文件或冒充他人的媒体内容。"
+    },
+    "alternative_scam": {
+      "text": "可以提供不模仿真实人物、品牌或文件的原创设计。"
+    },
+    "reason_spam": {
+      "text": "不支持批量生成填充内容或去除 AI 标识。"
+    },
+    "alternative_spam": {
+      "text": "可以为特定用途生成少量图像。"
+    },
+    "reason_deceptive": {
+      "text": "不会创建旨在冒充真实影像、真实言论或官方背书的图像。"
+    },
+    "alternative_deceptive": {
+      "text": "可以提供明显是虚构或插画风格的版本。"
+    },
+    "reason_other": {
+      "text": "根据安全规则，无法创建此请求。"
+    },
+    "alternative_other": {
+      "text": "换一个主题或换种表述可能行得通。"
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "发票"
@@ -14116,6 +14201,30 @@
     },
     "skill_execution_failed": {
       "text": "嗯... 我无法正确使用{skill_name}。你能说明一下你想让我做什么，这样我可以再试一次吗？"
+    },
+    "provider_block_child_safety": {
+      "text": "我无法协助处理这个请求，因为它涉及未成年人，属于 AI 提供商儿童安全规则的范围。这些规则旨在保护儿童免遭滥用，例如虚假身份资料或剥削性内容。如果有帮助，我可以改用插画角色或明确虚构的角色来处理。"
+    },
+    "provider_block_child_safety_strict": {
+      "text": "我无法协助处理这个请求，因为它涉及未成年人，属于 AI 提供商儿童安全规则的范围。这些规则旨在保护儿童免遭剥削和滥用。"
+    },
+    "provider_block_sexual": {
+      "text": "我无法协助处理这个请求，因为它属于 AI 提供商关于性内容的规则范围。这些规则旨在避免在无法核实同意与年龄的情况下，在回答中出现露骨内容。我可以改为协助处理一个不含露骨内容的版本。"
+    },
+    "provider_block_dangerous": {
+      "text": "我无法协助处理这个请求，因为它属于 AI 提供商关于危险活动的规则范围。这些规则旨在确保回答不会被用来造成严重伤害。我可以改为提供安全信息或该主题的背景知识。"
+    },
+    "provider_block_harassment_hate": {
+      "text": "我无法协助处理这个请求，因为它属于 AI 提供商反对骚扰和仇恨的规则范围。这些规则旨在保护人们不被针对或贬低。我可以改为帮你用尊重的方式表达你的观点。"
+    },
+    "provider_block_personal_data": {
+      "text": "我无法协助处理这个请求，因为它属于 AI 提供商关于敏感个人信息的规则范围。这些规则旨在保护人们的私人数据不被泄露或滥用。如果你去掉其中的个人信息，我可以提供帮助。"
+    },
+    "provider_block_copyright": {
+      "text": "我无法给出这个回答，因为它会复制受版权保护的文本，而 AI 提供商的规则不允许这样做。这样做是为了保护作者和出版商的作品。我可以改为为你总结，或用我自己的话来解释。"
+    },
+    "provider_block_other": {
+      "text": "我无法协助处理这个请求，因为它属于 AI 提供商安全规则的范围。这些规则的目的是防止有害输出。你可以换一种方式表述请求，或者我可以帮你处理别的事情。"
     }
   },
   "projects": {},
@@ -14396,6 +14505,29 @@
     }
   },
   "rules": {},
+  "safety_strikes": {
+    "warning": {
+      "text": "{what}被拒绝。{reason}这是第 {strike} 次警告（共 {max} 次）。第三次警告将删除你的账户。"
+    },
+    "what_image_generate": {
+      "text": "你的图片生成请求"
+    },
+    "what_image_edit": {
+      "text": "你的图片编辑请求"
+    },
+    "what_video": {
+      "text": "你的视频生成请求"
+    },
+    "what_upload": {
+      "text": "你上传的图片"
+    },
+    "deleted": {
+      "text": "你的账户因第三次违反内容规则而被删除。符合条件的购买将自动退款。"
+    },
+    "unavailable": {
+      "text": "安全检查暂时不可用，因此无法处理此请求。请稍后再试。"
+    }
+  },
   "settings": {
     "account": {
       "username": {

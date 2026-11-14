@@ -1,0 +1,153 @@
+schema_version: 1
+id: feature.safety-strikes
+version: 1
+status: draft
+title: Safety Strikes, Suspension, Appeal and Policy Account Deletion
+summary: >
+  When OpenMates' own safety checks reject a user's image or video request or
+  an uploaded image, the user gets one strike and a clear warning in their
+  language. A single request never deletes an account. The third strike
+  suspends the account for 7 days and alerts the admin; the user can appeal by
+  consenting to share only the flagged requests with the admin. Without an
+  appeal the account is deleted after 7 days, all remaining credits are
+  refunded and the user is told why by email and on their next login attempt.
+  A safety check that fails for technical reasons never counts as a strike.
+  Deletion never removes records the law requires us to keep.
+
+scope:
+  includes:
+    - Strikes from image generation, image editing, video generation and uploaded-image safety rejections.
+    - The warning shown with a rejected request (strike 1 and 2) and the suspension notice at strike 3.
+    - Refused requests when a safety check is technically unavailable.
+    - Suspension, appeal with consent to share the flagged requests, the admin decision and the admin alert.
+    - Automatic deletion after an unappealed suspension, the full credit refund, the deletion email and the login message that follows.
+    - Records kept after deletion because the law requires them.
+    - The localized reason and allowed alternative shown with every refused image or video request, firm hard limits, and the minors rule (photorealistic refused, clearly stylized non-sexual allowed).
+  excludes:
+    - Text chat refusals by the AI provider's own content filter (feature.ai-model-routing; they record no strike).
+    - Request-level chat safety screening (feature.chat-request-safety).
+    - User-requested account deletion (feature.auth).
+    - Reporting flagged content to authorities (pending the owner's decision after legal review).
+
+models:
+  StrikeState:
+    count:
+      type: integer
+      required: true
+      constraints: {minimum: 0, maximum: 3}
+      description: Strikes in the current counting window, shared by generation, editing, video and upload rejections.
+    counted_response_ids:
+      type: list
+      required: true
+      description: Assistant responses that already produced a strike, so one response counts at most once.
+  Suspension:
+    started_at:
+      type: datetime
+      required: true
+    delete_after_days:
+      type: integer
+      required: true
+      constraints: {minimum: 7, maximum: 7}
+    appeal_state:
+      type: enum
+      required: true
+      values: [none, appealed, lifted, confirmed]
+      description: An appeal pauses the deletion until the admin lifts the suspension or confirms the deletion.
+    flagged_request_ids:
+      type: list
+      required: true
+      description: The rejected requests behind the strikes; only these are shared with the admin, and only after the user's consent.
+  DeletionMarker:
+    hashed_login_identifier:
+      type: string
+      required: true
+      description: Hash of the login identifier only; no other personal data.
+    category:
+      type: string
+      required: true
+    expires_after_days:
+      type: integer
+      required: true
+      constraints: {minimum: 14, maximum: 14}
+
+assertions:
+  - id: safety-strikes.screening-rejects
+    type: behavior
+    must: Image and video requests, their reference images and generated outputs, and uploaded images pass the safety checks before anything is generated, stored or shown; a block from any check rejects the request and only a rejection from a check that reached a decision can lead to a strike.
+    depends_on: [examples.strikes, examples.technical]
+  - id: safety-strikes.one-strike-per-violation
+    type: invariant
+    must: Every rejected request counts as exactly one strike, whatever its category or severity, and one assistant response or upload never counts more than once; no single request suspends or deletes an account.
+    depends_on: [models.StrikeState, examples.strikes]
+  - id: safety-strikes.technical-failure-no-strike
+    type: invariant
+    must: When a safety check cannot reach a decision for technical reasons, the request is refused with a "safety check temporarily unavailable, please try again" message in the user's language; no strike is recorded, no violation is logged and no suspension or deletion is started.
+    depends_on: [examples.technical]
+  - id: safety-strikes.warning-localized
+    type: behavior
+    must: A rejection that records strike 1 or 2 tells the user, in their language, what was rejected, the reason at category level (never the exact trigger, classifier or threshold) and "this is strike N of 3".
+    depends_on: [examples.strikes]
+  - id: safety-strikes.third-strike-suspends
+    type: behavior
+    must: The third strike suspends the account for 7 days, ends all of its sessions, alerts the admin and tells the user in their language, by email and at login, why the account is suspended, when it will be deleted and how to appeal.
+    depends_on: [models.Suspension, examples.suspension]
+  - id: safety-strikes.appeal-consented-review
+    type: invariant
+    must: An appeal requires the user's explicit consent to share only the flagged requests, decrypted, with the admin; the full chat history is never shared; an appeal pauses the deletion until the admin lifts the suspension (strikes reset, account active) or confirms the deletion.
+    depends_on: [models.Suspension, examples.suspension]
+  - id: safety-strikes.deletion-after-suspension-refunds
+    type: behavior
+    must: A suspension without an appeal within 7 days, or a confirmed deletion, deletes the account through the standard account deletion and automatically refunds all remaining credits.
+    depends_on: [examples.deletion]
+  - id: safety-strikes.legal-retention
+    type: invariant
+    must: A policy deletion never removes records the law requires us to keep (invoices and financial records, the compliance deletion log, required security and audit logs); only what is required is kept, minimised, and removed when its legal retention period ends.
+    depends_on: [examples.deletion]
+  - id: safety-strikes.deletion-email
+    type: behavior
+    must: After a policy deletion the user receives an email in their language saying that the account was deleted, the category-level reason and that all remaining credits were refunded.
+    depends_on: [examples.deletion]
+  - id: safety-strikes.deletion-marker-login-message
+    type: behavior
+    must: A policy deletion keeps only a deletion marker of the hashed login identifier, the category and the date; a login attempt with that identifier shows, in the user's language, that the account was deleted for a policy violation and the remaining credits were refunded; the marker is removed automatically after 14 days.
+    depends_on: [models.DeletionMarker, examples.login]
+  - id: safety-strikes.never-wrong-login-data
+    type: invariant
+    must: A suspended account or an account with a deletion marker never shows the "wrong login data" message; it shows its own message in the user's language.
+    depends_on: [examples.login]
+  - id: safety-strikes.rejection-explained
+    type: behavior
+    must: An image or video request refused by the safety checks shows, in the user's language, a category-level reason and, where one fits, the alternative that is allowed, in the result card, in the strike warning and in the assistant's reply. The assistant explains the reason plainly, offers the alternative and does not retry or reformulate the request in the same response. No reason names the check, classifier, score or threshold that made the decision.
+    depends_on: [examples.explanations]
+  - id: safety-strikes.hard-limits-firm
+    type: invariant
+    must: A request refused as a sexual or suggestive depiction of a minor, an intimate or sexual image of a real person, or an attempt to get around the safety rules gets a short, firm reason only, with no alternative and no hint how to change the request so it passes.
+    depends_on: [examples.explanations]
+  - id: safety-strikes.minors-stylized-only
+    type: behavior
+    must: A photorealistic or photo-like picture of a minor is refused with the reason that realistic images of minors could be misused, for example for fake profiles pretending to be a minor, and the alternative of a clearly stylized version. A clearly stylized, non-photorealistic picture of a minor in a non-sexual scene, such as a 3D render, an illustration or a cartoon, is generated. Any sexual or suggestive depiction of a minor stays refused in every style.
+    depends_on: [examples.explanations]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Login and upload responses carry the account-state and strike messages; image and video skills return them in their rejection result; the appeal and the admin decision are API actions.
+  cli:
+    required: true
+    parity: semantic
+    role: The CLI login shows the same account-state messages and the appeal option.
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [strikes, technical, explanations, suspension, deletion, login]
