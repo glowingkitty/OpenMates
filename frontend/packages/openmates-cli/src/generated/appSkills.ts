@@ -7176,7 +7176,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "plans",
     "skill_method_py": "specification",
     "description_key": "plans.skills.specification.description",
-    "description": "Draft or update a Specification for the user to review as an embed. Content is saved by the client into the Project on approval.",
+    "description": "Draft or update a Specification for the user to review as an embed. Use this whenever the user asks to write, draft, update or review a spec, specification, requirements document or PRD for a feature, product or change. Content is saved by the client into the Project on approval.",
     "schema": {
       "type": "object",
       "properties": {
@@ -7280,7 +7280,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "plans",
     "skill_method_py": "check",
     "description_key": "plans.skills.check.description",
-    "description": "Define a reusable Check with mixed sources for the user to review as an embed.",
+    "description": "Define a reusable Check with mixed sources for the user to review as an embed. Use this whenever the user asks to draft, define or update a Check, verification check, acceptance check or quality gate, or to group tests (e2e, unit, integration), AI evaluation questions and human confirmations that prove a requirement works.",
     "schema": {
       "type": "object",
       "properties": {
@@ -11000,7 +11000,7 @@ export class PlansAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Define a reusable Check with mixed sources for the user to review as an embed.
+   * Define a reusable Check with mixed sources for the user to review as an embed. Use this whenever the user asks to draft, define or update a Check, verification check, acceptance check or quality gate, or to group tests (e2e, unit, integration), AI evaluation questions and human confirmations that prove a requirement works.
    * Description key: plans.skills.check.description
    * Skill: plans/check
    */
@@ -11024,7 +11024,7 @@ export class PlansAppSkills {
     return this.runSkill<T>("plans", "search", input, options);
   }
   /**
-   * Draft or update a Specification for the user to review as an embed. Content is saved by the client into the Project on approval.
+   * Draft or update a Specification for the user to review as an embed. Use this whenever the user asks to write, draft, update or review a spec, specification, requirements document or PRD for a feature, product or change. Content is saved by the client into the Project on approval.
    * Description key: plans.skills.specification.description
    * Skill: plans/specification
    */

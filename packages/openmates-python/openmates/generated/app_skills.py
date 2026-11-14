@@ -7124,8 +7124,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'plans',
   'app_namespace_py': 'plans',
   'app_namespace_ts': 'plans',
-  'description': 'Draft or update a Specification for the user to review as an embed. Content is '
-                 'saved by the client into the Project on approval.',
+  'description': 'Draft or update a Specification for the user to review as an embed. Use this '
+                 'whenever the user asks to write, draft, update or review a spec, specification, '
+                 'requirements document or PRD for a feature, product or change. Content is saved '
+                 'by the client into the Project on approval.',
   'description_key': 'plans.skills.specification.description',
   'schema': {'properties': {'category': {'description': 'Optional category.', 'type': 'string'},
                             'flows': {'description': 'User flows and edge cases with unique ids.',
@@ -7167,7 +7169,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'plans',
   'app_namespace_py': 'plans',
   'app_namespace_ts': 'plans',
-  'description': 'Define a reusable Check with mixed sources for the user to review as an embed.',
+  'description': 'Define a reusable Check with mixed sources for the user to review as an embed. '
+                 'Use this whenever the user asks to draft, define or update a Check, verification '
+                 'check, acceptance check or quality gate, or to group tests (e2e, unit, '
+                 'integration), AI evaluation questions and human confirmations that prove a '
+                 'requirement works.',
   'description_key': 'plans.skills.check.description',
   'schema': {'properties': {'covered_claims': {'description': 'Requirement ids or claims the Check '
                                                               'covers.',
@@ -11184,7 +11190,7 @@ class PlansAppSkills:
         self._run_skill = run_skill
 
     def check(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Define a reusable Check with mixed sources for the user to review as an embed.
+        """Define a reusable Check with mixed sources for the user to review as an embed. Use this whenever the user asks to draft, define or update a Check, verification check, acceptance check or quality gate, or to group tests (e2e, unit, integration), AI evaluation questions and human confirmations that prove a requirement works.
 
         Description key: plans.skills.check.description
         Skill: plans/check
@@ -11208,7 +11214,7 @@ class PlansAppSkills:
         return self._run_skill("plans", "search", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def specification(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Draft or update a Specification for the user to review as an embed. Content is saved by the client into the Project on approval.
+        """Draft or update a Specification for the user to review as an embed. Use this whenever the user asks to write, draft, update or review a spec, specification, requirements document or PRD for a feature, product or change. Content is saved by the client into the Project on approval.
 
         Description key: plans.skills.specification.description
         Skill: plans/specification
