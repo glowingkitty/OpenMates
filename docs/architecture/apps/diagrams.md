@@ -59,8 +59,9 @@ source, opaque origin and per-source token are checked before accepting bounded
 dimensions. Presentation can grow beyond an imperfect declared height to fit the
 complete page; canonical HTML remains unchanged. Source/history transitions
 invalidate old measurements, and excessive or non-converging pages show an error
-instead of clipping. The pen control sits immediately left
-of Close and uses the same button styling. Edit enables only a trusted runtime
+instead of clipping. Like every editable embed, the round pencil is the first
+header action (before Share); while editing it becomes a round check mark that
+saves the draft and leaves edit mode. Edit enables only a trusted runtime
 protected by a fresh CSP nonce and source/origin/token checked messages. Changing
 edit mode remounts the iframe with its permissions set before loading the HTML.
 The fullscreen captures its owning chat when opened. A late selection event for
@@ -84,7 +85,7 @@ together and updates attached connectors while preserving their original ports,
 rounded paths and message rows. Undo and Cancel operate on
 the local draft. Export strips all injected editor/runtime nodes.
 
-Save encrypts the new head and the existing unified-diff history format with the
+Saving (the header check mark) encrypts the new head and the existing unified-diff history format with the
 embed key, adding an initial snapshot only when missing and checkpoints every
 32 versions. `commit_chat_diagram_revision` commits head, history and an
 idempotent operation receipt in one transaction. Owning-chat authorization,
