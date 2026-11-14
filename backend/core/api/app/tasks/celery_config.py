@@ -13,6 +13,7 @@ from urllib.parse import quote
 import asyncio
 from datetime import timedelta
 from celery.schedules import crontab
+from backend.core.api.app.tasks import celery_pool_startup as _pool_startup
 
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from pythonjsonlogger import jsonlogger  # Import the JSON formatter
@@ -1096,6 +1097,7 @@ def init_worker_process(*args, **kwargs):
     PERFORMANCE OPTIMIZATION: For app-ai-worker, pre-warms AI provider clients to eliminate
     cold-start delay on the first AI request after a restart.
     """
+    init_started_at = time.monotonic()
     setup_celery_logging()
     logger.info("Worker process initializing...")
 
@@ -1185,6 +1187,9 @@ def init_worker_process(*args, **kwargs):
     asyncio.run(prewarm_ai_services())
 
     logger.info("Worker process initialized with JSON logging and sensitive data filtering")
+    _pool_startup.report_child_init_duration(
+        time.monotonic() - init_started_at, _POOL_PROC_ALIVE_TIMEOUT_SECONDS,
+    )
 
 # Dynamically generate task routes from TASK_CONFIG
 # Note: Task names can be explicitly set (e.g., "apps.ai.tasks.skill_ask") which may not match module path patterns
@@ -1867,3 +1872,9 @@ if (archive_feature_enabled("EMBED_VERSION_ARCHIVE_COPY_ENABLED")
         'options': {'queue': 'persistence', 'expires': 1500},
     }
 app.conf.timezone = 'UTC'
+
+# Pool children must finish worker_process_init before Celery's start-up
+# allowance or the parent SIGKILLs them (prod outage 2026-11-14, TASK-832).
+_POOL_PROC_ALIVE_TIMEOUT_SECONDS = _pool_startup.apply_pool_startup_settings(app)
+signals.worker_init.connect(_pool_startup.surface_pool_kill_reasons, weak=False)
+signals.after_setup_logger.connect(_pool_startup.surface_pool_kill_reasons, weak=False)
