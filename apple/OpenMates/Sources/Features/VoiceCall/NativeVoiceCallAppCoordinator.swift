@@ -25,7 +25,6 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
     @Published private(set) var consentRequestID: UUID?
     @Published private(set) var integrationError: NativeVoiceCallError?
     @Published private(set) var recoverableDrafts: [NativeVoiceCallDraftTicket] = []
-    @Published var minimized = false
     /// Camera of the running call; stopped on hangup, owner invalidation and call end.
     let camera: NativeVoiceCallCameraModel
     #if os(iOS)
@@ -98,7 +97,7 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
     }
     func start(_ destination: NativeVoiceCallAppDestination) async {
         guard !isActive, submitting == nil else { return }
-        starting = true; integrationError = nil; minimized = false
+        starting = true; integrationError = nil
         generation = UUID(); earlyAccepted.removeAll(); earlyRejected.removeAll()
         recovered = Set(recoverableDrafts.map { "\($0.id):\($0.revision)" })
         defer { starting = false }

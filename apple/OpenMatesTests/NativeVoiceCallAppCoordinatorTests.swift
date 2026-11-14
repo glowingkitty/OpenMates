@@ -95,10 +95,9 @@ final class NativeVoiceCallAppCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.integrationError, .invalidResponse)
     }
     // contract-test: supporting surface=gui.apple assertions=video-call.chat.typed-input,video-call.chat.fixed-binding,video-call.privacy.first-call-warning,video-call.lifecycle.recovery-and-billing
-    func testMinimizeAndNavigationDoNotHangUpOrChangeBinding() async {
+    func testNavigationDoesNotHangUpOrChangeBinding() async {
         let driver = AppCallDriver(); let coordinator = make(driver)
         await coordinator.start(.existing(chatID: driver.scope.chatID))
-        coordinator.minimized = true; coordinator.minimized = false
         XCTAssertEqual(coordinator.boundChatID, driver.scope.chatID); XCTAssertEqual(driver.hangups, 0)
         await coordinator.invalidateOwner(); XCTAssertEqual(driver.invalidations, 1)
     }

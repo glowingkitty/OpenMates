@@ -296,6 +296,7 @@
         "components/voice-call-bar.spec.ts",
         "components/voice-call-chat-header.spec.ts",
         "components/voice-call-media.spec.ts",
+        "components/voice-call-apple-parity.spec.ts",
         "components/voice-call-artifact-progress.spec.ts",
         "components/skill-input-thumbnails.spec.ts",
         "components/voice-call-audio-gate.spec.ts",

@@ -5555,6 +5555,115 @@ public func FfiConverterTypeAdoptedSessionRecord_lower(_ value: AdoptedSessionRe
 
 
 /**
+ * One block-level embed reference of a message body.
+ */
+public struct BodyEmbedRefRecord: Equatable, Hashable {
+    /**
+     * Authored reference.
+     */
+    public var embedRef: String
+    /**
+     * Resolved embed id, when known.
+     */
+    public var embedId: String?
+    /**
+     * Resolved embed type, when known.
+     */
+    public var typeName: String?
+    /**
+     * App id, when known.
+     */
+    public var appId: String?
+    /**
+     * Skill id, when known.
+     */
+    public var skillId: String?
+    /**
+     * Result child ids; `None` while not known yet.
+     */
+    public var childIds: [String]?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Authored reference.
+         */embedRef: String, 
+        /**
+         * Resolved embed id, when known.
+         */embedId: String?, 
+        /**
+         * Resolved embed type, when known.
+         */typeName: String?, 
+        /**
+         * App id, when known.
+         */appId: String?, 
+        /**
+         * Skill id, when known.
+         */skillId: String?, 
+        /**
+         * Result child ids; `None` while not known yet.
+         */childIds: [String]?) {
+        self.embedRef = embedRef
+        self.embedId = embedId
+        self.typeName = typeName
+        self.appId = appId
+        self.skillId = skillId
+        self.childIds = childIds
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BodyEmbedRefRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBodyEmbedRefRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BodyEmbedRefRecord {
+        return
+            try BodyEmbedRefRecord(
+                embedRef: FfiConverterString.read(from: &buf), 
+                embedId: FfiConverterOptionString.read(from: &buf), 
+                typeName: FfiConverterOptionString.read(from: &buf), 
+                appId: FfiConverterOptionString.read(from: &buf), 
+                skillId: FfiConverterOptionString.read(from: &buf), 
+                childIds: FfiConverterOptionSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BodyEmbedRefRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedRef, into: &buf)
+        FfiConverterOptionString.write(value.embedId, into: &buf)
+        FfiConverterOptionString.write(value.typeName, into: &buf)
+        FfiConverterOptionString.write(value.appId, into: &buf)
+        FfiConverterOptionString.write(value.skillId, into: &buf)
+        FfiConverterOptionSequenceString.write(value.childIds, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBodyEmbedRefRecord_lift(_ buf: RustBuffer) throws -> BodyEmbedRefRecord {
+    return try FfiConverterTypeBodyEmbedRefRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBodyEmbedRefRecord_lower(_ value: BodyEmbedRefRecord) -> RustBuffer {
+    return FfiConverterTypeBodyEmbedRefRecord.lower(value)
+}
+
+
+/**
  * One body node handed to carousel grouping.
  */
 public struct BodyNodeRecord: Equatable, Hashable {
@@ -14345,6 +14454,125 @@ public func FfiConverterTypeAccessDenialRecord_lower(_ value: AccessDenialRecord
 
 
 /**
+ * What the body renders in place of one block reference.
+ */
+
+public enum BodyEmbedSlotRecord: Equatable, Hashable {
+    
+    /**
+     * A result card.
+     */
+    case card(
+        /**
+         * Reference to render.
+         */embedRef: String, 
+        /**
+         * Embed id, when known.
+         */embedId: String?
+    )
+    /**
+     * A compact activity line marking where a skill ran.
+     */
+    case activity(
+        /**
+         * Invocation embed id.
+         */embedId: String, 
+        /**
+         * App id, when known.
+         */appId: String?, 
+        /**
+         * Skill id, when known.
+         */skillId: String?, 
+        /**
+         * Children are not known yet.
+         */resultsPending: Bool
+    )
+    /**
+     * Keeps the position, renders nothing.
+     */
+    case hidden(
+        /**
+         * Embed id kept for later resolution.
+         */embedId: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BodyEmbedSlotRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBodyEmbedSlotRecord: FfiConverterRustBuffer {
+    typealias SwiftType = BodyEmbedSlotRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BodyEmbedSlotRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .card(embedRef: try FfiConverterString.read(from: &buf), embedId: try FfiConverterOptionString.read(from: &buf)
+        )
+        
+        case 2: return .activity(embedId: try FfiConverterString.read(from: &buf), appId: try FfiConverterOptionString.read(from: &buf), skillId: try FfiConverterOptionString.read(from: &buf), resultsPending: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 3: return .hidden(embedId: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BodyEmbedSlotRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .card(embedRef,embedId):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(embedRef, into: &buf)
+            FfiConverterOptionString.write(embedId, into: &buf)
+            
+        
+        case let .activity(embedId,appId,skillId,resultsPending):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(embedId, into: &buf)
+            FfiConverterOptionString.write(appId, into: &buf)
+            FfiConverterOptionString.write(skillId, into: &buf)
+            FfiConverterBool.write(resultsPending, into: &buf)
+            
+        
+        case let .hidden(embedId):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(embedId, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBodyEmbedSlotRecord_lift(_ buf: RustBuffer) throws -> BodyEmbedSlotRecord {
+    return try FfiConverterTypeBodyEmbedSlotRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBodyEmbedSlotRecord_lower(_ value: BodyEmbedSlotRecord) -> RustBuffer {
+    return FfiConverterTypeBodyEmbedSlotRecord.lower(value)
+}
+
+
+
+/**
  * Kind of one body node at one nesting level.
  */
 
@@ -20900,6 +21128,31 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBodyEmbedRefRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [BodyEmbedRefRecord]
+
+    public static func write(_ value: [BodyEmbedRefRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBodyEmbedRefRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BodyEmbedRefRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BodyEmbedRefRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBodyEmbedRefRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeBodyNodeRecord: FfiConverterRustBuffer {
     typealias SwiftType = [BodyNodeRecord]
 
@@ -21725,6 +21978,31 @@ fileprivate struct FfiConverterSequenceTypeWrappedChatKeyRecord: FfiConverterRus
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBodyEmbedSlotRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [BodyEmbedSlotRecord]
+
+    public static func write(_ value: [BodyEmbedSlotRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBodyEmbedSlotRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BodyEmbedSlotRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BodyEmbedSlotRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBodyEmbedSlotRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeEmbedTimelineItemRecord: FfiConverterRustBuffer {
     typealias SwiftType = [EmbedTimelineItemRecord]
 
@@ -21742,6 +22020,56 @@ fileprivate struct FfiConverterSequenceTypeEmbedTimelineItemRecord: FfiConverter
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeEmbedTimelineItemRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceSequenceTypeBodyEmbedRefRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [[BodyEmbedRefRecord]]
+
+    public static func write(_ value: [[BodyEmbedRefRecord]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterSequenceTypeBodyEmbedRefRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [[BodyEmbedRefRecord]] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [[BodyEmbedRefRecord]]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterSequenceTypeBodyEmbedRefRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceSequenceTypeBodyEmbedSlotRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [[BodyEmbedSlotRecord]]
+
+    public static func write(_ value: [[BodyEmbedSlotRecord]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterSequenceTypeBodyEmbedSlotRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [[BodyEmbedSlotRecord]] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [[BodyEmbedSlotRecord]]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterSequenceTypeBodyEmbedSlotRecord.read(from: &buf))
         }
         return seq
     }
@@ -22047,6 +22375,19 @@ public func bodyAssignCarouselRuns(nodes: [BodyNodeRecord]) -> [CarouselPlacemen
         uniffiCallStatus in
     uniffi_openmates_apple_bindings_fn_func_body_assign_carousel_runs(
         FfiConverterSequenceTypeBodyNodeRecord.lower(nodes),uniffiCallStatus
+    )
+})
+}
+/**
+ * Replaces skill-invocation embeds in the body with their result cards.
+ * Output keeps the group count and order.
+ */
+public func bodyEnforceBlockEmbeds(groups: [[BodyEmbedRefRecord]], activityIds: [String]) -> [[BodyEmbedSlotRecord]]  {
+    return try!  FfiConverterSequenceSequenceTypeBodyEmbedSlotRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_body_enforce_block_embeds(
+        FfiConverterSequenceSequenceTypeBodyEmbedRefRecord.lower(groups),
+        FfiConverterSequenceString.lower(activityIds),uniffiCallStatus
     )
 })
 }
@@ -22416,6 +22757,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_func_body_assign_carousel_runs() != 35339) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_body_enforce_block_embeds() != 15214) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_func_body_may_show_embed() != 36607) {

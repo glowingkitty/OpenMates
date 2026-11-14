@@ -115,11 +115,17 @@ struct NativeVoiceCallScreenShareButton: View {
     var body: some View {
         ZStack {
             NativeVoiceCallBroadcastPicker(trigger: trigger).frame(width: 1, height: 1).allowsHitTesting(false)
-            OMIconButton(icon: "desktop",
-                         label: reader.isBroadcasting ? AppStrings.nativeCall("screen_share_off")
-                                                      : AppStrings.nativeCall("screen_share_on"),
-                         isProminent: reader.isBroadcasting) { trigger += 1 }
-                .accessibilityIdentifier("voice-call-screen-share")
+            // Same `.round` 44pt treatment as the camera button (VoiceCallBar.svelte .round).
+            Button { trigger += 1 } label: {
+                Icon("desktop", size: 28).foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(.white.opacity(reader.isBroadcasting ? 0.4 : 0.2)).clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(reader.isBroadcasting ? AppStrings.nativeCall("screen_share_off")
+                                                      : AppStrings.nativeCall("screen_share_on"))
+            .accessibilityAddTraits(reader.isBroadcasting ? .isSelected : [])
+            .accessibilityIdentifier("voice-call-screen-share")
         }
     }
 }
