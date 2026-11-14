@@ -51,6 +51,7 @@ from backend.apps.ai.processing.chat_request_safety import (
 )
 from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
+    spec_authoring_skill_scope,
 )
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev, _complete_public_decisions
 from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, select_explicit_plan_focus
@@ -4185,6 +4186,15 @@ async def handle_preprocessing(
                 f"{natural_search_intents}: latest user message requested the corresponding "
                 "search or app skill."
             )
+
+    scoped_skills = spec_authoring_skill_scope(
+        active_focus_id=request_data.active_focus_id, selected_skills=validated_relevant_skills,
+        available_skills=set(available_skill_ids or []), exact_request=user_requested_skills_only,
+    )
+    if scoped_skills != validated_relevant_skills:
+        logger.info(f"{log_prefix} [FOCUS_SKILLS] Active spec authoring focus offers "
+                    f"{scoped_skills[len(validated_relevant_skills):]}")
+        validated_relevant_skills = scoped_skills
 
     # --- User override: explicit @focus mentions ---
     # When the user specifies focus mode(s) via @focus:app_id:focus_id, use only those and skip LLM selection.

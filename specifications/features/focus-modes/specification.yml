@@ -139,7 +139,10 @@ assertions:
     summary that keeps an explicit Open assumptions list and advances only after the user confirms or corrects it. One Specification
     is the default; linked product, design and technical Specifications are drafted only after the user agreed to a proposed
     split. No Plan, Task or implementation starts before the user approved the drafted Specification and its acceptance Checks;
-    after approval the hand-off creates a Plan and chat-linked Tasks so automatic continuation can work through them.
+    a request to move on is not approval, so the assistant asks plainly once. After approval the hand-off creates a Plan with
+    the Plans create skill and chat-linked Tasks so automatic continuation can work through them. While the focus is active,
+    the Plans specification, check and create skills and the Tasks create skill stay offered on every turn unless the user
+    explicitly selected other skills.
   depends_on:
   - examples.guided_spec_authoring
 - id: focus-modes.learning.progress-and-suggestions

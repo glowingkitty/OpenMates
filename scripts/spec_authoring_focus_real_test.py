@@ -87,10 +87,11 @@ NO_CREDITS = re.compile(r"don't have enough credits", re.IGNORECASE)
 ERROR_KEY = re.compile(r"[a-z_]+(\.[a-z_]+)+")
 
 
-def incognito(cli: str, prompt: str, path: Path) -> str:
+def incognito(cli: str, prompt: str, path: Path, response_timeout: int = 240) -> str:
     """One stateless reply; a transient provider error (a bare i18n error key) is retried once."""
     for attempt in range(2):
-        reply = command(cli, ["chats", "incognito", prompt, "--personal"], timeout=300,
+        reply = command(cli, ["chats", "incognito", prompt, "--personal", "--response-timeout-seconds",
+                              str(response_timeout)], timeout=response_timeout + 60,
                         diagnostic_path=path.with_name(f"{path.stem}-{attempt}{path.suffix}") if attempt else path)
         text = reply.get("assistant") if isinstance(reply, dict) else None
         if isinstance(text, str) and NO_CREDITS.search(text):
@@ -212,7 +213,8 @@ def judge(cli: str, messages: list[dict], embeds: list[dict], out: Path) -> dict
               '{"criteria": {"<criterion>": {"pass": true|false, "note": "<one sentence>"}}, '
               '"overall_pass": true|false, "summary": "<two sentences>"}. Do not use tools.\n\n'
               "Transcript:\n" + "\n\n".join(lines))
-    text = incognito(cli, prompt, out / "judge.json")
+    # The whole transcript is a long prompt; the default 240 s reply wait timed out on dev.
+    text = incognito(cli, prompt, out / "judge.json", response_timeout=600)
     match = re.search(r"\{.*\}", text, re.DOTALL)
     try:
         verdict = json.loads(match.group(0)) if match else None

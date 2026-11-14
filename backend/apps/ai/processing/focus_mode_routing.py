@@ -59,6 +59,28 @@ def brand_naming_research_skill_scope(
     return preselected_skills | (BRAND_NAMING_RESEARCH_SKILLS & available_skills)
 
 
+SPEC_AUTHORING_FOCUS_ID = "code-write_specification"
+SPEC_AUTHORING_SKILLS = ("plans-specification", "plans-check", "plans-create", "tasks-create")
+
+
+def spec_authoring_skill_scope(
+    *, active_focus_id: str | None, selected_skills: list[str],
+    available_skills: set[str], exact_request: bool,
+) -> list[str]:
+    """Keep the Specification, Check, Plan and Task skills offered in spec authoring.
+
+    Preprocessing picks tools per turn and drops the plans skills once the talk
+    reads as design or business detail, so the drafted Specification ended up
+    as chat text. Focus allowlists are not enforced yet; this offers the skills
+    the focus phases name, and the phase instructions decide when to call them.
+    Explicit skill requests stay exact and unavailable skills stay excluded.
+    """
+    if active_focus_id != SPEC_AUTHORING_FOCUS_ID or exact_request:
+        return selected_skills
+    added = [skill for skill in SPEC_AUTHORING_SKILLS if skill in available_skills and skill not in selected_skills]
+    return [*selected_skills, *added]
+
+
 def workflow_clarification_skill_scope(
     *, active_focus_id: str | None, relevant_focus_modes: list[str], explicit_focus_mention: bool,
 ) -> set[str] | None:
