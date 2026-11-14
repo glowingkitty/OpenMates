@@ -60,8 +60,13 @@ paths:
     daily spend, the credit balance (an estimate: E2B has no balance API) and
     the runway, and pushes "Feedback needed" below 30 days of runway. At the cap, cargo/vitest/Playwright
     runs wait in the E2B queue; the translation build runs locally instead.
-    If E2B is unavailable or the budget is used up it says so and runs
-    locally; `--local` forces a local run. Refresh the template with
+    Remote-eligible runs never wait for host memory; real-inference browser
+    proofs against the dev stack (`design_embroidery_web_real_test.py` and the
+    real tests built on it) run there too, with the lease and draft guard on
+    the host (`OPENMATES_HEAVY_REMOTE_ENV`/`_DIRS` pass extra env and /tmp
+    inputs). If E2B is unavailable or the budget is used up it says so and runs
+    locally, logged as `heavy_remote_fallback`; `--local` forces a local run.
+    What must stay on the host, and why: `heavy_slot.py` docstring. Refresh the template with
     `heavy_slot.py remote-template` when it reports a stale baseline.
   - Local runs wait for a healthy host and size by class: heavy (builds,
     other Rust, docker; 6 GB, 4 CPUs, max 2 at once), browser (3 GB) and light

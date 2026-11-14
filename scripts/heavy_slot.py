@@ -7,10 +7,35 @@ slot, and copy back the files they produce. Dev E2B use is capped by
 e2b_dev_capacity.py: at most 70% of the team's concurrency limit (the rest
 stays free for product usage) and a daily budget. When the cap is reached,
 remote kinds in QUEUE_REMOTE_KINDS wait in the E2B queue; lighter kinds fall
-back to the local queue. When the remote run is unavailable (no SDK venv, no
-key, no sandbox, lost connection, budget used up) heavy_slot says so and runs
-the command locally. `--local`, OPENMATES_HEAVY_REMOTE=0 or the file
-REMOTE_DISABLED_FILE force local runs. On 2026-11-12, 44 of 376 local runs in
+back to the local queue. A remote-eligible run never waits for host memory or
+a local slot: it goes to E2B right away. Only when the remote run is unavailable
+(no SDK venv, no key, no sandbox, lost connection, budget used up) does
+heavy_slot say so and run the command locally; each such fallback is logged as a
+`heavy_remote_fallback` event in the host-load-guard log. `--local`,
+OPENMATES_HEAVY_REMOTE=0 or the file REMOTE_DISABLED_FILE force local runs
+(also logged).
+
+Browser proofs against the dev stack (scripts/design_embroidery_web_real_test.py
+and the real tests built on it) run remote too: the account lease and draft
+guard stay on the host, the Playwright run gets the leased dev account's env
+(PLAYWRIGHT_*, OPENMATES_TEST_ACCOUNT_*, OPENMATES_PERSONAL_TEST_ACOUNT_*,
+OPENMATES_PROOF_*, E2E_*, plus the names in OPENMATES_HEAVY_REMOTE_ENV), the
+/tmp folders in OPENMATES_HEAVY_REMOTE_DIRS (comma-separated, e.g. generated
+speech files) are copied in, and the proof folder's results, videos and log
+come back. `--run-timeout` limits the run itself; `--timeout` is the wait for
+an E2B (or local) slot.
+
+What stays on the host, and why:
+- docker, xcodebuild: need this host's Docker daemon and dev stack, or macOS
+  (Apple lanes run on GitHub macos runners);
+- `vite`/`svelte-kit build`/`pnpm build`, wasm-pack and cargo for a non-host
+  target or pinned toolchain: the sandbox template has only the host Rust target
+  and their outputs are too large to copy back;
+- vitest snapshot updates (`-u`): they are written and reviewed in the worktree;
+- shell payloads with file redirection, `&` or substitution, and any other
+  command: their side effects cannot be mapped into the sandbox;
+- a Playwright run whose config or inputs live outside the worktree and /tmp
+  (e.g. a host-only Chrome build in OPENMATES_PROOF_BROWSER). On 2026-11-12, 44 of 376 local runs in
 24 hours were OOM-killed by the 6 GB cap; the same `cargo test -p
 openmates-sdk` finished in E2B in about 4 minutes.
 
@@ -34,7 +59,7 @@ compiling Rust and running browsers at the same time. The wrapper:
   memory, at low CPU/IO priority, with CARGO_BUILD_JOBS limited.
 
 Usage:
-  python3 scripts/heavy_slot.py run [--timeout S] [--local] -- cargo build --release
+  python3 scripts/heavy_slot.py run [--timeout S] [--run-timeout S] [--local] -- cargo build --release
   python3 scripts/heavy_slot.py status
   python3 scripts/heavy_slot.py remote-setup      # one-time: E2B SDK venv
   python3 scripts/heavy_slot.py remote-template   # build/refresh the sandbox template
@@ -288,24 +313,45 @@ def command_root(command: list[str], cwd: Path) -> Path | None:
     return max(roots, key=lambda r: len(str(r)), default=None)
 
 
-def try_remote(command: list[str], timeout: float, local: bool) -> int | None:
-    """Run the command in E2B when eligible; None means run it locally."""
+def remote_dirs() -> tuple[str, ...]:
+    """/tmp folders named in OPENMATES_HEAVY_REMOTE_DIRS (comma-separated)."""
+    return tuple(part.strip() for part in os.environ.get("OPENMATES_HEAVY_REMOTE_DIRS", "").split(",")
+                 if part.strip())
+
+
+def fallback(reason: str, command: str, kind: str, announce: bool = True) -> None:
+    """A remote-eligible run goes local: say why and log it."""
+    if announce:
+        say(f"running locally: {reason}")
+    host_load_guard.append_event(
+        host_load_guard.state_dir(), "heavy_remote_fallback",
+        {"reason": reason[:300], "kind": kind, "command": command[:500], "cwd": os.getcwd(),
+         "session": os.environ.get("CLAUDE_CODE_SESSION_ID", "")},
+    )
+
+
+def try_remote(command: list[str], timeout: float, local: bool, run_timeout: float | None = None) -> int | None:
+    """Run the command in E2B when eligible; None means run it locally.
+
+    `timeout` bounds the wait for an E2B slot, `run_timeout` (default: `timeout`) the run."""
     cwd = Path.cwd()
     root = command_root(command, cwd)
-    planned = (heavy_remote_plan.plan_command(command, cwd, root, host_load_guard.canonical_root())
+    planned = (heavy_remote_plan.plan_command(command, cwd, root, host_load_guard.canonical_root(),
+                                              remote_dirs())
                if root else None)
     if planned is None:
+        if remote_dirs():
+            say("OPENMATES_HEAVY_REMOTE_DIRS is set but this command cannot run in E2B; running locally")
         return None
+    label = " ".join(command)
     disabled = remote_disabled_reason(local)
     if disabled:
-        if not local:
-            say(f"running locally, remote run disabled ({disabled})")
+        fallback(f"remote run disabled ({disabled})", label, planned.kind, announce=not local)
         return None
     over_budget = e2b_dev_capacity.budget_exhausted()
     if over_budget:
-        say(f"running locally: {over_budget}")
+        fallback(over_budget, label, planned.kind)
         return None
-    label = " ".join(command)
     if planned.kind in QUEUE_REMOTE_KINDS:
         slot = e2b_dev_capacity.acquire(label, timeout, announce=say)
         if slot is None:
@@ -314,13 +360,13 @@ def try_remote(command: list[str], timeout: float, local: bool) -> int | None:
     else:
         slot = e2b_dev_capacity.try_acquire(label)
         if slot is None:
-            say("all dev E2B slots busy; running this light job in the local queue")
+            fallback("all dev E2B slots busy; light job uses the local queue", label, planned.kind)
             return None
     started = time.monotonic()
     with slot:
         code = subprocess.call([
             str(remote_venv_python()), str(SCRIPTS_DIR / "heavy_remote.py"), "--root", str(root),
-            "--kind", planned.kind, "--cwd", planned.cwd, "--timeout", str(int(timeout)),
+            "--kind", planned.kind, "--cwd", planned.cwd, "--timeout", str(int(run_timeout or timeout)),
             "--shell", planned.shell,
             *[arg for folder in planned.external_dirs for arg in ("--external", folder)],
             *(["--cargo-build"] if planned.cargo_build else []),
@@ -332,16 +378,16 @@ def try_remote(command: list[str], timeout: float, local: bool) -> int | None:
          "session": os.environ.get("CLAUDE_CODE_SESSION_ID", "")},
     )
     if code == REMOTE_EXIT_UNAVAILABLE:
-        say("remote run unavailable (reason above); running locally instead")
+        fallback("remote run unavailable (reason above)", label, planned.kind)
         return None
     return code
 
 
-def run(command: list[str], timeout: float, local: bool = False) -> int:
+def run(command: list[str], timeout: float, local: bool = False, run_timeout: float | None = None) -> int:
     if not command:
         say("missing command after --")
         return 2
-    remote_code = try_remote(command, timeout, local)
+    remote_code = try_remote(command, timeout, local, run_timeout)
     if remote_code is not None:
         return remote_code
     if shutil.which(command[0]) is None:
@@ -382,6 +428,8 @@ def main(argv: list[str]) -> int:
     run_parser = sub.add_parser("run")
     run_parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_SECONDS)
     run_parser.add_argument("--local", action="store_true", help="never run in E2B")
+    run_parser.add_argument("--run-timeout", type=float,
+                            help="limit of a remote run itself (default: --timeout, the slot wait)")
     run_parser.add_argument("command", nargs=argparse.REMAINDER)
     sub.add_parser("status")
     sub.add_parser("remote-setup")
@@ -403,7 +451,7 @@ def main(argv: list[str]) -> int:
             return 2
         return subprocess.call([str(remote_venv_python()), str(SCRIPTS_DIR / "heavy_remote_template.py")])
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
-    return run(command, args.timeout, args.local)
+    return run(command, args.timeout, args.local, args.run_timeout)
 
 
 def remote_setup() -> int:

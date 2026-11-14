@@ -65,6 +65,9 @@ for entry in sys.stdin.buffer.read().split(b"\\0"):
         print("F", path)
 """
 RUN_MARKER = "/tmp/openmates-run-start"
+# Upload/download staging. Not /tmp: it is sticky, and the E2B file API cannot rewrite a file there
+# that it wrote before (2026-11-14: a second proof folder failed with "permission denied").
+STAGING = "/home/user/.openmates-staging"
 SANDBOX_PATH = "/home/user/.cargo/bin:/home/user/.local/bin:/usr/local/bin:/usr/bin:/bin"
 KEY_SNIPPET = """
 import asyncio
@@ -151,16 +154,16 @@ def upload_external(sbx, folders: tuple[str, ...]) -> None:
         quoted = shlex.quote(folder)
         checked(sbx, f"sudo mkdir -p {quoted} && sudo chown user:user {quoted}", 30, "creating " + folder)
         if rels:
-            sbx.files.write("/tmp/openmates-external.tgz", tar_paths(base, rels))
-            checked(sbx, f"tar -xzf /tmp/openmates-external.tgz -C {quoted}", 120, "unpacking " + folder)
+            sbx.files.write(f"{STAGING}/openmates-external.tgz", tar_paths(base, rels))
+            checked(sbx, f"tar -xzf {STAGING}/openmates-external.tgz -C {quoted}", 120, "unpacking " + folder)
 
 
 def pull_back(sbx, root: Path, planned_external: tuple[str, ...], cargo_build: bool) -> None:
     """Copy back what the command created or changed: repo files, /tmp folders, cargo outputs."""
     repo = plan.REMOTE_ROOT
-    sbx.files.write("/tmp/openmates-changed.py", CHANGED_FILES_SCRIPT)
+    sbx.files.write(f"{STAGING}/openmates-changed.py", CHANGED_FILES_SCRIPT)
     listing = checked(sbx, f"cd {repo} && git status --porcelain=v1 -z --untracked-files=all --no-renames "
-                           f"| python3 /tmp/openmates-changed.py {RUN_MARKER}", 120, "listing changed files")
+                           f"| python3 {STAGING}/openmates-changed.py {RUN_MARKER}", 120, "listing changed files")
     files = [line[2:] for line in listing.splitlines() if line.startswith("F ")]
     deleted = [line[2:] for line in listing.splitlines() if line.startswith("D ")]
     finds = [f"find {shlex.quote(folder)} -type f -newer {RUN_MARKER}" for folder in planned_external]
@@ -172,14 +175,14 @@ def pull_back(sbx, root: Path, planned_external: tuple[str, ...], cargo_build: b
     absolute = [a for a in absolute if a.strip()]
     items = [f"{repo}/{rel}" for rel in files] + absolute
     if items:
-        sbx.files.write("/tmp/openmates-pull.txt", "\n".join(items))
-        size = int(checked(sbx, "cat /tmp/openmates-pull.txt | tr '\\n' '\\0' | du -cb --files0-from=- "
+        sbx.files.write(f"{STAGING}/openmates-pull.txt", "\n".join(items))
+        size = int(checked(sbx, f"cat {STAGING}/openmates-pull.txt | tr '\\n' '\\0' | du -cb --files0-from=- "
                                 "| tail -1 | cut -f1", 120, "measuring outputs").strip() or 0)
         if size > MAX_PULL_BYTES:
             raise RemoteUnavailable(f"outputs to copy back are {size / 2**20:.0f} MB (limit "
                                     f"{MAX_PULL_BYTES / 2**20:.0f} MB)")
-        checked(sbx, "tar -czPf /tmp/openmates-pull.tgz -T /tmp/openmates-pull.txt", 600, "packing outputs")
-        data = sbx.files.read("/tmp/openmates-pull.tgz", format="bytes")
+        checked(sbx, f"tar -czPf {STAGING}/openmates-pull.tgz -T {STAGING}/openmates-pull.txt", 600, "packing outputs")
+        data = sbx.files.read(f"{STAGING}/openmates-pull.tgz", format="bytes")
         with tarfile.open(fileobj=io.BytesIO(bytes(data)), mode="r:gz") as archive:
             for member in archive.getmembers():
                 local = local_path(member.name, root, planned_external)
@@ -237,11 +240,11 @@ def prepare(sbx, root: Path, kind: str, external: tuple[str, ...]) -> dict:
     for rel in sync.skipped_large:
         say(f"not uploaded (over {plan.MAX_SYNC_FILE_BYTES // 2**20} MB): {rel}")
     if sync.upload:
-        sbx.files.write("/tmp/openmates-sync.tgz", tar_paths(root, sync.upload))
-        checked(sbx, f"tar -xzf /tmp/openmates-sync.tgz -C {plan.REMOTE_ROOT}", 300, "unpacking the sync")
+        sbx.files.write(f"{STAGING}/openmates-sync.tgz", tar_paths(root, sync.upload))
+        checked(sbx, f"tar -xzf {STAGING}/openmates-sync.tgz -C {plan.REMOTE_ROOT}", 300, "unpacking the sync")
     if sync.delete:
-        sbx.files.write("/tmp/openmates-delete.txt", "\0".join(sync.delete))
-        checked(sbx, f"cd {plan.REMOTE_ROOT} && xargs -0 rm -rf -- < /tmp/openmates-delete.txt", 60,
+        sbx.files.write(f"{STAGING}/openmates-delete.txt", "\0".join(sync.delete))
+        checked(sbx, f"cd {plan.REMOTE_ROOT} && xargs -0 rm -rf -- < {STAGING}/openmates-delete.txt", 60,
                 "deleting removed files")
     if kind != "cargo" and sync.dependencies_changed:
         say("package manifests differ from the template; running pnpm install")

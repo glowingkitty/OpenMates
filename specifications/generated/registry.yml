@@ -126,7 +126,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/test-orchestration
-    fingerprint: 013a87f077cd0e333500d0ec2d23abc7e3cef2bdd0e88d48815dbbe7c5734f4f
+    fingerprint: db0520c73d2cbfcdb4778871c53f501ce8ee11ab3a3bde8189c360c4fc7e6fb9
     required_applies_to:
     - cli
   feature.account-import:
@@ -2875,6 +2875,13 @@ assertions:
     specification_id: architecture.test-orchestration
     type: behavior
     fingerprint: 089d32d7b92c9140a336c2cfecb7091041bd15956ff12e89722dee09919e676d
+    required_applies_to:
+    - cli
+  test-orchestration.dev-runs.e2b-first-logged-host-fallback:
+    specification: architecture.test-orchestration@1
+    specification_id: architecture.test-orchestration
+    type: behavior
+    fingerprint: f4f5180417334a068341a903e1dc218d0d430324638b326a1f5dca6da3de8b14
     required_applies_to:
     - cli
   test-orchestration.evidence.privacy-boundary:

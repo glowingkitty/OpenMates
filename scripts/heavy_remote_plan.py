@@ -289,11 +289,14 @@ def _join(segments: list[list[str]], separators: list[str], roots: tuple[Path, .
 
 
 def plan_command(argv: list[str], cwd: Path, root: Path,
-                 canonical: Path | None = None) -> RemoteCommand | None:
+                 canonical: Path | None = None, extra_dirs: tuple[str, ...] = ()) -> RemoteCommand | None:
     """Map a heavy_slot command to a sandbox command, or None to run it locally.
 
     `canonical` is the main checkout; paths into it (its installed node_modules)
-    map to the sandbox checkout too.
+    map to the sandbox checkout too. `extra_dirs` are more /tmp folders a
+    playwright run reads through environment variables (OPENMATES_HEAVY_REMOTE_DIRS,
+    e.g. generated speech files); they are mirrored in and copied back like the
+    proof folder. One that is not an existing folder below /tmp keeps the run local.
     """
     if not argv:
         return None
@@ -319,6 +322,11 @@ def plan_command(argv: list[str], cwd: Path, root: Path,
         if outside is None:
             return None
         external.extend(outside)
+        for value in extra_dirs:
+            folder = external_dir(Path(value))
+            if folder is None or folder != Path(value):
+                return None
+            external.append(folder)
         if sandbox_cwd is None:
             folder = external_dir(cwd)
             if folder is None:

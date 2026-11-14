@@ -19,6 +19,7 @@ scope:
     - Independent provider-accepted email and Discord delivery receipts.
     - Durable campaign ownership for remaining product failures.
     - A recovery milestone requiring critical health and no more than fifty failed tests.
+    - Routing of dev-host builds, tests and browser proofs (heavy_slot) to E2B within the dev share and daily budget.
   excludes:
     - Changing billing, signup, authentication, chat, Apple, or provider product behavior merely to satisfy a test.
     - Hiding failures through quarantine, omission, suppression, or false-success retries.
@@ -121,6 +122,10 @@ assertions:
     type: behavior
     must: The first recovery milestone requires one complete commit-pinned daily run with no unresolved infrastructure incident, provider-accepted email and Discord outcomes, every classified critical test passing, no more than fifty executed product-test failures, and every remaining failure assigned to a durable campaign group.
     depends_on: [models.DailyTestRun, models.NotificationOutcome, examples.recovery_milestone]
+  - id: test-orchestration.dev-runs.e2b-first-logged-host-fallback
+    type: behavior
+    must: A remote-eligible dev build, test or browser proof (including real-inference Playwright proofs against the dev stack with dev test accounts) goes to an E2B sandbox at once instead of waiting for host memory or a local slot, within 70% of the E2B concurrency limit and the daily dev budget; it runs on the host only when E2B is unavailable, over budget or disabled, every such fallback is logged with its reason, and the commands that must stay on the host are listed with why.
+    depends_on: [examples.dev_run_routing]
   - id: test-orchestration.evidence.privacy-boundary
     type: privacy
     must: Test orchestration records, notifications, logs, and campaign links contain bounded operational metadata and sanitized error classes only, excluding credentials, webhook URLs, recipient addresses, cookies, user content, private identifiers, and raw provider responses.
@@ -150,4 +155,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [execution_order, critical_registry, dispatch_budget, result_classification, notification_delivery, recovery_milestone, privacy_boundaries]
+  required_groups: [execution_order, critical_registry, dispatch_budget, result_classification, notification_delivery, recovery_milestone, privacy_boundaries, dev_run_routing]

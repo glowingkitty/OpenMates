@@ -81,9 +81,26 @@ def spec_name(spec: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", Path(spec).name.lower()).strip("-")[:40] or "web-real-test"
 
 
-# heavy_slot.py: the host had no memory/slot for the run within its --timeout.
+# heavy_slot.py: no E2B slot (or, on a fallback, no host memory/slot) within its --timeout.
 HEAVY_SLOT_UNAVAILABLE_EXIT = 3
 HEAVY_SLOT_WAIT_SECONDS = 3600
+# Sandbox creation, upload and copy-back of a remote run, on top of the run limit.
+REMOTE_SETUP_SECONDS = 600
+REMOTE_RUN_MARKER = "heavy_slot[e2b]: running in E2B"
+
+
+def heavy_slot_command(config: Path, spec: str, run_seconds: int, grep: str | None) -> list[str]:
+    """The Playwright run through heavy_slot: in E2B by default, on this host only as a logged fallback.
+
+    The account lease, draft guard and CLI state stay on this host; the run gets the leased dev
+    account's env and the proof folder (and OPENMATES_HEAVY_REMOTE_DIRS) is copied in and back.
+    A Chrome build from OPENMATES_PROOF_BROWSER exists only on this host, so that run stays local."""
+    local = ["--local"] if os.environ.get("OPENMATES_PROOF_BROWSER") else []
+    cli = WEB_APP / "node_modules/@playwright/test/cli.js"
+    return [sys.executable, str(ROOT / "scripts/heavy_slot.py"), "run", *local,
+            "--timeout", str(HEAVY_SLOT_WAIT_SECONDS), "--run-timeout", str(run_seconds), "--",
+            "node", str(cli), "test", "--config", str(config), "--trace", "off", spec,
+            *(["--grep", grep] if grep else [])]
 
 
 def require_runtime_revision(revision: str) -> None:
@@ -201,7 +218,9 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
     leases: list = []
     real_account = None
     draft_guard = None
-    cli_state = out / "cli-state"
+    # Beside the proof folder, not in it: that folder is copied into the E2B sandbox and the
+    # CLI login state of the draft guard stays on this host.
+    cli_state = out.parent / f"{out.name}.cli-state"
     stop, errors = threading.Event(), []
     heartbeat = None
     link = WEB_APP / "node_modules"
@@ -252,19 +271,13 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
         heartbeat = threading.Thread(target=renew, daemon=True)
         heartbeat.start()
         draft_guard = start_draft_guard(env, cli_state, receipt) if real_account.kind == "personal" else None
-        cli = WEB_APP / "node_modules/@playwright/test/cli.js"
-        # heavy_slot first waits for host memory and a slot (its --timeout); only
-        # then does the Playwright run start, so the run limit excludes that wait.
-        # --local: the real run needs this host's account lease, CLI state and
-        # native binary, none of which an E2B sandbox receives.
-        command = [sys.executable, str(ROOT / "scripts/heavy_slot.py"), "run", "--local",
-                   "--timeout", str(HEAVY_SLOT_WAIT_SECONDS), "--", "node", str(cli), "test",
-                   "--config", str(config), "--trace", "off", spec,
-                   *(["--grep", args.grep] if getattr(args, "grep", None) else [])]
+        # heavy_slot's --timeout is the slot wait; --run-timeout limits the run itself.
+        command = heavy_slot_command(config, spec, args.timeout_seconds, getattr(args, "grep", None))
         with (out / "run.log").open("w") as log:
-            run = subprocess.run(command, cwd=out, env=env, stdout=log, stderr=subprocess.STDOUT,
-                                 check=False, timeout=HEAVY_SLOT_WAIT_SECONDS + args.timeout_seconds)
+            run = subprocess.run(command, cwd=out, env=env, stdout=log, stderr=subprocess.STDOUT, check=False,
+                                 timeout=HEAVY_SLOT_WAIT_SECONDS + args.timeout_seconds + REMOTE_SETUP_SECONDS)
         receipt["playwright_exit_code"] = run.returncode
+        receipt["ran_on"] = "e2b" if REMOTE_RUN_MARKER in (out / "run.log").read_text(errors="replace") else "host"
         if run.returncode == HEAVY_SLOT_UNAVAILABLE_EXIT:
             raise ProofError("heavy_slot_unavailable")
         if errors:

@@ -69,3 +69,14 @@ privacy_boundaries:
     expect:
       included: [test_key, status, error_class, run_id, git_sha]
       excluded: [recipient_email, webhook_url, cookie, raw_provider_response]
+
+dev_run_routing:
+  - id: browser-proof-skips-host-memory-wait
+    given: {command: real voice-call Playwright proof, host_mem_available_gib: 5.8, needed_local_gib: 6.0, dev_e2b_slots_free: true, budget_left: true}
+    expect: {runs_on: e2b, waits_for_host_memory: false, account_lease_and_draft_guard_on_host: true, speech_folder_copied_in: true, videos_copied_back: true}
+  - id: over-budget-falls-back-and-logs
+    given: {command: cargo test -p openmates-sdk, daily_dev_spend_usd: 100, daily_budget_usd: 100}
+    expect: {runs_on: host, fallback_event_logged: true, fallback_reason_names_budget: true}
+  - id: host-only-command-stays-local
+    given: {command: docker compose up}
+    expect: {runs_on: host, listed_as_host_only: true}

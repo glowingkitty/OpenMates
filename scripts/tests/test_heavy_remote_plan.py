@@ -196,3 +196,74 @@ def test_oversized_proof_folder_stays_local(tmp_path: Path, monkeypatch) -> None
     proof.mkdir()
     (proof / "c.cjs").write_text("x" * 100)
     assert plan.plan_command(["npx", "playwright", "test", "--config", str(proof / "c.cjs")], ROOT, ROOT) is None
+
+
+# contract-test: supporting surface=cli assertions=test-orchestration.dev-runs.e2b-first-logged-host-fallback
+def test_playwright_proof_reads_env_named_tmp_folders_in_the_sandbox(tmp_path: Path, monkeypatch) -> None:
+    """2026-11-13: real voice-call proofs waited 25-60 min for host memory; their speech files
+    live in a second /tmp folder, so E2B runs must mirror it (OPENMATES_HEAVY_REMOTE_DIRS)."""
+    monkeypatch.setattr(plan, "EXTERNAL_ROOTS", (str(tmp_path) + "/",))
+    proof, speech = tmp_path / "proof", tmp_path / "speech"
+    proof.mkdir()
+    speech.mkdir()
+    (proof / "c.cjs").write_text("module.exports = {}")
+    argv = ["npx", "playwright", "test", "--config", str(proof / "c.cjs")]
+    planned = plan.plan_command(argv, proof, ROOT, extra_dirs=(str(speech),))
+    assert planned is not None and planned.external_dirs == tuple(sorted((str(proof), str(speech))))
+    assert plan.plan_command(argv, proof, ROOT, extra_dirs=(str(tmp_path / "missing"),)) is None
+    assert plan.plan_command(argv, proof, ROOT, extra_dirs=("/etc",)) is None
+
+
+def _remote_ready(monkeypatch, tmp_path: Path) -> list:
+    monkeypatch.setattr(heavy_slot.host_load_guard, "state_dir", lambda: tmp_path)
+    monkeypatch.setattr(heavy_slot, "remote_venv_python", lambda: tmp_path / "python")
+    (tmp_path / "python").write_text("")
+    monkeypatch.setattr(heavy_slot, "worktree_root", lambda cwd: cwd)
+    monkeypatch.delenv("OPENMATES_HEAVY_REMOTE", raising=False)
+    calls: list = []
+    monkeypatch.setattr(heavy_slot.subprocess, "call", lambda argv: calls.append(argv) or 0)
+    monkeypatch.chdir(tmp_path)
+    return calls
+
+
+def _fallbacks(tmp_path: Path) -> list[dict]:
+    import json
+
+    events = tmp_path / "events.jsonl"
+    rows = [json.loads(line) for line in events.read_text().splitlines()] if events.exists() else []
+    return [row for row in rows if row["event"] == "heavy_remote_fallback"]
+
+
+# contract-test: supporting surface=cli assertions=test-orchestration.dev-runs.e2b-first-logged-host-fallback
+def test_eligible_run_goes_to_e2b_without_waiting_for_host_memory(monkeypatch, tmp_path: Path) -> None:
+    calls = _remote_ready(monkeypatch, tmp_path)
+    monkeypatch.setattr(heavy_slot, "admit", lambda *a, **k: pytest.fail("a remote run never waits on the host"))
+    assert heavy_slot.run(["cargo", "test"], 3600, run_timeout=900) == 0
+    argv = calls[0]
+    assert argv[argv.index("--timeout") + 1] == "900"  # the run limit, not the slot wait
+    assert _fallbacks(tmp_path) == []
+
+
+# contract-test: supporting surface=cli assertions=test-orchestration.dev-runs.e2b-first-logged-host-fallback
+def test_every_fallback_to_the_host_is_logged(monkeypatch, tmp_path: Path) -> None:
+    _remote_ready(monkeypatch, tmp_path)
+    monkeypatch.setattr(heavy_slot.e2b_dev_capacity, "budget_exhausted", lambda: "today's dev E2B spend reached")
+    assert heavy_slot.try_remote(["cargo", "test"], 60, local=False) is None
+    monkeypatch.setattr(heavy_slot.e2b_dev_capacity, "budget_exhausted", lambda: None)
+    assert heavy_slot.try_remote(["cargo", "test"], 60, local=True) is None
+    reasons = [row["reason"] for row in _fallbacks(tmp_path)]
+    assert reasons[0].startswith("today's dev E2B spend") and reasons[1] == "remote run disabled (--local)"
+    assert {row["kind"] for row in _fallbacks(tmp_path)} == {"cargo"}
+
+
+# contract-test: supporting surface=cli assertions=test-orchestration.dev-runs.e2b-first-logged-host-fallback
+def test_real_browser_proof_harness_routes_playwright_through_e2b(monkeypatch) -> None:
+    import design_embroidery_web_real_test as harness
+
+    monkeypatch.delenv("OPENMATES_PROOF_BROWSER", raising=False)
+    command = harness.heavy_slot_command(Path("/tmp/p/c.cjs"), "tests/x.spec.ts", 1200, None)
+    assert "--local" not in command
+    assert command[command.index("--run-timeout") + 1] == "1200"
+    assert command[command.index("--timeout") + 1] == str(harness.HEAVY_SLOT_WAIT_SECONDS)
+    monkeypatch.setenv("OPENMATES_PROOF_BROWSER", "/opt/chrome/chrome")  # host-only browser build
+    assert "--local" in harness.heavy_slot_command(Path("/tmp/p/c.cjs"), "tests/x.spec.ts", 1200, None)

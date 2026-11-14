@@ -88,5 +88,8 @@ if __name__ == "__main__":
     speech_dir = Path(tempfile.mkdtemp(prefix="voice-call-real-speech-", dir="/tmp"))
     print(f"speaker audio: {json.dumps(generate_speech(speech_dir, scenario))} in {speech_dir}", flush=True)
     os.environ.update(VOICE_CALL_REAL_DEV="1", VOICE_CALL_REAL_SPEECH_DIR=str(speech_dir),
-                      VOICE_CALL_REAL_SCENARIO=scenario, OPENMATES_PROOF_CHROME=str(installed_chromium()))
+                      VOICE_CALL_REAL_SCENARIO=scenario, OPENMATES_PROOF_CHROME=str(installed_chromium()),
+                      # The Playwright run goes to E2B (heavy_slot): send the spec's env and the speech folder.
+                      OPENMATES_HEAVY_REMOTE_ENV="VOICE_CALL_REAL_DEV,VOICE_CALL_REAL_SPEECH_DIR,VOICE_CALL_REAL_SCENARIO",
+                      OPENMATES_HEAVY_REMOTE_DIRS=str(speech_dir))
     raise SystemExit(main(spec=SPEC, title=f"Voice call ({scenario})", doc=__doc__, patterns=PATTERNS))

@@ -204,6 +204,16 @@ decisions:
       Discord push per day while the runway is below 30 days.
     reason: Owner reviews the budget and the remaining credits every 14 days and wants an early warning in between.
     decided_at: '2026-11-14'
+  - id: D-6
+    status: active
+    decision: >
+      Every remote-eligible heavy_slot run, including real-inference browser proofs against the dev stack, goes to E2B at once
+      instead of waiting for host memory; the account lease and draft guard stay on the host, OPENMATES_HEAVY_REMOTE_ENV and
+      OPENMATES_HEAVY_REMOTE_DIRS carry extra env and /tmp inputs, and --run-timeout separates the run limit from the slot wait.
+      Host fallbacks happen only when E2B is unavailable, over budget or disabled, and each is logged as heavy_remote_fallback.
+      Host-only commands and their reasons are listed in heavy_slot.py. Sandbox staging files moved out of the sticky /tmp.
+    reason: Owner requirement relayed by the voice-call proof chat; real proofs waited 25-60 minutes for host memory and never ran.
+    decided_at: '2026-11-14'
 attempts:
   - id: A-1
     task_id: TASK-1
