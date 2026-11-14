@@ -1,26 +1,30 @@
 #!/usr/bin/env python3
 """Build and check the unified feature overview (specifications/features.yml).
 
-The manual file ``specifications/features.yml`` holds only human judgement: one
-entry per feature with its name, description, owning Specifications, backend
-apps, per-surface status, release and optional key tests. Everything that the
-repository already knows is joined in automatically and written to
-``specifications/generated/features.yml`` (machine view) and
-``specifications/generated/features.md`` (table for people):
+The manual file ``specifications/features.yml`` holds only grouping and human
+intent: one entry per feature with its name, description, owning Specifications,
+backend apps, sub-features, the intent per surface and notes. Everything else is
+derived and written to ``specifications/generated/features.yml`` (machine view)
+and ``specifications/generated/features.md`` (table for people):
 
+- each surface cell, from Specification assertions -> the tests declaring them
+  (``specifications/generated/assertion-index.yml``) -> their latest CI result
+  (``specifications/test-results.yml``); see ``feature_overview_cells.py``;
 - Specification status, from each ``specification.yml``;
-- E2E and unit tests per surface, from ``specifications/generated/assertion-index.yml``;
 - dev/prod enablement, from ``backend/apps/*/app.yml`` plus
   ``backend/config/backend_config.dev.yml`` (dev) and ``backend_config.yml`` (prod),
   evaluated by the backend's own FeatureAvailabilityService.
 
-Deterministic and offline (no git, no network, no timestamps).
+The generator itself is deterministic and offline; only ``refresh-results`` reads
+the dev-host CI stores (``feature_overview_results.py``).
 
   python3 scripts/feature_overview.py                # rewrite the generated view
   python3 scripts/feature_overview.py --check        # validate entries + fail on stale generated view
   python3 scripts/feature_overview.py --check --no-drift   # validate entries only (deploy gate)
   python3 scripts/feature_overview.py suggest feature.chats   # print an evidence-based entry stub
   python3 scripts/feature_overview.py suggest app:weather
+  python3 scripts/feature_overview.py refresh-results   # fold dev-host CI results into specifications/test-results.yml
+  python3 scripts/feature_overview.py gaps --surface apple   # missing/failing (sub-)features, most urgent first
 
 ``specifications.py generate`` also runs the generator, so the deploy pipeline
 rebuilds the generated view together with the Specification registry.
@@ -38,6 +42,13 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from feature_overview_cells import (  # noqa: E402 - sibling module, path set above
+    INTENTS, STATUSES, TAG_SURFACES, Evidence, classify_test, derive_cell, gaps, render_gaps, short_status,
+    subfeature_errors,
+)
+import feature_overview_results as results  # noqa: E402 - sibling module, path set above
 
 ROOT = Path(__file__).resolve().parent.parent
 MANUAL = Path("specifications/features.yml")
@@ -63,10 +74,9 @@ SURFACE_LABELS = {
     "web": "Web", "apple": "Apple", "watchos": "Watch", "cli": "CLI", "tui": "TUI",
     "rest_api": "REST API", "sdk_npm": "npm SDK", "sdk_pypi": "PyPI SDK",
 }
-STATUSES = ("not_planned", "planned", "in_progress", "implemented", "tested", "live", "unverified")
 STATUS_SHORT = {
-    "not_planned": "—", "planned": "planned", "in_progress": "wip", "implemented": "impl",
-    "tested": "tested", "live": "**live**", "unverified": "?",
+    "live": "**live**", "tested": "tested", "partial": "partial", "failing": "**FAIL**", "not_run": "not run",
+    "implemented": "impl", "in_progress": "wip", "planned": "planned", "unverified": "?", "not_planned": "—",
 }
 KINDS = ("core", "app", "apple", "platform", "internal", "surface")
 APPLE_PLATFORMS = ("ios", "ipados", "macos")
@@ -74,12 +84,7 @@ RELEASE_RE = re.compile(r"^(v\d+\.\d+(\.\d+)?(-[0-9A-Za-z.-]+)?|untagged-main|un
 ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 ENTRY_KEYS = {
     "id", "name", "description", "kind", "specifications", "apps", "flags", "product_features",
-    "release", "surfaces", "apple_platforms", "key_tests", "notes",
-}
-# Assertion-index surface tags -> overview surfaces (path rules in classify_test refine these).
-TAG_SURFACES = {
-    "gui.web": "web", "gui.apple": "apple", "cli": "cli", "rest_api": "rest_api",
-    "sdks.npm": "sdk_npm", "sdks.pip": "sdk_pypi",
+    "release", "surfaces", "apple_platforms", "key_tests", "notes", "subfeatures", "evidence",
 }
 # A surface may only be "live" when its platform flag is on in production.
 SURFACE_PLATFORM_FLAGS = {"apple": ("platform:ios",), "watchos": ("platform:apple-watch",)}
@@ -109,7 +114,7 @@ def is_feature_overview_input(path: str) -> bool:
     """Return True when a repo-relative path can change the overview or its checks."""
     return (
         path.startswith("specifications/")
-        or path == "scripts/feature_overview.py"
+        or path in ("scripts/feature_overview.py", "scripts/feature_overview_cells.py", "scripts/feature_overview_results.py")
         or path in (str(PRODUCT_FEATURES), str(APP_I18N), str(PROD_CONFIG), str(DEV_CONFIG))
         or (path.startswith("backend/apps/") and path.endswith("/app.yml"))
         or "/tests/" in path or "Tests/" in path
@@ -179,30 +184,6 @@ def flag_services(root: Path, apps: dict[str, dict[str, Any]]) -> tuple[Any, Any
     return dev, prod, known
 
 
-def classify_test(path: str, tag: str | None) -> tuple[str, str] | None:
-    """Map one test file to (surface, "e2e" | "unit"), or None when it proves no product surface."""
-    name = path.rsplit("/", 1)[-1]
-    if path.startswith("apple/"):
-        top = path.split("/")[1] if "/" in path else ""
-        surface = "watchos" if "Watch" in top or name.startswith("Watch") else "apple"
-        return surface, ("e2e" if "UITests" in top else "unit")
-    if path.startswith("frontend/apps/web_app/tests/") and name.endswith(".spec.ts"):
-        if name.startswith("cli-tui-") or "-tui-" in name or name.startswith("tui-"):
-            return "tui", "e2e"
-        if name.startswith("cli-"):
-            return "cli", "e2e"
-        surface = TAG_SURFACES.get(tag or "")
-        return (surface, "e2e") if surface else None
-    if "openmates-tui" in path or "/tui/" in path:
-        return "tui", "unit"
-    if path.startswith("frontend/packages/openmates-cli/"):
-        return ("sdk_npm" if tag == "sdks.npm" else "cli"), "unit"
-    if path.startswith("packages/openmates-python/"):
-        return "sdk_pypi", "unit"
-    surface = TAG_SURFACES.get(tag or "")
-    return (surface, "unit") if surface else None
-
-
 @functools.lru_cache(maxsize=4)
 def spec_tests(root: Path) -> dict[str, dict[str, dict[str, Counter]]]:
     """spec id -> surface -> kind -> Counter(test path -> assertion hits)."""
@@ -268,35 +249,72 @@ def _entry_tests(entry: dict[str, Any], tests: dict[str, Any]) -> dict[str, dict
     return merged
 
 
+def load_evidence(root: Path) -> Evidence:
+    registry = _load_yaml(root / REGISTRY) if (root / REGISTRY).exists() else {}
+    index = _load_yaml(root / ASSERTION_INDEX) if (root / ASSERTION_INDEX).exists() else {}
+    return Evidence.build(registry or {}, index or {}, results.load_snapshot(root)["tests"])
+
+
+def _on_prod(entry: dict[str, Any], surface: str, prod: Any) -> bool:
+    """Live needs the feature and the surface's platform flag on in production config."""
+    flags = entry_flag_ids(entry)
+    if entry.get("release") in ("unreleased", "unverified") or _flag_state(prod, flags) not in ON_STATES:
+        return False
+    return all(prod.is_enabled(flag) for flag in SURFACE_PLATFORM_FLAGS.get(surface, ()))
+
+
+def _test_lists(entry_tests: dict[str, dict[str, Counter]], surface: str) -> dict[str, Any]:
+    e2e = sorted(entry_tests[surface]["e2e"]) if surface in entry_tests else []
+    unit_counter = entry_tests[surface]["unit"] if surface in entry_tests else Counter()
+    key_unit = [path for path, _ in sorted(unit_counter.items(), key=lambda item: (-item[1], item[0]))[:KEY_UNIT_LIMIT]]
+    return {"e2e_tests": e2e, "key_unit_tests": key_unit, "unit_test_files": len(unit_counter)}
+
+
+def _subfeatures(entry: dict[str, Any], evidence: Evidence, prod: Any, parent: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for sub in entry.get("subfeatures") or []:
+        assertion_ids = evidence.match(sub.get("assertions") or [])
+        intents = sub.get("surfaces") or {}
+        surfaces = {}
+        for surface, parent_cell in parent.items():
+            intent = intents.get(surface) or ("not_planned" if parent_cell["intent"] == "not_planned" else "unverified")
+            surfaces[surface] = derive_cell(evidence, assertion_ids, surface, intent, [], _on_prod(entry, surface, prod))
+        rows.append({
+            "id": sub.get("id"), "name": sub.get("name"), "description": sub.get("description"),
+            "assertion_ids": assertion_ids, "surfaces": surfaces,
+            **({"notes": sub["notes"]} if sub.get("notes") else {}),
+        })
+    return rows
+
+
 def build_view(root: Path) -> dict[str, Any]:
     entries = load_manual(root)
     specs = discover_specifications(root)
     apps = discover_apps(root)
     dev, prod, _known = flag_services(root, apps)
     tests = spec_tests(root)
+    evidence = load_evidence(root)
     features: list[dict[str, Any]] = []
     for entry in entries:
         entry_tests = _entry_tests(entry, tests)
         flags = entry_flag_ids(entry)
         key_tests = entry.get("key_tests") or {}
+        assertion_ids = evidence.assertions_of(entry.get("specifications") or [])
         surfaces: dict[str, Any] = {}
         for surface in SURFACES:
-            status = (entry.get("surfaces") or {}).get(surface)
-            if status is None and surface in OPTIONAL_SURFACES:
+            intent = (entry.get("surfaces") or {}).get(surface)
+            if intent is None and surface in OPTIONAL_SURFACES:
                 continue
-            e2e = sorted(entry_tests[surface]["e2e"]) if surface in entry_tests else []
-            unit_counter = entry_tests[surface]["unit"] if surface in entry_tests else Counter()
-            key_unit = [path for path, _ in sorted(unit_counter.items(), key=lambda item: (-item[1], item[0]))[:KEY_UNIT_LIMIT]]
-            surfaces[surface] = {
-                "status": status,
-                "key_tests": list(key_tests.get(surface) or []),
-                "e2e_tests": e2e,
-                "key_unit_tests": key_unit,
-                "unit_test_files": len(unit_counter),
-            }
+            cell = derive_cell(evidence, assertion_ids, surface, intent, list(key_tests.get(surface) or []),
+                               _on_prod(entry, surface, prod))
+            cell["key_tests"] = list(key_tests.get(surface) or [])
+            if (entry.get("evidence") or {}).get(surface):
+                cell["evidence"] = str(entry["evidence"][surface])
+            cell.update(_test_lists(entry_tests, surface))
             if surface == "apple":
-                surfaces[surface]["platforms"] = list(entry.get("apple_platforms") or APPLE_PLATFORMS)
-        features.append({
+                cell["platforms"] = list(entry.get("apple_platforms") or APPLE_PLATFORMS)
+            surfaces[surface] = cell
+        feature = {
             "id": entry.get("id"),
             "name": entry.get("name"),
             "kind": entry.get("kind"),
@@ -313,14 +331,20 @@ def build_view(root: Path) -> dict[str, Any]:
                 "dev": _flag_state(dev, flags),
                 "prod": _flag_state(prod, flags),
             },
+            "assertions": len(assertion_ids),
             "surfaces": surfaces,
             **({"notes": entry["notes"]} if entry.get("notes") else {}),
-        })
+        }
+        subs = _subfeatures(entry, evidence, prod, surfaces)
+        if subs:
+            feature["subfeatures"] = subs
+        features.append(feature)
     owned_specs = {spec_id for entry in entries for spec_id in entry.get("specifications") or []}
     owned_apps = {app_id for entry in entries for app_id in entry.get("apps") or []}
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "source": str(MANUAL),
+        "results_as_of": results.load_snapshot(root).get("as_of"),
         "summary": _summary(features),
         "unmapped": {
             "specifications": sorted(set(specs) - owned_specs),
@@ -356,8 +380,8 @@ def validate(root: Path) -> list[str]:
     specs = discover_specifications(root)
     apps = discover_apps(root)
     products = set(product_feature_ids(root))
-    _dev, prod, known_flags = flag_services(root, apps)
-    tests = spec_tests(root)
+    _dev, _prod, known_flags = flag_services(root, apps)
+    evidence = load_evidence(root)
     spec_owner: dict[str, str] = {}
     app_owner: dict[str, str] = {}
     product_refs: set[str] = set()
@@ -406,7 +430,8 @@ def validate(root: Path) -> list[str]:
         for platform in entry.get("apple_platforms") or []:
             if platform not in APPLE_PLATFORMS:
                 errors.append(f"{label}: apple_platforms entry '{platform}' must be one of {list(APPLE_PLATFORMS)}")
-        errors.extend(_validate_surfaces(root, entry, label, tests, prod))
+        errors.extend(_validate_surfaces(root, entry, label))
+        errors.extend(subfeature_errors(label, entry.get("subfeatures"), evidence, SURFACES))
     for spec_id in sorted(set(specs) - set(spec_owner)):
         errors.append(f"Specification '{spec_id}' has no entry in {MANUAL} (add one: feature_overview.py suggest {spec_id})")
     for app_id in sorted(set(apps) - set(app_owner)):
@@ -416,7 +441,7 @@ def validate(root: Path) -> list[str]:
     return errors
 
 
-def _validate_surfaces(root: Path, entry: dict[str, Any], label: str, tests: dict[str, Any], prod: Any) -> list[str]:
+def _validate_surfaces(root: Path, entry: dict[str, Any], label: str) -> list[str]:
     errors: list[str] = []
     surfaces = entry.get("surfaces")
     if not isinstance(surfaces, dict):
@@ -435,25 +460,14 @@ def _validate_surfaces(root: Path, entry: dict[str, Any], label: str, tests: dic
         for path in paths or []:
             if not (root / str(path)).is_file():
                 errors.append(f"{label}: key test '{path}' does not exist")
-    entry_tests = _entry_tests(entry, tests)
-    flags = entry_flag_ids(entry)
+    evidence = entry.get("evidence") or {}
+    if not isinstance(evidence, dict) or set(evidence) - set(SURFACES):
+        errors.append(f"{label}: evidence must map known surfaces to text")
     for surface, status in surfaces.items():
-        if status not in STATUSES:
-            errors.append(f"{label}: {surface} status '{status}' must be one of {list(STATUSES)}")
-            continue
-        has_tests = bool(key_tests.get(surface)) or (
-            surface in entry_tests and any(entry_tests[surface][kind] for kind in ("e2e", "unit"))
-        )
-        if status in ("tested", "live") and not has_tests:
-            errors.append(f"{label}: {surface} is '{status}' but no test proves it (link a Specification test or add key_tests)")
-        if status == "live":
-            base = [flag for flag in flags if not flag.startswith("skill:")] or flags[:1]
-            required = [*base, *SURFACE_PLATFORM_FLAGS.get(surface, ())]
-            disabled = [flag for flag in required if not prod.is_enabled(flag)]
-            if _flag_state(prod, flags) == "disabled" or disabled:
-                errors.append(f"{label}: {surface} is 'live' but disabled in production config: {disabled}")
-            if entry.get("release") == "unreleased":
-                errors.append(f"{label}: {surface} is 'live' but release is 'unreleased'")
+        if status not in INTENTS:
+            hint = " (tested/live are derived from tests and CI results now; write the intent, e.g. implemented)" \
+                if status in ("tested", "live") else ""
+            errors.append(f"{label}: {surface} status '{status}' must be one of {list(INTENTS)}{hint}")
     return errors
 
 
@@ -464,18 +478,27 @@ def _link(path: str) -> str:
     return f"[{path.rsplit('/', 1)[-1]}](../../{path})"
 
 
+def _cell_text(cell: dict[str, Any] | None) -> str:
+    return short_status(cell, STATUS_SHORT) if cell else ""
+
+
 def render_markdown(view: dict[str, Any]) -> str:
     lines = [
         "<!-- GENERATED by scripts/feature_overview.py from specifications/features.yml. Do not edit by hand. -->",
         "# OpenMates feature overview",
         "",
-        "One row per feature. Edit `specifications/features.yml` (status, release, description);",
-        "tests, Specification status and dev/prod flags are filled in from the repository.",
+        "One row per feature, sub-features indented below their parent. Edit `specifications/features.yml`",
+        "(grouping, intent, release, notes); everything else is derived from the repository.",
         "",
-        "Status: **live** = on production · tested = proven by tests · impl = implemented, no test",
-        "on that surface · wip = in progress · planned · ? = unverified · — = not planned.",
+        "Cells with tests are derived: Specification assertion → tests on that surface → latest CI result",
+        f"(`specifications/test-results.yml`, results as of {view.get('results_as_of') or 'never'}).",
+        "**live** = all counted assertions pass and the feature is on in production · tested = all pass ·",
+        "partial = some pass · **FAIL** = a test failed in its latest run · not run = tests exist, no CI result.",
+        "x/y = passing / counted assertions (required on that surface by the Specification, or tested there).",
+        "Cells without tests show the human intent: impl = implemented, untested · wip · planned · ? = unverified · — = not planned.",
         "Flags: dev/prod enablement from committed config (`backend_config.dev.yml` / `backend_config.yml`).",
         "Apple covers the shared iOS, iPadOS and macOS app (TestFlight); Watch is shown where relevant.",
+        "Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface apple`.",
         "",
         f"**{view['summary']['features']} features** · enabled on prod: {view['summary']['enabled_on_prod']}"
         f" · enabled on dev: {view['summary']['enabled_on_dev']}",
@@ -505,25 +528,23 @@ def render_markdown(view: dict[str, Any]) -> str:
             "|---|" + "---|" * (len(SURFACES) + 3),
         ]
         for feature in sorted(by_kind[kind], key=lambda f: str(f["name"]).lower()):
-            cells = []
-            for surface in SURFACES:
-                data = feature["surfaces"].get(surface)
-                if not data:
-                    cells.append("")
-                    continue
-                e2e = len(data["e2e_tests"]) + len(data["key_tests"])
-                cells.append(STATUS_SHORT[data["status"]] + (f" ({e2e})" if e2e else ""))
             flags = feature["flags"]
+            cells = [_cell_text(feature["surfaces"].get(surface)) for surface in SURFACES]
             lines.append(
                 f"| [{feature['name']}](#{feature['id']}) | " + " | ".join(cells)
                 + f" | {FLAG_LABELS[flags['dev']]} | {FLAG_LABELS[flags['prod']]} | {feature['release']} |"
             )
-    lines += ["", "Numbers in brackets: E2E test files linked for that surface.", "", "## Details"]
+            for sub in feature.get("subfeatures") or []:
+                sub_cells = [_cell_text(sub["surfaces"].get(surface)) for surface in SURFACES]
+                lines.append(f"| &nbsp;&nbsp;↳ {sub['name']} | " + " | ".join(sub_cells) + " | | | |")
+    lines += ["", "## Details"]
     for feature in sorted(view["features"], key=lambda f: str(f["name"]).lower()):
         lines += ["", f"### {feature['name']}", f'<a id="{feature["id"]}"></a>', "", str(feature["description"]).strip(), ""]
         spec_links = [f"[{s['id']}](../../{s['path']}/specification.yml) ({s['status']})" for s in feature["specifications"] if s["path"]]
         if spec_links:
-            lines.append("- Specifications: " + ", ".join(spec_links))
+            lines.append("- Specifications: " + ", ".join(spec_links) + f" · {feature['assertions']} assertion(s)")
+        else:
+            lines.append("- Specifications: none, so no cell can be derived from assertions")
         if feature["apps"]:
             lines.append("- Apps: " + ", ".join(f"`{a}`" for a in feature["apps"]))
         flag_ids = ", ".join(f"`{f}`" for f in feature["flags"]["ids"]) or "none"
@@ -533,6 +554,9 @@ def render_markdown(view: dict[str, Any]) -> str:
         )
         if feature.get("notes"):
             lines.append(f"- Notes: {' '.join(str(feature['notes']).split())}")
+        conflicts = [f"{SURFACE_LABELS[s]}: {c['conflict']}" for s, c in feature["surfaces"].items() if c.get("conflict")]
+        if conflicts:
+            lines.append("- Check intent: " + "; ".join(conflicts))
         rows = []
         for surface in SURFACES:
             data = feature["surfaces"].get(surface)
@@ -542,8 +566,14 @@ def render_markdown(view: dict[str, Any]) -> str:
             unit = data["unit_test_files"]
             if unit:
                 proof.append(f"{unit} unit test file(s), e.g. " + ", ".join(_link(p) for p in data["key_unit_tests"][:2]))
-            rows.append(f"| {SURFACE_LABELS[surface]} | {STATUS_SHORT[data['status']]} | {'<br>'.join(proof) or '—'} |")
-        lines += ["", "<details><summary>Tests per surface</summary>", "", "| Surface | Status | Proof |", "|---|---|---|", *rows, "", "</details>"]
+            counts = data["assertions"]
+            detail = (f"{counts['passing']} pass · {counts['failing']} fail · {counts['not_run']} not run · "
+                      f"{counts['missing']} no test") if counts["counted"] else "—"
+            failing = "<br>".join("❌ " + _link(p) for p in data.get("failing_tests") or [])
+            rows.append(f"| {SURFACE_LABELS[surface]} | {_cell_text(data)} | {detail} | {'<br>'.join(proof) or '—'}"
+                        f"{'<br>' + failing if failing else ''} |")
+        lines += ["", "<details><summary>Tests per surface</summary>", "",
+                  "| Surface | Status | Assertions | Proof |", "|---|---|---|---|", *rows, "", "</details>"]
     return "\n".join(lines) + "\n"
 
 
@@ -604,7 +634,7 @@ def suggest_entry(root: Path, ref: str) -> dict[str, Any]:
 
 
 def suggest_surfaces(entry: dict[str, Any], tests: dict[str, Any], required: dict[str, set[str]]) -> dict[str, str]:
-    """tested when E2E proof exists, implemented with unit proof only, else unverified/not_planned."""
+    """Intent stub: implemented when tests exist on the surface, else unverified/not_planned (cells derive the rest)."""
     entry_tests = _entry_tests(entry, tests)
     wanted: set[str] = set()
     for spec_id in entry.get("specifications") or []:
@@ -618,9 +648,7 @@ def suggest_surfaces(entry: dict[str, Any], tests: dict[str, Any], required: dic
         unit = surface in entry_tests and entry_tests[surface]["unit"]
         if surface in OPTIONAL_SURFACES and not (e2e or unit):
             continue
-        if e2e:
-            statuses[surface] = "tested"
-        elif unit:
+        if e2e or unit:
             statuses[surface] = "implemented"
         elif surface in wanted or not has_specs:
             statuses[surface] = "unverified"
@@ -637,11 +665,31 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command")
     suggest = sub.add_parser("suggest", help="print an entry stub for a Specification id or app:<id>")
     suggest.add_argument("ref")
+    refresh = sub.add_parser("refresh-results", help="fold the latest dev-host CI results into specifications/test-results.yml")
+    refresh.add_argument("--stores", type=Path, default=None, help="checkout holding logs/ci-coordinator (default: main checkout)")
+    gap = sub.add_parser("gaps", help="list features and sub-features not done on one surface, most urgent first")
+    gap.add_argument("--surface", required=True, choices=SURFACES)
+    gap.add_argument("--format", choices=("text", "yaml"), default="text")
     args = parser.parse_args(argv)
     root = args.repo_root.resolve()
     try:
         if args.command == "suggest":
             print(yaml.safe_dump([suggest_entry(root, args.ref)], sort_keys=False, allow_unicode=True, width=120), end="")
+            return 0
+        if args.command == "refresh-results":
+            counts = results.refresh(root, args.stores)
+            print("test results: " + ", ".join(f"{name} {count}" for name, count in counts.items()))
+            for path in write_outputs(root):
+                print(f"updated {path}")
+            return 0
+        if args.command == "gaps":
+            view = build_view(root)
+            rows = gaps(view, args.surface, KINDS)
+            if args.format == "yaml":
+                print(yaml.safe_dump({"surface": args.surface, "results_as_of": view.get("results_as_of"), "gaps": rows},
+                                     sort_keys=False, allow_unicode=True, width=160), end="")
+            else:
+                print(render_gaps(rows, args.surface, view.get("results_as_of")), end="")
             return 0
         if args.check:
             problems = validate(root)

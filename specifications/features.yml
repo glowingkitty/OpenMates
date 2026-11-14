@@ -1,15 +1,25 @@
 # specifications/features.yml — unified feature overview (manual part).
 #
 # One entry per feature: what it is, which Specifications and backend apps own it,
-# and the human judgement of its status on every surface. Everything the repository
-# already knows is joined in by scripts/feature_overview.py and written to
-#   specifications/generated/features.yml  (machine view: tests, Specification status, dev/prod flags)
+# its sub-features and the human intent per surface. Everything else is derived by
+# scripts/feature_overview.py and written to
+#   specifications/generated/features.yml  (machine view)
 #   specifications/generated/features.md   (table for people)
-# Never copy test lists or flag states into this file; they are generated.
+#
+# Ownership (deterministic chain, nothing copied by hand):
+#   Specifications own assertions (and which surfaces each assertion applies to).
+#   Tests declare the assertions they prove (contract-test metadata -> assertion index).
+#   specifications/test-results.yml holds the latest CI result per test file
+#     (refresh: python3 scripts/feature_overview.py refresh-results).
+#   This file owns only the grouping (feature -> Specifications, apps, sub-features),
+#   the intent per surface and human notes.
+# A cell with tests on its surface is derived: live | tested | partial | failing | not_run.
+# A cell without tests shows the intent written here.
 #
 # Rule: a change that adds or changes a feature, a surface or an E2E test updates its
 # entry here in the same commit. Check: python3 scripts/feature_overview.py --check
 # (the deploy gate runs it). New Specification or app: feature_overview.py suggest <id>.
+# Parity work: python3 scripts/feature_overview.py gaps --surface apple
 #
 # Fields
 #   id                kebab-case, stable.
@@ -23,21 +33,24 @@
 #   release           first release tag the feature shipped in (e.g. v0.14.0-alpha), untagged-main
 #                     (on main/production, after the latest tag), unreleased (dev only or disabled
 #                     on production) or unverified.
-#   surfaces          web, apple (shared iOS/iPadOS/macOS app), watchos (only where relevant),
-#                     cli, tui, rest_api, sdk_npm, sdk_pypi, each one of:
-#                     not_planned | planned | in_progress | implemented | tested | live | unverified
-#                     tested/live need at least one test on that surface (from a Specification
-#                     test or key_tests); live also needs the feature enabled in production config.
+#   surfaces          intent per surface: web, apple (shared iOS/iPadOS/macOS app), watchos (only
+#                     where relevant), cli, tui, rest_api, sdk_npm, sdk_pypi, each one of
+#                     implemented | in_progress | planned | unverified | not_planned.
+#                     Never write tested/live: they are derived from tests and CI results.
+#   evidence          optional {surface: "file, command or route"} backing an implemented or
+#                     in_progress intent that no test proves yet.
 #   apple_platforms   optional subset of [ios, ipados, macos] when not all three apply.
-#   key_tests         optional {surface: [test paths]} for proof not mapped through a Specification.
+#   key_tests         optional {surface: [test paths]} for proof not mapped through an assertion.
 #   notes             optional caveats.
+#   subfeatures       optional list of {id, name, description, assertions, surfaces?, notes?};
+#                     assertions are assertion ids or fnmatch globs (e.g. message-input.audio.*);
+#                     surfaces gives intents where no test exists (default: unverified, or
+#                     not_planned when the parent is not planned there).
 #
-# Initial fill (2026-11-14) was derived from evidence, not guessed: tested = an E2E test exists
-# for that surface; implemented = only unit tests on that surface; live = tested on web or the
-# REST API, its E2E test is on main and the feature is enabled in production config;
-# not_planned = the owning Specification does not require that surface; unverified = no
-# evidence either way. Release = first tag containing the entry's E2E tests or app folder
-# (v1.0 tag ignored as an outlier). Raise or correct any value by hand once you know better.
+# Initial intents (2026-11-14) were checked against source per surface (Svelte routes and
+# components, Swift views and the UniFFI bindings, the CLI command catalog, the Rust TUI,
+# REST routes, SDK exports); Apple parity follows web, so user-facing web features without
+# Apple code are "planned" on Apple.
 schema_version: 1
 features:
   - id: account-import
@@ -46,7 +59,13 @@ features:
     description: "Import chat exports from other assistants after a preview and confirmation; stored client-encrypted."
     specifications: [feature.account-import]
     release: v0.6.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Chat/Views/ChatImportView.swift"
+      cli: "openmates account import chatgpt|claude|generic|opencode|openmates"
+      tui: "frontend/packages/openmates-tui-native/src/ui.rs settings route account/import"
+      sdk_npm: "sdk.ts previewImport/confirmImport; sdk.py preview_import/confirm_import"
+      sdk_pypi: "sdk.ts previewImport/confirmImport; sdk.py preview_import/confirm_import"
   - id: ai-model-routing
     name: "AI Model Settings And Chat Routing"
     kind: core
@@ -54,7 +73,10 @@ features:
     specifications: [feature.ai-model-routing]
     product_features: [provider-independent]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: tested, cli: tested, tui: tested, rest_api: live, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      sdk_npm: "sdk.ts model option + default_ai_model_*; sdk.py ask(model=), AiModelDefaults"
+      sdk_pypi: "sdk.ts model option + default_ai_model_*; sdk.py ask(model=), AiModelDefaults"
   - id: app-memories
     name: "Memories"
     kind: core
@@ -62,91 +84,121 @@ features:
     specifications: [feature.app-memories, feature.rules]
     product_features: [relevant-memories]
     release: v0.7.0-alpha
-    surfaces: {web: live, apple: tested, cli: tested, tui: unverified, rest_api: live, sdk_npm: tested, sdk_pypi: tested}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      tui: "frontend/packages/openmates-tui-native/src/ui/settings_catalog.rs settings_memories page"
   - id: apps-workspace
     name: "Apps Workspace"
     kind: core
     description: "Apps workspace: ask in natural language, run app skills directly and reopen results fullscreen."
     specifications: [feature.apps-workspace]
     release: v0.14.0-alpha
-    surfaces: {web: live, apple: tested, cli: implemented, tui: tested, rest_api: live, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: assistant-answer-composition
     name: "Concise and Actionable Mixed-Media Answers"
     kind: core
     description: "Concise, actionable answers with relevant links, rich embeds and selected images or videos."
     specifications: [feature.assistant-answer-composition]
     release: unverified
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      web: "embed renderers frontend/packages/ui/src/components/embeds, MarkdownContent.svelte"
+      apple: "apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift; embed renderers"
+      cli: "server-side pipeline; CLI renders embeds (embedRenderers.ts)"
+      tui: "frontend/packages/openmates-tui-native/src/ui/markdown.rs, ui/embeds.rs"
+      sdk_npm: "chat responses via sdk chats.ask; composition is server-side"
+      sdk_pypi: "chat responses via sdk chats.ask; composition is server-side"
   - id: assistant-authored-result-embeds
     name: "Assistant-Authored Rich Result Embeds"
     kind: core
     description: "The assistant turns researched or supplied information into rich result embeds (events, listings, travel)."
     specifications: [feature.assistant-authored-result-embeds]
     release: untagged-main
-    surfaces: {web: live, apple: not_planned, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/EventEmbedRenderer.swift, TravelStayEmbedRenderer.swift, SearchDomainRenderers.swift (home/jobs listings)"
+      tui: "frontend/packages/openmates-tui-native/src/ui/embeds.rs generic embed rendering (events, calendar, web, images)"
+      sdk_npm: "sdk.ts embeds + chats; server-side generated embeds"
   - id: assistant-response-speech
     name: "Assistant Response Speech"
     kind: core
     description: "Hear the assistant's answer read aloud paragraph by paragraph while text keeps streaming."
     specifications: [feature.assistant-response-speech]
     release: v0.19.0
-    surfaces: {web: live, apple: tested, cli: implemented, tui: unverified, rest_api: live, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: auth
     name: "Account Access"
     kind: core
     description: "Sign up, log in and unlock sessions with client-wrapped account keys on web, Apple and CLI."
     specifications: [feature.auth]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: tested, watchos: tested, cli: tested, tui: tested, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
   - id: billing
     name: "Billing And Payments"
     kind: core
     description: "Buy and spend credits, see usage and invoices, request refunds (OpenMates Cloud)."
     specifications: [feature.billing]
     release: v0.6.0-alpha
-    surfaces: {web: live, apple: tested, cli: tested, tui: unverified, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: in_progress, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      tui: "frontend/packages/openmates-tui-native/src/ui.rs:4417 billing/* settings rows"
   - id: chat-awareness
     name: "Consent-Scoped Cross-Chat Awareness"
     kind: core
     description: "The assistant may use other chats only when the user explicitly grants it (@chat, @related-chats, @all-chats)."
     specifications: [feature.chat-awareness]
     release: unverified
-    surfaces: {web: unverified, apple: not_planned, cli: implemented, tui: not_planned, rest_api: unverified, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: not_planned, cli: implemented, tui: not_planned, rest_api: planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      web: "enter_message/services/mentionSearchService.ts, ActiveChat.svelte (@chat mentions)"
   - id: chat-message-timeline
     name: "Chat Message Timeline"
     kind: core
     description: "A compact timeline to preview and jump to any exchange in a long chat."
     specifications: [feature.chat-message-timeline]
     release: untagged-main
-    surfaces: {web: live, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: planned, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      rest_api: "GET /v1/chats/{chat_id}/timeline in routes/chats.py"
   - id: chat-navigation
     name: "Chat Navigation"
     kind: core
     description: "Sidebar chat navigation with running chats first and nested Project navigation."
     specifications: [feature.chat-navigation]
     release: v0.8.0-alpha
-    surfaces: {web: live, apple: tested, cli: implemented, tui: tested, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: chat-processing-feedback
     name: "Chat Processing Feedback"
     kind: core
     description: "Shows what the assistant is doing in the current turn (Mate, model, processing steps)."
     specifications: [feature.chat-processing-feedback]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: implemented, cli: tested, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: in_progress, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      tui: "frontend/packages/openmates-tui-native/src/ui.rs:3839 shows Thinking/reasoning text per message"
   - id: chat-queued-followups
     name: "Queued Chat Follow-ups and Steering"
     kind: core
     description: "Send follow-ups while the assistant is working, edit them across devices, steer the current run."
     specifications: [feature.chat-queued-followups]
     release: untagged-main
-    surfaces: {web: live, apple: tested, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: in_progress, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      tui: "frontend/packages/openmates-tui-native/src/ui.rs cancel/queued delivery fences; /stop, /pending, /retry"
   - id: chat-request-safety
     name: "Chat Request Safety Decisions"
     kind: core
     description: "Sensitive topics can be discussed; clearly harmful or illegal assistance is blocked with an evidence-backed decision."
     specifications: [feature.chat-request-safety]
     release: unverified
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      web: "ai base_instructions.yml + postprocessor.py; shown in chat UI"
+      apple: "server-side decision shown as ordinary assistant reply; no client code needed"
+      cli: "server-side; CLI chat send hits same pipeline"
+      tui: "frontend/packages/openmates-tui-native/src/ui/markdown.rs, server-side decision rendered as message"
+      sdk_npm: "server-side request safety applies to SDK chats"
+      sdk_pypi: "server-side request safety applies to SDK chats"
   - id: chat-search
     name: "Chat search"
     kind: core
@@ -154,7 +206,13 @@ features:
     specifications: []
     product_features: [offline-search]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: not_planned, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift"
+      cli: "openmates chats search"
+      tui: "frontend/packages/openmates-tui-native/src/ui.rs /search command (chats, apps, projects)"
+      sdk_npm: "sdk.ts chats.search; sdk.py OpenMatesChats.search"
+      sdk_pypi: "sdk.ts chats.search; sdk.py OpenMatesChats.search"
     key_tests:
       web: [frontend/apps/web_app/tests/chat-search-flow.spec.ts]
     notes: "Offline behaviour (search without a server round trip) is not separately proven: unverified."
@@ -164,14 +222,19 @@ features:
     description: "Chat-specific settings and zero-knowledge share links in Settings / Chats."
     specifications: [feature.chat-share-settings]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: tested, watchos: tested, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      tui: "frontend/packages/openmates-tui-native/src/ui.rs /share command, HitAction::Share/RevealShare/CopyShare"
   - id: chat-unread
     name: "Chat Unread State"
     kind: core
     description: "A finished assistant reply stays unread until its last line has been visible in the user's viewport."
     specifications: [feature.chat-unread]
     release: untagged-main
-    surfaces: {web: live, apple: not_planned, cli: unverified, tui: tested, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      apple: "apple/OpenMates/Sources/Core/Services/UnreadMessagesStore.swift, Shared/Components/ChatListRow.swift"
+      cli: "unread handling in openmates-cli/src/tui.ts and tui-native ui"
   - id: chats
     name: "Chats"
     kind: core
@@ -179,42 +242,91 @@ features:
     specifications: [feature.chats]
     product_features: [trusted-quotes, chat-file-downloads]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: tested, watchos: implemented, cli: tested, tui: tested, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    subfeatures:
+      - id: send-and-delivery
+        name: "Sending and delivery"
+        description: "Immediate send, idempotent messages, haptic confirmation, offline ordered replay"
+        assertions: ["chats.send.*", "chats.message.*", "chats.offline-outbox.*"]
+      - id: streaming-replies
+        name: "Streaming replies"
+        description: "Ordered progressive assistant streaming and final convergence"
+        assertions: ["chats.streaming.*", "chats.rendering.assistant-document-convergence"]
+      - id: completion-recovery
+        name: "Completion and recovery"
+        description: "Lease-fenced completion, pending delivery, takeover"
+        assertions: ["chats.completion.*", "chats.sync.*"]
+      - id: message-rendering
+        name: "Message rendering"
+        description: "Inline entities, preview info, skill failure banner, history entrance"
+        assertions: ["chats.rendering.inline-entity-interaction", "chats.rendering.preview-info-top", "chats.rendering.skill-failure-banner", "chats.rendering.web-history-entrance"]
+      - id: followups
+        name: "Follow-up suggestions"
+        description: "Main-generated composer follow-ups and reconciliation"
+        assertions: ["chats.followups.*"]
+      - id: forking
+        name: "Forking chats"
+        description: "Non-destructive fork boundary"
+        assertions: ["chats.fork.*"]
+      - id: context-and-direction
+        name: "Context and direction"
+        description: "Related-work context, direction assessment and correction"
+        assertions: ["chats.context.*", "chats.direction.*"]
+      - id: history-layout
+        name: "History layout and hidden chats"
+        description: "Responsive history layout, hidden chat section, local state precedence"
+        assertions: ["chats.layout.*", "chats.hidden.*", "chats.local-state.*"]
+      - id: privacy-and-parity
+        name: "Encryption and surface parity"
+        description: "Client-encrypted persistence and semantic parity"
+        assertions: ["chats.persistence.*", "chats.surface.*"]
   - id: checks
     name: "Checks"
     kind: core
     description: "Checks are reusable proof definitions that verify Specification Requirements or Plan success criteria."
     specifications: [feature.checks]
     release: unverified
-    surfaces: {web: tested, apple: not_planned, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: planned, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      cli: "openmates checks list|show|create|run|result|confirm"
+      sdk_npm: "sdk.py _PlanChecksFacade; npm plansCli.ts"
+      sdk_pypi: "sdk.py _PlanChecksFacade; npm plansCli.ts"
   - id: continue-carousel
     name: "Continue Carousel"
     kind: core
     description: "The Chats start screen promotes timely saved items and recent chats."
     specifications: [feature.continue-carousel]
     release: untagged-main
-    surfaces: {web: live, apple: tested, cli: implemented, tui: tested, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: daily-inspiration
     name: "Daily Inspiration"
     kind: core
     description: "Personalised daily inspiration cards, with a public default for signed-out visitors."
     specifications: [feature.daily-inspiration]
     release: v0.7.0-alpha
-    surfaces: {web: live, apple: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      cli: "openmates inspirations"
+      sdk_npm: "sdk.inspirations facade (both)"
+      sdk_pypi: "sdk.inspirations facade (both)"
   - id: embed-user-edits
     name: "Embed User Edits and Image Enhance"
     kind: core
     description: "Edit an image, diagram, slide deck, sheet or document; each edit becomes a new version of the embed."
     specifications: [feature.embed-user-edits]
     release: untagged-main
-    surfaces: {web: live, apple: implemented, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: focus-modes
     name: "Focus Modes — Shared Operation and Display"
     kind: core
     description: "Shared lifecycle, full system instruction application, system history, controls, restoration and historical display for all focus modes."
     specifications: [feature.focus-modes]
     release: v0.9.0-alpha
-    surfaces: {web: live, apple: tested, cli: implemented, tui: unverified, rest_api: live, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: in_progress, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      tui: "frontend/packages/openmates-tui-native/src/ui_focus_parity_tests.rs (UI focus, not focus modes)"
+      sdk_npm: "focusMode option sdk.ts; focus_mode param sdk.py ask"
+      sdk_pypi: "focusMode option sdk.ts; focus_mode param sdk.py ask"
   - id: incognito-mode
     name: "Incognito mode"
     kind: core
@@ -222,7 +334,13 @@ features:
     specifications: []
     product_features: [incognito-mode]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift, Settings/Views/SettingsIncognitoInfoView.swift"
+      cli: "openmates chats incognito|incognito-clear|incognito-history"
+      rest_api: "routes/sdk.py POST /v1/sdk/chats (chat:create_incognito, save_to_account=false)"
+      sdk_npm: "sdk.ts incognito(); sdk.py incognito()"
+      sdk_pypi: "sdk.ts incognito(); sdk.py incognito()"
     key_tests:
       web: [frontend/apps/web_app/tests/incognito-mode.spec.ts]
   - id: instance-app-packages
@@ -231,35 +349,43 @@ features:
     description: "Operators of an OpenMates server install additional providers for existing app skills with `openmates server apps install`."
     specifications: [feature.instance-app-packages]
     release: untagged-main
-    surfaces: {web: live, apple: not_planned, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: not_planned, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      cli: "openmates server apps install|list|inspect|rollback|remove"
   - id: interactive-html-visuals
     name: "Interactive HTML Visuals in Code Embeds"
     kind: core
     description: "HTML code embeds render as live visuals, with their inline CSS and JavaScript, in the chat card and in fullscreen."
     specifications: [feature.interactive-html-visuals]
     release: untagged-main
-    surfaces: {web: live, apple: implemented, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: issue-reporting
     name: "Issue Reporting"
     kind: core
     description: "Report a problem with optional diagnostic context and get a stable confirmation."
     specifications: [feature.issue-reporting]
     release: v0.8.0-alpha
-    surfaces: {web: live, apple: tested, cli: not_planned, tui: not_planned, rest_api: live, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      cli: "openmates settings report-issue create|status"
   - id: landing-onboarding
     name: "Signed-out Web Welcome"
     kind: core
     description: "Signed-out web and Apple main-app visitors use the ordinary new-chat welcome with normal Daily Inspirations and real example discovery."
     specifications: [feature.landing-onboarding]
     release: v0.7.0-alpha
-    surfaces: {web: live, apple: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: language-preferences
     name: "Website and Web App Language Preferences"
     kind: core
     description: "Website and web app open in the selected or best-supported browser language."
     specifications: [feature.language-preferences]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift (interface/language), Core/I18n/SupportedLanguage.swift"
+      cli: "openmates settings interface language set"
+      tui: "frontend/packages/openmates-tui-native/src/ui.rs settings route interface/language"
   - id: learning-mode
     name: "Learning Mode — Age-Tiered Teaching, Collaborative Building and Guest Use"
     kind: core
@@ -267,21 +393,26 @@ features:
     specifications: [feature.learning-mode]
     product_features: [learning-mode]
     release: v0.12.0-alpha
-    surfaces: {web: live, apple: not_planned, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Settings/Views/SettingsLearningModeView.swift"
+      cli: "openmates learning-mode enable|disable|status|collaborative"
+      sdk_npm: "OpenMatesLearningMode in sdk.ts and sdk.py"
+      sdk_pypi: "OpenMatesLearningMode in sdk.ts and sdk.py"
   - id: live-collaboration
     name: "Live Collaboration on Documents, Sheets and Slides"
     kind: core
     description: "Members of a Team or Project can edit the same document, sheet or deck at the same time."
     specifications: [feature.live-collaboration]
     release: unverified
-    surfaces: {web: implemented, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: unverified, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: planned, cli: not_planned, tui: not_planned, rest_api: planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: marketing-landing
     name: "Lightweight Public Website and Scrollable Landing Page"
     kind: core
     description: "Lightweight public website: landing page, news, blog and legal pages, linking into the web app."
     specifications: [feature.marketing-landing]
     release: v0.13.0-alpha
-    surfaces: {web: live, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: message-input
     name: "Message Input"
     kind: core
@@ -289,28 +420,75 @@ features:
     specifications: [feature.message-input]
     product_features: [image-upload]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: tested, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      tui: "frontend/packages/openmates-tui-native/src/ui/editor.rs, ui.rs composer, drafts, paste, @file"
+    subfeatures:
+      - id: dictation
+        name: "Dictation"
+        description: "Realtime transcription, editable transcript, guest admission, workspace dictation"
+        assertions: ["message-input.audio.*"]
+      - id: audio-recording
+        name: "Audio recording"
+        description: "Recording lifecycle"
+        assertions: ["message-input.recording.*"]
+      - id: attachments-and-embeds
+        name: "Attachments and embeds"
+        description: "Quick access attachments, embed gated send"
+        assertions: ["message-input.attachments.*", "message-input.embeds.*"]
+      - id: draft-persistence
+        name: "Draft autosave"
+        description: "Draft preview persistence, local-first encrypted drafts, draft-only chats"
+        assertions: ["message-input.drafts.*", "drafts.persistence.local-first-encrypted", "drafts.sync.version-authoritative", "drafts.draft-only.*"]
+      - id: suggestions
+        name: "Suggestions"
+        description: "Contextual suggestions, acceptance, dismissal, keyboard/touch"
+        assertions: ["message-input.suggestion.*", "message-input.suggestions.*"]
+      - id: focus-and-send
+        name: "Focus and send"
+        description: "Focus ownership, welcome/workspace suppression, send ownership"
+        assertions: ["message-input.focus.*", "message-input.send.*"]
+      - id: layout-and-actions
+        name: "Layout and actions"
+        description: "Action visibility, responsive parity, workspace controls"
+        assertions: ["message-input.actions.*", "message-input.layout.*", "message-input.workspace.*"]
+      - id: pii-highlighting
+        name: "PII highlighting"
+        description: "Detect, redact or exclude personal data in the composer"
+        assertions: ["message-input.privacy-context", "pii.composer.*"]
+      - id: mentions
+        name: "Mentions"
+        description: "Wikipedia and other @mention menu and syntax"
+        assertions: ["wikipedia-mentions.syntax.*", "wikipedia-mentions.discovery.*"]
   - id: newsletter
     name: "Newsletter Subscription"
     kind: core
     description: "Newsletter sign-up with double opt-in, categories and token-based unsubscribe."
     specifications: [feature.newsletter]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Settings/Views/NewsletterSettingsView.swift"
+      cli: "openmates settings newsletter subscribe|confirm|unsubscribe"
+      tui: "frontend/packages/openmates-tui-native/src/ui.rs newsletter/categories and newsletter/subscribe settings"
   - id: newsletter-campaigns
     name: "Newsletter Campaign Automation"
     kind: core
     description: "Internal automation that drafts localised newsletter campaigns for review and sends each once."
     specifications: [feature.newsletter-campaigns]
     release: v0.19.0
-    surfaces: {web: live, apple: not_planned, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: not_planned, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: notifications
     name: "Notifications"
     kind: core
     description: "Notification settings, email and push notifications, and notification history."
     specifications: [feature.notifications]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: tested, cli: implemented, tui: unverified, rest_api: live, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      tui: "frontend/packages/openmates-tui-native/src/ui.rs settings notifications/chat"
+      sdk_npm: "OpenMatesNotifications in sdk.ts and sdk.py"
+      sdk_pypi: "OpenMatesNotifications in sdk.ts and sdk.py"
   - id: pii-protection
     name: "PII Placeholder Protection"
     kind: core
@@ -318,35 +496,74 @@ features:
     specifications: [feature.pii-protection]
     product_features: [pii-detection]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: tested, cli: tested, tui: tested, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
   - id: public-example-chats
     name: "Public Example Chats"
     kind: core
     description: "Public example chats that anyone can open and share without signing in."
     specifications: [feature.public-example-chats]
     release: v0.8.0-alpha
-    surfaces: {web: live, apple: tested, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: public-publications
     name: "Public News, Blog, Press, and Social Publications"
     kind: core
     description: "Public news, blog, press and social posts with durable, crawlable pages."
     specifications: [feature.public-publications]
     release: v0.19.0
-    surfaces: {web: live, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: safety-strikes
     name: "Safety Strikes, Suspension, Appeal and Policy Account Deletion"
     kind: core
     description: "Strikes, warnings, suspension and appeal when safety checks reject image or video requests."
     specifications: [feature.safety-strikes]
     release: unverified
-    surfaces: {web: tested, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: planned, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: settings-ui
     name: "Settings UI"
     kind: core
     description: "The settings shell on web and Apple: navigation, sections and footer."
     specifications: [feature.settings-ui]
     release: v0.8.0-alpha
-    surfaces: {web: live, apple: tested, watchos: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: not_planned, tui: implemented, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      tui: "frontend/packages/openmates-tui-native/src/ui/settings_catalog.rs, ui.rs /settings"
+    subfeatures:
+      - id: shell-and-routing
+        name: "Settings shell and routing"
+        description: "Open/close lifecycle and routing"
+        assertions: ["settings-ui.shell.*"]
+      - id: navigation
+        name: "Navigation"
+        description: "Contextual availability and return to parent"
+        assertions: ["settings-ui.navigation.*"]
+      - id: composition-accessibility
+        name: "Composition and accessibility"
+        description: "Canonical composition, accessibility"
+        assertions: ["settings-ui.composition.*"]
+      - id: localization
+        name: "Localization"
+        description: "Visible content resolves to translations"
+        assertions: ["settings-ui.localization.*"]
+      - id: footer
+        name: "Footer and legal links"
+        description: "Footer structure, events/version, contextual legal navigation"
+        assertions: ["settings-ui.footer.*"]
+      - id: web-apple-parity
+        name: "Web and Apple shell parity"
+        description: "Shared shell behavior"
+        assertions: ["settings-ui.parity.*"]
+      - id: chat-share-settings
+        name: "Chat share settings"
+        description: "Chat settings share controls (other spec)"
+        assertions: ["chat-share-settings.*"]
+      - id: notification-settings
+        name: "Notification settings"
+        description: "Notification preferences and sounds (other spec)"
+        assertions: ["notifications.settings.*", "notifications.sounds.*"]
+      - id: language-settings
+        name: "Language settings"
+        description: "Language preference choice (other spec)"
+        assertions: ["language-preferences.manual-choice", "language-preferences.content-language"]
   - id: teams
     name: "Teams"
     kind: core
@@ -354,21 +571,21 @@ features:
     specifications: [feature.teams]
     flags: ["platform:teams"]
     release: unreleased
-    surfaces: {web: tested, apple: tested, cli: tested, tui: tested, rest_api: tested, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
   - id: terminal-ui
     name: "OpenMates Terminal UI"
     kind: core
     description: "The terminal UI: workspaces, rich chat content, offline browsing, pointer and keyboard navigation."
     specifications: [feature.terminal-ui, feature.terminal-pointer]
     release: untagged-main
-    surfaces: {web: not_planned, apple: not_planned, cli: tested, tui: tested, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: implemented, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: video-call
     name: "Chat-bound Voice And Video Calls"
     kind: core
     description: "Voice and video calls with the assistant, bound to an encrypted chat."
     specifications: [feature.video-call, feature.video-call-experiment]
     release: v0.19.0
-    surfaces: {web: live, apple: tested, watchos: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: webhooks
     name: "Webhooks"
     kind: core
@@ -376,7 +593,13 @@ features:
     specifications: []
     product_features: [webhooks]
     release: unverified
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      web: "settings/developers/SettingsWebhooks.svelte"
+      apple: "apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift (webhooks)"
+      cli: "openmates settings developers webhooks"
+      tui: "frontend/packages/openmates-tui-native/src/ui.rs settings route developers/webhooks"
+      rest_api: "backend/core/api/app/routers/webhooks.py /v1/webhooks (CRUD + incoming handler)"
     notes: "Advertised in product_features.yml; no Specification or test found. All surfaces unverified."
   - id: wikipedia-mentions
     name: "Wikipedia Mentions"
@@ -384,14 +607,17 @@ features:
     description: "@wiki mentions add up to three Wikipedia article summaries as reference context."
     specifications: [feature.wikipedia-mentions]
     release: v0.19.0
-    surfaces: {web: live, apple: unverified, cli: implemented, tui: unverified, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: in_progress, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift; no @wiki entry in MentionDropdownView"
+      tui: "frontend/packages/openmates-tui-native/src/ui.rs /wiki command, Link::Wiki in markdown"
   - id: workspace-shell
     name: "Workspace Shell"
     kind: core
     description: "The shared workspace header and shell around Chats and the other top-level workspaces."
     specifications: [feature.workspace-shell]
     release: v0.11.0-alpha
-    surfaces: {web: live, apple: tested, cli: not_planned, tui: tested, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: not_planned, tui: implemented, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: ai
     name: "AI"
     kind: app
@@ -399,7 +625,10 @@ features:
     specifications: [feature.app-skill.ai-decide]
     apps: [ai]
     release: v0.1-alpha-1
-    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: unverified, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "chat/Ask: AskOpenMatesIntent.swift, ChatView"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
   - id: audio
     name: "Audio"
     kind: app
@@ -408,7 +637,11 @@ features:
     apps: [audio]
     product_features: [audio-messages]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift (audio-generate/speak, recording), AppSkillUseRenderer"
+      cli: "openmates apps audio generate|speak"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-audio-speech-models.spec.ts]
   - id: books
@@ -418,7 +651,14 @@ features:
     specifications: []
     apps: [books]
     release: v0.1-alpha-1
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: in_progress, cli: implemented, tui: implemented, rest_api: not_planned, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      web: "focus modes in app store UI (app.yml); no dedicated embed"
+      apple: "apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift"
+      cli: "openmates apps books translate"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "src/generated/appSkills.ts apps.books (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.books (generic skill call)"
   - id: business
     name: "Business"
     kind: app
@@ -426,7 +666,12 @@ features:
     specifications: [feature.app-skill.trademark-search, feature.app-skill.investor-search, feature.app-skill.company-ownership]
     apps: [business]
     release: v0.19.0
-    surfaces: {web: live, apple: not_planned, cli: implemented, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift (business company_financials)"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "src/generated/appSkills.ts apps.business (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.business (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-business-trademarks-api.spec.ts, frontend/apps/web_app/tests/skill-business-trademarks-browser.spec.ts, frontend/apps/web_app/tests/skill-business-trademarks-workflow.spec.ts]
   - id: calendar
@@ -436,7 +681,10 @@ features:
     specifications: [feature.app-skills.calendar, feature.calendar-event-embeds]
     apps: [calendar]
     release: v0.12.0-alpha
-    surfaces: {web: live, apple: not_planned, cli: implemented, tui: unverified, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift:151 (calendar list/get/create/update/delete), EventEmbedRenderer, Core/Models/EmbedModels.swift app:calendar:*"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
   - id: code
     name: "Code"
     kind: app
@@ -445,7 +693,10 @@ features:
     apps: [code]
     product_features: [sandbox-code-execution]
     release: v0.1-alpha-1
-    surfaces: {web: live, apple: tested, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: implemented, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_pypi: "generated/app_skills.py apps.code (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-code-docs.spec.ts, frontend/apps/web_app/tests/skill-code-search-repos.spec.ts]
   - id: design
@@ -455,7 +706,13 @@ features:
     specifications: [feature.app-skill.design-embroidery]
     apps: [design]
     release: v0.19.0
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/DesignEmbroideryEmbedRenderer.swift, app:design:search_icons"
+      cli: "openmates apps design search_icons|export-icon"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "sdk.design facade (npm)"
+      sdk_pypi: "sdk.design facade (py)"
   - id: diagrams
     name: "Diagrams"
     kind: app
@@ -463,7 +720,14 @@ features:
     specifications: []
     apps: [diagrams]
     release: untagged-main
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: in_progress, tui: in_progress, rest_api: not_planned, sdk_npm: implemented, sdk_pypi: in_progress}
+    evidence:
+      web: "embeds/diagrams/*Embed*.svelte"
+      apple: "apple/OpenMates/Sources/Core/Models/EmbedModels.swift diagrams-mermaid; Embeds/Views/EmbedPreviewCard.swift"
+      cli: "cli/src/diagramHtml.ts renders embeds only; no apps diagrams command"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
+      sdk_pypi: "sdk.py _run_app_skill is private; no generated namespace"
   - id: docs
     name: "Docs"
     kind: app
@@ -471,7 +735,11 @@ features:
     specifications: [feature.doc-editor]
     apps: [docs]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/DocumentCanvas.swift, EmbedType.docsDoc"
+      sdk_npm: "sdk.docs facade (npm)"
+      sdk_pypi: "sdk.docs facade (py)"
   - id: electronics
     name: "Electronics"
     kind: app
@@ -479,7 +747,14 @@ features:
     specifications: []
     apps: [electronics]
     release: v0.11.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/EmbedType electronics-pcb-schematic/component, DevPCBSchematicActionsFixture"
+      cli: "openmates apps electronics search_components"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/electronics/skills"
+      sdk_npm: "src/generated/appSkills.ts apps.electronics (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.electronics (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-electronics-search-components.spec.ts]
   - id: events
@@ -491,7 +766,12 @@ features:
     flags: ["skill:events:search"]
     product_features: [events-search]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: implemented, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      cli: "openmates apps events search"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "src/generated/appSkills.ts apps.events (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.events (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-events-search.spec.ts]
   - id: file
@@ -501,7 +781,14 @@ features:
     specifications: []
     apps: [file]
     release: v0.19.0
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: in_progress, tui: implemented, rest_api: not_planned, sdk_npm: implemented, sdk_pypi: in_progress}
+    evidence:
+      web: "embeds/file/FileEmbed*.svelte"
+      apple: "apple/OpenMates/Sources/EmbedType file-file, Embeds/Grouping/NativeEmbedDownload.swift"
+      cli: "cli/src/fileEmbed.ts embed handling; no command"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
+      sdk_pypi: "sdk.py _run_app_skill is private; no generated namespace"
   - id: finance
     name: "Finance"
     kind: app
@@ -509,7 +796,15 @@ features:
     specifications: []
     apps: [finance]
     release: v0.19.0
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      web: "embeds/finance/FinanceCheckAccounts*.svelte"
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift (finance), SearchEmbedModels.swift"
+      cli: "openmates finance check-accounts"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/finance/skills"
+      sdk_npm: "sdk.finance facade (npm)"
+      sdk_pypi: "sdk.finance facade (py)"
   - id: fitness
     name: "Fitness"
     kind: app
@@ -517,7 +812,14 @@ features:
     specifications: []
     apps: [fitness]
     release: v0.1-alpha-1
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift:147, PlaceRenderers.swift"
+      cli: "openmates apps fitness search_classes|search_locations"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/fitness/skills"
+      sdk_npm: "src/generated/appSkills.ts apps.fitness (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.fitness (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-fitness-class-search.spec.ts, frontend/apps/web_app/tests/skill-fitness-unavailable.spec.ts]
   - id: health
@@ -527,7 +829,13 @@ features:
     specifications: [feature.app-skill.health-search-appointments]
     apps: [health]
     release: v0.1-alpha-1
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Embeds/Grouping/EmbedFullscreenContainer.swift health search_appointments, HealthSearchIntent"
+      cli: "openmates apps health search_appointments"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "src/generated/appSkills.ts apps.health (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.health (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-health-appointments.spec.ts]
   - id: home
@@ -537,7 +845,12 @@ features:
     specifications: [feature.app-skill.home-search]
     apps: [home]
     release: v0.8.0-alpha
-    surfaces: {web: live, apple: not_planned, cli: implemented, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/EmbedType home-listing, Core/Intents/Skills/HomeSearchIntent.swift"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "src/generated/appSkills.ts apps.home (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.home (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-home-search.spec.ts]
   - id: hosting
@@ -547,7 +860,9 @@ features:
     specifications: [feature.app-skill.hosting-search-domains]
     apps: [hosting]
     release: untagged-main
-    surfaces: {web: live, apple: tested, cli: implemented, tui: unverified, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-hosting-search-api.spec.ts, frontend/apps/web_app/tests/skill-hosting-search-workflow.spec.ts]
   - id: ideabucket
@@ -557,7 +872,14 @@ features:
     specifications: []
     apps: [ideabucket]
     release: v0.19.0
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: not_planned, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      web: "ActiveChat.svelte, MessageInput.svelte, chats/Chat.svelte references"
+      cli: "openmates ideabucket add|audio|process|status"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "routes/ideabucket.py /v1/ideabucket buckets add/list/process"
+      sdk_npm: "sdk.ideabucket facade (npm)"
+      sdk_pypi: "sdk.ideabucket facade (py)"
   - id: images
     name: "Images"
     kind: app
@@ -565,7 +887,11 @@ features:
     specifications: [feature.app-skill.images-generate, feature.app-skill.images-modify, feature.app-skill.images-view]
     apps: [images]
     release: v0.1-alpha-1
-    surfaces: {web: live, apple: implemented, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "src/generated/appSkills.ts apps.images (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.images (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-images-generate-safety-upload.spec.ts, frontend/apps/web_app/tests/skill-images-generate-safety.spec.ts, frontend/apps/web_app/tests/skill-images-search.spec.ts]
   - id: jobs
@@ -575,7 +901,14 @@ features:
     specifications: []
     apps: [jobs]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/JobsEmbedRenderers.swift"
+      cli: "openmates apps jobs search"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/jobs/skills"
+      sdk_npm: "src/generated/appSkills.ts apps.jobs (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.jobs (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-jobs-search-api.spec.ts]
   - id: life-coaching
@@ -585,7 +918,13 @@ features:
     specifications: []
     apps: [life_coaching]
     release: unreleased
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: in_progress, cli: not_planned, tui: implemented, rest_api: not_planned, sdk_npm: implemented, sdk_pypi: in_progress}
+    evidence:
+      web: "focus modes in app store UI (app.yml); no dedicated embed"
+      apple: "apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
+      sdk_pypi: "sdk.py _run_app_skill is private; no generated namespace"
   - id: mail
     name: "Mail"
     kind: app
@@ -593,7 +932,14 @@ features:
     specifications: []
     apps: [mail]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/MailEmbedModel.swift, MailDraftText.swift, MailSearchIntent"
+      cli: "openmates apps mail search"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/mail/skills"
+      sdk_npm: "src/generated/appSkills.ts apps.mail (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.mail (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-mail-search.spec.ts]
   - id: maps
@@ -603,7 +949,10 @@ features:
     specifications: [feature.app-skill.maps-search]
     apps: [maps]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: tested, tui: unverified, rest_api: live, sdk_npm: tested, sdk_pypi: tested}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/MapsSearchEmbedRenderer.swift, MapsEmbedRenderer.swift"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
   - id: math
     name: "Math"
     kind: app
@@ -611,7 +960,14 @@ features:
     specifications: []
     apps: [math]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/EmbedType math-plot, MathCalculateIntent.swift"
+      cli: "openmates apps math calculate"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/math/skills"
+      sdk_npm: "src/generated/appSkills.ts apps.math (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.math (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-math-calculate.spec.ts]
   - id: mindmaps
@@ -621,7 +977,13 @@ features:
     specifications: []
     apps: [mindmaps]
     release: v0.13.0-alpha
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: not_planned, tui: in_progress, rest_api: not_planned, sdk_npm: implemented, sdk_pypi: in_progress}
+    evidence:
+      web: "embeds/mindmaps/MindMapCanvas.svelte"
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
+      sdk_pypi: "sdk.py _run_app_skill is private; no generated namespace"
   - id: models3d
     name: "3D Models"
     kind: app
@@ -630,7 +992,15 @@ features:
     apps: [models3d]
     flags: ["skill:models3d:generate"]
     release: v0.19.0
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: in_progress, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      web: "embeds/models3d/Model3DSearchEmbed*.svelte"
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift (models3d)"
+      cli: "openmates apps models3d search"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/models3d/skills"
+      sdk_npm: "src/generated/appSkills.ts apps.models3d (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.models3d (generic skill call)"
   - id: music
     name: "Music"
     kind: app
@@ -638,7 +1008,14 @@ features:
     specifications: []
     apps: [music]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift app:music:generate, MediaRenderers.swift"
+      cli: "openmates apps music generate"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/music/skills"
+      sdk_npm: "src/generated/appSkills.ts apps.music (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.music (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-music-generate.spec.ts]
   - id: news
@@ -648,7 +1025,12 @@ features:
     specifications: [feature.app-skill.news-search]
     apps: [news]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/NewsSearchEmbedRenderer.swift, NewsEmbedRenderer.swift"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "src/generated/appSkills.ts apps.news (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.news (generic skill call)"
   - id: nutrition
     name: "Nutrition"
     kind: app
@@ -656,7 +1038,15 @@ features:
     specifications: []
     apps: [nutrition]
     release: v0.1-alpha-1
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      web: "embeds/nutrition/*.svelte"
+      apple: "apple/OpenMates/Sources/EmbedType nutrition-recipe, PlaceRenderers.swift"
+      cli: "openmates apps nutrition search_recipes"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/nutrition/skills"
+      sdk_npm: "src/generated/appSkills.ts apps.nutrition (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.nutrition (generic skill call)"
   - id: openmates
     name: "OpenMates"
     kind: app
@@ -665,7 +1055,12 @@ features:
     apps: [openmates]
     flags: ["skill:openmates:get-docs"]
     release: v0.5.0-alpha
-    surfaces: {web: tested, apple: not_planned, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: not_planned, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      cli: "openmates apps openmates get-docs|share-usecase"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "generated apps.openmates skills (generic skill call)"
+      sdk_pypi: "generated apps.openmates skills (generic skill call)"
   - id: pdf
     name: "PDF"
     kind: app
@@ -674,7 +1069,13 @@ features:
     apps: [pdf]
     product_features: [document-upload]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/EmbedType pdf, EmbedFullscreenContainer.swift"
+      cli: "openmates apps pdf read|search|view"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "src/generated/appSkills.ts apps.pdf (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.pdf (generic skill call)"
   - id: plans
     name: "Plans"
     kind: app
@@ -683,7 +1084,9 @@ features:
     apps: [plans]
     flags: ["platform:plans"]
     release: unreleased
-    surfaces: {web: tested, apple: tested, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
   - id: plants
     name: "Plants"
     kind: app
@@ -691,7 +1094,13 @@ features:
     specifications: []
     apps: [plants]
     release: unreleased
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: in_progress, cli: not_planned, tui: implemented, rest_api: not_planned, sdk_npm: implemented, sdk_pypi: in_progress}
+    evidence:
+      web: "focus modes in app store UI (app.yml); no dedicated embed"
+      apple: "apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
+      sdk_pypi: "sdk.py _run_app_skill is private; no generated namespace"
   - id: politics
     name: "Politics"
     kind: app
@@ -699,7 +1108,13 @@ features:
     specifications: []
     apps: [politics]
     release: v0.5.0-alpha
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: in_progress, cli: not_planned, tui: implemented, rest_api: not_planned, sdk_npm: implemented, sdk_pypi: in_progress}
+    evidence:
+      web: "focus modes in app store UI (app.yml); no dedicated embed"
+      apple: "apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
+      sdk_pypi: "sdk.py _run_app_skill is private; no generated namespace"
   - id: projects
     name: "Projects"
     kind: app
@@ -708,7 +1123,44 @@ features:
     apps: [projects]
     flags: ["platform:projects"]
     release: unreleased
-    surfaces: {web: tested, apple: tested, cli: tested, tui: tested, rest_api: tested, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    subfeatures:
+      - id: project-lifecycle
+        name: "Create and manage projects"
+        description: "Encrypted CRUD, creation, keys, associations, links"
+        assertions: ["projects.lifecycle.*", "projects.creation.*", "projects.keys.*", "projects.association.*", "projects.links.*", "projects.uploads.*"]
+      - id: file-reading-search
+        name: "Project files and search"
+        description: "Search scope/consistency, embed adoption, previews, items"
+        assertions: ["projects.files.adopt-embed", "projects.files.application-single-source", "projects.files.connected-embed-previews", "projects.files.ignored-exact-inclusion", "projects.files.private-path-deny", "projects.files.search-*", "projects.items.*"]
+      - id: file-editing
+        name: "Agent file edits"
+        description: "Exact patch, rename/delete, expected base, commit replay, server-owned fields, user edits"
+        assertions: ["projects.files.exact-patch", "projects.files.rename-delete", "projects.files.expected-base", "projects.files.commit-replay", "projects.files.hosted-ciphertext-commit", "projects.files.server-owned-fields", "projects.files.short-write-turn", "projects.files.user-edit-direct", "projects.files.no-server-decryption-authority", "projects.files.chat-focus-required"]
+      - id: conflicts-recovery
+        name: "Conflicts and recovery"
+        description: "Conflict decisions, concurrent safety, automatic recovery"
+        assertions: ["projects.files.conflict-decision", "projects.files.concurrent-chat-safety", "projects.files.automatic-recovery", "projects.files.recovery-authorization"]
+      - id: write-policy
+        name: "Write policy"
+        description: "Write policy setup, settings, enforcement"
+        assertions: ["projects.files.write-policy-*"]
+      - id: executor-wait
+        name: "Waiting for executor"
+        description: "Wait deadlines, email, expiry, result reconciliation"
+        assertions: ["projects.files.executor-wait", "projects.files.wait-*"]
+      - id: focus-modes
+        name: "Project focus modes"
+        description: "Focus selection, mentions, consent, custom catalog"
+        assertions: ["projects.focus.*"]
+      - id: agentic-runs
+        name: "Agentic runs and checks"
+        description: "Long turns, test results, checks, workspace chain, remote access"
+        assertions: ["projects.agentic.*", "projects.checks.*", "projects.workspace.*", "projects.remote-access.*", "projects.sources.*", "projects.history.*"]
+      - id: access-and-memories
+        name: "Access, memories and parity"
+        description: "Explicit context, memories, catalog reuse, parity"
+        assertions: ["projects.access.*", "projects.memories.*", "projects.surfaces.*", "projects.surface.*"]
   - id: reminder
     name: "Reminder"
     kind: app
@@ -716,7 +1168,14 @@ features:
     specifications: []
     apps: [reminder]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift:79, Features/Chat/Views/ReminderView.swift, ReminderIntents"
+      cli: "openmates apps reminder set|list|cancel"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/reminder/skills"
+      sdk_npm: "src/generated/appSkills.ts apps.reminder (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.reminder (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-reminder-set.spec.ts]
   - id: shopping
@@ -726,7 +1185,13 @@ features:
     specifications: [feature.app-skill.shopping-search]
     apps: [shopping]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/EmbedType shopping-product, ShoppingSearchIntent"
+      cli: "openmates apps shopping search_products"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "src/generated/appSkills.ts apps.shopping (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.shopping (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-shopping-search.spec.ts]
   - id: slides
@@ -736,7 +1201,10 @@ features:
     specifications: [feature.slides]
     apps: [slides]
     release: untagged-main
-    surfaces: {web: live, apple: implemented, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: not_planned, tui: in_progress, rest_api: implemented, sdk_npm: implemented, sdk_pypi: not_planned}
+    evidence:
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
   - id: social-media
     name: "Social Media"
     kind: app
@@ -744,7 +1212,15 @@ features:
     specifications: []
     apps: [social_media]
     release: v0.5.0-alpha
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      web: "embeds/social_media + app skills"
+      apple: "apple/OpenMates/Sources/EmbedType social-media-post, MiscRenderers.swift"
+      cli: "openmates apps social_media search|get-posts"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/social_media/skills"
+      sdk_npm: "src/generated/appSkills.ts apps.social_media (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.social_media (generic skill call)"
   - id: study
     name: "Study"
     kind: app
@@ -752,7 +1228,13 @@ features:
     specifications: []
     apps: [study]
     release: v0.5.0-alpha
-    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: in_progress, cli: not_planned, tui: implemented, rest_api: not_planned, sdk_npm: implemented, sdk_pypi: in_progress}
+    evidence:
+      web: "focus modes in app store UI (app.yml); no dedicated embed"
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift (wiki maps to study), FocusModeView"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
+      sdk_pypi: "sdk.py _run_app_skill is private; no generated namespace"
   - id: tasks
     name: "Tasks"
     kind: app
@@ -761,7 +1243,7 @@ features:
     apps: [tasks]
     flags: ["platform:tasks"]
     release: unreleased
-    surfaces: {web: tested, apple: tested, cli: tested, tui: tested, rest_api: tested, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
   - id: travel
     name: "Travel"
     kind: app
@@ -770,7 +1252,12 @@ features:
     apps: [travel]
     flags: ["skill:travel:get_flight"]
     release: v0.1-alpha-1
-    surfaces: {web: live, apple: implemented, cli: implemented, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/travel/skills"
+      sdk_npm: "src/generated/appSkills.ts apps.travel (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.travel (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-travel-connections.spec.ts, frontend/apps/web_app/tests/skill-travel-stays.spec.ts, frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts]
   - id: tv
@@ -780,7 +1267,11 @@ features:
     specifications: [feature.tv-title-embeds]
     apps: [tv]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: not_planned, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: planned, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: in_progress}
+    evidence:
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
+      sdk_pypi: "sdk.py _run_app_skill is private; no generated namespace"
   - id: videos
     name: "Videos"
     kind: app
@@ -788,7 +1279,12 @@ features:
     specifications: [feature.app-skill.videos-generate, feature.app-skill.videos-get-transcript]
     apps: [videos]
     release: v0.1-alpha-1
-    surfaces: {web: live, apple: tested, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      cli: "openmates apps videos search|generate|get_transcript"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      sdk_npm: "src/generated/appSkills.ts apps.videos (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.videos (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-videos-search.spec.ts, frontend/apps/web_app/tests/skill-videos-transcript.spec.ts]
   - id: weather
@@ -798,7 +1294,14 @@ features:
     specifications: []
     apps: [weather]
     release: v0.1-alpha-1
-    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift weather forecast/rain_radar"
+      cli: "openmates apps weather forecast|rain_radar"
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+      rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/weather/skills"
+      sdk_npm: "src/generated/appSkills.ts apps.weather (generic skill call)"
+      sdk_pypi: "generated/app_skills.py apps.weather (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-weather-forecast.spec.ts, frontend/apps/web_app/tests/skill-weather-rain-radar.spec.ts]
   - id: web
@@ -808,7 +1311,9 @@ features:
     specifications: [feature.app-skill.web-search, feature.app-skill.web-read, feature.app-skill.web-browse]
     apps: [web]
     release: v0.1-alpha-1
-    surfaces: {web: live, apple: tested, cli: tested, tui: unverified, rest_api: live, sdk_npm: tested, sdk_pypi: tested}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-web-read.spec.ts]
   - id: workflows
@@ -819,7 +1324,7 @@ features:
     apps: [workflows]
     flags: ["platform:workflows"]
     release: v0.14.0-alpha
-    surfaces: {web: live, apple: tested, cli: tested, tui: tested, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
   - id: apple-controls
     name: "Apple system Controls"
     kind: apple
@@ -827,7 +1332,7 @@ features:
     specifications: [feature.apple-controls]
     flags: ["platform:ios"]
     release: unreleased
-    surfaces: {web: not_planned, apple: tested, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: implemented, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: apple-live-activities
     name: "Apple Live Activities and Active chats widgets"
     kind: apple
@@ -835,7 +1340,7 @@ features:
     specifications: [feature.apple-live-activities]
     flags: ["platform:ios"]
     release: unreleased
-    surfaces: {web: not_planned, apple: tested, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: implemented, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: apple-local-model-lab
     name: "Apple optional local model laboratory"
     kind: apple
@@ -843,7 +1348,7 @@ features:
     specifications: [feature.apple-local-model-lab]
     flags: ["platform:ios"]
     release: unreleased
-    surfaces: {web: not_planned, apple: tested, watchos: tested, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: implemented, watchos: implemented, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: apple-notifications
     name: "Apple Push Notifications"
     kind: apple
@@ -851,7 +1356,7 @@ features:
     specifications: [feature.apple-notifications]
     flags: ["platform:ios"]
     release: unreleased
-    surfaces: {web: not_planned, apple: tested, watchos: tested, cli: not_planned, tui: not_planned, rest_api: tested, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: implemented, watchos: implemented, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: apple-offline-workspaces
     name: "Apple offline workspaces"
     kind: apple
@@ -859,7 +1364,7 @@ features:
     specifications: [feature.apple-offline-workspaces]
     flags: ["platform:ios"]
     release: unreleased
-    surfaces: {web: not_planned, apple: tested, watchos: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: implemented, watchos: implemented, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: apple-recent-offline-chats
     name: "Apple recent chat offline cache"
     kind: apple
@@ -875,7 +1380,7 @@ features:
     specifications: [feature.apple-task-board-interactions]
     flags: ["platform:ios"]
     release: unreleased
-    surfaces: {web: not_planned, apple: tested, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: implemented, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: apple-tasks-widget
     name: "Apple Tasks widget"
     kind: apple
@@ -883,7 +1388,7 @@ features:
     specifications: [feature.apple-tasks-widget]
     flags: ["platform:ios"]
     release: unreleased
-    surfaces: {web: not_planned, apple: tested, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: implemented, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: apple-watch
     name: "Apple Watch companion"
     kind: apple
@@ -891,7 +1396,7 @@ features:
     specifications: [feature.apple-watch]
     flags: ["platform:apple-watch"]
     release: unreleased
-    surfaces: {web: not_planned, apple: implemented, watchos: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: implemented, watchos: implemented, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: apple-workflow-widget
     name: "Apple Workflow widget"
     kind: apple
@@ -899,35 +1404,50 @@ features:
     specifications: [feature.apple-workflow-widget]
     flags: ["platform:ios"]
     release: unreleased
-    surfaces: {web: not_planned, apple: tested, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: implemented, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: app-skill-execution
     name: "App Skill Execution"
     kind: platform
     description: "Runs app skills through one validated contract and sanitises provider output before clients or the AI see it."
     specifications: [architecture.app-skill-execution]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: implemented, cli: tested, tui: tested, rest_api: live, sdk_npm: tested, sdk_pypi: tested}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
   - id: client-core
     name: "One Rust Client Core, Three Thin Shells"
     kind: platform
     description: "One shared Rust client core for transport, sync, crypto, cache, drafts and send, used by web, Apple and CLI/TUI."
     specifications: [architecture.client-core]
     release: unverified
-    surfaces: {web: unverified, apple: implemented, cli: unverified, tui: unverified, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      web: "frontend/packages/ui/src/services/rustCore/*"
+      cli: "packages/openmates-tui-native uses Rust openmates-sdk"
+      tui: "frontend/packages/openmates-tui-native/src/runtime_core_host.rs, runtime.rs (Rust client core host)"
   - id: connected-accounts
     name: "Connected Accounts"
     kind: platform
     description: "One provider-neutral account and authorization contract serves Calendar, Code, Finance, and other connected apps."
     specifications: [architecture.connected-accounts]
     release: v0.12.0-alpha
-    surfaces: {web: live, apple: not_planned, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: in_progress, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "apple/OpenMates/Sources/Features/Settings/Privacy/SettingsConnectedAccountsView.swift"
+      cli: "openmates connect-account / connected-accounts"
+      tui: "frontend/packages/openmates-tui-native/src/cli/connected_accounts.rs (CLI); not in ui.rs"
+      sdk_npm: "connectedAccounts facade; run_connected_account_skill"
+      sdk_pypi: "connectedAccounts facade; run_connected_account_skill"
   - id: drafts
     name: "Chat Drafts"
     kind: platform
     description: "Authenticated first-party clients persist, synchronize, present, send, and clear chat drafts as encrypted per-user state."
     specifications: [architecture.drafts]
     release: v0.10.0-alpha
-    surfaces: {web: live, apple: tested, watchos: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      cli: "openmates drafts list|get|create|update|clear|sync"
+      tui: "frontend/packages/openmates-tui-native/src/ui.rs drafts map, Editor draft persistence"
+      sdk_npm: "sdk.drafts facade; session.drafts.v1 capability"
+      sdk_pypi: "sdk.drafts facade; session.drafts.v1 capability"
   - id: security-reporting
     name: "Deterministic Daily Security Reporting"
     kind: platform
@@ -941,7 +1461,9 @@ features:
     description: "The CLI installs, configures, updates, backs up and restores OpenMates servers."
     specifications: [architecture.server-management]
     release: v0.11.0-alpha
-    surfaces: {web: not_planned, apple: not_planned, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: in_progress, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      tui: "frontend/packages/openmates-tui-native/src/server/*.rs (CLI `server` commands, not interactive UI)"
   - id: session-owner-consistency
     name: "Session Owner Consistency"
     kind: platform
@@ -955,63 +1477,73 @@ features:
     description: "Regional, tiered storage of encrypted data with bounded caches and archived history."
     specifications: [architecture.storage-lifecycle]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: tested, watchos: implemented, cli: tested, tui: unverified, rest_api: live, sdk_npm: implemented, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: in_progress}
+    evidence:
+      tui: "frontend/packages/openmates-tui-native/src/storage.rs, runtime_store.rs, cache_persistence_tests.rs"
+      sdk_pypi: "session_client/essential_session storage handling"
   - id: storage-resilience
     name: "Object Storage Outage Resilience"
     kind: platform
     description: "The API and text AI keep working while object storage is down; storage-dependent work fails safely."
     specifications: [architecture.storage-resilience]
     release: unverified
-    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: sync
     name: "Chat Sync Startup And Incremental Feed"
     kind: platform
     description: "Fast chat sync at start-up (due items, last chat, recent chats) plus an incremental feed."
     specifications: [architecture.sync]
     release: v0.10.0-alpha
-    surfaces: {web: live, apple: tested, watchos: tested, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: implemented, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      tui: "frontend/packages/openmates-tui-native/src/runtime_core_host.rs, session_runtime.rs, Refresh commands"
+      sdk_pypi: "startup_sync.py, session.initial-startup-sync.v1"
   - id: ai-request-observability
     name: "AI Request Observability"
     kind: internal
     description: "Content-free metrics and traces for AI request latency, tokens, tools and cost."
     specifications: [architecture.ai-request-observability]
     release: untagged-main
-    surfaces: {web: implemented, apple: not_planned, cli: implemented, tui: unverified, rest_api: live, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: not_planned, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: daily-ai-test-inference
     name: "Cost-Safe Daily AI Inference Testing"
     kind: internal
     description: "Daily full-pipeline tests without paid calls, plus capped real-inference canaries."
     specifications: [architecture.daily-ai-test-inference]
     release: v0.19.0
-    surfaces: {web: implemented, apple: not_planned, cli: tested, tui: unverified, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: not_planned, cli: implemented, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: operational-monitoring
     name: "Operational Monitoring And Operator Alerts"
     kind: internal
     description: "Daily privacy-safe health report and urgent alerts for operators."
     specifications: [architecture.operational-monitoring]
     release: untagged-main
-    surfaces: {web: live, apple: not_planned, cli: implemented, tui: unverified, rest_api: live, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: not_planned, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: security-monitoring
     name: "Automated Security Monitoring and Guarded Remediation"
     kind: internal
     description: "Hourly matching of security advisories against everything OpenMates runs, with guarded fixes."
     specifications: [architecture.security-monitoring]
     release: unverified
-    surfaces: {web: not_planned, apple: not_planned, cli: unverified, tui: unverified, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      cli: "openmates server monitoring run|status|digest"
   - id: specifications
     name: "Specifications"
     kind: internal
     description: "Specifications are versioned, approval-bound definitions of durable product truth."
     specifications: [feature.specifications]
     release: v0.19.0
-    surfaces: {web: live, apple: tested, cli: unverified, tui: unverified, rest_api: live, sdk_npm: unverified, sdk_pypi: unverified}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      cli: "openmates specifications list|show|create|revise|approve"
   - id: test-orchestration
     name: "Daily Test Orchestration And Recovery"
     kind: internal
     description: "Scheduled test runs with critical flows first, truthful outcomes and recovery."
     specifications: [architecture.test-orchestration]
     release: unverified
-    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: unverified, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: surface-cli
     name: "CLI Surface"
     kind: surface
@@ -1019,7 +1551,7 @@ features:
     specifications: [surface.cli]
     product_features: [cli-parity]
     release: v0.7.0-alpha
-    surfaces: {web: unverified, apple: not_planned, cli: tested, tui: tested, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
   - id: surface-sdk
     name: "SDK Surface"
     kind: surface
@@ -1027,4 +1559,6 @@ features:
     specifications: [surface.sdk]
     product_features: [rest-api]
     release: v0.5.0-alpha
-    surfaces: {web: live, apple: unverified, cli: implemented, tui: unverified, rest_api: live, sdk_npm: tested, sdk_pypi: tested}
+    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    evidence:
+      apple: "packages/openmates-apple-bindings (UniFFI) consumed by Swift shell"

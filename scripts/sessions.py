@@ -10888,7 +10888,7 @@ def _feature_overview_check(files: list[str], *, checkout_root: Path | None = No
         return 0, "Feature overview: ok (feature_overview.py --check)\n", err
     hint = (
         "\nFeature overview check failed. Every Specification and backend app needs an entry in "
-        "specifications/features.yml, and a surface marked tested/live needs a test on that surface. "
+        "specifications/features.yml; surfaces hold intents (tested/live are derived from tests and CI results). "
         "Update the entry in the same commit (stub: python3 scripts/feature_overview.py suggest <spec-id|app:id>).\n"
     )
     return rc, out, err + hint
@@ -11609,6 +11609,8 @@ SPECIFICATION_GENERATED_FILES = (
 # Non-Specification inputs of the feature overview (scripts/feature_overview.py).
 FEATURE_OVERVIEW_EXTRA_INPUTS = (
     "scripts/feature_overview.py",
+    "scripts/feature_overview_cells.py",
+    "scripts/feature_overview_results.py",
     "frontend/packages/ui/src/data/product_features.yml",
     "frontend/packages/ui/src/i18n/sources/apps.yml",
     "backend/config/backend_config.yml",
