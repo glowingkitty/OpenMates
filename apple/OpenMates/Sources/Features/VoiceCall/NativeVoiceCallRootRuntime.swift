@@ -57,6 +57,9 @@ final class NativeVoiceCallRootPresentation: ObservableObject {
     @Published var toolWorking = false
     /// Chat whose view currently renders the call strip itself.
     @Published var stripHostedChatID: String?
+    /// Chat whose call the global header pill currently represents; web renders
+    /// no floating bar while the pill is shown (`showGlobalVoiceCall`).
+    @Published var headerPillChatID: String?
 }
 
 @MainActor
@@ -306,7 +309,9 @@ private struct NativeVoiceCallRootOverlayContent: View {
         ZStack {
             if let coordinator = runtime.coordinator {
                 NativeVoiceCallOverlay(coordinator: coordinator, returnToChat: returnToChat,
-                    stripHostedInChat: coordinator.boundChatID != nil && presentation.stripHostedChatID == coordinator.boundChatID)
+                    stripHostedInChat: coordinator.boundChatID.map {
+                        presentation.stripHostedChatID == $0 || presentation.headerPillChatID == $0
+                    } ?? false)
                 if presentation.toolWorking || presentation.creditsCharged != nil {
                     VStack {
                         Spacer()

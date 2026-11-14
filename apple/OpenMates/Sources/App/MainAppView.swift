@@ -3122,7 +3122,10 @@ struct MainAppView: View {
                 connectionAuthenticated: isAuthenticated,
                 connectionCheckingAuth: authManager.sessionValidationState == .validating,
                 connectionAuthenticationPresented: isConnectionAuthenticationPresented,
-                onReconnect: retryNativeConnection
+                onReconnect: retryNativeConnection,
+                onReturnToCallChat: { chatID in
+                    selectedWorkspace = .chat; selectedChatId = chatID; showNewChat = false
+                }
             )
             // Native short-keyboard adaptation: retain header/editor identity
             // while yielding the chrome's height to the keyboard-safe workspace.
@@ -7723,6 +7726,7 @@ private struct NativeHeaderSyncIndicator: View {
 struct OpenMatesWebHeader: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.openURL) private var openURL
+    @Environment(\.nativeVoiceCallRuntime) private var voiceCallRuntime
 
     let viewportWidth: CGFloat
     let viewportHeight: CGFloat
@@ -7747,6 +7751,9 @@ struct OpenMatesWebHeader: View {
     var connectionCheckingAuth = false
     var connectionAuthenticationPresented = false
     var onReconnect: () -> Void = {}
+    /// Opens the chat bound to the running call (header call pill).
+    var onReturnToCallChat: (String) -> Void = { _ in }
+    @State private var callPillVisible = false
     @State private var headerConnectionState: NativeConnectionFeedbackState = .idle
     private static let compactHeaderMaxWidth: CGFloat = 894
     @State private var leadingControlsWidth: CGFloat = 0
@@ -7764,7 +7771,7 @@ struct OpenMatesWebHeader: View {
         NativeHeaderControlsLayoutPolicy.presentation(headerWidth: viewportWidth,
             leadingRequiredWidth: isChatsPanelOpen ? 0 : 44,
             logoWidth: intrinsicLogoWidth, trailingRequiredWidth: requiredTrailingWidth,
-            giftWidth: isAuthenticated ? intrinsicGiftWidth : 0)
+            giftWidth: isAuthenticated ? intrinsicGiftWidth : 0, logoRequired: callPillVisible)
     }
     private var centerWidth: CGFloat {
         if isAuthenticated, showWorkspaceSwitcher { return controlsLayout.centerWidth }
@@ -7772,7 +7779,7 @@ struct OpenMatesWebHeader: View {
             leadingWidth: leadingControlsWidth, trailingWidth: trailingControlsWidth)
     }
     private var showsHeaderLogo: Bool {
-        !isAuthenticated || !showWorkspaceSwitcher || controlsLayout.showsLogo
+        callPillVisible || !isAuthenticated || !showWorkspaceSwitcher || controlsLayout.showsLogo
     }
     private var showsHeaderGift: Bool {
         !showWorkspaceSwitcher || controlsLayout.showsGift
@@ -7799,7 +7806,7 @@ struct OpenMatesWebHeader: View {
                         .accessibilityLabel(LocalizationManager.shared.text("header.toggle_menu"))
                     }
 
-                    headerLogo
+                    headerBrandSlot
                         .fixedSize()
                         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { intrinsicLogoWidth = $0 }
                         .padding(.leading, isChatsPanelOpen ? 0 : .spacing4)
@@ -7922,6 +7929,22 @@ struct OpenMatesWebHeader: View {
         .padding(.top, .spacing5)
         .padding(.bottom, .spacing3)
         .background(Color.grey0)
+    }
+
+    /// Web Header brand slot: the call pill replaces the logo while a call's
+    /// bound chat is not on screen.
+    @ViewBuilder
+    private var headerBrandSlot: some View {
+#if !os(watchOS)
+        if let voiceCallRuntime {
+            NativeVoiceCallHeaderBrandSlot(runtime: voiceCallRuntime, onReturn: onReturnToCallChat,
+                                           onPillVisibilityChange: { callPillVisible = $0 }) { headerLogo }
+        } else {
+            headerLogo
+        }
+#else
+        headerLogo
+#endif
     }
 
     @ViewBuilder

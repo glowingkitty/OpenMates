@@ -95,6 +95,30 @@ final class NativeVoiceCallControlsUITests: XCTestCase {
         let fixed = XCTAttachment(screenshot: app.screenshot())
         fixed.name = "parity-strip-pinned"; fixed.lifetime = .keepAlways; add(fixed)
     }
+    // contract-test: direct surface=gui.apple assertions=video-call.chat.fixed-binding
+    func testHeaderPillReplacesBrandWhileBoundChatIsClosedAndReturnsToIt() {
+        let app = launch(variant: "native-voice-call-header-pill")
+        let pill = app.buttons["voice-call-pill"]
+        XCTAssertTrue(pill.waitForExistence(timeout: 10))
+        XCTAssertTrue(pill.isHittable)
+        let header = app.descendants(matching: .any)["fixture-global-header"]
+        XCTAssertTrue(header.exists)
+        XCTAssertTrue(header.frame.contains(CGPoint(x: pill.frame.midX, y: pill.frame.midY)), "pill sits in the header brand slot")
+        XCTAssertFalse(app.descendants(matching: .any)["fixture-header-brand"].exists, "pill replaces the brand mark")
+        XCTAssertEqual(app.descendants(matching: .any)["voice-call-pill-timer"].label, "00:15")
+        XCTAssertGreaterThanOrEqual(pill.frame.height, 40)
+        XCTAssertFalse(app.otherElements["voice-call-bar"].exists, "no floating call bar while the pill shows")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "parity-header-pill-390"; shot.lifetime = .keepAlways; add(shot)
+        pill.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["chat-header-banner"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["voice-call-bar"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.otherElements.matching(identifier: "voice-call-bar").count, 1, "the chat strip takes over")
+        XCTAssertTrue(app.descendants(matching: .any)["fixture-header-brand"].waitForExistence(timeout: 5), "brand returns")
+        XCTAssertFalse(app.buttons["voice-call-pill"].exists)
+        let returned = XCTAttachment(screenshot: app.screenshot())
+        returned.name = "parity-header-pill-returned-390"; returned.lifetime = .keepAlways; add(returned)
+    }
     // contract-test: supporting surface=gui.apple assertions=video-call.privacy.first-call-warning
     func testConsentBlocksCallControlsUntilExplicitContinue() {
         let app = launch(variant: "native-voice-call-consent")

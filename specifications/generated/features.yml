@@ -6307,9 +6307,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 7
+        passing: 8
         failing: 11
-        not_run: 5
+        not_run: 4
         missing: 1
         counted: 24
       failing_tests:

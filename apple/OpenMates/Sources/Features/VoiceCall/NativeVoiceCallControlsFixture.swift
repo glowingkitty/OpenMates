@@ -11,11 +11,14 @@ struct NativeVoiceCallControlsFixture: View {
     @StateObject private var coordinator: NativeVoiceCallAppCoordinator
     private let destination: NativeVoiceCallAppDestination
     private let chatLayout: Bool
+    private let headerPill: Bool
     @StateObject private var presentation = NativeVoiceCallRootPresentation()
     @State private var pinned = false
     @State private var moreOpen = false
-    init(consent: Bool = false, chatLayout: Bool = false) {
+    @State private var returnedToChat = false
+    init(consent: Bool = false, chatLayout: Bool = false, headerPill: Bool = false) {
         self.chatLayout = chatLayout
+        self.headerPill = headerPill
         let driver = NativeVoiceCallFixtureDriver(consent: consent)
         destination = .existing(chatID: driver.scope.chatID)
         _coordinator = StateObject(wrappedValue: NativeVoiceCallAppCoordinator(driver: driver,
@@ -23,7 +26,9 @@ struct NativeVoiceCallControlsFixture: View {
     }
     var body: some View {
         Group {
-            if chatLayout { chatHarness } else { NativeVoiceCallOverlay(coordinator: coordinator, returnToChat: { _ in }) }
+            if headerPill { headerPillHarness }
+            else if chatLayout { chatHarness }
+            else { NativeVoiceCallOverlay(coordinator: coordinator, returnToChat: { _ in }) }
         }
         .task { await coordinator.start(destination) }
     }
@@ -34,6 +39,31 @@ struct NativeVoiceCallControlsFixture: View {
             onMore: { moreOpen.toggle() }, onCloseChat: { moreOpen = false })
     }
     /// Chat header + scrollable transcript harness for the call-strip layout proof.
+    /// Global header with the production brand slot while the bound chat is closed;
+    /// the pill opens the chat, whose strip then takes over (web `showGlobalVoiceCall`).
+    private var headerPillHarness: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                NativeVoiceCallHeaderBrandSlotBody(coordinator: coordinator, presentation: presentation,
+                    onReturn: { _ in returnedToChat = true }) {
+                    Text(AppStrings.openMatesName).font(.omH3.weight(.bold))
+                        .foregroundStyle(LinearGradient.primary)
+                        .accessibilityIdentifier("fixture-header-brand")
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, .spacing8).frame(height: 60)
+            .background(Color.grey0).accessibilityElement(children: .contain)
+            .accessibilityIdentifier("fixture-global-header")
+            if returnedToChat { chatHarness } else { Color.grey10.frame(maxWidth: .infinity, maxHeight: .infinity) }
+        }
+        .overlay {
+            NativeVoiceCallOverlay(coordinator: coordinator, returnToChat: { _ in returnedToChat = true },
+                stripHostedInChat: coordinator.boundChatID.map {
+                    presentation.stripHostedChatID == $0 || presentation.headerPillChatID == $0
+                } ?? false)
+        }
+    }
     private var chatHarness: some View {
         let scroll = ScrollView {
             VStack(spacing: 0) {

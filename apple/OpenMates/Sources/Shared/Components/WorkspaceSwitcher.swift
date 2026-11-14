@@ -256,7 +256,7 @@ enum NativeHeaderControlsLayoutPolicy {
     }
     static func presentation(headerWidth: CGFloat, leadingRequiredWidth: CGFloat,
                              logoWidth: CGFloat, trailingRequiredWidth: CGFloat,
-                             giftWidth: CGFloat) -> Presentation {
+                             giftWidth: CGFloat, logoRequired: Bool = false) -> Presentation {
         func combined(_ required: CGFloat, _ optional: CGFloat) -> CGFloat {
             required + optional + (required > 0 && optional > 0 ? .spacing4 : 0)
         }
@@ -267,7 +267,9 @@ enum NativeHeaderControlsLayoutPolicy {
         }
         var logo = true
         var gift = giftWidth > 0
-        if lane(logo: logo, gift: gift) < WorkspaceSwitcherLayoutPolicy.compactWidth { logo = false }
+        // The call pill occupies the logo slot and is the call's only global
+        // control there (web Header `.voice-call-pill-visible`), so it never yields.
+        if !logoRequired, lane(logo: logo, gift: gift) < WorkspaceSwitcherLayoutPolicy.compactWidth { logo = false }
         if lane(logo: logo, gift: gift) < WorkspaceSwitcherLayoutPolicy.compactWidth { gift = false }
         let leading = combined(leadingRequiredWidth, logo ? logoWidth : 0)
         let trailing = combined(trailingRequiredWidth, gift ? giftWidth : 0)

@@ -392,6 +392,8 @@ private struct DevComponentPreviewCanvas: View {
             NativeVoiceCallControlsFixture()
         case .composer where configuration.variant == "native-voice-call-chat":
             NativeVoiceCallControlsFixture(chatLayout: true)
+        case .composer where configuration.variant == "native-voice-call-header-pill":
+            NativeVoiceCallControlsFixture(headerPill: true)
         case .composer where configuration.variant == "native-voice-call-consent":
             NativeVoiceCallControlsFixture(consent: true)
         case .composer where configuration.variant == "assistant-speech":

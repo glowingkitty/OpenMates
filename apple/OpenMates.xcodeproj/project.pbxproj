@@ -466,6 +466,7 @@
 		317F02FC065BFA656CAA0AA6 /* WhistlePCMRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB886998A5E3FCA4D04442A6 /* WhistlePCMRuntime.swift */; };
 		31DDCADD46872F4CC1140F35 /* NativeChatSendTiming.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69D12FEA23674C2472F007FC /* NativeChatSendTiming.swift */; };
 		31E2D37AB5BCAE9C588CDD35 /* ChatPaginationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D82141164C0949C2F8C28C00 /* ChatPaginationView.swift */; };
+		489C6A0416EDBFA6015D5D3F /* NativeVoiceCallHeaderPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C0B57192127EF2D090AFDAF /* NativeVoiceCallHeaderPill.swift */; };
 		31E58C829E5ADE4800FF2515 /* NativeVoiceCallControlsFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A35F6FA1804D3ED8969673F /* NativeVoiceCallControlsFixture.swift */; };
 		31E7B10051627D0BFC21F3B4 /* DevURLMessageEmbedFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED0350DF007AB3D46CEFD6B5 /* DevURLMessageEmbedFixture.swift */; };
 		31FBF86E3DC6B5BA4CECD0F0 /* AnonymousFreeUsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F6AAC55726DF6A742B7F5AB /* AnonymousFreeUsageService.swift */; };
@@ -750,6 +751,7 @@
 		59DD0732D299428231A643A8 /* PasskeyLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB03275320AE573452F949A0 /* PasskeyLoginView.swift */; };
 		59F549EA9B56C3014C3D603F /* WatchCanonicalStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D287CEB9C441DA7F7EC9BEA /* WatchCanonicalStorageTests.swift */; };
 		59FD1EA062A4B759E5AB64AC /* ShareLinkCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = D40DD8A5C184F58A6FB4241F /* ShareLinkCrypto.swift */; };
+		8876D95EB37EA5500583CB92 /* NativeVoiceCallHeaderPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C0B57192127EF2D090AFDAF /* NativeVoiceCallHeaderPill.swift */; };
 		5A0D2489AC8D784E9C05108B /* NativeVoiceCallControlsFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A35F6FA1804D3ED8969673F /* NativeVoiceCallControlsFixture.swift */; };
 		5A1BA307EEC3F47CAEF9DB98 /* ProjectREADMEUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F504F9D2401CECD18B491E /* ProjectREADMEUITests.swift */; };
 		5A3D80DB42D254399ED0712B /* DevChatContinuationLayoutFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B7AEA9EE267801EB36F3821 /* DevChatContinuationLayoutFixture.swift */; };
@@ -2480,6 +2482,7 @@
 		799AF953924B3F72673F09EF /* WorkflowGraphEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowGraphEditing.swift; sourceTree = "<group>"; };
 		79D0FCA50F637BAF540067F7 /* WebSocketManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketManager.swift; sourceTree = "<group>"; };
 		7A0B2B426E3F32E7DE1C8155 /* ControlProjectsBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlProjectsBridge.swift; sourceTree = "<group>"; };
+		3C0B57192127EF2D090AFDAF /* NativeVoiceCallHeaderPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeVoiceCallHeaderPill.swift; sourceTree = "<group>"; };
 		7A35F6FA1804D3ED8969673F /* NativeVoiceCallControlsFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeVoiceCallControlsFixture.swift; sourceTree = "<group>"; };
 		7A4465AB5D2F03103D7C571A /* ComposerSpeechControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerSpeechControl.swift; sourceTree = "<group>"; };
 		7B2E41DB640F33889EAE0735 /* ProgressiveMarkdownRenderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressiveMarkdownRenderTests.swift; sourceTree = "<group>"; };
@@ -4282,6 +4285,7 @@
 				6836EEA42F32C7F9D26E2A7D /* NativeVoiceCallAppFactory.swift */,
 				09929E2AE264327ED2E95582 /* NativeVoiceCallControls.swift */,
 				7A35F6FA1804D3ED8969673F /* NativeVoiceCallControlsFixture.swift */,
+				3C0B57192127EF2D090AFDAF /* NativeVoiceCallHeaderPill.swift */,
 				69B2E8C4D59C421E9842139C /* NativeVoiceCallLocalDraftPromotion.swift */,
 				A190BE03419A9924FA3F2719 /* NativeVoiceCallMemoryPermission.swift */,
 				460BC27EEDCC66032CC4135C /* NativeVoiceCallProjectContext.swift */,
@@ -6154,6 +6158,7 @@
 				C72F38B5BC6E6A942F6EF081 /* NativeVoiceCallController.swift in Sources */,
 				5792FECE5C75B13605E545FA /* NativeVoiceCallControls.swift in Sources */,
 				31E58C829E5ADE4800FF2515 /* NativeVoiceCallControlsFixture.swift in Sources */,
+				489C6A0416EDBFA6015D5D3F /* NativeVoiceCallHeaderPill.swift in Sources */,
 				C5BBCAD89A86C6EEBF0C03C3 /* NativeVoiceCallEnergyGate.swift in Sources */,
 				17369E6978E49E08059CD026 /* NativeVoiceCallLocalDraftPromotion.swift in Sources */,
 				A1EEB62308AA1F54268D61E1 /* NativeVoiceCallMemoryPermission.swift in Sources */,
@@ -7014,6 +7019,7 @@
 				AE6EAD5C9A047177D6AB0B84 /* NativeVoiceCallController.swift in Sources */,
 				DA107D686BAAE9A01CA12263 /* NativeVoiceCallControls.swift in Sources */,
 				5A0D2489AC8D784E9C05108B /* NativeVoiceCallControlsFixture.swift in Sources */,
+				8876D95EB37EA5500583CB92 /* NativeVoiceCallHeaderPill.swift in Sources */,
 				5E940C00F56BFC134DB2EBC1 /* NativeVoiceCallEnergyGate.swift in Sources */,
 				AA6CB35E7B4A2A2FAA235A26 /* NativeVoiceCallLocalDraftPromotion.swift in Sources */,
 				C80BD41DD32A26325A0273C9 /* NativeVoiceCallMemoryPermission.swift in Sources */,
