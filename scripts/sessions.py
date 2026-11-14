@@ -10874,11 +10874,35 @@ def _rust_migration_yaml_check(files: list[str], *, checkout_root: Path | None =
     return rc, out, err + hint
 
 
+def _feature_overview_check(files: list[str], *, checkout_root: Path | None = None) -> tuple[int, str, str]:
+    """Validate specifications/features.yml when a feature, app, flag or test input changes."""
+    root = checkout_root or CONTROL_PLANE_ROOT
+    script = root / "scripts" / "feature_overview.py"
+    if not script.exists():
+        return 0, "", ""
+    if not any(_should_regenerate_specification_artifacts([path]) for path in files):
+        return 0, "", ""
+    # Drift is skipped: deploy rebuilds the generated view in the integration checkout.
+    rc, out, err = _run_cmd([sys.executable, str(script), "--check", "--no-drift"], cwd=str(root), timeout=120)
+    if rc == 0:
+        return 0, "Feature overview: ok (feature_overview.py --check)\n", err
+    hint = (
+        "\nFeature overview check failed. Every Specification and backend app needs an entry in "
+        "specifications/features.yml, and a surface marked tested/live needs a test on that surface. "
+        "Update the entry in the same commit (stub: python3 scripts/feature_overview.py suggest <spec-id|app:id>).\n"
+    )
+    return rc, out, err + hint
+
+
 def _run_lint(files: list[str], *, checkout_root: Path | None = None) -> tuple[int, str, str]:
     """Run linter on specific files. Returns (returncode, stdout, stderr)."""
     mig_rc, mig_out, mig_err = _rust_migration_yaml_check(files, checkout_root=checkout_root)
     if mig_rc != 0:
         return mig_rc, mig_out, mig_err
+    feat_rc, feat_out, feat_err = _feature_overview_check(files, checkout_root=checkout_root)
+    if feat_rc != 0:
+        return feat_rc, mig_out + feat_out, mig_err + feat_err
+    mig_out, mig_err = mig_out + feat_out, mig_err + feat_err
     lint_flags = _get_lint_flags(files)
     if not lint_flags:
         return 0, mig_out, mig_err
@@ -11579,7 +11603,21 @@ SPECIFICATION_GENERATED_FILES = (
     "specifications/generated/registry.yml",
     "specifications/generated/assertion-index.yml",
     "specifications/generated/coverage.yml",
+    "specifications/generated/features.yml",
+    "specifications/generated/features.md",
 )
+# Non-Specification inputs of the feature overview (scripts/feature_overview.py).
+FEATURE_OVERVIEW_EXTRA_INPUTS = (
+    "scripts/feature_overview.py",
+    "frontend/packages/ui/src/data/product_features.yml",
+    "frontend/packages/ui/src/i18n/sources/apps.yml",
+    "backend/config/backend_config.yml",
+    "backend/config/backend_config.dev.yml",
+)
+
+
+def _is_feature_overview_extra_input(path: str) -> bool:
+    return path in FEATURE_OVERVIEW_EXTRA_INPUTS or (path.startswith("backend/apps/") and path.endswith("/app.yml"))
 
 
 def _should_regenerate_specification_artifacts(files: list[str]) -> bool:
@@ -11590,6 +11628,7 @@ def _should_regenerate_specification_artifacts(files: list[str]) -> bool:
         or path.startswith("docs/plans/") and Path(path).name == "plan.yml"
         or path.endswith((".spec.ts", ".test.ts", ".spec.tsx", ".test.tsx", ".spec.js", ".test.js", "Tests.swift", "_test.py"))
         or Path(path).name.startswith("test_") and path.endswith(".py")
+        or _is_feature_overview_extra_input(path)
         for path in files
     )
 

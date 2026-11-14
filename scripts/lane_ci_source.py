@@ -32,6 +32,9 @@ except ModuleNotFoundError:
 SPECIFICATION_GENERATED_ARTIFACTS = {
     "specifications/generated/assertion-index.yml",
     "specifications/generated/coverage.yml",
+    # Feature overview view, rebuilt by specifications.py generate (scripts/feature_overview.py).
+    "specifications/generated/features.md",
+    "specifications/generated/features.yml",
     "specifications/generated/registry.yml",
 }
 # Outputs of scripts/rust_migration_yaml.py (its GENERATED tuple).

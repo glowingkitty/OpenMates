@@ -165,6 +165,11 @@ when a skill or this file points to it.
   present the final updated Specification once and ask for approval so it can
   go from draft to approved together with the deployed changes. Never edit an
   approved Specification without that confirmation.
+- Feature overview: `specifications/features.yml` records every feature's status
+  per surface, release and key tests (generated view and table:
+  `specifications/generated/features.{yml,md}`). A commit that adds or changes a
+  feature, a surface or an E2E test updates its entry in the same commit; the
+  deploy gate runs `scripts/feature_overview.py --check`.
 - OpenMates Tasks (installed `openmates` CLI) owns status. Reuse linked Tasks;
   create with `/new-task` (links `claude:$CLAUDE_CODE_SESSION_ID`). Whenever the
   user gives a new work item (bug, feature, change) that needs edits, create its

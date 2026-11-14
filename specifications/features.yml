@@ -1,0 +1,1030 @@
+# specifications/features.yml — unified feature overview (manual part).
+#
+# One entry per feature: what it is, which Specifications and backend apps own it,
+# and the human judgement of its status on every surface. Everything the repository
+# already knows is joined in by scripts/feature_overview.py and written to
+#   specifications/generated/features.yml  (machine view: tests, Specification status, dev/prod flags)
+#   specifications/generated/features.md   (table for people)
+# Never copy test lists or flag states into this file; they are generated.
+#
+# Rule: a change that adds or changes a feature, a surface or an E2E test updates its
+# entry here in the same commit. Check: python3 scripts/feature_overview.py --check
+# (the deploy gate runs it). New Specification or app: feature_overview.py suggest <id>.
+#
+# Fields
+#   id                kebab-case, stable.
+#   name, description short, user-facing wording.
+#   kind              core | app | apple | platform | internal | surface
+#   specifications    Specification ids owned by this entry (each Specification belongs to exactly one entry).
+#   apps              backend/apps/<id> owned by this entry (each app belongs to exactly one entry);
+#                     their app:<id> feature flags are included automatically.
+#   flags             extra feature-availability ids (platform:*, skill:*) that gate the feature.
+#   product_features  ids in frontend/packages/ui/src/data/product_features.yml (marketing copy).
+#   release           first release tag the feature shipped in (e.g. v0.14.0-alpha), untagged-main
+#                     (on main/production, after the latest tag), unreleased (dev only or disabled
+#                     on production) or unverified.
+#   surfaces          web, apple (shared iOS/iPadOS/macOS app), watchos (only where relevant),
+#                     cli, tui, rest_api, sdk_npm, sdk_pypi, each one of:
+#                     not_planned | planned | in_progress | implemented | tested | live | unverified
+#                     tested/live need at least one test on that surface (from a Specification
+#                     test or key_tests); live also needs the feature enabled in production config.
+#   apple_platforms   optional subset of [ios, ipados, macos] when not all three apply.
+#   key_tests         optional {surface: [test paths]} for proof not mapped through a Specification.
+#   notes             optional caveats.
+#
+# Initial fill (2026-11-14) was derived from evidence, not guessed: tested = an E2E test exists
+# for that surface; implemented = only unit tests on that surface; live = tested on web or the
+# REST API, its E2E test is on main and the feature is enabled in production config;
+# not_planned = the owning Specification does not require that surface; unverified = no
+# evidence either way. Release = first tag containing the entry's E2E tests or app folder
+# (v1.0 tag ignored as an outlier). Raise or correct any value by hand once you know better.
+schema_version: 1
+features:
+  - id: account-import
+    name: "Account Import"
+    kind: core
+    description: "Import chat exports from other assistants after a preview and confirmation; stored client-encrypted."
+    specifications: [feature.account-import]
+    release: v0.6.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: ai-model-routing
+    name: "AI Model Settings And Chat Routing"
+    kind: core
+    description: "Pick an automatic or explicit model per request tier, override it per chat in the composer."
+    specifications: [feature.ai-model-routing]
+    product_features: [provider-independent]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: tested, cli: tested, tui: tested, rest_api: live, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: app-memories
+    name: "Memories"
+    kind: core
+    description: "Free-form memories (with when-to-use, start and expiry) that the assistant loads only when relevant."
+    specifications: [feature.app-memories, feature.rules]
+    product_features: [relevant-memories]
+    release: v0.7.0-alpha
+    surfaces: {web: live, apple: tested, cli: tested, tui: unverified, rest_api: live, sdk_npm: tested, sdk_pypi: tested}
+  - id: apps-workspace
+    name: "Apps Workspace"
+    kind: core
+    description: "Apps workspace: ask in natural language, run app skills directly and reopen results fullscreen."
+    specifications: [feature.apps-workspace]
+    release: v0.14.0-alpha
+    surfaces: {web: live, apple: tested, cli: implemented, tui: tested, rest_api: live, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: assistant-answer-composition
+    name: "Concise and Actionable Mixed-Media Answers"
+    kind: core
+    description: "Concise, actionable answers with relevant links, rich embeds and selected images or videos."
+    specifications: [feature.assistant-answer-composition]
+    release: unverified
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: assistant-authored-result-embeds
+    name: "Assistant-Authored Rich Result Embeds"
+    kind: core
+    description: "The assistant turns researched or supplied information into rich result embeds (events, listings, travel)."
+    specifications: [feature.assistant-authored-result-embeds]
+    release: untagged-main
+    surfaces: {web: live, apple: not_planned, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: implemented}
+  - id: assistant-response-speech
+    name: "Assistant Response Speech"
+    kind: core
+    description: "Hear the assistant's answer read aloud paragraph by paragraph while text keeps streaming."
+    specifications: [feature.assistant-response-speech]
+    release: v0.19.0
+    surfaces: {web: live, apple: tested, cli: implemented, tui: unverified, rest_api: live, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: auth
+    name: "Account Access"
+    kind: core
+    description: "Sign up, log in and unlock sessions with client-wrapped account keys on web, Apple and CLI."
+    specifications: [feature.auth]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: tested, watchos: tested, cli: tested, tui: tested, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: billing
+    name: "Billing And Payments"
+    kind: core
+    description: "Buy and spend credits, see usage and invoices, request refunds (OpenMates Cloud)."
+    specifications: [feature.billing]
+    release: v0.6.0-alpha
+    surfaces: {web: live, apple: tested, cli: tested, tui: unverified, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: chat-awareness
+    name: "Consent-Scoped Cross-Chat Awareness"
+    kind: core
+    description: "The assistant may use other chats only when the user explicitly grants it (@chat, @related-chats, @all-chats)."
+    specifications: [feature.chat-awareness]
+    release: unverified
+    surfaces: {web: unverified, apple: not_planned, cli: implemented, tui: not_planned, rest_api: unverified, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: chat-message-timeline
+    name: "Chat Message Timeline"
+    kind: core
+    description: "A compact timeline to preview and jump to any exchange in a long chat."
+    specifications: [feature.chat-message-timeline]
+    release: untagged-main
+    surfaces: {web: live, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: chat-navigation
+    name: "Chat Navigation"
+    kind: core
+    description: "Sidebar chat navigation with running chats first and nested Project navigation."
+    specifications: [feature.chat-navigation]
+    release: v0.8.0-alpha
+    surfaces: {web: live, apple: tested, cli: implemented, tui: tested, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: chat-processing-feedback
+    name: "Chat Processing Feedback"
+    kind: core
+    description: "Shows what the assistant is doing in the current turn (Mate, model, processing steps)."
+    specifications: [feature.chat-processing-feedback]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: implemented, cli: tested, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: chat-queued-followups
+    name: "Queued Chat Follow-ups and Steering"
+    kind: core
+    description: "Send follow-ups while the assistant is working, edit them across devices, steer the current run."
+    specifications: [feature.chat-queued-followups]
+    release: untagged-main
+    surfaces: {web: live, apple: tested, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: chat-request-safety
+    name: "Chat Request Safety Decisions"
+    kind: core
+    description: "Sensitive topics can be discussed; clearly harmful or illegal assistance is blocked with an evidence-backed decision."
+    specifications: [feature.chat-request-safety]
+    release: unverified
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: chat-search
+    name: "Chat search"
+    kind: core
+    description: "Search across chats and embeds locally on the device."
+    specifications: []
+    product_features: [offline-search]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/chat-search-flow.spec.ts]
+    notes: "Offline behaviour (search without a server round trip) is not separately proven: unverified."
+  - id: chat-share-settings
+    name: "Chat Share Settings"
+    kind: core
+    description: "Chat-specific settings and zero-knowledge share links in Settings / Chats."
+    specifications: [feature.chat-share-settings]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: tested, watchos: tested, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: chat-unread
+    name: "Chat Unread State"
+    kind: core
+    description: "A finished assistant reply stays unread until its last line has been visible in the user's viewport."
+    specifications: [feature.chat-unread]
+    release: untagged-main
+    surfaces: {web: live, apple: not_planned, cli: unverified, tui: tested, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: chats
+    name: "Chats"
+    kind: core
+    description: "End-to-end encrypted chats that sync across devices and recover unfinished answers."
+    specifications: [feature.chats]
+    product_features: [trusted-quotes, chat-file-downloads]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: tested, watchos: implemented, cli: tested, tui: tested, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: checks
+    name: "Checks"
+    kind: core
+    description: "Checks are reusable proof definitions that verify Specification Requirements or Plan success criteria."
+    specifications: [feature.checks]
+    release: unverified
+    surfaces: {web: tested, apple: not_planned, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: continue-carousel
+    name: "Continue Carousel"
+    kind: core
+    description: "The Chats start screen promotes timely saved items and recent chats."
+    specifications: [feature.continue-carousel]
+    release: untagged-main
+    surfaces: {web: live, apple: tested, cli: implemented, tui: tested, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: daily-inspiration
+    name: "Daily Inspiration"
+    kind: core
+    description: "Personalised daily inspiration cards, with a public default for signed-out visitors."
+    specifications: [feature.daily-inspiration]
+    release: v0.7.0-alpha
+    surfaces: {web: live, apple: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: embed-user-edits
+    name: "Embed User Edits and Image Enhance"
+    kind: core
+    description: "Edit an image, diagram, slide deck, sheet or document; each edit becomes a new version of the embed."
+    specifications: [feature.embed-user-edits]
+    release: untagged-main
+    surfaces: {web: live, apple: implemented, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: focus-modes
+    name: "Focus Modes — Shared Operation and Display"
+    kind: core
+    description: "Shared lifecycle, full system instruction application, system history, controls, restoration and historical display for all focus modes."
+    specifications: [feature.focus-modes]
+    release: v0.9.0-alpha
+    surfaces: {web: live, apple: tested, cli: implemented, tui: unverified, rest_api: live, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: incognito-mode
+    name: "Incognito mode"
+    kind: core
+    description: "Chats that are never saved to the account and leave no history on the server."
+    specifications: []
+    product_features: [incognito-mode]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/incognito-mode.spec.ts]
+  - id: instance-app-packages
+    name: "Instance App Packages"
+    kind: core
+    description: "Operators of an OpenMates server install additional providers for existing app skills with `openmates server apps install`."
+    specifications: [feature.instance-app-packages]
+    release: untagged-main
+    surfaces: {web: live, apple: not_planned, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: interactive-html-visuals
+    name: "Interactive HTML Visuals in Code Embeds"
+    kind: core
+    description: "HTML code embeds render as live visuals, with their inline CSS and JavaScript, in the chat card and in fullscreen."
+    specifications: [feature.interactive-html-visuals]
+    release: untagged-main
+    surfaces: {web: live, apple: implemented, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: issue-reporting
+    name: "Issue Reporting"
+    kind: core
+    description: "Report a problem with optional diagnostic context and get a stable confirmation."
+    specifications: [feature.issue-reporting]
+    release: v0.8.0-alpha
+    surfaces: {web: live, apple: tested, cli: not_planned, tui: not_planned, rest_api: live, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: landing-onboarding
+    name: "Signed-out Web Welcome"
+    kind: core
+    description: "Signed-out web and Apple main-app visitors use the ordinary new-chat welcome with normal Daily Inspirations and real example discovery."
+    specifications: [feature.landing-onboarding]
+    release: v0.7.0-alpha
+    surfaces: {web: live, apple: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: language-preferences
+    name: "Website and Web App Language Preferences"
+    kind: core
+    description: "Website and web app open in the selected or best-supported browser language."
+    specifications: [feature.language-preferences]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: learning-mode
+    name: "Learning Mode — Age-Tiered Teaching, Collaborative Building and Guest Use"
+    kind: core
+    description: "Age-tiered teaching mode with term definitions and collaborative building, also for guests."
+    specifications: [feature.learning-mode]
+    product_features: [learning-mode]
+    release: v0.12.0-alpha
+    surfaces: {web: live, apple: not_planned, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: live-collaboration
+    name: "Live Collaboration on Documents, Sheets and Slides"
+    kind: core
+    description: "Members of a Team or Project can edit the same document, sheet or deck at the same time."
+    specifications: [feature.live-collaboration]
+    release: unverified
+    surfaces: {web: implemented, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: unverified, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: marketing-landing
+    name: "Lightweight Public Website and Scrollable Landing Page"
+    kind: core
+    description: "Lightweight public website: landing page, news, blog and legal pages, linking into the web app."
+    specifications: [feature.marketing-landing]
+    release: v0.13.0-alpha
+    surfaces: {web: live, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: message-input
+    name: "Message Input"
+    kind: core
+    description: "The chat composer: text, attachments, drafts, voice recording, suggestions and send."
+    specifications: [feature.message-input]
+    product_features: [image-upload]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: tested, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: newsletter
+    name: "Newsletter Subscription"
+    kind: core
+    description: "Newsletter sign-up with double opt-in, categories and token-based unsubscribe."
+    specifications: [feature.newsletter]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: newsletter-campaigns
+    name: "Newsletter Campaign Automation"
+    kind: core
+    description: "Internal automation that drafts localised newsletter campaigns for review and sends each once."
+    specifications: [feature.newsletter-campaigns]
+    release: v0.19.0
+    surfaces: {web: live, apple: not_planned, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: notifications
+    name: "Notifications"
+    kind: core
+    description: "Notification settings, email and push notifications, and notification history."
+    specifications: [feature.notifications]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: tested, cli: implemented, tui: unverified, rest_api: live, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: pii-protection
+    name: "PII Placeholder Protection"
+    kind: core
+    description: "Personal data in a message is replaced with placeholders before it reaches the server or a model."
+    specifications: [feature.pii-protection]
+    product_features: [pii-detection]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: tested, cli: tested, tui: tested, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: public-example-chats
+    name: "Public Example Chats"
+    kind: core
+    description: "Public example chats that anyone can open and share without signing in."
+    specifications: [feature.public-example-chats]
+    release: v0.8.0-alpha
+    surfaces: {web: live, apple: tested, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: public-publications
+    name: "Public News, Blog, Press, and Social Publications"
+    kind: core
+    description: "Public news, blog, press and social posts with durable, crawlable pages."
+    specifications: [feature.public-publications]
+    release: v0.19.0
+    surfaces: {web: live, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: safety-strikes
+    name: "Safety Strikes, Suspension, Appeal and Policy Account Deletion"
+    kind: core
+    description: "Strikes, warnings, suspension and appeal when safety checks reject image or video requests."
+    specifications: [feature.safety-strikes]
+    release: unverified
+    surfaces: {web: tested, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: settings-ui
+    name: "Settings UI"
+    kind: core
+    description: "The settings shell on web and Apple: navigation, sections and footer."
+    specifications: [feature.settings-ui]
+    release: v0.8.0-alpha
+    surfaces: {web: live, apple: tested, watchos: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: teams
+    name: "Teams"
+    kind: core
+    description: "Teams: shared contexts with members and roles, team credits, connected accounts and collaboration."
+    specifications: [feature.teams]
+    flags: ["platform:teams"]
+    release: unreleased
+    surfaces: {web: tested, apple: tested, cli: tested, tui: tested, rest_api: tested, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: terminal-ui
+    name: "OpenMates Terminal UI"
+    kind: core
+    description: "The terminal UI: workspaces, rich chat content, offline browsing, pointer and keyboard navigation."
+    specifications: [feature.terminal-ui, feature.terminal-pointer]
+    release: untagged-main
+    surfaces: {web: not_planned, apple: not_planned, cli: tested, tui: tested, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: video-call
+    name: "Chat-bound Voice And Video Calls"
+    kind: core
+    description: "Voice and video calls with the assistant, bound to an encrypted chat."
+    specifications: [feature.video-call, feature.video-call-experiment]
+    release: v0.19.0
+    surfaces: {web: live, apple: tested, watchos: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: webhooks
+    name: "Webhooks"
+    kind: core
+    description: "Outside systems react to OpenMates events and workflow updates."
+    specifications: []
+    product_features: [webhooks]
+    release: unverified
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    notes: "Advertised in product_features.yml; no Specification or test found. All surfaces unverified."
+  - id: wikipedia-mentions
+    name: "Wikipedia Mentions"
+    kind: core
+    description: "@wiki mentions add up to three Wikipedia article summaries as reference context."
+    specifications: [feature.wikipedia-mentions]
+    release: v0.19.0
+    surfaces: {web: live, apple: unverified, cli: implemented, tui: unverified, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: workspace-shell
+    name: "Workspace Shell"
+    kind: core
+    description: "The shared workspace header and shell around Chats and the other top-level workspaces."
+    specifications: [feature.workspace-shell]
+    release: v0.11.0-alpha
+    surfaces: {web: live, apple: tested, cli: not_planned, tui: tested, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: ai
+    name: "AI"
+    kind: app
+    description: "Ask questions, brainstorm ideas & more."
+    specifications: [feature.app-skill.ai-decide]
+    apps: [ai]
+    release: v0.1-alpha-1
+    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: unverified, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: audio
+    name: "Audio"
+    kind: app
+    description: "Record voice notes and get transcripts."
+    specifications: [feature.app-skill.audio-generate, feature.app-skill.audio-speak]
+    apps: [audio]
+    product_features: [audio-messages]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-audio-speech-models.spec.ts]
+  - id: books
+    name: "Books"
+    kind: app
+    description: "Track your reading list and discuss books."
+    specifications: []
+    apps: [books]
+    release: v0.1-alpha-1
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: business
+    name: "Business"
+    kind: app
+    description: "Research companies and public business data."
+    specifications: [feature.app-skill.trademark-search, feature.app-skill.investor-search, feature.app-skill.company-ownership]
+    apps: [business]
+    release: v0.19.0
+    surfaces: {web: live, apple: not_planned, cli: implemented, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-business-trademarks-api.spec.ts, frontend/apps/web_app/tests/skill-business-trademarks-browser.spec.ts, frontend/apps/web_app/tests/skill-business-trademarks-workflow.spec.ts]
+  - id: calendar
+    name: "Calendar"
+    kind: app
+    description: "Connect your calendar so mates can read, create, update, and delete events with your permission."
+    specifications: [feature.app-skills.calendar, feature.calendar-event-embeds]
+    apps: [calendar]
+    release: v0.12.0-alpha
+    surfaces: {web: live, apple: not_planned, cli: implemented, tui: unverified, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: code
+    name: "Code"
+    kind: app
+    description: "Get coding help, docs & project advice."
+    specifications: [feature.app-skill.code-run]
+    apps: [code]
+    product_features: [sandbox-code-execution]
+    release: v0.1-alpha-1
+    surfaces: {web: live, apple: tested, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: implemented, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-code-docs.spec.ts, frontend/apps/web_app/tests/skill-code-search-repos.spec.ts]
+  - id: design
+    name: "Design"
+    kind: app
+    description: "Find icons and visual assets for product design."
+    specifications: [feature.app-skill.design-embroidery]
+    apps: [design]
+    release: v0.19.0
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: diagrams
+    name: "Diagrams"
+    kind: app
+    description: "Create flowcharts, sequences, timelines & more."
+    specifications: []
+    apps: [diagrams]
+    release: untagged-main
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: docs
+    name: "Docs"
+    kind: app
+    description: "Create documents, reports, articles & more."
+    specifications: [feature.doc-editor]
+    apps: [docs]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: electronics
+    name: "Electronics"
+    kind: app
+    description: "Electronic component search is currently unavailable."
+    specifications: []
+    apps: [electronics]
+    release: v0.11.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-electronics-search-components.spec.ts]
+  - id: events
+    name: "Events"
+    kind: app
+    description: "Keep saved event information."
+    specifications: [feature.app-skill.events-search]
+    apps: [events]
+    flags: ["skill:events:search"]
+    product_features: [events-search]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: implemented, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-events-search.spec.ts]
+  - id: file
+    name: "File"
+    kind: app
+    description: "Safely view metadata and download captured files without executing them."
+    specifications: []
+    apps: [file]
+    release: v0.19.0
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: finance
+    name: "Finance"
+    kind: app
+    description: "Check accounts, statements, spending, and projections."
+    specifications: []
+    apps: [finance]
+    release: v0.19.0
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: fitness
+    name: "Fitness"
+    kind: app
+    description: "Stay fit, keep moving, stay healthy."
+    specifications: []
+    apps: [fitness]
+    release: v0.1-alpha-1
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-fitness-class-search.spec.ts, frontend/apps/web_app/tests/skill-fitness-unavailable.spec.ts]
+  - id: health
+    name: "Health"
+    kind: app
+    description: "Improve your health and well being."
+    specifications: [feature.app-skill.health-search-appointments]
+    apps: [health]
+    release: v0.1-alpha-1
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-health-appointments.spec.ts]
+  - id: home
+    name: "Home"
+    kind: app
+    description: "Keep saved housing information."
+    specifications: [feature.app-skill.home-search]
+    apps: [home]
+    release: v0.8.0-alpha
+    surfaces: {web: live, apple: not_planned, cli: implemented, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-home-search.spec.ts]
+  - id: hosting
+    name: "Hosting"
+    kind: app
+    description: "Domain search is currently unavailable."
+    specifications: [feature.app-skill.hosting-search-domains]
+    apps: [hosting]
+    release: untagged-main
+    surfaces: {web: live, apple: tested, cli: implemented, tui: unverified, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-hosting-search-api.spec.ts, frontend/apps/web_app/tests/skill-hosting-search-workflow.spec.ts]
+  - id: ideabucket
+    name: "IdeaBucket"
+    kind: app
+    description: "Capture ideas quickly and process them later with OpenMates."
+    specifications: []
+    apps: [ideabucket]
+    release: v0.19.0
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: images
+    name: "Images"
+    kind: app
+    description: "Generate images from text descriptions."
+    specifications: [feature.app-skill.images-generate, feature.app-skill.images-modify, feature.app-skill.images-view]
+    apps: [images]
+    release: v0.1-alpha-1
+    surfaces: {web: live, apple: implemented, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-images-generate-safety-upload.spec.ts, frontend/apps/web_app/tests/skill-images-generate-safety.spec.ts, frontend/apps/web_app/tests/skill-images-search.spec.ts]
+  - id: jobs
+    name: "Jobs"
+    kind: app
+    description: "Get career insights and job advice."
+    specifications: []
+    apps: [jobs]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-jobs-search-api.spec.ts]
+  - id: life-coaching
+    name: "Life coaching"
+    kind: app
+    description: "Plan your next steps in life."
+    specifications: []
+    apps: [life_coaching]
+    release: unreleased
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: mail
+    name: "Mail"
+    kind: app
+    description: "Draft emails and work with mail."
+    specifications: []
+    apps: [mail]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-mail-search.spec.ts]
+  - id: maps
+    name: "Maps"
+    kind: app
+    description: "Search for places, get directions & more."
+    specifications: [feature.app-skill.maps-search]
+    apps: [maps]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: tested, tui: unverified, rest_api: live, sdk_npm: tested, sdk_pypi: tested}
+  - id: math
+    name: "Math"
+    kind: app
+    description: "Solve equations, calculate, and plot functions."
+    specifications: []
+    apps: [math]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-math-calculate.spec.ts]
+  - id: mindmaps
+    name: "Mind Maps"
+    kind: app
+    description: "Create structured idea maps and brainstorm topic trees."
+    specifications: []
+    apps: [mindmaps]
+    release: v0.13.0-alpha
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: models3d
+    name: "3D Models"
+    kind: app
+    description: "View saved 3D models."
+    specifications: []
+    apps: [models3d]
+    flags: ["skill:models3d:generate"]
+    release: v0.19.0
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: music
+    name: "Music"
+    kind: app
+    description: "Generate songs, loops, and background music."
+    specifications: []
+    apps: [music]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-music-generate.spec.ts]
+  - id: news
+    name: "News"
+    kind: app
+    description: "Stay informed with the latest news."
+    specifications: [feature.app-skill.news-search]
+    apps: [news]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: nutrition
+    name: "Nutrition"
+    kind: app
+    description: "Track meals, find recipes & eat healthier."
+    specifications: []
+    apps: [nutrition]
+    release: v0.1-alpha-1
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: openmates
+    name: "OpenMates"
+    kind: app
+    description: "Discover what OpenMates can do for you."
+    specifications: [feature.chat-orchestration]
+    apps: [openmates]
+    flags: ["skill:openmates:get-docs"]
+    release: v0.5.0-alpha
+    surfaces: {web: tested, apple: not_planned, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: pdf
+    name: "PDF"
+    kind: app
+    description: "Upload PDFs and read or search their content."
+    specifications: [feature.pdf-processing]
+    apps: [pdf]
+    product_features: [document-upload]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: plans
+    name: "Plans"
+    kind: app
+    description: "Coordinate durable plans, checks, and next steps."
+    specifications: [feature.plans]
+    apps: [plans]
+    flags: ["platform:plans"]
+    release: unreleased
+    surfaces: {web: tested, apple: tested, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: plants
+    name: "Plants"
+    kind: app
+    description: "Track your plants, watering & care needs."
+    specifications: []
+    apps: [plants]
+    release: unreleased
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: politics
+    name: "Politics"
+    kind: app
+    description: "Prepare for civic and political discussions with facts, questions, and balanced perspectives."
+    specifications: []
+    apps: [politics]
+    release: v0.5.0-alpha
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: projects
+    name: "Projects"
+    kind: app
+    description: "Organize chats, files, embeds, and project workspaces."
+    specifications: [feature.projects]
+    apps: [projects]
+    flags: ["platform:projects"]
+    release: unreleased
+    surfaces: {web: tested, apple: tested, cli: tested, tui: tested, rest_api: tested, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: reminder
+    name: "Reminder"
+    kind: app
+    description: "Set reminders for specific or random times."
+    specifications: []
+    apps: [reminder]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-reminder-set.spec.ts]
+  - id: shopping
+    name: "Shopping"
+    kind: app
+    description: "Product search is currently unavailable."
+    specifications: [feature.app-skill.shopping-search]
+    apps: [shopping]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-shopping-search.spec.ts]
+  - id: slides
+    name: "Slides"
+    kind: app
+    description: "Create, edit and present slide decks."
+    specifications: [feature.slides]
+    apps: [slides]
+    release: untagged-main
+    surfaces: {web: live, apple: implemented, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: social-media
+    name: "Social Media"
+    kind: app
+    description: "Research posts and community comments."
+    specifications: []
+    apps: [social_media]
+    release: v0.5.0-alpha
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: study
+    name: "Study"
+    kind: app
+    description: "Learn topics, prepare for exams & more."
+    specifications: []
+    apps: [study]
+    release: v0.5.0-alpha
+    surfaces: {web: unverified, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: tasks
+    name: "Tasks"
+    kind: app
+    description: "Create, track, and manage tasks and checklists."
+    specifications: [feature.tasks]
+    apps: [tasks]
+    flags: ["platform:tasks"]
+    release: unreleased
+    surfaces: {web: tested, apple: tested, cli: tested, tui: tested, rest_api: tested, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: travel
+    name: "Travel"
+    kind: app
+    description: "Plan trips and keep saved travel information."
+    specifications: [feature.app-skill.travel-search]
+    apps: [travel]
+    flags: ["skill:travel:get_flight"]
+    release: v0.1-alpha-1
+    surfaces: {web: live, apple: implemented, cli: implemented, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-travel-connections.spec.ts, frontend/apps/web_app/tests/skill-travel-stays.spec.ts, frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts]
+  - id: tv
+    name: "TV"
+    kind: app
+    description: "Track movies, shows & build your watchlist."
+    specifications: [feature.tv-title-embeds]
+    apps: [tv]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: not_planned, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: videos
+    name: "Videos"
+    kind: app
+    description: "Find and create videos."
+    specifications: [feature.app-skill.videos-generate, feature.app-skill.videos-get-transcript]
+    apps: [videos]
+    release: v0.1-alpha-1
+    surfaces: {web: live, apple: tested, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-videos-search.spec.ts, frontend/apps/web_app/tests/skill-videos-transcript.spec.ts]
+  - id: weather
+    name: "Weather"
+    kind: app
+    description: "Get local forecasts and rain information."
+    specifications: []
+    apps: [weather]
+    release: v0.1-alpha-1
+    surfaces: {web: live, apple: unverified, cli: unverified, tui: unverified, rest_api: unverified, sdk_npm: unverified, sdk_pypi: unverified}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-weather-forecast.spec.ts, frontend/apps/web_app/tests/skill-weather-rain-radar.spec.ts]
+  - id: web
+    name: "Web"
+    kind: app
+    description: "Browse websites, research topics & more."
+    specifications: [feature.app-skill.web-search, feature.app-skill.web-read, feature.app-skill.web-browse]
+    apps: [web]
+    release: v0.1-alpha-1
+    surfaces: {web: live, apple: tested, cli: tested, tui: unverified, rest_api: live, sdk_npm: tested, sdk_pypi: tested}
+    key_tests:
+      web: [frontend/apps/web_app/tests/skill-web-read.spec.ts]
+  - id: workflows
+    name: "Workflows"
+    kind: app
+    description: "Create and run reusable automations."
+    specifications: [feature.workflows, feature.workflows-ui]
+    apps: [workflows]
+    flags: ["platform:workflows"]
+    release: v0.14.0-alpha
+    surfaces: {web: live, apple: tested, cli: tested, tui: tested, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: apple-controls
+    name: "Apple system Controls"
+    kind: apple
+    description: "User configured controls expose existing quick actions, explicit workflow runs, and exact Project opening."
+    specifications: [feature.apple-controls]
+    flags: ["platform:ios"]
+    release: unreleased
+    surfaces: {web: not_planned, apple: tested, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: apple-live-activities
+    name: "Apple Live Activities and Active chats widgets"
+    kind: apple
+    description: "Supported lock screens display background download progress and upcoming saved memories."
+    specifications: [feature.apple-live-activities]
+    flags: ["platform:ios"]
+    release: unreleased
+    surfaces: {web: not_planned, apple: tested, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: apple-local-model-lab
+    name: "Apple optional local model laboratory"
+    kind: apple
+    description: "Optional pinned speech and privacy assets support the native laboratory and an explicit composer download pack."
+    specifications: [feature.apple-local-model-lab]
+    flags: ["platform:ios"]
+    release: unreleased
+    surfaces: {web: not_planned, apple: tested, watchos: tested, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: apple-notifications
+    name: "Apple Push Notifications"
+    kind: apple
+    description: "Apple push notifications with privacy-safe content and open/reply actions."
+    specifications: [feature.apple-notifications]
+    flags: ["platform:ios"]
+    release: unreleased
+    surfaces: {web: not_planned, apple: tested, watchos: tested, cli: not_planned, tui: not_planned, rest_api: tested, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: apple-offline-workspaces
+    name: "Apple offline workspaces"
+    kind: apple
+    description: "Workflows, tasks and project metadata load from encrypted device storage before connected refresh."
+    specifications: [feature.apple-offline-workspaces]
+    flags: ["platform:ios"]
+    release: unreleased
+    surfaces: {web: not_planned, apple: tested, watchos: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: apple-recent-offline-chats
+    name: "Apple recent chat offline cache"
+    kind: apple
+    description: "Recent chat records are maintained offline without blocking foreground navigation."
+    specifications: [feature.apple-recent-offline-chats]
+    flags: ["platform:ios"]
+    release: unreleased
+    surfaces: {web: not_planned, apple: implemented, watchos: implemented, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: apple-task-board-interactions
+    name: "Apple task board interactions"
+    kind: apple
+    description: "Apple task boards preserve web task context actions, status movement, editable task details, creation shortcuts and workflow-run navigation."
+    specifications: [feature.apple-task-board-interactions]
+    flags: ["platform:ios"]
+    release: unreleased
+    surfaces: {web: not_planned, apple: tested, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: apple-tasks-widget
+    name: "Apple Tasks widget"
+    kind: apple
+    description: "Native home-screen and Lock Screen Tasks widgets show configurable task status and open task detail or creation in the app."
+    specifications: [feature.apple-tasks-widget]
+    flags: ["platform:ios"]
+    release: unreleased
+    surfaces: {web: not_planned, apple: tested, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: apple-watch
+    name: "Apple Watch companion"
+    kind: apple
+    description: "Apple Watch companion: chats with text and audio replies, Tasks and Workflows."
+    specifications: [feature.apple-watch]
+    flags: ["platform:apple-watch"]
+    release: unreleased
+    surfaces: {web: not_planned, apple: implemented, watchos: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: apple-workflow-widget
+    name: "Apple Workflow widget"
+    kind: apple
+    description: "An independently configured native widget opens a current time-triggered workflow and starts an authenticated manual run."
+    specifications: [feature.apple-workflow-widget]
+    flags: ["platform:ios"]
+    release: unreleased
+    surfaces: {web: not_planned, apple: tested, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: app-skill-execution
+    name: "App Skill Execution"
+    kind: platform
+    description: "Runs app skills through one validated contract and sanitises provider output before clients or the AI see it."
+    specifications: [architecture.app-skill-execution]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: implemented, cli: tested, tui: tested, rest_api: live, sdk_npm: tested, sdk_pypi: tested}
+  - id: client-core
+    name: "One Rust Client Core, Three Thin Shells"
+    kind: platform
+    description: "One shared Rust client core for transport, sync, crypto, cache, drafts and send, used by web, Apple and CLI/TUI."
+    specifications: [architecture.client-core]
+    release: unverified
+    surfaces: {web: unverified, apple: implemented, cli: unverified, tui: unverified, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: connected-accounts
+    name: "Connected Accounts"
+    kind: platform
+    description: "One provider-neutral account and authorization contract serves Calendar, Code, Finance, and other connected apps."
+    specifications: [architecture.connected-accounts]
+    release: v0.12.0-alpha
+    surfaces: {web: live, apple: not_planned, cli: unverified, tui: unverified, rest_api: implemented, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: drafts
+    name: "Chat Drafts"
+    kind: platform
+    description: "Authenticated first-party clients persist, synchronize, present, send, and clear chat drafts as encrypted per-user state."
+    specifications: [architecture.drafts]
+    release: v0.10.0-alpha
+    surfaces: {web: live, apple: tested, watchos: tested, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: security-reporting
+    name: "Deterministic Daily Security Reporting"
+    kind: platform
+    description: "Repository security scans continue hourly without per-scan emails or AI summary chats."
+    specifications: [architecture.security-reporting]
+    release: unverified
+    surfaces: {web: not_planned, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: server-management
+    name: "OpenMates Server Management"
+    kind: platform
+    description: "The CLI installs, configures, updates, backs up and restores OpenMates servers."
+    specifications: [architecture.server-management]
+    release: v0.11.0-alpha
+    surfaces: {web: not_planned, apple: not_planned, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: session-owner-consistency
+    name: "Session Owner Consistency"
+    kind: platform
+    description: "First-party clients may assert which account they expect a request or WebSocket connection to belong to."
+    specifications: [architecture.session-owner-consistency]
+    release: unverified
+    surfaces: {web: implemented, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: storage-lifecycle
+    name: "Regional And Tiered Storage Lifecycle"
+    kind: platform
+    description: "Regional, tiered storage of encrypted data with bounded caches and archived history."
+    specifications: [architecture.storage-lifecycle]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: tested, watchos: implemented, cli: tested, tui: unverified, rest_api: live, sdk_npm: implemented, sdk_pypi: unverified}
+  - id: storage-resilience
+    name: "Object Storage Outage Resilience"
+    kind: platform
+    description: "The API and text AI keep working while object storage is down; storage-dependent work fails safely."
+    specifications: [architecture.storage-resilience]
+    release: unverified
+    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: unverified, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: sync
+    name: "Chat Sync Startup And Incremental Feed"
+    kind: platform
+    description: "Fast chat sync at start-up (due items, last chat, recent chats) plus an incremental feed."
+    specifications: [architecture.sync]
+    release: v0.10.0-alpha
+    surfaces: {web: live, apple: tested, watchos: tested, cli: tested, tui: unverified, rest_api: implemented, sdk_npm: implemented, sdk_pypi: not_planned}
+  - id: ai-request-observability
+    name: "AI Request Observability"
+    kind: internal
+    description: "Content-free metrics and traces for AI request latency, tokens, tools and cost."
+    specifications: [architecture.ai-request-observability]
+    release: untagged-main
+    surfaces: {web: implemented, apple: not_planned, cli: implemented, tui: unverified, rest_api: live, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: daily-ai-test-inference
+    name: "Cost-Safe Daily AI Inference Testing"
+    kind: internal
+    description: "Daily full-pipeline tests without paid calls, plus capped real-inference canaries."
+    specifications: [architecture.daily-ai-test-inference]
+    release: v0.19.0
+    surfaces: {web: implemented, apple: not_planned, cli: tested, tui: unverified, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: operational-monitoring
+    name: "Operational Monitoring And Operator Alerts"
+    kind: internal
+    description: "Daily privacy-safe health report and urgent alerts for operators."
+    specifications: [architecture.operational-monitoring]
+    release: untagged-main
+    surfaces: {web: live, apple: not_planned, cli: implemented, tui: unverified, rest_api: live, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: security-monitoring
+    name: "Automated Security Monitoring and Guarded Remediation"
+    kind: internal
+    description: "Hourly matching of security advisories against everything OpenMates runs, with guarded fixes."
+    specifications: [architecture.security-monitoring]
+    release: unverified
+    surfaces: {web: not_planned, apple: not_planned, cli: unverified, tui: unverified, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: specifications
+    name: "Specifications"
+    kind: internal
+    description: "Specifications are versioned, approval-bound definitions of durable product truth."
+    specifications: [feature.specifications]
+    release: v0.19.0
+    surfaces: {web: live, apple: tested, cli: unverified, tui: unverified, rest_api: live, sdk_npm: unverified, sdk_pypi: unverified}
+  - id: test-orchestration
+    name: "Daily Test Orchestration And Recovery"
+    kind: internal
+    description: "Scheduled test runs with critical flows first, truthful outcomes and recovery."
+    specifications: [architecture.test-orchestration]
+    release: unverified
+    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: unverified, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: surface-cli
+    name: "CLI Surface"
+    kind: surface
+    description: "The OpenMates CLI: a first-party terminal client with the same chats and capabilities."
+    specifications: [surface.cli]
+    product_features: [cli-parity]
+    release: v0.7.0-alpha
+    surfaces: {web: unverified, apple: not_planned, cli: tested, tui: tested, rest_api: live, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: surface-sdk
+    name: "SDK Surface"
+    kind: surface
+    description: "Headless SDKs (npm, PyPI, Rust) with the same capabilities, local encryption and conformance tests."
+    specifications: [surface.sdk]
+    product_features: [rest-api]
+    release: v0.5.0-alpha
+    surfaces: {web: live, apple: unverified, cli: implemented, tui: unverified, rest_api: live, sdk_npm: tested, sdk_pypi: tested}
