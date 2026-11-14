@@ -28,13 +28,19 @@ import { websocketStatus } from "../../../stores/websocketStatusStore"; // Impor
 import { chatListCache } from "../../../services/chatListCache";
 import { AnonymousFreeUsageExhaustedError, anonymousChatStorage } from "../../../services/anonymousChatStorage";
 import { markAnonymousFreeUsageExhausted, refreshAnonymousFreeUsageStatus } from "../../../stores/serverStatusStore";
-import { createGuestSendDeadline, GuestSendPreparationTimeoutError } from "../guestComposerState";
+import {
+  createGuestSendDeadline,
+  GUEST_FAILED_SEND_CLEANUP_MS,
+  GuestSendPreparationTimeoutError,
+  settleWithin,
+} from "../guestComposerState";
 import { text } from "../../../i18n/translations";
 import { createEmbedFromUrl } from "../services/urlMetadataService"; // Import URL-to-embed creation
 import { authStore } from "../../../stores/authStore"; // Import authStore for authentication check
 import { userProfile } from "../../../stores/userProfile";
 import { teamChatTitleFromMessage } from "../../../utils/teamChatTitle";
 import { computeSHA256 } from "../../../message_parsing/utils";
+import type { TipTapDoc } from "../../../message_parsing/types";
 import { appSettingsMemoriesPermissionStore } from "../../../stores/appSettingsMemoriesPermissionStore"; // For auto-dismissing permission dialog
 import { forcedLogoutInProgress } from "../../../stores/signupState";
 import { editMessageStore, cancelEdit } from "../../../stores/editMessageStore";
@@ -498,7 +504,7 @@ function captureSendPrivacy(exclusions: ReadonlySet<string>, mappings = getActiv
         let placeholder = match.placeholder;
         if (supported && placeholderOwners.has(placeholder) && placeholderOwners.get(placeholder) !== match.match) {
           do {
-            placeholder = `${match.placeholder.slice(0, -1)}_${++placeholderSequence}_${crypto.randomUUID().replaceAll("-", "")}]`;
+            placeholder = `${match.placeholder.slice(0, -1)}_${++placeholderSequence}_${crypto.randomUUID().replace(/-/g, "")}]`;
           } while (placeholderOwners.has(placeholder) && placeholderOwners.get(placeholder) !== match.match);
         }
         placeholderOwners.set(placeholder, match.match);
@@ -697,7 +703,8 @@ export async function prepareQueuedMessageRevision(
   const ignoredEmbedUrlsAtClick = new Set(ignoredEmbedUrls);
   const document = structuredClone(editorContent) as JSONContent;
   const recordingMappings = await redactRecordingFieldsForSend(document, privacy);
-  let markdown = tipTapToCanonicalMarkdown(document).replace(/^\n+/, "");
+  // The same editor JSON the other call sites pass; JSONContent's optional node type is wider than TipTapNode's.
+  let markdown = tipTapToCanonicalMarkdown(document as TipTapDoc).replace(/^\n+/, "");
   if (!markdown.trim()) throw new Error("Queued message cannot be empty");
   markdown = await processUrlsBeforeSend(markdown, ignoredEmbedUrlsAtClick);
   privacy.assertCurrent();
@@ -2773,7 +2780,7 @@ export async function handleSend(
         });
       }
       // Cleanup skipped while this send held its claim is retried now that it failed.
-      await discardEmptyClaimedChatsAfterFailedSend(sendChatClaims.claimedChatIds(),
+      const failedSendCleanup = discardEmptyClaimedChatsAfterFailedSend(sendChatClaims.claimedChatIds(),
         (id) => get(draftEditorUIState).currentChatId === id && !editor.isDestroyed && !editor.isEmpty,
         { getChat: (id) => chatDB.getChat(id), getMessagesForChat: (id) => chatDB.getMessagesForChat(id),
           deleteDraftOnlyChat: (id) => chatDB.deleteDraftOnlyChat(id),
@@ -2781,6 +2788,14 @@ export async function handleSend(
             chatSyncService.dispatchEvent(new CustomEvent("chatDeleted", { detail: { chat_id: id } }));
             await chatSyncService.sendDeleteChat(id, embedIds);
           } });
+      if (authenticatedAtClick) {
+        await failedSendCleanup;
+      } else if (!(await settleWithin(failedSendCleanup, GUEST_FAILED_SEND_CLEANUP_MS))) {
+        // Signed out, Send stays hidden until this returns; a hung local store must not keep it hidden.
+        console.warn("[handleSend] Guest failed-send cleanup still pending; returning Send to the composer first.");
+        recordSendDebugStep("guest_failed_send_cleanup_pending", { currentChatId });
+        failedSendCleanup.catch((cleanupError) => console.error("[handleSend] Guest failed-send cleanup failed:", cleanupError));
+      }
     }
     // The sender reserves the read on dispatch; any read still pending here is
     // unowned (failure, cancellation or a non-sending exit) and must be dropped.

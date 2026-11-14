@@ -96,6 +96,24 @@ export async function loadGuestAccessPhase(timeoutMs = GUEST_STATUS_TIMEOUT_MS):
     }
 }
 
+/**
+ * Longest a failed guest send waits on best-effort local cleanup before the
+ * composer gets its Send back. The send hides Send until it returns, and that
+ * cleanup reads local storage, which hangs when the on-device runtime never loads.
+ */
+export const GUEST_FAILED_SEND_CLEANUP_MS = 3_000;
+
+/** Wait for `work` at most `timeoutMs`: true when it finished, false when it is still running. Rejections propagate. */
+export async function settleWithin(work: Promise<unknown>, timeoutMs: number): Promise<boolean> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<false>((resolve) => { timer = setTimeout(() => resolve(false), timeoutMs); });
+    try {
+        return await Promise.race([work.then(() => true as const), timedOut]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 /** A guest send whose local preparation did not finish within its budget. */
 export class GuestSendPreparationTimeoutError extends Error {
     constructor(readonly step: string) {

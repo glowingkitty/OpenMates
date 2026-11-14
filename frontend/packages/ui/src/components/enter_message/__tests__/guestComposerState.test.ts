@@ -15,6 +15,8 @@ vi.mock('../../../stores/serverStatusStore', async () => {
 import {
     createGuestSendDeadline,
     GUEST_ACCESS_REASON_KEYS,
+    GUEST_FAILED_SEND_CLEANUP_MS,
+    settleWithin,
     GuestSendPreparationTimeoutError,
     loadGuestAccessPhase,
     resolveGuestComposerState,
@@ -139,6 +141,16 @@ describe('guest send preparation deadline', () => {
         await expect(deadline.bound(Promise.resolve('ok'), 'first')).resolves.toBe('ok');
         await vi.advanceTimersByTimeAsync(500);
         await expect(deadline.bound(Promise.resolve('late'), 'second')).rejects.toBeInstanceOf(GuestSendPreparationTimeoutError);
+    });
+
+    // contract-test: direct surface=gui.web assertions=message-input.signed-out-two-states
+    it('stops waiting on a hung failed-send cleanup so Send comes back', async () => {
+        const settled = settleWithin(new Promise(() => {}), GUEST_FAILED_SEND_CLEANUP_MS);
+        await vi.advanceTimersByTimeAsync(GUEST_FAILED_SEND_CLEANUP_MS);
+        await expect(settled).resolves.toBe(false);
+        await expect(settleWithin(Promise.resolve('done'), GUEST_FAILED_SEND_CLEANUP_MS)).resolves.toBe(true);
+        const failing = settleWithin(Promise.reject(new Error('cleanup failed')), GUEST_FAILED_SEND_CLEANUP_MS);
+        await expect(failing).rejects.toThrow('cleanup failed');
     });
 
     // contract-test: direct surface=gui.web assertions=message-input.signed-out-two-states
