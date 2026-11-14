@@ -1,12 +1,13 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-11-14
 key_files:
 - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
 - frontend/packages/ui/src/components/enter_message/editorConfig.ts
 - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
 - frontend/packages/ui/src/components/enter_message/extensions/WikiInlineNode.ts
 - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+- frontend/packages/ui/src/components/enter_message/guestComposerState.ts
 - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
 - frontend/packages/ui/src/message_parsing/parse_message.ts
 - frontend/packages/ui/src/message_parsing/serializers.ts
@@ -102,6 +103,7 @@ Key extensions:
 - **Fullscreen toggle** -- When max height is reached, a fullscreen button appears in the top-right corner. Clicking it expands the editor to full viewport height.
 - **Scroll minimization** -- When the user scrolls through chat history, the input field minimizes to show only the last few lines of the draft.
 - **Send button and focus** -- A focused nonempty composer shows the translated Send label. A blurred nonempty composer minimizes and retains a round orange up-arrow Send button. Ordinary text focus uses no gray or translucent backdrop and leaves welcome content, established chat transcripts and existing workspace, task and workflow-editor content at full opacity. Background controls remain inert while focused; a parent pointer handler dismisses focus without mounting a full-area backdrop button. Recording, map and anonymous-attachment overlays retain their separate welcome suppression.
+- **Signed-out Send** -- A signed-out visitor sees only an active Send that sends, or a Sign up / Log in button with a visible reason (`GuestAccessReason.svelte`); a disabled Send is a bug. `guestComposerState.ts` resolves the state: a short loading state while the guest status loads (at most 8 s, then Sign up with `status_unavailable`), Log in for a browser that has logged in before, and Sign up for an exhausted allowance, guest chat being off, or an attached file. A guest send whose local preparation takes over 15 s stops with a notice and gives Send back; its failed-send cleanup waits at most 3 s. Spec: `message-input.signed-out-two-states`.
 - **Workflow warm-up** -- Composer focus can send a debounced, authenticated metadata-only warm-up hint. Draft text is absent, and the hint invokes no AI inference. Server rate limits and a scoped lock bound the work; normal discovery handles cache misses or failure.
 
 ### Mentions
