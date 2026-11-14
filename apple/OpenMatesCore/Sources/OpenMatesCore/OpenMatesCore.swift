@@ -816,6 +816,222 @@ public func FfiConverterTypeCoreCancellation_lower(_ value: CoreCancellation) ->
 
 
 /**
+ * Resident chat search index: ingest each chat's entries once, query per keystroke.
+ * Named `CoreChatSearchIndex` because the Apple app module already has a Swift
+ * `ChatSearchEngine` (the shell code this object replaces) and the bindings share that module.
+ */
+public protocol CoreChatSearchIndexProtocol: AnyObject, Sendable {
+    
+    /**
+     * Number of chats held.
+     */
+    func chatCount()  -> UInt32
+    
+    /**
+     * Drops every chat (logout).
+     */
+    func clear() 
+    
+    /**
+     * Replaces the entries of `chat_id`; returns the chat ids the index budget evicted
+     * (re-ingest them before they are queried with `search_messages`).
+     */
+    func ingestChat(chatId: String, entries: [SearchIndexEntryRecord])  -> [String]
+    
+    /**
+     * One complete search (`web_search_query::run_search`).
+     */
+    func query(request: SearchRequestRecord)  -> SearchResultRecord
+    
+    /**
+     * Drops one chat's entries.
+     */
+    func removeChat(chatId: String) 
+    
+}
+/**
+ * Resident chat search index: ingest each chat's entries once, query per keystroke.
+ * Named `CoreChatSearchIndex` because the Apple app module already has a Swift
+ * `ChatSearchEngine` (the shell code this object replaces) and the bindings share that module.
+ */
+open class CoreChatSearchIndex: CoreChatSearchIndexProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_openmates_apple_bindings_fn_clone_corechatsearchindex(self.handle, $0) }
+    }
+    /**
+     * An empty index.
+     */
+public convenience init() {
+    let handle =
+        try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_constructor_corechatsearchindex_new(uniffiCallStatus
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_openmates_apple_bindings_fn_free_corechatsearchindex(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Number of chats held.
+     */
+open func chatCount() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_corechatsearchindex_chat_count(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Drops every chat (logout).
+     */
+open func clear()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_corechatsearchindex_clear(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Replaces the entries of `chat_id`; returns the chat ids the index budget evicted
+     * (re-ingest them before they are queried with `search_messages`).
+     */
+open func ingestChat(chatId: String, entries: [SearchIndexEntryRecord]) -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_corechatsearchindex_ingest_chat(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chatId),
+        FfiConverterSequenceTypeSearchIndexEntryRecord.lower(entries),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * One complete search (`web_search_query::run_search`).
+     */
+open func query(request: SearchRequestRecord) -> SearchResultRecord  {
+    return try!  FfiConverterTypeSearchResultRecord_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_corechatsearchindex_query(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeSearchRequestRecord_lower(request),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Drops one chat's entries.
+     */
+open func removeChat(chatId: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_corechatsearchindex_remove_chat(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chatId),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCoreChatSearchIndex: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = CoreChatSearchIndex
+
+    public static func lift(_ handle: UInt64) throws -> CoreChatSearchIndex {
+        return CoreChatSearchIndex(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: CoreChatSearchIndex) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CoreChatSearchIndex {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: CoreChatSearchIndex, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreChatSearchIndex_lift(_ handle: UInt64) throws -> CoreChatSearchIndex {
+    return try FfiConverterTypeCoreChatSearchIndex.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreChatSearchIndex_lower(_ value: CoreChatSearchIndex) -> UInt64 {
+    return FfiConverterTypeCoreChatSearchIndex.lower(value)
+}
+
+
+
+
+
+
+/**
  * Update listener implemented in Swift. Called on a core runtime thread, never
  * the main thread; implementations hop to `@MainActor` themselves and must not
  * block. Ordering: revisions arrive in the order the core produced them.
@@ -2501,6 +2717,20 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func waitImageEnhance(operationId: String, deadlineMs: UInt64?, waker: ImageEnhanceWaker?, cancellation: CoreCancellation?) async throws  -> ImageEnhanceJobRecord
     
     /**
+     * Read the plaintext of `version` of `embed_id`, reconstructed in the
+     * core. `scope` is accepted for call-site symmetry with
+     * `embedVersionHistory`; the core reads the Personal account only and
+     * refuses Team accounts as `Unavailable`.
+     *
+     * # Errors
+     * `Validation` for a non canonical embed id or version below 1;
+     * `Transport { protocol }` for an invalid or too large response;
+     * `AccessDenied`/`Authentication`/`SessionExpired` when access changed;
+     * `Unavailable` for Team scope; `Offline`; `Cancelled`.
+     */
+    func embedVersionContent(embedId: String, scope: EmbedScopeRecord?, version: Int64, cancellation: CoreCancellation?) async throws  -> EmbedVersionContentRecord
+    
+    /**
      * Commit a user edit of a document, sheet, diagram or slides embed as
      * its next version: `content` is the new head plaintext in its stored
      * form (the TOON string the embed content opens to; zeroized after the
@@ -4062,6 +4292,34 @@ open func waitImageEnhance(operationId: String, deadlineMs: UInt64?, waker: Imag
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeImageEnhanceJobRecord_lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Read the plaintext of `version` of `embed_id`, reconstructed in the
+     * core. `scope` is accepted for call-site symmetry with
+     * `embedVersionHistory`; the core reads the Personal account only and
+     * refuses Team accounts as `Unavailable`.
+     *
+     * # Errors
+     * `Validation` for a non canonical embed id or version below 1;
+     * `Transport { protocol }` for an invalid or too large response;
+     * `AccessDenied`/`Authentication`/`SessionExpired` when access changed;
+     * `Unavailable` for Team scope; `Offline`; `Cancelled`.
+     */
+open func embedVersionContent(embedId: String, scope: EmbedScopeRecord?, version: Int64, cancellation: CoreCancellation?)async throws  -> EmbedVersionContentRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_embed_version_content(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(embedId),FfiConverterOptionTypeEmbedScopeRecord.lower(scope),FfiConverterInt64.lower(version),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeEmbedVersionContentRecord_lift,
             errorHandler: FfiConverterTypeEmbedEditError_lift
         )
 }
@@ -8415,6 +8673,75 @@ public func FfiConverterTypeEmbedUpdatedGroupRecord_lower(_ value: EmbedUpdatedG
 
 
 /**
+ * One reconstructed embed version.
+ */
+public struct EmbedVersionContentRecord: Equatable, Hashable {
+    /**
+     * Version the content belongs to.
+     */
+    public var version: Int64
+    /**
+     * The embed's stored plaintext (TOON/JSON string) at that version.
+     */
+    public var content: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Version the content belongs to.
+         */version: Int64, 
+        /**
+         * The embed's stored plaintext (TOON/JSON string) at that version.
+         */content: String) {
+        self.version = version
+        self.content = content
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EmbedVersionContentRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedVersionContentRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedVersionContentRecord {
+        return
+            try EmbedVersionContentRecord(
+                version: FfiConverterInt64.read(from: &buf), 
+                content: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EmbedVersionContentRecord, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.version, into: &buf)
+        FfiConverterString.write(value.content, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedVersionContentRecord_lift(_ buf: RustBuffer) throws -> EmbedVersionContentRecord {
+    return try FfiConverterTypeEmbedVersionContentRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedVersionContentRecord_lower(_ value: EmbedVersionContentRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedVersionContentRecord.lower(value)
+}
+
+
+/**
  * The version history of one embed, oldest first.
  */
 public struct EmbedVersionHistoryRecord: Equatable, Hashable {
@@ -9512,6 +9839,144 @@ public func FfiConverterTypeImageEnhanceJobRecord_lift(_ buf: RustBuffer) throws
 #endif
 public func FfiConverterTypeImageEnhanceJobRecord_lower(_ value: ImageEnhanceJobRecord) -> RustBuffer {
     return FfiConverterTypeImageEnhanceJobRecord.lower(value)
+}
+
+
+/**
+ * Matches of one message in an in-chat search.
+ */
+public struct InChatSearchMatchRecord: Equatable, Hashable {
+    /**
+     * Message id.
+     */
+    public var messageId: String
+    /**
+     * Non-overlapping ranges in UTF-16 units of the lowercased text.
+     */
+    public var ranges: [SearchMatchRangeRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Message id.
+         */messageId: String, 
+        /**
+         * Non-overlapping ranges in UTF-16 units of the lowercased text.
+         */ranges: [SearchMatchRangeRecord]) {
+        self.messageId = messageId
+        self.ranges = ranges
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension InChatSearchMatchRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInChatSearchMatchRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InChatSearchMatchRecord {
+        return
+            try InChatSearchMatchRecord(
+                messageId: FfiConverterString.read(from: &buf), 
+                ranges: FfiConverterSequenceTypeSearchMatchRangeRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: InChatSearchMatchRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterSequenceTypeSearchMatchRangeRecord.write(value.ranges, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInChatSearchMatchRecord_lift(_ buf: RustBuffer) throws -> InChatSearchMatchRecord {
+    return try FfiConverterTypeInChatSearchMatchRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInChatSearchMatchRecord_lower(_ value: InChatSearchMatchRecord) -> RustBuffer {
+    return FfiConverterTypeInChatSearchMatchRecord.lower(value)
+}
+
+
+/**
+ * One message text for in-chat search.
+ */
+public struct InChatSearchMessageRecord: Equatable, Hashable {
+    /**
+     * Message id.
+     */
+    public var messageId: String
+    /**
+     * Searchable plaintext of the message.
+     */
+    public var text: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Message id.
+         */messageId: String, 
+        /**
+         * Searchable plaintext of the message.
+         */text: String) {
+        self.messageId = messageId
+        self.text = text
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension InChatSearchMessageRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInChatSearchMessageRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InChatSearchMessageRecord {
+        return
+            try InChatSearchMessageRecord(
+                messageId: FfiConverterString.read(from: &buf), 
+                text: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: InChatSearchMessageRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterString.write(value.text, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInChatSearchMessageRecord_lift(_ buf: RustBuffer) throws -> InChatSearchMessageRecord {
+    return try FfiConverterTypeInChatSearchMessageRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInChatSearchMessageRecord_lower(_ value: InChatSearchMessageRecord) -> RustBuffer {
+    return FfiConverterTypeInChatSearchMessageRecord.lower(value)
 }
 
 
@@ -11996,6 +12461,1135 @@ public func FfiConverterTypeRemoteRefusalRecord_lift(_ buf: RustBuffer) throws -
 #endif
 public func FfiConverterTypeRemoteRefusalRecord_lower(_ value: RemoteRefusalRecord) -> RustBuffer {
     return FfiConverterTypeRemoteRefusalRecord.lower(value)
+}
+
+
+/**
+ * One settings or app catalog entry with its translated label.
+ */
+public struct SearchCatalogEntryRecord: Equatable, Hashable {
+    /**
+     * Result list.
+     */
+    public var kind: SearchCatalogKindRecord
+    /**
+     * Visibility.
+     */
+    public var access: SearchCatalogAccessRecord
+    /**
+     * Translated label.
+     */
+    public var label: String
+    /**
+     * Keyword synonyms.
+     */
+    public var keywords: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Result list.
+         */kind: SearchCatalogKindRecord, 
+        /**
+         * Visibility.
+         */access: SearchCatalogAccessRecord, 
+        /**
+         * Translated label.
+         */label: String, 
+        /**
+         * Keyword synonyms.
+         */keywords: [String]) {
+        self.kind = kind
+        self.access = access
+        self.label = label
+        self.keywords = keywords
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchCatalogEntryRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchCatalogEntryRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchCatalogEntryRecord {
+        return
+            try SearchCatalogEntryRecord(
+                kind: FfiConverterTypeSearchCatalogKindRecord.read(from: &buf), 
+                access: FfiConverterTypeSearchCatalogAccessRecord.read(from: &buf), 
+                label: FfiConverterString.read(from: &buf), 
+                keywords: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchCatalogEntryRecord, into buf: inout [UInt8]) {
+        FfiConverterTypeSearchCatalogKindRecord.write(value.kind, into: &buf)
+        FfiConverterTypeSearchCatalogAccessRecord.write(value.access, into: &buf)
+        FfiConverterString.write(value.label, into: &buf)
+        FfiConverterSequenceString.write(value.keywords, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchCatalogEntryRecord_lift(_ buf: RustBuffer) throws -> SearchCatalogEntryRecord {
+    return try FfiConverterTypeSearchCatalogEntryRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchCatalogEntryRecord_lower(_ value: SearchCatalogEntryRecord) -> RustBuffer {
+    return FfiConverterTypeSearchCatalogEntryRecord.lower(value)
+}
+
+
+/**
+ * Page data for one searchable chat, in display order.
+ */
+public struct SearchChatRecord: Equatable, Hashable {
+    /**
+     * Chat id (also the index key; entries must be ingested under it).
+     */
+    public var chatId: String
+    /**
+     * Whether message entries are searched (ingested); `false` = metadata only.
+     */
+    public var searchMessages: Bool
+    /**
+     * Decrypted title.
+     */
+    public var title: String?
+    /**
+     * Active focus mode id.
+     */
+    public var activeFocusId: String?
+    /**
+     * Summary to search (`nil` for public chats).
+     */
+    public var summary: String?
+    /**
+     * Tags to search.
+     */
+    public var tags: [String]?
+    /**
+     * Unsent draft preview to search.
+     */
+    public var draft: String?
+    /**
+     * Last edited timestamp, the recency tie-breaker.
+     */
+    public var lastEdited: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat id (also the index key; entries must be ingested under it).
+         */chatId: String, 
+        /**
+         * Whether message entries are searched (ingested); `false` = metadata only.
+         */searchMessages: Bool, 
+        /**
+         * Decrypted title.
+         */title: String?, 
+        /**
+         * Active focus mode id.
+         */activeFocusId: String?, 
+        /**
+         * Summary to search (`nil` for public chats).
+         */summary: String?, 
+        /**
+         * Tags to search.
+         */tags: [String]?, 
+        /**
+         * Unsent draft preview to search.
+         */draft: String?, 
+        /**
+         * Last edited timestamp, the recency tie-breaker.
+         */lastEdited: Double) {
+        self.chatId = chatId
+        self.searchMessages = searchMessages
+        self.title = title
+        self.activeFocusId = activeFocusId
+        self.summary = summary
+        self.tags = tags
+        self.draft = draft
+        self.lastEdited = lastEdited
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchChatRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchChatRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchChatRecord {
+        return
+            try SearchChatRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                searchMessages: FfiConverterBool.read(from: &buf), 
+                title: FfiConverterOptionString.read(from: &buf), 
+                activeFocusId: FfiConverterOptionString.read(from: &buf), 
+                summary: FfiConverterOptionString.read(from: &buf), 
+                tags: FfiConverterOptionSequenceString.read(from: &buf), 
+                draft: FfiConverterOptionString.read(from: &buf), 
+                lastEdited: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchChatRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterBool.write(value.searchMessages, into: &buf)
+        FfiConverterOptionString.write(value.title, into: &buf)
+        FfiConverterOptionString.write(value.activeFocusId, into: &buf)
+        FfiConverterOptionString.write(value.summary, into: &buf)
+        FfiConverterOptionSequenceString.write(value.tags, into: &buf)
+        FfiConverterOptionString.write(value.draft, into: &buf)
+        FfiConverterDouble.write(value.lastEdited, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchChatRecord_lift(_ buf: RustBuffer) throws -> SearchChatRecord {
+    return try FfiConverterTypeSearchChatRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchChatRecord_lower(_ value: SearchChatRecord) -> RustBuffer {
+    return FfiConverterTypeSearchChatRecord.lower(value)
+}
+
+
+/**
+ * One matching chat in final display order.
+ */
+public struct SearchChatResultRecord: Equatable, Hashable {
+    /**
+     * Chat id.
+     */
+    public var chatId: String
+    /**
+     * Title match ranges (title matched when non-empty).
+     */
+    public var titleRanges: [SearchMatchRangeRecord]
+    /**
+     * Message and embed snippets.
+     */
+    public var messages: [SearchMessageSnippetRecord]
+    /**
+     * Summary, tag and draft snippets.
+     */
+    public var metadata: [SearchMetadataSnippetRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat id.
+         */chatId: String, 
+        /**
+         * Title match ranges (title matched when non-empty).
+         */titleRanges: [SearchMatchRangeRecord], 
+        /**
+         * Message and embed snippets.
+         */messages: [SearchMessageSnippetRecord], 
+        /**
+         * Summary, tag and draft snippets.
+         */metadata: [SearchMetadataSnippetRecord]) {
+        self.chatId = chatId
+        self.titleRanges = titleRanges
+        self.messages = messages
+        self.metadata = metadata
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchChatResultRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchChatResultRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchChatResultRecord {
+        return
+            try SearchChatResultRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                titleRanges: FfiConverterSequenceTypeSearchMatchRangeRecord.read(from: &buf), 
+                messages: FfiConverterSequenceTypeSearchMessageSnippetRecord.read(from: &buf), 
+                metadata: FfiConverterSequenceTypeSearchMetadataSnippetRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchChatResultRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterSequenceTypeSearchMatchRangeRecord.write(value.titleRanges, into: &buf)
+        FfiConverterSequenceTypeSearchMessageSnippetRecord.write(value.messages, into: &buf)
+        FfiConverterSequenceTypeSearchMetadataSnippetRecord.write(value.metadata, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchChatResultRecord_lift(_ buf: RustBuffer) throws -> SearchChatResultRecord {
+    return try FfiConverterTypeSearchChatResultRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchChatResultRecord_lower(_ value: SearchChatResultRecord) -> RustBuffer {
+    return FfiConverterTypeSearchChatResultRecord.lower(value)
+}
+
+
+/**
+ * One ranked embed result.
+ */
+public struct SearchEmbedResultRecord: Equatable, Hashable {
+    /**
+     * Chat id.
+     */
+    public var chatId: String
+    /**
+     * Embed id.
+     */
+    public var embedId: String
+    /**
+     * Embed type (empty when unknown).
+     */
+    public var embedType: String
+    /**
+     * Parent message id.
+     */
+    public var messageId: String
+    /**
+     * Embed title.
+     */
+    public var title: String
+    /**
+     * Subtitle, source label or "Embed".
+     */
+    public var subtitle: String
+    /**
+     * Owning app id.
+     */
+    public var appId: String?
+    /**
+     * Embed message timestamp.
+     */
+    public var createdAt: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat id.
+         */chatId: String, 
+        /**
+         * Embed id.
+         */embedId: String, 
+        /**
+         * Embed type (empty when unknown).
+         */embedType: String, 
+        /**
+         * Parent message id.
+         */messageId: String, 
+        /**
+         * Embed title.
+         */title: String, 
+        /**
+         * Subtitle, source label or "Embed".
+         */subtitle: String, 
+        /**
+         * Owning app id.
+         */appId: String?, 
+        /**
+         * Embed message timestamp.
+         */createdAt: Double) {
+        self.chatId = chatId
+        self.embedId = embedId
+        self.embedType = embedType
+        self.messageId = messageId
+        self.title = title
+        self.subtitle = subtitle
+        self.appId = appId
+        self.createdAt = createdAt
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchEmbedResultRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchEmbedResultRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchEmbedResultRecord {
+        return
+            try SearchEmbedResultRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                embedId: FfiConverterString.read(from: &buf), 
+                embedType: FfiConverterString.read(from: &buf), 
+                messageId: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                subtitle: FfiConverterString.read(from: &buf), 
+                appId: FfiConverterOptionString.read(from: &buf), 
+                createdAt: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchEmbedResultRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterString.write(value.embedType, into: &buf)
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.subtitle, into: &buf)
+        FfiConverterOptionString.write(value.appId, into: &buf)
+        FfiConverterDouble.write(value.createdAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchEmbedResultRecord_lift(_ buf: RustBuffer) throws -> SearchEmbedResultRecord {
+    return try FfiConverterTypeSearchEmbedResultRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchEmbedResultRecord_lower(_ value: SearchEmbedResultRecord) -> RustBuffer {
+    return FfiConverterTypeSearchEmbedResultRecord.lower(value)
+}
+
+
+/**
+ * Optional embed fields of an indexed entry (`nil` entry meta = message text).
+ */
+public struct SearchEntryMetaRecord: Equatable, Hashable {
+    /**
+     * Label of the embed source (set for every embed entry).
+     */
+    public var sourceLabel: String?
+    /**
+     * Embed id.
+     */
+    public var embedId: String?
+    /**
+     * Embed type.
+     */
+    public var embedType: String?
+    /**
+     * Embed title.
+     */
+    public var title: String?
+    /**
+     * Embed subtitle.
+     */
+    public var subtitle: String?
+    /**
+     * Owning app id.
+     */
+    public var appId: String?
+    /**
+     * Skill id.
+     */
+    public var skillId: String?
+    /**
+     * Focus mode id of a focus-mode activation.
+     */
+    public var focusId: String?
+    /**
+     * Focus mode display name.
+     */
+    public var focusModeName: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Label of the embed source (set for every embed entry).
+         */sourceLabel: String?, 
+        /**
+         * Embed id.
+         */embedId: String?, 
+        /**
+         * Embed type.
+         */embedType: String?, 
+        /**
+         * Embed title.
+         */title: String?, 
+        /**
+         * Embed subtitle.
+         */subtitle: String?, 
+        /**
+         * Owning app id.
+         */appId: String?, 
+        /**
+         * Skill id.
+         */skillId: String?, 
+        /**
+         * Focus mode id of a focus-mode activation.
+         */focusId: String?, 
+        /**
+         * Focus mode display name.
+         */focusModeName: String?) {
+        self.sourceLabel = sourceLabel
+        self.embedId = embedId
+        self.embedType = embedType
+        self.title = title
+        self.subtitle = subtitle
+        self.appId = appId
+        self.skillId = skillId
+        self.focusId = focusId
+        self.focusModeName = focusModeName
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchEntryMetaRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchEntryMetaRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchEntryMetaRecord {
+        return
+            try SearchEntryMetaRecord(
+                sourceLabel: FfiConverterOptionString.read(from: &buf), 
+                embedId: FfiConverterOptionString.read(from: &buf), 
+                embedType: FfiConverterOptionString.read(from: &buf), 
+                title: FfiConverterOptionString.read(from: &buf), 
+                subtitle: FfiConverterOptionString.read(from: &buf), 
+                appId: FfiConverterOptionString.read(from: &buf), 
+                skillId: FfiConverterOptionString.read(from: &buf), 
+                focusId: FfiConverterOptionString.read(from: &buf), 
+                focusModeName: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchEntryMetaRecord, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.sourceLabel, into: &buf)
+        FfiConverterOptionString.write(value.embedId, into: &buf)
+        FfiConverterOptionString.write(value.embedType, into: &buf)
+        FfiConverterOptionString.write(value.title, into: &buf)
+        FfiConverterOptionString.write(value.subtitle, into: &buf)
+        FfiConverterOptionString.write(value.appId, into: &buf)
+        FfiConverterOptionString.write(value.skillId, into: &buf)
+        FfiConverterOptionString.write(value.focusId, into: &buf)
+        FfiConverterOptionString.write(value.focusModeName, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchEntryMetaRecord_lift(_ buf: RustBuffer) throws -> SearchEntryMetaRecord {
+    return try FfiConverterTypeSearchEntryMetaRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchEntryMetaRecord_lower(_ value: SearchEntryMetaRecord) -> RustBuffer {
+    return FfiConverterTypeSearchEntryMetaRecord.lower(value)
+}
+
+
+/**
+ * One searchable entry of a chat: message text or extracted embed text.
+ */
+public struct SearchIndexEntryRecord: Equatable, Hashable {
+    /**
+     * Parent message id (snippet target).
+     */
+    public var messageId: String
+    /**
+     * Searchable plaintext.
+     */
+    public var content: String
+    /**
+     * Message timestamp (any monotonic unit; newest first).
+     */
+    public var createdAt: Double
+    /**
+     * Embed fields; `nil` for message text.
+     */
+    public var meta: SearchEntryMetaRecord?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Parent message id (snippet target).
+         */messageId: String, 
+        /**
+         * Searchable plaintext.
+         */content: String, 
+        /**
+         * Message timestamp (any monotonic unit; newest first).
+         */createdAt: Double, 
+        /**
+         * Embed fields; `nil` for message text.
+         */meta: SearchEntryMetaRecord?) {
+        self.messageId = messageId
+        self.content = content
+        self.createdAt = createdAt
+        self.meta = meta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchIndexEntryRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchIndexEntryRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchIndexEntryRecord {
+        return
+            try SearchIndexEntryRecord(
+                messageId: FfiConverterString.read(from: &buf), 
+                content: FfiConverterString.read(from: &buf), 
+                createdAt: FfiConverterDouble.read(from: &buf), 
+                meta: FfiConverterOptionTypeSearchEntryMetaRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchIndexEntryRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterString.write(value.content, into: &buf)
+        FfiConverterDouble.write(value.createdAt, into: &buf)
+        FfiConverterOptionTypeSearchEntryMetaRecord.write(value.meta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchIndexEntryRecord_lift(_ buf: RustBuffer) throws -> SearchIndexEntryRecord {
+    return try FfiConverterTypeSearchIndexEntryRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchIndexEntryRecord_lower(_ value: SearchIndexEntryRecord) -> RustBuffer {
+    return FfiConverterTypeSearchIndexEntryRecord.lower(value)
+}
+
+
+/**
+ * One match range in UTF-16 code units of the lowercased text.
+ */
+public struct SearchMatchRangeRecord: Equatable, Hashable {
+    /**
+     * Start offset in UTF-16 units.
+     */
+    public var start: UInt32
+    /**
+     * Length in UTF-16 units.
+     */
+    public var length: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Start offset in UTF-16 units.
+         */start: UInt32, 
+        /**
+         * Length in UTF-16 units.
+         */length: UInt32) {
+        self.start = start
+        self.length = length
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchMatchRangeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchMatchRangeRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchMatchRangeRecord {
+        return
+            try SearchMatchRangeRecord(
+                start: FfiConverterUInt32.read(from: &buf), 
+                length: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchMatchRangeRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.start, into: &buf)
+        FfiConverterUInt32.write(value.length, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMatchRangeRecord_lift(_ buf: RustBuffer) throws -> SearchMatchRangeRecord {
+    return try FfiConverterTypeSearchMatchRangeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMatchRangeRecord_lower(_ value: SearchMatchRangeRecord) -> RustBuffer {
+    return FfiConverterTypeSearchMatchRangeRecord.lower(value)
+}
+
+
+/**
+ * A message or embed snippet of a chat result.
+ */
+public struct SearchMessageSnippetRecord: Equatable, Hashable {
+    /**
+     * Snippet text (a cut surrogate pair becomes U+FFFD).
+     */
+    public var snippet: String
+    /**
+     * Match start in UTF-16 units of the snippet.
+     */
+    public var matchStart: UInt32
+    /**
+     * Match length in UTF-16 units.
+     */
+    public var matchLength: UInt32
+    /**
+     * Parent message id.
+     */
+    public var messageId: String
+    /**
+     * Embed fields when the snippet came from an embed.
+     */
+    public var meta: SearchEntryMetaRecord?
+    /**
+     * Focus-mode activation: is it the chat's active focus mode? `nil` otherwise.
+     */
+    public var focusActive: Bool?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Snippet text (a cut surrogate pair becomes U+FFFD).
+         */snippet: String, 
+        /**
+         * Match start in UTF-16 units of the snippet.
+         */matchStart: UInt32, 
+        /**
+         * Match length in UTF-16 units.
+         */matchLength: UInt32, 
+        /**
+         * Parent message id.
+         */messageId: String, 
+        /**
+         * Embed fields when the snippet came from an embed.
+         */meta: SearchEntryMetaRecord?, 
+        /**
+         * Focus-mode activation: is it the chat's active focus mode? `nil` otherwise.
+         */focusActive: Bool?) {
+        self.snippet = snippet
+        self.matchStart = matchStart
+        self.matchLength = matchLength
+        self.messageId = messageId
+        self.meta = meta
+        self.focusActive = focusActive
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchMessageSnippetRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchMessageSnippetRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchMessageSnippetRecord {
+        return
+            try SearchMessageSnippetRecord(
+                snippet: FfiConverterString.read(from: &buf), 
+                matchStart: FfiConverterUInt32.read(from: &buf), 
+                matchLength: FfiConverterUInt32.read(from: &buf), 
+                messageId: FfiConverterString.read(from: &buf), 
+                meta: FfiConverterOptionTypeSearchEntryMetaRecord.read(from: &buf), 
+                focusActive: FfiConverterOptionBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchMessageSnippetRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.snippet, into: &buf)
+        FfiConverterUInt32.write(value.matchStart, into: &buf)
+        FfiConverterUInt32.write(value.matchLength, into: &buf)
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterOptionTypeSearchEntryMetaRecord.write(value.meta, into: &buf)
+        FfiConverterOptionBool.write(value.focusActive, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMessageSnippetRecord_lift(_ buf: RustBuffer) throws -> SearchMessageSnippetRecord {
+    return try FfiConverterTypeSearchMessageSnippetRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMessageSnippetRecord_lower(_ value: SearchMessageSnippetRecord) -> RustBuffer {
+    return FfiConverterTypeSearchMessageSnippetRecord.lower(value)
+}
+
+
+/**
+ * A summary, tag or draft snippet.
+ */
+public struct SearchMetadataSnippetRecord: Equatable, Hashable {
+    /**
+     * Snippet text.
+     */
+    public var snippet: String
+    /**
+     * Match start in UTF-16 units of the snippet.
+     */
+    public var matchStart: UInt32
+    /**
+     * Match length in UTF-16 units.
+     */
+    public var matchLength: UInt32
+    /**
+     * Matched field.
+     */
+    public var source: SearchMetadataSourceRecord
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Snippet text.
+         */snippet: String, 
+        /**
+         * Match start in UTF-16 units of the snippet.
+         */matchStart: UInt32, 
+        /**
+         * Match length in UTF-16 units.
+         */matchLength: UInt32, 
+        /**
+         * Matched field.
+         */source: SearchMetadataSourceRecord) {
+        self.snippet = snippet
+        self.matchStart = matchStart
+        self.matchLength = matchLength
+        self.source = source
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchMetadataSnippetRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchMetadataSnippetRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchMetadataSnippetRecord {
+        return
+            try SearchMetadataSnippetRecord(
+                snippet: FfiConverterString.read(from: &buf), 
+                matchStart: FfiConverterUInt32.read(from: &buf), 
+                matchLength: FfiConverterUInt32.read(from: &buf), 
+                source: FfiConverterTypeSearchMetadataSourceRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchMetadataSnippetRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.snippet, into: &buf)
+        FfiConverterUInt32.write(value.matchStart, into: &buf)
+        FfiConverterUInt32.write(value.matchLength, into: &buf)
+        FfiConverterTypeSearchMetadataSourceRecord.write(value.source, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMetadataSnippetRecord_lift(_ buf: RustBuffer) throws -> SearchMetadataSnippetRecord {
+    return try FfiConverterTypeSearchMetadataSnippetRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMetadataSnippetRecord_lower(_ value: SearchMetadataSnippetRecord) -> RustBuffer {
+    return FfiConverterTypeSearchMetadataSnippetRecord.lower(value)
+}
+
+
+/**
+ * One complete search request (trimmed, non-empty query).
+ */
+public struct SearchRequestRecord: Equatable, Hashable {
+    /**
+     * Trimmed query.
+     */
+    public var query: String
+    /**
+     * Collect embed results (composer suggestions).
+     */
+    public var includeEmbeds: Bool
+    /**
+     * Caller is signed in.
+     */
+    public var authenticated: Bool
+    /**
+     * Caller is an admin.
+     */
+    public var admin: Bool
+    /**
+     * Searchable chats in display order.
+     */
+    public var chats: [SearchChatRecord]
+    /**
+     * Settings entries followed by app entries.
+     */
+    public var catalog: [SearchCatalogEntryRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Trimmed query.
+         */query: String, 
+        /**
+         * Collect embed results (composer suggestions).
+         */includeEmbeds: Bool, 
+        /**
+         * Caller is signed in.
+         */authenticated: Bool, 
+        /**
+         * Caller is an admin.
+         */admin: Bool, 
+        /**
+         * Searchable chats in display order.
+         */chats: [SearchChatRecord], 
+        /**
+         * Settings entries followed by app entries.
+         */catalog: [SearchCatalogEntryRecord]) {
+        self.query = query
+        self.includeEmbeds = includeEmbeds
+        self.authenticated = authenticated
+        self.admin = admin
+        self.chats = chats
+        self.catalog = catalog
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchRequestRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchRequestRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchRequestRecord {
+        return
+            try SearchRequestRecord(
+                query: FfiConverterString.read(from: &buf), 
+                includeEmbeds: FfiConverterBool.read(from: &buf), 
+                authenticated: FfiConverterBool.read(from: &buf), 
+                admin: FfiConverterBool.read(from: &buf), 
+                chats: FfiConverterSequenceTypeSearchChatRecord.read(from: &buf), 
+                catalog: FfiConverterSequenceTypeSearchCatalogEntryRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchRequestRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.query, into: &buf)
+        FfiConverterBool.write(value.includeEmbeds, into: &buf)
+        FfiConverterBool.write(value.authenticated, into: &buf)
+        FfiConverterBool.write(value.admin, into: &buf)
+        FfiConverterSequenceTypeSearchChatRecord.write(value.chats, into: &buf)
+        FfiConverterSequenceTypeSearchCatalogEntryRecord.write(value.catalog, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchRequestRecord_lift(_ buf: RustBuffer) throws -> SearchRequestRecord {
+    return try FfiConverterTypeSearchRequestRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchRequestRecord_lower(_ value: SearchRequestRecord) -> RustBuffer {
+    return FfiConverterTypeSearchRequestRecord.lower(value)
+}
+
+
+/**
+ * Result of one search.
+ */
+public struct SearchResultRecord: Equatable, Hashable {
+    /**
+     * Matching chats: title matches, then message matches, then by recency.
+     */
+    public var chats: [SearchChatResultRecord]
+    /**
+     * Ranked, deduplicated, capped embeds.
+     */
+    public var embeds: [SearchEmbedResultRecord]
+    /**
+     * Indices into the request catalog of matching settings entries.
+     */
+    public var settings: [UInt32]
+    /**
+     * Indices into the request catalog of matching app entries.
+     */
+    public var apps: [UInt32]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Matching chats: title matches, then message matches, then by recency.
+         */chats: [SearchChatResultRecord], 
+        /**
+         * Ranked, deduplicated, capped embeds.
+         */embeds: [SearchEmbedResultRecord], 
+        /**
+         * Indices into the request catalog of matching settings entries.
+         */settings: [UInt32], 
+        /**
+         * Indices into the request catalog of matching app entries.
+         */apps: [UInt32]) {
+        self.chats = chats
+        self.embeds = embeds
+        self.settings = settings
+        self.apps = apps
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchResultRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchResultRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchResultRecord {
+        return
+            try SearchResultRecord(
+                chats: FfiConverterSequenceTypeSearchChatResultRecord.read(from: &buf), 
+                embeds: FfiConverterSequenceTypeSearchEmbedResultRecord.read(from: &buf), 
+                settings: FfiConverterSequenceUInt32.read(from: &buf), 
+                apps: FfiConverterSequenceUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchResultRecord, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeSearchChatResultRecord.write(value.chats, into: &buf)
+        FfiConverterSequenceTypeSearchEmbedResultRecord.write(value.embeds, into: &buf)
+        FfiConverterSequenceUInt32.write(value.settings, into: &buf)
+        FfiConverterSequenceUInt32.write(value.apps, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchResultRecord_lift(_ buf: RustBuffer) throws -> SearchResultRecord {
+    return try FfiConverterTypeSearchResultRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchResultRecord_lower(_ value: SearchResultRecord) -> RustBuffer {
+    return FfiConverterTypeSearchResultRecord.lower(value)
 }
 
 
@@ -18477,6 +20071,251 @@ public func FfiConverterTypeRemoteCommandOutcomeRecord_lower(_ value: RemoteComm
 
 
 /**
+ * Visibility of a settings catalog entry.
+ */
+
+public enum SearchCatalogAccessRecord: Equatable, Hashable {
+    
+    /**
+     * Everyone.
+     */
+    case `public`
+    /**
+     * Signed-in users.
+     */
+    case authenticated
+    /**
+     * Admins.
+     */
+    case admin
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SearchCatalogAccessRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchCatalogAccessRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SearchCatalogAccessRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchCatalogAccessRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .`public`
+        
+        case 2: return .authenticated
+        
+        case 3: return .admin
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SearchCatalogAccessRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .`public`:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .authenticated:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .admin:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchCatalogAccessRecord_lift(_ buf: RustBuffer) throws -> SearchCatalogAccessRecord {
+    return try FfiConverterTypeSearchCatalogAccessRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchCatalogAccessRecord_lower(_ value: SearchCatalogAccessRecord) -> RustBuffer {
+    return FfiConverterTypeSearchCatalogAccessRecord.lower(value)
+}
+
+
+
+/**
+ * Result list a catalog entry belongs to.
+ */
+
+public enum SearchCatalogKindRecord: Equatable, Hashable {
+    
+    /**
+     * Settings entry (filtered by access).
+     */
+    case settings
+    /**
+     * App catalog entry (never filtered).
+     */
+    case app
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SearchCatalogKindRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchCatalogKindRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SearchCatalogKindRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchCatalogKindRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .settings
+        
+        case 2: return .app
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SearchCatalogKindRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .settings:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .app:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchCatalogKindRecord_lift(_ buf: RustBuffer) throws -> SearchCatalogKindRecord {
+    return try FfiConverterTypeSearchCatalogKindRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchCatalogKindRecord_lower(_ value: SearchCatalogKindRecord) -> RustBuffer {
+    return FfiConverterTypeSearchCatalogKindRecord.lower(value)
+}
+
+
+
+/**
+ * Where a metadata snippet matched.
+ */
+
+public enum SearchMetadataSourceRecord: Equatable, Hashable {
+    
+    /**
+     * Chat summary.
+     */
+    case summary
+    /**
+     * One tag.
+     */
+    case tags
+    /**
+     * Unsent draft preview.
+     */
+    case draft
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SearchMetadataSourceRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchMetadataSourceRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SearchMetadataSourceRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchMetadataSourceRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .summary
+        
+        case 2: return .tags
+        
+        case 3: return .draft
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SearchMetadataSourceRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .summary:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .tags:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .draft:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMetadataSourceRecord_lift(_ buf: RustBuffer) throws -> SearchMetadataSourceRecord {
+    return try FfiConverterTypeSearchMetadataSourceRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMetadataSourceRecord_lower(_ value: SearchMetadataSourceRecord) -> RustBuffer {
+    return FfiConverterTypeSearchMetadataSourceRecord.lower(value)
+}
+
+
+
+/**
  * How a queued turn waits.
  */
 
@@ -20766,6 +22605,30 @@ fileprivate struct FfiConverterOptionTypeMemoryFieldsRecord: FfiConverterRustBuf
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeSearchEntryMetaRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SearchEntryMetaRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSearchEntryMetaRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSearchEntryMetaRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeSessionInfoRecord: FfiConverterRustBuffer {
     typealias SwiftType = SessionInfoRecord?
 
@@ -21503,6 +23366,56 @@ fileprivate struct FfiConverterSequenceTypeHttpFieldRecord: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeInChatSearchMatchRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [InChatSearchMatchRecord]
+
+    public static func write(_ value: [InChatSearchMatchRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeInChatSearchMatchRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [InChatSearchMatchRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [InChatSearchMatchRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeInChatSearchMatchRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeInChatSearchMessageRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [InChatSearchMessageRecord]
+
+    public static func write(_ value: [InChatSearchMessageRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeInChatSearchMessageRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [InChatSearchMessageRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [InChatSearchMessageRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeInChatSearchMessageRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMemoryDocumentRecord: FfiConverterRustBuffer {
     typealias SwiftType = [MemoryDocumentRecord]
 
@@ -21670,6 +23583,206 @@ fileprivate struct FfiConverterSequenceTypePiiMappingRecord: FfiConverterRustBuf
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypePiiMappingRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchCatalogEntryRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchCatalogEntryRecord]
+
+    public static func write(_ value: [SearchCatalogEntryRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchCatalogEntryRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchCatalogEntryRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchCatalogEntryRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchCatalogEntryRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchChatRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchChatRecord]
+
+    public static func write(_ value: [SearchChatRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchChatRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchChatRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchChatRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchChatRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchChatResultRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchChatResultRecord]
+
+    public static func write(_ value: [SearchChatResultRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchChatResultRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchChatResultRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchChatResultRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchChatResultRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchEmbedResultRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchEmbedResultRecord]
+
+    public static func write(_ value: [SearchEmbedResultRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchEmbedResultRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchEmbedResultRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchEmbedResultRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchEmbedResultRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchIndexEntryRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchIndexEntryRecord]
+
+    public static func write(_ value: [SearchIndexEntryRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchIndexEntryRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchIndexEntryRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchIndexEntryRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchIndexEntryRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchMatchRangeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchMatchRangeRecord]
+
+    public static func write(_ value: [SearchMatchRangeRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchMatchRangeRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchMatchRangeRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchMatchRangeRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchMatchRangeRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchMessageSnippetRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchMessageSnippetRecord]
+
+    public static func write(_ value: [SearchMessageSnippetRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchMessageSnippetRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchMessageSnippetRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchMessageSnippetRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchMessageSnippetRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchMetadataSnippetRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchMetadataSnippetRecord]
+
+    public static func write(_ value: [SearchMetadataSnippetRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchMetadataSnippetRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchMetadataSnippetRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchMetadataSnippetRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchMetadataSnippetRecord.read(from: &buf))
         }
         return seq
     }
@@ -22668,6 +24781,31 @@ public func remoteCommandStopPayloadJson(review: RemoteCommandReviewRecord) -> S
 })
 }
 /**
+ * Case-insensitive non-overlapping match ranges of `query` in `text` (UTF-16 units).
+ */
+public func searchFindMatchRanges(text: String, query: String) -> [SearchMatchRangeRecord]  {
+    return try!  FfiConverterSequenceTypeSearchMatchRangeRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_search_find_match_ranges(
+        FfiConverterString.lower(text),
+        FfiConverterString.lower(query),uniffiCallStatus
+    )
+})
+}
+/**
+ * In-chat search: the messages of one chat that contain `query`, in input
+ * order, with their match ranges (an empty query matches nothing).
+ */
+public func searchInChatMessages(query: String, messages: [InChatSearchMessageRecord]) -> [InChatSearchMatchRecord]  {
+    return try!  FfiConverterSequenceTypeInChatSearchMatchRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_search_in_chat_messages(
+        FfiConverterString.lower(query),
+        FfiConverterSequenceTypeInChatSearchMessageRecord.lower(messages),uniffiCallStatus
+    )
+})
+}
+/**
  * Parses normalised slides markup into the render records.
  *
  * # Errors
@@ -22825,6 +24963,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_func_remote_command_stop_payload_json() != 34813) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_func_search_find_match_ranges() != 36503) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_search_in_chat_messages() != 65314) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_func_slide_deck_from_markup() != 62492) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -22970,6 +25114,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_wait_image_enhance() != 54777) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_embed_version_content() != 32178) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_commit_embed_edit() != 32110) {
@@ -23125,6 +25272,21 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_imageenhancewaker_notify_frame() != 22400) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_chat_count() != 39420) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_clear() != 57049) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_ingest_chat() != 34448) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_query() != 27920) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_remove_chat() != 40529) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_constructor_corecancellation_new() != 2322) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -23135,6 +25297,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_constructor_imageenhancewaker_new() != 49111) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_constructor_corechatsearchindex_new() != 11853) {
         return InitializationResult.apiChecksumMismatch
     }
 

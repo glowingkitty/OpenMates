@@ -26,6 +26,7 @@ tests:
   "apple/OpenMatesTests/AuthSessionReauthenticationTests.swift": {result: passed, date: '2026-11-14', commit: 'd31eaf6aab', job: '6de17a52f55a'}
   "apple/OpenMatesTests/BackgroundChatSenderParityTests.swift": {result: passed, date: '2026-11-14', commit: 'd31eaf6aab', job: '6de17a52f55a'}
   "apple/OpenMatesTests/BillingUsageDraftAudioRegistryTests.swift": {result: passed, date: '2026-11-14', commit: 'd31eaf6aab', job: '6de17a52f55a'}
+  "apple/OpenMatesTests/BodyEmbedSlotProjectionTests.swift": {result: passed, date: '2026-11-14', commit: 'd31eaf6aab', job: '6de17a52f55a'}
   "apple/OpenMatesTests/CalledMediaInputRetentionTests.swift": {result: passed, date: '2026-11-14', commit: 'd31eaf6aab', job: '6de17a52f55a'}
   "apple/OpenMatesTests/CalledSkillSearchInputRetentionTests.swift": {result: passed, date: '2026-11-14', commit: 'd31eaf6aab', job: '6de17a52f55a'}
   "apple/OpenMatesTests/ChatAudioPipelineTests.swift": {result: passed, date: '2026-11-14', commit: 'd31eaf6aab', job: '6de17a52f55a'}
@@ -232,7 +233,7 @@ tests:
   "apple/OpenMatesTests/WorkflowsParityTests.swift": {result: passed, date: '2026-11-14', commit: 'd31eaf6aab', job: '6de17a52f55a'}
   "apple/OpenMatesTests/WorkspaceContinuationLayoutTests.swift": {result: passed, date: '2026-11-14', commit: 'd31eaf6aab', job: '6de17a52f55a'}
   "apple/OpenMatesTests/WorkspaceSwitcherLayoutTests.swift": {result: passed, date: '2026-11-14', commit: 'd31eaf6aab', job: '6de17a52f55a'}
-  "apple/OpenMatesUITests/AssistantActivityPreviewUITests.swift": {result: failed, date: '2026-11-14', commit: 'd31eaf6aab', job: '41f154be7dcf', failed: ["testConfirmedTransientHandoffAndSourcePositionDisclosureKeepParagraphIdentity"]}
+  "apple/OpenMatesUITests/AssistantActivityPreviewUITests.swift": {result: passed, date: '2026-11-14', commit: '3d9a8ee853', job: '580f95cf3574'}
   "apple/OpenMatesUITests/ChatCardsParityUITests.swift": {result: passed, date: '2026-11-12', commit: '5643f07daa', job: '46965105b574'}
   "apple/OpenMatesUITests/ChatFlowParityUITests.swift": {result: passed, date: '2026-11-12', commit: '41038e00d0', job: '91ffa57e4f2c'}
   "apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift": {result: failed, date: '2026-11-12', commit: '1b547d74f8', job: '48b23e7c0774', failed: ["testStreamingThinkingAndComposerStopMatchWebContract"]}
@@ -240,7 +241,7 @@ tests:
   "apple/OpenMatesUITests/DevComponentPreviewUITests.swift": {result: failed, date: '2026-11-14', commit: '09203143eb', job: '06353e37b4be', failed: ["testProjectsWorkspaceLandingOverviewAndFilesAtWebPhoneWidth"]}
   "apple/OpenMatesUITests/EmbedRenderingParityUITests.swift": {result: failed, date: '2026-11-12', commit: '478c638359', job: 'e04716a656d6', failed: ["testAllEmbedPreviewAppsRenderProductChrome", "testCanonicalRegistryKeysRenderPreviewAndFullscreenWithoutGenericFallback", "testCodeFullscreenUsesSharedPIIRevealControl", "testFullscreenParentChildRouteStackReturnsToParentBeforeClosing", "testGroupedVideoTranscriptRendersPreviewAndFullscreenContent", "testMediaSearchRegistryKeysRenderPreviewAndFullscreen", "testModels3DChildCloseRestoresInteractiveParentSurface", "testOwnerPIIMappingFollowsSelectedEmbedAndFailsClosedDuringNavigation", "testSavedCodeRunOutputAppearsInPreview", "testSavedCodeRunOutputReopensInFullscreenAndCanBeCopied", "testTaskWorkflowAndModelEmbedsUseSpecificNativeChrome", "testTravelConnectionCopyAndCalendarActionsWide", "testVersionedCodeEmbedFullscreenTimelineRendersAndRestores", "testWebSearchPreviewShowsResultThumbnailStrip"]}
   "apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift": {result: failed, date: '2026-11-12', commit: '50075ec9cb', job: '2ece5ca4b6ed', failed: ["testAcceptedFollowUpClosesComposerAndDismissesKeyboard", "testAcceptedSendClosesExpandedComposerAndDismissesKeyboard", "testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay", "testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft", "testChatMixedDraftCompactMicrophoneAppendsAudioAndRestoresFullEditor", "testRejectedSendRetainsDraftExpansionAndKeyboardFocus", "testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews"]}
-  "apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift": {result: failed, date: '2026-11-14', commit: 'b0fd1bc811', job: '764b7cf9087c', failed: ["testCallStripSitsBelowHeaderAtRestAndPinsWithMoreAndCloseWhenScrolled"]}
+  "apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift": {result: passed, date: '2026-11-14', commit: '3d9a8ee853', job: '31684f254afa'}
   "apple/OpenMatesUITests/SettingsFullParityUITests.swift": {result: passed, date: '2026-11-12', commit: 'ac8f4dbb18', job: '3022de0fa045'}
   "apple/OpenMatesUITests/SettingsMemoriesParityUITests.swift": {result: passed, date: '2026-11-12', commit: '03a7aedaa3', job: 'a08d8193c443'}
   "apple/OpenMatesUITests/SettingsSensitiveActionsParityUITests.swift": {result: passed, date: '2026-11-12', commit: '41038e00d0', job: 'f9a8a9dfd6a2'}
@@ -268,6 +269,12 @@ tests:
   "backend/tests/test_business_company_ownership.py": {result: passed, date: '2026-11-12', commit: '05dbc77b95', job: '63b326ec5d32'}
   "backend/tests/test_business_search_investors.py": {result: passed, date: '2026-11-14', commit: '96989b855b', job: 'c172424f8940'}
   "backend/tests/test_cache_pricing_activation.py": {result: passed, date: '2026-11-12', commit: '9d3e8afdb6', job: 'a0da2b39e6df'}
+  "backend/tests/test_calendar_app_contract.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
+  "backend/tests/test_calendar_chat_flow_mocked.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
+  "backend/tests/test_calendar_discovery.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
+  "backend/tests/test_calendar_event_content.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
+  "backend/tests/test_calendar_event_streaming.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
+  "backend/tests/test_calendar_permission_broker.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
   "backend/tests/test_chat_orchestration_interpretation.py": {result: passed, date: '2026-11-13', commit: 'fe37f12833', job: '99a2c92153a2'}
   "backend/tests/test_chat_orchestration_main_chats_jobs.py": {result: passed, date: '2026-11-13', commit: 'ca13e7b89f', job: 'ca4bc6459004'}
   "backend/tests/test_chat_orchestration_skills.py": {result: passed, date: '2026-11-13', commit: 'fe37f12833', job: '99a2c92153a2'}
@@ -280,6 +287,15 @@ tests:
   "backend/tests/test_code_search_repos_skill.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_code_test_result_embed.py": {result: passed, date: '2026-11-10', commit: 'f953102fd7', job: '17def55e0730'}
   "backend/tests/test_code_test_run.py": {result: passed, date: '2026-11-10', commit: '5f9d72ec86', job: '30a236d17708'}
+  "backend/tests/test_connected_account_actions.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
+  "backend/tests/test_connected_account_execution.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
+  "backend/tests/test_connected_account_oauth_handoff.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
+  "backend/tests/test_connected_account_operation_journal.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
+  "backend/tests/test_connected_account_permission_confirmed_handler.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
+  "backend/tests/test_connected_account_permission_request.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
+  "backend/tests/test_connected_account_receipts.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
+  "backend/tests/test_connected_account_setup.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
+  "backend/tests/test_connected_accounts_permissions.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
   "backend/tests/test_cross_client_draft_sync.py": {result: passed, date: '2026-11-11', commit: '3882b04e07', job: 'd6ad757e048b'}
   "backend/tests/test_delete_chat_handler.py": {result: passed, date: '2026-11-10', commit: '6cdfbf2220', job: 'a63e8a8a7f7d'}
   "backend/tests/test_design_embroidery_skill.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
@@ -302,6 +318,9 @@ tests:
   "backend/tests/test_events_search_output_safety.py": {result: failed, date: '2026-11-12', commit: 'fb7aff687d', job: '313ce607a3cb', failed: ["test_events_search_titles_and_descriptions_are_semantically_scanned"]}
   "backend/tests/test_events_topic_relevance.py": {result: passed, date: '2026-11-13', commit: '1a96debc37', job: '43a936bd756d'}
   "backend/tests/test_feature_availability_service.py": {result: passed, date: '2026-11-13', commit: 'a15797b68e', job: '844d935ed5db'}
+  "backend/tests/test_figma_chat_flow_mocked.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
+  "backend/tests/test_figma_get_design_skill.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
+  "backend/tests/test_figma_oauth_adapter.py": {result: passed, date: '2026-11-14', commit: '3618882ce9', job: 'ed41d2214d1a'}
   "backend/tests/test_focus_authority_lifecycle.py": {result: passed, date: '2026-11-12', commit: 'a8ad3e0aee', job: '72021900f7e3'}
   "backend/tests/test_focus_continuation_failure_event.py": {result: passed, date: '2026-11-12', commit: '2c58d4b311', job: '6380c7ea2299'}
   "backend/tests/test_focus_instruction_sources.py": {result: passed, date: '2026-11-12', commit: '619de163a3', job: 'ead70adec5dc'}
@@ -311,6 +330,8 @@ tests:
   "backend/tests/test_generated_media_credit_precheck.py": {result: passed, date: '2026-11-13', commit: 'b1c4a6d066', job: '85e45fba4dc1'}
   "backend/tests/test_generated_media_graph.py": {result: passed, date: '2026-11-10', commit: '8fcfaa9fc5', job: 'f641c8d43602'}
   "backend/tests/test_generated_model_streaming_storage.py": {result: passed, date: '2026-11-10', commit: 'aa69107cdb', job: '32fb4a8df0a1'}
+  "backend/tests/test_google_calendar_oauth_adapter.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
+  "backend/tests/test_google_calendar_skill_hardening.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
   "backend/tests/test_google_thinking_profiles.py": {result: passed, date: '2026-11-12', commit: '5cb45ba12f', job: '32cee55a8e2b'}
   "backend/tests/test_groq_safeguard_structured_output.py": {result: passed, date: '2026-11-14', commit: '960e089b81', job: 'b76451c9ae9c'}
   "backend/tests/test_home_evidence.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
@@ -330,7 +351,7 @@ tests:
   "backend/tests/test_jobs_search_skill.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_llm_stream_usage.py": {result: passed, date: '2026-11-13', commit: '78309db5d5', job: '5769accdda08'}
   "backend/tests/test_llm_utils_stream_fallback.py": {result: failed, date: '2026-11-12', commit: '9d3e8afdb6', job: 'ec9ce5e71a36', failed: ["test_automatic_low_dispatch_never_uses_disabled_google_server", "test_automatic_mercury_missing_key_returns_clean_model_fallback_signal", "test_call_main_llm_stream_falls_back_after_bedrock_image_validation_error", "test_call_main_llm_stream_falls_back_after_empty_provider_stream", "test_call_main_llm_stream_falls_back_after_gemini_malformed_function_call", "test_call_main_llm_stream_falls_back_after_provider_error_marker", "test_call_main_llm_stream_routes_signed_tool_continuation_to_origin_server", "test_call_main_llm_stream_skips_stripped_signature_retry_on_google_only_servers", "test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fallback", "test_failed_server_is_not_retried_in_same_turn", "test_main_reasoning_recommendation_is_resolved_per_actual_server", "test_main_stream_forwards_profile_only_to_matching_native_google_server", "test_mercury_failure_after_text_does_not_trigger_clean_model_restart", "test_mercury_high_deadline_is_not_shortened_by_generic_watchdogs", "test_mercury_timeout_preserves_usage_and_enables_gemini_low_fallback", "test_mistral_thinking_replay_is_removed_for_foreign_fallback", "test_stream_fallback_freezes_actual_host_tariff_before_each_dispatch"]}
-  "backend/tests/test_main_processor_invalid_tool_calls.py": {result: failed, date: '2026-11-12', commit: '2c58d4b311', job: 'c1124c260c9c', failed: ["test_baseline_searches_preserve_tool_permissions", "test_baseline_searches_reach_provider_without_preprocessing_selection", "test_natural_public_focus_reuses_countdown_without_extra_answer_inference", "test_proven_first_turn_fact_omits_interactive_protocol_in_provider_prompt"]}
+  "backend/tests/test_main_processor_invalid_tool_calls.py": {result: failed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9', failed: ["test_baseline_searches_preserve_tool_permissions", "test_baseline_searches_reach_provider_without_preprocessing_selection", "test_mixed_project_and_web_batch_defers_web_until_file_result", "test_multiple_project_jobs_dispatch_only_first", "test_project_file_dispatch_yields_without_waiting_only_model_call", "test_proven_first_turn_fact_omits_interactive_protocol_in_provider_prompt"]}
   "backend/tests/test_maps_closing_time.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_maps_geoapify_discovery.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_maps_geoapify_enrichment.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
@@ -343,6 +364,7 @@ tests:
   "backend/tests/test_mercury_routing_fixture.py": {result: passed, date: '2026-11-13', commit: '52f4af080c', job: '1f3954f8d839'}
   "backend/tests/test_mock_replay.py": {result: passed, date: '2026-11-12', commit: '3dd9d11e81', job: '84512b0f6952'}
   "backend/tests/test_models3d_generate_task.py": {result: passed, date: '2026-11-13', commit: 'b1c4a6d066', job: '85e45fba4dc1'}
+  "backend/tests/test_natural_focus_research_orchestration.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
   "backend/tests/test_openai_compatible_api_contract.py": {result: failed, date: '2026-11-12', commit: '9d3e8afdb6', job: 'd8bb3ad55784', failed: ["test_public_current_promotions_use_real_provider_yaml_and_live_config_resolver"]}
   "backend/tests/test_pdf_ascii_smuggling_sanitization.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_pdf_read_filename_alias.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
@@ -357,7 +379,7 @@ tests:
   "backend/tests/test_progressive_code_streaming.py": {result: passed, date: '2026-11-12', commit: '4da7faf5bd', job: 'f23e57d5429e'}
   "backend/tests/test_project_authoring.py": {result: passed, date: '2026-11-13', commit: 'ce0311c904', job: 'ab0d4e0bb429'}
   "backend/tests/test_project_commits.py": {result: passed, date: '2026-11-14', commit: '55d35cccb5', job: 'c23dfa3ad17d'}
-  "backend/tests/test_project_create_activation.py": {result: passed, date: '2026-11-11', commit: '84a04e047b', job: '7f80f18a9c59'}
+  "backend/tests/test_project_create_activation.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
   "backend/tests/test_project_create_request.py": {result: passed, date: '2026-11-12', commit: '24db3aec06', job: '8e7ee68bd872'}
   "backend/tests/test_project_embed_adoption.py": {result: passed, date: '2026-11-12', commit: '0bc26eaf5b', job: '0fdd5c902eb3'}
   "backend/tests/test_project_file_operations.py": {result: passed, date: '2026-11-12', commit: '6a12547d4b', job: '30f964cb5296'}
@@ -373,9 +395,11 @@ tests:
   "backend/tests/test_rest_api_core.py": {result: failed, date: '2026-11-13', commit: 'd826f9d09c', job: '8f58102e6d40', failed: ["test_health_endpoint", "test_invalid_api_key", "test_server_info_endpoint"]}
   "backend/tests/test_rest_api_events.py": {result: passed, date: '2026-11-13', commit: 'd826f9d09c', job: '8f58102e6d40'}
   "backend/tests/test_result_pictures.py": {result: passed, date: '2026-11-12', commit: '8309d3dfbb', job: 'ea01b8febc11'}
+  "backend/tests/test_revolut_connected_accounts.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
   "backend/tests/test_rule_context.py": {result: passed, date: '2026-11-13', commit: '1782a7ab67', job: '7814e3de4dd3'}
   "backend/tests/test_safeguard_tool_call_recovery.py": {result: passed, date: '2026-11-14', commit: '960e089b81', job: 'b76451c9ae9c'}
   "backend/tests/test_safety_strikes.py": {result: passed, date: '2026-11-14', commit: '960e089b81', job: 'b76451c9ae9c'}
+  "backend/tests/test_sdk_chat_recovery.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
   "backend/tests/test_search_relevance.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_server_turn_dispatch.py": {result: passed, date: '2026-11-13', commit: 'fe37f12833', job: '99a2c92153a2'}
   "backend/tests/test_shopping_skill_timeout.py": {result: passed, date: '2026-11-12', commit: 'fb7aff687d', job: '669bb6ac520b'}
@@ -383,8 +407,9 @@ tests:
   "backend/tests/test_skill_internal_decisions_policy.py": {result: passed, date: '2026-11-13', commit: '78309db5d5', job: '5769accdda08'}
   "backend/tests/test_skill_preview_metadata.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_skill_progress.py": {result: passed, date: '2026-11-12', commit: 'fb7aff687d', job: '669bb6ac520b'}
-  "backend/tests/test_slides_markup.py": {result: passed, date: '2026-11-10', commit: 'fa6c5f1e1c', job: 'd22cabc60b8a'}
+  "backend/tests/test_slides_markup.py": {result: passed, date: '2026-11-14', commit: 'f4712a199b', job: '4af87a515948'}
   "backend/tests/test_slides_markup_core_fixed_points.py": {result: passed, date: '2026-11-10', commit: '4f619a6c80', job: 'b4f14de9a389'}
+  "backend/tests/test_slides_stream_consumer.py": {result: passed, date: '2026-11-14', commit: 'f4712a199b', job: '4af87a515948'}
   "backend/tests/test_standalone_embed_generator.py": {result: failed, date: '2026-11-11', commit: '76bbeb1858', job: 'b349cb493f06', failed: ["test_standalone_direct_generator_reaches_provider_without_chat_identity"]}
   "backend/tests/test_stream_consumer_recovery.py": {result: passed, date: '2026-11-13', commit: '4d93ae3751', job: '1df65ae2d440'}
   "backend/tests/test_sub_chat_orchestration.py": {result: passed, date: '2026-11-13', commit: '704b47809f', job: 'aefd25d80e1c'}
@@ -392,7 +417,9 @@ tests:
   "backend/tests/test_supported_provider_availability.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_task_main_processor_tools.py": {result: passed, date: '2026-11-10', commit: 'b8cc207ccd', job: '4d6547a226b8'}
   "backend/tests/test_task_queue_auto_continuation.py": {result: passed, date: '2026-11-14', commit: '51091c6d07', job: '019173cec795'}
+  "backend/tests/test_teams_connected_accounts.py": {result: passed, date: '2026-11-14', commit: 'ca8e1e5427', job: '9ef7b084dc5b'}
   "backend/tests/test_temporary_model_pricing.py": {result: passed, date: '2026-11-12', commit: '9d3e8afdb6', job: 'fa4b5d44ddcb'}
+  "backend/tests/test_token_broker_refs.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
   "backend/tests/test_upload_camera_jpeg_original.py": {result: passed, date: '2026-11-11', commit: 'f1d0a5ebb6', job: '9be347a76ab1'}
   "backend/tests/test_upload_record_registration.py": {result: passed, date: '2026-11-11', commit: 'f1d0a5ebb6', job: 'ad696ac6e8db'}
   "backend/tests/test_user_check_ai_evaluator.py": {result: passed, date: '2026-11-14', commit: '51091c6d07', job: '019173cec795'}
@@ -432,7 +459,7 @@ tests:
   "frontend/apps/web_app/tests/ai-response-language.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '73a195fb12f7', failed: ["AI responds in the same language as the user message (OPE-8)"]}
   "frontend/apps/web_app/tests/ai-settings-breadcrumb.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '8387e7661696', failed: ["model and provider detail pages use banner shell and back returns to AI settings"]}
   "frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts": {result: passed, date: '2026-11-13', commit: '5b734face2', job: '612e59e6190c'}
-  "frontend/apps/web_app/tests/anonymous-usage-limit.spec.ts": {result: passed, date: '2026-11-13', commit: '5b734face2', job: 'd899ed263845'}
+  "frontend/apps/web_app/tests/anonymous-usage-limit.spec.ts": {result: passed, date: '2026-11-14', commit: '5aae5de33f', job: 'e361d1b1a50d'}
   "frontend/apps/web_app/tests/api-keys-flow.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '4ee85c26b0e2', failed: ["creates an API key, verifies format, and deletes it"]}
   "frontend/apps/web_app/tests/app-load-no-error-logs.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '6bb2d7c1dc1b', failed: ["app root loads without console errors"]}
   "frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '47ba99b77594', failed: ["captures ipad-dark-rtl stable history manifest", "captures ipad-light-ltr stable history manifest", "captures iphone-dark-rtl stable history manifest", "captures iphone-light-ltr stable history manifest", "captures macos-dark-rtl stable history manifest", "captures macos-light-ltr stable history manifest"]}
@@ -611,6 +638,7 @@ tests:
   "frontend/apps/web_app/tests/components/embed-workspace.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'dbed119fc256', failed: ["vertical wheel over an embed row scrolls the chat in both directions"]}
   "frontend/apps/web_app/tests/components/event-sounds.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '948ca1e6e9b0'}
   "frontend/apps/web_app/tests/components/events-search-pricing.spec.ts": {result: passed, date: '2026-11-13', commit: 'd826f9d09c', job: 'a8b0a7d61bad'}
+  "frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts": {result: passed, date: '2026-11-14', commit: '3618882ce9', job: '8d8b17ee334c'}
   "frontend/apps/web_app/tests/components/focus-activation-project-created.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '57ce58d5cf91'}
   "frontend/apps/web_app/tests/components/focus-mode-instructions.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '493d08256a7c'}
   "frontend/apps/web_app/tests/components/focus-phases.spec.ts": {result: passed, date: '2026-11-14', commit: '0f2f170371', job: 'c90cc108e50e'}
@@ -726,6 +754,7 @@ tests:
   "frontend/apps/web_app/tests/components/voice-call-apple-parity.spec.ts": {result: passed, date: '2026-11-14', commit: '5a59c6c76d', job: 'd201216c2d1e'}
   "frontend/apps/web_app/tests/components/voice-call-artifact-progress.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '76706e045e2d'}
   "frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'fa5da0eed540', failed: ["keeps continuous upload after an actual model fetch failure", "starts during a cold model load, gates actual silence, resumes short speech and releases native resources"]}
+  "frontend/apps/web_app/tests/components/voice-call-bar.spec.ts": {result: passed, date: '2026-11-14', commit: '3d9a8ee853', job: 'c5338f1cd0ce'}
   "frontend/apps/web_app/tests/components/voice-call-chat-header.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '4e9a2a2aef49'}
   "frontend/apps/web_app/tests/components/voice-call-composer.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '593fcdfa47a3'}
   "frontend/apps/web_app/tests/components/voice-call-focused-draft.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '196b114176cc'}
@@ -821,7 +850,7 @@ tests:
   "frontend/apps/web_app/tests/landing-design-laptop.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '9f90b4cfdf97', failed: ["design mindmap example verifies header, transcript and artifacts on laptop"]}
   "frontend/apps/web_app/tests/landing-design-targeted.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '13cbd48c2809', failed: ["design mindmap example verifies header, transcript and artifacts on laptop", "design mindmap example verifies header, transcript and artifacts on phone"]}
   "frontend/apps/web_app/tests/landing-diagrams-example.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '6429d165fa0d', failed: ["diagrams landing example admits its complete real chat on laptop", "diagrams landing example admits its complete real chat on phone"]}
-  "frontend/apps/web_app/tests/landing-guest-workflows.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'b264ec4adabd', failed: ["landing Explore Workflows opens the real guest template workspace and read-only detail (1440px)", "landing Explore Workflows opens the real guest template workspace and read-only detail (390px)"]}
+  "frontend/apps/web_app/tests/landing-guest-workflows.spec.ts": {result: failed, date: '2026-11-14', commit: '5aae5de33f', job: 'a2607d79bfef', failed: ["landing Explore Workflows opens the real guest template workspace and read-only detail (1440px)", "landing Explore Workflows opens the real guest template workspace and read-only detail (390px)"]}
   "frontend/apps/web_app/tests/landing-home-replacement.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '4a53ea9c79c2', failed: ["saved home result remains readable at 1440px without public admission", "saved home result remains readable at 390px without public admission"]}
   "frontend/apps/web_app/tests/landing-images-targeted.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '4a02a9ff6a56', failed: ["images reviewed replacement renders its real results on laptop", "images reviewed replacement renders its real results on phone"]}
   "frontend/apps/web_app/tests/landing-mindmap-preserved-examples.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '599c208862ea', failed: ["books example verifies header, transcript and artifacts on laptop", "books example verifies header, transcript and artifacts on phone"]}
@@ -951,7 +980,7 @@ tests:
   "frontend/apps/web_app/tests/skill-shopping-images.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '72281362c259'}
   "frontend/apps/web_app/tests/skill-web-read.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'c89f10ba75cb', failed: ["Phase 2: CLI apps web read returns structured JSON", "Phase 4: Web chat triggers web read with embed"]}
   "frontend/apps/web_app/tests/skill-web-search.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '93a0ff6c30c4'}
-  "frontend/apps/web_app/tests/slides-manual-edit.spec.ts": {result: flaky, date: '2026-11-14', commit: 'de051a78ec', job: '2d0ae1ea4fbf'}
+  "frontend/apps/web_app/tests/slides-manual-edit.spec.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: '96b26c92d4f9'}
   "frontend/apps/web_app/tests/startup-sync-contract.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'cbe30f3d9dbf', failed: ["startup sync is bounded and older content hydrates on demand"]}
   "frontend/apps/web_app/tests/status-page.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '8552bf42b914'}
   "frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'cd3845be8f29', failed: ["stop during new chat creation restores the sent message as a draft"]}
@@ -972,8 +1001,8 @@ tests:
   "frontend/apps/web_app/tests/teams-management-flow.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: 'b4cd6c56ea52'}
   "frontend/apps/web_app/tests/teams-resource-context.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '1624286c984a'}
   "frontend/apps/web_app/tests/telemetry-proxy-api.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '66179d266eac'}
-  "frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'df65b4ed440b', failed: ["guest app cards keep native touch scrolling on mobile"]}
-  "frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: 'a593a91bad30'}
+  "frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts": {result: failed, date: '2026-11-14', commit: '5aae5de33f', job: 'eb6fe4ceedf7', failed: ["guest app cards keep native touch scrolling on mobile"]}
+  "frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts": {result: passed, date: '2026-11-14', commit: '5aae5de33f', job: 'e2901760be92'}
   "frontend/apps/web_app/tests/unified-detail-header.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '8adb865a2337', failed: ["Task title and description expose hints, save, and undo semantics"]}
   "frontend/apps/web_app/tests/unified-detail-pages.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'ecdeff9f4544', failed: ["Plan cards open a canonical shared-header detail page", "Task cards open a canonical shared-header detail page"]}
   "frontend/apps/web_app/tests/voice-call.spec.ts": {result: failed, date: '2026-11-13', commit: '68344cd7a7', job: '1ab0285b5b22', failed: ["keeps call audio ephemeral, caches later manual Speak once, and removes its audio access when the chat is deleted", "uses one canonical turn for voice and typed input, preserves rich replies and retains its chat across navigation and reload"]}
@@ -1035,11 +1064,13 @@ tests:
   "frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlRevision.test.ts": {result: passed, date: '2026-11-12', commit: '1e41793d37', job: 'd28952bfd94f'}
   "frontend/packages/ui/src/components/embeds/docs/docsDownload.test.ts": {result: passed, date: '2026-11-12', commit: 'ebe8f8f0cc', job: 'd1ece20f0be3'}
   "frontend/packages/ui/src/components/embeds/embedProgress.test.ts": {result: passed, date: '2026-11-12', commit: '52c21aa595', job: '3ac57cda0247'}
-  "frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts": {result: passed, date: '2026-11-12', commit: '1e41793d37', job: 'a8b0f41d9f02'}
-  "frontend/packages/ui/src/components/embeds/slides/slidesEditor.test.ts": {result: passed, date: '2026-11-10', commit: '46ad10fd42', job: 'f3b320b3a475'}
-  "frontend/packages/ui/src/components/embeds/slides/slidesMarkup.test.ts": {result: passed, date: '2026-11-10', commit: '46ad10fd42', job: 'f3b320b3a475'}
-  "frontend/packages/ui/src/components/embeds/slides/slidesPresentation.test.ts": {result: passed, date: '2026-11-10', commit: '46ad10fd42', job: 'f3b320b3a475'}
+  "frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: 'b27b98d8a156'}
+  "frontend/packages/ui/src/components/embeds/slides/slidesEditor.test.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: 'b27b98d8a156'}
+  "frontend/packages/ui/src/components/embeds/slides/slidesMarkup.test.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: 'b27b98d8a156'}
+  "frontend/packages/ui/src/components/embeds/slides/slidesPresentation.test.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: 'b27b98d8a156'}
+  "frontend/packages/ui/src/components/enter_message/__tests__/sendReadiness.test.ts": {result: passed, date: '2026-11-14', commit: '645f2dd498', job: '9bb297b4f35c'}
   "frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/ImageRenderer.test.ts": {result: passed, date: '2026-11-12', commit: '1e41793d37', job: 'd28952bfd94f'}
+  "frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts": {result: passed, date: '2026-11-14', commit: '645f2dd498', job: '0f8d140c72d3'}
   "frontend/packages/ui/src/components/enter_message/services/__tests__/memoryMentionSearch.test.ts": {result: passed, date: '2026-11-12', commit: '4ff6ce59a6', job: '6d723d7ec76c'}
   "frontend/packages/ui/src/components/enter_message/services/__tests__/openMatesMentionSearch.test.ts": {result: passed, date: '2026-11-12', commit: '4ff6ce59a6', job: '6d723d7ec76c'}
   "frontend/packages/ui/src/components/enter_message/services/__tests__/piiScanText.test.ts": {result: passed, date: '2026-11-10', commit: '0b86d89abf', job: 'e52d4c7ec422'}
@@ -1063,6 +1094,7 @@ tests:
   "frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts": {result: failed, date: '2026-11-10', commit: '1bc921484c', job: '89dc619d259b'}
   "frontend/packages/ui/src/services/__tests__/recoveryEmbedReceiptErrors.test.ts": {result: passed, date: '2026-11-13', commit: '264bb294db', job: 'ffadfec0c048'}
   "frontend/packages/ui/src/services/__tests__/ruleDocumentService.test.ts": {result: passed, date: '2026-11-13', commit: '1782a7ab67', job: '60a6758360e1'}
+  "frontend/packages/ui/src/services/__tests__/savedEmbedService.test.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: 'b27b98d8a156'}
   "frontend/packages/ui/src/services/__tests__/voiceCallSpokenProgress.test.ts": {result: passed, date: '2026-11-13', commit: '043db201c3', job: 'fdfaaa0270d6'}
   "frontend/packages/ui/src/services/__tests__/websocketService.test.ts": {result: passed, date: '2026-11-13', commit: '043db201c3', job: 'ef10a504b863'}
   "frontend/packages/ui/src/services/db/__tests__/chatComponentVersionUpdate.test.ts": {result: passed, date: '2026-11-11', commit: 'c76e50ca64', job: 'd7ed46e8dfa2'}
@@ -1074,7 +1106,7 @@ tests:
   "frontend/packages/ui/src/services/rustCore/__tests__/composerVectors.test.ts": {result: passed, date: '2026-11-12', commit: '4ff6ce59a6', job: '6d723d7ec76c'}
   "frontend/packages/ui/src/services/rustCore/__tests__/cryptoUnit.test.ts": {result: passed, date: '2026-11-11', commit: '704fecb8ff', job: '3928ec634cea'}
   "frontend/packages/ui/src/services/rustCore/__tests__/deckDocumentSharedUnit.test.ts": {result: passed, date: '2026-11-10', commit: '46ad10fd42', job: 'f3b320b3a475'}
-  "frontend/packages/ui/src/services/rustCore/__tests__/deckDocumentWire.test.ts": {result: passed, date: '2026-11-10', commit: '46ad10fd42', job: 'f3b320b3a475'}
+  "frontend/packages/ui/src/services/rustCore/__tests__/deckDocumentWire.test.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: 'b27b98d8a156'}
   "frontend/packages/ui/src/services/rustCore/__tests__/embedTransientWorker.test.ts": {result: passed, date: '2026-11-12', commit: 'b96743447d', job: 'f77c0712616e'}
   "frontend/packages/ui/src/services/rustCore/__tests__/languageUrlVectors.test.ts": {result: passed, date: '2026-11-12', commit: '4ff6ce59a6', job: '6d723d7ec76c'}
   "frontend/packages/ui/src/services/rustCore/__tests__/rustChatSearchPipeline.test.ts": {result: passed, date: '2026-11-12', commit: '1f3dba9806', job: '8e7c78f90682'}

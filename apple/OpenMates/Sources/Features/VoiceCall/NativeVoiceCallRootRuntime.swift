@@ -55,6 +55,8 @@ final class NativeVoiceCallSendAdmission: ObservableObject {
 final class NativeVoiceCallRootPresentation: ObservableObject {
     @Published var creditsCharged: Double?
     @Published var toolWorking = false
+    /// Chat whose view currently renders the call strip itself.
+    @Published var stripHostedChatID: String?
 }
 
 @MainActor
@@ -303,7 +305,8 @@ private struct NativeVoiceCallRootOverlayContent: View {
     var body: some View {
         ZStack {
             if let coordinator = runtime.coordinator {
-                NativeVoiceCallOverlay(coordinator: coordinator, returnToChat: returnToChat)
+                NativeVoiceCallOverlay(coordinator: coordinator, returnToChat: returnToChat,
+                    stripHostedInChat: coordinator.boundChatID != nil && presentation.stripHostedChatID == coordinator.boundChatID)
                 if presentation.toolWorking || presentation.creditsCharged != nil {
                     VStack {
                         Spacer()

@@ -4,6 +4,8 @@
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.streaming.progressive-presentation,
 //             chats.rendering.assistant-document-convergence, chats.surface.semantic-parity
+// Specification: specifications/architecture/app-skill-execution/specification.yml
+// Assertions: app-skills.answer.only-result-embeds-in-body (rule from the core bodyEnforceBlockEmbeds)
 
 import Foundation
 
@@ -50,6 +52,7 @@ enum AssistantActivityProjection {
         var result: [AssistantActivitySegment] = []
         var pending: [AssistantActivityUnit] = []
         var seenSkills = Set<String>()
+        let blocks = enforcingBodyEmbeds(blocks, embeds: embeds)
         func flush() {
             guard let first = pending.first else { return }
             result.append(.init(id: "activity:\(first.id)", units: pending, isActivity: true))
@@ -152,6 +155,43 @@ enum AssistantActivityProjection {
         }
         flush()
         return units
+    }
+
+    /// Applies the core answer-body rule (`bodyEnforceBlockEmbeds`) to every embed
+    /// group of the message at once: an invocation keeps its reference (the activity
+    /// item), its result cards follow it as plain references, so `units` puts them
+    /// after the activity run like web `splitAssistantActivityRuns`. A hidden slot
+    /// (children not known yet, invocation already shown) renders nothing.
+    static func enforcingBodyEmbeds(_ blocks: [ProgressiveMarkdownBlock],
+                                    embeds: [String: EmbedRecord]) -> [ProgressiveMarkdownBlock] {
+        let groupIndices = blocks.indices.filter { blocks[$0].document.kind == .embedGroup && blocks[$0].document.subChatBatch == nil }
+        guard !groupIndices.isEmpty else { return blocks }
+        let groups = groupIndices.map { index in
+            blocks[index].document.embedReferences.map {
+                BodyEmbedSlotProjection.refRecord(id: $0.id, embed: embeds[$0.id], type: $0.type)
+            }
+        }
+        let slots = bodyEnforceBlockEmbeds(groups: groups, activityIds: [])
+        var result = blocks
+        for (offset, index) in groupIndices.enumerated() where offset < slots.count {
+            let original = blocks[index].document.embedReferences
+            let byID = Dictionary(original.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            let references: [ChatHistoryEmbedReference] = slots[offset].compactMap { slot in
+                switch slot {
+                case .activity(let id, _, _, _):
+                    return byID[id]
+                case .card(let ref, let id):
+                    let key = id ?? ref
+                    return byID[key] ?? byID[ref] ?? ChatHistoryEmbedReference(id: key, type: embeds[key]?.type,
+                        isReference: false, isLargePreview: false)
+                case .hidden:
+                    return nil
+                }
+            }
+            guard references != original else { continue }
+            result[index] = replacingReferences(blocks[index], references)
+        }
+        return result
     }
 
     private static func filtered(_ unit: AssistantActivityUnit, keeping ids: Set<String>) -> AssistantActivityUnit {

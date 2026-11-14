@@ -262,6 +262,8 @@ struct AssistantActivityGroupView<Content: View>: View {
                 }
                 .padding(.top, .spacing2).padding(.horizontal, .spacing4).padding(.bottom, .spacing4)
                 .frame(maxWidth: .infinity, alignment: .leading).background(Color.grey10)
+                // One container element: without it the identifier reaches every child.
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("assistant-activity-body")
             }
         }
@@ -354,6 +356,7 @@ private struct LoadedMemoryPill: View {
                 .frame(maxWidth: 544, alignment: .leading)
                 .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius4))
                 .overlay(RoundedRectangle(cornerRadius: .radius4).stroke(Color.grey25, lineWidth: 1))
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("applied-memory")
             }
         }.accessibilityElement(children: .contain).accessibilityIdentifier("loaded-memory-details")

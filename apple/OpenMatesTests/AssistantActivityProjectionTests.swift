@@ -21,6 +21,21 @@ final class AssistantActivityProjectionTests: XCTestCase {
         XCTAssertEqual(result.flatMap(\.units).flatMap { $0.block.document.embedReferences.map(\.id) }, ["skill", "result", "next"])
     }
 
+    // contract-test: direct surface=gui.apple assertions=app-skills.answer.only-result-embeds-in-body
+    func testInvocationResultCardsFollowTheActivityRunAsContent() {
+        func record(_ id: String, _ type: String, children: [String]? = nil) -> EmbedRecord {
+            EmbedRecord(id: id, type: type, status: .finished, data: .raw([:]), parentEmbedId: nil,
+                appId: "web", skillId: "search", embedIds: children?.joined(separator: "|"), createdAt: nil)
+        }
+        let embeds = ["call": record("call", "app-skill-use", children: ["r1", "r2"]),
+                      "r1": record("r1", "website"), "r2": record("r2", "website")]
+        let result = AssistantActivityProjection.segments(blocks: [references([("call", "app-skill-use")], 0), paragraph("After", 1)], embeds: embeds)
+        XCTAssertEqual(result.map(\.isActivity), [true, false, false])
+        XCTAssertEqual(result[0].items.map(\.id), ["call"])
+        XCTAssertEqual(result[1].units.flatMap { $0.block.document.embedReferences.map(\.id) }, ["r1", "r2"])
+        XCTAssertEqual(result[2].units.map { $0.block.document.text }, ["After"])
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
     func testDuplicateInvocationRemovedButRepeatedFocusAnchorPreserved() {
         let result = AssistantActivityProjection.segments(blocks: [references([("skill", "app-skill-use"), ("focus", "focus-mode-activation")], 0), paragraph("After", 1), references([("skill", "app-skill-use"), ("focus", "focus-mode-activation")], 2)], embeds: [:])

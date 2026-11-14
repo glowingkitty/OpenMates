@@ -37,7 +37,9 @@ mod view_embed_message_version;
 mod view_embeds;
 mod view_progressive_svg;
 mod view_body_embeds;
+mod view_search;
 mod view_embed_progress;
+mod view_embed_version_content;
 mod view_memory_draft_diff;
 mod view_remote_commands;
 mod view_video_timeline;
@@ -174,6 +176,8 @@ mod view_drafts_tests;
 #[cfg(test)]
 mod view_embeds_tests;
 #[cfg(test)]
+mod view_embed_version_content_tests;
+#[cfg(test)]
 mod view_fixture_tests;
 #[cfg(test)]
 mod view_fixture_rows_tests;
@@ -207,3 +211,5 @@ mod view_profile_cache_tests;
 mod view_window_tests;
 #[cfg(test)]
 mod view_remote_commands_tests;
+#[cfg(test)]
+mod view_search_tests;

@@ -24,12 +24,14 @@ import SwiftUI
 struct NativeVoiceCallOverlay: View {
     @ObservedObject var coordinator: NativeVoiceCallAppCoordinator
     let returnToChat: (String) -> Void
+    /// True while the bound chat renders the strip itself (beneath its header);
+    /// the floating bottom copy is then omitted so controls are never duplicated.
+    var stripHostedInChat = false
     var body: some View {
         ZStack {
             VStack {
                 Spacer()
-                if coordinator.isActive || coordinator.state.status == .failed || coordinator.integrationError != nil
-                    || coordinator.state.error == .endedInBackground {
+                if coordinator.showsStrip {
                     VStack(spacing: .spacing4) {
                         // Web renders this inside the composer; the composer is
                         // owned by the chat window, so the call surface shows it.
@@ -48,7 +50,9 @@ struct NativeVoiceCallOverlay: View {
                                 .accessibilityIdentifier("voice-call-camera-error")
                         }
                         NativeVoiceCallCameraPreview(model: coordinator.camera)
-                        NativeVoiceCallBar(coordinator: coordinator, returnToChat: returnToChat)
+                        if !stripHostedInChat {
+                            NativeVoiceCallBar(coordinator: coordinator, returnToChat: returnToChat)
+                        }
                     }
                     .padding(.horizontal, .spacing6).padding(.bottom, .spacing4)
                 }
@@ -65,9 +69,22 @@ struct NativeVoiceCallOverlay: View {
     }
 }
 
+extension NativeVoiceCallAppCoordinator {
+    /// Same visibility rule the floating strip always used.
+    var showsStrip: Bool {
+        isActive || state.status == .failed || integrationError != nil || state.error == .endedInBackground
+    }
+}
+
 struct NativeVoiceCallBar: View {
     @ObservedObject var coordinator: NativeVoiceCallAppCoordinator
     let returnToChat: (String) -> Void
+    /// Fixed state (header scrolled out of view): adds More before Video and Close chat after Hang up.
+    var pinned = false
+    var onMore: (() -> Void)?
+    var onCloseChat: (() -> Void)?
+    private var showsMore: Bool { pinned && onMore != nil }
+    private var showsCloseChat: Bool { pinned && onCloseChat != nil }
     private var status: String {
         if coordinator.state.status == .connecting { return AppStrings.nativeCall("connecting") }
         if coordinator.state.processing { return AppStrings.nativeCall("working") }
@@ -82,11 +99,14 @@ struct NativeVoiceCallBar: View {
     var body: some View {
         HStack(spacing: .spacing2) {
             HStack(spacing: .spacing2) {
+                if showsMore {
+                    control("more", label: AppStrings.nativeCall("more_actions"), id: "voice-call-more") { onMore?() }
+                }
                 NativeVoiceCallVideoButton(model: coordinator.camera, cameraAvailable: Self.cameraAvailable,
                                            live: coordinator.state.status == .live)
                 #if os(iOS)
                 // Owner-requested Apple addition (web has no screen share); it follows Video.
-                if coordinator.state.status == .live {
+                if showsScreenShare {
                     NativeVoiceCallScreenShareButton(reader: coordinator.screenShare)
                 }
                 #endif
@@ -98,10 +118,11 @@ struct NativeVoiceCallBar: View {
                     if let id = coordinator.boundChatID { returnToChat(id) }
                 } label: {
                     Text(coordinator.formattedDuration).font(.omH4.weight(.bold)).monospacedDigit()
-                        .lineLimit(1).frame(minHeight: 44)
+                        .lineLimit(1).fixedSize().frame(minHeight: 44)
                 }
                 .buttonStyle(.plain).accessibilityLabel(AppStrings.nativeCall("return_to_chat"))
                 .accessibilityIdentifier("voice-call-return")
+                .layoutPriority(1)
                 ZStack {
                     NativeVoiceCallMeter(levels: coordinator.meterLevels).accessibilityHidden(true)
                     control("recordaudio", label: AppStrings.nativeCall(coordinator.state.muted ? "unmute" : "mute"),
@@ -123,6 +144,9 @@ struct NativeVoiceCallBar: View {
                     if coordinator.isActive { Task { await coordinator.hangup() } }
                     else { coordinator.dismissError() }
                 }
+                if showsCloseChat {
+                    control("close", label: AppStrings.nativeCall("close_chat"), id: "voice-call-close-chat") { onCloseChat?() }
+                }
             }
             .frame(width: edgeWidth, alignment: .trailing)
         }
@@ -138,11 +162,21 @@ struct NativeVoiceCallBar: View {
     @State private var barWidth: CGFloat = 358
     /// Width of the wider edge: Video (+ Screen share on iOS while live) at left, Hang up at right.
     private var edgeWidth: CGFloat {
-        var count = 1
-        #if os(iOS)
-        if coordinator.state.status == .live { count = 2 }
-        #endif
+        var count = showsScreenShare ? 2 : 1
+        if showsMore { count += 1 }
+        // Both edges share one width so the duration and bars stay centered.
+        count = max(count, showsCloseChat ? 2 : 1)
         return CGFloat(count) * 44 + CGFloat(count - 1) * .spacing2
+    }
+    /// iOS screen share while live. The pinned strip adds More and Close chat, which leaves
+    /// no room for the duration at phone width, so there it shows only while a share runs
+    /// (to stop it); the strip under the header always offers it.
+    private var showsScreenShare: Bool {
+        #if os(iOS)
+        coordinator.state.status == .live && (!pinned || coordinator.screenShare.isBroadcasting)
+        #else
+        false
+        #endif
     }
     /// The strip spans the phone viewport minus the 16pt side margins, so 28vw ≈ 0.28 × (bar + 32).
     private var waveWidth: CGFloat { min(384, max(64, 0.28 * (barWidth + 32))) }
@@ -232,3 +266,45 @@ struct NativeVoiceCallConsentView: View {
     }
 }
 #endif
+
+/// Chat-hosted call strip: sits beneath the chat header at rest and stays fixed at the
+/// top of the chat viewport once the header scrolls away (`video-call.chat.call-strip-layout`).
+/// In-flow instance (`hosts`) keeps its slot as a placeholder while pinned so content never jumps.
+struct NativeVoiceCallChatStrip: View {
+    @ObservedObject var runtime: NativeVoiceCallRootRuntime
+    let chatID: String
+    let pinned: Bool
+    let hosts: Bool
+    let onMore: () -> Void
+    let onCloseChat: () -> Void
+    var body: some View {
+        if let coordinator = runtime.coordinator, coordinator.boundChatID == chatID, coordinator.showsStrip {
+            NativeVoiceCallChatStripBody(coordinator: coordinator, presentation: runtime.presentation, chatID: chatID,
+                pinned: pinned, hosts: hosts, onMore: onMore, onCloseChat: onCloseChat)
+        }
+    }
+}
+
+struct NativeVoiceCallChatStripBody: View {
+    @ObservedObject var coordinator: NativeVoiceCallAppCoordinator
+    @ObservedObject var presentation: NativeVoiceCallRootPresentation
+    let chatID: String
+    let pinned: Bool
+    let hosts: Bool
+    let onMore: () -> Void
+    let onCloseChat: () -> Void
+    var body: some View {
+        Group {
+            if hosts && pinned {
+                Color.clear.frame(height: 68)
+            } else {
+                NativeVoiceCallBar(coordinator: coordinator, returnToChat: { _ in }, pinned: pinned,
+                    onMore: onMore, onCloseChat: onCloseChat)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.horizontal, .spacing4).padding(.vertical, .spacing2)
+        .onAppear { if hosts { presentation.stripHostedChatID = chatID } }
+        .onDisappear { if hosts, presentation.stripHostedChatID == chatID { presentation.stripHostedChatID = nil } }
+    }
+}

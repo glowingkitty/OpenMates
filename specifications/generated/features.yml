@@ -29,8 +29,8 @@ summary:
       failing: 1
       not_run: 2
     cli:
-      partial: 14
-      failing: 8
+      partial: 15
+      failing: 7
       not_run: 29
       implemented: 41
       in_progress: 2
@@ -45,9 +45,9 @@ summary:
     rest_api:
       live: 5
       tested: 1
-      partial: 27
+      partial: 29
       failing: 14
-      not_run: 31
+      not_run: 29
       implemented: 17
       planned: 2
       not_planned: 26
@@ -3168,7 +3168,6 @@ features:
       - apple/OpenMatesTests/NativeEmbedActionTests.swift › testPNGExportHasRequestedPixelDimensionsAndActualIconPixels
       - apple/OpenMatesTests/NativeEmbedActionTests.swift › testSystemEditorEventPreservesAllDayCivilDatesAndTimedOffsetWithoutSaving
       - apple/OpenMatesTests/SearchDomainRenderersTests.swift › testHealthSearchSummaryUsesSpecialityAndCityWithoutInventingQuery
-      - apple/OpenMatesUITests/AssistantActivityPreviewUITests.swift › testConfirmedTransientHandoffAndSourcePositionDisclosureKeepParagraphIdentity
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
       - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift › testAllEmbedPreviewAppsRenderProductChrome
       - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift › testCanonicalRegistryKeysRenderPreviewAndFullscreenWithoutGenericFallback
@@ -3314,9 +3313,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 8
+        passing: 9
         failing: 0
-        not_run: 6
+        not_run: 5
         missing: 0
         counted: 14
       key_tests: []
@@ -3505,7 +3504,6 @@ features:
           missing: 1
           counted: 4
         failing_tests:
-        - apple/OpenMatesUITests/AssistantActivityPreviewUITests.swift › testConfirmedTransientHandoffAndSourcePositionDisclosureKeepParagraphIdentity
         - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
         - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift › testAllEmbedPreviewAppsRenderProductChrome
         - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift › testCanonicalRegistryKeysRenderPreviewAndFullscreenWithoutGenericFallback
@@ -3653,13 +3651,13 @@ features:
         - frontend/apps/web_app/tests/cli-tui-startup.spec.ts › cold TUI loads a saved chat and canonical child reads return
           only authorized parent wrappers
       rest_api:
-        status: partial
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 2
+          passing: 3
           failing: 0
-          not_run: 1
+          not_run: 0
           missing: 0
           counted: 3
       sdk_npm:
@@ -4236,7 +4234,6 @@ features:
         - apple/OpenMatesTests/NativeEmbedActionTests.swift › testPNGExportHasRequestedPixelDimensionsAndActualIconPixels
         - apple/OpenMatesTests/NativeEmbedActionTests.swift › testSystemEditorEventPreservesAllDayCivilDatesAndTimedOffsetWithoutSaving
         - apple/OpenMatesTests/SearchDomainRenderersTests.swift › testHealthSearchSummaryUsesSpecialityAndCityWithoutInventingQuery
-        - apple/OpenMatesUITests/AssistantActivityPreviewUITests.swift › testConfirmedTransientHandoffAndSourcePositionDisclosureKeepParagraphIdentity
         - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
         - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift › testMediaSearchRegistryKeysRenderPreviewAndFullscreen
         - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift › testModels3DChildCloseRestoresInteractiveParentSurface
@@ -4926,17 +4923,15 @@ features:
       - ipados
       - macos
     cli:
-      status: failing
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
-        failing: 2
-        not_run: 10
+        passing: 3
+        failing: 0
+        not_run: 9
         missing: 12
         counted: 24
-      failing_tests:
-      - backend/tests/test_main_processor_invalid_tool_calls.py › test_natural_public_focus_reuses_countdown_without_extra_answer_inference
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -9682,9 +9677,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 5
+        passing: 7
         failing: 0
-        not_run: 13
+        not_run: 11
         missing: 3
         counted: 21
       key_tests: []
@@ -9899,9 +9894,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 18
+        passing: 19
         failing: 12
-        not_run: 8
+        not_run: 7
         missing: 11
         counted: 49
       failing_tests:
@@ -11163,13 +11158,13 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_run
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 13
         failing: 0
-        not_run: 13
+        not_run: 0
         missing: 6
         counted: 19
       key_tests: []
@@ -11262,13 +11257,13 @@ features:
           missing: 0
           counted: 0
       rest_api:
-        status: not_run
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 2
           failing: 0
-          not_run: 2
+          not_run: 0
           missing: 0
           counted: 2
       sdk_npm:
@@ -11338,13 +11333,13 @@ features:
           missing: 0
           counted: 0
       rest_api:
-        status: not_run
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 1
           failing: 0
-          not_run: 1
+          not_run: 0
           missing: 0
           counted: 1
       sdk_npm:
@@ -11417,13 +11412,13 @@ features:
           missing: 0
           counted: 0
       rest_api:
-        status: not_run
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 4
           failing: 0
-          not_run: 4
+          not_run: 0
           missing: 0
           counted: 4
       sdk_npm:
@@ -11718,9 +11713,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 3
+        passing: 7
         failing: 0
-        not_run: 6
+        not_run: 2
         missing: 13
         counted: 22
       key_tests: []
@@ -11789,9 +11784,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 14
+        passing: 21
         failing: 0
-        not_run: 7
+        not_run: 0
         missing: 1
         counted: 22
       key_tests: []
@@ -11848,13 +11843,13 @@ features:
     - design-figma.surface.parity
     surfaces:
       web:
-        status: not_run
+        status: partial
         source: tests
         intent: in_progress
         assertions:
-          passing: 0
+          passing: 4
           failing: 0
-          not_run: 4
+          not_run: 0
           missing: 4
           counted: 8
       apple:
@@ -11888,13 +11883,13 @@ features:
           missing: 0
           counted: 0
       rest_api:
-        status: not_run
+        status: partial
         source: tests
         intent: in_progress
         assertions:
-          passing: 0
+          passing: 7
           failing: 0
-          not_run: 7
+          not_run: 0
           missing: 1
           counted: 8
       sdk_npm:
@@ -15503,12 +15498,15 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 20
-        failing: 12
+        passing: 18
+        failing: 14
         not_run: 6
         missing: 20
         counted: 58
       failing_tests:
+      - backend/tests/test_main_processor_invalid_tool_calls.py › test_mixed_project_and_web_batch_defers_web_until_file_result
+      - backend/tests/test_main_processor_invalid_tool_calls.py › test_multiple_project_jobs_dispatch_only_first
+      - backend/tests/test_main_processor_invalid_tool_calls.py › test_project_file_dispatch_yields_without_waiting_only_model_call
       - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts › groups saved chats, navigates deep folders and reveals
         running descendants globally
       - frontend/apps/web_app/tests/components/project-file-references.spec.ts › empty-chat welcome hydrates without a Project
@@ -15798,12 +15796,14 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 3
-          failing: 4
+          passing: 2
+          failing: 5
           not_run: 1
           missing: 2
           counted: 10
         failing_tests:
+        - backend/tests/test_main_processor_invalid_tool_calls.py › test_mixed_project_and_web_batch_defers_web_until_file_result
+        - backend/tests/test_main_processor_invalid_tool_calls.py › test_project_file_dispatch_yields_without_waiting_only_model_call
         - frontend/apps/web_app/tests/projects-remote-sources.spec.ts › browses nested connected files transiently and imports
           only after an explicit action
       apple:
@@ -16133,15 +16133,19 @@ features:
     - projects.files.wait-result-reconciliation
     surfaces:
       web:
-        status: tested
+        status: failing
         source: tests
         intent: unverified
         assertions:
-          passing: 5
-          failing: 0
+          passing: 4
+          failing: 1
           not_run: 0
           missing: 0
           counted: 5
+        failing_tests:
+        - backend/tests/test_main_processor_invalid_tool_calls.py › test_mixed_project_and_web_batch_defers_web_until_file_result
+        - backend/tests/test_main_processor_invalid_tool_calls.py › test_multiple_project_jobs_dispatch_only_first
+        - backend/tests/test_main_processor_invalid_tool_calls.py › test_project_file_dispatch_yields_without_waiting_only_model_call
       apple:
         status: unverified
         source: intent
@@ -19762,10 +19766,12 @@ features:
       key_tests: []
       e2e_tests: []
       key_unit_tests:
+      - apple/OpenMatesTests/AssistantActivityProjectionTests.swift
+      - apple/OpenMatesTests/BodyEmbedSlotProjectionTests.swift
       - apple/OpenMatesTests/EmbedProgressParityTests.swift
       - apple/OpenMatesTests/MessageBodyEmbedLayoutTests.swift
       - apple/OpenMatesTests/SettingsFullParityTests.swift
-      unit_test_files: 3
+      unit_test_files: 5
       platforms:
       - ios
       - ipados
@@ -20105,13 +20111,13 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_run
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 4
         failing: 0
-        not_run: 4
+        not_run: 0
         missing: 5
         counted: 9
       key_tests: []

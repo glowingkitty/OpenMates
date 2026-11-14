@@ -183,6 +183,8 @@ struct ChatScrollBoundaries: Equatable {
     let isAtTop: Bool
     let isAtBottom: Bool
     let overlapsBanner: Bool?
+    /// The call strip's natural slot (directly beneath the header) has scrolled out of view.
+    let stripPinned: Bool
 }
 
 /// Retains exact geometry without invalidating ChatView on every scroll pixel.
@@ -194,7 +196,8 @@ final class ChatTranscriptScrollState {
         self.contentOffsetY = max(0, contentOffsetY)
         return ChatScrollBoundaries(isAtTop: self.contentOffsetY <= 8,
                                     isAtBottom: isAtBottom,
-                                    overlapsBanner: bannerOverlap(bannerHeight: bannerHeight))
+                                    overlapsBanner: bannerOverlap(bannerHeight: bannerHeight),
+                                    stripPinned: self.contentOffsetY >= max(bannerHeight, 8))
     }
 
     func bannerOverlap(bannerHeight: CGFloat) -> Bool? {
@@ -500,6 +503,7 @@ struct ChatView: View {
     @State private var openedInitialEmbedId: String?
     @State private var showReminder = false
     @State private var chatHeaderMoreOpen = false
+    @State private var callStripPinned = false
     @State private var chatHeaderActionsOverlapBanner = true
     @State private var chatBannerHeight: CGFloat = 0
     @State private var transcriptScrollState = ChatTranscriptScrollState()
@@ -722,6 +726,17 @@ struct ChatView: View {
                         AssistantSpeechPlayerHostView(chatID: chatId, viewportWidth: chatContainerWidth)
 
                         messageList
+                            .overlay(alignment: .top) {
+                                if callStripPinned {
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        callStrip(pinned: true, hosts: false)
+                                        if chatHeaderMoreOpen {
+                                            chatHeaderMoreActions(includeQuickActions: true)
+                                                .padding(.horizontal, .spacing4)
+                                        }
+                                    }
+                                }
+                            }
                             .overlay(alignment: .bottom) {
                                 if authManager.state == .authenticated, !IncognitoChatSession.isIncognitoChatId(chatId) {
                                     CoreConsentRequestOverlay(chatId: chatId)
@@ -1638,6 +1653,8 @@ struct ChatView: View {
                                     }
                             }
 
+                            callStrip(pinned: callStripPinned, hosts: true)
+
                             // The initial history window is capped by the model.
                             // Realize that window with stable measured heights:
                             // lazy placement repeatedly invalidates its estimated
@@ -1878,6 +1895,7 @@ struct ChatView: View {
                             let reachedTop = !isAtTop && boundaries.isAtTop
                             let reachedBottom = !isAtBottom && boundaries.isAtBottom
                             updateChatHeaderBannerOverlap(boundaries.overlapsBanner)
+                            if callStripPinned != boundaries.stripPinned { callStripPinned = boundaries.stripPinned }
                             if isAtTop != boundaries.isAtTop { isAtTop = boundaries.isAtTop }
                             if isAtBottom != boundaries.isAtBottom { isAtBottom = boundaries.isAtBottom }
                             if reachedTop { pageHistoryAtBoundary(isTop: true, proxy: proxy) }
@@ -2642,9 +2660,28 @@ struct ChatView: View {
         .accessibilityValue(chatHeaderActionsOverlapBanner ? "banner-overlay" : "standard")
     }
 
-    private var chatHeaderMoreActions: some View {
+    /// Voice-call strip hosted by this chat (`video-call.chat.call-strip-layout`).
+    @ViewBuilder
+    private func callStrip(pinned: Bool, hosts: Bool) -> some View {
+        if let runtime = voiceCallRuntime {
+            NativeVoiceCallChatStrip(runtime: runtime, chatID: chatId, pinned: pinned, hosts: hosts,
+                onMore: { chatHeaderMoreOpen.toggle() },
+                onCloseChat: { chatHeaderMoreOpen = false; onCloseChat?() })
+        }
+    }
+
+    private var chatHeaderMoreActions: some View { chatHeaderMoreActions(includeQuickActions: false) }
+
+    /// The fixed call strip has no floating report/share pills, so its More menu lists them too.
+    private func chatHeaderMoreActions(includeQuickActions: Bool) -> some View {
         VStack(alignment: .leading, spacing: .spacing2) {
-            if chatContainerWidth < 460, onShareChat != nil {
+            if includeQuickActions {
+                chatFloatingMenuAction(icon: "bug", label: AppStrings.settingsReportIssue, identifier: "chat-more-report-button") {
+                    chatHeaderMoreOpen = false
+                    onReportIssue?(.assistantResponseQuality())
+                }
+            }
+            if includeQuickActions || chatContainerWidth < 460, onShareChat != nil {
                 chatFloatingMenuAction(icon: "share", label: AppStrings.share, identifier: "chat-more-share-button") {
                     chatHeaderMoreOpen = false
                     onShareChat?()

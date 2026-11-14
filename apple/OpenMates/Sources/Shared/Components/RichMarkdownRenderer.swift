@@ -33,7 +33,7 @@
 //                specifications/features/app-skills/web-search/specification.yml
 // Assertions: chats.rendering.assistant-document-convergence,
 //             chats.rendering.inline-entity-interaction, chats.surface.semantic-parity,
-//             web-search.surface-parity
+//             web-search.surface-parity, app-skills.answer.only-result-embeds-in-body
 
 import Foundation
 import SwiftUI
@@ -1162,9 +1162,21 @@ struct RichMarkdownView: View {
             .clipShape(RoundedRectangle(cornerRadius: .radius4))
     }
 
+    /// True when AssistantActivitySegmentsView already applied the core body rule and
+    /// placed result cards after their activity run (web splitAssistantActivityRuns).
+    private var resultCardsProjected: Bool { progressiveRequest != nil && assistantActivity != nil }
+
     @ViewBuilder
     private func resolvedEmbedGroup(_ embeds: [EmbedRecord], isLargePreview: Bool) -> some View {
-        let visibleEmbeds = embeds.filter { !hiddenEmbedIds.contains($0.id) }
+        let visibleEmbeds = BodyEmbedSlotProjection.project(embeds: embeds, allEmbedRecords: allEmbedRecords,
+                                                                    expandsResults: !resultCardsProjected)
+            .compactMap { slot -> EmbedRecord? in
+                switch slot {
+                case .card(let record), .activity(let record): return record
+                case .hidden: return nil
+                }
+            }
+            .filter { !hiddenEmbedIds.contains($0.id) }
         if !visibleEmbeds.isEmpty {
             if AppleStandaloneEmbedPreviewPresentation.usesLargePreview(
                 explicit: isLargePreview, isUserMessage: isUserMessage, embedTypes: visibleEmbeds.map { $0.isAppSkillUse ? "app-skill-use" : $0.type }
@@ -3378,6 +3390,12 @@ struct InlineMarkdownText: View {
             ) { embed in
                 onEmbedTap?(embed)
             }
+        case .embed(let displayText, let embedRef, _, _)
+            where resolveEmbed(ref: embedRef).map({
+                !MessageBodyEmbedLayout.mayShow(reference: embedRef, type: $0.isAppSkillUse ? "app-skill-use" : $0.type)
+            }) == true:
+            // Invocation embeds never show in the body; the reference reads as plain text.
+            Text(displayText).font(textFont)
         case .embed(let displayText, let embedRef, let isBold, let isItalic):
             EmbedInlineChip(
                 displayText: displayText.isEmpty ? AppStrings.localized("common.view") : displayText,

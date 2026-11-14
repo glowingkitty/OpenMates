@@ -5,6 +5,7 @@ import XCTest
 @MainActor
 final class NativeVoiceCallControlsUITests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=video-call.chat.call-strip-layout
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.call-strip-layout
     func testProductionControlsMuteAndHangUp() {
         let app = launch(variant: "native-voice-call")
         let bar = app.otherElements["voice-call-bar"]
@@ -25,6 +26,7 @@ final class NativeVoiceCallControlsUITests: XCTestCase {
         waitForExpectations(timeout: 3)
     }
     // contract-test: supporting surface=gui.apple assertions=video-call.video.input-and-output,video-call.video.apple-screen-share
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.call-strip-layout
     func testLiveControlsShowVideoAndScreenShareForWebComparison() {
         let app = launch(variant: "native-voice-call")
         let bar = app.otherElements["voice-call-bar"]
@@ -53,6 +55,45 @@ final class NativeVoiceCallControlsUITests: XCTestCase {
         #endif
         let live = XCTAttachment(screenshot: app.screenshot())
         live.name = "parity-live-call-controls-390"; live.lifetime = .keepAlways; add(live)
+    }
+    // contract-test: supporting surface=gui.apple assertions=video-call.privacy.first-call-warning
+    // contract-test: direct surface=gui.apple assertions=video-call.chat.call-strip-layout
+    func testCallStripSitsBelowHeaderAtRestAndPinsWithMoreAndCloseWhenScrolled() {
+        let app = launch(variant: "native-voice-call-chat")
+        let header = app.descendants(matching: .any)["chat-header-banner"]
+        let bar = app.otherElements["voice-call-bar"]
+        XCTAssertTrue(bar.waitForExistence(timeout: 10))
+        XCTAssertTrue(header.exists)
+        XCTAssertGreaterThanOrEqual(bar.frame.minY, header.frame.maxY - 0.5, "strip sits directly beneath the header at rest")
+        XCTAssertLessThan(bar.frame.minY - header.frame.maxY, 24)
+        XCTAssertFalse(app.buttons["voice-call-more"].exists)
+        XCTAssertFalse(app.buttons["voice-call-close-chat"].exists)
+        let restDuration = app.buttons["voice-call-return"]
+        XCTAssertTrue(restDuration.exists)
+        let restDurationWidth = restDuration.frame.width
+        let rest = XCTAttachment(screenshot: app.screenshot())
+        rest.name = "parity-strip-rest"; rest.lifetime = .keepAlways; add(rest)
+        for _ in 0..<4 where !app.buttons["voice-call-more"].exists {
+            app.swipeUp(velocity: .slow)
+        }
+        let more = app.buttons["voice-call-more"]
+        XCTAssertTrue(more.waitForExistence(timeout: 5))
+        let pinned = app.otherElements["voice-call-bar"]
+        XCTAssertLessThan(pinned.frame.minY - app.windows.firstMatch.frame.minY, 140, "strip stays at the top of the viewport")
+        let video = app.buttons["voice-call-video"], hangup = app.buttons["voice-call-hangup"]
+        let close = app.buttons["voice-call-close-chat"]
+        XCTAssertTrue(close.exists)
+        XCTAssertLessThan(more.frame.maxX, video.frame.minX + 0.5, "More comes before Video")
+        XCTAssertLessThan(hangup.frame.maxX, close.frame.minX + 0.5, "Close comes after Hang up")
+        XCTAssertEqual(app.otherElements.matching(identifier: "voice-call-bar").count, 1, "controls are not duplicated")
+        // Phone width: the pinned strip keeps the full duration readable (no "0…" truncation).
+        let duration = app.buttons["voice-call-return"]
+        XCTAssertTrue(duration.exists)
+        XCTAssertGreaterThanOrEqual(duration.frame.width, restDurationWidth - 0.5,
+            "duration keeps its full at-rest width while pinned")
+        XCTAssertFalse(app.buttons["voice-call-screen-share"].exists, "screen share leaves the pinned strip unless a share runs")
+        let fixed = XCTAttachment(screenshot: app.screenshot())
+        fixed.name = "parity-strip-pinned"; fixed.lifetime = .keepAlways; add(fixed)
     }
     // contract-test: supporting surface=gui.apple assertions=video-call.privacy.first-call-warning
     func testConsentBlocksCallControlsUntilExplicitContinue() {
