@@ -31,6 +31,9 @@ const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAcco
 
 const ENABLED = process.env.VOICE_CALL_REAL_DEV === '1';
 const SPEECH_DIR = process.env.VOICE_CALL_REAL_SPEECH_DIR || '';
+// Chromium takes its fake microphone file at launch, and launch options cannot
+// differ per describe group, so one run covers one scenario (the runner's --scenario).
+const SCENARIO = process.env.VOICE_CALL_REAL_SCENARIO || '';
 const ARTIFACTS = 'artifacts';
 
 interface Scenario {
@@ -154,18 +157,20 @@ async function snap(page: Page, testInfo: TestInfo, name: string) {
 const ACK_ROOT = '/audio/assistant-acknowledgements/';
 const MATE_WAITING_CLIP = /\/audio\/assistant-acknowledgements\/(?!system\/)[^/]+\/[^/]+\/(general|lookup|reasoning|action)-\d+\.mp3/;
 
+test.use({
+  permissions: ['microphone'],
+  launchOptions: {
+    executablePath: process.env.OPENMATES_PROOF_CHROME || undefined,
+    args: ['--disable-save-password-bubble', '--disable-features=AutofillSaveCardInfoToAccountSignedIn,PasswordImport',
+      '--use-mock-keychain', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream',
+      ...(SCENARIO ? [`--use-file-for-fake-audio-capture=${path.join(SPEECH_DIR, `${SCENARIO}.wav`)}`] : [])],
+  },
+});
+
 for (const scenario of SCENARIOS) {
   test.describe(`real voice call: ${scenario.slug}`, () => {
     test.skip(!ENABLED, 'Dev-only real voice call: run through scripts/voice_call_web_real_test.py.');
-    test.use({
-      permissions: ['microphone'],
-      launchOptions: {
-        executablePath: process.env.OPENMATES_PROOF_CHROME || undefined,
-        args: ['--disable-save-password-bubble', '--disable-features=AutofillSaveCardInfoToAccountSignedIn,PasswordImport',
-          '--use-mock-keychain', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream',
-          `--use-file-for-fake-audio-capture=${path.join(SPEECH_DIR, `${scenario.slug}.wav`)}`],
-      },
-    });
+    test.skip(ENABLED && scenario.slug !== SCENARIO, `This run speaks the ${SCENARIO || '(none)'} question only.`);
 
     // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.audio.localized-waiting,video-call.audio.spoken-rich-response
     test(`a spoken question in a new chat is transcribed, answered aloud${scenario.videos ? ' with videos' : ''} and raises no error`,

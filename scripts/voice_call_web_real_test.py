@@ -15,7 +15,9 @@ leases and draft guard as scripts/design_embroidery_web_real_test.py.
 Example (after deployment; paid inference requires explicit opt-in):
   python3 scripts/voice_call_web_real_test.py --session ID --revision FULL_SHA \\
     --output-dir /tmp/voice-call-real-proof/run-1 \\
-    --personal-dev-test-account --allow-paid-dev-inference [--grep black-hole]
+    --personal-dev-test-account --allow-paid-dev-inference --scenario black-hole
+
+One scenario per run: Chromium takes the fake-microphone WAV at launch.
 
 Never run in CI.
 """
@@ -50,10 +52,22 @@ PATTERNS = (("heard", r"heard: ([^\n]+)"),
             ("notifications", r"notifications: ([^\n]+)"))
 
 
-def generate_speech(directory: Path) -> dict[str, float]:
-    """Write <slug>.wav for every scenario; returns the spoken seconds per scenario."""
+def take_scenario(argv: list[str]) -> str:
+    """Remove ``--scenario SLUG`` from argv (the shared harness does not know it) and return SLUG."""
+    if "--scenario" not in argv or argv.index("--scenario") + 1 >= len(argv):
+        raise SystemExit(f"--scenario is required: one of {', '.join(SCENARIOS)}")
+    at = argv.index("--scenario")
+    slug = argv[at + 1]
+    if slug not in SCENARIOS:
+        raise SystemExit(f"unknown --scenario {slug!r}: one of {', '.join(SCENARIOS)}")
+    del argv[at:at + 2]
+    return slug
+
+
+def generate_speech(directory: Path, slug: str) -> dict[str, float]:
+    """Write <slug>.wav for the scenario; returns its spoken seconds."""
     seconds: dict[str, float] = {}
-    for slug, question in SCENARIOS.items():
+    for slug, question in ((slug, SCENARIOS[slug]),):
         with GENERATOR.open("rb") as script:
             run = subprocess.run(["docker", "exec", "-i", API_CONTAINER, "python", "-", "--text", question,
                                   "--tail-seconds", "90"], stdin=script, capture_output=True, check=False, timeout=180)
@@ -70,8 +84,9 @@ if __name__ == "__main__":
         raise SystemExit("real inference is dev-only and cannot run in CI")
     if "--allow-paid-dev-inference" not in sys.argv:
         raise SystemExit("explicit paid-dev opt-in required (--allow-paid-dev-inference)")
+    scenario = take_scenario(sys.argv)
     speech_dir = Path(tempfile.mkdtemp(prefix="voice-call-real-speech-", dir="/tmp"))
-    print(f"speaker audio: {json.dumps(generate_speech(speech_dir))} in {speech_dir}", flush=True)
+    print(f"speaker audio: {json.dumps(generate_speech(speech_dir, scenario))} in {speech_dir}", flush=True)
     os.environ.update(VOICE_CALL_REAL_DEV="1", VOICE_CALL_REAL_SPEECH_DIR=str(speech_dir),
-                      OPENMATES_PROOF_CHROME=str(installed_chromium()))
-    raise SystemExit(main(spec=SPEC, title="Voice call", doc=__doc__, grep_option=True, patterns=PATTERNS))
+                      VOICE_CALL_REAL_SCENARIO=scenario, OPENMATES_PROOF_CHROME=str(installed_chromium()))
+    raise SystemExit(main(spec=SPEC, title=f"Voice call ({scenario})", doc=__doc__, patterns=PATTERNS))
