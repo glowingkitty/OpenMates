@@ -9,6 +9,46 @@ instructions:
       - Use Plans create when the user asks to save or coordinate a durable execution plan.
       - Use Plans search when the user asks to find an existing plan.
       - Plan content is client-side encrypted. Do not invent server-visible plan search results.
+      - Spec-driven development: before coding a non-trivial feature, use Plans specification to draft a Specification (outcome, scope, requirements with ids, user flows and edge cases) and let the user approve it.
+      - After drafting a Specification, use Plans check to define reusable Checks that prove its requirements. Checks covering security, privacy, encryption, permissions, migrations or exact API behavior must set requires_deterministic and include a required deterministic source (e2e, unit, integration, static_analysis or deterministic_audit).
+      - An ai_evaluation source needs a question; a human_confirmation source needs an instruction.
+embed_types:
+  - id: create
+    category: app-skill-use
+    skill_id: create
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: false
+    preview_component: plans/PlanCreateEmbedPreview.svelte
+    fullscreen_component: plans/PlanCreateEmbedFullscreen.svelte
+    icon: planning
+    gradient_var: "--color-app-plans"
+    i18n_namespace: embeds.plans.create
+  - id: specification
+    category: app-skill-use
+    skill_id: specification
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: false
+    preview_component: specifications/SpecificationSkillEmbedPreview.svelte
+    fullscreen_component: specifications/SpecificationSkillEmbedFullscreen.svelte
+    icon: planning
+    gradient_var: "--color-app-plans"
+    i18n_namespace: embeds.plans.specification
+  - id: check
+    category: app-skill-use
+    skill_id: check
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: false
+    preview_component: checks/CheckSkillEmbedPreview.svelte
+    fullscreen_component: checks/CheckSkillEmbedFullscreen.svelte
+    icon: planning
+    gradient_var: "--color-app-plans"
+    i18n_namespace: embeds.plans.check
 skills:
   - id: create
     anonymous_access: authenticated
@@ -69,3 +109,122 @@ skills:
           description: Private plan text to search for on a connected client.
       required:
         - query
+
+  - id: specification
+    anonymous_access: authenticated
+    name_translation_key: plans.skills.specification
+    description_translation_key: plans.skills.specification.description
+    icon_image: planning.svg
+    preprocessor_hint: >
+      Draft or update a Specification for the user to review as an embed. Content is saved by the client into the Project on approval.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    pricing:
+      fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Internal
+    class_path: backend.apps.plans.skills.specification_skill.SpecificationSkill
+    tool_schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Short Specification title.
+        summary:
+          type: string
+          description: One or two sentence summary.
+        outcome:
+          type: string
+          description: The user-visible outcome the Specification delivers.
+        category:
+          type: string
+          description: Optional category.
+        scope_included:
+          type: array
+          items: {type: string}
+          description: What is in scope.
+        scope_excluded:
+          type: array
+          items: {type: string}
+          description: What is explicitly out of scope.
+        requirements:
+          type: array
+          description: Requirements with unique ids.
+          items:
+            type: object
+            properties:
+              id: {type: string}
+              statement: {type: string}
+              example: {type: string}
+            required: [id, statement]
+        flows:
+          type: array
+          description: User flows and edge cases with unique ids.
+          items:
+            type: object
+            properties:
+              id: {type: string}
+              title: {type: string}
+              kind: {type: string, enum: [user_flow, edge_case]}
+              steps:
+                type: array
+                items: {type: string}
+            required: [id, title, kind]
+      required:
+        - title
+        - summary
+
+  - id: check
+    anonymous_access: authenticated
+    name_translation_key: plans.skills.check
+    description_translation_key: plans.skills.check.description
+    icon_image: planning.svg
+    preprocessor_hint: >
+      Define a reusable Check with mixed sources for the user to review as an embed.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    pricing:
+      fixed: 1
+    supplier_costs:
+      fixed:
+        none: true
+        note: Internal
+    class_path: backend.apps.plans.skills.check_skill.CheckSkill
+    tool_schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Short Check title.
+        description:
+          type: string
+          description: What the Check proves.
+        covered_claims:
+          type: array
+          items: {type: string}
+          description: Requirement ids or claims the Check covers.
+        requires_deterministic:
+          type: boolean
+          description: True for security, privacy, encryption, permission, migration or exact API claims.
+        sources:
+          type: array
+          description: Sources that prove the Check; at least one must be required.
+          items:
+            type: object
+            properties:
+              source_binding_id: {type: string}
+              source_kind: {type: string, enum: [e2e, unit, integration, static_analysis, deterministic_audit, ai_evaluation, human_confirmation]}
+              role: {type: string, enum: [required, supporting]}
+              label: {type: string}
+              test_target: {type: string}
+              question: {type: string, description: Required for ai_evaluation.}
+              threshold: {type: number}
+              instruction: {type: string, description: Required for human_confirmation.}
+            required: [source_binding_id, source_kind, role, label]
+      required:
+        - title
+        - sources

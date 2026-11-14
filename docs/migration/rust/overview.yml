@@ -37,7 +37,7 @@ capabilities:
       rust-only: 19
       stays-shell: 2
 overall:
-  percent: 38.8
+  percent: 38.5
   formula: overall = round(0.4 * web_app + 0.2 * shared_client + 0.25 * cli + 0.15 * sdk, 1), sdk = mean(sdk_rust,
     sdk_npm, sdk_python); each term is the area percent
   weights:
@@ -49,7 +49,7 @@ overall:
   inputs:
     web_app: 38.1
     shared_client: 28.6
-    cli: 64.6
+    cli: 63.4
     sdk: 11.3
 areas:
 - id: web_app
@@ -87,13 +87,13 @@ areas:
   priority_rank: 2
   file: cli.yml
   unit: CLI commands
-  total: 754
+  total: 768
   done: 487
-  partial: 262
+  partial: 276
   missing: 5
-  percent: 64.6
+  percent: 63.4
   done_definition: command is differential-verified against the npm CLI
-  blockers: [5 unsupported commands without native handler, 745 commands not verified on Linux]
+  blockers: [5 unsupported commands without native handler, 759 commands not verified on Linux]
 - id: sdk_rust
   title: Rust SDK (operation capabilities)
   priority_rank: 3

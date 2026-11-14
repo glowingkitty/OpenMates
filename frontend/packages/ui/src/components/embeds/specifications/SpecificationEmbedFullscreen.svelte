@@ -10,14 +10,55 @@
   import { resolveIconName } from '../../../utils/iconNameResolver';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import { text } from '../../../i18n/translations';
+  import SpecificationRevisionPanel from './SpecificationRevisionPanel.svelte';
   import type { SpecificationDocument, SpecFlow, SpecCheckPreview } from './SpecificationDocument';
-  interface Props { data: { decodedContent: { document: SpecificationDocument } }; onClose: () => void }
-  let { data, onClose }: Props = $props();
-  const document = $derived(data.decodedContent.document);
+  import type { SpecificationApproval, SpecificationRevisionSummary } from './SpecificationRevision';
+  interface Props {
+    /** The document of the revision being shown. */
+    document: SpecificationDocument;
+    revisions?: SpecificationRevisionSummary[];
+    currentRevisionId?: string;
+    /** Revision whose document is shown; defaults to the current revision. */
+    viewedRevisionId?: string;
+    approval?: SpecificationApproval;
+    onApprove?: (revisionId: string, contentHash: string) => void;
+    onSelectRevision?: (revisionId: string) => void;
+    onClose: () => void;
+    /** Unsaved draft: shows this notice (and the save action) instead of revisions. */
+    draftNotice?: string;
+    saveLabel?: string;
+    onSaveToProject?: () => void;
+    /** Result of the last save: shown instead of the save button once saved, or beside it on error. */
+    saveStatus?: { kind: 'saved' | 'error'; text: string } | null;
+    saveDisabled?: boolean;
+    openProjectLabel?: string;
+    onOpenProject?: () => void;
+  }
+  let { draftNotice = '', saveLabel = '', onSaveToProject, saveStatus = null, saveDisabled = false, openProjectLabel = '', onOpenProject, document, revisions = [], currentRevisionId = '', viewedRevisionId, approval = { state: 'draft', approved_revision_id: null, approved_at: null }, onApprove, onSelectRevision, onClose }: Props = $props();
   let selectedFlow = $state<SpecFlow | null>(null);
   let selectedCheck = $state<SpecCheckPreview | null>(null);
   const requirements = $derived(new Map(document.requirements.map(item => [item.id, item])));
   const models = $derived(new Map(document.models.map(item => [item.id, item])));
+  // Requirements, flows and models no chapter references still belong to the
+  // document: they render in one trailing section instead of disappearing.
+  const NO_PROOF = { state: 'open', title: 'a linked Check', explanation: 'No Check has proven this requirement yet.' } as const;
+  const displayChapters = $derived.by(() => {
+    const used = (pick: (chapter: SpecificationDocument['chapters'][number]) => string[]) => new Set(document.chapters.flatMap(pick));
+    const usedRequirements = used(chapter => chapter.requirementIds);
+    const usedFlows = used(chapter => chapter.flowIds);
+    const usedModels = used(chapter => chapter.modelIds);
+    const rest = {
+      id: 'unassigned',
+      title: document.chapters.length ? 'Other requirements' : '',
+      introduction: '',
+      requirementIds: document.requirements.map(item => item.id).filter(id => !usedRequirements.has(id)),
+      flowIds: document.flows.map(item => item.id).filter(id => !usedFlows.has(id)),
+      modelIds: document.models.map(item => item.id).filter(id => !usedModels.has(id)),
+    };
+    const hasRest = rest.requirementIds.length || rest.flowIds.length || rest.modelIds.length;
+    return hasRest ? [...document.chapters, rest] : document.chapters;
+  });
   function flows(ids: string[], kind: SpecFlow['kind']) {
     return document.flows.filter(item => ids.includes(item.id) && item.kind === kind);
   }
@@ -99,13 +140,20 @@
   {:else}
   <UnifiedEmbedFullscreen appId="code" skillIconName="design" {onClose} showShare={false}
     testId="specification-fullscreen" embedHeaderTitle={document.title}
-    embedHeaderSubtitle={`${document.category} · Specification for ${document.project}`}>
+    embedHeaderSubtitle={document.project ? $text('specifications.fullscreen.subtitle', { values: { category: document.category, project: document.project } }) : $text('specifications.fullscreen.subtitle_no_project', { values: { category: document.category } })}>
     {#snippet content()}
       <article class="spec-document" aria-label={`${document.title} Specification`}>
         <div class="document-intro">
           <p class="summary">{document.summary}</p>
-          <p class="preview-notice">{document.previewNotice}</p>
+          {#if document.previewNotice}<p class="preview-notice">{document.previewNotice}</p>{/if}
         </div>
+        {#if draftNotice}<p class="preview-notice" data-testid="specification-draft-notice">{draftNotice}</p>{/if}
+        {#if draftNotice && onSaveToProject && saveStatus?.kind !== 'saved'}<button type="button" data-testid="specification-save-to-project" disabled={saveDisabled} onclick={onSaveToProject}>{saveLabel}</button>{/if}
+        {#if saveStatus}<p class="preview-notice" role={saveStatus.kind === 'error' ? 'alert' : 'status'} data-testid={saveStatus.kind === 'saved' ? 'specification-save-saved' : 'specification-save-error'}>{saveStatus.text}</p>{/if}
+        {#if saveStatus?.kind === 'saved' && onOpenProject}<button type="button" data-testid="specification-open-project" onclick={onOpenProject}>{openProjectLabel}</button>{/if}
+        {#if revisions.length}
+          <SpecificationRevisionPanel {revisions} {currentRevisionId} viewedRevisionId={viewedRevisionId ?? currentRevisionId} {approval} {onApprove} {onSelectRevision} />
+        {/if}
 
         <section aria-labelledby="spec-outcome" class="major-section">
           <h2 id="spec-outcome">{@render icon('calendar')}Outcome</h2>
@@ -127,11 +175,11 @@
           </div>
         </section>
 
-        {#each document.chapters as chapter (chapter.id)}
+        {#each displayChapters as chapter (chapter.id)}
           {@const userFlows = flows(chapter.flowIds, 'user_flow')}
           {@const edgeCases = flows(chapter.flowIds, 'edge_case')}
-          <section class="major-section" aria-labelledby={`chapter-${chapter.id}`} data-testid="spec-chapter">
-            <h2 id={`chapter-${chapter.id}`}>{@render icon('files')}{chapter.title}</h2>
+          <section class="major-section" aria-labelledby={chapter.title ? `chapter-${chapter.id}` : undefined} data-testid="spec-chapter">
+            {#if chapter.title}<h2 id={`chapter-${chapter.id}`}>{@render icon('files')}{chapter.title}</h2>{/if}
             {#if chapter.introduction}<p class="chapter-introduction">{chapter.introduction}</p>{/if}
 
             {#if chapter.requirementIds.length}
@@ -140,15 +188,16 @@
                 {#each chapter.requirementIds as id (id)}
                   {@const requirement = requirements.get(id)}
                   {#if requirement}
+                    {@const proof = requirement.proof ?? NO_PROOF}
                     <div class="requirement" data-testid="spec-requirement">
-                      <div class="applicability"><span>Applies to:</span>{#each requirement.appliesTo as surface}<strong>{surface}</strong>{/each}</div>
+                      {#if requirement.appliesTo.length}<div class="applicability"><span>Applies to:</span>{#each requirement.appliesTo as surface}<strong>{surface}</strong>{/each}</div>{/if}
                       <div class="requirement-line">
-                        <span class="proof-mark" class:passed={requirement.proof.state === 'passed'} aria-label={requirement.proof.state === 'passed' ? 'Illustrative proven requirement' : 'Requirement not proven'}>{#if requirement.proof.state === 'passed'}{@render icon('check')}{/if}</span>
+                        <span class="proof-mark" class:passed={proof.state === 'passed'} aria-label={proof.state === 'passed' ? 'Illustrative proven requirement' : 'Requirement not proven'}>{#if proof.state === 'passed'}{@render icon('check')}{/if}</span>
                         <div class="requirement-body">
                           <p class="statement">{requirement.statement}</p>
                           <details class="proof-detail" data-testid="spec-proof">
-                            <summary><span class="proof-label">{requirement.proof.state === 'passed' ? 'Proven in check' : requirement.proof.state === 'stale' ? 'Proof needs refresh' : 'To be proven in'}</span><span class="check-pill">{requirement.proof.title}</span></summary>
-                            <p>{requirement.proof.explanation}</p>
+                            <summary><span class="proof-label">{proof.state === 'passed' ? 'Proven in check' : proof.state === 'stale' ? 'Proof needs refresh' : 'To be proven in'}</span><span class="check-pill">{proof.title}</span></summary>
+                            <p>{proof.explanation}</p>
                           </details>
                           <details class="requirement-details">
                             <summary>Example & requirement ID</summary>

@@ -9,11 +9,19 @@ from __future__ import annotations
 
 from typing import Any
 
+import logging
+
+from backend.core.api.app.services.user_check_service import CheckError, UserCheckService
 from backend.core.api.app.services.user_task_queue_service import UserTaskQueueService
+
+logger = logging.getLogger(__name__)
 
 
 TASK_QUEUE_GUARD_MAX_RETRIES = 2
 TASK_QUEUE_MODEL_RETRY_STATES = {"started_next_ai_task", "active_ai_task"}
+CHECK_CONTINUATION_PLAN_STATUSES = {"active", "executing", "running_checks"}
+CHECKS_OPEN_STATE = "required_checks_open"
+CHECKS_WAITING_STATE = "waiting_for_confirmation"
 TASK_QUEUE_BLOCKING_STATES = {"blocked_by_human_task", "blocked_by_ai_task"}
 TASK_QUEUE_CONTINUATION_SYSTEM_PREFIX = "Task queue continuation:"
 PLAN_APP_SKILL_PREFIX = "plans-"
@@ -132,7 +140,12 @@ async def evaluate_task_queue_post_turn(
         team_id=getattr(task_tool_context, "team_id", None),
     )
     state = str(queue_result.get("state") or "")
-    if state in {"no_chat", "no_work"}:
+    if state == "no_work":
+        return await _evaluate_required_checks(
+            directus_service, user_id=user_id, chat_id=chat_id,
+            team_id=getattr(task_tool_context, "team_id", None),
+        )
+    if state == "no_chat":
         return None
     return {
         **queue_result,
@@ -141,7 +154,47 @@ async def evaluate_task_queue_post_turn(
     }
 
 
+async def _evaluate_required_checks(
+    directus_service: Any, *, user_id: str, chat_id: str, team_id: str | None,
+) -> dict[str, Any] | None:
+    """Continue while required Checks of the chat's active Plans are not green.
+
+    Fails closed: unavailable Check storage never triggers a continuation.
+    """
+    plan_methods = getattr(directus_service, "user_plan", None)
+    if plan_methods is None:
+        return None
+    try:
+        plans = await plan_methods.list_plans(user_id, chat_id=chat_id, team_id=team_id)
+        plan_ids = [
+            str(plan["plan_id"]) for plan in plans
+            if plan.get("plan_id") and plan.get("status") in CHECK_CONTINUATION_PLAN_STATUSES
+        ]
+        if not plan_ids:
+            return None
+        counts = await UserCheckService(directus_service).plan_required_checks_state(
+            plan_ids, user_id=user_id, team_id=team_id,
+        )
+    except CheckError as exc:
+        logger.warning("Check continuation skipped, Check storage unavailable: %s", exc.code)
+        return None
+    pending = counts["failing"] + counts["running"] + counts["missing_run"]
+    base = {"chat_id": chat_id, "required_checks": counts, "task_queue_blocks_plan": False}
+    if pending > 0:
+        return {**base, "state": CHECKS_OPEN_STATE, "requires_model_retry": True}
+    if counts["waiting_for_confirmation"] > 0:
+        return {**base, "state": CHECKS_WAITING_STATE, "requires_model_retry": False}
+    return None
+
 def task_queue_post_turn_prompt(queue_result: dict[str, Any]) -> str:
+    if queue_result.get("state") == CHECKS_OPEN_STATE:
+        counts = queue_result.get("required_checks") or {}
+        return (
+            f"{TASK_QUEUE_CONTINUATION_SYSTEM_PREFIX} required Checks are not green yet: "
+            f"{counts.get('failing', 0)} failing, {counts.get('running', 0)} running, "
+            f"{counts.get('missing_run', 0)} not run. Run the required Checks and fix any failures. "
+            "Do not treat the work as finished until every required Check passes."
+        )
     task_id = queue_result.get("short_id") or queue_result.get("task_id") or "the current task"
     state = queue_result.get("state")
     if state == "started_next_ai_task":

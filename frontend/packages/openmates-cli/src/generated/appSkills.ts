@@ -7169,6 +7169,202 @@ export const APP_SKILL_METADATA = [
     }
   },
   {
+    "app_id": "plans",
+    "skill_id": "specification",
+    "app_namespace_ts": "plans",
+    "skill_method_ts": "specification",
+    "app_namespace_py": "plans",
+    "skill_method_py": "specification",
+    "description_key": "plans.skills.specification.description",
+    "description": "Draft or update a Specification for the user to review as an embed. Content is saved by the client into the Project on approval.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Short Specification title."
+        },
+        "summary": {
+          "type": "string",
+          "description": "One or two sentence summary."
+        },
+        "outcome": {
+          "type": "string",
+          "description": "The user-visible outcome the Specification delivers."
+        },
+        "category": {
+          "type": "string",
+          "description": "Optional category."
+        },
+        "scope_included": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What is in scope."
+        },
+        "scope_excluded": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What is explicitly out of scope."
+        },
+        "requirements": {
+          "type": "array",
+          "description": "Requirements with unique ids.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "statement": {
+                "type": "string"
+              },
+              "example": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "statement"
+            ]
+          }
+        },
+        "flows": {
+          "type": "array",
+          "description": "User flows and edge cases with unique ids.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user_flow",
+                  "edge_case"
+                ]
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "kind"
+            ]
+          }
+        }
+      },
+      "required": [
+        "title",
+        "summary"
+      ]
+    }
+  },
+  {
+    "app_id": "plans",
+    "skill_id": "check",
+    "app_namespace_ts": "plans",
+    "skill_method_ts": "check",
+    "app_namespace_py": "plans",
+    "skill_method_py": "check",
+    "description_key": "plans.skills.check.description",
+    "description": "Define a reusable Check with mixed sources for the user to review as an embed.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Short Check title."
+        },
+        "description": {
+          "type": "string",
+          "description": "What the Check proves."
+        },
+        "covered_claims": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Requirement ids or claims the Check covers."
+        },
+        "requires_deterministic": {
+          "type": "boolean",
+          "description": "True for security, privacy, encryption, permission, migration or exact API claims."
+        },
+        "sources": {
+          "type": "array",
+          "description": "Sources that prove the Check; at least one must be required.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source_binding_id": {
+                "type": "string"
+              },
+              "source_kind": {
+                "type": "string",
+                "enum": [
+                  "e2e",
+                  "unit",
+                  "integration",
+                  "static_analysis",
+                  "deterministic_audit",
+                  "ai_evaluation",
+                  "human_confirmation"
+                ]
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "required",
+                  "supporting"
+                ]
+              },
+              "label": {
+                "type": "string"
+              },
+              "test_target": {
+                "type": "string"
+              },
+              "question": {
+                "type": "string",
+                "description": "Required for ai_evaluation."
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "instruction": {
+                "type": "string",
+                "description": "Required for human_confirmation."
+              }
+            },
+            "required": [
+              "source_binding_id",
+              "source_kind",
+              "role",
+              "label"
+            ]
+          }
+        }
+      },
+      "required": [
+        "title",
+        "sources"
+      ]
+    }
+  },
+  {
     "app_id": "projects",
     "skill_id": "create",
     "app_namespace_ts": "projects",
@@ -10804,6 +11000,14 @@ export class PlansAppSkills {
     this.runSkill = runSkill;
   }
   /**
+   * Define a reusable Check with mixed sources for the user to review as an embed.
+   * Description key: plans.skills.check.description
+   * Skill: plans/check
+   */
+  async check<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("plans", "check", input, options);
+  }
+  /**
    * Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
    * Description key: plans.skills.create.description
    * Skill: plans/create
@@ -10818,6 +11022,14 @@ export class PlansAppSkills {
    */
   async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("plans", "search", input, options);
+  }
+  /**
+   * Draft or update a Specification for the user to review as an embed. Content is saved by the client into the Project on approval.
+   * Description key: plans.skills.specification.description
+   * Skill: plans/specification
+   */
+  async specification<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("plans", "specification", input, options);
   }
 }
 

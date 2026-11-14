@@ -3859,6 +3859,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "ผู้ดูแลระบบ"
@@ -14082,6 +14083,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "ผ่าน"
@@ -21513,6 +21515,7 @@
       "text": "สีที่กำหนดเอง"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

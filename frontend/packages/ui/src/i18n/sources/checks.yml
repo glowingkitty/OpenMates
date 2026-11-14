@@ -1,0 +1,359 @@
+title:
+  context: "Fallback title of a Check embed"
+  en: "Check"
+  de: "Prüfung"
+  verified_by_human: []
+
+status.queued:
+  context: "Aggregate Check status"
+  en: "Queued"
+  de: "In Warteschlange"
+  verified_by_human: []
+
+status.running:
+  context: "Aggregate Check status"
+  en: "Running"
+  de: "Läuft"
+  verified_by_human: []
+
+status.passed:
+  context: "Aggregate Check status"
+  en: "Passed"
+  de: "Bestanden"
+  verified_by_human: []
+
+status.failed:
+  context: "Aggregate Check status"
+  en: "Failed"
+  de: "Fehlgeschlagen"
+  verified_by_human: []
+
+status.error:
+  context: "Aggregate Check status"
+  en: "Error"
+  de: "Fehler"
+  verified_by_human: []
+
+status.blocked:
+  context: "Aggregate Check status"
+  en: "Blocked"
+  de: "Blockiert"
+  verified_by_human: []
+
+status.waiting_for_confirmation:
+  context: "Aggregate Check status while a required human source awaits a decision; never shown as failed"
+  en: "Waiting for confirmation"
+  de: "Wartet auf Bestätigung"
+  verified_by_human: []
+
+status.cancelled:
+  context: "Aggregate Check status"
+  en: "Cancelled"
+  de: "Abgebrochen"
+  verified_by_human: []
+
+status.never_run:
+  context: "Aggregate Check status"
+  en: "Never run"
+  de: "Noch nie ausgeführt"
+  verified_by_human: []
+
+stale:
+  context: "Badge: latest pass was for an older Check revision or changed files"
+  en: "Stale"
+  de: "Veraltet"
+  verified_by_human: []
+
+last_run:
+  context: "Label before the time of the last Check run"
+  en: "Last run"
+  de: "Letzter Lauf"
+  verified_by_human: []
+
+no_run:
+  context: "Shown when a Check has no run yet"
+  en: "No runs yet"
+  de: "Noch keine Läufe"
+  verified_by_human: []
+
+revision:
+  context: "Label before the Check revision number"
+  en: "Revision"
+  de: "Revision"
+  verified_by_human: []
+
+kind.e2e:
+  context: "Short source type label (end-to-end test)"
+  en: "E2E"
+  de: "E2E"
+  verified_by_human: []
+
+kind.unit:
+  context: "Short source type label (unit test)"
+  en: "Unit"
+  de: "Unit"
+  verified_by_human: []
+
+kind.integration:
+  context: "Short source type label (integration test)"
+  en: "Integration"
+  de: "Integration"
+  verified_by_human: []
+
+kind.audit:
+  context: "Short source type label for static analysis and deterministic audits"
+  en: "Audit"
+  de: "Audit"
+  verified_by_human: []
+
+kind.ai:
+  context: "Short source type label for AI evaluation"
+  en: "AI"
+  de: "KI"
+  verified_by_human: []
+
+kind.human:
+  context: "Short source type label for human confirmation"
+  en: "Human"
+  de: "Mensch"
+  verified_by_human: []
+
+group.e2e:
+  context: "Section heading for end-to-end sources"
+  en: "E2E tests"
+  de: "E2E-Tests"
+  verified_by_human: []
+
+group.unit:
+  context: "Section heading for unit sources"
+  en: "Unit tests"
+  de: "Unit-Tests"
+  verified_by_human: []
+
+group.integration:
+  context: "Section heading for integration sources"
+  en: "Integration tests"
+  de: "Integrationstests"
+  verified_by_human: []
+
+group.audit:
+  context: "Section heading for static analysis and deterministic audit sources"
+  en: "Static analysis and audits"
+  de: "Statische Analyse und Audits"
+  verified_by_human: []
+
+group.ai:
+  context: "Section heading for AI evaluation sources"
+  en: "AI evaluation"
+  de: "KI-Bewertung"
+  verified_by_human: []
+
+group.human:
+  context: "Section heading for human confirmation sources"
+  en: "Human confirmation"
+  de: "Menschliche Bestätigung"
+  verified_by_human: []
+
+role.required:
+  context: "Source role: must pass for the Check to be green"
+  en: "Required"
+  de: "Erforderlich"
+  verified_by_human: []
+
+role.supporting:
+  context: "Source role: visible but never gates the Check"
+  en: "Supporting"
+  de: "Unterstützend"
+  verified_by_human: []
+
+result.pending:
+  context: "Source has no result yet"
+  en: "No result yet"
+  de: "Noch kein Ergebnis"
+  verified_by_human: []
+
+result.human_pending:
+  context: "Mini status of a pending human source in the preview"
+  en: "pending"
+  de: "offen"
+  verified_by_human: []
+
+sources:
+  context: "Fullscreen heading for the sources list"
+  en: "Sources"
+  de: "Quellen"
+  verified_by_human: []
+
+claims:
+  context: "Fullscreen heading for covered claims"
+  en: "Covered claims"
+  de: "Abgedeckte Aussagen"
+  verified_by_human: []
+
+rule.requires_deterministic:
+  context: "Notice: AI evaluation and human confirmation alone cannot make this Check pass"
+  en: "This Check needs at least one passing deterministic source. AI evaluation and human confirmation alone cannot make it pass."
+  de: "Diese Prüfung braucht mindestens eine bestandene deterministische Quelle. KI-Bewertung und menschliche Bestätigung allein reichen nicht."
+  verified_by_human: []
+
+ai.question:
+  context: "Label for the question an AI evaluation judged"
+  en: "Question"
+  de: "Frage"
+  verified_by_human: []
+
+ai.verdict:
+  context: "Label for the AI evaluation verdict"
+  en: "Verdict"
+  de: "Urteil"
+  verified_by_human: []
+
+ai.verdict_pass:
+  context: "AI verdict value"
+  en: "Pass"
+  de: "Bestanden"
+  verified_by_human: []
+
+ai.verdict_fail:
+  context: "AI verdict value"
+  en: "Fail"
+  de: "Nicht bestanden"
+  verified_by_human: []
+
+ai.verdict_inconclusive:
+  context: "AI verdict value"
+  en: "Inconclusive"
+  de: "Unklar"
+  verified_by_human: []
+
+ai.score:
+  context: "Label for score versus threshold"
+  en: "Score"
+  de: "Bewertung"
+  verified_by_human: []
+
+ai.threshold:
+  context: "Label for the passing threshold"
+  en: "threshold"
+  de: "Schwelle"
+  verified_by_human: []
+
+ai.feedback:
+  context: "Label for AI evaluation feedback"
+  en: "Feedback"
+  de: "Rückmeldung"
+  verified_by_human: []
+
+human.instruction:
+  context: "Label for the instruction shown to the human confirmer"
+  en: "Please confirm"
+  de: "Bitte bestätigen"
+  verified_by_human: []
+
+human.confirm:
+  context: "Button: confirm a human check"
+  en: "Confirm"
+  de: "Bestätigen"
+  verified_by_human: []
+
+human.reject:
+  context: "Button: reject a human check"
+  en: "Reject"
+  de: "Ablehnen"
+  verified_by_human: []
+
+human.confirmed_by:
+  context: "Label before who confirmed"
+  en: "Confirmed by"
+  de: "Bestätigt von"
+  verified_by_human: []
+
+human.rejected_by:
+  context: "Label before who rejected"
+  en: "Rejected by"
+  de: "Abgelehnt von"
+  verified_by_human: []
+
+open_test_result:
+  context: "Button opening the linked test result embed"
+  en: "Open test result"
+  de: "Testergebnis öffnen"
+  verified_by_human: []
+
+history.title:
+  context: "Fullscreen heading for run history"
+  en: "Run history"
+  de: "Lauf-Verlauf"
+  verified_by_human: []
+
+history.stale:
+  context: "Marker on a run that no longer matches the current revision or files"
+  en: "stale"
+  de: "veraltet"
+  verified_by_human: []
+
+action.run:
+  context: "Button: run the Check again"
+  en: "Run again"
+  de: "Erneut ausführen"
+  verified_by_human: []
+
+action.cancel:
+  context: "Button: cancel a running Check"
+  en: "Cancel"
+  de: "Abbrechen"
+  verified_by_human: []
+
+project.heading:
+  context: "Heading of the Checks section in a Project"
+  en: "Checks"
+  de: "Prüfungen"
+  verified_by_human: []
+
+project.load_error:
+  context: "Shown when a Project's Checks cannot be loaded"
+  en: "Checks could not be loaded."
+  de: "Prüfungen konnten nicht geladen werden."
+  verified_by_human: []
+
+project.action_error:
+  context: "Shown when opening, running or confirming a Project Check fails"
+  en: "The Check action failed. Please try again."
+  de: "Die Aktion für die Prüfung ist fehlgeschlagen. Bitte versuche es erneut."
+  verified_by_human: []
+
+project.retry:
+  context: "Retry button after Checks failed to load"
+  en: "Retry"
+  de: "Erneut versuchen"
+  verified_by_human: []
+
+save.button:
+  context: "Button that saves a Check drafted in chat into the chat's Project"
+  en: "Save to Project"
+  de: "In Projekt speichern"
+  verified_by_human: []
+
+save.saving:
+  context: "Button label while a drafted Check is being saved"
+  en: "Saving…"
+  de: "Speichern…"
+  verified_by_human: []
+
+save.success:
+  context: "Shown after a drafted Check was saved into the Project"
+  en: "Saved to the Project."
+  de: "Im Projekt gespeichert."
+  verified_by_human: []
+
+save.error:
+  context: "Shown when saving a drafted Check into the Project failed"
+  en: "The Check could not be saved to the Project."
+  de: "Die Prüfung konnte nicht im Projekt gespeichert werden."
+  verified_by_human: []
+
+save.no_project:
+  context: "Explains why a drafted Check cannot be saved: the chat is not in a Project"
+  en: "Move this chat into a Project to save the Check there."
+  de: "Verschiebe diesen Chat in ein Projekt, um die Prüfung dort zu speichern."
+  verified_by_human: []

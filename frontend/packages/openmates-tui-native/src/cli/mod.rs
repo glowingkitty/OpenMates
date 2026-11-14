@@ -40,6 +40,8 @@ mod parity_chat_recovery;
 mod parity_extras;
 mod parser;
 mod plans;
+mod checks;
+mod specifications;
 mod projects;
 #[cfg(unix)]
 mod remote_access;
@@ -59,6 +61,8 @@ mod teams_message;
 mod workflows;
 pub use global_history::execute_sdk_global_history;
 pub use plans::execute_sdk_plans_with_delivery;
+pub use checks::execute_sdk_checks;
+pub use specifications::execute_sdk_specifications;
 pub use projects::execute_sdk_projects_with_delivery;
 pub use workflows::execute_sdk_workflows;
 /// True for account commands implemented over the explicit API-key SDK.

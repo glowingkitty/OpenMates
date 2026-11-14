@@ -90,6 +90,9 @@ import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPrevi
 import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
 import BusinessTrademarkSearchEmbedPreview from "../../../embeds/business/BusinessTrademarkSearchEmbedPreview.svelte";
 import BusinessInvestorSearchEmbedPreview from "../../../embeds/business/BusinessInvestorSearchEmbedPreview.svelte";
+import SpecificationSkillEmbedPreview from "../../../embeds/specifications/SpecificationSkillEmbedPreview.svelte";
+import CheckSkillEmbedPreview from "../../../embeds/checks/CheckSkillEmbedPreview.svelte";
+import PlanCreateEmbedPreview from "../../../embeds/plans/PlanCreateEmbedPreview.svelte";
 import BusinessCompanyOwnershipEmbedPreview from "../../../embeds/business/BusinessCompanyOwnershipEmbedPreview.svelte";
 import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
 import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
@@ -738,6 +741,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           decodedContent,
           content,
         );
+      }
+
+      if (appId === "plans" && (skillId === "specification" || skillId === "check" || skillId === "create")) {
+        return this.renderPlansSkillComponent(attrs, embedData, decodedContent, content, skillId);
       }
 
       if (appId === "business" && skillId === "company_ownership") {
@@ -3116,6 +3123,29 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
+  }
+
+  /** Render the plans.specification / plans.check / plans.create draft preview card. */
+  private renderPlansSkillComponent(
+    attrs: EmbedNodeAttributes, embedData: any, decodedContent: any, content: HTMLElement,
+    skillId: "specification" | "check" | "create",
+  ): void {
+    const existing = mountedComponents.get(content);
+    if (existing) unmount(existing);
+    disposeEmbedTree(content, false);
+    content.replaceChildren();
+    const payload = decodedContent ?? {};
+    const Preview = skillId === "specification" ? SpecificationSkillEmbedPreview
+      : skillId === "check" ? CheckSkillEmbedPreview : PlanCreateEmbedPreview;
+    const component = mount(Preview, {
+      target: content,
+      props: {
+        id: attrs.contentRef?.replace("embed:", "") || "",
+        data: payload,
+        onFullscreen: () => this.openFullscreen(attrs, embedData, { ...payload, app_id: "plans", skill_id: skillId }),
+      },
+    });
+    mountedComponents.set(content, component);
   }
 
   /** Render the business.company_ownership parent preview component. */

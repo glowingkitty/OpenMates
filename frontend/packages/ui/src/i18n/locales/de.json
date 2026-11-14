@@ -1447,6 +1447,18 @@
           "description": {
             "text": "Verschlüsselte Pläne über einen geeigneten verbundenen Client finden."
           }
+        },
+        "specification": {
+          "text": "Spezifikation",
+          "description": {
+            "text": "Eine Spezifikation mit Umfang, Anforderungen und Abläufen entwerfen oder aktualisieren."
+          }
+        },
+        "check": {
+          "text": "Prüfung",
+          "description": {
+            "text": "Eine wiederverwendbare Prüfung mit gemischten Test-, Bewertungs- und Bestätigungsquellen definieren."
+          }
         }
       }
     },
@@ -4983,6 +4995,212 @@
       },
       "review_chat": {
         "text": "Chat prüfen"
+      }
+    }
+  },
+  "checks": {
+    "title": {
+      "text": "Prüfung"
+    },
+    "status": {
+      "queued": {
+        "text": "In Warteschlange"
+      },
+      "running": {
+        "text": "Läuft"
+      },
+      "passed": {
+        "text": "Bestanden"
+      },
+      "failed": {
+        "text": "Fehlgeschlagen"
+      },
+      "error": {
+        "text": "Fehler"
+      },
+      "blocked": {
+        "text": "Blockiert"
+      },
+      "waiting_for_confirmation": {
+        "text": "Wartet auf Bestätigung"
+      },
+      "cancelled": {
+        "text": "Abgebrochen"
+      },
+      "never_run": {
+        "text": "Noch nie ausgeführt"
+      }
+    },
+    "stale": {
+      "text": "Veraltet"
+    },
+    "last_run": {
+      "text": "Letzter Lauf"
+    },
+    "no_run": {
+      "text": "Noch keine Läufe"
+    },
+    "revision": {
+      "text": "Revision"
+    },
+    "kind": {
+      "e2e": {
+        "text": "E2E"
+      },
+      "unit": {
+        "text": "Unit"
+      },
+      "integration": {
+        "text": "Integration"
+      },
+      "audit": {
+        "text": "Audit"
+      },
+      "ai": {
+        "text": "KI"
+      },
+      "human": {
+        "text": "Mensch"
+      }
+    },
+    "group": {
+      "e2e": {
+        "text": "E2E-Tests"
+      },
+      "unit": {
+        "text": "Unit-Tests"
+      },
+      "integration": {
+        "text": "Integrationstests"
+      },
+      "audit": {
+        "text": "Statische Analyse und Audits"
+      },
+      "ai": {
+        "text": "KI-Bewertung"
+      },
+      "human": {
+        "text": "Menschliche Bestätigung"
+      }
+    },
+    "role": {
+      "required": {
+        "text": "Erforderlich"
+      },
+      "supporting": {
+        "text": "Unterstützend"
+      }
+    },
+    "result": {
+      "pending": {
+        "text": "Noch kein Ergebnis"
+      },
+      "human_pending": {
+        "text": "offen"
+      }
+    },
+    "sources": {
+      "text": "Quellen"
+    },
+    "claims": {
+      "text": "Abgedeckte Aussagen"
+    },
+    "rule": {
+      "requires_deterministic": {
+        "text": "Diese Prüfung braucht mindestens eine bestandene deterministische Quelle. KI-Bewertung und menschliche Bestätigung allein reichen nicht."
+      }
+    },
+    "ai": {
+      "question": {
+        "text": "Frage"
+      },
+      "verdict": {
+        "text": "Urteil"
+      },
+      "verdict_pass": {
+        "text": "Bestanden"
+      },
+      "verdict_fail": {
+        "text": "Nicht bestanden"
+      },
+      "verdict_inconclusive": {
+        "text": "Unklar"
+      },
+      "score": {
+        "text": "Bewertung"
+      },
+      "threshold": {
+        "text": "Schwelle"
+      },
+      "feedback": {
+        "text": "Rückmeldung"
+      }
+    },
+    "human": {
+      "instruction": {
+        "text": "Bitte bestätigen"
+      },
+      "confirm": {
+        "text": "Bestätigen"
+      },
+      "reject": {
+        "text": "Ablehnen"
+      },
+      "confirmed_by": {
+        "text": "Bestätigt von"
+      },
+      "rejected_by": {
+        "text": "Abgelehnt von"
+      }
+    },
+    "open_test_result": {
+      "text": "Testergebnis öffnen"
+    },
+    "history": {
+      "title": {
+        "text": "Lauf-Verlauf"
+      },
+      "stale": {
+        "text": "veraltet"
+      }
+    },
+    "action": {
+      "run": {
+        "text": "Erneut ausführen"
+      },
+      "cancel": {
+        "text": "Abbrechen"
+      }
+    },
+    "project": {
+      "heading": {
+        "text": "Prüfungen"
+      },
+      "load_error": {
+        "text": "Prüfungen konnten nicht geladen werden."
+      },
+      "action_error": {
+        "text": "Die Aktion für die Prüfung ist fehlgeschlagen. Bitte versuche es erneut."
+      },
+      "retry": {
+        "text": "Erneut versuchen"
+      }
+    },
+    "save": {
+      "button": {
+        "text": "In Projekt speichern"
+      },
+      "saving": {
+        "text": "Speichern…"
+      },
+      "success": {
+        "text": "Im Projekt gespeichert."
+      },
+      "error": {
+        "text": "Die Prüfung konnte nicht im Projekt gespeichert werden."
+      },
+      "no_project": {
+        "text": "Verschiebe diesen Chat in ein Projekt, um die Prüfung dort zu speichern."
       }
     }
   },
@@ -16887,6 +17105,227 @@
       }
     }
   },
+  "plan_embeds": {
+    "approval": {
+      "draft": {
+        "text": "Entwurf"
+      },
+      "approved": {
+        "text": "Genehmigt (Rev. {revision})"
+      },
+      "approved_plain": {
+        "text": "Genehmigt"
+      },
+      "changed": {
+        "text": "Seit der Genehmigung geändert"
+      },
+      "revision": {
+        "text": "Revision {revision}"
+      },
+      "approve": {
+        "text": "Diese Revision genehmigen"
+      },
+      "already": {
+        "text": "Revision genehmigt"
+      },
+      "no_revision": {
+        "text": "Noch keine Revision eingereicht"
+      }
+    },
+    "section": {
+      "goal": {
+        "text": "Ziel"
+      },
+      "assumptions": {
+        "text": "Annahmen"
+      },
+      "criteria": {
+        "text": "Erfolgskriterien"
+      },
+      "tasks": {
+        "text": "Aufgaben"
+      },
+      "checks": {
+        "text": "Prüfungen"
+      }
+    },
+    "empty": {
+      "goal": {
+        "text": "Noch kein Ziel beschrieben"
+      },
+      "assumptions": {
+        "text": "Noch keine Annahmen"
+      },
+      "criteria": {
+        "text": "Noch keine Erfolgskriterien"
+      },
+      "tasks": {
+        "text": "Noch keine Aufgaben verknüpft"
+      },
+      "checks": {
+        "text": "Noch keine Prüfungen"
+      },
+      "no_plan": {
+        "text": "In diesem Chat gibt es noch keinen aktiven Plan."
+      }
+    },
+    "summary": {
+      "tasks": {
+        "text": "{done}/{total} Aufgaben erledigt"
+      },
+      "checks": {
+        "text": "{green}/{required} Pflichtprüfungen grün"
+      },
+      "waiting": {
+        "text": "{count} warten auf Bestätigung"
+      },
+      "assumptions_open": {
+        "text": "{count} offene Annahmen"
+      },
+      "assumptions_clear": {
+        "text": "Alle Annahmen bestätigt"
+      }
+    },
+    "check": {
+      "required": {
+        "text": "Pflicht"
+      },
+      "supporting": {
+        "text": "Unterstützend"
+      },
+      "open": {
+        "text": "Prüfung öffnen"
+      }
+    },
+    "criterion": {
+      "covered_by": {
+        "text": "{count} Prüfungen"
+      },
+      "uncovered": {
+        "text": "Von keiner Prüfung abgedeckt"
+      }
+    },
+    "assumption": {
+      "open_chat": {
+        "text": "Prüf-Chat öffnen"
+      }
+    },
+    "task": {
+      "open": {
+        "text": "Aufgabe öffnen"
+      }
+    },
+    "plan": {
+      "open": {
+        "text": "Plan öffnen"
+      },
+      "fullscreen_label": {
+        "text": "Plan"
+      }
+    },
+    "status": {
+      "plan": {
+        "draft": {
+          "text": "Entwurf"
+        },
+        "checking_assumptions": {
+          "text": "Annahmen werden geprüft"
+        },
+        "awaiting_confirmation": {
+          "text": "Wartet auf Bestätigung"
+        },
+        "active": {
+          "text": "Aktiv"
+        },
+        "executing": {
+          "text": "In Arbeit"
+        },
+        "running_checks": {
+          "text": "Prüfungen laufen"
+        },
+        "blocked": {
+          "text": "Blockiert"
+        },
+        "completed": {
+          "text": "Abgeschlossen"
+        },
+        "archived": {
+          "text": "Archiviert"
+        }
+      },
+      "task": {
+        "backlog": {
+          "text": "Backlog"
+        },
+        "todo": {
+          "text": "Offen"
+        },
+        "in_progress": {
+          "text": "In Arbeit"
+        },
+        "blocked": {
+          "text": "Blockiert"
+        },
+        "done": {
+          "text": "Erledigt"
+        }
+      },
+      "check": {
+        "pending": {
+          "text": "Ausstehend"
+        },
+        "passed": {
+          "text": "Bestanden"
+        },
+        "failed": {
+          "text": "Fehlgeschlagen"
+        },
+        "passed_unexpectedly": {
+          "text": "Unerwartet bestanden"
+        },
+        "skipped": {
+          "text": "Übersprungen"
+        },
+        "waived": {
+          "text": "Erlassen"
+        },
+        "waiting_for_confirmation": {
+          "text": "Wartet auf Bestätigung"
+        },
+        "stale": {
+          "text": "Veraltet"
+        }
+      },
+      "assumption": {
+        "unchecked": {
+          "text": "Ungeprüft"
+        },
+        "checking": {
+          "text": "Wird geprüft"
+        },
+        "confirmed": {
+          "text": "Bestätigt"
+        },
+        "corrected": {
+          "text": "Korrigiert"
+        },
+        "blocked": {
+          "text": "Blockiert"
+        },
+        "waived": {
+          "text": "Erlassen"
+        }
+      }
+    },
+    "skill": {
+      "draft_not_saved": {
+        "text": "Entwurf — noch nicht gespeichert"
+      },
+      "save_to_project": {
+        "text": "In Projekt speichern"
+      }
+    }
+  },
   "platforms": {
     "via": {
       "text": "via"
@@ -25848,6 +26287,133 @@
     },
     "custom_color": {
       "text": "Benutzerdefinierte Farbe"
+    }
+  },
+  "specifications": {
+    "status": {
+      "draft": {
+        "text": "Entwurf"
+      },
+      "approved": {
+        "text": "Freigegeben"
+      },
+      "superseded": {
+        "text": "Ersetzt"
+      },
+      "changes_since_approval": {
+        "text": "Änderungen seit Freigabe"
+      }
+    },
+    "preview": {
+      "revision": {
+        "text": "Revision {number}"
+      },
+      "updated": {
+        "text": "Aktualisiert {time}"
+      },
+      "requirements": {
+        "text": "{count} Anforderungen"
+      },
+      "proof": {
+        "text": "{passed} belegt · {open} offen · {stale} veraltet"
+      }
+    },
+    "fullscreen": {
+      "subtitle": {
+        "text": "{category} · Spezifikation für {project}"
+      },
+      "subtitle_no_project": {
+        "text": "{category} · Spezifikation"
+      }
+    },
+    "revisions": {
+      "heading": {
+        "text": "Revisionen"
+      },
+      "current": {
+        "text": "Aktuell"
+      },
+      "approved": {
+        "text": "Freigegeben"
+      },
+      "viewing": {
+        "text": "Wird angezeigt"
+      },
+      "revision": {
+        "text": "Revision {number}"
+      },
+      "select": {
+        "text": "Revision {number} ansehen"
+      },
+      "read_only": {
+        "text": "Du liest eine ältere Revision. Sie ist schreibgeschützt und kann nicht freigegeben werden."
+      },
+      "empty": {
+        "text": "Noch keine Revisionen."
+      }
+    },
+    "approval": {
+      "approve": {
+        "text": "Diese Revision freigeben"
+      },
+      "confirm_title": {
+        "text": "Revision {number} freigeben?"
+      },
+      "confirm_body": {
+        "text": "Die Freigabe gilt genau für diese Revision. Spätere Änderungen brauchen eine neue Freigabe."
+      },
+      "confirm": {
+        "text": "Freigabe bestätigen"
+      },
+      "cancel": {
+        "text": "Abbrechen"
+      },
+      "already_approved": {
+        "text": "Diese Revision ist freigegeben."
+      },
+      "only_current": {
+        "text": "Nur die aktuelle Revision kann freigegeben werden."
+      },
+      "approved_at": {
+        "text": "Freigegeben {time}"
+      },
+      "stale": {
+        "text": "Revision {number} wurde freigegeben, die Spezifikation wurde danach aber geändert."
+      }
+    },
+    "project": {
+      "heading": {
+        "text": "Spezifikationen"
+      },
+      "empty": {
+        "text": "In diesem Projekt gibt es noch keine Spezifikationen."
+      },
+      "load_error": {
+        "text": "Spezifikationen konnten nicht geladen werden."
+      },
+      "action_error": {
+        "text": "Die Aktion für die Spezifikation ist fehlgeschlagen. Es wurde nichts geändert."
+      },
+      "retry": {
+        "text": "Erneut versuchen"
+      }
+    },
+    "save": {
+      "no_project": {
+        "text": "Füge diesen Chat einem Projekt hinzu, um die Spezifikation dort zu speichern."
+      },
+      "saving": {
+        "text": "Wird gespeichert…"
+      },
+      "saved": {
+        "text": "In {project} gespeichert"
+      },
+      "open_project": {
+        "text": "Projekt öffnen"
+      },
+      "failed": {
+        "text": "Die Spezifikation konnte nicht im Projekt gespeichert werden. Es wurde nichts gespeichert."
+      }
     }
   },
   "tasks": {

@@ -133,6 +133,20 @@ function renderModel3DResult(content: Record<string, unknown>): string {
 	return lines.join('\n');
 }
 
+function renderPlansSkill(content: Record<string, unknown>): string {
+	const skill = str(content.skill_id) ?? str(content.type) ?? 'create';
+	const label = skill === 'specification' ? 'Specification (draft)' : skill === 'check' ? 'Check (draft)' : 'Plan (draft)';
+	const lines = [`**${str(content.title) ?? label}**`, label];
+	const summary = str(content.summary) ?? str(content.description) ?? str(content.goal);
+	if (summary) lines.push(trunc(summary, 240));
+	const count = (key: string) => (Array.isArray(content[key]) ? (content[key] as unknown[]).length : null);
+	const requirements = count('requirements');
+	if (requirements !== null) lines.push(`requirements: ${requirements}`);
+	const sources = count('sources');
+	if (sources !== null) lines.push(`sources: ${sources}`);
+	return lines.join('\n');
+}
+
 function renderTasksParent(content: Record<string, unknown>): string {
 	const skill = str(content.skill_id) === 'search' ? 'Search' : 'Create';
 	const query = str(content.query) ?? str(content.instruction) ?? str(content.title);
@@ -281,6 +295,9 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:business:search_investors': renderInvestorSearchText,
 	'app:business:company_ownership': renderCompanyOwnershipText,
 	'app:finance:check_accounts': renderFinanceCheckAccounts,
+	'app:plans:specification': renderPlansSkill,
+	'app:plans:check': renderPlansSkill,
+	'app:plans:create': renderPlansSkill,
 	'app:tasks:create': renderTasksParent,
 	'app:tasks:search': renderTasksParent,
 	'app:workflows:create-or-modify': renderWorkflowsParent,

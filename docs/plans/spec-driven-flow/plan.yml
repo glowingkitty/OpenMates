@@ -1,0 +1,79 @@
+schema_version: 2
+profile: concise
+id: spec-driven-flow
+title: Spec-driven development flow - mixed-source Checks, Specification/Plan/Check embeds, active Plan in chat settings, Check-aware continuation
+status: implementing
+goal: >-
+  Make the in-product spec-driven development flow usable for real agentic coding work:
+  reusable Checks that group e2e, unit, integration, AI evaluation and human confirmation
+  sources; Specifications, Plans and Checks as chat embeds with fullscreen views that are
+  visible in Projects; the chat's active Plan in chat settings; and an assistant that keeps
+  working while Tasks are open or required Checks are not green.
+
+tracking:
+  authority: OpenMates Tasks
+  parent_delivery_task: 429aa868-fa09-4bb7-b9f4-e43ecd851faa
+  session: "7ff6"
+  policy: Lanes below are deliverables of one overnight build; status lives in the OpenMates Task.
+
+related_plans:
+  checks_origin: docs/plans/cloud-project-development (P4 reusable Checks; this plan delivers its first version)
+  agentic_tests: docs/plans/agentic-tests-and-git-sync (owned by session 5349; test_result embeds are reused as Check source results, never changed here)
+  plans_v1: docs/plans/plans-v1 (Plan storage, assumptions, verifications)
+  continuation: docs/plans/task-queue-auto-continuation
+
+specification_refs:
+  - {id: feature.checks, assertions: [checks.sources.grouped-multi-surface, checks.sources.mixed-types, checks.aggregation.required-sources-gate, checks.sources.deterministic-for-sensitive-claims, checks.human.waiting-for-confirmation, checks.runs.revision-bound, checks.project.encrypted-embed]}
+  - {id: feature.specifications}
+  - {id: feature.plans}
+  - {id: feature.tasks}
+
+decisions:
+  - One Check may mix source types e2e, unit, integration, static_analysis, deterministic_audit, ai_evaluation and human_confirmation; each source keeps its own type and result (owner decision 2026-11-13).
+  - A Check is green only when every required source passed (or was waived); supporting sources never gate (owner decision 2026-11-13).
+  - Checks covering security, privacy, encryption, permissions, migrations or exact API behaviour need at least one required deterministic source (owner decision 2026-11-13).
+  - A Check whose only unfinished required sources are human confirmations shows waiting_for_confirmation, never failed (owner decision 2026-11-13).
+  - Build now, refine design later - where a Figma frame is missing or not exportable, a first version on the existing design system ships marked "design to refine" (owner decision 2026-11-13). Figma API returned 403 during the build, so all new surfaces are marked for design review.
+  - Client logic for Specifications and Checks lives in the Rust core (packages/openmates-rust); web renders it through web_work bindings (.claude/rules/client-core.md).
+
+contract:
+  checks_storage:
+    user_checks: "id, home_project_hash, linked_project_hashes, status draft|ready|archived, current_revision_id, encrypted_title, encrypted_description, key wrappers following user_specifications"
+    user_check_revisions: "id, check_id, revision_number (monotonic), base_revision_id, definition_hash, requires_deterministic (bool), sources (plaintext list of {source_binding_id, source_kind, role required|supporting}), encrypted_definition (source refs, AI questions, human instructions, covered claims)"
+    user_check_runs: "id, check_id, check_revision_id, subject_revision (opaque string, e.g. git sha or hash of file revisions), status queued|running|passed|failed|error|blocked|waiting_for_confirmation|cancelled, created_at, finished_at, encrypted_summary"
+    user_check_source_results: "id, run_id, source_binding_id, source_kind, status pending|running|passed|failed|error|blocked|skipped|cancelled|waived, test_result_embed_id (optional, reuses session 5349 test_result embeds), ai score/threshold (optional), human decision confirmed|rejected|blocked|waived + confirmer_hash + confirmed_at, encrypted_result"
+    user_plan_check_links: "plan_id, check_id, required (bool), criterion_id (optional)"
+  aggregation: >-
+    Over required sources only: any failed -> failed; else any error -> error; else any blocked -> blocked;
+    else any non-human source pending or running -> running; else any human_confirmation pending -> waiting_for_confirmation;
+    else passed. Supporting results are stored and shown but never change the aggregate.
+  validation:
+    - At least one required source.
+    - requires_deterministic true needs at least one required source of kind e2e, unit, integration, static_analysis or deterministic_audit, else 422 CHECK_DETERMINISTIC_SOURCE_REQUIRED.
+    - A source result's source_kind must equal its binding's kind, else 422 CHECK_RESULT_MISMATCH.
+  green_and_stale: >-
+    A Check is green for gating when its latest run on current_revision_id has status passed. A passed run on an older
+    revision is stale. Subject staleness (files changed after the run) is computed by the Rust core at read time.
+  routes: >-
+    /v1/user-checks - POST create (with first revision), GET list (?project_hash, ?plan_id), GET {id}, GET {id}/revisions,
+    POST {id}/revisions (base_revision_id, 409 on conflict), POST {id}/runs, GET {id}/runs,
+    POST runs/{run_id}/sources/{binding_id}/result, POST runs/{run_id}/sources/{binding_id}/confirm,
+    POST {id}/plan-links, DELETE {id}/plan-links/{plan_id}.
+  continuation_helper: "user_check_service.plan_required_checks_state(plan_ids) -> {required_total, passed, failing, running, waiting_for_confirmation, missing_run}"
+
+lanes:
+  - {id: L1, outcome: Checks storage, service, routes, aggregation and validation with pytest, files: [backend/core/directus/schemas/user_checks.yml, backend/core/api/app/routes/user_checks.py, backend/core/api/app/services/user_check_service.py, backend/tests/test_user_checks_api.py]}
+  - {id: L2, outcome: Rust core Specifications client (list, detail, revisions, revise, approve) with CLI commands and web_work binding}
+  - {id: L3, outcome: Web Specification embed preview and fullscreen with readable document, revisions and approval, plus a Project Specifications section; design to refine}
+  - {id: L4, outcome: Web Plan embed preview and fullscreen (goal, assumptions, success criteria, linked Tasks and Checks, exact-revision approval) and the active Plan in chat settings}
+  - {id: L5, outcome: Web Check embed preview and fullscreen (grouped sources by type, per-source result, run history, stale, waiting for confirmation, confirm or reject); design to refine}
+  - {id: L6, outcome: Check-aware automatic continuation and AI evaluation source runner (decision model judges a natural-language question)}
+  - {id: L7, outcome: Rust core Checks client, CLI commands and web_work binding}
+  - {id: L8, outcome: Wiring - embed registration, data from the Rust core into the web components, Projects surface, assistant tools that save Specifications, Plans and Checks as embeds, E2E specs}
+
+verification:
+  rules:
+    - Pure aggregation and validation logic has unit tests; routes have pytest API tests.
+    - Rust core and CLI changes have cargo tests; CLI flows have an isolated-CI E2E spec against the real dev stack.
+    - Every new web component has a /dev/preview fixture and a component spec; screenshots go to the owner.
+    - The final summary lists what is proven by which run, and every surface marked design to refine.

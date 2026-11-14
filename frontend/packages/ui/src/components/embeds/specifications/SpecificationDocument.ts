@@ -10,7 +10,8 @@ export interface SpecRequirement {
   statement: string;
   appliesTo: string[];
   example: string;
-  proof: { state: 'passed' | 'open' | 'stale'; title: string; explanation: string };
+  /** Projection from linked Checks; stored documents carry none and read as not proven. */
+  proof?: { state: 'passed' | 'open' | 'stale'; title: string; explanation: string };
 }
 export interface SpecFlow {
   id: string;
@@ -52,6 +53,7 @@ export interface SpecificationDocument {
   requirements: SpecRequirement[];
   flows: SpecFlow[];
   models: SpecModel[];
-  previewNotice: string;
+  /** Optional note for design previews only; never set for real documents. */
+  previewNotice?: string;
   linkedChecks?: SpecCheckPreview[];
 }

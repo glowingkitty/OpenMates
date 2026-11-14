@@ -91,6 +91,7 @@ from backend.core.api.app.routes import teams  # noqa: E402 # Teams V1 endpoints
 from backend.core.api.app.routes import workflows  # noqa: E402 # Server-side Workflows V1 endpoints
 from backend.core.api.app.routes import user_plans  # noqa: E402 # User-facing Plans V1 endpoints
 from backend.core.api.app.routes import user_specifications  # noqa: E402
+from backend.core.api.app.routes import user_checks  # noqa: E402 # Reusable mixed-source Checks (first-party, client-encrypted)
 from backend.core.api.app.routes import memory_suggestions  # noqa: E402 # Transient memory/workflow suggestion preview
 from backend.core.api.app.routes import images_enhance  # noqa: E402 # Image Enhance (first-party, carries file keys)
 from backend.core.api.app.routes import user_tasks  # noqa: E402 # User-facing Tasks V1 endpoints
@@ -1475,6 +1476,7 @@ def create_app() -> FastAPI:
     app.include_router(teams.router, include_in_schema=False)  # Teams V1 can contain sensitive membership/billing context; hide until route-level developer docs are classified
     app.include_router(user_plans.router, include_in_schema=False)  # Plans carry client-side encrypted content; expose only safe metadata via developer_metadata_api
     app.include_router(user_specifications.router, include_in_schema=False)  # Encrypted first-party Project documents
+    app.include_router(user_checks.router, include_in_schema=False)  # Mixed-source Checks (first-party only)
     app.include_router(memory_suggestions.router, include_in_schema=False)  # First-party only; cleartext for one explicit action, never logged
     app.include_router(images_enhance.router, include_in_schema=False)  # Image Enhance - first-party clients only (source/result AES keys)
     app.include_router(user_tasks.router, include_in_schema=False)  # Tasks carry client-side encrypted content; expose only safe metadata via developer_metadata_api

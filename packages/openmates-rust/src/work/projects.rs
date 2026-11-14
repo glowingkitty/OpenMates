@@ -497,7 +497,7 @@ impl<'a> Projects<'a> {
         decode_settings(&data["settings"], &project.key)
     }
 }
-fn project_key(raw: &Value, wrapping: &[u8; 32], team: Option<&str>) -> Result<Key> {
+pub(super) fn project_key(raw: &Value, wrapping: &[u8; 32], team: Option<&str>) -> Result<Key> {
     let encrypted = if let Some(team) = team {
         if raw["hashed_team_id"]
             .as_str()

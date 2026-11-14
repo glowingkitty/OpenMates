@@ -431,6 +431,12 @@ impl PlansSkills<'_> {
     pub async fn search(&self, input: Value) -> Result<Value> {
         self.sdk.run_skill("plans", "search", input).await
     }
+    pub async fn specification(&self, input: Value) -> Result<Value> {
+        self.sdk.run_skill("plans", "specification", input).await
+    }
+    pub async fn check(&self, input: Value) -> Result<Value> {
+        self.sdk.run_skill("plans", "check", input).await
+    }
 }
 #[derive(Clone, Copy)]
 pub struct ProjectsSkills<'a> {

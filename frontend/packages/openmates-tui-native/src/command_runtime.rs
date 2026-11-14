@@ -170,7 +170,7 @@ async fn run_with_list_stages(
         if !key_account && !key_command && invocation.command_path() != "apps code get_docs" && invocation.path.first().is_none_or(|name| {
             !matches!(
                 name.as_str(),
-                "tasks" | "plans" | "projects" | "workflows" | "history" | "drafts" | "embeds"
+                "tasks" | "plans" | "checks" | "specifications" | "projects" | "workflows" | "history" | "drafts" | "embeds"
             )
         }) {
             return Err(CliError::Unsupported{command:invocation.command_path(),reason:"This native API-key command route is not implemented yet; session credentials were not loaded or mixed with the key.".into()});
@@ -233,6 +233,12 @@ async fn run_with_list_stages(
                     }
                     Some("workflows") => {
                         cli::execute_sdk_workflows(invocation, &mut sdk, cancel.clone()).await
+                    }
+                    Some("checks") => {
+                        cli::execute_sdk_checks(invocation, &mut sdk, cancel.clone()).await
+                    }
+                    Some("specifications") => {
+                        cli::execute_sdk_specifications(invocation, &mut sdk, cancel.clone()).await
                     }
                     Some("plans") => {
                         cli::execute_sdk_plans_with_delivery(

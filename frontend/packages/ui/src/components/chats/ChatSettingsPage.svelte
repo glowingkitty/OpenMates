@@ -19,6 +19,9 @@
   import { notificationStore } from '../../stores/notificationStore';
   import { completeUserTask, createUserTask, listUserTasks, reorderUserTasks, type UserTaskViewModel } from '../../services/userTaskService';
   import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
+  import ChatActivePlanPanel from './ChatActivePlanPanel.svelte';
+  import { loadChatPlanDetails, type ChatPlanDetails } from './chatPlanDetails';
+  import type { PlanEmbedData } from '../embeds/plans/planEmbedModel';
   import { loadSharedChatDetails, loadSharedChatDetailsPage, type SharedChatPageWindow } from '../../services/sharedChatDetailsService';
   import { getExampleChatFileReferences, getExampleChatUsageEntries, isExampleChat } from '../../demo_chats';
   import { authStore } from '../../stores/authStore';
@@ -26,13 +29,16 @@
 
   const USAGE_REFRESH_INTERVAL_MS = 5000;
 
-  let { activeSettingsView = '', previewContext = null, previewAuthenticated = true, previewTasks = [], previewPlans = [], previewFiles = [] }: {
+  let { activeSettingsView = '', previewContext = null, previewAuthenticated = true, previewTasks = [], previewPlans = [], previewFiles = [], activePlanDetails: providedPlanDetails = {}, onOpenPlan: providedOpenPlan }: {
     activeSettingsView?: string;
     previewContext?: ChatSettingsContext | null;
     previewAuthenticated?: boolean;
     previewTasks?: UserTaskViewModel[];
     previewPlans?: UserPlanViewModel[];
     previewFiles?: ChatFileRow[];
+    /** Decrypted Tasks/Checks/assumptions per plan_id; the parent wires these. */
+    activePlanDetails?: Record<string, Omit<PlanEmbedData, 'plan'>>;
+    onOpenPlan?: (planId: string) => void;
   } = $props();
 
   const tabs = [
@@ -224,6 +230,14 @@
     return trimmed;
   }
 
+  let loadedPlanDetails = $state<ChatPlanDetails>({});
+  let activePlanDetails = $derived({ ...loadedPlanDetails, ...providedPlanDetails });
+
+  function onOpenPlan(planId: string): void {
+    if (providedOpenPlan) providedOpenPlan(planId);
+    else window.location.assign(`/#plan-id=${encodeURIComponent(planId)}`);
+  }
+
   async function refreshPlanningData(chatId: string, sharedViewer: boolean): Promise<void> {
     const request = ++planningRequest;
     planningAttemptedKey = `${chatId}:${sharedViewer}`;
@@ -250,8 +264,14 @@
             listUserPlans({ chatId, limit: 6 }),
           ]);
         if (request !== planningRequest) return;
+        const nextDetails = await loadChatPlanDetails(
+          nextPlans.filter((plan) => !['completed', 'archived'].includes(plan.status)),
+          nextTasks,
+        );
+        if (request !== planningRequest) return;
         tasks = nextTasks;
         plans = nextPlans;
+        loadedPlanDetails = nextDetails;
       }
       planningLoadedKey = `${chatId}:${sharedViewer}`;
     } catch (error) {
@@ -468,6 +488,7 @@
                     {/if}
                   </div>
                 </article>
+                <ChatActivePlanPanel data={{ plan, ...(activePlanDetails[plan.plan_id] ?? { tasks: [], assumptions: [], criteria: [], checks: [] }) }} {onOpenPlan} />
               </SettingsCard>
             {/each}
           </div>

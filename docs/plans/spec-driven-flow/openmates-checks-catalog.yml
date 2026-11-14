@@ -1,0 +1,79 @@
+# Example: OpenMates' own tests grouped into about 50 Checks (feature.checks, mixed sources).
+# Draft for discussion with the owner, 2026-11-13. Not loaded by any code yet.
+# Counts at time of writing: 833 Playwright specs, about 1,200 backend pytest files,
+# about 850 TypeScript unit test files, 689 Rust test files, 323 Apple test files.
+# Rules: e2e = Playwright (web) or XCUITest (Apple); unit = pytest/vitest/cargo/XCTest suites;
+# integration = API/WebSocket tests against the real stack; ai = AI evaluation question;
+# human = human confirmation. role: required (gates) or supporting (visible only).
+# requires_deterministic is true for security, privacy, encryption, permissions,
+# migrations and exact API behaviour.
+
+checks:
+  # Account and authentication
+  - {id: signup-passkey, title: Signup works with a passkey, requires_deterministic: true, sources: [{e2e: signup-flow-passkey.spec.ts}, {e2e: "apple: DevSignupRuntimeUITests"}, {unit: "backend/tests/test_*signup*.py, test_*passkey*.py"}, {human: "Create a passkey on a real iPhone and a real Mac", role: supporting}]}
+  - {id: signup-card-payment, title: Signup works with card payment, requires_deterministic: true, sources: [{e2e: signup-flow-stripe-eu.spec.ts}, {e2e: signup-flow-stripe-managed.spec.ts}, {unit: "backend/tests/test_*payment*.py"}]}
+  - {id: signup-bank-transfer, title: Signup works with bank transfer, requires_deterministic: true, sources: [{e2e: signup-flow-bank-transfer.spec.ts}, {unit: "backend/tests/test_*invoice*.py", role: supporting}]}
+  - {id: signup-gift-card, title: Signup and gift card redemption work, requires_deterministic: true, sources: [{e2e: settings-gift-card-redemption.spec.ts}, {e2e: settings-gift-card-bank-transfer.spec.ts}, {unit: "backend/tests/test_*gift*.py"}]}
+  - {id: signup-2fa-choices, title: Signup with or without 2FA works, requires_deterministic: true, sources: [{e2e: signup-skip-2fa-flow.spec.ts}, {e2e: signup-2fa-reconnect-preview.spec.ts}, {unit: "backend/tests/test_*2fa*.py"}]}
+  - {id: signup-free-credits, title: Free testing credits are granted once, requires_deterministic: true, sources: [{e2e: signup-free-testing-credits.spec.ts}]}
+  - {id: login-works, title: Login works (passkey and alternatives), requires_deterministic: true, sources: [{e2e: passkey-login-alternatives.spec.ts}, {e2e: web-rust-core-auth.spec.ts}, {e2e: "apple: AuthSecurityParityUITests"}, {unit: "backend/tests/test_*auth*.py"}]}
+  - {id: login-backup-and-recovery, title: Backup codes and recovery key let a user back in, requires_deterministic: true, sources: [{e2e: backup-code-login-flow.spec.ts}, {e2e: recovery-key-login-flow.spec.ts}, {e2e: account-recovery-flow.spec.ts}, {unit: "backend/tests/test_*recovery*.py"}]}
+  - {id: sessions-and-logout, title: Sessions rotate, revoke and log out cleanly, requires_deterministic: true, sources: [{e2e: auth-session-rotation.spec.ts}, {e2e: session-revoke-flow.spec.ts}, {e2e: logout-multi-tab-versionchange.spec.ts}, {e2e: logout-blocked-userdb-relogin.spec.ts}]}
+  - {id: account-settings-security, title: Email change, backup codes and recovery key settings work, requires_deterministic: true, sources: [{e2e: settings-change-email.spec.ts}, {e2e: backup-codes-settings.spec.ts}, {e2e: recovery-key-settings.spec.ts}]}
+  - {id: account-import, title: Account and chat import work, requires_deterministic: true, sources: [{e2e: import-account-v1.spec.ts}, {e2e: import-account-dedupe.spec.ts}, {e2e: import-account-limits.spec.ts}, {e2e: import-chats.spec.ts}, {unit: "backend/tests/test_*import*.py"}]}
+
+  # Visitors and onboarding
+  - {id: guest-free-chat, title: Visitors can chat for free within the limit, requires_deterministic: true, sources: [{e2e: anonymous-free-chat.spec.ts}, {e2e: anonymous-usage-limit.spec.ts}, {e2e: anonymous-free-usage-status.spec.ts}]}
+  - {id: unauthenticated-app-loads, title: The app loads and navigates without an account, requires_deterministic: false, sources: [{e2e: unauthenticated-app-load.spec.ts}, {e2e: unauthenticated-chat-navigation.spec.ts}, {e2e: guest-workspace-navigation.spec.ts}, {e2e: app-load-no-error-logs.spec.ts}]}
+  - {id: landing-page, title: The landing page explains OpenMates and converts, requires_deterministic: false, sources: [{e2e: "landing-*.spec.ts (41 specs)"}, {ai: "Does the landing page say in the first screen what OpenMates does and for whom?", role: supporting}, {human: "Owner approves the hero copy and video", role: supporting}]}
+  - {id: example-chats, title: Example chats load, clone and stay isolated, requires_deterministic: false, sources: [{e2e: example-chats-load.spec.ts}, {e2e: example-chat-clone.spec.ts}, {e2e: example-chat-embed-uuid-isolation.spec.ts}, {e2e: example-chat-logout-preserve.spec.ts}]}
+
+  # Chats
+  - {id: chat-send-and-stream, title: Sending a message streams an answer, requires_deterministic: false, sources: [{e2e: chat-flow.spec.ts}, {e2e: web-rust-core-chat.spec.ts}, {e2e: chat-scroll-streaming.spec.ts}, {e2e: "apple: ChatFlowParityUITests"}, {unit: "packages/openmates-rust send/stream tests"}, {ai: "Is the streamed answer rendered without layout jumps in the recording?", role: supporting}]}
+  - {id: chat-sync-across-devices, title: Chats sync across devices and recover, requires_deterministic: true, sources: [{e2e: message-sync.spec.ts}, {e2e: web-rust-core-sync.spec.ts}, {e2e: chat-sync-empty-indexeddb-recovery.spec.ts}, {e2e: "apple: CrossClientChatSyncUITests"}, {unit: "backend/tests/test_*sync*.py"}]}
+  - {id: chat-encryption, title: Chat content stays client-encrypted, requires_deterministic: true, sources: [{e2e: web-rust-core-crypto.spec.ts}, {e2e: chat-key-wrapper-migration.spec.ts}, {unit: "backend/tests/test_*encryption*.py, test_*key_wrapper*.py"}, {unit: "packages/openmates-rust crypto tests"}]}
+  - {id: chat-followups-queue, title: Follow-ups queue and recover after interruptions, requires_deterministic: false, sources: [{e2e: chat-queued-followups.spec.ts}, {e2e: chat-interrupted-followup.spec.ts}, {e2e: chat-reload-followup-send.spec.ts}, {integration: chat-queued-followups-protocol.spec.ts}]}
+  - {id: chat-management, title: Rename, delete, search and navigate chats, requires_deterministic: false, sources: [{e2e: chat-management-flow.spec.ts}, {e2e: chat-search-flow.spec.ts}, {e2e: chat-header-navigation-order.spec.ts}, {e2e: "apple: ChatNavigationParityUITests"}]}
+  - {id: chat-settings, title: Chat settings work, requires_deterministic: false, sources: [{e2e: chat-settings-flow.spec.ts}, {e2e: tasks-chat-settings-parity.spec.ts}, {e2e: "apple: ChatSettingsParityUITests"}]}
+  - {id: drafts, title: Drafts are kept and cleaned up, requires_deterministic: false, sources: [{e2e: web-rust-core-drafts.spec.ts}, {e2e: draft-clear-cleanup.spec.ts}, {e2e: draft-only-chat-delete.spec.ts}]}
+  - {id: composer, title: The composer works on desktop and mobile, requires_deterministic: false, sources: [{e2e: web-rust-core-composer.spec.ts}, {e2e: composer-mobile-keyboard.spec.ts}, {e2e: composer-model-routing.spec.ts}, {human: "Type and dictate on a real phone keyboard", role: supporting}]}
+  - {id: chat-orchestration, title: A chat can start and coordinate other chats, requires_deterministic: false, sources: [{e2e: chat-orchestration-main-chats.spec.ts}, {unit: "backend/tests/test_chat_orchestration*.py"}]}
+  - {id: sharing, title: Chats and embeds can be shared, also with a password, requires_deterministic: true, sources: [{e2e: share-chat-flow.spec.ts}, {e2e: share-embed-flow.spec.ts}, {e2e: share-password-flow.spec.ts}, {e2e: shared-chat-open.spec.ts}, {unit: "backend/tests/test_*share*.py"}]}
+  - {id: pii-protection, title: Personal data is detected before sending, requires_deterministic: true, sources: [{e2e: settings-privacy-pii-deep-link.spec.ts}, {e2e: "apple: ComposerPIIDetectionUITests"}, {unit: "PII detector unit suites"}]}
+
+  # Assistant capabilities
+  - {id: app-skills, title: App skills return results as embeds, requires_deterministic: false, sources: [{e2e: "skill-*.spec.ts (42 specs)"}, {unit: "backend/tests/test_*skill*.py"}, {ai: "Does each skill answer the sample request with relevant results?", role: supporting}]}
+  - {id: embeds-render, title: Embeds render in preview and fullscreen, requires_deterministic: false, sources: [{e2e: web-rust-core-embeds.spec.ts}, {e2e: "components/*embed*.spec.ts"}, {e2e: "apple: EmbedRenderingParityUITests"}]}
+  - {id: focus-modes, title: Focus modes activate and guide the chat, requires_deterministic: false, sources: [{e2e: focus-mode-settings.spec.ts}, {e2e: focus-mode-mention.spec.ts}, {e2e: focus-mode-rejection.spec.ts}, {ai: "Does the answer follow the focus mode's instructions?", role: supporting}]}
+  - {id: memories, title: Memories are written, reused and undone, requires_deterministic: true, sources: [{e2e: memory-reuse.spec.ts}, {e2e: memory-write-undo.spec.ts}, {unit: "backend/tests/test_*memory*.py"}]}
+  - {id: voice-and-audio, title: Voice calls and audio recording work, requires_deterministic: false, sources: [{e2e: voice-call.spec.ts}, {e2e: voice-call-real.spec.ts}, {e2e: audio-recording.spec.ts}, {human: "Hold a voice call on a phone with headphones", role: required}]}
+  - {id: web-browse, title: The assistant can read and browse web pages, requires_deterministic: false, sources: [{e2e: web-browse-real.spec.ts}, {integration: web-browse-api.spec.ts}, {e2e: web-read-public-page.spec.ts}]}
+
+  # Work: Projects, Tasks, Plans, Workflows, Reminders
+  - {id: projects, title: Projects hold chats, files and sources, requires_deterministic: false, sources: [{e2e: projects-flow.spec.ts}, {e2e: projects-create-edit-files.spec.ts}, {e2e: web-rust-core-projects-flow.spec.ts}, {unit: "backend/tests/test_project*.py"}]}
+  - {id: projects-remote-sources, title: Remote machine sources work, requires_deterministic: true, sources: [{e2e: projects-remote-sources.spec.ts}, {e2e: web-rust-core-projects-remote-sources.spec.ts}, {unit: "packages/openmates-rust source_host tests"}]}
+  - {id: agentic-coding, title: The assistant builds, tests and commits an app in a Project, requires_deterministic: false, sources: [{e2e: cli-native-agentic-app-real.spec.ts}, {unit: "backend/tests/test_code_test_run.py, test_code_test_result_embed.py"}, {ai: "Does the built app do what the user asked?", role: required}]}
+  - {id: tasks, title: Tasks can be created, moved and completed, requires_deterministic: false, sources: [{e2e: tasks-flow.spec.ts}, {e2e: tasks-web-app-parity.spec.ts}, {e2e: cli-native-tasks.spec.ts}, {unit: "backend/tests/test_user_task*.py"}]}
+  - {id: plans, title: Plans with assumptions and checks work, requires_deterministic: false, sources: [{e2e: plans-flow.spec.ts}, {e2e: plan-assumptions-flow.spec.ts}, {e2e: plan-acceptance-checks-flow.spec.ts}, {unit: "backend/tests/test_*plan*.py"}]}
+  - {id: workflows-authoring, title: Workflows can be authored and edited, requires_deterministic: false, sources: [{e2e: workflows-editor.spec.ts}, {e2e: workflows-ai-authoring.spec.ts}, {e2e: workflows-composition.spec.ts}, {unit: "backend/tests/test_workflow*.py"}]}
+  - {id: workflows-runs, title: Workflows run, notify and bill correctly, requires_deterministic: true, sources: [{e2e: workflows-ready-run-tasks.spec.ts}, {e2e: workflow-completion-notifications.spec.ts}, {e2e: workflow-billing-usage.spec.ts}]}
+  - {id: reminders, title: Reminders fire in the chat and by email, requires_deterministic: false, sources: [{e2e: reminder-same-chat.spec.ts}, {e2e: reminder-new-chat.spec.ts}, {e2e: reminder-email-delivery.spec.ts}, {e2e: reminder-repeating-and-cancel.spec.ts}]}
+
+  # Teams
+  - {id: teams-create-invite, title: Teams can be created and members invited, requires_deterministic: true, sources: [{e2e: teams-flow.spec.ts}, {e2e: teams-invite-acceptance.spec.ts}, {unit: "backend/tests/test_team*.py"}]}
+  - {id: teams-permissions, title: Team roles limit what members can do, requires_deterministic: true, sources: [{e2e: teams-management-flow.spec.ts}, {e2e: teams-resource-context.spec.ts}, {unit: "backend/tests/test_team*permission*.py"}]}
+  - {id: teams-collaboration, title: Team members chat together, requires_deterministic: false, sources: [{e2e: teams-chat-collaboration-real.spec.ts}, {e2e: teams-direct-chat.spec.ts}]}
+  - {id: teams-billing, title: Team billing works, requires_deterministic: true, sources: [{e2e: teams-stripe-card-dev.spec.ts}, {e2e: teams-billing-address.spec.ts}]}
+
+  # Billing and storage
+  - {id: buy-credits, title: Buying credits works with card and bank transfer, requires_deterministic: true, sources: [{e2e: settings-buy-credits-stripe-eu.spec.ts}, {e2e: settings-buy-credits-stripe-managed.spec.ts}, {e2e: settings-buy-credits-bank-transfer.spec.ts}, {unit: "backend/tests/test_*billing*.py"}]}
+  - {id: usage-billing, title: Usage is reserved, settled and shown correctly, requires_deterministic: true, sources: [{e2e: billing-reservation-summary.spec.ts}, {e2e: billing-settlement-recovery.spec.ts}, {unit: "backend/tests/test_*billing*.py"}]}
+  - {id: storage, title: Storage limits, archive and recovery work, requires_deterministic: true, sources: [{e2e: storage-archive-lifecycle.spec.ts}, {e2e: storage-recovery-replay.spec.ts}, {e2e: storage-offline-cache-logout.spec.ts}, {unit: "backend/tests/test_*storage*.py"}]}
+
+  # Settings, notifications, platforms
+  - {id: languages, title: The app works in every supported language, requires_deterministic: false, sources: [{e2e: language-settings-flow.spec.ts}, {e2e: settings-translation-coverage.spec.ts}, {ai: "Are the German strings natural and consistent?", role: supporting}]}
+  - {id: notifications, title: Notifications and emails reach the user, requires_deterministic: false, sources: [{e2e: notification-stack.spec.ts}, {e2e: notification-email-preferences.spec.ts}, {e2e: notification-email-links.spec.ts}, {human: "Receive a push notification on a real phone", role: supporting}]}
+  - {id: report-issue, title: Users can report issues, requires_deterministic: false, sources: [{e2e: report-issue-flow.spec.ts}, {e2e: report-issue-email-fallback.spec.ts}]}
+  - {id: cli, title: The CLI covers chats, Projects and Tasks, requires_deterministic: false, sources: [{e2e: "cli-*.spec.ts (78 specs)"}, {unit: "frontend/packages/openmates-tui-native cargo tests"}]}
+  - {id: apple-apps, title: The Apple apps match web, requires_deterministic: false, sources: [{e2e: "apple/OpenMatesUITests/*ParityUITests"}, {unit: "apple/OpenMatesTests"}, {human: "Install the TestFlight build on an iPhone and a Watch", role: required}]}
+  - {id: web-security, title: Web runtime security headers and isolation hold, requires_deterministic: true, sources: [{e2e: web-runtime-security.spec.ts}, {unit: "backend/tests/test_*security*.py"}]}

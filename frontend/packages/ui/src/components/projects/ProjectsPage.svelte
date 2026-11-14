@@ -22,6 +22,8 @@
   import ProjectChatsSection from './ProjectChatsSection.svelte';
   import type { ProjectChatPresentation } from '../../services/projectChatPreviewService';
   import ProjectReadme from './ProjectReadme.svelte';
+  import ProjectSpecificationsPanel from './ProjectSpecificationsPanel.svelte';
+  import ProjectChecksPanel from './ProjectChecksPanel.svelte';
   import ProjectCreateFileEntries from './ProjectCreateFileEntries.svelte';
   import ProjectWorkspaceHeader from './ProjectWorkspaceHeader.svelte';
   import ProjectRemotePreviewCard from './ProjectRemotePreviewCard.svelte';
@@ -2239,6 +2241,8 @@
       {#if activeTab === 'overview'}
         <section class="project-panel overview-panel" role="tabpanel" id="tabpanel-overview" data-testid="project-overview-panel">
           <ProjectChatsSection {items} presentations={previewState?.chatPresentations} />
+          {#if selectedProject && !previewState}<ProjectSpecificationsPanel project={selectedProject} />{/if}
+          {#if selectedProject && !previewState}<ProjectChecksPanel project={selectedProject} />{/if}
           <ProjectReadme
             state={readmeState}
             onUpload={() => uploadInput?.click()}

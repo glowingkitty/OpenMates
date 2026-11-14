@@ -7121,6 +7121,102 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'search',
   'skill_method_py': 'search',
   'skill_method_ts': 'search'},
+ {'app_id': 'plans',
+  'app_namespace_py': 'plans',
+  'app_namespace_ts': 'plans',
+  'description': 'Draft or update a Specification for the user to review as an embed. Content is '
+                 'saved by the client into the Project on approval.',
+  'description_key': 'plans.skills.specification.description',
+  'schema': {'properties': {'category': {'description': 'Optional category.', 'type': 'string'},
+                            'flows': {'description': 'User flows and edge cases with unique ids.',
+                                      'items': {'properties': {'id': {'type': 'string'},
+                                                               'kind': {'enum': ['user_flow',
+                                                                                 'edge_case'],
+                                                                        'type': 'string'},
+                                                               'steps': {'items': {'type': 'string'},
+                                                                         'type': 'array'},
+                                                               'title': {'type': 'string'}},
+                                                'required': ['id', 'title', 'kind'],
+                                                'type': 'object'},
+                                      'type': 'array'},
+                            'outcome': {'description': 'The user-visible outcome the Specification '
+                                                       'delivers.',
+                                        'type': 'string'},
+                            'requirements': {'description': 'Requirements with unique ids.',
+                                             'items': {'properties': {'example': {'type': 'string'},
+                                                                      'id': {'type': 'string'},
+                                                                      'statement': {'type': 'string'}},
+                                                       'required': ['id', 'statement'],
+                                                       'type': 'object'},
+                                             'type': 'array'},
+                            'scope_excluded': {'description': 'What is explicitly out of scope.',
+                                               'items': {'type': 'string'},
+                                               'type': 'array'},
+                            'scope_included': {'description': 'What is in scope.',
+                                               'items': {'type': 'string'},
+                                               'type': 'array'},
+                            'summary': {'description': 'One or two sentence summary.',
+                                        'type': 'string'},
+                            'title': {'description': 'Short Specification title.',
+                                      'type': 'string'}},
+             'required': ['title', 'summary'],
+             'type': 'object'},
+  'skill_id': 'specification',
+  'skill_method_py': 'specification',
+  'skill_method_ts': 'specification'},
+ {'app_id': 'plans',
+  'app_namespace_py': 'plans',
+  'app_namespace_ts': 'plans',
+  'description': 'Define a reusable Check with mixed sources for the user to review as an embed.',
+  'description_key': 'plans.skills.check.description',
+  'schema': {'properties': {'covered_claims': {'description': 'Requirement ids or claims the Check '
+                                                              'covers.',
+                                               'items': {'type': 'string'},
+                                               'type': 'array'},
+                            'description': {'description': 'What the Check proves.',
+                                            'type': 'string'},
+                            'requires_deterministic': {'description': 'True for security, privacy, '
+                                                                      'encryption, permission, '
+                                                                      'migration or exact API '
+                                                                      'claims.',
+                                                       'type': 'boolean'},
+                            'sources': {'description': 'Sources that prove the Check; at least one '
+                                                       'must be required.',
+                                        'items': {'properties': {'instruction': {'description': 'Required '
+                                                                                                'for '
+                                                                                                'human_confirmation.',
+                                                                                 'type': 'string'},
+                                                                 'label': {'type': 'string'},
+                                                                 'question': {'description': 'Required '
+                                                                                             'for '
+                                                                                             'ai_evaluation.',
+                                                                              'type': 'string'},
+                                                                 'role': {'enum': ['required',
+                                                                                   'supporting'],
+                                                                          'type': 'string'},
+                                                                 'source_binding_id': {'type': 'string'},
+                                                                 'source_kind': {'enum': ['e2e',
+                                                                                          'unit',
+                                                                                          'integration',
+                                                                                          'static_analysis',
+                                                                                          'deterministic_audit',
+                                                                                          'ai_evaluation',
+                                                                                          'human_confirmation'],
+                                                                                 'type': 'string'},
+                                                                 'test_target': {'type': 'string'},
+                                                                 'threshold': {'type': 'number'}},
+                                                  'required': ['source_binding_id',
+                                                               'source_kind',
+                                                               'role',
+                                                               'label'],
+                                                  'type': 'object'},
+                                        'type': 'array'},
+                            'title': {'description': 'Short Check title.', 'type': 'string'}},
+             'required': ['title', 'sources'],
+             'type': 'object'},
+  'skill_id': 'check',
+  'skill_method_py': 'check',
+  'skill_method_ts': 'check'},
  {'app_id': 'projects',
   'app_namespace_py': 'projects',
   'app_namespace_ts': 'projects',
@@ -11087,6 +11183,14 @@ class PlansAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
+    def check(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Define a reusable Check with mixed sources for the user to review as an embed.
+
+        Description key: plans.skills.check.description
+        Skill: plans/check
+        """
+        return self._run_skill("plans", "check", input_data, prompt_injection_protection=prompt_injection_protection)
+
     def create(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
 
@@ -11102,6 +11206,14 @@ class PlansAppSkills:
         Skill: plans/search
         """
         return self._run_skill("plans", "search", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def specification(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Draft or update a Specification for the user to review as an embed. Content is saved by the client into the Project on approval.
+
+        Description key: plans.skills.specification.description
+        Skill: plans/specification
+        """
+        return self._run_skill("plans", "specification", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class ProjectsAppSkills:
     def __init__(self, run_skill: SkillRunner):

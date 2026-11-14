@@ -3859,6 +3859,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "एडमिन"
@@ -14082,6 +14083,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "के माध्यम से"
@@ -21513,6 +21515,7 @@
       "text": "कस्टम रंग"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

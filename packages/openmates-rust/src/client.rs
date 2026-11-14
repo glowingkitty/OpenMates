@@ -854,9 +854,23 @@ impl Client {
         let cancel = self.operation_cancel.clone();
         crate::work::Projects::cookie(self, team, cancel)
     }
+    pub fn specifications(&mut self) -> crate::work::Specifications<'_> {
+        let team = self
+            .require_credentials()
+            .ok()
+            .and_then(|s| s.active_team_id.clone());
+        crate::work::Specifications::cookie(self, team)
+    }
     pub fn plans(&mut self) -> crate::work::Plans<'_> {
         let team = self.require_credentials().ok().and_then(|s| s.active_team_id.clone());
         crate::work::Plans::cookie(self, team)
+    }
+    pub fn checks(&mut self) -> crate::work::Checks<'_> {
+        let team = self
+            .require_credentials()
+            .ok()
+            .and_then(|s| s.active_team_id.clone());
+        crate::work::Checks::cookie(self, team)
     }
     pub(crate) async fn work_chat_key(&mut self, id: &str) -> Result<Key> {
         self.open_chat(id).await?;

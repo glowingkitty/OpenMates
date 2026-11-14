@@ -696,7 +696,7 @@ specifications:
     version: 1
     status: draft
     path: features/checks
-    fingerprint: 7f97ea1c5b00c08615a7412bc068d700fbeeb5318e54555776e106152dd7727d
+    fingerprint: e1274368b58e386a48239ee3f212c7fb1a851710a2f28ad3005b2ed427c3f2aa
     required_applies_to:
     - rest_api
     - cli
@@ -880,7 +880,7 @@ specifications:
     version: 1
     status: draft
     path: features/plans
-    fingerprint: 26ccd3aaf467a006cd7553ba5f5a424055130ef841941f70c2a06fce9b59fa9f
+    fingerprint: 778c5455e9e48e63cfd259eb3c352049dd0fbe7dd2884fc5cfd2377ebe944988
     required_applies_to:
     - rest_api
     - cli
@@ -9211,7 +9211,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: invariant
-    fingerprint: dc91e2f0f6e333df9fea437cd9f421bc04ddec3254e5138f631e5a747ce67afa
+    fingerprint: afe08ca97aa40647a9041fa624846b21f0b71d0b7a7164f3a12744ada608fae3
     required_applies_to:
     - rest_api
     - cli
@@ -9222,7 +9222,51 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: behavior
-    fingerprint: 877a0187b524b9cebc5c364857f5700929b564b49a76618ba8943d425ed4055a
+    fingerprint: 41df2e03b029a83a0232ae7b2d020bff8ef15d3c5c3619f188ab4d9dd83cdff2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.sources.mixed-types:
+    specification: feature.checks@1
+    specification_id: feature.checks
+    type: behavior
+    fingerprint: c64bc824843ff4a3d61a02a0fa788b1b9e32371f682bf1fc9d00da8b3571e626
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.aggregation.required-sources-gate:
+    specification: feature.checks@1
+    specification_id: feature.checks
+    type: invariant
+    fingerprint: 265b569523d2d3be154e1f507c553fb5fa523748918597fb4b518085bb70b27b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.sources.deterministic-for-sensitive-claims:
+    specification: feature.checks@1
+    specification_id: feature.checks
+    type: invariant
+    fingerprint: 3d5634620f50af5fe35b705356caadfea56f8302ca42474f810abd5072744d6e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.human.waiting-for-confirmation:
+    specification: feature.checks@1
+    specification_id: feature.checks
+    type: behavior
+    fingerprint: 78681271adb27348fedf6728da0712525f64d8ef60c14393b8a19828ee065759
     required_applies_to:
     - rest_api
     - cli
@@ -9244,7 +9288,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: invariant
-    fingerprint: a8b081252165e05a7015f03a66dae28b5867cf6047b2693b969c30a64fb2a26f
+    fingerprint: 4a1d457c516eb6929dd442cd58a9643ae1a02ae3d29a6c7497e226d5377e6516
     required_applies_to:
     - rest_api
     - cli
@@ -9255,7 +9299,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: behavior
-    fingerprint: a057eb943635ca6b12b21ac0f60507ab55a7b51f52372d82db78f239fb54d8d3
+    fingerprint: 9e802546fccfe93950e85a808f69e375276b9ce8946916f42fb908ea876a454f
     required_applies_to:
     - rest_api
     - cli
@@ -9266,7 +9310,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: invariant
-    fingerprint: 31312fad21ca02460e468d72ad317792934cceb2000937144a4b679140201ea3
+    fingerprint: 7985c068d7d4ac0fd79a6df875fd923046bc407dcc4fe07fd52db4d703647247
     required_applies_to:
     - rest_api
     - cli
@@ -9277,7 +9321,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: behavior
-    fingerprint: ad5cf3bc5c9de4603a63bea986cd9b690ffc3595635d7e39f6615c191f428fbb
+    fingerprint: c18c0886146a4684783f192fc7577865da0172ed8f2f65ab3674269f7c5a07b7
     required_applies_to:
     - rest_api
     - cli
@@ -9288,7 +9332,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: privacy
-    fingerprint: b689a05ab255431db48bb574be73722b18540c72c3a1ac30cc07fd23967690d9
+    fingerprint: 7fee7bb33232193fb3934f84df1cd47e627be0c9bca08741a016184e9677ee96
     required_applies_to:
     - rest_api
     - cli
@@ -9299,7 +9343,18 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: behavior
-    fingerprint: b2b7e12fcfbf748319b42bacd391fbd7391e7f4ae8df718dd0881eece64a5efa
+    fingerprint: 86cfb1b411d0069b9be0110a119393932e6be91244d61ce873ca789f7296b443
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.continuation.required-checks-open:
+    specification: feature.checks@1
+    specification_id: feature.checks
+    type: behavior
+    fingerprint: afeaae655564991951f1e293d6309938941f09d5d2de47acb7ca993d7f468cf4
     required_applies_to:
     - rest_api
     - cli
@@ -9310,7 +9365,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: parity
-    fingerprint: d2eeda1d7c5977cf70bea11a2816e9bfd0cc719e1680e50792a376ad00d3c3ef
+    fingerprint: f111b8e74ba9b038e8c781441b61d853046de54bd9a1195427ba59c652419de4
     required_applies_to:
     - rest_api
     - cli
@@ -11476,6 +11531,28 @@ assertions:
     specification_id: feature.plans
     type: behavior
     fingerprint: 8e446e0b7e022fdbc0b7901a1405adefdcbc6ae9c92dcc1f0dd8ba5689cd0517
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  plans.chat-settings.active-plan:
+    specification: feature.plans@1
+    specification_id: feature.plans
+    type: behavior
+    fingerprint: 2a4178bca5893b1ca1b54d3b0658515dff6a372d36909403bf38fee79315a1bf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  plans.embed.preview-fullscreen:
+    specification: feature.plans@1
+    specification_id: feature.plans
+    type: behavior
+    fingerprint: a7d099221e06834ebe955c8c48b44306d000eb130610fb975647288110c362a5
     required_applies_to:
     - rest_api
     - cli

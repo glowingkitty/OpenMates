@@ -195,6 +195,14 @@ assertions:
     type: behavior
     must: The fullscreen Plan editor uses one stable URL, readable sections, draft editing, undo, Approve Plan or Save and Approve actions, immutable revision identity, and automatic continuation of an authorized waiting agent after approval.
     depends_on: [examples.plan_ui_review, applies_to.gui]
+  - id: plans.chat-settings.active-plan
+    type: behavior
+    must: Chat settings show the chat's active Plan with its status, approval state, Tasks with status, required and supporting Checks with aggregate status including waiting for confirmation, and assumptions with their checking state, and open the Plan on request.
+    depends_on: [models.PlanRecord, models.PlanAssumption, applies_to.gui]
+  - id: plans.embed.preview-fullscreen
+    type: behavior
+    must: A Plan appears as a chat and Project embed whose preview shows title, goal, status, approval state, Task progress, Check summary and open assumptions, and whose fullscreen view shows goal, assumptions with their checking chats, success criteria with covering Checks, linked Tasks, linked Checks and an approval action bound to the exact shown revision.
+    depends_on: [models.PlanRevision, models.PlanAssumption, models.PlanCriterion, applies_to.gui]
   - id: plans.surface.semantic-parity
     type: parity
     must: REST, CLI, SDK, and web preserve the same encrypted content, revision approval, Specification links, explicitly required gates, Task links, Check links, completion blockers, and visible failures wherever Plan operations are exposed.

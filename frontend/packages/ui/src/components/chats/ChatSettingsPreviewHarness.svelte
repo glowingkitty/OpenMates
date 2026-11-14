@@ -9,6 +9,7 @@
   import { type ChatSettingsTab } from '../../stores/chatSettingsStore';
   import type { UserTaskViewModel } from '../../services/userTaskService';
   import type { UserPlanViewModel } from '../../services/userPlanService';
+  import { inProgressPlanData } from '../embeds/plans/planEmbedFixtures';
   import type { Chat } from '../../types/chat';
   import { getExampleChatFileReferences, getExampleChatUsageEntries } from '../../demo_chats';
   let { tab = 'plan', shared = false, example = false, anonymous = false, exampleChatId = 'example-gigantic-airplanes' }: {
@@ -25,12 +26,18 @@
     : 24);
 
   const previewTasks = [{ task_id: 'preview-task', title: 'Review the release checklist', description: 'Verify the outcome before completion.', status: 'todo', encrypted: {} }] as UserTaskViewModel[];
-  const previewPlans = [{ plan_id: 'preview-plan', title: 'Prepare the launch', goal: 'Coordinate the work and verify the outcome.', status: 'active', encrypted: {} }] as UserPlanViewModel[];
+  const previewPlans = [{ plan_id: 'preview-plan', title: 'Prepare the launch', goal: 'Coordinate the work and verify the outcome.', status: 'active', approvalState: 'approved', submittedRevisionId: 'rev-2', approvedRevisionId: 'rev-2', encrypted: {} }] as UserPlanViewModel[];
+  const previewPlanDetails = {
+    'preview-plan': {
+      tasks: inProgressPlanData.tasks, assumptions: inProgressPlanData.assumptions, criteria: inProgressPlanData.criteria,
+      checks: inProgressPlanData.checks, revisionId: 'rev-2', revisionNumber: 2,
+    },
+  };
   let previewFiles = $derived(example ? getExampleChatFileReferences(chat.chat_id) : []);
 </script>
 <div class="chat-settings-preview">
   <ChatSettingsHeader title="Launch preparation" {credits} breadcrumbLabel="Chats" onBack={() => {}} />
-  <ChatSettingsPage {previewTasks} {previewPlans} {previewFiles} previewAuthenticated={!anonymous && !example && !shared} previewContext={{ chat, messages: [], activeTab: tab, display: { title: chat.title, summary: chat.chat_summary, credits } }} activeSettingsView={`chats/${chat.chat_id}/${tab}`} />
+  <ChatSettingsPage {previewTasks} {previewPlans} activePlanDetails={previewPlanDetails} {previewFiles} previewAuthenticated={!anonymous && !example && !shared} previewContext={{ chat, messages: [], activeTab: tab, display: { title: chat.title, summary: chat.chat_summary, credits } }} activeSettingsView={`chats/${chat.chat_id}/${tab}`} />
 </div>
 
 <style>

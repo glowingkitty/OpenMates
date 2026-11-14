@@ -1,0 +1,315 @@
+approval.draft:
+  context: "Approval badge on a Plan that has no approved revision yet"
+  en: "Draft"
+  de: "Entwurf"
+  verified_by_human: []
+approval.approved:
+  context: "Approval badge: the shown Plan revision is approved; revision is its number"
+  en: "Approved rev {revision}"
+  de: "Genehmigt (Rev. {revision})"
+  verified_by_human: []
+approval.approved_plain:
+  context: "Approval badge when the approved revision has no known number"
+  en: "Approved"
+  de: "Genehmigt"
+  verified_by_human: []
+approval.changed:
+  context: "Approval badge: the Plan changed after its last approval and needs a new approval"
+  en: "Changed since approval"
+  de: "Seit der Genehmigung geändert"
+  verified_by_human: []
+approval.revision:
+  context: "Label naming the Plan revision currently proposed for approval"
+  en: "Revision {revision}"
+  de: "Revision {revision}"
+  verified_by_human: []
+approval.approve:
+  context: "Button that approves the exact Plan revision shown"
+  en: "Approve this revision"
+  de: "Diese Revision genehmigen"
+  verified_by_human: []
+approval.already:
+  context: "Disabled approval button text when the shown revision is already approved"
+  en: "Revision approved"
+  de: "Revision genehmigt"
+  verified_by_human: []
+approval.no_revision:
+  context: "Approval bar hint when the Plan has no submitted revision to approve"
+  en: "No revision submitted yet"
+  de: "Noch keine Revision eingereicht"
+  verified_by_human: []
+section.goal:
+  context: "Section heading for the Plan goal"
+  en: "Goal"
+  de: "Ziel"
+  verified_by_human: []
+section.assumptions:
+  context: "Section heading for Plan assumptions"
+  en: "Assumptions"
+  de: "Annahmen"
+  verified_by_human: []
+section.criteria:
+  context: "Section heading for Plan success criteria"
+  en: "Success criteria"
+  de: "Erfolgskriterien"
+  verified_by_human: []
+section.tasks:
+  context: "Section heading for Tasks linked to a Plan"
+  en: "Tasks"
+  de: "Aufgaben"
+  verified_by_human: []
+section.checks:
+  context: "Section heading for Checks linked to a Plan"
+  en: "Checks"
+  de: "Prüfungen"
+  verified_by_human: []
+empty.goal:
+  context: "Shown when a Plan has no goal text"
+  en: "No goal described yet"
+  de: "Noch kein Ziel beschrieben"
+  verified_by_human: []
+empty.assumptions:
+  context: "Shown when a Plan has no assumptions"
+  en: "No assumptions yet"
+  de: "Noch keine Annahmen"
+  verified_by_human: []
+empty.criteria:
+  context: "Shown when a Plan has no success criteria"
+  en: "No success criteria yet"
+  de: "Noch keine Erfolgskriterien"
+  verified_by_human: []
+empty.tasks:
+  context: "Shown when a Plan has no linked Tasks"
+  en: "No tasks linked yet"
+  de: "Noch keine Aufgaben verknüpft"
+  verified_by_human: []
+empty.checks:
+  context: "Shown when a Plan has no Checks"
+  en: "No checks yet"
+  de: "Noch keine Prüfungen"
+  verified_by_human: []
+empty.no_plan:
+  context: "Shown in chat settings when the chat has no active Plan"
+  en: "No active plan in this chat yet."
+  de: "In diesem Chat gibt es noch keinen aktiven Plan."
+  verified_by_human: []
+summary.tasks:
+  context: "Plan progress: finished Tasks out of all Tasks"
+  en: "{done}/{total} tasks done"
+  de: "{done}/{total} Aufgaben erledigt"
+  verified_by_human: []
+summary.checks:
+  context: "Plan checks: required Checks that are green out of all required Checks"
+  en: "{green}/{required} required checks green"
+  de: "{green}/{required} Pflichtprüfungen grün"
+  verified_by_human: []
+summary.waiting:
+  context: "Plan checks: Checks waiting for the user to confirm"
+  en: "{count} waiting for confirmation"
+  de: "{count} warten auf Bestätigung"
+  verified_by_human: []
+summary.assumptions_open:
+  context: "Plan assumptions that are not confirmed yet"
+  en: "{count} open assumptions"
+  de: "{count} offene Annahmen"
+  verified_by_human: []
+summary.assumptions_clear:
+  context: "All Plan assumptions are confirmed"
+  en: "All assumptions confirmed"
+  de: "Alle Annahmen bestätigt"
+  verified_by_human: []
+check.required:
+  context: "Badge for a Check that must pass before the Plan is done"
+  en: "Required"
+  de: "Pflicht"
+  verified_by_human: []
+check.supporting:
+  context: "Badge for a Check that supports but does not gate completion"
+  en: "Supporting"
+  de: "Unterstützend"
+  verified_by_human: []
+check.open:
+  context: "Action opening a Check in detail"
+  en: "Open check"
+  de: "Prüfung öffnen"
+  verified_by_human: []
+criterion.covered_by:
+  context: "Number of Checks covering a success criterion"
+  en: "{count} checks"
+  de: "{count} Prüfungen"
+  verified_by_human: []
+criterion.uncovered:
+  context: "A success criterion that no Check covers"
+  en: "Not covered by a check"
+  de: "Von keiner Prüfung abgedeckt"
+  verified_by_human: []
+assumption.open_chat:
+  context: "Action opening the chat that is verifying an assumption"
+  en: "Open checking chat"
+  de: "Prüf-Chat öffnen"
+  verified_by_human: []
+task.open:
+  context: "Action opening a Task"
+  en: "Open task"
+  de: "Aufgabe öffnen"
+  verified_by_human: []
+plan.open:
+  context: "Action opening the full Plan"
+  en: "Open plan"
+  de: "Plan öffnen"
+  verified_by_human: []
+plan.fullscreen_label:
+  context: "Accessible label of the fullscreen Plan view"
+  en: "Plan"
+  de: "Plan"
+  verified_by_human: []
+status.plan.draft:
+  context: "Status label shown for a Plan, Task, Check or assumption (plan)"
+  en: "Draft"
+  de: "Entwurf"
+  verified_by_human: []
+status.plan.checking_assumptions:
+  context: "Status label shown for a Plan, Task, Check or assumption (plan)"
+  en: "Checking assumptions"
+  de: "Annahmen werden geprüft"
+  verified_by_human: []
+status.plan.awaiting_confirmation:
+  context: "Status label shown for a Plan, Task, Check or assumption (plan)"
+  en: "Awaiting confirmation"
+  de: "Wartet auf Bestätigung"
+  verified_by_human: []
+status.plan.active:
+  context: "Status label shown for a Plan, Task, Check or assumption (plan)"
+  en: "Active"
+  de: "Aktiv"
+  verified_by_human: []
+status.plan.executing:
+  context: "Status label shown for a Plan, Task, Check or assumption (plan)"
+  en: "In progress"
+  de: "In Arbeit"
+  verified_by_human: []
+status.plan.running_checks:
+  context: "Status label shown for a Plan, Task, Check or assumption (plan)"
+  en: "Running checks"
+  de: "Prüfungen laufen"
+  verified_by_human: []
+status.plan.blocked:
+  context: "Status label shown for a Plan, Task, Check or assumption (plan)"
+  en: "Blocked"
+  de: "Blockiert"
+  verified_by_human: []
+status.plan.completed:
+  context: "Status label shown for a Plan, Task, Check or assumption (plan)"
+  en: "Completed"
+  de: "Abgeschlossen"
+  verified_by_human: []
+status.plan.archived:
+  context: "Status label shown for a Plan, Task, Check or assumption (plan)"
+  en: "Archived"
+  de: "Archiviert"
+  verified_by_human: []
+status.task.backlog:
+  context: "Status label shown for a Plan, Task, Check or assumption (task)"
+  en: "Backlog"
+  de: "Backlog"
+  verified_by_human: []
+status.task.todo:
+  context: "Status label shown for a Plan, Task, Check or assumption (task)"
+  en: "To do"
+  de: "Offen"
+  verified_by_human: []
+status.task.in_progress:
+  context: "Status label shown for a Plan, Task, Check or assumption (task)"
+  en: "In progress"
+  de: "In Arbeit"
+  verified_by_human: []
+status.task.blocked:
+  context: "Status label shown for a Plan, Task, Check or assumption (task)"
+  en: "Blocked"
+  de: "Blockiert"
+  verified_by_human: []
+status.task.done:
+  context: "Status label shown for a Plan, Task, Check or assumption (task)"
+  en: "Done"
+  de: "Erledigt"
+  verified_by_human: []
+status.check.pending:
+  context: "Status label shown for a Plan, Task, Check or assumption (check)"
+  en: "Pending"
+  de: "Ausstehend"
+  verified_by_human: []
+status.check.passed:
+  context: "Status label shown for a Plan, Task, Check or assumption (check)"
+  en: "Passed"
+  de: "Bestanden"
+  verified_by_human: []
+status.check.failed:
+  context: "Status label shown for a Plan, Task, Check or assumption (check)"
+  en: "Failed"
+  de: "Fehlgeschlagen"
+  verified_by_human: []
+status.check.passed_unexpectedly:
+  context: "Status label shown for a Plan, Task, Check or assumption (check)"
+  en: "Passed unexpectedly"
+  de: "Unerwartet bestanden"
+  verified_by_human: []
+status.check.skipped:
+  context: "Status label shown for a Plan, Task, Check or assumption (check)"
+  en: "Skipped"
+  de: "Übersprungen"
+  verified_by_human: []
+status.check.waived:
+  context: "Status label shown for a Plan, Task, Check or assumption (check)"
+  en: "Waived"
+  de: "Erlassen"
+  verified_by_human: []
+status.check.waiting_for_confirmation:
+  context: "Status label shown for a Plan, Task, Check or assumption (check)"
+  en: "Waiting for confirmation"
+  de: "Wartet auf Bestätigung"
+  verified_by_human: []
+status.check.stale:
+  context: "Status label shown for a Plan, Task, Check or assumption (check)"
+  en: "Stale"
+  de: "Veraltet"
+  verified_by_human: []
+status.assumption.unchecked:
+  context: "Status label shown for a Plan, Task, Check or assumption (assumption)"
+  en: "Unchecked"
+  de: "Ungeprüft"
+  verified_by_human: []
+status.assumption.checking:
+  context: "Status label shown for a Plan, Task, Check or assumption (assumption)"
+  en: "Checking"
+  de: "Wird geprüft"
+  verified_by_human: []
+status.assumption.confirmed:
+  context: "Status label shown for a Plan, Task, Check or assumption (assumption)"
+  en: "Confirmed"
+  de: "Bestätigt"
+  verified_by_human: []
+status.assumption.corrected:
+  context: "Status label shown for a Plan, Task, Check or assumption (assumption)"
+  en: "Corrected"
+  de: "Korrigiert"
+  verified_by_human: []
+status.assumption.blocked:
+  context: "Status label shown for a Plan, Task, Check or assumption (assumption)"
+  en: "Blocked"
+  de: "Blockiert"
+  verified_by_human: []
+status.assumption.waived:
+  context: "Status label shown for a Plan, Task, Check or assumption (assumption)"
+  en: "Waived"
+  de: "Erlassen"
+  verified_by_human: []
+skill.draft_not_saved:
+  context: "Notice in the fullscreen of a Specification the assistant drafted in chat that is not stored in any Project yet"
+  en: "Draft — not saved yet"
+  de: "Entwurf — noch nicht gespeichert"
+  verified_by_human: []
+skill.save_to_project:
+  context: "Button that saves a drafted Specification into a Project"
+  en: "Save to Project"
+  de: "In Projekt speichern"
+  verified_by_human: []

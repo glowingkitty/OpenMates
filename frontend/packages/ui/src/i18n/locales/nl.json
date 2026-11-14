@@ -3859,6 +3859,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "Beheerder"
@@ -14082,6 +14083,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "via"
@@ -21513,6 +21515,7 @@
       "text": "Aangepaste kleur"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

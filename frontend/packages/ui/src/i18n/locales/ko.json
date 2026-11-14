@@ -3859,6 +3859,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "관리자"
@@ -14082,6 +14083,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "통해"
@@ -21513,6 +21515,7 @@
       "text": "사용자 지정 색상"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

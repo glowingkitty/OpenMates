@@ -1,0 +1,185 @@
+status.draft:
+  context: "Specification status badge: not yet approved"
+  en: "Draft"
+  de: "Entwurf"
+  verified_by_human: []
+status.approved:
+  context: "Specification status badge: a revision was approved"
+  en: "Approved"
+  de: "Freigegeben"
+  verified_by_human: []
+status.superseded:
+  context: "Specification status badge: replaced by a newer Specification"
+  en: "Superseded"
+  de: "Ersetzt"
+  verified_by_human: []
+status.changes_since_approval:
+  context: "Badge: the Specification changed after its approved revision"
+  en: "Changes since approval"
+  de: "Änderungen seit Freigabe"
+  verified_by_human: []
+preview.revision:
+  context: Revision number on a Specification card
+  en: "Revision {number}"
+  de: "Revision {number}"
+  verified_by_human: []
+preview.updated:
+  context: Last change time on a Specification card
+  en: "Updated {time}"
+  de: "Aktualisiert {time}"
+  verified_by_human: []
+preview.requirements:
+  context: Requirement count on a Specification card
+  en: "{count} requirements"
+  de: "{count} Anforderungen"
+  verified_by_human: []
+preview.proof:
+  context: Proof summary on a Specification card
+  en: "{passed} proven · {open} open · {stale} stale"
+  de: "{passed} belegt · {open} offen · {stale} veraltet"
+  verified_by_human: []
+fullscreen.subtitle:
+  context: "Fullscreen header subtitle: category and project of a Specification"
+  en: "{category} · Specification for {project}"
+  de: "{category} · Spezifikation für {project}"
+  verified_by_human: []
+fullscreen.subtitle_no_project:
+  context: "Fullscreen header subtitle of a Specification that is not saved in a Project yet"
+  en: "{category} · Specification"
+  de: "{category} · Spezifikation"
+  verified_by_human: []
+revisions.heading:
+  context: Heading of the revision list in the Specification view
+  en: "Revisions"
+  de: "Revisionen"
+  verified_by_human: []
+revisions.current:
+  context: Marker for the newest revision
+  en: "Current"
+  de: "Aktuell"
+  verified_by_human: []
+revisions.approved:
+  context: Marker for the approved revision
+  en: "Approved"
+  de: "Freigegeben"
+  verified_by_human: []
+revisions.viewing:
+  context: Marker for the revision being read
+  en: "Viewing"
+  de: "Wird angezeigt"
+  verified_by_human: []
+revisions.revision:
+  context: Revision label in the revision list
+  en: "Revision {number}"
+  de: "Revision {number}"
+  verified_by_human: []
+revisions.select:
+  context: Button label to read a revision
+  en: "View revision {number}"
+  de: "Revision {number} ansehen"
+  verified_by_human: []
+revisions.read_only:
+  context: Notice shown when an older revision is read
+  en: "You are reading an older revision. It is read-only and cannot be approved."
+  de: "Du liest eine ältere Revision. Sie ist schreibgeschützt und kann nicht freigegeben werden."
+  verified_by_human: []
+revisions.empty:
+  context: Revision list empty state
+  en: "No revisions yet."
+  de: "Noch keine Revisionen."
+  verified_by_human: []
+approval.approve:
+  context: Button to start approving the shown revision
+  en: "Approve this revision"
+  de: "Diese Revision freigeben"
+  verified_by_human: []
+approval.confirm_title:
+  context: Confirmation question before approving
+  en: "Approve revision {number}?"
+  de: "Revision {number} freigeben?"
+  verified_by_human: []
+approval.confirm_body:
+  context: Explains that approval covers exactly the shown revision
+  en: "Approval applies to exactly this revision. Later changes need a new approval."
+  de: "Die Freigabe gilt genau für diese Revision. Spätere Änderungen brauchen eine neue Freigabe."
+  verified_by_human: []
+approval.confirm:
+  context: Button confirming the approval
+  en: "Confirm approval"
+  de: "Freigabe bestätigen"
+  verified_by_human: []
+approval.cancel:
+  context: Button cancelling the approval
+  en: "Cancel"
+  de: "Abbrechen"
+  verified_by_human: []
+approval.already_approved:
+  context: "Hint: the shown revision is already approved"
+  en: "This revision is approved."
+  de: "Diese Revision ist freigegeben."
+  verified_by_human: []
+approval.only_current:
+  context: "Hint: only the current revision can be approved"
+  en: "Only the current revision can be approved."
+  de: "Nur die aktuelle Revision kann freigegeben werden."
+  verified_by_human: []
+approval.approved_at:
+  context: Approval time in the status strip
+  en: "Approved {time}"
+  de: "Freigegeben {time}"
+  verified_by_human: []
+approval.stale:
+  context: "Status strip note: edits were made after the approval"
+  en: "Revision {number} was approved, but the Specification changed afterwards."
+  de: "Revision {number} wurde freigegeben, die Spezifikation wurde danach aber geändert."
+  verified_by_human: []
+project.heading:
+  context: Project section heading listing Specifications
+  en: "Specifications"
+  de: "Spezifikationen"
+  verified_by_human: []
+project.empty:
+  context: Empty state of the Project Specifications section
+  en: "No Specifications in this Project yet."
+  de: "In diesem Projekt gibt es noch keine Spezifikationen."
+  verified_by_human: []
+project.load_error:
+  context: Error shown when the Project Specifications could not be loaded
+  en: "Specifications could not be loaded."
+  de: "Spezifikationen konnten nicht geladen werden."
+  verified_by_human: []
+project.action_error:
+  context: Error shown when opening, switching or approving a Specification failed
+  en: "The Specification action failed. Nothing was changed."
+  de: "Die Aktion für die Spezifikation ist fehlgeschlagen. Es wurde nichts geändert."
+  verified_by_human: []
+project.retry:
+  context: Button to retry loading the Project Specifications
+  en: "Try again"
+  de: "Erneut versuchen"
+  verified_by_human: []
+save.no_project:
+  context: "Shown in a drafted Specification's fullscreen when its chat is not in any Project, so it cannot be saved"
+  en: "Add this chat to a Project to save the Specification there."
+  de: "Füge diesen Chat einem Projekt hinzu, um die Spezifikation dort zu speichern."
+  verified_by_human: []
+save.saving:
+  context: "Button label while a drafted Specification is being saved to a Project"
+  en: "Saving…"
+  de: "Wird gespeichert…"
+  verified_by_human: []
+save.saved:
+  context: "Confirmation after a drafted Specification was saved; placeholder is the Project name"
+  en: "Saved to {project}"
+  de: "In {project} gespeichert"
+  verified_by_human: []
+save.open_project:
+  context: "Button that opens the Project a drafted Specification was just saved to"
+  en: "Open Project"
+  de: "Projekt öffnen"
+  verified_by_human: []
+save.failed:
+  context: "Error when saving a drafted Specification to a Project failed; nothing was saved"
+  en: "The Specification could not be saved to the Project. Nothing was saved."
+  de: "Die Spezifikation konnte nicht im Projekt gespeichert werden. Es wurde nichts gespeichert."
+  verified_by_human: []

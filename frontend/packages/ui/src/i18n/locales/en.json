@@ -1477,6 +1477,18 @@
           "description": {
             "text": "Find encrypted plans through a capable connected client."
           }
+        },
+        "specification": {
+          "text": "Specification",
+          "description": {
+            "text": "Draft or update a Specification with scope, requirements and flows."
+          }
+        },
+        "check": {
+          "text": "Check",
+          "description": {
+            "text": "Define a reusable Check with mixed test, evaluation and confirmation sources."
+          }
         }
       }
     },
@@ -5042,6 +5054,212 @@
       },
       "review_chat": {
         "text": "Review chat"
+      }
+    }
+  },
+  "checks": {
+    "title": {
+      "text": "Check"
+    },
+    "status": {
+      "queued": {
+        "text": "Queued"
+      },
+      "running": {
+        "text": "Running"
+      },
+      "passed": {
+        "text": "Passed"
+      },
+      "failed": {
+        "text": "Failed"
+      },
+      "error": {
+        "text": "Error"
+      },
+      "blocked": {
+        "text": "Blocked"
+      },
+      "waiting_for_confirmation": {
+        "text": "Waiting for confirmation"
+      },
+      "cancelled": {
+        "text": "Cancelled"
+      },
+      "never_run": {
+        "text": "Never run"
+      }
+    },
+    "stale": {
+      "text": "Stale"
+    },
+    "last_run": {
+      "text": "Last run"
+    },
+    "no_run": {
+      "text": "No runs yet"
+    },
+    "revision": {
+      "text": "Revision"
+    },
+    "kind": {
+      "e2e": {
+        "text": "E2E"
+      },
+      "unit": {
+        "text": "Unit"
+      },
+      "integration": {
+        "text": "Integration"
+      },
+      "audit": {
+        "text": "Audit"
+      },
+      "ai": {
+        "text": "AI"
+      },
+      "human": {
+        "text": "Human"
+      }
+    },
+    "group": {
+      "e2e": {
+        "text": "E2E tests"
+      },
+      "unit": {
+        "text": "Unit tests"
+      },
+      "integration": {
+        "text": "Integration tests"
+      },
+      "audit": {
+        "text": "Static analysis and audits"
+      },
+      "ai": {
+        "text": "AI evaluation"
+      },
+      "human": {
+        "text": "Human confirmation"
+      }
+    },
+    "role": {
+      "required": {
+        "text": "Required"
+      },
+      "supporting": {
+        "text": "Supporting"
+      }
+    },
+    "result": {
+      "pending": {
+        "text": "No result yet"
+      },
+      "human_pending": {
+        "text": "pending"
+      }
+    },
+    "sources": {
+      "text": "Sources"
+    },
+    "claims": {
+      "text": "Covered claims"
+    },
+    "rule": {
+      "requires_deterministic": {
+        "text": "This Check needs at least one passing deterministic source. AI evaluation and human confirmation alone cannot make it pass."
+      }
+    },
+    "ai": {
+      "question": {
+        "text": "Question"
+      },
+      "verdict": {
+        "text": "Verdict"
+      },
+      "verdict_pass": {
+        "text": "Pass"
+      },
+      "verdict_fail": {
+        "text": "Fail"
+      },
+      "verdict_inconclusive": {
+        "text": "Inconclusive"
+      },
+      "score": {
+        "text": "Score"
+      },
+      "threshold": {
+        "text": "threshold"
+      },
+      "feedback": {
+        "text": "Feedback"
+      }
+    },
+    "human": {
+      "instruction": {
+        "text": "Please confirm"
+      },
+      "confirm": {
+        "text": "Confirm"
+      },
+      "reject": {
+        "text": "Reject"
+      },
+      "confirmed_by": {
+        "text": "Confirmed by"
+      },
+      "rejected_by": {
+        "text": "Rejected by"
+      }
+    },
+    "open_test_result": {
+      "text": "Open test result"
+    },
+    "history": {
+      "title": {
+        "text": "Run history"
+      },
+      "stale": {
+        "text": "stale"
+      }
+    },
+    "action": {
+      "run": {
+        "text": "Run again"
+      },
+      "cancel": {
+        "text": "Cancel"
+      }
+    },
+    "project": {
+      "heading": {
+        "text": "Checks"
+      },
+      "load_error": {
+        "text": "Checks could not be loaded."
+      },
+      "action_error": {
+        "text": "The Check action failed. Please try again."
+      },
+      "retry": {
+        "text": "Retry"
+      }
+    },
+    "save": {
+      "button": {
+        "text": "Save to Project"
+      },
+      "saving": {
+        "text": "Saving…"
+      },
+      "success": {
+        "text": "Saved to the Project."
+      },
+      "error": {
+        "text": "The Check could not be saved to the Project."
+      },
+      "no_project": {
+        "text": "Move this chat into a Project to save the Check there."
       }
     }
   },
@@ -17057,6 +17275,227 @@
       }
     }
   },
+  "plan_embeds": {
+    "approval": {
+      "draft": {
+        "text": "Draft"
+      },
+      "approved": {
+        "text": "Approved rev {revision}"
+      },
+      "approved_plain": {
+        "text": "Approved"
+      },
+      "changed": {
+        "text": "Changed since approval"
+      },
+      "revision": {
+        "text": "Revision {revision}"
+      },
+      "approve": {
+        "text": "Approve this revision"
+      },
+      "already": {
+        "text": "Revision approved"
+      },
+      "no_revision": {
+        "text": "No revision submitted yet"
+      }
+    },
+    "section": {
+      "goal": {
+        "text": "Goal"
+      },
+      "assumptions": {
+        "text": "Assumptions"
+      },
+      "criteria": {
+        "text": "Success criteria"
+      },
+      "tasks": {
+        "text": "Tasks"
+      },
+      "checks": {
+        "text": "Checks"
+      }
+    },
+    "empty": {
+      "goal": {
+        "text": "No goal described yet"
+      },
+      "assumptions": {
+        "text": "No assumptions yet"
+      },
+      "criteria": {
+        "text": "No success criteria yet"
+      },
+      "tasks": {
+        "text": "No tasks linked yet"
+      },
+      "checks": {
+        "text": "No checks yet"
+      },
+      "no_plan": {
+        "text": "No active plan in this chat yet."
+      }
+    },
+    "summary": {
+      "tasks": {
+        "text": "{done}/{total} tasks done"
+      },
+      "checks": {
+        "text": "{green}/{required} required checks green"
+      },
+      "waiting": {
+        "text": "{count} waiting for confirmation"
+      },
+      "assumptions_open": {
+        "text": "{count} open assumptions"
+      },
+      "assumptions_clear": {
+        "text": "All assumptions confirmed"
+      }
+    },
+    "check": {
+      "required": {
+        "text": "Required"
+      },
+      "supporting": {
+        "text": "Supporting"
+      },
+      "open": {
+        "text": "Open check"
+      }
+    },
+    "criterion": {
+      "covered_by": {
+        "text": "{count} checks"
+      },
+      "uncovered": {
+        "text": "Not covered by a check"
+      }
+    },
+    "assumption": {
+      "open_chat": {
+        "text": "Open checking chat"
+      }
+    },
+    "task": {
+      "open": {
+        "text": "Open task"
+      }
+    },
+    "plan": {
+      "open": {
+        "text": "Open plan"
+      },
+      "fullscreen_label": {
+        "text": "Plan"
+      }
+    },
+    "status": {
+      "plan": {
+        "draft": {
+          "text": "Draft"
+        },
+        "checking_assumptions": {
+          "text": "Checking assumptions"
+        },
+        "awaiting_confirmation": {
+          "text": "Awaiting confirmation"
+        },
+        "active": {
+          "text": "Active"
+        },
+        "executing": {
+          "text": "In progress"
+        },
+        "running_checks": {
+          "text": "Running checks"
+        },
+        "blocked": {
+          "text": "Blocked"
+        },
+        "completed": {
+          "text": "Completed"
+        },
+        "archived": {
+          "text": "Archived"
+        }
+      },
+      "task": {
+        "backlog": {
+          "text": "Backlog"
+        },
+        "todo": {
+          "text": "To do"
+        },
+        "in_progress": {
+          "text": "In progress"
+        },
+        "blocked": {
+          "text": "Blocked"
+        },
+        "done": {
+          "text": "Done"
+        }
+      },
+      "check": {
+        "pending": {
+          "text": "Pending"
+        },
+        "passed": {
+          "text": "Passed"
+        },
+        "failed": {
+          "text": "Failed"
+        },
+        "passed_unexpectedly": {
+          "text": "Passed unexpectedly"
+        },
+        "skipped": {
+          "text": "Skipped"
+        },
+        "waived": {
+          "text": "Waived"
+        },
+        "waiting_for_confirmation": {
+          "text": "Waiting for confirmation"
+        },
+        "stale": {
+          "text": "Stale"
+        }
+      },
+      "assumption": {
+        "unchecked": {
+          "text": "Unchecked"
+        },
+        "checking": {
+          "text": "Checking"
+        },
+        "confirmed": {
+          "text": "Confirmed"
+        },
+        "corrected": {
+          "text": "Corrected"
+        },
+        "blocked": {
+          "text": "Blocked"
+        },
+        "waived": {
+          "text": "Waived"
+        }
+      }
+    },
+    "skill": {
+      "draft_not_saved": {
+        "text": "Draft — not saved yet"
+      },
+      "save_to_project": {
+        "text": "Save to Project"
+      }
+    }
+  },
   "platforms": {
     "via": {
       "text": "via"
@@ -26657,6 +27096,133 @@
     },
     "custom_color": {
       "text": "Custom colour"
+    }
+  },
+  "specifications": {
+    "status": {
+      "draft": {
+        "text": "Draft"
+      },
+      "approved": {
+        "text": "Approved"
+      },
+      "superseded": {
+        "text": "Superseded"
+      },
+      "changes_since_approval": {
+        "text": "Changes since approval"
+      }
+    },
+    "preview": {
+      "revision": {
+        "text": "Revision {number}"
+      },
+      "updated": {
+        "text": "Updated {time}"
+      },
+      "requirements": {
+        "text": "{count} requirements"
+      },
+      "proof": {
+        "text": "{passed} proven · {open} open · {stale} stale"
+      }
+    },
+    "fullscreen": {
+      "subtitle": {
+        "text": "{category} · Specification for {project}"
+      },
+      "subtitle_no_project": {
+        "text": "{category} · Specification"
+      }
+    },
+    "revisions": {
+      "heading": {
+        "text": "Revisions"
+      },
+      "current": {
+        "text": "Current"
+      },
+      "approved": {
+        "text": "Approved"
+      },
+      "viewing": {
+        "text": "Viewing"
+      },
+      "revision": {
+        "text": "Revision {number}"
+      },
+      "select": {
+        "text": "View revision {number}"
+      },
+      "read_only": {
+        "text": "You are reading an older revision. It is read-only and cannot be approved."
+      },
+      "empty": {
+        "text": "No revisions yet."
+      }
+    },
+    "approval": {
+      "approve": {
+        "text": "Approve this revision"
+      },
+      "confirm_title": {
+        "text": "Approve revision {number}?"
+      },
+      "confirm_body": {
+        "text": "Approval applies to exactly this revision. Later changes need a new approval."
+      },
+      "confirm": {
+        "text": "Confirm approval"
+      },
+      "cancel": {
+        "text": "Cancel"
+      },
+      "already_approved": {
+        "text": "This revision is approved."
+      },
+      "only_current": {
+        "text": "Only the current revision can be approved."
+      },
+      "approved_at": {
+        "text": "Approved {time}"
+      },
+      "stale": {
+        "text": "Revision {number} was approved, but the Specification changed afterwards."
+      }
+    },
+    "project": {
+      "heading": {
+        "text": "Specifications"
+      },
+      "empty": {
+        "text": "No Specifications in this Project yet."
+      },
+      "load_error": {
+        "text": "Specifications could not be loaded."
+      },
+      "action_error": {
+        "text": "The Specification action failed. Nothing was changed."
+      },
+      "retry": {
+        "text": "Try again"
+      }
+    },
+    "save": {
+      "no_project": {
+        "text": "Add this chat to a Project to save the Specification there."
+      },
+      "saving": {
+        "text": "Saving…"
+      },
+      "saved": {
+        "text": "Saved to {project}"
+      },
+      "open_project": {
+        "text": "Open Project"
+      },
+      "failed": {
+        "text": "The Specification could not be saved to the Project. Nothing was saved."
+      }
     }
   },
   "tasks": {

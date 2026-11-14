@@ -21,7 +21,7 @@
     },
     {
       "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-      "sha256": "8993c430744313b3a19be5a7f099b8aa65d4255f0422d4f1451f2af11eb53d46"
+      "sha256": "657888ea138e104fd69eb3b0905d5503aa2781d33258a9600c70e9aa189869ca"
     },
     {
       "path": "frontend/packages/openmates-cli/src/generatedFiles.ts",
@@ -1284,6 +1284,47 @@
       "json",
       "language",
       "profile"
+    ],
+    "specifications": [
+      "after",
+      "api-key",
+      "api-url",
+      "before",
+      "file",
+      "help",
+      "json",
+      "limit",
+      "personal",
+      "profile",
+      "project",
+      "revision",
+      "team"
+    ],
+    "checks": [
+      "api-key",
+      "api-url",
+      "check",
+      "criterion",
+      "decision",
+      "description",
+      "detail",
+      "evidence-file",
+      "help",
+      "json",
+      "note",
+      "personal",
+      "plan",
+      "profile",
+      "project",
+      "requires-deterministic",
+      "source",
+      "status",
+      "subject",
+      "supporting",
+      "team",
+      "test-result",
+      "threshold",
+      "title"
     ]
   },
   "flags": [
@@ -19679,6 +19720,122 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 14830,
           "symbol": "printChatsHelp"
+        }
+      ]
+    },
+    {
+      "long": "revision",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/cloud-project-development/specification-storage-handoff.md",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "long": "requires-deterministic",
+      "arity": "switch",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ]
+    },
+    {
+      "long": "subject",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ]
+    },
+    {
+      "long": "test-result",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ]
+    },
+    {
+      "long": "decision",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ]
+    },
+    {
+      "long": "evidence-file",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ]
+    },
+    {
+      "long": "detail",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ]
+    },
+    {
+      "long": "note",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ]
+    },
+    {
+      "long": "supporting",
+      "arity": "switch",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
         }
       ]
     }
@@ -64588,6 +64745,654 @@
         "macos": "not_verified",
         "windows": "not_verified"
       }
+    },
+    {
+      "path": [
+        "specifications",
+        "list"
+      ],
+      "summary": "specifications list",
+      "usages": [
+        "specifications list --project <project-id> [--limit <n>] [--after <id>] [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "after",
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "limit",
+        "personal",
+        "profile",
+        "project",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/cloud-project-development/specification-storage-handoff.md",
+          "line": 1,
+          "symbol": "specifications CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.specifications.list",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/specifications.rs"
+      },
+      "gaps": [
+        "Native-only Project Specification command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "specifications",
+        "show"
+      ],
+      "summary": "specifications show",
+      "usages": [
+        "specifications show <specification-id> --project <project-id> [--revision <revision-id>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "specification-id",
+          "required": true,
+          "variadic": false,
+          "at": 2,
+          "synopsis": "<specification-id>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "project",
+        "revision",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/cloud-project-development/specification-storage-handoff.md",
+          "line": 1,
+          "symbol": "specifications CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.specifications.show",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/specifications.rs"
+      },
+      "gaps": [
+        "Native-only Project Specification command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "specifications",
+        "revisions"
+      ],
+      "summary": "specifications revisions",
+      "usages": [
+        "specifications revisions <specification-id> --project <project-id> [--limit <n>] [--before <n>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "specification-id",
+          "required": true,
+          "variadic": false,
+          "at": 2,
+          "synopsis": "<specification-id>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "before",
+        "help",
+        "json",
+        "limit",
+        "personal",
+        "profile",
+        "project",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/cloud-project-development/specification-storage-handoff.md",
+          "line": 1,
+          "symbol": "specifications CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.specifications.revisions",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/specifications.rs"
+      },
+      "gaps": [
+        "Native-only Project Specification command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "specifications",
+        "approve"
+      ],
+      "summary": "specifications approve",
+      "usages": [
+        "specifications approve <specification-id> --project <project-id> --revision <revision-id> [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "specification-id",
+          "required": true,
+          "variadic": false,
+          "at": 2,
+          "synopsis": "<specification-id>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "project",
+        "revision",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/cloud-project-development/specification-storage-handoff.md",
+          "line": 1,
+          "symbol": "specifications CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.specifications.approve",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/specifications.rs"
+      },
+      "gaps": [
+        "Native-only Project Specification command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "specifications",
+        "create"
+      ],
+      "summary": "specifications create",
+      "usages": [
+        "specifications create --project <project-id> --file <yaml|json> [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "file",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "project",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/cloud-project-development/specification-storage-handoff.md",
+          "line": 1,
+          "symbol": "specifications CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.specifications.create",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/specifications.rs"
+      },
+      "gaps": [
+        "Native-only Project Specification command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "specifications",
+        "revise"
+      ],
+      "summary": "specifications revise",
+      "usages": [
+        "specifications revise <specification-id> --project <project-id> --revision <base-revision-id> --file <yaml|json> [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "specification-id",
+          "required": true,
+          "variadic": false,
+          "at": 2,
+          "synopsis": "<specification-id>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "file",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "project",
+        "revision",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/cloud-project-development/specification-storage-handoff.md",
+          "line": 1,
+          "symbol": "specifications CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.specifications.revise",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/specifications.rs"
+      },
+      "gaps": [
+        "Native-only Project Specification command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "checks",
+        "list"
+      ],
+      "summary": "checks list",
+      "usages": [
+        "checks list --project <project-id> | --plan <plan-id> [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "personal",
+        "plan",
+        "profile",
+        "project",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.checks.list",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/checks.rs"
+      },
+      "gaps": [
+        "Native-only Check command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "checks",
+        "show"
+      ],
+      "summary": "checks show",
+      "usages": [
+        "checks show <check-id> [--project <project-id>] [--subject <revision>] [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "project",
+        "subject",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.checks.show",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/checks.rs"
+      },
+      "gaps": [
+        "Native-only Check command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "checks",
+        "create"
+      ],
+      "summary": "checks create",
+      "usages": [
+        "checks create --project <project-id> --title <title> --source <kind:role:ref>... [--description <text>] [--requires-deterministic] [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "description",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "project",
+        "requires-deterministic",
+        "source",
+        "team",
+        "title"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.checks.create",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/checks.rs"
+      },
+      "gaps": [
+        "Native-only Check command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "checks",
+        "run"
+      ],
+      "summary": "checks run",
+      "usages": [
+        "checks run <check-id> [--subject <revision>] [--project <project-id>] [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "project",
+        "subject",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.checks.start_run",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/checks.rs"
+      },
+      "gaps": [
+        "Native-only Check command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "checks",
+        "result"
+      ],
+      "summary": "checks result",
+      "usages": [
+        "checks result <run-id> <binding-id> --check <check-id> --status <status> [--test-result <embed-id>] [--detail <text>] [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "check",
+        "detail",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "project",
+        "status",
+        "team",
+        "test-result"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.checks.report_source_result",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/checks.rs"
+      },
+      "gaps": [
+        "Native-only Check command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "checks",
+        "confirm"
+      ],
+      "summary": "checks confirm",
+      "usages": [
+        "checks confirm <run-id> <binding-id> --decision confirmed|rejected|blocked|waived [--check <check-id> --note <text>] [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "check",
+        "decision",
+        "help",
+        "json",
+        "note",
+        "personal",
+        "profile",
+        "project",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.checks.confirm_human",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/checks.rs"
+      },
+      "gaps": [
+        "Native-only Check command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "checks",
+        "ai-evaluate"
+      ],
+      "summary": "checks ai-evaluate",
+      "usages": [
+        "checks ai-evaluate <run-id> <binding-id> --check <check-id> --evidence-file <path> [--threshold <n>] [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "check",
+        "evidence-file",
+        "help",
+        "json",
+        "personal",
+        "profile",
+        "project",
+        "team",
+        "threshold"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.checks.ai_evaluate",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/checks.rs"
+      },
+      "gaps": [
+        "Native-only Check command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "checks",
+        "link-plan"
+      ],
+      "summary": "checks link-plan",
+      "usages": [
+        "checks link-plan <check-id> --plan <plan-id> [--supporting] [--criterion <id>] [--json]"
+      ],
+      "positionals": [],
+      "flags": [
+        "api-key",
+        "api-url",
+        "criterion",
+        "help",
+        "json",
+        "personal",
+        "plan",
+        "profile",
+        "supporting",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.checks.link_plan",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/checks.rs"
+      },
+      "gaps": [
+        "Native-only Check command over the shared Rust core; isolated integration validation remains pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
     }
   ],
   "platform_gaps": [
@@ -64596,9 +65401,9 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 754,
-    "flags": 630,
-    "native_handlers_partial": 749,
+    "command_patterns": 768,
+    "flags": 639,
+    "native_handlers_partial": 763,
     "unsupported": 5,
     "feature_complete": false
   },

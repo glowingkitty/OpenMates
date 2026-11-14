@@ -16,6 +16,8 @@
 //! (`workPlanVectors.test.ts` regenerates it from the real flag-off service).
 
 mod billing;
+mod checks;
+mod specifications;
 mod reminder_context;
 mod reminders;
 mod team_bodies;
@@ -32,6 +34,10 @@ mod workflows;
 
 #[cfg(test)]
 mod billing_tests;
+#[cfg(test)]
+mod checks_tests;
+#[cfg(test)]
+mod specifications_tests;
 #[cfg(test)]
 mod reminders_tests;
 #[cfg(test)]
@@ -66,6 +72,8 @@ pub fn run_json(op: &str, input: &str) -> Result<String, String> {
         o if o.starts_with("billing") || o.starts_with("referral") => billing::run(o, &input),
         // Saved-item reminders (savedEmbedReminders.ts): vectors reminders_ts_vectors.json.
         o if o.starts_with("reminder") => reminders::run(o, &input),
+        o if o.starts_with("check") => checks::run(o, &input),
+        o if o.starts_with("specification") => specifications::run(o, &input),
         o if o.starts_with("plan") && o.ends_with("View") => plans::run(o, &input),
         o if o.starts_with("plan") => plan_bodies::run(o, &input),
         o if o.starts_with("task") => tasks::run(o, &input),

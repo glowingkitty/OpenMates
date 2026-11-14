@@ -11,6 +11,12 @@ mod projects;
 pub use projects::*;
 mod plans;
 pub use plans::*;
+mod checks;
+pub use checks::*;
+mod specifications;
+pub use specifications::*;
+/// Specification document hash under an unambiguous name (`projects` also exports a `content_hash`).
+pub use specifications::content_hash as specification_content_hash;
 mod task_crypto;
 mod teams;
 pub use teams::*;

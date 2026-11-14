@@ -245,6 +245,21 @@ resolvers.set("app:business:search_investors", async ({ embedId, decodedContent,
   } };
 });
 
+const plansSkillProps = ({ embedId, decodedContent, onFullscreen }: EmbedPreviewContext) =>
+  ({ id: embedId, data: decodedContent, isMobile: false, onFullscreen });
+resolvers.set("app:plans:specification", async (ctx) => ({
+  component: (await import("../components/embeds/specifications/SpecificationSkillEmbedPreview.svelte")).default,
+  props: plansSkillProps(ctx),
+}));
+resolvers.set("app:plans:check", async (ctx) => ({
+  component: (await import("../components/embeds/checks/CheckSkillEmbedPreview.svelte")).default,
+  props: plansSkillProps(ctx),
+}));
+resolvers.set("app:plans:create", async (ctx) => ({
+  component: (await import("../components/embeds/plans/PlanCreateEmbedPreview.svelte")).default,
+  props: plansSkillProps(ctx),
+}));
+
 resolvers.set("app:business:company_ownership", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
   const { default: component } = await import("../components/embeds/business/BusinessCompanyOwnershipEmbedPreview.svelte");
   return { component, props: {

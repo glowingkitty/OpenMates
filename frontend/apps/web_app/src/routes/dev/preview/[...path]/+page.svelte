@@ -297,7 +297,10 @@
 		'flight',
 		'transcript',
 		'docs',
-		'task'
+		'task',
+		// Spec-driven flow fullscreens take their view model directly.
+		'check',
+		'document'
 	]);
 
 	/**

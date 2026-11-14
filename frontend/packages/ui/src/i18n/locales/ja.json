@@ -3859,6 +3859,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "管理者"
@@ -14082,6 +14083,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "経由"
@@ -21513,6 +21515,7 @@
       "text": "カスタムカラー"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

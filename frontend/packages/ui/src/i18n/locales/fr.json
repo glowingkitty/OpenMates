@@ -3886,6 +3886,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "Admin"
@@ -14109,6 +14110,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "via"
@@ -21540,6 +21542,7 @@
       "text": "Couleur personnalisée"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

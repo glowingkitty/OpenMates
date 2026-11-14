@@ -32,7 +32,8 @@ test('read custom sections, inspect proof, and open flow fullscreen and inspect 
   const proof = createVideoProofRuntime(proofSpec, { device, attach: testInfo.attach.bind(testInfo) });
   await page.goto('/dev/preview/embeds/specifications/SpecificationEmbedFullscreen?chrome=0&theme=light');
   const root = page.getByTestId('specification-fullscreen');
-  await expect(root).toBeVisible();
+  // The preview route compiles the component on first load in CI.
+  await expect(root).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('Design preview · proof states are illustrative')).toBeVisible();
   await proof.assert('contracts.ui.human-readable-default', async () => {
     await expect(page.getByRole('heading', { name: 'Outcome', exact: true })).toBeVisible();
@@ -74,4 +75,21 @@ test('read custom sections, inspect proof, and open flow fullscreen and inspect 
   await proof.checkpoint('model');
   await page.waitForTimeout(2400);
   expect(await root.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+});
+
+// contract-test: direct surface=gui.web assertions=contracts.ui.human-readable-default
+test('a stored document without chapters still shows every requirement as not proven', async ({ page }, testInfo) => {
+  await page.goto('/dev/preview/embeds/specifications/SpecificationEmbedFullscreen?chrome=0&theme=light&variant=stored-document');
+  const root = page.getByTestId('specification-fullscreen');
+  // The preview route compiles the component on first load in CI.
+  await expect(root).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('spec-chapter')).toHaveCount(1);
+  const requirement = page.getByTestId('spec-requirement');
+  await expect(requirement).toHaveCount(1);
+  await expect(requirement).toContainText('A user can save a recipe.');
+  await expect(requirement.getByTestId('spec-proof')).toContainText('To be proven in');
+  await expect(requirement.getByText('Applies to:')).toHaveCount(0);
+  await requirement.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await testInfo.attach('specification-stored-document', { body: await page.screenshot(), contentType: 'image/png' });
 });

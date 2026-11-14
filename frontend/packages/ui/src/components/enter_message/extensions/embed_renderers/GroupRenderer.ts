@@ -2020,6 +2020,25 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      if (appId === "plans" && (skillId === "specification" || skillId === "check" || skillId === "create")) {
+        // Spec-driven flow drafts: same preview inside groups as standalone.
+        const { default: Preview } = skillId === "specification"
+          ? await import("../../../embeds/specifications/SpecificationSkillEmbedPreview.svelte")
+          : skillId === "check"
+            ? await import("../../../embeds/checks/CheckSkillEmbedPreview.svelte")
+            : await import("../../../embeds/plans/PlanCreateEmbedPreview.svelte");
+        const component = mount(Preview, {
+          target,
+          props: {
+            id: embedId,
+            data: decodedContent ?? {},
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
       if (appId === "tasks" && skillId === "create") {
         const { default: TaskCreateEmbedPreview } = await import("../../../embeds/tasks/TaskCreateEmbedPreview.svelte");
         const component = mount(TaskCreateEmbedPreview, {
