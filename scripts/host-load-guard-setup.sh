@@ -14,12 +14,12 @@ mkdir -p "$SYSTEMD_DIR"
 
 cat > "$SYSTEMD_DIR/openmates-host-load-guard.service" <<UNIT
 [Unit]
-Description=OpenMates host load sample (log only)
+Description=OpenMates host-resources guard (RAM and disk: sample, self-heal, alert)
 
 [Service]
 Type=oneshot
 WorkingDirectory=$PROJECT_ROOT
-TimeoutStartSec=30s
+TimeoutStartSec=5min
 ExecStart=/usr/bin/python3 -I -S $PROJECT_ROOT/scripts/host_load_guard.py monitor
 UNIT
 

@@ -43,6 +43,12 @@ or exited, the dispatcher recreates it with a `remote-control` tab running the
 `claude remote-control` bridge (for chats started from the app). It sets
 `XDG_RUNTIME_DIR` because cron lacks it and zellij would not see the live session.
 
+Before a tab opens, `launch_claude_chat` asks the chat lifecycle for room
+(`claude_idle_chats.py admit`, cap of running chat processes). When the cap is
+full, the chat waits in `logs/claude-dispatch/pending/` and the caller gets
+`ChatQueued`; the `issues` cron run starts queued chats oldest first. Details:
+[dev-host-resources.md](dev-host-resources.md).
+
 Prompts are built only from validated identifiers and server-defined labels.
 No report text or log message text is ever put into a prompt. The chat reads
 those details itself through the debug tooling and treats them as data.

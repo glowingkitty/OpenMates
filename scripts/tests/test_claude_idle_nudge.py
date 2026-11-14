@@ -17,8 +17,8 @@ MIN, MAX = 20 * 60, 50 * 60
 
 
 def chat(**overrides) -> Chat:
-    values = dict(pid=1, session_id="chat-a", name="n", status="idle", is_worker=True,
-                  last_change=NOW - 30 * 60, children=["npx figma-mcp"])
+    values = dict(pid=1, session_id="chat-a", name="n", status="idle", kind="rc_worker",
+                  last_activity=NOW - 30 * 60, children=["npx figma-mcp"])
     values.update(overrides)
     return Chat(**values)
 
@@ -34,13 +34,13 @@ def test_qualifies_with_finished_ci_jobs():
 
 
 def test_idle_window_bounds():
-    assert not decide(chat(last_change=NOW - 10 * 60))
-    assert not decide(chat(last_change=NOW - 60 * 60))
+    assert not decide(chat(last_activity=NOW - 10 * 60))
+    assert not decide(chat(last_activity=NOW - 60 * 60))
 
 
 def test_blockers():
     assert not decide(chat(status="busy"))
-    assert not decide(chat(is_worker=False))
+    assert not decide(chat(kind="pane"))
     assert not decide(chat(children=["/bin/bash -c cargo test"]))
     assert not decide(chat(session_id="other"))
     assert not decide(question_ts=NOW - 60)
@@ -76,7 +76,7 @@ def test_ci_evidence_and_run_nudges_once(tmp_path, monkeypatch):
     home, root = write_world(tmp_path)
     assert nudge.ci_evidence(root, "chat-a", NOW - 600) == (["job9"], [])
     assert nudge.ci_evidence(root, "chat-a", NOW) == ([], [])
-    monkeypatch.setattr(nudge, "live_chats", lambda _home: [chat()])
+    monkeypatch.setattr(nudge, "live_chats", lambda _home, _config: [chat()])
     monkeypatch.setattr(nudge, "transcripts", lambda _root: {})
     monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
     sent = []
@@ -95,7 +95,7 @@ def test_ci_evidence_and_run_nudges_once(tmp_path, monkeypatch):
 
 def test_dry_run_sends_nothing(tmp_path, monkeypatch, capsys):
     home, root = write_world(tmp_path)
-    monkeypatch.setattr(nudge, "live_chats", lambda _home: [chat()])
+    monkeypatch.setattr(nudge, "live_chats", lambda _home, _config: [chat()])
     monkeypatch.setattr(nudge, "transcripts", lambda _root: {})
     nudge.run("nudge", True, 20, 50, root, home, now=NOW, sender=lambda *a: (_ for _ in ()).throw(AssertionError))
     assert "would nudge" in capsys.readouterr().out

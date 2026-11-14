@@ -264,7 +264,8 @@
           {
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/host-load-gate.sh prompt",
-            "timeout": 5
+            "timeout": 600,
+            "statusMessage": "Waiting: the dev server is short on memory. Your prompt runs by itself once it frees up (at most 9 min)."
           },
           {
             "type": "command",

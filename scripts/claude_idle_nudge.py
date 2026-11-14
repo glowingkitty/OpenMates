@@ -33,7 +33,7 @@ from pathlib import Path
 
 import claude_usage_guard
 from agent_peers import transcripts
-from claude_idle_chats import TOOL_SERVER_MARKER, Chat, live_chats, log_event
+from claude_idle_chats import TOOL_SERVER_MARKER, Chat, live_chats, load_config, log_event
 from pending_work_gate import TERMINAL, canonical_root, chat_sessions
 
 DEFAULT_MIN_MINUTES = 20.0
@@ -126,19 +126,19 @@ def save_nudge(root: Path, key: str, now: float) -> None:
 
 
 def nudge_key(chat: Chat) -> str:
-    return f"{chat.session_id}:{int(chat.last_change)}"
+    return f"{chat.session_id}:{int(chat.last_activity)}"
 
 
 def decide(chat: Chat, now: float, min_s: float, max_s: float, own: str, *, question_ts: float,
            nudged: bool, finished: list[str], running: list[str], last_text: str) -> tuple[bool, str]:
     """Pure rule: should this chat get the wake-up message? Returns (nudge, reason)."""
-    if not chat.is_worker:
+    if chat.kind != "rc_worker":
         return False, "not a Remote Control worker"
     if own and chat.session_id == own:
         return False, "this chat runs the script"
     if chat.status != "idle":
         return False, f"state is {chat.status or 'unknown'}"
-    idle = now - chat.last_change
+    idle = now - chat.last_activity
     if idle < min_s:
         return False, f"idle {idle / 60:.0f} min, below {min_s / 60:.0f}"
     if idle > max_s:
@@ -146,7 +146,7 @@ def decide(chat: Chat, now: float, min_s: float, max_s: float, own: str, *, ques
     busy = [command for command in chat.children if TOOL_SERVER_MARKER not in command.lower()]
     if busy:
         return False, f"background process running: {busy[0][:60]}"
-    if question_ts > chat.last_change:
+    if question_ts > chat.last_activity:
         return False, "question already sent to the user"
     if nudged:
         return False, "already nudged for this idle period"
@@ -172,8 +172,8 @@ def run(command: str, dry_run: bool, min_minutes: float, max_minutes: float, roo
     paths = transcripts(root)
     nudges = load_nudges(root)
     failed = 0
-    for chat in sorted(live_chats(claude_home), key=lambda item: item.last_change):
-        finished, running = ci_evidence(root, chat.session_id, chat.last_change)
+    for chat in sorted(live_chats(claude_home, load_config()), key=lambda item: item.last_activity):
+        finished, running = ci_evidence(root, chat.session_id, chat.last_activity)
         go, reason = decide(
             chat, now, min_minutes * 60, max_minutes * 60, own,
             question_ts=question_time(root, chat.session_id), nudged=nudge_key(chat) in nudges,
@@ -184,7 +184,7 @@ def run(command: str, dry_run: bool, min_minutes: float, max_minutes: float, roo
             continue
         if not go:
             continue
-        text = message_text(int((now - chat.last_change) / 60), finished)
+        text = message_text(int((now - chat.last_activity) / 60), finished)
         if dry_run:
             print(f"would nudge {label}: {reason}\n  {text}")
             continue

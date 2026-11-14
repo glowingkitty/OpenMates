@@ -108,3 +108,13 @@ def test_waiting_summary_failure_is_a_data_gap_not_a_crash(monkeypatch):
     assert "summary" not in chats["chats"][0] and "container down" in gaps[0]
     briefing.summarize_waiting({}, gaps)
     assert len(gaps) == 1
+
+
+def test_waiting_section_starts_with_the_chat_lifecycle_counts(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENMATES_CHAT_LIFECYCLE_DIR", str(tmp_path))
+    assert "unavailable" in "\n".join(briefing._waiting_section({}))
+    (tmp_path / "status.json").write_text(json.dumps({
+        "at": "2026-11-14T19:30:00Z", "running": 18, "max_running": 20, "working": 5, "idle_running": 13,
+        "idle_stopped": 9, "done_to_archive": 3, "archived": 4, "queued_new_chats": 0}))
+    text = "\n".join(briefing._waiting_section({}))
+    assert "18 running of max 20" in text and "9 idle-stopped" in text and "3 done to archive" in text

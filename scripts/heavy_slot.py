@@ -89,6 +89,10 @@ import heavy_remote_plan  # noqa: E402 - sibling module, standard library only
 MAX_SLOTS = 2
 LIGHT_SLOTS = 4
 MEMORY_MAX_BYTES = 6 * host_load_guard.GIB
+# Free memory that must remain after a local run reaches its cap. Its own value, not the
+# guard's block threshold: the guard judges memory pressure (and blocks only near the OOM
+# floor), while a capped run can take its whole cap within seconds on a host without swap.
+MEMORY_FLOOR_BYTES = 3 * host_load_guard.GIB
 # class -> (CPU quota, memory cap in GiB). Peaks seen: translation build well
 # under 1 GB, one headless Chromium with video 1-2 GB.
 CLASSES = {"heavy": ("400%", 6), "browser": ("200%", 3), "light": ("200%", 2)}
@@ -202,13 +206,13 @@ def recent_reserved(directory: Path, now: float) -> int:
 def memory_shortfall(mem_available_bytes: int, recent_bytes: int,
                      cap_bytes: int = MEMORY_MAX_BYTES) -> str | None:
     """Return why a new run does not fit in memory, or None when it does."""
-    needed = host_load_guard.THRESHOLDS.block_mem_available_bytes + cap_bytes + recent_bytes
+    needed = MEMORY_FLOOR_BYTES + cap_bytes + recent_bytes
     if mem_available_bytes >= needed:
         return None
     gib = host_load_guard.GIB
     return (f"MemAvailable {mem_available_bytes / gib:.1f} GiB < {needed / gib:.1f} GiB needed "
             f"(run cap {cap_bytes / gib:.0f} GiB + {recent_bytes / gib:.0f} GiB for runs just started "
-            f"+ overload threshold)")
+            f"+ {MEMORY_FLOOR_BYTES / gib:.0f} GiB floor)")
 
 
 def admit(directory: Path, cls: str = "heavy", command: str = "") -> tuple[tuple[int, int] | None, str]:

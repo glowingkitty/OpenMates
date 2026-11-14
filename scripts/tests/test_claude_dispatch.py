@@ -8,6 +8,7 @@ import pytest
 import scripts.claude_dispatch as dispatch
 
 ISSUE_ID = "0b6f5c1e-8a3b-4b8e-9d55-2f1f0c1d2e3f"
+REAL_ADMIT = dispatch.admit_new_chat  # the autouse fixture stubs it
 
 
 @pytest.fixture(autouse=True)
@@ -17,6 +18,8 @@ def isolated_state(tmp_path, monkeypatch):
     monkeypatch.setattr(dispatch, "PROCESSED_DIR", tmp_path / "processed")
     monkeypatch.setattr(dispatch, "PROD_STATE_FILE", tmp_path / "prod-state.json")
     monkeypatch.setattr(dispatch, "LAUNCH_LOG", tmp_path / "launches.jsonl")
+    monkeypatch.setattr(dispatch, "PENDING_DIR", tmp_path / "pending")
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: None)  # room for a new chat
     (tmp_path / "queue").mkdir()
     return tmp_path
 
@@ -225,3 +228,59 @@ def test_launch_recreates_missing_or_exited_session_with_bridge(monkeypatch):
         bridge = next(call for call in calls if "remote-control" in call and "--name" in call
                       and call[call.index("--name") + 1] == "remote-control")
         assert bridge[-1] == "remote-control"
+
+
+FULL = "no room: 20 chats run (max 20) and none may be suspended now"
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_full_chat_cap_queues_the_chat_instead_of_dropping_it(isolated_state, monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: FULL)
+    with pytest.raises(dispatch.ChatQueued, match="queued, not started yet"):
+        dispatch.launch_claude_chat("Queued title", "the prompt")
+    assert not calls, "no tab may open while the cap is full"
+    [pending] = list((isolated_state / "pending").iterdir())
+    entry = json.loads(pending.read_text())
+    assert (entry["title"], entry["prompt"], entry["why"]) == ("Queued title", "the prompt", FULL)
+    assert '"kind": "queued"' in (isolated_state / "launches.jsonl").read_text()
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_queued_chats_start_oldest_first_once_a_slot_frees(isolated_state, monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    room = iter([FULL, FULL])
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: next(room))
+    for title in ("First", "Second"):
+        with pytest.raises(dispatch.ChatQueued):
+            dispatch.launch_claude_chat(title, "prompt")
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: FULL)
+    assert dispatch.start_pending()[0]["status"] == "still queued"
+    assert len(list((isolated_state / "pending").iterdir())) == 2
+    answers = iter([None, FULL])
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: next(answers))
+    results = dispatch.start_pending()
+    assert [r["status"] for r in results] == ["launched", "still queued"]
+    assert results[0]["title"] == "First"
+    assert calls[-1][calls[-1].index("--name") + 1] == "First"
+    assert len(list((isolated_state / "pending").iterdir())) == 1
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_issue_request_is_queued_not_failed_when_the_cap_is_full(isolated_state, monkeypatch):
+    _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: FULL)
+    _queue(isolated_state, "issue-ABCDE.json",
+           {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"})
+    results = dispatch.dispatch_issues()
+    assert results[0]["status"] == "queued"
+    assert len(list((isolated_state / "pending").iterdir())) == 1
+    assert not (isolated_state / "processed" / "failed").exists()
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_admission_check_errors_fail_loudly(monkeypatch):
+    result = type("Result", (), {"returncode": 2, "stdout": "", "stderr": "Traceback: boom"})()
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda *a, **k: result)
+    with pytest.raises(dispatch.DispatchError, match="admission check failed"):
+        REAL_ADMIT()

@@ -31,6 +31,7 @@ sys.path.insert(0, str(SCRIPTS))
 import daily_meeting_context as context  # noqa: E402 - sibling scripts, path set above
 import mac_reminders  # noqa: E402
 import daily_meeting_growth  # noqa: E402
+import claude_idle_chats  # noqa: E402
 
 TZ = ZoneInfo("Europe/Berlin")
 PHASE_ANCHOR = date(2026, 11, 2)  # Monday of the first Marketing Week; weeks alternate
@@ -381,9 +382,19 @@ def _tasks_banner(status: dict) -> list[str]:
             "start of the meeting and do not plan from Tasks today.", ""]
 
 
+def _chat_lifecycle_line(path: Path | None = None) -> list[str]:
+    """Counts from the dev-host chat lifecycle (scripts/claude_idle_chats.py status file)."""
+    path = path or claude_idle_chats.state_dir() / "status.json"
+    try:
+        summary = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return ["_Chat lifecycle counts unavailable: the lifecycle timer has not written its status yet._", ""]
+    return [f"_{claude_idle_chats.status_line(summary)} As of {summary['at'][11:16]} UTC._", ""]
+
+
 def _waiting_section(waiting: dict) -> list[str]:
     chats = waiting.get("chats") or []
-    out = ["", "## Chats waiting on you (the assistant spoke last)", ""]
+    out = ["", "## Chats waiting on you (the assistant spoke last)", "", *_chat_lifecycle_line()]
     if not chats:
         return out + ["_None: every recent dev-server chat has your last word or is finished._"]
     for chat in chats:

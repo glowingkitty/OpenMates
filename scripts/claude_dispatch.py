@@ -48,6 +48,8 @@ QUEUE_DIR = STATE_ROOT / "queue"
 PROCESSED_DIR = STATE_ROOT / "processed"
 PROD_STATE_FILE = STATE_ROOT / "prod-errors-state.json"
 LAUNCH_LOG = STATE_ROOT / "launches.jsonl"
+PENDING_DIR = STATE_ROOT / "pending"  # chats waiting for a free slot (claude_idle_chats.py cap)
+ADMIT_TIMEOUT_SECONDS = 300
 DEFAULT_CHAT_MODEL = "claude-opus-5-5"
 CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_MODEL", DEFAULT_CHAT_MODEL)
 CLAUDE_EFFORT = os.getenv("CLAUDE_DISPATCH_EFFORT", "high")
@@ -85,6 +87,10 @@ Launcher = Callable[[str, str], str]
 
 class DispatchError(RuntimeError):
     pass
+
+
+class ChatQueued(DispatchError):
+    """The running-chat cap is full: the chat waits in PENDING_DIR and starts by itself later."""
 
 
 def _now() -> datetime:
@@ -159,6 +165,47 @@ def check_chat_model(model: str, explicit_model: bool = False) -> str:
     return model
 
 
+def admit_new_chat() -> str | None:
+    """None when one more chat may start now; else why not. Suspends the longest-idle chat
+    when the cap of running chats is reached (scripts/claude_idle_chats.py admit)."""
+    result = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "claude_idle_chats.py"), "admit"],
+        capture_output=True, text=True, timeout=ADMIT_TIMEOUT_SECONDS, check=False,
+    )
+    if result.returncode == 0:
+        return None
+    if result.returncode == 3:
+        return (result.stdout.strip().splitlines() or ["the running-chat cap is reached"])[-1]
+    raise DispatchError(f"chat admission check failed (exit {result.returncode}): {result.stderr.strip()[-300:]}")
+
+
+def queue_launch(title: str, prompt: str, model: str, effort: str, explicit_model: bool, why: str) -> Path:
+    PENDING_DIR.mkdir(parents=True, exist_ok=True)
+    path = PENDING_DIR / f"{_now():%Y%m%dT%H%M%S%f}.json"
+    path.write_text(json.dumps({"title": title, "prompt": prompt, "model": model, "effort": effort,
+                                "explicit_model": explicit_model, "queued_at": _now().isoformat(), "why": why}),
+                    encoding="utf-8")
+    _record_launch({"kind": "queued", "title": title, "model": model, "why": why, "file": path.name})
+    return path
+
+
+def start_pending(limit: int = MAX_ISSUE_LAUNCHES_PER_RUN) -> list[dict[str, Any]]:
+    """Start queued chats, oldest first, while the cap has room."""
+    results: list[dict[str, Any]] = []
+    for path in sorted(PENDING_DIR.glob("*.json"))[:limit] if PENDING_DIR.is_dir() else []:
+        entry = json.loads(path.read_text(encoding="utf-8"))
+        why = admit_new_chat()
+        if why:
+            results.append({"file": path.name, "status": "still queued", "why": why})
+            break
+        where = _open_chat_tab(entry["title"], entry["prompt"], entry["model"], entry["effort"])
+        path.unlink()
+        outcome = {"file": path.name, "status": "launched", "session": where, "title": entry["title"]}
+        _record_launch({"kind": "pending", "model": entry["model"], **outcome})
+        results.append(outcome)
+    return results
+
+
 def launch_claude_chat(
     title: str, prompt: str, model: str = CLAUDE_MODEL, effort: str = CLAUDE_EFFORT, explicit_model: bool = False,
 ) -> str:
@@ -171,8 +218,21 @@ def launch_claude_chat(
     Not `claude --bg`: background jobs are retired after ~8h idle at a prompt, which
     takes chats that are waiting for the admin's answer offline in the Claude app.
     Interactive sessions stay connected until the tab is closed.
+
+    When the cap of running chats is reached and no idle chat may be suspended, the
+    chat is queued (PENDING_DIR) and ChatQueued says so; the `issues` cron run starts
+    it once a slot frees. A chat is never dropped.
     """
     check_chat_model(model, explicit_model)
+    why = admit_new_chat()
+    if why:
+        path = queue_launch(title, prompt, model, effort, explicit_model, why)
+        raise ChatQueued(f"queued, not started yet ({why}); it starts by itself within minutes of a slot "
+                         f"freeing up (queue entry {path.name})")
+    return _open_chat_tab(title, prompt, model, effort)
+
+
+def _open_chat_tab(title: str, prompt: str, model: str, effort: str) -> str:
     command = _chat_command(
         "--remote-control", title, "--model", model, "--effort", effort, "--permission-mode", "auto", prompt,
     )
@@ -238,9 +298,11 @@ def dispatch_issues(launcher: Launcher = launch_issue_chat, dry_run: bool = Fals
                 continue
             outcome["session"] = launcher(f"Issue {short_id}: investigate & fix", issue_prompt(issue_id, short_id))
             outcome["status"] = "launched"
+        except ChatQueued as exc:
+            outcome.update(status="queued", note=str(exc))  # moved to PENDING_DIR; starts from there
         except (DispatchError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
             outcome.update(status="failed", error=str(exc))
-        target = PROCESSED_DIR / ("ok" if outcome["status"] == "launched" else "failed")
+        target = PROCESSED_DIR / ("ok" if outcome["status"] in ("launched", "queued") else "failed")
         target.mkdir(parents=True, exist_ok=True)
         path.replace(target / f"{_now():%Y%m%dT%H%M%S}-{path.name}")
         _record_launch({"kind": "issue", "model": ISSUE_CLAUDE_MODEL, **outcome})
@@ -363,7 +425,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "issues":
-        results = dispatch_issues(dry_run=args.dry_run)
+        results = [] if args.dry_run else start_pending()
+        results += dispatch_issues(dry_run=args.dry_run)
         if results:
             print(json.dumps(results))
         return 1 if any(r["status"] == "failed" for r in results) else 0
