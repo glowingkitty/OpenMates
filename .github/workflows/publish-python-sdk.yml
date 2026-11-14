@@ -13,6 +13,7 @@ on:
     paths:
       - .github/workflows/publish-python-sdk.yml
       - backend/apps/**/app.yml
+      - config/sdk-capabilities.json
       - packages/openmates-python/**
       - scripts/ci_impact.py
       - scripts/generate_sdk_app_skills.py
@@ -26,6 +27,7 @@ on:
     paths:
       - .github/workflows/publish-python-sdk.yml
       - backend/apps/**/app.yml
+      - config/sdk-capabilities.json
       - packages/openmates-python/**
       - scripts/ci_impact.py
       - scripts/generate_sdk_app_skills.py

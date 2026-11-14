@@ -14,6 +14,7 @@ on:
     paths:
       - .github/workflows/publish-cli.yml
       - backend/apps/**/app.yml
+      - config/sdk-capabilities.json
       - frontend/packages/openmates-cli/**
       - frontend/packages/ui/src/demo_chats/**
       - frontend/packages/ui/src/i18n/locales/en.json
@@ -32,6 +33,7 @@ on:
     paths:
       - .github/workflows/publish-cli.yml
       - backend/apps/**/app.yml
+      - config/sdk-capabilities.json
       - frontend/packages/openmates-cli/**
       - frontend/packages/ui/src/demo_chats/**
       - frontend/packages/ui/src/i18n/locales/en.json
