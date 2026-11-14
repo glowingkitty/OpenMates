@@ -663,3 +663,53 @@ def test_unrestored_private_tool_result_is_logged_without_content(caplog):
             "task_id": "read-2", "message": "SECRET FILE BODY"}})
     assert request.message_history[-1].content == "SECRET FILE BODY"
     assert "unresolved" not in caplog.text and "SECRET" not in caplog.text
+
+
+# contract-test: supporting surface=rest_api assertions=projects.focus.custom-catalog-privacy
+def test_same_turn_checkpoint_keeps_restored_private_tool_results(caplog):
+    """A turn paused for a code run resumes with the Project file results it had already read."""
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.core.api.app.schemas.chat import AIHistoryMessage
+    from backend.shared.python_utils.recent_work_summary_client import (
+        PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER, private_async_tool_history_for_handoff,
+        restore_async_tool_completion_message,
+    )
+
+    request = _task_request()
+    request.active_project_focus = {"project_id": "project-1"}
+    request.is_async_skill_continuation = True
+    request.async_skill_task_id = "read-3"
+    for number in (1, 2):
+        request.message_history.append(AIHistoryMessage(
+            role="user", sender_name="async_tool_result", message_id=f"read-{number}",
+            content=PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER, created_at=number + 1,
+        ))
+    restore_async_tool_completion_message(request, {"async_tool_history": [
+        {"index": 1, "content": "BODY ONE", "project_id": "project-1"},
+        {"index": 2, "content": "BODY TWO", "project_id": "project-1"},
+    ]})
+    # The barrier's request copy carries placeholders only, never the bodies.
+    payload = request.model_dump(mode="json")
+    assert "BODY" not in str(payload["message_history"])
+    sealed_fields = {"same_turn_request": {"codec": "json-zlib-base64-v1", "data": "x"}}
+    history = private_async_tool_history_for_handoff(request, sealed_fields)
+    assert [entry["content"] for entry in history] == ["BODY ONE", "BODY TWO"]
+    assert {entry["project_id"] for entry in history} == {"project-1"}
+
+    resumed = AskSkillRequest.model_validate(payload)
+    resumed.is_async_skill_continuation = True
+    resumed.async_skill_task_id = "code-run"
+    with caplog.at_level("WARNING"):
+        restore_async_tool_completion_message(resumed, {**sealed_fields, "async_tool_history": history})
+    assert [message.content for message in resumed.message_history[1:]] == ["BODY ONE", "BODY TWO"]
+    assert "unresolved" not in caplog.text
+
+    # Over the transient size limit, the oldest result expires first and says so.
+    caplog.clear()
+    one_entry = len('{"content":"BODY TWO","index":2,"project_id":"project-1"}')
+    big = {"same_turn_request": {"data": "x" * (194_960 - 2 * one_entry)}}
+    with caplog.at_level("WARNING"):
+        trimmed = private_async_tool_history_for_handoff(request, big)
+    assert [entry["content"] for entry in trimmed] == ["BODY TWO"]
+    assert caplog.text.count("Expired an older private Project tool result") == 1
+    assert "BODY" not in caplog.text

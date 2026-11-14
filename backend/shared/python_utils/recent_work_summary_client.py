@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import time
@@ -63,6 +64,40 @@ def restore_async_tool_completion_message(request: object, transient: dict) -> N
             "present" if isinstance(completion, dict) else "missing",
         )
     setattr(request, "_private_async_tool_history", restored)
+
+
+PRIVATE_HANDOFF_BUDGET_BYTES = 195_000  # below the 200 KB transient store limit
+
+
+def private_async_tool_history_for_handoff(request: object, sealed_fields: dict) -> list[dict]:
+    """Carry restored Project file results across a same-turn barrier checkpoint.
+
+    The checkpoint's request copy serializes these results as placeholders, so
+    without this list a resumed turn tells the user the files could not be read.
+    Oldest results expire first when the handoff would exceed its size limit.
+    """
+    project_id = (getattr(request, "active_project_focus", None) or {}).get("project_id")
+    markers = getattr(request, "_private_async_tool_history", None) or []
+    history = [{"index": marker["index"], "content": marker["content"], "project_id": project_id}
+               for marker in markers[-20:]
+               if isinstance(marker, dict) and isinstance(marker.get("index"), int)
+               and isinstance(marker.get("content"), str) and marker["content"]]
+    if not history:
+        return []
+    if not isinstance(project_id, str) or not project_id:
+        logger.warning("Private Project tool results dropped from same-turn checkpoint: "
+                       "%d result(s) without an active Project binding", len(history))
+        return []
+    while history:
+        size = len(json.dumps({**sealed_fields, "async_tool_history": history},
+                              ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode())
+        if size <= PRIVATE_HANDOFF_BUDGET_BYTES:
+            return history
+        history.pop(0)
+        logger.warning("Expired an older private Project tool result from the same-turn "
+                       "checkpoint (%d byte budget, %d result(s) kept)",
+                       PRIVATE_HANDOFF_BUDGET_BYTES, len(history))
+    return history
 
 
 def rebind_private_async_tool_history_after_compression(request: object, compressed_history: list) -> list:

@@ -7182,7 +7182,9 @@ async def _consume_main_processing_stream(
                     deadline_seconds_for_jobs,
                 )
                 from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
-                from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+                from backend.shared.python_utils.recent_work_summary_client import (
+                    private_async_tool_history_for_handoff, seal_private_context_payload,
+                )
 
                 if cache_service is None:
                     raise RuntimeError("Same-turn completion cache unavailable")
@@ -7205,11 +7207,18 @@ async def _consume_main_processing_stream(
                     value = getattr(request_data, field, None)
                     if value:
                         request_payload[field] = value
+                checkpoint_fields = {
+                    "same_turn_request": pack_private_checkpoint(request_payload, checkpoint),
+                    "same_turn_checkpoint": {"handoff_ttl_seconds": handoff_ttl_seconds},
+                }
+                # The request copy above holds restored Project file results only
+                # as placeholders; hand their bodies over so the resume can read them.
+                private_history = private_async_tool_history_for_handoff(request_data, checkpoint_fields)
+                if private_history:
+                    checkpoint_fields["async_tool_history"] = private_history
                 sealed = await seal_private_context_payload(
                     {"user_id": request_data.user_id, "chat_id": request_data.chat_id,
-                     "message_id": request_data.message_id,
-                     "same_turn_request": pack_private_checkpoint(request_payload, checkpoint),
-                     "same_turn_checkpoint": {"handoff_ttl_seconds": handoff_ttl_seconds}},
+                     "message_id": request_data.message_id, **checkpoint_fields},
                     request_id=batch_id, ensure_turn_binding=True,
                 )
                 task_ids = chunk["task_ids"]

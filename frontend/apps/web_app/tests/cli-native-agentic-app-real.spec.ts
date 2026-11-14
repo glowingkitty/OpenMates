@@ -277,16 +277,21 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       const assets = collect(typed, ['asset_id', 'assetId', 'path']);
       const commitsAfter = collect(await run(['projects', 'commits', 'list', created[0], '--json']), ['commit_id', 'commitId']);
       const listedAfter = collect(await run(['projects', 'hosted', 'list', created[0], '--json']), ['path']);
+      // Stored evidence needs both ids: the web resolves a playable link from asset_id + variant.
+      const evidenceShape = (Array.isArray(typed.evidence) ? typed.evidence as Record<string, unknown>[] : [])
+        .map((item) => ({ kind: String(item.kind ?? ''), hasAsset: typeof item.asset_id === 'string' && item.asset_id !== '',
+          hasVariant: typeof item.variant === 'string' && item.variant !== '' }));
+      const storedVideo = evidenceShape.some((item) => item.kind === 'video' && item.hasAsset && item.hasVariant);
       Object.assign(evidence, { testTurn: { status: testTurn.status, testResults: testResults.length,
         kind: typed.kind, outcome: typed.status ?? typed.run_status ?? typed.outcome,
-        videoEvidence: assets.some((value) => /\.webm$/i.test(value)) || JSON.stringify(typed).includes('video'),
+        videoEvidence: storedVideo, evidenceShape, assetPaths: assets.filter((value) => /\.(webm|png|zip)$/i.test(value)),
         steps: Array.isArray(typed.steps) ? typed.steps.length : 0,
         commitsBefore: commitsBefore.length, commitsAfter: commitsAfter.length,
         testFiles: listedAfter.filter((path) => /tests?\//.test(path)) } });
       expect.soft(testTurn.status).toBe('completed');
       expect.soft(testResultId, 'a test_result embed in the chat').not.toBe('');
       expect.soft(typed.kind, 'browser test').toBe('browser');
-      expect.soft(JSON.stringify(typed), 'recorded video evidence').toMatch(/webm|video/i);
+      expect.soft(storedVideo, 'recorded video stored with asset_id and variant').toBe(true);
       expect.soft(listedAfter.some((path) => /^web-app\/.*tests?\//.test(path)), 'test file stored as a Project file').toBe(true);
       expect.soft(commitsAfter.length, 'a Project commit after green tests').toBeGreaterThan(commitsBefore.length);
     }
@@ -353,6 +358,13 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
         await card.evaluate((el) => el.scrollIntoView({ block: 'center' }));
         await page.waitForTimeout(500);
         await page.screenshot({ path: info.outputPath('chat-test-result-card.png') });
+        // Record the evidence link requests (status only) so a missing video names its cause.
+        const evidenceRequests: { status: number; variant: string }[] = [];
+        page.on('response', (response) => {
+          const match = /\/v1\/generated-assets\/[^/]+\/files\/([^/]+)\/download-url/.exec(response.url());
+          if (match) evidenceRequests.push({ status: response.status(), variant: match[1].slice(0, 24) });
+        });
+        Object.assign(evidence, { webEvidenceRequests: evidenceRequests });
         await card.getByTestId('result-preview-expand').click({ timeout: 30_000 });
         const body = page.getByTestId('test-result-fullscreen-body');
         await expect.soft(body).toBeVisible({ timeout: 30_000 });
