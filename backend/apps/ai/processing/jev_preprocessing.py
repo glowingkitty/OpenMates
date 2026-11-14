@@ -152,6 +152,9 @@ def _app_catalogue(available_apps: Iterable[str], available_skills: Iterable[str
     catalogue = []
     for app_id in app_ids:
         focus_examples[app_id].sort(key=lambda row: -len(request_words & _routing_words(row)))
+        # Only two skill hints fit the sketch: the ones matching the request win,
+        # otherwise a later skill (plans check) is never described to stage one.
+        examples[app_id].sort(key=lambda row: -len(request_words & _routing_words(row)))
         skills_and_focuses = f"capabilities {', '.join(names[app_id])}" if names[app_id] else ""
         example_hints = "; ".join(focus_examples[app_id] + examples[app_id][:2])
         provider_names = ", ".join(dict.fromkeys(providers[app_id]))

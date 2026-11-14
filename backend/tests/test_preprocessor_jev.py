@@ -58,6 +58,23 @@ def test_stage_one_shows_every_focus_hint_and_leads_with_the_request_match():
     ]) == "Write a press release"
 
 
+def test_stage_one_describes_the_skill_that_matches_the_request_first():
+    import yaml
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/plans/app.yml").read_text())
+    skills = [preprocessor._skill_routing_candidate("plans", SimpleNamespace(**{**row, "providers": []}))
+              for row in app["skills"]]
+    assert [row["id"] for row in app["skills"]].index("check") >= 2
+    (plain,) = jev_preprocessing._app_catalogue(["plans"], skills)
+    assert "Draft a Check" not in plain
+    (ranked,) = jev_preprocessing._app_catalogue(
+        ["plans"], skills, request_text="Please draft a Check for our bakery website with an e2e test source.")
+    assert "Draft a Check (verification gate) grouping tests" in ranked
+    (spec,) = jev_preprocessing._app_catalogue(
+        ["plans"], skills, request_text="Draft a short Specification for online sourdough ordering.")
+    assert "Draft or update a Specification" in spec
+
+
 def test_provider_correction_keeps_preceding_activity_and_provider_brand():
     history = [
         {"role": "user", "content": "Show me capoeira classes on OpenSports in Berlin."},

@@ -29012,17 +29012,17 @@ assertions:
       surface: gui.web
     - &id3732
       path: backend/tests/test_preprocessor_jev.py
-      line: 235
+      line: 252
       name: test_complete_public_routing_skips_empty_detailed_provider_call
       surface: gui.web
     - &id3733
       path: backend/tests/test_preprocessor_jev.py
-      line: 325
+      line: 342
       name: test_detailed_decisions_reuse_stage_one_model_and_mate_routing
       surface: gui.web
     - &id3734
       path: backend/tests/test_preprocessor_jev.py
-      line: 785
+      line: 802
       name: test_reserved_stage_one_stops_before_project_specialist_and_reuses_snapshot
       surface: gui.web
     - &id3735
@@ -29123,7 +29123,7 @@ assertions:
       surface: rest_api
     - &id3738
       path: backend/tests/test_preprocessor_jev.py
-      line: 87
+      line: 104
       name: test_jev_stage_one_routes_real_selector_and_thinking_profile
       surface: rest_api
     supporting_tests: []
@@ -29631,7 +29631,7 @@ assertions:
       surface: rest_api
     - &id3823
       path: backend/tests/test_preprocessor_jev.py
-      line: 87
+      line: 104
       name: test_jev_stage_one_routes_real_selector_and_thinking_profile
       surface: rest_api
     supporting_tests:
@@ -29953,28 +29953,28 @@ assertions:
     direct_tests:
     - &id3841
       path: backend/tests/test_preprocessor_jev.py
-      line: 947
+      line: 964
       name: test_registered_use_case_selects_its_models_with_fallbacks_on_auto
       surface: rest_api
     - &id3842
       path: backend/tests/test_preprocessor_jev.py
-      line: 970
+      line: 987
       name: test_use_case_never_replaces_an_exact_or_saved_model_choice
       surface: rest_api
     - &id3843
       path: backend/tests/test_preprocessor_jev.py
-      line: 986
+      line: 1003
       name: test_missing_weak_or_absent_use_case_keeps_tier_routing
       surface: rest_api
     - &id3845
       path: backend/tests/test_preprocessor_jev.py
-      line: 1024
+      line: 1041
       name: test_empty_use_case_registry_asks_no_question_and_uses_tier_routing
       surface: rest_api
     supporting_tests:
     - &id3844
       path: backend/tests/test_preprocessor_jev.py
-      line: 1000
+      line: 1017
       name: test_use_case_registry_drives_question_schema_and_known_models
       surface: rest_api
     tests:
@@ -30223,12 +30223,12 @@ assertions:
       surface: rest_api
     - &id3878
       path: backend/tests/test_preprocessor_jev.py
-      line: 156
+      line: 173
       name: test_optional_effort_survives_staged_routing_without_extra_calls
       surface: rest_api
     - &id3879
       path: backend/tests/test_preprocessor_jev.py
-      line: 197
+      line: 214
       name: test_recommendation_is_optional_canonical_and_survives_serialized_continuation
       surface: rest_api
     - &id3880
