@@ -38172,18 +38172,18 @@ assertions:
       surface: gui.web
     - &id4850
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 132
+      line: 150
       name: 'cli kind: terminal view with command, output and status per step, no
         video'
       surface: gui.web
     - &id4851
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 145
+      line: 163
       name: 'unit kind: counts and per-test list with status and error text'
       surface: gui.web
     - &id4852
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 159
+      line: 177
       name: stale marker visible only when the result is not current
       surface: gui.web
     - &id4853

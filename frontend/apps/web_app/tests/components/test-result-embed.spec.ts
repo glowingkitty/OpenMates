@@ -1,5 +1,5 @@
 // playwright-account: not_required reason=isolated_component_preview
-// proof-video: not_required reason=isolated_component_preview
+// proof-video: not_required reason=visual_smoke_not_needed
 import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 import type { Page } from '@playwright/test';
@@ -121,11 +121,29 @@ test.describe('test result fullscreen', () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=code-run.tests.recorded-evidence
-	test('browser failed step shows its error and failed status', async ({ page }) => {
+	test('browser failed step shows its error and failed status', async ({ page }, testInfo) => {
 		await open(page, FULLSCREEN, 'browserFailed', '1100');
 		const last = page.getByTestId('test-result-step-3');
 		await expect(last).toHaveAttribute('data-status', 'failed');
 		await expect(last).toContainText('Expected element');
+		// A step with a status line and an error grows to fit them: the global
+		// button height must not clip or centre its text.
+		// Row and parts are measured in one frame: the fullscreen opens with an animation.
+		const parts = await last.evaluate((row) => {
+			const r = row.getBoundingClientRect();
+			return ['.tr-step-name', '.tr-step-status', '.tr-step-error'].map((selector) => {
+				const p = row.querySelector(selector)!.getBoundingClientRect();
+				return { selector, top: p.top - r.top, bottom: r.bottom - p.bottom, left: p.left - r.left };
+			});
+		});
+		for (const part of parts) {
+			expect(part.top >= 0 && part.bottom >= -0.5, `${part.selector} stays inside its step row`).toBe(true);
+			expect(part.left <= 48, `${part.selector} is left-aligned`).toBe(true);
+		}
+		await testInfo.attach('test-result-timeline-failed-step', {
+			body: await page.getByTestId('test-result-timeline').screenshot(),
+			contentType: 'image/png'
+		});
 	});
 
 	// contract-test: supporting surface=gui.web assertions=code-run.tests.recorded-evidence
