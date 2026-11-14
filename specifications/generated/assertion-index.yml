@@ -190864,7 +190864,7 @@ assertions:
     current_direct_proof: false
   video-call.apple.live-activity:
     specification: feature.video-call@17
-    fingerprint: 486e1132b30a0f7a07d3f4cb98aeb45211220e2a9693a75790a9c9c0a9e04cd6
+    fingerprint: 7f9f18a504ea21bc1583f47d1b13005a9e9c7d1f1de2051ae56345b8b6a42832
     direct_tests: []
     supporting_tests: []
     tests: []

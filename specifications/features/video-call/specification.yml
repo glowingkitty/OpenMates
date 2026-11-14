@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.video-call
 version: 17
-status: draft
+status: approved
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
   pipeline. Normal automatic model and thinking-level routing, app skills and rich embeds are preserved; the old Gemini
@@ -504,7 +504,7 @@ assertions:
     call state (connecting or live) and a Hang up control that ends the call exactly like the in-app control. The
     activity ends when the call ends for any reason and never outlives it.
   depends_on:
-  - examples.background_resume
+  - examples.apple_live_activity
 - id: video-call.chat.orchestration-continuity
   type: behavior
   must: A call turn may start sub-chats and spawned main chats through the ordinary skills, and the call stays one

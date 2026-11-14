@@ -389,6 +389,16 @@ background_resume:
   when: The system ends the interruption without allowing the app to resume.
   then: The call ends cleanly, her transcript is kept, billing stops and a notice says the call ended so she can call
     again in the same chat.
+apple_live_activity:
+- id: lock-screen-hang-up
+  given: Maya is in a live call in the OpenMates iPhone app and locks the screen.
+  when: She looks at the Lock Screen and taps Hang up there.
+  then: The Lock Screen shows the running call with its state; Hang up ends the call exactly like the in-app button,
+    her transcript is kept and the call disappears from the Lock Screen and the Dynamic Island.
+- id: activity-ends-with-call
+  given: Maya's call in the OpenMates iPhone app is shown on the Lock Screen.
+  when: The call ends from the app, from the Mate's side or because it fails.
+  then: The Lock Screen and Dynamic Island call goes away at the same moment; it never stays behind after the call.
 complete_turn:
 - id: trailing-negation
   given: Voxtral signals a likely end while Maya is saying book the expensive option, actually do not book it.
