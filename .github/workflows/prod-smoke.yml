@@ -95,7 +95,9 @@ jobs:
           fi
           echo "status=passed" >> "$GITHUB_OUTPUT"
         env:
-          PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.PROD_BASE_URL }}
+          # The web app's public URL. openmates.org now serves the marketing
+          # site, which has no app header or composer, so every web smoke failed there.
+          PLAYWRIGHT_TEST_BASE_URL: https://app.openmates.org
 
       - name: Run signed-out web send smoke (active Send, sends, reply)
         if: ${{ inputs.suite == 'free-hourly' }}
@@ -113,7 +115,9 @@ jobs:
           fi
           echo "status=passed" >> "$GITHUB_OUTPUT"
         env:
-          PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.PROD_BASE_URL }}
+          # The web app's public URL. openmates.org now serves the marketing
+          # site, which has no app header or composer, so every web smoke failed there.
+          PLAYWRIGHT_TEST_BASE_URL: https://app.openmates.org
 
       - name: Run guest chat smoke (requires an assistant reply)
         if: ${{ inputs.suite == 'free-hourly' }}
