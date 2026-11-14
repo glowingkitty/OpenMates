@@ -53,8 +53,9 @@ PERSONA = (
     "She is friendly, busy and not technical; she answers in one to four short sentences, answers only what "
     "she is asked, and says 'I don't know, you decide' for technical details. If the assistant proposes "
     "splitting the work into several Specifications, she says one is enough for her small bakery. She corrects "
-    "the assistant once if it assumes something wrong. She says she approves only after the assistant has "
-    "shown a drafted Specification and Checks and asked for approval; before that she never uses the word approve."
+    "the assistant once if it assumes something wrong. Only after the assistant has shown a drafted "
+    "Specification and Checks and asked for approval does she answer the question asked, saying in her own "
+    "words that she approves it; before that she never uses the word approve."
 )
 OPENING = (f"{MODEL} {FOCUS_MENTION} Hi! I run a small sourdough bakery in Leipzig. I'd like customers to order bread online "
            "before they come in. Can you help me write a proper spec for that before anyone builds it?")
@@ -135,6 +136,13 @@ def delete_run_tasks(cli: str, chat_id: str | None, project_id: str | None) -> d
     return {"deleted": len(ids)}
 
 
+def count_items(value: object) -> int:
+    """Items of a list field; stored embed content may flatten lists into one '|'-joined string."""
+    if isinstance(value, list):
+        return len(value)
+    return len([part for part in value.split("|") if part.strip()]) if isinstance(value, str) else 0
+
+
 def classify_embeds(cli: str, chat_id: str, messages: list[dict], out: Path) -> list[dict]:
     """For each assistant message, the plans/tasks skill embeds it references."""
     found = []
@@ -154,8 +162,8 @@ def classify_embeds(cli: str, chat_id: str, messages: list[dict], out: Path) -> 
             kind = content.get("type") if typed else f"{app}.{skill}"
             found.append({"message": index, "embed_id": embed_id, "kind": kind,
                           "status": content.get("status") or embed.get("status"), "title": content.get("title"),
-                          "requirements": len(content.get("requirements") or []),
-                          "assumptions": len(content.get("assumptions") or []),
+                          "requirements": count_items(content.get("requirements")),
+                          "assumptions": count_items(content.get("assumptions")),
                           "role": content.get("role") or "",
                           "focus_id": content.get("focus_id") or content.get("focusId")})
     return found
@@ -172,7 +180,9 @@ def deterministic_checks(shown: dict, messages: list[dict], embeds: list[dict]) 
         hits = [e["message"] for e in embeds if e.get("kind") in kinds]
         return min(hits) if hits else None
 
-    specs = [e for e in embeds if e.get("kind") in {"specification", "plans.specification"}]
+    # A draft the skill rejected (and the model redrafted) is not a Specification.
+    specs = [e for e in embeds if e.get("kind") in {"specification", "plans.specification"}
+             and e.get("status") != "error"]
     spec_at = first({"specification", "plans.specification"})
     # Hand-off Tasks arrive as created task events, not always as a tasks.create embed.
     task_events = [i for i, m in enumerate(messages) if m.get("role") == "assistant" and created_tasks(m)]
@@ -209,7 +219,8 @@ def judge(cli: str, messages: list[dict], embeds: list[dict], out: Path) -> dict
                          + (f"\n    (embeds created: {'; '.join(tags)})" if tags else ""))
     rubric = "\n".join(f"- {key}: {text}" for key, text in RUBRIC.items())
     prompt = (f"{MODEL} You are a strict reviewer of a product assistant's conversation. Judge ONLY from the "
-              f"transcript below. Criteria:\n{rubric}\n\nAnswer with one JSON object in a json code block: "
+              f"transcript below. Criteria:\n{rubric}\n\nAnswer with one JSON object as plain text, without a "
+              "code block (a code block would become a code file): "
               '{"criteria": {"<criterion>": {"pass": true|false, "note": "<one sentence>"}}, '
               '"overall_pass": true|false, "summary": "<two sentences>"}. Do not use tools.\n\n'
               "Transcript:\n" + "\n\n".join(lines))
@@ -322,8 +333,6 @@ def main() -> int:
         embeds = classify_embeds(cli, chat_id, messages, out)
         receipt["embeds"] = embeds
         receipt["checks"] = deterministic_checks(shown, messages, embeds)
-        receipt["judge"] = judge(cli, messages, embeds, out)
-        judged = all(isinstance(c, dict) and c.get("pass") is True for c in receipt["judge"]["criteria"].values())
         capture = subprocess.run([sys.executable, str(ROOT / "scripts/cli_video_capture.py"), "--output-dir",
                                   str(out / "terminal"), "--target-environment", API_URL, "--display-number", "198",
                                   "--timeout-seconds", "150", "--no-response-media", "--", cli, "chats", "show",
@@ -332,6 +341,8 @@ def main() -> int:
         write_receipt(out / "capture-diagnostic.json", {"stdout": capture.stdout[-4000:], "stderr": capture.stderr[-4000:]})
         recording = out / "terminal" / "raw-terminal.mp4"
         receipt["recording"] = str(recording) if recording.exists() else "failed"
+        receipt["judge"] = judge(cli, messages, embeds, out)
+        judged = all(isinstance(c, dict) and c.get("pass") is True for c in receipt["judge"]["criteria"].values())
         require_runtime_revision(args.revision)
         passed = all(receipt["checks"].values()) and judged and receipt["judge"].get("overall_pass") is True
         receipt["status"] = "passed" if passed and recording.exists() else "failed"

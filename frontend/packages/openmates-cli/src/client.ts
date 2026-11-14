@@ -1918,6 +1918,16 @@ export function buildTaskUpdateJobPersistPayload(params: {
   };
 }
 
+/**
+ * Task update jobs persist only client-encrypted Task fields. `buildCreateUserTaskInput`
+ * adds plaintext title/description for OpenMates-assigned Tasks (used by the direct
+ * create route so the AI can start them); the job persist guard and the server reject them.
+ */
+export function withoutTransientTaskAiFields<T extends Record<string, unknown>>(input: T): Omit<T, "plaintext_title" | "plaintext_description"> {
+  const { plaintext_title: _title, plaintext_description: _description, ...encrypted } = input;
+  return encrypted;
+}
+
 function pruneAbsentTaskPersistFields(payload: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(payload).filter(([key, value]) => value !== undefined && (value !== null || key === "primary_chat_id")),
@@ -11378,7 +11388,7 @@ export class OpenMatesClient {
           chatId: safeMetadata.primary_chat_id === null ? undefined : typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : claim.chat_id ?? params.activeChatId,
         });
         encryptedTaskPayload = {
-          ...input,
+          ...withoutTransientTaskAiFields(input),
           task_id: claim.task_id,
           position: typeof safeMetadata.position === "number" ? safeMetadata.position : input.position,
           created_at: typeof safeMetadata.created_at === "number" ? safeMetadata.created_at : input.created_at,
