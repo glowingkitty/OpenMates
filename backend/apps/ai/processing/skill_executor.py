@@ -651,6 +651,10 @@ async def execute_skill_with_multiple_requests(
             ("code", "run"),
             ("pdf", "read"),
             ("pdf", "view"),
+            # One Check carries several sources and one Specification several
+            # requirements and flows; splitting those lists breaks the definition.
+            ("plans", "check"),
+            ("plans", "specification"),
         }
     ):
         result = await execute_skill(

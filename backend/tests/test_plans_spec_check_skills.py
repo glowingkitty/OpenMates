@@ -77,3 +77,28 @@ async def test_check_requires_deterministic_required_source():
 async def test_check_source_validation(sources, message):
     result = await _skill(CheckSkill).execute(title="t", sources=sources)
     assert not result.success and message in result.error
+
+
+# contract-test: supporting surface=rest_api assertions=checks.sources.mixed-types
+@pytest.mark.asyncio
+@pytest.mark.parametrize("skill_id,arguments", [
+    ("check", {"title": "Ordering works", "sources": [src("a", "e2e", test_target="order.spec.ts"),
+                                                      src("b", "human_confirmation", "supporting", instruction="Taste it")]}),
+    ("specification", {"title": "Ordering", "summary": "s", "scope_included": ["loaves", "pickup"],
+                       "requirements": [{"id": "R1", "statement": "a"}, {"id": "R2", "statement": "b"}]}),
+])
+async def test_executor_keeps_check_and_specification_lists_in_one_call(monkeypatch, skill_id, arguments):
+    # A Check's sources and a Specification's requirements are one definition,
+    # not one request per list item (real Gemini run sent 2 sources -> 2 broken calls).
+    from backend.apps.ai.processing import skill_executor
+
+    captured = []
+
+    async def execute(app_id, skill_id, arguments, *_args, **_kwargs):
+        captured.append(arguments)
+        return {"status": "ok"}
+
+    monkeypatch.setattr(skill_executor, "execute_skill", execute)
+    result = await skill_executor.execute_skill_with_multiple_requests("plans", skill_id, arguments, max_retries=0)
+    assert result == [{"status": "ok"}]
+    assert captured == [arguments]
