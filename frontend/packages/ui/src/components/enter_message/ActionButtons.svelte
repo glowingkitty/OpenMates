@@ -270,7 +270,7 @@
                     {$text('enter_message.send')}
                 </button>
             {:else if guestStatusLoading && !forceUnauthenticatedCta}
-                <span class="send-button send-button-loading" role="status" data-testid="composer-send-loading" data-action="guest-status-loading" aria-label={$text('enter_message.guest_access_checking')} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
+                <span class="send-button send-button-loading" role="status" data-testid="composer-send-loading" data-action="guest-status-loading" aria-label={$text('enter_message.guest_access_checking')} in:fly={{ x: 40, duration: 200 }}>
                     <span class="send-loading-dot" aria-hidden="true"></span>
                 </span>
             {:else}

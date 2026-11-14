@@ -1,5 +1,5 @@
 // playwright-account: not_required reason=isolated_component_preview
-// proof-video: not_required reason=isolated_component_preview
+// proof-video: not_required reason=visual_smoke_not_needed
 /**
  * Signed-out composer states on the isolated MessageInput preview.
  *
@@ -80,7 +80,8 @@ test.describe('Signed-out composer states', () => {
 		const send = page.getByTestId('action-buttons').getByTestId('composer-send-button');
 		await expect(send).toBeVisible({ timeout: 10_000 });
 		await expect(send).toBeEnabled();
-		await expect(loading).toHaveCount(0);
+		// Loading leaves at once, so it never shows next to the resolved control.
+		expect(await loading.count()).toBe(0);
 		await expect(page.getByTestId('guest-access-reason')).toHaveCount(0);
 		await attach(testInfo, page, 'guest-send');
 		await expectNoDisabledSendSeen(page);
@@ -106,7 +107,7 @@ test.describe('Signed-out composer states', () => {
 		await openSignedOutComposer(page);
 		await expect(page.getByTestId('composer-send-loading')).toBeVisible();
 		await expect(page.getByTestId('composer-account-cta')).toBeVisible({ timeout: 12_000 });
-		await expect(page.getByTestId('composer-send-loading')).toHaveCount(0);
+		expect(await page.getByTestId('composer-send-loading').count()).toBe(0);
 		await expect(page.getByTestId('guest-access-reason')).toHaveAttribute('data-reason', 'status_unavailable');
 		await attach(testInfo, page, 'guest-status-hang-resolved');
 		// A retry on refocus stays on Sign up until it succeeds; it never loops back to loading.

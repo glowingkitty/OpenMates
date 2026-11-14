@@ -143275,27 +143275,27 @@ assertions:
       surface: gui.web
     - &id18261
       path: frontend/apps/web_app/tests/components/message-input-guest-states.spec.ts
-      line: 90
+      line: 91
       name: offers Sign up with a reason when the access check fails
       surface: gui.web
     - &id18262
       path: frontend/apps/web_app/tests/components/message-input-guest-states.spec.ts
-      line: 103
+      line: 104
       name: resolves a hanging access check to Sign up instead of loading forever
       surface: gui.web
     - &id18263
       path: frontend/apps/web_app/tests/components/message-input-guest-states.spec.ts
-      line: 130
+      line: 131
       name: offers Log in with a reason to a browser that has logged in before
       surface: gui.web
     - &id18264
       path: frontend/apps/web_app/tests/components/message-input-guest-states.spec.ts
-      line: 142
+      line: 143
       name: names an exhausted allowance as the reason for Sign up
       surface: gui.web
     - &id18265
       path: frontend/apps/web_app/tests/components/message-input-guest-states.spec.ts
-      line: 152
+      line: 153
       name: a leftover demo flag does not turn Send into a visual-only or disabled
         control
       surface: gui.web
