@@ -417,6 +417,10 @@ struct CodeEmbedRenderer: View {
                         .background(Color.grey100)
                         .clipShape(RoundedRectangle(cornerRadius: .radius3))
                         .accessibilityIdentifier("code-run-output-preview")
+                } else if isSvgVisual, !code.isEmpty || embed?.status == .processing {
+                    SvgEmbedRenderer(code: code, title: filename ?? language, status: embed?.status ?? .finished)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                        .accessibilityIdentifier("svg-embed-preview")
                 } else if previewState == .processing {
                     VStack(spacing: .spacing4) {
                         Circle()
@@ -505,6 +509,11 @@ struct CodeEmbedRenderer: View {
         }
     }
 
+    /// `resolveCodePreviewKind(...) === 'svg'` (web CodeEmbedPreview showSvgImage).
+    private var isSvgVisual: Bool {
+        SvgEmbedDocument.isSvg(language: language, filename: filename, code: code)
+    }
+
     private var outputPaneActive: Bool {
         previewActive
     }
@@ -534,7 +543,11 @@ struct CodeEmbedRenderer: View {
 
     @ViewBuilder
     private var outputPanel: some View {
-        if previewActive, isPreviewable {
+        if previewActive, isSvgVisual {
+            SvgEmbedRenderer(code: code, title: filename ?? language, status: embed?.status ?? .finished)
+                .frame(minHeight: 420)
+                .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        } else if previewActive, isPreviewable {
             CodePreviewPane(code: displayCode, language: language, filename: filename)
                 .frame(minHeight: 420)
                 .clipShape(RoundedRectangle(cornerRadius: .radius4))

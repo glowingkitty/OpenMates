@@ -308,7 +308,9 @@ struct AppSkillUseRenderer: View {
         } else if appId == "videos", skillId == "search" {
             return AnyView(VideosSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
         } else if appId == "images", ImageGenerateCardState.skillIds.contains(skillId) {
-            return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview, status: embed.status, skillId: skillId))
+            return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview, status: embed.status, skillId: skillId,
+                                       version: ImageVersionBadgeState.versions(of: embed).version,
+                                       headVersion: ImageVersionBadgeState.versions(of: embed).head))
         } else if appId == "images", skillId == "view" {
             let model = ImageViewSkillModel(embed: embed, allEmbedRecords: allEmbedRecords)
             return AnyView(ImageEmbedRenderer(
@@ -489,7 +491,9 @@ struct AppSkillUseRenderer: View {
         } else if appId == "videos", skillId == "search" {
             VideosSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
         } else if appId == "images", ImageGenerateCardState.skillIds.contains(skillId) {
-            ImageGenerateEmbedRenderer(data: data, mode: .fullscreen, status: embed.status, skillId: skillId)
+            ImageGenerateEmbedRenderer(data: data, mode: .fullscreen, status: embed.status, skillId: skillId,
+                                       version: ImageVersionBadgeState.versions(of: embed).version,
+                                       headVersion: ImageVersionBadgeState.versions(of: embed).head)
         } else if appId == "images", skillId == "view" {
             let model = ImageViewSkillModel(embed: embed, allEmbedRecords: allEmbedRecords)
             ImageEmbedRenderer(

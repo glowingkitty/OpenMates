@@ -1,6 +1,8 @@
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.layout.responsive-history,
 //             chats.rendering.inline-entity-interaction
+// Specification: specifications/architecture/app-skill-execution/specification.yml
+// Assertions: app-skills.progress.live-status
 //
 // Unified embed preview card — compact card shown inline in chat messages.
 // Mirrors UnifiedEmbedPreview.svelte with app gradient header, content area,
@@ -176,6 +178,8 @@ struct EmbedPreviewCard: View {
     @Environment(\.embedShareSettingsAction) private var shareSettingsAction
     @Environment(\.workspacePaneIsVisible) private var sharePaneVisible
     @State private var showsContextActions = false
+    /// Newest live progress frame of a running skill (core embed_read::progress).
+    @State private var progressTracker = EmbedProgressTracker()
     @State private var isHovering = false
     @State private var hoverX: CGFloat = 0
     @State private var hoverY: CGFloat = 0
@@ -275,6 +279,7 @@ struct EmbedPreviewCard: View {
         .onChange(of: embed.status) { oldStatus, newStatus in
             handleStatusChange(from: oldStatus, to: newStatus)
         }
+        .task(id: progressFrameKey) { progressTracker.update(from: embed.rawData) }
         .onDisappear {
             showsContextActions = false
             statusHintTask?.cancel()
@@ -782,7 +787,15 @@ struct EmbedPreviewCard: View {
         return title.isEmpty ? "Mermaid Diagram" : title
     }
 
+    /// Changes whenever the server re-sends the running embed with a new `progress` object.
+    private var progressFrameKey: String {
+        guard embed.status == .processing, let progress = embed.rawData?["progress"]?.value else { return "" }
+        return String(describing: progress)
+    }
+
     private var statusSubtitle: String? {
+        // BasicInfosBar.svelte: generic progress wins over skill-specific text while processing.
+        if embed.status == .processing, let progress = progressTracker.presentation { return progress.text }
         if HostingEmbedKind.isDomain(embed) || (HostingEmbedKind.isSearch(embed) && embed.status != .processing) { return nil }
         if embedType == .travelStay { return nil }
         if embedType == .maps || embedType == .mapsPlace { return nil }

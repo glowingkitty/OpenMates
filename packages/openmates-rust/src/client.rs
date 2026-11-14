@@ -86,6 +86,9 @@ pub mod chat_orchestration;
 pub mod image_enhance;
 /// Version history with provenance and the edit head of a native shell's edit.
 pub mod embed_version_history;
+/// Repair a partially streamed SVG into a renderable document.
+pub mod progressive_svg;
+pub mod video_timeline;
 pub mod saved_embed;
 #[doc(hidden)]
 pub mod shared_items;
@@ -188,6 +191,9 @@ mod project_create_request;
 use project_create_request::PROJECT_CREATE_CAPABILITY;
 pub use project_create_request::MachineProjectDecision;
 pub mod memory_document_fields;
+pub mod memory_draft_diff;
+#[cfg(test)]
+mod memory_draft_diff_tests;
 mod memory_frontmatter;
 pub mod memory_documents;
 mod memory_catalog;

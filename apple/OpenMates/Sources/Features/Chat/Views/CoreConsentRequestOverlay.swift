@@ -47,6 +47,7 @@ private struct CoreConsentRequestCard: View {
             Text(AppStrings.localized("chat.permissions.title"))
                 .font(.omP.weight(.semibold))
                 .foregroundStyle(Color.fontPrimary)
+            MemoryConsentCountLabel(selected: selected.count, total: request.items.count)
             Text(AppStrings.localized("chat.permissions.question"))
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)

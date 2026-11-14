@@ -1582,6 +1582,9 @@ struct VideoGenerateEmbedRenderer: View {
                         .padding(.top, 16)
                 }
 
+                VideoGenerateTimelineSection(data: data)
+                    .accessibilityIdentifier("video-generate-timeline")
+
                 if payload.prompt != nil || payload.model != nil || payload.resolution != nil {
                     Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
                         if let prompt = payload.prompt { detailRow(GeneratedMediaText.prompt, prompt) }

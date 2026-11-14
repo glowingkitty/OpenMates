@@ -33,7 +33,19 @@ mod view_core;
 mod view_draft_versions;
 mod view_drafts;
 mod view_embed_enhance;
+mod view_embed_message_version;
 mod view_embeds;
+mod view_progressive_svg;
+mod view_body_embeds;
+mod view_embed_progress;
+mod view_memory_draft_diff;
+mod view_remote_commands;
+mod view_video_timeline;
+/// Stored video timeline of `videos.generate` embeds (`view_video_timeline`).
+pub use view_video_timeline::{
+    VideoAudioEntryRecord, VideoAudioKindRecord, VideoMadeByRecord, VideoPartKindRecord,
+    VideoPartRecord, VideoTimelineRecord, VideoTrackKindRecord, VideoTrackRecord, video_timeline,
+};
 #[cfg(any(test, feature = "test-support"))]
 mod view_fixture;
 #[cfg(any(test, feature = "test-support"))]
@@ -193,3 +205,5 @@ mod view_upload_tests;
 mod view_profile_cache_tests;
 #[cfg(test)]
 mod view_window_tests;
+#[cfg(test)]
+mod view_remote_commands_tests;

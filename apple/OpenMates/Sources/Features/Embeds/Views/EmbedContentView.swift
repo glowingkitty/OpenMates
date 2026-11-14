@@ -227,7 +227,9 @@ struct EmbedContentView: View {
                 ImageResultEmbedRenderer(data: rawData, mode: mode)
             case .imagesGenerate, .imagesGenerateDraft:
                 ImageGenerateEmbedRenderer(data: rawData, mode: mode, status: embed.status,
-                                           skillId: embedType == .imagesGenerateDraft ? "generate_draft" : "generate")
+                                           skillId: embedType == .imagesGenerateDraft ? "generate_draft" : "generate",
+                                           version: ImageVersionBadgeState.versions(of: embed).version,
+                                           headVersion: ImageVersionBadgeState.versions(of: embed).head)
             case .image:
                 ImageEmbedRenderer(data: rawData, mode: mode)
 

@@ -234,6 +234,7 @@ struct EmbedFullscreenContainer: View {
             || filename.hasSuffix(".htm")
             || filename.hasSuffix(".md")
             || filename.hasSuffix(".markdown")
+            || SvgEmbedDocument.isSvg(language: language, filename: filename, code: payload.code)
     }
 
     private var childEmbeds: [EmbedRecord] {

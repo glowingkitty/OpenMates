@@ -14,7 +14,7 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift, TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/app-memories/specification.yml
-// Assertions: app-memories.lifecycle.encrypted-crud, app-memories.load-modes, app-memories.compatibility.legacy-documents, app-memories.surface.semantic-parity
+// Assertions: app-memories.lifecycle.encrypted-crud, app-memories.load-modes, app-memories.compatibility.legacy-documents, app-memories.surface.semantic-parity, app-memories.suggestions.post-processor, app-memories.references.embeds
 
 import SwiftUI
 
@@ -28,6 +28,8 @@ struct SettingsMemoryEntryPage: View {
     let onDelete: () -> Void
 
     @State private var draft: SettingsMemoryDraft
+    /// An unsaved suggestion from a chat Recommendation (web `isDraft`).
+    private let isDraft: Bool
 
     init(row: SettingsMemoryRow?, saving: Bool, error: String?,
          initialDraft: SettingsMemoryDraft? = nil,
@@ -36,6 +38,13 @@ struct SettingsMemoryEntryPage: View {
         self.onSave = onSave; self.onCancel = onCancel; self.onDelete = onDelete
         // `initialDraft`: an unsaved draft from a chat Recommendation replaces the stored fields.
         _draft = State(initialValue: initialDraft ?? row?.record.fields.map(SettingsMemoryDraft.init) ?? SettingsMemoryDraft())
+        isDraft = initialDraft != nil
+    }
+
+    /// Fields the suggestion changes against the stored Memory, from the core.
+    private var draftChanges: [MemoryFieldChangeRecord] {
+        guard isDraft, let saved = row?.record.fields else { return [] }
+        return diffMemoryDraftFields(saved: saved, draft: draft.fields)
     }
 
     private var isNew: Bool { row == nil }
@@ -55,6 +64,10 @@ struct SettingsMemoryEntryPage: View {
     }
 
     @ViewBuilder private var editor: some View {
+        if isDraft {
+            MemoryDraftBanner()
+            MemoryDraftDiffView(changes: draftChanges)
+        }
         OMSettingsSectionHeading(title: AppStrings.memoriesFieldTitle, icon: "text")
             .accessibilityIdentifier("memory-field-title")
         OMSettingsTextInput(label: AppStrings.memoriesFieldTitle, placeholder: "", value: $draft.title, identifier: "rule-title")
@@ -63,6 +76,7 @@ struct SettingsMemoryEntryPage: View {
             .accessibilityIdentifier("memory-field-memory")
         OMSettingsTextInput(label: AppStrings.memoriesFieldBody, placeholder: AppStrings.memoriesBodyPlaceholder,
                             value: $draft.body, identifier: "rule-body", multiline: true)
+        MemoryReferencesHint()
 
         OMSettingsSectionHeading(title: AppStrings.memoriesWhenToUseOptional, icon: "focus")
             .accessibilityIdentifier("memory-field-when-to-use")
