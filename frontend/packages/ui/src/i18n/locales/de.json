@@ -973,6 +973,9 @@
           "3": {
             "text": "Welche Tech-Veranstaltungen finden im Januar in London statt?"
           }
+        },
+        "pricing_note": {
+          "text": "Eine typische Event-Suche kostet etwa 15–25 Credits: 10 Credits für die Websuche plus die Tokens, die Mercury 3 zum Lesen von bis zu fünf öffentlichen Seiten braucht. Eine Suche, die nur ein offizieller Konferenzplan beantwortet, kostet 1 Credit. Suchen, die fehlschlagen oder nichts finden, sind kostenlos."
         }
       }
     },
@@ -5936,12 +5939,6 @@
     },
     "cancel": {
       "text": "Abbrechen"
-    },
-    "save": {
-      "text": "Änderungen speichern"
-    },
-    "saving": {
-      "text": "Wird gespeichert…"
     }
   },
   "digital_team_mates": {
@@ -7597,17 +7594,20 @@
     "docs_editor_numbers": {
       "text": "Nummerierte Liste"
     },
-    "docs_editor_save": {
-      "text": "Speichern"
-    },
-    "docs_editor_saving": {
-      "text": "Wird gespeichert…"
-    },
     "docs_editor_cancel": {
       "text": "Abbrechen"
     },
     "docs_editor_reload": {
       "text": "Neu laden"
+    },
+    "header_edit": {
+      "text": "Bearbeiten"
+    },
+    "header_save": {
+      "text": "Speichern und Bearbeiten beenden"
+    },
+    "header_saving": {
+      "text": "Wird gespeichert…"
     }
   },
   "embeds": {
@@ -27213,6 +27213,15 @@
     },
     "source_frame_failed": {
       "text": "Das Kamerabild konnte nicht gespeichert werden."
+    },
+    "screen_share_on": {
+      "text": "Bildschirm teilen"
+    },
+    "screen_share_off": {
+      "text": "Bildschirmfreigabe beenden"
+    },
+    "connecting_short": {
+      "text": "Verbindung wird hergestellt…"
     }
   },
   "waiting_list": {

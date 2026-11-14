@@ -440,6 +440,7 @@ struct OpenMatesWidgetBundle: WidgetBundle {
         if #available(iOS 18.0, macOS 26.0, *) { OpenMatesControlsBundle().body }
         #if os(iOS)
         if #available(iOS 16.2, *) { registeredLiveActivity }
+        if #available(iOS 16.2, *) { OpenMatesCallLiveActivity() }
         #endif
     }
     #if os(iOS)

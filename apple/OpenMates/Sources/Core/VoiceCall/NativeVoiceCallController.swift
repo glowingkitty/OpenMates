@@ -6,7 +6,7 @@
 // video-call.lifecycle.recovery-and-billing, video-call.privacy.first-call-warning,
 // video-call.audio.intentional-interruption, video-call.audio.spoken-rich-response,
 // video-call.audio.complete-turn-admission, video-call.chat.activity-status, video-call.usage.provider-metering, video-call.chat.skill-integration,
-// video-call.audio.background-resume
+// video-call.audio.background-resume, video-call.video.input-and-output, video-call.video.source-frame-provenance
 
 import Foundation
 
@@ -17,6 +17,9 @@ actor NativeVoiceCallController {
     private let audio: any NativeVoiceCallAudio
     private let persistence: any NativeVoiceCallPersistence
     private let makeTransport: TransportFactory
+    /// Answers a `voice_source_frame` (frame, call id, chat id); `nil` answer = duplicate, ignore.
+    typealias SourceFrameAnswer = @Sendable (NativeVoiceCallFrame, String, String) async -> NativeVoiceCallFrame?
+    private let answerSourceFrame: SourceFrameAnswer?
     private let event: Handler
     private var state = NativeVoiceCallSnapshot()
     private var generation = UUID()
@@ -54,7 +57,9 @@ actor NativeVoiceCallController {
 
     init(environment: NativeVoiceCallEnvironment, audio: any NativeVoiceCallAudio,
          persistence: any NativeVoiceCallPersistence,
-         transportFactory: @escaping TransportFactory, eventHandler: @escaping Handler) {
+         transportFactory: @escaping TransportFactory, sourceFrameAnswer: SourceFrameAnswer? = nil,
+         eventHandler: @escaping Handler) {
+        answerSourceFrame = sourceFrameAnswer
         self.environment = environment; self.audio = audio; self.persistence = persistence
         makeTransport = transportFactory; event = eventHandler
     }
@@ -318,6 +323,21 @@ actor NativeVoiceCallController {
         issuedArtifacts[key] = ArtifactOrigin(assistantID: assistant, userID: user, type: reference.type, createdAt: timestamp)
     }
 
+    /// Tells the server the camera is on or off (web `camera_state`); queued while context is paused.
+    func sendCameraState(enabled: Bool) async {
+        guard state.status == .live, let scope = state.scope, let callID = state.callID else { return }
+        try? await input(["type": .string("camera_state"), "call_id": .string(callID), "enabled": .bool(enabled)],
+                         token: generation, scope: scope)
+    }
+
+    #if !os(watchOS)
+    /// Sends one JPEG camera frame (web `camera_frame`) while the call is live.
+    func sendCameraFrame(_ frame: NativeVoiceCallCameraFrame) async {
+        guard state.status == .live, let scope = state.scope, let callID = state.callID else { return }
+        try? await input(frame.message(callID: callID), token: generation, scope: scope)
+    }
+    #endif
+
     private func input(_ frame: NativeVoiceCallFrame, token: UUID, scope: NativeVoiceCallScope) async throws {
         // Queue in controller arrival order before any suspension. The writer
         // revalidates authenticated scope immediately before the actual write.
@@ -445,18 +465,18 @@ actor NativeVoiceCallController {
             if frame["enabled"]?.bool == false { state.cameraEnabled = false }
             await publish()
         case "voice_source_frame":
-            // Apple has no call camera and no client-core path to persist a
-            // source frame as an encrypted embed. Refuse it explicitly so the
-            // broker never waits for an attachment that cannot be saved.
-            guard state.status == .live, let callID = state.callID, frame["call_id"]?.string == callID,
-                  let userID = frame["user_message_id"]?.string, !userID.isEmpty, userID.utf8.count <= 128,
-                  let frameID = frame["frame_id"]?.string, !frameID.isEmpty, frameID.utf8.count <= 128,
-                  (frame["data"]?.string?.utf8.count ?? .max) <= NativeVoiceCallWire.maximumSourceFrameCharacters,
-                  frame["captured_at"]?.number != nil, frame["created_at"]?.number != nil else { return }
-            try await input(["type": .string("source_frame_failed"), "call_id": .string(callID),
-                "user_message_id": .string(userID), "frame_id": .string(frameID)], token: token, scope: scope)
-            state.cameraNotice = .sourceFrameFailed
-            await publish()
+            // The core saves the exact frame the server selected as an encrypted image
+            // embed; the answer (saved or failed) goes back on the same input path.
+            guard state.status == .live, let callID = state.callID, frame["call_id"]?.string == callID else { return }
+            let answer: NativeVoiceCallFrame?
+            if let answerSourceFrame { answer = await answerSourceFrame(frame, callID, scope.chatID) }
+            else { answer = NativeVoiceCallWire.sourceFrameFailure(frame: frame, callID: callID) }
+            guard let answer else { return }
+            try await input(answer, token: token, scope: scope)
+            if answer["type"]?.string == "source_frame_failed" {
+                state.cameraNotice = .sourceFrameFailed
+                await publish()
+            }
         case "text_input.accepted", "source", "waiting", "progress": break
         case "text_input_rejected":
             guard let id = frame["message_id"]?.string, pendingTyped.removeValue(forKey: id) != nil else { return }

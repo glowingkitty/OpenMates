@@ -953,6 +953,9 @@
           "3": {
             "text": "Ocak ayında Londra'da hangi teknoloji etkinlikleri var?"
           }
+        },
+        "pricing_note": {
+          "text": "Tipik bir etkinlik araması yaklaşık 15–25 kredi tutar: web araması için 10 kredi artı Mercury 3'ün en fazla beş herkese açık sayfayı okumak için kullandığı tokenler. Yalnızca resmi bir konferans programının yanıtladığı arama 1 kredi tutar. Başarısız olan veya hiçbir şey bulamayan aramalar ücretsizdir."
         }
       }
     },

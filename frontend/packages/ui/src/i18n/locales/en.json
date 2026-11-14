@@ -973,6 +973,9 @@
           "3": {
             "text": "What **tech events** are happening in London in January?"
           }
+        },
+        "pricing_note": {
+          "text": "A typical event search costs about 15–25 credits: 10 credits for the web search plus the tokens Mercury 3 uses to read up to five public pages. A search answered only by an official conference schedule costs 1 credit. Searches that fail or find nothing are free."
         }
       }
     },
@@ -5995,12 +5998,6 @@
     },
     "cancel": {
       "text": "Cancel"
-    },
-    "save": {
-      "text": "Save changes"
-    },
-    "saving": {
-      "text": "Saving…"
     }
   },
   "digital_team_mates": {
@@ -7656,17 +7653,20 @@
     "docs_editor_numbers": {
       "text": "Numbered list"
     },
-    "docs_editor_save": {
-      "text": "Save"
-    },
-    "docs_editor_saving": {
-      "text": "Saving…"
-    },
     "docs_editor_cancel": {
       "text": "Cancel"
     },
     "docs_editor_reload": {
       "text": "Reload"
+    },
+    "header_edit": {
+      "text": "Edit"
+    },
+    "header_save": {
+      "text": "Save and finish editing"
+    },
+    "header_saving": {
+      "text": "Saving…"
     }
   },
   "embeds": {
@@ -18113,6 +18113,15 @@
     "create_code_file": {
       "text": "New code file"
     },
+    "create_folder": {
+      "text": "New folder"
+    },
+    "create_default_folder_name": {
+      "text": "New folder"
+    },
+    "create_folder_failed": {
+      "text": "Could not create the folder. Please try again."
+    },
     "create_name_label": {
       "text": "Name"
     },
@@ -28022,6 +28031,15 @@
     },
     "source_frame_failed": {
       "text": "The camera reference could not be saved."
+    },
+    "screen_share_on": {
+      "text": "Share screen"
+    },
+    "screen_share_off": {
+      "text": "Stop sharing screen"
+    },
+    "connecting_short": {
+      "text": "Connecting…"
     }
   },
   "waiting_list": {

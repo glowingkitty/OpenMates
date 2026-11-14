@@ -953,6 +953,9 @@
           "3": {
             "text": "¿Qué eventos tecnológicos hay en Londres en enero?"
           }
+        },
+        "pricing_note": {
+          "text": "Una búsqueda de eventos típica cuesta unos 15–25 créditos: 10 créditos por la búsqueda web más los tokens que Mercury 3 usa para leer hasta cinco páginas públicas. Una búsqueda respondida solo por un programa oficial de conferencia cuesta 1 crédito. Las búsquedas que fallan o no encuentran nada son gratuitas."
         }
       }
     },

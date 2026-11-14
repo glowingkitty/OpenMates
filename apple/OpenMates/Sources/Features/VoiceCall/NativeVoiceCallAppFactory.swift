@@ -2,7 +2,8 @@
 // Specification: specifications/features/video-call/specification.yml
 // Assertions: video-call.chat.fixed-binding, video-call.chat.transcripts,
 // video-call.chat.compressed-context, video-call.privacy.first-call-warning,
-// video-call.audio.spoken-rich-response, video-call.audio.complete-turn-admission, video-call.audio.intentional-interruption
+// video-call.audio.spoken-rich-response, video-call.audio.complete-turn-admission, video-call.audio.intentional-interruption,
+// video-call.video.input-and-output, video-call.video.source-frame-provenance
 #if !os(watchOS)
 import Foundation
 import CryptoKit
@@ -21,10 +22,17 @@ protocol NativeVoiceCallAppDriving: AnyObject {
     func start(_ destination: NativeVoiceCallAppDestination) async throws
     func sendText(_ text: String) async throws -> String
     func setMuted(_ muted: Bool) async
+    func sendCameraState(_ enabled: Bool) async
+    func sendCameraFrame(_ frame: NativeVoiceCallCameraFrame) async
     func hangup() async
     func invalidate() async
     func snapshot() async -> NativeVoiceCallSnapshot
     func respondToTool(_ frame: NativeVoiceCallFrame) async throws
+}
+
+extension NativeVoiceCallAppDriving {
+    func sendCameraState(_ enabled: Bool) async {}
+    func sendCameraFrame(_ frame: NativeVoiceCallCameraFrame) async {}
 }
 
 /// Retain once per authenticated app root, outside navigation destinations.
@@ -115,8 +123,12 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
                 try await self.interruptAssistant(scope: scope, messageID: id, taskID: taskID)
             }, now: base.now, sleep: base.sleep)
     }()
+    private let sourceFrames = NativeVoiceCallSourceFrames.live()
     private lazy var controller: NativeVoiceCallController = NativeVoiceCallController(environment: environment, audio: audio, persistence: outbox,
         transportFactory: { NativeVoiceCallURLSessionTransport(cookieStorage: OpenMatesSharedEnvironment.cookieStorage) },
+        sourceFrameAnswer: { [sourceFrames] frame, callID, chatID in
+            await sourceFrames.answer(frame: frame, callID: callID, chatID: chatID)
+        },
         eventHandler: { [weak self] event in await self?.receive(event) })
 
     private func audioInvalidated() async { await controller.invalidateScope() }
@@ -442,6 +454,8 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
     }
     func sendText(_ text: String) async throws -> String { try await controller.sendText(text) }
     func setMuted(_ muted: Bool) async { await controller.setMuted(muted) }
+    func sendCameraState(_ enabled: Bool) async { await controller.sendCameraState(enabled: enabled) }
+    func sendCameraFrame(_ frame: NativeVoiceCallCameraFrame) async { await controller.sendCameraFrame(frame) }
     func hangup() async { await controller.hangup() }
     func snapshot() async -> NativeVoiceCallSnapshot { await controller.snapshot() }
     func respondToTool(_ frame: NativeVoiceCallFrame) async throws { try await controller.sendToolResponse(frame) }

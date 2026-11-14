@@ -114,6 +114,17 @@ enum NativeVoiceCallWire {
     static let speechOutputTransport = "mp3_turn_stream_v2"
     static let maximumSourceFrameCharacters = 350_000
 
+    /// `source_frame_failed` answer for a `voice_source_frame` whose ids are valid;
+    /// `nil` when the ids themselves are unusable (nothing to answer). Shared by
+    /// every target, including watchOS, which has no camera and always refuses.
+    static func sourceFrameFailure(frame: NativeVoiceCallFrame, callID: String) -> NativeVoiceCallFrame? {
+        guard frame["call_id"]?.string == callID,
+              let userID = frame["user_message_id"]?.string, !userID.isEmpty, userID.utf8.count <= 128,
+              let frameID = frame["frame_id"]?.string, !frameID.isEmpty, frameID.utf8.count <= 128 else { return nil }
+        return ["type": .string("source_frame_failed"), "call_id": .string(callID),
+                "user_message_id": .string(userID), "frame_id": .string(frameID)]
+    }
+
     static func encode(_ frame: NativeVoiceCallFrame) throws -> String {
         let data = try JSONEncoder().encode(frame)
         guard data.count <= maximumFrameBytes, let text = String(data: data, encoding: .utf8)
@@ -266,11 +277,13 @@ struct NativeVoiceCallLiveTranscript: Equatable, Sendable {
     var held = false
 }
 
-/// Camera notices the server can report for this call. Apple has no camera
-/// capture yet, so these arrive only if the server reports them unprompted.
+/// Camera notices of this call: server-reported failures and the local camera
+/// permission/device outcomes (same codes as web `cameraError`).
 enum NativeVoiceCallCameraNotice: String, Equatable, Sendable {
     case cameraFailed = "camera_failed"
     case sourceFrameFailed = "source_frame_failed"
+    case cameraDenied = "camera_denied"
+    case cameraMissing = "camera_missing"
 }
 
 struct NativeVoiceCallSnapshot: Equatable, Sendable {

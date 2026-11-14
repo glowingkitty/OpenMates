@@ -953,6 +953,9 @@
           "3": {
             "text": "Sự kiện công nghệ nào diễn ra ở London vào tháng Giêng?"
           }
+        },
+        "pricing_note": {
+          "text": "Một lần tìm sự kiện thông thường tốn khoảng 15–25 credit: 10 credit cho tìm kiếm web cộng với token mà Mercury 3 dùng để đọc tối đa năm trang công khai. Lần tìm chỉ được trả lời bằng lịch hội nghị chính thức tốn 1 credit. Lần tìm thất bại hoặc không có kết quả thì miễn phí."
         }
       }
     },

@@ -953,6 +953,9 @@
           "3": {
             "text": "Welke tech-evenementen vinden er in januari in Londen plaats?"
           }
+        },
+        "pricing_note": {
+          "text": "Een gewone zoekopdracht naar evenementen kost ongeveer 15–25 credits: 10 credits voor de webzoekopdracht plus de tokens die Mercury 3 gebruikt om maximaal vijf openbare pagina's te lezen. Een zoekopdracht die alleen een officieel conferentieprogramma beantwoordt, kost 1 credit. Zoekopdrachten die mislukken of niets vinden, zijn gratis."
         }
       }
     },

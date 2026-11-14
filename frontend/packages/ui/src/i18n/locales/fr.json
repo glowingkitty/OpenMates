@@ -953,6 +953,9 @@
           "3": {
             "text": "Quels événements tech ont lieu à Londres en janvier ?"
           }
+        },
+        "pricing_note": {
+          "text": "Une recherche d'événements typique coûte environ 15–25 crédits : 10 crédits pour la recherche web plus les tokens que Mercury 3 utilise pour lire jusqu'à cinq pages publiques. Une recherche à laquelle seul un programme officiel de conférence répond coûte 1 crédit. Les recherches qui échouent ou ne trouvent rien sont gratuites."
         }
       }
     },

@@ -252,6 +252,7 @@ targets:
           - org.openmates.app.composeChat
           - org.openmates.app.browseChats
         NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat and for voice calls you start.
+        NSCameraUsageDescription: OpenMates uses the camera to show the assistant what you point it at while a video call you start is running.
         # A running voice call keeps capturing and speaking off screen; the call's
         # audio session is active only while a call runs (macOS ignores this key).
         UIBackgroundModes:
@@ -314,6 +315,8 @@ targets:
       - target: OpenMatesShareExtension_macOS
         platforms: [macOS]
       - target: OpenMatesWidget
+        platforms: [iOS]
+      - target: OpenMatesBroadcastExtension
         platforms: [iOS]
       - target: OpenMatesWidget_macOS
         platforms: [macOS]
@@ -653,6 +656,7 @@ targets:
       - path: OpenMatesWidget
         excludes: [MacInfo.plist]
       - path: OpenMates/Sources/Core/LiveActivities/OpenMatesLiveActivityAttributes.swift
+      - path: OpenMates/Sources/Core/LiveActivities/NativeVoiceCallActivityAttributes.swift
       - path: OpenMates/Sources/Core/LiveActivities/UpcomingMemoryActivityNavigation.swift
       - path: OpenMates/Sources/Core/LiveActivities/UpcomingMemorySmallActivityView.swift
       - path: OpenMates/Sources/Shared/Extensions/WidgetTasksData.swift
@@ -687,6 +691,29 @@ targets:
         keychain-access-groups:
           - $(AppIdentifierPrefix)$(CFBundleIdentifier)
           - $(AppIdentifierPrefix)org.openmates.app
+        com.apple.security.application-groups:
+          - group.org.openmates.app.shared
+
+  # ReplayKit broadcast upload extension: hands screen frames to the app through the App Group.
+  OpenMatesBroadcastExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: OpenMatesBroadcastExtension
+        excludes: [Info.plist]
+      - path: OpenMates/Sources/Core/VoiceCall/NativeVoiceCallScreenShareShared.swift
+    settings:
+      base:
+        INFOPLIST_FILE: OpenMatesBroadcastExtension/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.broadcast
+        CODE_SIGN_ENTITLEMENTS: OpenMatesBroadcastExtension/OpenMatesBroadcastExtension.entitlements
+        SWIFT_VERSION: "6.0"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+    dependencies:
+      - sdk: ReplayKit.framework
+    entitlements:
+      path: OpenMatesBroadcastExtension/OpenMatesBroadcastExtension.entitlements
+      properties:
         com.apple.security.application-groups:
           - group.org.openmates.app.shared
 

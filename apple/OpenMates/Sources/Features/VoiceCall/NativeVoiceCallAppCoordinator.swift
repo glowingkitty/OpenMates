@@ -2,7 +2,8 @@
 // Specification: specifications/features/video-call/specification.yml
 // Assertions: video-call.chat.typed-input, video-call.chat.fixed-binding,
 // video-call.lifecycle.recovery-and-billing, video-call.privacy.first-call-warning,
-// video-call.chat.skill-integration, video-call.privacy
+// video-call.chat.skill-integration, video-call.privacy, video-call.video.input-and-output,
+// video-call.video.apple-screen-share, video-call.apple.live-activity
 #if !os(watchOS)
 import Combine
 import Foundation
@@ -25,6 +26,18 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
     @Published private(set) var integrationError: NativeVoiceCallError?
     @Published private(set) var recoverableDrafts: [NativeVoiceCallDraftTicket] = []
     @Published var minimized = false
+    /// Camera of the running call; stopped on hangup, owner invalidation and call end.
+    let camera: NativeVoiceCallCameraModel
+    #if os(iOS)
+    /// Latest frame of the iOS broadcast extension while the user shares the screen.
+    let screenShare = NativeVoiceCallScreenShareReader()
+    private let liveActivity = NativeVoiceCallLiveActivity()
+    private var liveActivityKey: String?
+    private var screenShareSink: AnyCancellable?
+    /// True after `camera_state` on was sent for the screen (camera off meanwhile).
+    private var screenStateSent = false
+    private var lastScreenFrameAt: UInt64?
+    #endif
     /// Real audio meter data only. Empty means the audio adapter supplies no
     /// meter; the controls then render a static activity glyph, not fake speech.
     @Published private(set) var meterLevels: [Float] = []
@@ -58,10 +71,24 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
          restore: @escaping @MainActor (NativeVoiceCallDraftTicket) -> Bool,
          artifacts: @escaping @MainActor @Sendable (NativeVoiceCallScope, String, NativeVoiceCallFrame) async throws -> NativeVoiceCallArtifactDisposition,
          usage: @escaping @MainActor @Sendable (NativeVoiceCallScope, String, NativeVoiceCallFrame) async -> Void) {
+        camera = NativeVoiceCallCameraModel(
+            sendState: { [weak driver] enabled in await driver?.sendCameraState(enabled) },
+            sendFrame: { [weak driver] frame in await driver?.sendCameraFrame(frame) })
         self.driver = driver; self.accepted = accepted; self.restore = restore
         self.artifacts = artifacts; self.usage = usage
         driver.bind(consent: { [weak self] in await self?.requestConsent() ?? false },
                     event: { [weak self] event in await self?.receive(event) })
+        #if os(iOS)
+        NativeVoiceCallLiveActivityHangUp.shared.handler = { [weak self] callID in
+            guard let self, self.state.callID == callID else { return }
+            await self.hangup()
+        }
+        screenShareSink = screenShare.$latestFrame.combineLatest(screenShare.$isBroadcasting, camera.$enabled)
+            .sink { [weak self] _, _, _ in
+                // @Published fires before the new value is stored; read it on the next turn.
+                Task { @MainActor [weak self] in await self?.forwardScreen() }
+            }
+        #endif
     }
     var isActive: Bool { starting || state.status == .connecting || state.status == .live }
     var boundChatID: String? { state.scope?.chatID }
@@ -145,6 +172,8 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
     }
     func hangup() async {
         if let id = consentRequestID { decideConsent(id: id, accepted: false) }
+        camera.shutdown()
+        await endPlatformCallSurfaces()
         await driver.hangup()
     }
     /// Root calls before logout/profile/team/key changes. Navigation does not.
@@ -152,6 +181,8 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
         ownerGeneration = UUID()
         if let id = consentRequestID { decideConsent(id: id, accepted: false) }
         tools.invalidateOwner(); ticker?.cancel(); ticker = nil
+        camera.shutdown()
+        await endPlatformCallSurfaces()
         await driver.invalidate(); finishDrafts(); meterLevels = []
     }
     func updateMeter(_ levels: [Float], scope: NativeVoiceCallScope, callID: String) {
@@ -167,7 +198,9 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
             else { ticker?.cancel(); ticker = nil; meterLevels = [] }
             if snapshot.status == .ended || snapshot.status == .failed {
                 finishDrafts()
+                camera.shutdown()
             }
+            await updatePlatformCallSurfaces(snapshot)
         case .transcript(let transcript):
             guard transcript.final, transcript.role == .user,
                   transcript.callID == state.callID else { return }
@@ -188,6 +221,54 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
             await usage(scope, callID, frame)
         }
     }
+    /// iOS Live Activity and screen-share reader follow the call (video-call.apple.live-activity,
+    /// video-call.video.apple-screen-share); other platforms have neither.
+    private func updatePlatformCallSurfaces(_ snapshot: NativeVoiceCallSnapshot) async {
+        #if os(iOS)
+        switch snapshot.status {
+        case .connecting, .live:
+            guard let callID = snapshot.callID else { return }
+            let key = callID + (snapshot.status == .live ? ":live" : ":connecting")
+            if liveActivityKey != key {
+                liveActivityKey = key
+                await liveActivity.start(callID: callID, mateName: "OpenMates", live: snapshot.status == .live)
+            }
+            if snapshot.status == .live { screenShare.start() }
+        case .idle, .ended, .failed:
+            await endPlatformCallSurfaces()
+        }
+        #endif
+    }
+
+    private func endPlatformCallSurfaces() async {
+        #if os(iOS)
+        liveActivityKey = nil
+        screenShare.stop()
+        screenStateSent = false
+        lastScreenFrameAt = nil
+        await liveActivity.end()
+        #endif
+    }
+
+    #if os(iOS)
+    /// Streams broadcast frames like camera frames (at most the extension's 1 Hz). The camera
+    /// wins while it is on; the screen resumes visual input when the camera is turned off.
+    private func forwardScreen() async {
+        guard state.status == .live else { return }
+        if camera.enabled || camera.pending { screenStateSent = false; return }
+        guard screenShare.isBroadcasting else {
+            if screenStateSent { screenStateSent = false; await driver.sendCameraState(false) }
+            return
+        }
+        if !screenStateSent { screenStateSent = true; await driver.sendCameraState(true) }
+        guard let frame = screenShare.freshFrame(), frame.capturedAtMilliseconds != lastScreenFrameAt else { return }
+        lastScreenFrameAt = frame.capturedAtMilliseconds
+        await driver.sendCameraFrame(NativeVoiceCallCameraFrame(
+            frameID: UUID().uuidString.lowercased(), jpeg: frame.jpeg, capturedAt: Int64(frame.capturedAtMilliseconds),
+            width: 0, height: 0, source: "screen"))
+    }
+    #endif
+
     private func startTicker() {
         guard ticker == nil else { return }
         ticker = Task { [weak self] in

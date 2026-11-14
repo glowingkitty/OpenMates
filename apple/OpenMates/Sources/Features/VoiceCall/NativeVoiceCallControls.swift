@@ -11,9 +11,11 @@
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/video-call/specification.yml
 // Assertions: video-call.chat.call-strip-layout, video-call.chat.fixed-binding,
-// video-call.privacy.first-call-warning, video-call.chat.transcripts, video-call.audio.background-resume
+// video-call.privacy.first-call-warning, video-call.chat.transcripts, video-call.audio.background-resume,
+// video-call.video.input-and-output
 // Source geometry only; actual Apple appearance/audio proof belongs to root.
 #if !os(watchOS)
+import AVFoundation
 import SwiftUI
 
 /// Install above the root navigation container. Changing destinations never
@@ -40,6 +42,11 @@ struct NativeVoiceCallOverlay: View {
                             Text(AppStrings.nativeCallCameraNotice(notice)).font(.omSmall)
                                 .accessibilityIdentifier("voice-call-camera-error")
                         }
+                        if let failure = coordinator.camera.error, coordinator.isActive {
+                            Text(AppStrings.nativeCall(failure.rawValue)).font(.omSmall)
+                                .accessibilityIdentifier("voice-call-camera-error")
+                        }
+                        NativeVoiceCallCameraPreview(model: coordinator.camera)
                         NativeVoiceCallBar(coordinator: coordinator, returnToChat: returnToChat)
                     }
                     .padding(.horizontal, .spacing6).padding(.bottom, .spacing4)
@@ -67,6 +74,8 @@ struct NativeVoiceCallBar: View {
         if coordinator.state.inputIdle, !coordinator.state.inputListening, !coordinator.state.processing { return AppStrings.nativeCall("input_idle") }
         return AppStrings.nativeCall("live")
     }
+    /// A capture device exists (web `hasCamera`); permission is asked when the button is used.
+    private static var cameraAvailable: Bool { AVCaptureDevice.default(for: .video) != nil }
     var body: some View {
         HStack(spacing: .spacing2) {
             control(coordinator.minimized ? "fullscreen" : "minimize",
@@ -95,6 +104,13 @@ struct NativeVoiceCallBar: View {
                 .accessibilityValue(status)
             }
             .frame(maxWidth: coordinator.minimized ? 44 : .infinity, minHeight: 44)
+            NativeVoiceCallVideoButton(model: coordinator.camera, cameraAvailable: Self.cameraAvailable,
+                                       live: coordinator.state.status == .live)
+            #if os(iOS)
+            if !coordinator.minimized, coordinator.state.status == .live {
+                NativeVoiceCallScreenShareButton(reader: coordinator.screenShare)
+            }
+            #endif
             control("audiocall", label: AppStrings.nativeCall(coordinator.isActive ? "hangup" : "close"),
                     id: "voice-call-hangup", destructive: true) {
                 if coordinator.isActive { Task { await coordinator.hangup() } }

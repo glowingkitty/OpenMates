@@ -953,6 +953,9 @@
           "3": {
             "text": "Acara teknologi apa yang berlangsung di London bulan Januari?"
           }
+        },
+        "pricing_note": {
+          "text": "Pencarian acara biasa memakan sekitar 15–25 kredit: 10 kredit untuk pencarian web ditambah token yang dipakai Mercury 3 untuk membaca hingga lima halaman publik. Pencarian yang hanya dijawab oleh jadwal konferensi resmi memakan 1 kredit. Pencarian yang gagal atau tidak menemukan apa pun gratis."
         }
       }
     },

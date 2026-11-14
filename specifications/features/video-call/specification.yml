@@ -351,9 +351,21 @@ assertions:
     failure preserves voice. The smooth camera preview expands for two seconds, then becomes smaller while remaining
     visible; the user can expand it again. Visual capture uses bounded sampled frames at no more than one per second;
     only the exact owner-encrypted source attachment selected for a request enters ordinary multimodal processing, never
-    the STT socket. Screen sharing and Apple remain follow-ups.
+    the STT socket. The native Apple apps (iOS, iPadOS, macOS) offer the same Video control, preview, permission and
+    bounded-frame rules. Web screen sharing remains a follow-up.
   depends_on:
   - examples.migration_camera_ordinary_input
+- id: video-call.video.apple-screen-share
+  type: behavior
+  must: On iOS and iPadOS a running call offers Share screen, which opens the system broadcast picker for the OpenMates
+    broadcast extension. While the broadcast runs, the extension keeps only the latest bounded JPEG frame (at most one
+    per second, 1280x720, the camera's size cap) in the app's shared container, and the call sends it as visual input
+    marked as screen under the same rules as camera frames; the camera takes precedence while it is on. The frame the
+    broker selects for a turn is saved as the exact source attachment under the same provenance rules as camera frames.
+    Stopping the broadcast turns visual input off; ending the call discards the frame. macOS, watchOS and web do not
+    offer screen sharing yet.
+  depends_on:
+  - examples.source_frames
 - id: video-call.video.source-frame-provenance
   type: invariant
   must: A camera-grounded user turn retains the exact selected source frame as an ordinary encrypted image attachment
@@ -484,6 +496,13 @@ assertions:
     and notice, only when the system takes the microphone away and does not give it back (an interruption that does not
     allow resuming, an audio services reset, or the input device lost with no other microphone); an interruption that
     allows resuming continues the same call. Platform limits are never presented as success.
+  depends_on:
+  - examples.background_resume
+- id: video-call.apple.live-activity
+  type: behavior
+  must: On iOS and iPadOS a running call shows a Live Activity on the Lock Screen and in the Dynamic Island with the
+    call state (connecting or live) and a Hang up control that ends the call exactly like the in-app control. The
+    activity ends when the call ends for any reason and never outlives it.
   depends_on:
   - examples.background_resume
 - id: video-call.chat.orchestration-continuity

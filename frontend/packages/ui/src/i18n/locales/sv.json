@@ -953,6 +953,9 @@
           "3": {
             "text": "Vilka tech-evenemang äger rum i London i januari?"
           }
+        },
+        "pricing_note": {
+          "text": "En vanlig evenemangssökning kostar omkring 15–25 krediter: 10 krediter för webbsökningen plus de tokens som Mercury 3 använder för att läsa upp till fem offentliga sidor. En sökning som bara besvaras av ett officiellt konferensschema kostar 1 kredit. Sökningar som misslyckas eller inte hittar något är gratis."
         }
       }
     },

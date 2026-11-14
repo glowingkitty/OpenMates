@@ -953,6 +953,9 @@
           "3": {
             "text": "Jaké technologické akce se konají v Londýně v lednu?"
           }
+        },
+        "pricing_note": {
+          "text": "Běžné hledání akcí stojí asi 15–25 kreditů: 10 kreditů za vyhledávání na webu plus tokeny, které Mercury 3 použije ke čtení až pěti veřejných stránek. Hledání, na které odpoví jen oficiální program konference, stojí 1 kredit. Hledání, která selžou nebo nic nenajdou, jsou zdarma."
         }
       }
     },
