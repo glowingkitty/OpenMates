@@ -182,7 +182,24 @@ for (const scenario of SCENARIOS) {
         const log = createSignupLogger(`VOICE_REAL_${scenario.slug.toUpperCase()}`);
         const screenshot = createStepScreenshotter(log);
         const consoleErrors: string[] = [];
-        page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 300)); });
+        // The last browser console lines, printed when the scenario fails (the run may be in a remote sandbox).
+        const consoleTail: string[] = [];
+        page.on('console', (message) => {
+          if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 300));
+          consoleTail.push(`[${message.type()}] ${message.text().slice(0, 300)}`);
+          if (consoleTail.length > 80) consoleTail.shift();
+        });
+        page.on('pageerror', (error) => consoleTail.push(`[pageerror] ${String(error).slice(0, 300)}`));
+        // Acknowledgement clips are fetched and played from blob: URLs, so their path is only visible
+        // in the server event that announces them and in the clip download.
+        const acknowledgementUrls: string[] = [];
+        const clipDownloads: string[] = [];
+        page.on('websocket', (socket) => socket.on('framereceived', ({ payload }) => {
+          if (typeof payload !== 'string' || !payload.includes('assistant_speech_acknowledgement')) return;
+          const frame = JSON.parse(payload) as { type?: string; payload?: { audio_url?: string } };
+          if (frame.type === 'assistant_speech_acknowledgement') acknowledgementUrls.push(String(frame.payload?.audio_url ?? ''));
+        }));
+        page.on('request', (request) => { if (request.url().includes(ACK_ROOT)) clipDownloads.push(new URL(request.url()).pathname); });
         await page.addInitScript(installRecorders);
 
         await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -192,10 +209,19 @@ for (const scenario of SCENARIOS) {
         let memoryChatId: string | null = null;
         try {
           if (scenario.memory) memoryChatId = await saveMemoryFirst(page, log, screenshot);
+          const microphone = await page.evaluate(async () => {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            return devices.filter((device) => device.kind === 'audioinput').length;
+          });
+          log(`audio input devices: ${microphone}`);
           await page.locator('[data-testid="voice-call-start"]:visible').click();
           started = true;
           const privacy = page.getByTestId('notification').filter({ hasText: 'Before your first voice call' });
-          if (await privacy.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          // A new account sees this notice before its first call; isVisible() does not wait, so wait
+          // for either the notice or the live status.
+          const listening = page.getByTestId('voice-call-status-text').filter({ hasText: 'Listening · You can speak now' });
+          await expect(privacy.or(listening).first()).toBeVisible({ timeout: 45_000 });
+          if (await privacy.isVisible()) {
             await privacy.getByRole('button', { name: 'Continue', exact: true }).click();
             log('voice processing acknowledgement saved for this account');
           }
@@ -254,9 +280,12 @@ for (const scenario of SCENARIOS) {
           const played = state.played.filter((entry) => entry.playing);
           log(`played audio: ${JSON.stringify(played.map((entry) => ({
             src: entry.src.startsWith('blob:') ? 'blob' : entry.src.replace(/^https?:\/\/[^/]+/, '').split('?')[0], seconds: Math.round(entry.maxTime * 10) / 10 })))}`);
-          const startClips = played.filter((entry) => entry.src.includes(`${ACK_ROOT}system/`));
-          expect(startClips, 'a new chat confirms once with the neutral system clip').toHaveLength(1);
-          expect(played.filter((entry) => MATE_WAITING_CLIP.test(entry.src)), 'no guessed Mate waiting clip').toHaveLength(0);
+          log(`acknowledgements: ${JSON.stringify(acknowledgementUrls.map((url) => url.replace(/^https?:\/\/[^/]+/, '')))}; clip downloads: ${JSON.stringify(clipDownloads)}`);
+          expect(acknowledgementUrls.filter((url) => url.includes(`${ACK_ROOT}system/`)),
+            'a new chat confirms once with the neutral system clip').toHaveLength(1);
+          expect(clipDownloads.some((url) => url.includes(`${ACK_ROOT}system/`)), 'the system clip is fetched for playback').toBe(true);
+          expect([...acknowledgementUrls, ...clipDownloads].filter((url) => MATE_WAITING_CLIP.test(url)),
+            'no guessed Mate waiting clip').toHaveLength(0);
           const speech = played.filter((entry) => !entry.src.includes(ACK_ROOT));
           expect(speech.length, 'the reply is played as audio').toBeGreaterThan(0);
           expect(Math.max(...speech.map((entry) => entry.maxTime)), 'reply audio really advances').toBeGreaterThan(1.5);
@@ -281,6 +310,10 @@ for (const scenario of SCENARIOS) {
           expect(consoleErrors.filter((text) => /canonical embed revision/i.test(text)),
             'no canonical embed revision error').toEqual([]);
           await snap(page, testInfo, `${scenario.slug}-06-ended`);
+        } catch (error) {
+          await snap(page, testInfo, `${scenario.slug}-failed`).catch(() => undefined);
+          log(`browser console before the failure:\n${consoleTail.join('\n')}`);
+          throw error;
         } finally {
           if (started) await page.getByTestId('voice-call-hangup').click({ timeout: 5_000 }).catch(() => undefined);
           const activeChatId = await page.getByTestId('active-chat-container').getAttribute('data-current-chat-id')
