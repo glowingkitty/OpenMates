@@ -48,7 +48,11 @@ INPUT_THRESHOLDS = {
 # Output-stage thresholds are stricter — see §4 "Hard-block thresholds (output)".
 OUTPUT_THRESHOLDS = {
     **INPUT_THRESHOLDS,
-    "minor_plus_any_nudity_or_suggestive": 0.0,  # zero tolerance on output
+    # Output is stricter than input (0.05 sexual / 0.2 suggestive) but keeps a
+    # small noise floor: with a zero floor a harmless, fully clothed generated
+    # portrait of a child was filed as a CSAM hit. The block log line records
+    # the raw scores for calibration.
+    "minor_plus_any_nudity_or_suggestive": 0.02,
 }
 
 
@@ -232,7 +236,8 @@ class SightengineSafetyClient:
         self._apply_thresholds(findings, stage=stage)
         logger.info(
             f"{log_prefix} block={findings.hard_block} reason={findings.hard_block_reason} "
-            f"sexual={findings.sexual_activity:.2f} minor={findings.minor_detected} "
+            f"sexual={findings.sexual_activity:.3f} display={findings.sexual_display:.3f} "
+            f"suggestive={findings.suggestive:.3f} minor={findings.minor_detected} "
             f"celeb={findings.celebrity_match} deepfake={findings.deepfake_score:.2f}"
         )
         return findings
@@ -322,8 +327,11 @@ class SightengineSafetyClient:
             f.hard_block_reason = "minor_plus_suggestive"
             f.category_hint = "S1_csam"
             return
+        floor = OUTPUT_THRESHOLDS["minor_plus_any_nudity_or_suggestive"]
         if stage == "output" and f.minor_detected and (
-            f.sexual_activity > 0 or f.sexual_display > 0 or f.suggestive > 0
+            f.sexual_activity > floor
+            or f.sexual_display > floor
+            or f.suggestive > floor
         ):
             f.hard_block = True
             f.hard_block_reason = "minor_on_output_any_suggestion"

@@ -27,6 +27,7 @@ const {
 	startNewChat,
 	waitForAssistantMessage
 } = require('./helpers/chat-test-helpers');
+const { openCompletedAssistantActivity } = require('./helpers/chat-scroll');
 const {
 	createSignupLogger,
 	createStepScreenshotter,
@@ -49,6 +50,13 @@ async function newRequest(page: Page, prompt: string, name: string, log: any, sc
 	return page.getByTestId('mate-message-content').last();
 }
 
+/** The image card sits in the reply's activity group, collapsed once the skill is done. */
+async function openImageActivity(answer: any, testInfo: any) {
+	await openCompletedAssistantActivity(answer.getByTestId('assistant-activity-group').first(), testInfo, {
+		timeout: ANSWER_TIMEOUT_MS
+	});
+}
+
 async function expectRefusal(
 	page: Page,
 	answer: any,
@@ -56,6 +64,7 @@ async function expectRefusal(
 	name: string,
 	testInfo: any
 ) {
+	await openImageActivity(answer, testInfo);
 	const card = answer.getByTestId('image-generate-error-text').first();
 	await expect(card).toBeVisible({ timeout: ANSWER_TIMEOUT_MS });
 	await expect(card).toContainText(expected.reason);
@@ -97,6 +106,7 @@ test.describe('image safety explanations (real dev inference)', () => {
 
 		// 2. Clearly stylized, non-sexual depiction of a minor: drawn.
 		const minorStylized = await newRequest(page, MINOR_STYLIZED_PROMPT, 'minor-stylized', log, screenshot);
+		await openImageActivity(minorStylized, testInfo);
 		await expect(minorStylized.getByTestId('image-generate-preview-image').first()).toBeVisible({
 			timeout: ANSWER_TIMEOUT_MS
 		});

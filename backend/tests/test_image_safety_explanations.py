@@ -227,3 +227,14 @@ class TestVisionMinorFlags:
         _derive_flags(findings)
         assert findings.hard_block
         assert findings.category_hint == "S1_csam"
+
+
+# contract-test: supporting surface=rest_api assertions=safety-strikes.minors-stylized-only
+def test_worker_image_ships_the_safety_policy():
+    """Image and video workers read the policy; without it they fall back to an
+    inline text that lacks the minors rules (photoreal minors slipped through)."""
+    dockerfile = (REPO_ROOT / "backend/core/api/Dockerfile.celery").read_text()
+    assert (
+        "COPY docs/architecture/image-safety-policy.md "
+        "/app/docs/architecture/image-safety-policy.md"
+    ) in dockerfile

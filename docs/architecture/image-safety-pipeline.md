@@ -357,7 +357,7 @@ Same parallel Sightengine + Gemini call as Step 1, but with stricter thresholds:
 | Signal | Threshold | Action |
 |---|---|---|
 | All Step 1a thresholds | Same | reject + alert |
-| `minor detected` + **any** nudity/suggestive | > 0 | reject as S1 + alert (one strike) |
+| `minor detected` + **any** nudity/suggestive | > 0.02 (noise floor; a zero floor filed a harmless clothed portrait as S1) | reject as S1 + alert (one strike) |
 | `minor detected` not in input | detected | reject (provider invented a child) |
 | `celebrity match` not in input | detected | reject (provider invented celebrity) |
 | `deepfake > 0.7` + face not in input | detected | reject |
