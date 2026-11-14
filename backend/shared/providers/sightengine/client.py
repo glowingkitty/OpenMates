@@ -48,18 +48,7 @@ INPUT_THRESHOLDS = {
 # Output-stage thresholds are stricter — see §4 "Hard-block thresholds (output)".
 OUTPUT_THRESHOLDS = {
     **INPUT_THRESHOLDS,
-}
-
-# Output-stage minor rule: a generated image with a minor and any sexual or
-# suggestive signal above the classifier's noise floor is blocked as S1_csam.
-# The floor exists because the scores are almost never exactly 0: an ordinary,
-# clothed 3D or illustrated child (allowed by the policy) would otherwise be
-# blocked as child sexual abuse material. Any stage still blocks a minor with
-# sexual scores > 0.05 or suggestive > 0.2 (the rules above this one).
-OUTPUT_MINOR_NOISE_FLOOR = {
-    "sexual_activity": 0.01,
-    "sexual_display": 0.01,
-    "suggestive": 0.1,
+    "minor_plus_any_nudity_or_suggestive": 0.0,  # zero tolerance on output
 }
 
 
@@ -333,11 +322,8 @@ class SightengineSafetyClient:
             f.hard_block_reason = "minor_plus_suggestive"
             f.category_hint = "S1_csam"
             return
-        floor = OUTPUT_MINOR_NOISE_FLOOR
         if stage == "output" and f.minor_detected and (
-            f.sexual_activity > floor["sexual_activity"]
-            or f.sexual_display > floor["sexual_display"]
-            or f.suggestive > floor["suggestive"]
+            f.sexual_activity > 0 or f.sexual_display > 0 or f.suggestive > 0
         ):
             f.hard_block = True
             f.hard_block_reason = "minor_on_output_any_suggestion"

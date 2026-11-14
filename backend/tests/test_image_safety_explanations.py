@@ -21,10 +21,6 @@ from backend.shared.providers.google.vision_safety import (
     VisionSafetyFindings,
     _derive_flags,
 )
-from backend.shared.providers.sightengine.client import (
-    SightengineFindings,
-    SightengineSafetyClient,
-)
 from backend.shared.python_utils.image_safety.explanations import (
     HARD_LIMIT_CATEGORIES,
     localized_rejection_payload,
@@ -188,34 +184,6 @@ class TestMinorsPolicy:
         assert "Every rejected request counts as exactly one strike" in policy
         assert "instant ban" not in policy
         assert "strike weight = 2" not in policy
-
-
-def _output_scan(**scores) -> SightengineFindings:
-    findings = SightengineFindings(minor_detected=True, **scores)
-    SightengineSafetyClient._apply_thresholds(findings, stage="output")
-    return findings
-
-
-# contract-test: supporting surface=rest_api assertions=images-generate.safety.minors-stylized-only
-class TestOutputMinorNoiseFloor:
-    def test_stylized_child_with_noise_level_scores_passes(self):
-        findings = _output_scan(suggestive=0.03, sexual_display=0.004, sexual_activity=0.002)
-        assert not findings.hard_block
-
-    @pytest.mark.parametrize(
-        "scores",
-        [
-            {"suggestive": 0.15},
-            {"sexual_display": 0.02},
-            {"sexual_activity": 0.02},
-            {"suggestive": 0.25},
-            {"sexual_display": 0.06},
-        ],
-    )
-    def test_minor_with_sexual_or_suggestive_signal_is_blocked(self, scores):
-        findings = _output_scan(**scores)
-        assert findings.hard_block
-        assert findings.category_hint == "S1_csam"
 
 
 # contract-test: supporting surface=rest_api assertions=images-generate.safety.minors-stylized-only

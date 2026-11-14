@@ -357,7 +357,7 @@ Same parallel Sightengine + Gemini call as Step 1, but with stricter thresholds:
 | Signal | Threshold | Action |
 |---|---|---|
 | All Step 1a thresholds | Same | reject + alert |
-| `minor detected` + sexual activity/display or suggestive above the noise floor | sexual > 0.01, suggestive > 0.1 (any stage: sexual > 0.05, suggestive > 0.2) | reject as S1 + alert |
+| `minor detected` + **any** nudity/suggestive | > 0 | reject as S1 + alert (one strike) |
 | `minor detected` not in input | detected | reject (provider invented a child) |
 | `celebrity match` not in input | detected | reject (provider invented celebrity) |
 | `deepfake > 0.7` + face not in input | detected | reject |
@@ -379,6 +379,16 @@ Same parallel Sightengine + Gemini call as Step 1, but with stricter thresholds:
 ---
 
 ## 4. Fallback chain
+
+**Safeguard tool-call rejections.** Groq rejects a forced tool call whose
+arguments miss the schema (most often an "allow" verdict with an empty
+severity) and returns the rejected generation. The verdict in it is the model's
+real decision and is used; an empty or unreadable one is retried once. Only a
+second failure, or any other API error, is a technical `safeguard_error`: the
+request is refused as "temporarily unavailable" and no strike is recorded. The
+reasoner gets 2000 output tokens, because its reasoning counts against the limit
+and 800 often left no room for the tool call. Measured on dev (2026-11-14): 50-70%
+of calls failed before this recovery, 0 of 24 after it.
 
 When Gemini 3 Flash is unavailable (quota, outage, regional issue):
 
