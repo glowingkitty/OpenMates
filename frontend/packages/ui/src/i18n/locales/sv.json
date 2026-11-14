@@ -78,11 +78,6 @@
       }
     }
   },
-  "ai_response_notices": {
-    "output_limit": {
-      "text": "Det här svaret avbröts eftersom det nådde modellens maximala längd. Du kan be AI:n att fortsätta."
-    }
-  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -926,6 +921,12 @@
         "text": "Broderi",
         "description": {
           "text": "Gör om en vektorgrafik till filer för broderimaskiner med förhandsvisning av stygnen."
+        }
+      },
+      "get_design": {
+        "text": "Hämta design",
+        "description": {
+          "text": "Läser en Figma-design och ger struktur, stilar och kodöverlämning."
         }
       }
     },
@@ -14222,30 +14223,6 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Jag kunde inte använda {skill_name} korrekt. Kan du förtydliga vad du vill att jag ska göra så att jag kan försöka igen?"
-    },
-    "provider_block_child_safety": {
-      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den rör minderåriga, vilket omfattas av AI-leverantörens regler för barnsäkerhet. Reglerna skyddar barn mot missbruk, till exempel falska profiler eller exploaterande innehåll. Om det hjälper kan jag i stället arbeta med en tecknad eller tydligt fiktiv karaktär."
-    },
-    "provider_block_child_safety_strict": {
-      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den rör minderåriga, vilket omfattas av AI-leverantörens regler för barnsäkerhet. Reglerna skyddar barn mot exploatering och missbruk."
-    },
-    "provider_block_sexual": {
-      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den omfattas av AI-leverantörens regler om sexuellt innehåll. Reglerna håller explicit material borta från svar där samtycke och ålder inte kan kontrolleras. Jag kan i stället hjälpa till med en icke-explicit version av din förfrågan."
-    },
-    "provider_block_dangerous": {
-      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den omfattas av AI-leverantörens regler om farliga aktiviteter. Reglerna ser till att svar inte kan användas för att orsaka allvarlig skada. Jag kan i stället hjälpa till med säkerhetsinformation eller bakgrunden till ämnet."
-    },
-    "provider_block_harassment_hate": {
-      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den omfattas av AI-leverantörens regler mot trakasserier och hat. Reglerna skyddar människor från att bli angripna eller nedvärderade. Jag kan i stället hjälpa dig att framföra din poäng på ett respektfullt sätt."
-    },
-    "provider_block_personal_data": {
-      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den omfattas av AI-leverantörens regler om känsliga personuppgifter. Reglerna skyddar människors privata data från att avslöjas eller missbrukas. Jag kan hjälpa till om du utelämnar de personliga uppgifterna."
-    },
-    "provider_block_copyright": {
-      "text": "Jag kan inte ge det här svaret eftersom det skulle återge upphovsrättsskyddad text, vilket AI-leverantörens regler inte tillåter. Det skyddar författares och förlags arbete. Jag kan i stället sammanfatta det eller förklara det med egna ord."
-    },
-    "provider_block_other": {
-      "text": "Jag kan inte hjälpa till med den här förfrågan eftersom den omfattas av AI-leverantörens säkerhetsregler. Reglerna finns för att förhindra skadligt innehåll. Du kan formulera om din förfrågan, eller så kan jag hjälpa dig med något annat."
     }
   },
   "projects": {},

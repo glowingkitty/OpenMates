@@ -78,11 +78,6 @@
       }
     }
   },
-  "ai_response_notices": {
-    "output_limit": {
-      "text": "Diese Antwort wurde gekürzt, weil sie die maximale Länge des Modells erreicht hat. Du kannst die KI bitten, weiterzuschreiben."
-    }
-  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -946,6 +941,12 @@
         "text": "Stickerei",
         "description": {
           "text": "Wandle eine Vektorgrafik in Stickmaschinen-Dateien mit Stichvorschau um."
+        }
+      },
+      "get_design": {
+        "text": "Design abrufen",
+        "description": {
+          "text": "Liest ein Figma-Design und liefert Struktur, Stile und eine Code-Übergabe."
         }
       }
     },
@@ -14980,6 +14981,14 @@
             "description": {
               "text": "Nachdem du Google Calendar verbunden hast, tauscht OpenMates den OAuth-Autorisierungscode ein und speichert Refresh- oder Zugriffstoken verschlüsselt. Autorisierte Aktionen können auf Kalender-IDs, Namen, Zeitzonen, Termin-IDs, Titel, Beschreibungen, Orte, Datumsangaben und E-Mail-Adressen von Teilnehmenden zugreifen. OpenMates liest, erstellt, aktualisiert oder löscht nur im Rahmen der Berechtigungen und der Aktion, die du autorisierst."
             }
+          },
+          "figma": {
+            "heading": {
+              "text": "Figma"
+            },
+            "description": {
+              "text": "Nachdem du Figma verbunden hast, tauscht OpenMates den OAuth-Autorisierungscode ein und speichert das Refresh-Token verschlüsselt auf deinen Geräten. Deine Figma-Konto-ID, dein Handle und deine E-Mail-Adresse dienen als Kontobezeichnung. Autorisierte Aktionen lesen nur die Figma-Dateiinhalte, die du anforderst, im Rahmen der Leseberechtigungen, die du autorisierst. OpenMates bearbeitet deine Figma-Dateien nie."
+            }
           }
         },
         "business_data": {
@@ -17461,30 +17470,6 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Ich konnte {skill_name} nicht richtig verwenden. Könntest du mir erklären, was du möchtest, damit ich es erneut versuchen kann?"
-    },
-    "provider_block_child_safety": {
-      "text": "Bei dieser Anfrage kann ich nicht helfen, weil sie Minderjährige betrifft und damit unter die Kinderschutzregeln des KI-Anbieters fällt. Diese Regeln schützen Kinder vor Missbrauch, etwa durch gefälschte Profile oder ausbeuterische Inhalte. Wenn es dir hilft, kann ich stattdessen mit einer gezeichneten oder eindeutig fiktiven Figur arbeiten."
-    },
-    "provider_block_child_safety_strict": {
-      "text": "Bei dieser Anfrage kann ich nicht helfen, weil sie Minderjährige betrifft und damit unter die Kinderschutzregeln des KI-Anbieters fällt. Diese Regeln schützen Kinder vor Ausbeutung und Missbrauch."
-    },
-    "provider_block_sexual": {
-      "text": "Bei dieser Anfrage kann ich nicht helfen, weil sie unter die Regeln des KI-Anbieters zu sexuellen Inhalten fällt. Diese Regeln halten explizites Material aus Antworten heraus, bei denen sich Einwilligung und Alter nicht prüfen lassen. Stattdessen kann ich dir bei einer nicht expliziten Version deiner Anfrage helfen."
-    },
-    "provider_block_dangerous": {
-      "text": "Bei dieser Anfrage kann ich nicht helfen, weil sie unter die Regeln des KI-Anbieters zu gefährlichen Aktivitäten fällt. Diese Regeln stellen sicher, dass Antworten nicht dazu genutzt werden können, schweren Schaden anzurichten. Stattdessen kann ich dir mit Sicherheitsinformationen oder dem Hintergrund zum Thema helfen."
-    },
-    "provider_block_harassment_hate": {
-      "text": "Bei dieser Anfrage kann ich nicht helfen, weil sie unter die Regeln des KI-Anbieters gegen Belästigung und Hass fällt. Diese Regeln schützen Menschen davor, angegriffen oder herabgewürdigt zu werden. Stattdessen kann ich dir helfen, deinen Standpunkt respektvoll zu formulieren."
-    },
-    "provider_block_personal_data": {
-      "text": "Bei dieser Anfrage kann ich nicht helfen, weil sie unter die Regeln des KI-Anbieters zu sensiblen personenbezogenen Informationen fällt. Diese Regeln schützen die privaten Daten von Menschen davor, offengelegt oder missbraucht zu werden. Ich kann helfen, wenn du die persönlichen Angaben weglässt."
-    },
-    "provider_block_copyright": {
-      "text": "Diese Antwort kann ich nicht geben, weil sie urheberrechtlich geschützten Text wiedergeben würde, was die Regeln des KI-Anbieters nicht erlauben. Das schützt die Arbeit von Autorinnen, Autoren und Verlagen. Stattdessen kann ich den Inhalt zusammenfassen oder mit eigenen Worten erklären."
-    },
-    "provider_block_other": {
-      "text": "Bei dieser Anfrage kann ich nicht helfen, weil sie unter die Sicherheitsregeln des KI-Anbieters fällt. Diese Regeln sollen schädliche Ausgaben verhindern. Du kannst deine Anfrage umformulieren, oder ich helfe dir bei etwas anderem."
     }
   },
   "projects": {

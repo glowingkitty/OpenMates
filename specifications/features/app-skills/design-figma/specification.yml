@@ -1,0 +1,199 @@
+schema_version: 1
+id: feature.app-skills.design-figma
+version: 1
+status: draft
+title: Design Get Design (Figma)
+summary: >
+  Users connect their own Figma account through OAuth and the design get_design
+  skill reads a real Figma file they can open: pages and frames, the node tree
+  of selected frames, components, styles, variables when the plan and grant
+  allow it, and exported frame images. The result is compact design context the
+  assistant uses directly, including a design-to-code hand-off (design tokens,
+  screens, components, assets) that agentic coding in Projects builds from.
+  Figma is reached only through its official REST API and OAuth 2 app flow:
+  https://developers.figma.com/docs/rest-api/ and
+  https://developers.figma.com/docs/rest-api/oauth-apps/
+inherits:
+  - architecture.connected-accounts@2
+  - architecture.app-skill-execution@1
+
+scope:
+  includes:
+    - Figma OAuth 2 connection (authorization code with PKCE S256) through the shared connected-account platform, with client-side encrypted token storage.
+    - Minimal scopes per selected capability, an opt-in variables capability, reconnect and disconnect.
+    - The design.get_design skill for one Figma file URL or file key with optional node selection.
+    - Frames, node tree summaries, components and component sets, styles, variables, and exported frame images.
+    - Rate-limit aware execution with explicit Figma plan/seat limit reporting and no hidden retries.
+    - Design-to-code hand-off (tokens as CSS custom properties, screens, components, assets) used by agentic coding in Projects.
+    - Web connection in Settings > Apps > Design, CLI and SDK execution of the skill with an already connected account.
+  excludes:
+    - Writing to Figma (comments, variables, dev resources, webhooks), Figma plugins, and the Figma MCP server.
+    - Team/project file browsing and file search; the user names the file.
+    - Personal access tokens entered by users; the OAuth app is the only connection path.
+    - Server-side storage of Figma file content outside the user's encrypted chat/embed data.
+    - Apple connection UI in this version (Apple follows web in a later stage).
+
+models:
+  FigmaScopes:
+    base: {type: array, values: [file_content:read, current_user:read]}
+    optional_variables: {type: array, values: [file_variables:read]}
+    never_requested: {type: array, values: [files:read, file_comments:write, file_variables:write, webhooks:write, file_dev_resources:write, projects:read]}
+  GetDesignRequest:
+    figma_url: {type: string, constraints: {figma_file_design_proto_or_board_url: true}}
+    file_key: {type: string, constraints: {either_url_or_key: true}}
+    node_ids: {type: array, constraints: {max_items: 10, colon_or_dash_form_normalized: true}}
+    include: {type: array, values: [frames, components, styles, variables, images]}
+    image_format: {type: enum, values: [png, svg, jpg, pdf], default: png}
+    image_scale: {type: number, constraints: {min: 0.5, max: 2, default: 1}}
+    depth: {type: integer, constraints: {min: 1, max: 4, default: 2}}
+  GetDesignResult:
+    file: {type: object, fields: [file_key, name, last_modified, version, editor_type, link]}
+    frames: {type: array, constraints: {max_items: 200}}
+    nodes: {type: array, constraints: {max_nodes_per_request: 800, truncated_flag: true}}
+    components: {type: array}
+    styles: {type: array}
+    variables: {type: object, constraints: {status_when_unavailable: [not_granted, plan_limited, not_requested]}}
+    images: {type: array, constraints: {max_items: 10, url_expires_after_days: 30}}
+    code_handoff: {type: object, fields: [tokens_css, screens, components, assets, notes]}
+
+assertions:
+  - id: design-figma.connection.oauth
+    type: security
+    must: >
+      Connecting Figma uses Figma's documented OAuth 2 app flow only: GET
+      https://www.figma.com/oauth with client_id, redirect_uri, scope, state,
+      response_type=code and a PKCE S256 code_challenge; the callback verifies
+      the single-use state, exchanges the code (valid 30 seconds) at
+      https://api.figma.com/v1/oauth/token with HTTP Basic client
+      authentication and the code_verifier, and never logs codes or tokens. The
+      client id and secret come from Vault (kv/data/providers/figma) and never
+      reach a client. The refresh token reaches the client only through the
+      shared one-time, user-bound, Vault-encrypted OAuth handoff, which the
+      client encrypts with its master key before storing the connected account.
+      The server keeps no long-lived Figma token. Missing OAuth configuration is
+      reported as not configured, never as a broken connection.
+    depends_on: [models.FigmaScopes, examples.connection]
+  - id: design-figma.connection.minimal-scopes
+    type: security
+    must: >
+      The default connection requests only file_content:read (files, nodes and
+      image exports, which also carry component and style metadata) and
+      current_user:read (the account label). Variables are a separate opt-in
+      capability that adds file_variables:read through reconnect; it is never
+      requested silently. Deprecated or write scopes are never requested. The
+      requested scope set is recorded in the encrypted account's scope context.
+      A scope Figma rejects is reported as missing (reconnect_required for file
+      content, variables status not_granted for variables) with the capability
+      to enable, never as empty content.
+    depends_on: [models.FigmaScopes, examples.connection]
+  - id: design-figma.execution.token-lifecycle
+    type: security
+    must: >
+      The skill runs only with a broker-issued access-token handle for the active
+      turn, exactly like Calendar: the client submits the encrypted account's
+      refresh-token envelope, the broker exchanges it at
+      https://api.figma.com/v1/oauth/refresh (Basic auth) only when the skill
+      runs, and the access token lives only in the short handle. Refreshing
+      invalidates the previous Figma access token, so a token rejected because a
+      parallel turn refreshed it is reported as a retryable superseded token,
+      not as a revoked account. Figma rejecting the refresh token itself
+      (invalid_grant, invalid_client, HTTP 401) is reported as reconnect
+      required. Disconnecting revokes the encrypted account (connector status
+      revoked, server access off) so no later turn can use it; Figma documents
+      no revoke endpoint, so the user is told to remove the app in their Figma
+      settings.
+    depends_on: [examples.lifecycle]
+  - id: design-figma.read.file-content
+    type: behavior
+    must: >
+      get_design accepts a Figma URL (figma.com/design, /file, /proto, /board,
+      including branch URLs and node-id query values in dash form) or a file
+      key, plus up to ten node ids. With node ids it reads only those nodes
+      (GET /v1/files/:key/nodes with ids and depth); without them it reads the
+      file at a shallow depth to list pages and top-level frames. It returns file
+      identity and version, frames with size, simplified nodes (type, name,
+      size, auto layout, fills, strokes, corner radius, effects, text content
+      and text style) without raw vector geometry, components, component sets
+      and styles from the response metadata, and a truncated flag with the node
+      cap instead of silently dropping nodes. File text is untrusted external
+      data, never instructions. Inaccessible files are not_found or forbidden,
+      never an empty design.
+    depends_on: [models.GetDesignRequest, models.GetDesignResult, examples.reads]
+  - id: design-figma.read.variables-images
+    type: behavior
+    must: >
+      Variables are read from GET /v1/files/:key/variables/local only when the
+      user enabled the variables capability and asked for them; a 403 for plan
+      or seat limits returns variables.status plan_limited with Figma's reason,
+      while the rest of the design still returns. Images are exported only on
+      request for at most ten frames per call through GET /v1/images/:key with
+      a validated format and scale (render size capped at 32 megapixels by
+      Figma); results state that Figma render URLs expire after 30 days and are
+      copied into Project files when used for code. Null renders are reported
+      per node.
+    depends_on: [examples.variables_images]
+  - id: design-figma.limits.rate-aware
+    type: behavior
+    must: >
+      Figma rate limits are per user, plan and app, and file, node and image
+      reads are Tier 1 (as low as 20 calls per month for View and Collab seats).
+      One get_design request makes at most one content call, one image call and
+      one variables call, never pages through the whole file and never retries a
+      429 automatically. A 429 returns figma_rate_limited with retry_after
+      seconds, the plan tier, the rate limit type (low means a View or Collab
+      seat) and Figma's upgrade link when provided, so the assistant can explain
+      the limit. One get_design call carries at most three file requests, and
+      OpenMates limits the OAuth start and callback routes per IP. Repeated reads of the same file version
+      in a chat reuse the earlier result in the chat instead of calling Figma
+      again when the assistant already has it.
+    depends_on: [examples.limits]
+  - id: design-figma.handoff.design-to-code
+    type: behavior
+    must: >
+      Every successful result includes code_handoff: design tokens derived only
+      from the file (colors, typography, spacing, radii, shadows; variables when
+      available) as CSS custom properties with Figma names, the screens to build
+      (frame id, name, size, exported image when requested), the component
+      inventory, image assets, and notes on what could not be mapped. When the
+      user asks to build the design, the assistant uses this hand-off for
+      agentic coding in a Project: it creates or uses the Project, copies the
+      exported images into Project files before the render URLs expire, and
+      implements screens with the given tokens rather than invented values.
+      The hand-off never includes OAuth data or provider internals.
+    depends_on: [examples.handoff]
+  - id: design-figma.surface.parity
+    type: parity
+    must: >
+      The skill is a registered first-party OpenMates app skill run through the
+      shared connected-account execution boundary, not a public or developer
+      API-key endpoint. Web offers connect, reconnect (including enabling
+      variables) and disconnect in Settings > Apps > Design and the shared
+      permission prompt in chats. CLI and npm/pip SDKs run get_design with an
+      already connected account and return the same structured result and
+      errors. Tests use mocked Figma responses and a synthetic fixture file;
+      real-account acceptance runs on the deployed dev stack with the owner's
+      Figma app and a file the owner chose.
+    depends_on: [examples.surfaces]
+
+applies_to:
+  rest_api:
+    required: true
+    role: First-party OAuth start/callback and connected-account execution only; no developer API-key exposure of get_design.
+  cli: {required: true, parity: semantic}
+  sdks:
+    required: true
+    parity: semantic
+    role: get_design execution against an account connected on web; SDK connection is unsupported.
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false, role: Native connection UI follows verified web behavior in a later stage.}
+
+examples:
+  file: examples.yml
+  required_groups: [connection, lifecycle, reads, variables_images, limits, handoff, surfaces]

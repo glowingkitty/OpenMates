@@ -78,11 +78,6 @@
       }
     }
   },
-  "ai_response_notices": {
-    "output_limit": {
-      "text": "Dit antwoord is afgebroken omdat het de maximale lengte van het model bereikte. Je kunt de AI vragen verder te gaan."
-    }
-  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -926,6 +921,12 @@
         "text": "Borduren",
         "description": {
           "text": "Zet een vectorafbeelding om in borduurmachinebestanden met steekvoorbeeld."
+        }
+      },
+      "get_design": {
+        "text": "Ontwerp ophalen",
+        "description": {
+          "text": "Leest een Figma-ontwerp en geeft structuur, stijlen en een code-overdracht."
         }
       }
     },
@@ -14222,30 +14223,6 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Ik kon {skill_name} niet goed gebruiken. Kun je verduidelijken wat je wilt dat ik doe, zodat ik het opnieuw kan proberen?"
-    },
-    "provider_block_child_safety": {
-      "text": "Hier kan ik niet bij helpen, omdat het om minderjarigen gaat en dat onder de kinderveiligheidsregels van de AI-aanbieder valt. Deze regels beschermen kinderen tegen misbruik, zoals nepprofielen of uitbuitende inhoud. Als het helpt, kan ik in plaats daarvan werken met een getekend of duidelijk fictief personage."
-    },
-    "provider_block_child_safety_strict": {
-      "text": "Hier kan ik niet bij helpen, omdat het om minderjarigen gaat en dat onder de kinderveiligheidsregels van de AI-aanbieder valt. Deze regels beschermen kinderen tegen uitbuiting en misbruik."
-    },
-    "provider_block_sexual": {
-      "text": "Hier kan ik niet bij helpen, omdat het onder de regels van de AI-aanbieder over seksuele inhoud valt. Deze regels houden expliciet materiaal buiten antwoorden waarin toestemming en leeftijd niet te controleren zijn. Ik kan je in plaats daarvan helpen met een niet-expliciete versie van je verzoek."
-    },
-    "provider_block_dangerous": {
-      "text": "Hier kan ik niet bij helpen, omdat het onder de regels van de AI-aanbieder over gevaarlijke activiteiten valt. Deze regels zorgen ervoor dat antwoorden niet gebruikt kunnen worden om ernstige schade aan te richten. Ik kan je in plaats daarvan helpen met veiligheidsinformatie of de achtergrond van het onderwerp."
-    },
-    "provider_block_harassment_hate": {
-      "text": "Hier kan ik niet bij helpen, omdat het onder de regels van de AI-aanbieder tegen intimidatie en haat valt. Deze regels beschermen mensen ertegen dat ze doelwit worden of vernederd worden. Ik kan je in plaats daarvan helpen je punt op een respectvolle manier te maken."
-    },
-    "provider_block_personal_data": {
-      "text": "Hier kan ik niet bij helpen, omdat het onder de regels van de AI-aanbieder over gevoelige persoonlijke informatie valt. Deze regels beschermen de privégegevens van mensen tegen blootstelling of misbruik. Ik kan helpen als je de persoonlijke gegevens weglaat."
-    },
-    "provider_block_copyright": {
-      "text": "Dit antwoord kan ik niet geven, omdat het auteursrechtelijk beschermde tekst zou reproduceren, wat de regels van de AI-aanbieder niet toestaan. Dit beschermt het werk van auteurs en uitgevers. Ik kan het in plaats daarvan samenvatten of in mijn eigen woorden uitleggen."
-    },
-    "provider_block_other": {
-      "text": "Hier kan ik niet bij helpen, omdat het onder de veiligheidsregels van de AI-aanbieder valt. Deze regels bestaan om schadelijke uitvoer te voorkomen. Je kunt je verzoek anders formuleren, of ik kan je met iets anders helpen."
     }
   },
   "projects": {},

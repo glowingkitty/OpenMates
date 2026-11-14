@@ -78,11 +78,6 @@
       }
     }
   },
-  "ai_response_notices": {
-    "output_limit": {
-      "text": "Ta odpowiedź została ucięta, ponieważ osiągnęła maksymalną długość modelu. Możesz poprosić AI o kontynuację."
-    }
-  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -926,6 +921,12 @@
         "text": "Haft",
         "description": {
           "text": "Zamień grafikę wektorową na pliki dla hafciarki z podglądem ściegów."
+        }
+      },
+      "get_design": {
+        "text": "Pobierz projekt",
+        "description": {
+          "text": "Odczytuje projekt Figma i zwraca strukturę, style oraz przekazanie do kodu."
         }
       }
     },
@@ -14222,30 +14223,6 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Nie udało mi się poprawnie użyć {skill_name}. Czy mógłbyś wyjaśnić, co chciałbyś, żebym zrobił, abym mógł spróbować ponownie?"
-    },
-    "provider_block_child_safety": {
-      "text": "Nie mogę pomóc w tej sprawie, ponieważ dotyczy ona osób niepełnoletnich i podlega zasadom dostawcy AI dotyczącym ochrony dzieci. Zasady te chronią dzieci przed nadużyciami, takimi jak fałszywe profile czy treści wykorzystujące dzieci. Jeśli to pomoże, mogę zamiast tego pracować z postacią narysowaną lub wyraźnie fikcyjną."
-    },
-    "provider_block_child_safety_strict": {
-      "text": "Nie mogę pomóc w tej sprawie, ponieważ dotyczy ona osób niepełnoletnich i podlega zasadom dostawcy AI dotyczącym ochrony dzieci. Zasady te chronią dzieci przed wykorzystywaniem i nadużyciami."
-    },
-    "provider_block_sexual": {
-      "text": "Nie mogę pomóc w tej sprawie, ponieważ podlega ona zasadom dostawcy AI dotyczącym treści seksualnych. Zasady te nie dopuszczają jednoznacznych treści w odpowiedziach, w których nie da się sprawdzić zgody ani wieku. Mogę zamiast tego pomóc w wersji twojej prośby bez treści jednoznacznych."
-    },
-    "provider_block_dangerous": {
-      "text": "Nie mogę pomóc w tej sprawie, ponieważ podlega ona zasadom dostawcy AI dotyczącym niebezpiecznych działań. Zasady te zapewniają, że odpowiedzi nie mogą zostać użyte do wyrządzenia poważnej krzywdy. Mogę zamiast tego pomóc z informacjami o bezpieczeństwie lub tłem tematu."
-    },
-    "provider_block_harassment_hate": {
-      "text": "Nie mogę pomóc w tej sprawie, ponieważ podlega ona zasadom dostawcy AI przeciwko nękaniu i nienawiści. Zasady te chronią ludzi przed byciem celem ataków lub poniżaniem. Mogę zamiast tego pomóc ci wyrazić swoje zdanie w sposób pełen szacunku."
-    },
-    "provider_block_personal_data": {
-      "text": "Nie mogę pomóc w tej sprawie, ponieważ podlega ona zasadom dostawcy AI dotyczącym wrażliwych danych osobowych. Zasady te chronią prywatne dane ludzi przed ujawnieniem lub niewłaściwym wykorzystaniem. Mogę pomóc, jeśli pominiesz dane osobowe."
-    },
-    "provider_block_copyright": {
-      "text": "Nie mogę udzielić tej odpowiedzi, ponieważ powielałaby ona tekst chroniony prawem autorskim, na co zasady dostawcy AI nie pozwalają. Chroni to pracę autorów i wydawców. Mogę zamiast tego streścić go lub wyjaśnić własnymi słowami."
-    },
-    "provider_block_other": {
-      "text": "Nie mogę pomóc w tej sprawie, ponieważ podlega ona zasadom bezpieczeństwa dostawcy AI. Zasady te istnieją, aby zapobiegać szkodliwym odpowiedziom. Możesz przeformułować swoją prośbę albo mogę pomóc w czymś innym."
     }
   },
   "projects": {},

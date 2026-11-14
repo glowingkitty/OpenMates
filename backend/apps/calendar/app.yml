@@ -165,6 +165,7 @@ skills:
       required: [requests]
   - id: get-events
     anonymous_access: authenticated
+    external_data: true
     name_translation_key: app_skills.calendar.get_events
     description_translation_key: app_skills.calendar.get_events.description
     icon_image: calendar.svg
@@ -174,6 +175,8 @@ skills:
         no_api_key: true
     preprocessor_hint: >
       Read a user's connected Google Calendar events, agenda, availability, or event details after connected-account permission checks.
+      Always pass an explicit time_min/time_max with a UTC offset (at most 366 days). If has_more is true,
+      call again with next_page_token instead of claiming the list is complete.
     api_config:
       expose_post: false
     tool_schema:
@@ -181,20 +184,41 @@ skills:
       properties:
         requests:
           type: array
+          minItems: 1
+          maxItems: 20
           items:
             type: object
             properties:
               calendar_id:
                 type: string
                 default: primary
+                description: Calendar id from list-calendars. Reads may use primary.
               time_min:
                 type: string
+                description: RFC 3339 start with offset, e.g. 2026-11-20T00:00:00+01:00.
               time_max:
                 type: string
-          minItems: 1
+                description: RFC 3339 end with offset, after time_min.
+              query:
+                type: string
+                maxLength: 512
+                description: Optional free-text search in event title, description, location and attendees.
+              page_token:
+                type: string
+                maxLength: 4096
+              max_results:
+                type: integer
+                minimum: 1
+                maximum: 250
+                default: 50
+              timezone:
+                type: string
+                description: Optional IANA timezone for returned times.
+            required: [time_min, time_max]
       required: [requests]
   - id: create-event
     anonymous_access: authenticated
+    external_data: true
     name_translation_key: app_skills.calendar.create_event
     description_translation_key: app_skills.calendar.create_event.description
     icon_image: calendar.svg
@@ -204,6 +228,9 @@ skills:
         no_api_key: true
     preprocessor_hint: >
       Create a Calendar event only after connected-account write permission has been approved or auto-authorized.
+      Use a calendar_id the user chose (list-calendars first); never default writes to primary silently.
+      Timed events need an offset or an IANA timezone; all-day events use YYYY-MM-DD with an exclusive end.
+      Never add attendees the user did not name; notifications stay off unless send_updates is chosen.
     api_config:
       expose_post: false
     tool_schema:
@@ -211,17 +238,26 @@ skills:
       properties:
         requests:
           type: array
+          minItems: 1
+          maxItems: 20
           items:
             type: object
             properties:
-              calendar_id: {type: string, default: primary}
-              title: {type: string}
-              start: {type: string}
-              end: {type: string}
-          minItems: 1
+              calendar_id: {type: string, description: Calendar id the user selected.}
+              title: {type: string, maxLength: 1024}
+              start: {type: string, description: "RFC 3339 date-time (with offset, or local time plus timezone) or YYYY-MM-DD for all-day."}
+              end: {type: string, description: "Same kind as start. All-day end is exclusive; may be omitted for a one-day all-day event."}
+              timezone: {type: string, description: IANA timezone such as Europe/Berlin.}
+              location: {type: string, maxLength: 1024}
+              description: {type: string, maxLength: 8192}
+              attendees: {type: array, maxItems: 100, items: {type: string}, description: Email addresses the user explicitly asked to invite.}
+              reminder_minutes: {type: array, maxItems: 5, items: {type: integer, minimum: 0, maximum: 40320}}
+              send_updates: {type: string, enum: [none, all, externalOnly], default: none}
+            required: [calendar_id, title, start]
       required: [requests]
   - id: update-event
     anonymous_access: authenticated
+    external_data: true
     name_translation_key: app_skills.calendar.update_event
     description_translation_key: app_skills.calendar.update_event.description
     icon_image: calendar.svg
@@ -231,6 +267,8 @@ skills:
         no_api_key: true
     preprocessor_hint: >
       Update an existing Calendar event only after connected-account write permission has been approved or auto-authorized.
+      Send only the fields that change; omitted fields stay as they are. location/description "" clears them.
+      Recurring events are not supported yet.
     api_config:
       expose_post: false
     tool_schema:
@@ -238,18 +276,28 @@ skills:
       properties:
         requests:
           type: array
+          minItems: 1
+          maxItems: 20
           items:
             type: object
             properties:
-              calendar_id: {type: string, default: primary}
+              calendar_id: {type: string}
               event_id: {type: string}
-              title: {type: string}
+              expected_etag: {type: string, description: etag of the event as last shown, to refuse overwriting newer edits.}
+              title: {type: string, maxLength: 1024}
               start: {type: string}
               end: {type: string}
-          minItems: 1
+              timezone: {type: string}
+              location: {type: string, maxLength: 1024}
+              description: {type: string, maxLength: 8192}
+              attendees: {type: array, maxItems: 100, items: {type: string}, description: Full new attendee list; omit to keep attendees unchanged.}
+              reminder_minutes: {type: array, maxItems: 5, items: {type: integer, minimum: 0, maximum: 40320}}
+              send_updates: {type: string, enum: [none, all, externalOnly], default: none}
+            required: [calendar_id, event_id]
       required: [requests]
   - id: delete-event
     anonymous_access: authenticated
+    external_data: true
     name_translation_key: app_skills.calendar.delete_event
     description_translation_key: app_skills.calendar.delete_event.description
     icon_image: calendar.svg
@@ -259,6 +307,7 @@ skills:
         no_api_key: true
     preprocessor_hint: >
       Delete Calendar events only after connected-account delete permission has been approved or auto-authorized.
+      Recurring events are not supported yet.
     api_config:
       expose_post: false
     tool_schema:
@@ -266,10 +315,14 @@ skills:
       properties:
         requests:
           type: array
+          minItems: 1
+          maxItems: 20
           items:
             type: object
             properties:
-              calendar_id: {type: string, default: primary}
+              calendar_id: {type: string}
               event_id: {type: string}
-          minItems: 1
+              expected_etag: {type: string}
+              send_updates: {type: string, enum: [none, all, externalOnly], default: none}
+            required: [calendar_id, event_id]
       required: [requests]

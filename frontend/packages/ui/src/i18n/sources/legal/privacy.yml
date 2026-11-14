@@ -13511,6 +13511,21 @@ providers.connected_services.google_calendar.description:
     Beschreibungen, Orte, Datumsangaben und E-Mail-Adressen von Teilnehmenden zugreifen. OpenMates liest, erstellt, aktualisiert
     oder löscht nur im Rahmen der Berechtigungen und der Aktion, die du autorisierst.
   verified_by_human: []
+providers.connected_services.figma.heading:
+  context: Provider heading for Figma
+  en: Figma
+  de: Figma
+  verified_by_human: []
+providers.connected_services.figma.description:
+  context: Figma connected-account disclosure
+  en: After you connect Figma, OpenMates exchanges the OAuth authorization code and stores the refresh token encrypted on
+    your devices. Your Figma account ID, handle, and email address are used as the account label. Authorized actions read
+    only the Figma file content you ask for, within the read scopes you authorize. OpenMates never edits your Figma files.
+  de: Nachdem du Figma verbunden hast, tauscht OpenMates den OAuth-Autorisierungscode ein und speichert das Refresh-Token
+    verschlüsselt auf deinen Geräten. Deine Figma-Konto-ID, dein Handle und deine E-Mail-Adresse dienen als Kontobezeichnung.
+    Autorisierte Aktionen lesen nur die Figma-Dateiinhalte, die du anforderst, im Rahmen der Leseberechtigungen, die du autorisierst.
+    OpenMates bearbeitet deine Figma-Dateien nie.
+  verified_by_human: []
 providers.business_data.heading:
   context: Provider group heading for public company information
   en: Public business data

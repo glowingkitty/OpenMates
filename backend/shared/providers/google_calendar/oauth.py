@@ -14,6 +14,7 @@ from typing import Any
 import httpx
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.connected_account_errors import ConnectedAccountTokenExchangeError
 
 GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 TOKEN_EXCHANGE_TIMEOUT_SECONDS = 15.0
@@ -25,7 +26,7 @@ MAX_PROVIDER_ERROR_DESCRIPTION_LENGTH = 240
 logger = logging.getLogger(__name__)
 
 
-class GoogleOAuthTokenExchangeError(RuntimeError):
+class GoogleOAuthTokenExchangeError(ConnectedAccountTokenExchangeError):
     """Sanitized Google OAuth token exchange failure."""
 
     def __init__(
@@ -45,7 +46,9 @@ class GoogleOAuthTokenExchangeError(RuntimeError):
             message += f": {provider_error}"
         if provider_error_description:
             message += f" ({provider_error_description})"
-        super().__init__(message)
+        super().__init__(
+            message, provider_id="google", status_code=status_code, provider_error=provider_error,
+        )
 
 
 def _sanitize_provider_error_value(value: Any) -> str | None:

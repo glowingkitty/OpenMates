@@ -685,6 +685,24 @@ features:
     evidence:
       apple: "apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift:151 (calendar list/get/create/update/delete), EventEmbedRenderer, Core/Models/EmbedModels.swift app:calendar:*"
       tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
+    notes: "Google Calendar is the only provider. Live checks with a real Google account (consent and refresh, 403 reasons, sendUpdates, client event ids, etag, all-day and DST, undo) run in backend/tests/live/test_google_calendar_permissions_live.py."
+    subfeatures:
+      - id: connection
+        name: "Connection and scopes"
+        description: "Google OAuth with minimal scopes per capability, reconnect on revoked grants"
+        assertions: ["calendar.connection.*", "calendar.discovery.*"]
+      - id: read-events
+        name: "Read and search events"
+        description: "List calendars, read and search events, availability"
+        assertions: ["calendar.read.*"]
+      - id: safe-mutations
+        name: "Create, update and delete"
+        description: "Idempotent create, etag-guarded update, delete, time and recurrence rules, undo"
+        assertions: ["calendar.creation.*", "calendar.events.*"]
+      - id: workflows
+        name: "Workflows"
+        description: "Scoped offline execution in workflows"
+        assertions: ["calendar.workflows.*"]
   - id: code
     name: "Code"
     kind: app
@@ -702,8 +720,8 @@ features:
   - id: design
     name: "Design"
     kind: app
-    description: "Find icons and visual assets for product design."
-    specifications: [feature.app-skill.design-embroidery]
+    description: "Find icons and visual assets, and read your Figma designs to build them."
+    specifications: [feature.app-skill.design-embroidery, feature.app-skills.design-figma]
     apps: [design]
     release: v0.19.0
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
@@ -713,6 +731,13 @@ features:
       tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
       sdk_npm: "sdk.design facade (npm)"
       sdk_pypi: "sdk.design facade (py)"
+    subfeatures:
+      - id: figma-get-design
+        name: "Figma designs"
+        description: "Connect Figma (OAuth), read frames, components, styles, variables and images, design-to-code hand-off"
+        assertions: ["design-figma.*"]
+        surfaces: {web: in_progress, apple: planned, cli: in_progress, tui: unverified, rest_api: in_progress, sdk_npm: in_progress, sdk_pypi: in_progress}
+        notes: "Unreleased; real-account check with the owner's Figma app on dev pending."
   - id: diagrams
     name: "Diagrams"
     kind: app

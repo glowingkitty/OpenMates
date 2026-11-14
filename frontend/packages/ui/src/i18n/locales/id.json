@@ -78,11 +78,6 @@
       }
     }
   },
-  "ai_response_notices": {
-    "output_limit": {
-      "text": "Jawaban ini terpotong karena mencapai panjang maksimum model. Anda dapat meminta AI untuk melanjutkan."
-    }
-  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -926,6 +921,12 @@
         "text": "Bordir",
         "description": {
           "text": "Ubah grafik vektor menjadi file mesin bordir dengan pratinjau jahitan."
+        }
+      },
+      "get_design": {
+        "text": "Ambil desain",
+        "description": {
+          "text": "Baca desain Figma dan dapatkan struktur, gaya, dan serah terima kode."
         }
       }
     },
@@ -14222,30 +14223,6 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Saya tidak dapat menggunakan {skill_name} dengan benar. Bisakah Anda menjelaskan apa yang Anda inginkan agar saya bisa mencoba lagi?"
-    },
-    "provider_block_child_safety": {
-      "text": "Saya tidak dapat membantu permintaan ini karena menyangkut anak di bawah umur, yang termasuk dalam aturan keselamatan anak dari penyedia AI. Aturan ini melindungi anak dari penyalahgunaan, seperti profil palsu atau konten eksploitatif. Jika membantu, saya bisa bekerja dengan karakter ilustrasi atau karakter fiksi yang jelas."
-    },
-    "provider_block_child_safety_strict": {
-      "text": "Saya tidak dapat membantu permintaan ini karena menyangkut anak di bawah umur, yang termasuk dalam aturan keselamatan anak dari penyedia AI. Aturan ini melindungi anak dari eksploitasi dan penyalahgunaan."
-    },
-    "provider_block_sexual": {
-      "text": "Saya tidak dapat membantu permintaan ini karena termasuk dalam aturan penyedia AI tentang konten seksual. Aturan ini menjaga materi eksplisit tetap di luar jawaban ketika persetujuan dan usia tidak dapat diperiksa. Sebagai gantinya, saya bisa membantu dengan versi permintaanmu yang tidak eksplisit."
-    },
-    "provider_block_dangerous": {
-      "text": "Saya tidak dapat membantu permintaan ini karena termasuk dalam aturan penyedia AI tentang aktivitas berbahaya. Aturan ini memastikan jawaban tidak dapat digunakan untuk menimbulkan bahaya serius. Sebagai gantinya, saya bisa membantu dengan informasi keselamatan atau latar belakang topiknya."
-    },
-    "provider_block_harassment_hate": {
-      "text": "Saya tidak dapat membantu permintaan ini karena termasuk dalam aturan penyedia AI terhadap pelecehan dan kebencian. Aturan ini melindungi orang dari menjadi sasaran atau direndahkan. Sebagai gantinya, saya bisa membantumu menyampaikan pendapat dengan cara yang sopan."
-    },
-    "provider_block_personal_data": {
-      "text": "Saya tidak dapat membantu permintaan ini karena termasuk dalam aturan penyedia AI tentang informasi pribadi yang sensitif. Aturan ini melindungi data pribadi orang dari terpapar atau disalahgunakan. Saya bisa membantu jika kamu menghilangkan detail pribadinya."
-    },
-    "provider_block_copyright": {
-      "text": "Saya tidak dapat memberikan jawaban ini karena akan mereproduksi teks berhak cipta, yang tidak diizinkan oleh aturan penyedia AI. Ini melindungi karya penulis dan penerbit. Sebagai gantinya, saya bisa merangkumnya atau menjelaskannya dengan kata-kata saya sendiri."
-    },
-    "provider_block_other": {
-      "text": "Saya tidak dapat membantu permintaan ini karena termasuk dalam aturan keselamatan penyedia AI. Aturan ini ada untuk mencegah keluaran yang berbahaya. Kamu bisa merumuskan ulang permintaanmu, atau saya bisa membantu hal lain."
     }
   },
   "projects": {},

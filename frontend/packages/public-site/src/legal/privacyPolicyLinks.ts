@@ -80,6 +80,7 @@ export const privacyPolicyLinks = {
 
   // Group J2 — Connected services
   googleCalendar: "https://policies.google.com/privacy",
+  figma: "https://www.figma.com/legal/privacy/",
 
   // Group J3 — Public company data
   secEdgar: "https://www.sec.gov/about/privacy-information",

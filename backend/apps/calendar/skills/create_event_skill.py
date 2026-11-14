@@ -1,10 +1,12 @@
 # backend/apps/calendar/skills/create_event_skill.py
 #
-# Calendar create-event skill contract.
-# Provider mutation execution must be gated by connected-account permission policy
-# and a broker-issued access-token handle.
+# Calendar create-event skill.
+# Provider mutation execution is gated by connected-account permission policy
+# and a broker-issued access-token handle. Each create carries a stable event id
+# derived from the chat message and request, so a retried or uncertain create
+# returns the event that already exists instead of making a duplicate.
 #
-# Spec: docs/specs/calendar-permission-management/spec.yml
+# Spec: specifications/features/app-skills/calendar/specification.yml
 
 from __future__ import annotations
 
@@ -14,7 +16,17 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.google_calendar.client import GoogleCalendarClient
+from backend.shared.providers.google_calendar.event_body import (
+    create_body,
+    idempotent_event_id,
+    validate_send_updates,
+)
 from backend.shared.providers.google_calendar.models import CalendarEventMutationRequest
+from backend.shared.python_utils.calendar_skill_support import (
+    access_token_for_handle,
+    run_calendar_request,
+    summarize_errors,
+)
 
 
 class CreateEventRequest(BaseModel):
@@ -55,7 +67,7 @@ class CreateEventSkill(BaseSkill):
             access_token_handle=access_token_handle,
             location=location,
             description=description,
-            attendees=attendees or [],
+            attendees=attendees,
         )
 
     async def execute(
@@ -63,36 +75,48 @@ class CreateEventSkill(BaseSkill):
         requests: list[dict[str, Any]],
         connected_account_access_tokens: dict[str, str] | None = None,
         calendar_client_factory: Any | None = None,
+        message_id: str | None = None,
         **_: Any,
     ) -> CreateEventResponse:
+        client_factory = calendar_client_factory or GoogleCalendarClient
         results: list[dict[str, Any]] = []
-        for request in [CalendarEventMutationRequest(**item) for item in requests]:
-            access_token = _access_token_for_handle(
-                request.access_token_handle,
-                connected_account_access_tokens,
-            )
-            client_factory = calendar_client_factory or GoogleCalendarClient
-            client = client_factory(access_token=access_token)
-            event = await client.create_event(
-                calendar_id=request.calendar_id,
-                title=request.title,
-                start=request.start,
-                end=request.end,
-                location=request.location,
-                description=request.description,
-                attendees=request.attendees,
-            )
-            results.append({"calendar_id": request.calendar_id, "event": event.model_dump()})
-        return CreateEventResponse(results=results)
 
+        for index, raw in enumerate(requests):
+            async def run(raw: dict[str, Any], index: int = index) -> dict[str, Any]:
+                request = CalendarEventMutationRequest(**raw)
+                client = client_factory(access_token=access_token_for_handle(
+                    request.access_token_handle, connected_account_access_tokens,
+                ))
+                operation_key = (
+                    f"{message_id}:{index}:{request.calendar_id}:{request.title}:{request.start}:{request.end}"
+                    if message_id else None
+                )
+                body = create_body(
+                    title=request.title or "",
+                    start=request.start or "",
+                    end=request.end,
+                    timezone_name=request.timezone,
+                    location=request.location,
+                    description=request.description,
+                    attendees=request.attendees,
+                    reminder_minutes=request.reminder_minutes,
+                    event_id=idempotent_event_id(operation_key) if operation_key else None,
+                )
+                event, already_existed = await client.create_event(
+                    calendar_id=request.calendar_id,
+                    body=body,
+                    send_updates=validate_send_updates(request.send_updates),
+                )
+                if not event.id:
+                    return {"calendar_id": request.calendar_id, "error": "google_calendar_outcome_uncertain",
+                            "reconnect_required": False, "retryable": False}
+                return {
+                    "calendar_id": request.calendar_id,
+                    "status": "already_created" if already_existed else "created",
+                    "event": event.model_dump(),
+                    "invited_attendees": [] if not request.attendees else event.attendees,
+                    "notifications": validate_send_updates(request.send_updates),
+                }
 
-def _access_token_for_handle(
-    access_token_handle: str,
-    connected_account_access_tokens: dict[str, str] | None,
-) -> str:
-    if not connected_account_access_tokens:
-        raise PermissionError("connected account access token context is required")
-    access_token = connected_account_access_tokens.get(access_token_handle)
-    if not access_token:
-        raise PermissionError("access_token_handle is not authorized for this skill call")
-    return access_token
+            results.append(await run_calendar_request(raw, run))
+        return CreateEventResponse(results=results, error=summarize_errors(results))

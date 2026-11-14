@@ -78,11 +78,6 @@
       }
     }
   },
-  "ai_response_notices": {
-    "output_limit": {
-      "text": "This response was cut short because it reached the model's maximum output length. You can ask the AI to continue."
-    }
-  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -946,6 +941,12 @@
         "text": "Embroidery",
         "description": {
           "text": "Turn a vector graphic into embroidery machine files with a stitch preview."
+        }
+      },
+      "get_design": {
+        "text": "Get design",
+        "description": {
+          "text": "Read a Figma design and get structure, styles and a code handoff."
         }
       }
     },
@@ -15150,6 +15151,14 @@
             "description": {
               "text": "After you connect Google Calendar, OpenMates exchanges the OAuth authorization code and stores refresh or access tokens encrypted. Authorized actions may access calendar IDs, names, time zones, event IDs, titles, descriptions, locations, dates, and attendee email addresses. OpenMates reads, creates, updates, or deletes only within the scopes and action you authorize."
             }
+          },
+          "figma": {
+            "heading": {
+              "text": "Figma"
+            },
+            "description": {
+              "text": "After you connect Figma, OpenMates exchanges the OAuth authorization code and stores the refresh token encrypted on your devices. Your Figma account ID, handle, and email address are used as the account label. Authorized actions read only the Figma file content you ask for, within the read scopes you authorize. OpenMates never edits your Figma files."
+            }
           }
         },
         "business_data": {
@@ -17631,30 +17640,6 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... I wasn't able to use {skill_name} properly. Could you clarify what you'd like me to do so I can try again?"
-    },
-    "provider_block_child_safety": {
-      "text": "I can't help with this request because it concerns minors, which falls under the AI provider's child-safety rules. These rules protect children from misuse, such as fake profiles or exploitative content. If it helps, I can work with an illustrated or clearly fictional character instead."
-    },
-    "provider_block_child_safety_strict": {
-      "text": "I can't help with this request because it concerns minors, which falls under the AI provider's child-safety rules. These rules protect children from exploitation and misuse."
-    },
-    "provider_block_sexual": {
-      "text": "I can't help with this request because it falls under the AI provider's rules on sexual content. These rules keep explicit material out of answers where consent and age can't be checked. I can help with a non-explicit version of your request instead."
-    },
-    "provider_block_dangerous": {
-      "text": "I can't help with this request because it falls under the AI provider's rules on dangerous activities. These rules make sure answers can't be used to cause serious harm. I can help with safety information or the background of the topic instead."
-    },
-    "provider_block_harassment_hate": {
-      "text": "I can't help with this request because it falls under the AI provider's rules against harassment and hate. These rules protect people from being targeted or demeaned. I can help you make your point in a respectful way instead."
-    },
-    "provider_block_personal_data": {
-      "text": "I can't help with this request because it falls under the AI provider's rules on sensitive personal information. These rules protect people's private data from being exposed or misused. I can help if you leave out the personal details."
-    },
-    "provider_block_copyright": {
-      "text": "I can't give this answer because it would reproduce copyrighted text, which the AI provider's rules don't allow. This protects the work of authors and publishers. I can summarize it or explain it in my own words instead."
-    },
-    "provider_block_other": {
-      "text": "I can't help with this request because it falls under the AI provider's safety rules. These rules exist to prevent harmful output. You can rephrase your request, or I can help with something else."
     }
   },
   "projects": {
@@ -20175,6 +20160,47 @@
         },
         "finalize_error": {
           "text": "Could not finish connecting Google Calendar."
+        },
+        "figma": {
+          "title": {
+            "text": "Figma"
+          },
+          "description": {
+            "text": "OpenMates reads only the Figma files you name, with read-only access."
+          },
+          "variables_label": {
+            "text": "Variables (Figma Enterprise only)"
+          },
+          "connect_button": {
+            "text": "Connect Figma"
+          },
+          "reconnect_button": {
+            "text": "Reconnect"
+          },
+          "disconnect_button": {
+            "text": "Disconnect"
+          },
+          "accounts_heading": {
+            "text": "Connected Figma accounts"
+          },
+          "revoke_note": {
+            "text": "Also remove OpenMates in your Figma account settings; Figma has no API to revoke access."
+          },
+          "not_configured": {
+            "text": "Figma is not configured on this server."
+          },
+          "start_error": {
+            "text": "Could not start the Figma connection. Please try again."
+          },
+          "disconnect_error": {
+            "text": "Could not disconnect this Figma account. Please try again."
+          },
+          "disconnected_success": {
+            "text": "Figma account disconnected locally."
+          },
+          "capability_variables": {
+            "text": "Variables"
+          }
         }
       },
       "focus_modes": {
@@ -23122,6 +23148,12 @@
         },
         "cli_export_error": {
           "text": "Could not generate the CLI import command."
+        },
+        "provider_figma": {
+          "text": "Figma"
+        },
+        "app_design": {
+          "text": "Design"
         }
       },
       "nearby_by_default": {

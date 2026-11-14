@@ -1,0 +1,26 @@
+schema_version: 2
+profile: concise
+title: Figma Connected Account For Design Get Design With Design-To-Code Hand-Off
+status: implementing
+id: figma-get-design
+goal: >
+  Users connect their own Figma account (OAuth, minimal scopes, client-side
+  encrypted tokens) and the design get_design skill reads real Figma files
+  (frames, nodes, components, styles, variables, exported images) and returns a
+  design-to-code hand-off that agentic coding in Projects builds from.
+decisions:
+  - Official Figma REST API and OAuth 2 app flow only (developers.figma.com/docs/rest-api/); PKCE S256, HTTP Basic client auth, Vault kv/data/providers/figma holds oauth_client_id and oauth_client_secret.
+  - Default scopes file_content:read and current_user:read; file_variables:read only through an opt-in variables capability and reconnect. Components and styles come from file and node responses, so library_content:read and file_metadata:read are not requested.
+  - Tokens follow the Google Calendar connected-account path unchanged - one-time Vault-encrypted handoff, browser master-key encryption, per-turn refresh through the token broker, short access-token handle. No server-side long-lived Figma token or file-content cache.
+  - Refreshing invalidates the previous Figma access token; a token rejected for that reason is reported as retryable figma_token_superseded instead of adding server-side token caching.
+  - One get_design request makes at most one content, one image and one variables call and never retries a 429; Figma plan tier, rate limit type and Retry-After reach the assistant.
+  - The design-to-code hand-off is a deterministic transform of the Figma response (tokens as CSS custom properties, screens, components, assets) plus an app instruction for building it in a Project; it adds no new Project API.
+checks:
+  required:
+    - Mocked Figma API unit and contract tests for OAuth start/callback, refresh, scope checks, URL parsing, node simplification, variables/images, rate limits and the hand-off.
+    - A mocked chat-flow test from a design tool call through the token broker to the skill result with a synthetic fixture file.
+    - Isolated CI pytest for the touched backend tests and the web component spec for the Design connection UI.
+    - Scoped dev deployment; the real-account test with the owner's Figma app runs after deploy and is reported separately.
+approval_provenance:
+  source: Explicit owner instruction relayed in this Claude chat on 2026-11-14 (Marco does not need to approve the Specification before implementation).
+  note: Owning Specification feature.app-skills.design-figma (draft v1) is presented to the owner after deployment.

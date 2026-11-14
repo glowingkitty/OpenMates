@@ -23,7 +23,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
 | CLI | 0 | 0 | 14 | 8 | 29 | 41 | 2 | 0 | 0 | 29 |
 | TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 40 |
-| REST API | 6 | 1 | 26 | 14 | 31 | 17 | 0 | 2 | 0 | 26 |
+| REST API | 5 | 1 | 27 | 14 | 31 | 17 | 0 | 2 | 0 | 26 |
 | npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 50 |
 | PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 51 |
 
@@ -117,8 +117,13 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Books](#books) | impl | wip |  | impl | impl | — | impl | impl | on | on | v0.1-alpha-1 |
 | [Business](#business) | **FAIL** 6/20 | impl |  | not run 0/17 | impl | partial 10/17 | impl | impl | on | on | v0.19.0 |
 | [Calendar](#calendar) | partial 7/19 | impl |  | not run 0/19 | impl | not run 0/19 | not run 0/19 | not run 0/19 | on | on | v0.12.0-alpha |
+| &nbsp;&nbsp;↳ Connection and scopes | ? | ? |  | ? | ? | not run 0/2 | ? | ? | | | |
+| &nbsp;&nbsp;↳ Read and search events | ? | ? |  | ? | ? | not run 0/1 | ? | ? | | | |
+| &nbsp;&nbsp;↳ Create, update and delete | ? | ? |  | ? | ? | not run 0/4 | ? | ? | | | |
+| &nbsp;&nbsp;↳ Workflows | ? | ? |  | ? | ? | ? | ? | ? | | | |
 | [Code](#code) | **FAIL** 6/31 | **FAIL** 6/29 |  | partial 1/29 | impl | partial 7/29 | not run 0/29 | impl | on | on | v0.1-alpha-1 |
-| [Design](#design) | partial 3/14 | impl |  | impl | impl | **live** 14/14 | impl | impl | on | on | v0.19.0 |
+| [Design](#design) | partial 3/22 | impl |  | impl | impl | partial 14/22 | impl | impl | on | on | v0.19.0 |
+| &nbsp;&nbsp;↳ Figma designs | not run 0/8 | planned |  | wip | ? | not run 0/8 | wip | wip | | | |
 | [Diagrams](#diagrams) | impl | impl |  | wip | wip | — | impl | wip | on | on | untagged-main |
 | [Docs](#docs) | partial 2/4 | impl |  | — | — | — | impl | impl | on | on | v0.5.0-alpha |
 | [Electronics](#electronics) | not run 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.11.0-alpha |
@@ -787,6 +792,7 @@ Connect your calendar so mates can read, create, update, and delete events with 
 - Specifications: [feature.app-skills.calendar](../../specifications/features/app-skills/calendar/specification.yml) (draft), [feature.calendar-event-embeds](../../specifications/features/calendar-event-embeds/specification.yml) (draft) · 19 assertion(s)
 - Apps: `calendar`
 - Flags: `app:calendar` · dev on · prod on · release v0.12.0-alpha
+- Notes: Google Calendar is the only provider. Live checks with a real Google account (consent and refresh, 403 reasons, sendUpdates, client event ids, etag, all-day and DST, undo) run in backend/tests/live/test_google_calendar_permissions_live.py.
 
 <details><summary>Tests per surface</summary>
 
@@ -796,7 +802,7 @@ Connect your calendar so mates can read, create, update, and delete events with 
 | Apple | impl | — | — |
 | CLI | not run 0/19 | 0 pass · 0 fail · 6 not run · 13 no test | 2 unit test file(s), e.g. [calendarEventExport.test.ts](../../frontend/packages/openmates-cli/tests/calendarEventExport.test.ts), [embedRenderers.test.ts](../../frontend/packages/openmates-cli/tests/embedRenderers.test.ts) |
 | TUI | impl | — | — |
-| REST API | not run 0/19 | 0 pass · 0 fail · 10 not run · 9 no test | 9 unit test file(s), e.g. [test_calendar_event_content.py](../../backend/tests/test_calendar_event_content.py), [test_mindmap_embed_streaming.py](../../backend/tests/test_mindmap_embed_streaming.py) |
+| REST API | not run 0/19 | 0 pass · 0 fail · 13 not run · 6 no test | 12 unit test file(s), e.g. [test_google_calendar_skill_hardening.py](../../backend/tests/test_google_calendar_skill_hardening.py), [test_calendar_event_content.py](../../backend/tests/test_calendar_event_content.py) |
 | npm SDK | not run 0/19 | 0 pass · 0 fail · 2 not run · 17 no test | 1 unit test file(s), e.g. [calendarEventExport.test.ts](../../frontend/packages/openmates-cli/tests/calendarEventExport.test.ts) |
 | PyPI SDK | not run 0/19 | 0 pass · 0 fail · 3 not run · 16 no test | 1 unit test file(s), e.g. [test_calendar_event.py](../../packages/openmates-python/tests/test_calendar_event.py) |
 
@@ -1152,11 +1158,11 @@ One provider-neutral account and authorization contract serves Calendar, Code, F
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 1/9 | 1 pass · 0 fail · 0 not run · 8 no test | [calendar-permission-flow.spec.ts](../../frontend/apps/web_app/tests/calendar-permission-flow.spec.ts) |
+| Web | partial 1/9 | 1 pass · 0 fail · 2 not run · 6 no test | [calendar-permission-flow.spec.ts](../../frontend/apps/web_app/tests/calendar-permission-flow.spec.ts)<br>2 unit test file(s), e.g. [connectedAccountOAuthService.test.ts](../../frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts), [connectedAccountStorageService.test.ts](../../frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts) |
 | Apple | impl | — | — |
 | CLI | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
 | TUI | wip | — | — |
-| REST API | not run 0/9 | 0 pass · 0 fail · 4 not run · 5 no test | 6 unit test file(s), e.g. [test_connected_account_execution.py](../../backend/tests/test_connected_account_execution.py), [test_google_calendar_oauth_adapter.py](../../backend/tests/test_google_calendar_oauth_adapter.py) |
+| REST API | not run 0/9 | 0 pass · 0 fail · 4 not run · 5 no test | 9 unit test file(s), e.g. [test_connected_account_execution.py](../../backend/tests/test_connected_account_execution.py), [test_calendar_chat_flow_mocked.py](../../backend/tests/test_calendar_chat_flow_mocked.py) |
 | npm SDK | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
 | PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
 
@@ -1275,9 +1281,9 @@ Scheduled test runs with critical flows first, truthful outcomes and recovery.
 ### Design
 <a id="design"></a>
 
-Find icons and visual assets for product design.
+Find icons and visual assets, and read your Figma designs to build them.
 
-- Specifications: [feature.app-skill.design-embroidery](../../specifications/features/app-skills/design-embroidery/specification.yml) (draft) · 14 assertion(s)
+- Specifications: [feature.app-skill.design-embroidery](../../specifications/features/app-skills/design-embroidery/specification.yml) (draft), [feature.app-skills.design-figma](../../specifications/features/app-skills/design-figma/specification.yml) (draft) · 22 assertion(s)
 - Apps: `design`
 - Flags: `app:design` · dev on · prod on · release v0.19.0
 
@@ -1285,13 +1291,13 @@ Find icons and visual assets for product design.
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 3/14 | 3 pass · 0 fail · 2 not run · 9 no test | [design-embroidery-embed.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts)<br>[design-embroidery-chat.spec.ts](../../frontend/apps/web_app/tests/design-embroidery-chat.spec.ts)<br>3 unit test file(s), e.g. [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py), [designEmbroideryText.test.ts](../../frontend/packages/ui/src/data/__tests__/designEmbroideryText.test.ts) |
+| Web | partial 3/22 | 3 pass · 0 fail · 6 not run · 13 no test | [design-embroidery-embed.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts)<br>[figma-connected-accounts.spec.ts](../../frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts)<br>[design-embroidery-chat.spec.ts](../../frontend/apps/web_app/tests/design-embroidery-chat.spec.ts)<br>5 unit test file(s), e.g. [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py), [designEmbroideryText.test.ts](../../frontend/packages/ui/src/data/__tests__/designEmbroideryText.test.ts) |
 | Apple | impl | 0 pass · 0 fail · 0 not run · 14 no test | — |
-| CLI | impl | 0 pass · 0 fail · 0 not run · 14 no test | — |
+| CLI | impl | 0 pass · 0 fail · 0 not run · 22 no test | — |
 | TUI | impl | — | — |
-| REST API | **live** 14/14 | 14 pass · 0 fail · 0 not run · 0 no test | 8 unit test file(s), e.g. [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py), [test_design_embroidery_task.py](../../backend/tests/test_design_embroidery_task.py) |
-| npm SDK | impl | 0 pass · 0 fail · 0 not run · 14 no test | — |
-| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 14 no test | — |
+| REST API | partial 14/22 | 14 pass · 0 fail · 7 not run · 1 no test | 11 unit test file(s), e.g. [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py), [test_design_embroidery_task.py](../../backend/tests/test_design_embroidery_task.py) |
+| npm SDK | impl | 0 pass · 0 fail · 0 not run · 22 no test | — |
+| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 22 no test | — |
 
 </details>
 

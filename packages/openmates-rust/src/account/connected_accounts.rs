@@ -141,6 +141,7 @@ pub(crate) fn import_row(payload: &Value, user_id: &str, master: &[u8; 32]) -> R
         .unwrap_or(provider)
     {
         "google_calendar" => "calendar",
+        "figma" => "design",
         other => other,
     };
     let mut capabilities: Vec<String> = vec![];
@@ -191,6 +192,8 @@ pub(crate) fn import_row(payload: &Value, user_id: &str, master: &[u8; 32]) -> R
         .unwrap_or_else(|| {
             if provider == "google_calendar" {
                 "Google Calendar".into()
+            } else if provider == "figma" {
+                "Figma".into()
             } else {
                 "Connected account".into()
             }

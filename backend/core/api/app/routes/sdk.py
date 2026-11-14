@@ -60,8 +60,7 @@ from backend.shared.python_utils.app_memory_policy import (
     TYPED_MEMORY_REMOVED_ERROR,
     is_removed_app_memory,
 )
-from backend.shared.providers.google_calendar.oauth import GoogleOAuthTokenExchangeError
-from backend.shared.providers.revolut_business.oauth import RevolutBusinessTokenExchangeError
+from backend.shared.python_utils.connected_account_errors import ConnectedAccountTokenExchangeError
 
 from backend.core.api.app.utils.api_key_auth import (
     ApiKeyAuthService,
@@ -2551,7 +2550,7 @@ async def run_sdk_connected_account_skill(
         raise HTTPException(
             status_code=403, detail={"error": "connected_account_authorization_required"},
         ) from exc
-    except (GoogleOAuthTokenExchangeError, RevolutBusinessTokenExchangeError) as exc:
+    except ConnectedAccountTokenExchangeError as exc:
         logger.warning(
             "Connected-account provider token exchange failed for %s/%s provider=%s: %s",
             app_id,
@@ -2559,6 +2558,14 @@ async def run_sdk_connected_account_skill(
             config.provider_id,
             exc,
         )
+        if exc.reconnect_required:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "connected_account_reconnect_required",
+                    "provider_id": config.provider_id,
+                },
+            ) from exc
         raise HTTPException(
             status_code=502,
             detail={

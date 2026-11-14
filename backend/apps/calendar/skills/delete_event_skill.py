@@ -1,10 +1,12 @@
 # backend/apps/calendar/skills/delete_event_skill.py
 #
-# Calendar delete-event skill contract.
+# Calendar delete-event skill.
 # Deletes require connected-account delete permission and a broker-issued
-# access-token handle before provider mutation.
+# access-token handle. The skill re-reads the event, deletes with its etag as
+# an If-Match precondition, and reports absence accurately (already deleted,
+# not found) instead of claiming a deletion it did not perform.
 #
-# Spec: docs/specs/calendar-permission-management/spec.yml
+# Spec: specifications/features/app-skills/calendar/specification.yml
 
 from __future__ import annotations
 
@@ -14,7 +16,13 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.google_calendar.client import GoogleCalendarClient
+from backend.shared.providers.google_calendar.event_body import EventInputError, validate_send_updates
 from backend.shared.providers.google_calendar.models import CalendarEventDeleteRequest
+from backend.shared.python_utils.calendar_skill_support import (
+    access_token_for_handle,
+    run_calendar_request,
+    summarize_errors,
+)
 
 
 class DeleteEventRequest(BaseModel):
@@ -55,39 +63,44 @@ class DeleteEventSkill(BaseSkill):
         calendar_client_factory: Any | None = None,
         **_: Any,
     ) -> DeleteEventResponse:
-        results: list[dict[str, Any]] = []
-        for request in [CalendarEventDeleteRequest(**item) for item in requests]:
-            access_token = _access_token_for_handle(
-                request.access_token_handle,
-                connected_account_access_tokens,
-            )
-            client_factory = calendar_client_factory or GoogleCalendarClient
-            client = client_factory(access_token=access_token)
-            deleted_event = await client.get_event(
-                calendar_id=request.calendar_id,
-                event_id=request.event_id,
-            )
+        client_factory = calendar_client_factory or GoogleCalendarClient
+
+        async def run(raw: dict[str, Any]) -> dict[str, Any]:
+            request = CalendarEventDeleteRequest(**raw)
+            client = client_factory(access_token=access_token_for_handle(
+                request.access_token_handle, connected_account_access_tokens,
+            ))
+            deleted_event = await client.get_event(calendar_id=request.calendar_id, event_id=request.event_id)
+            if deleted_event.status == "cancelled":
+                return {"calendar_id": request.calendar_id, "status": "already_deleted",
+                        "event_id": request.event_id, "deleted_event": deleted_event.model_dump()}
+            if request.expected_etag and request.expected_etag != deleted_event.etag:
+                return {
+                    "calendar_id": request.calendar_id,
+                    "error": "google_calendar_conflict",
+                    "message": "The event changed since it was shown; read it again before deleting.",
+                    "current_event": deleted_event.model_dump(),
+                    "reconnect_required": False,
+                    "retryable": False,
+                }
+            if deleted_event.recurring_event_id or deleted_event.recurrence:
+                raise EventInputError(
+                    "recurring_not_supported",
+                    "Deleting recurring events is not supported yet; delete the series in Google Calendar.",
+                )
             result = await client.delete_event(
                 calendar_id=request.calendar_id,
                 event_id=request.event_id,
+                etag=deleted_event.etag,
+                send_updates=validate_send_updates(request.send_updates),
             )
-            results.append(
-                {
-                    "calendar_id": request.calendar_id,
-                    "deleted_event": deleted_event.model_dump(),
-                    **result,
-                }
-            )
-        return DeleteEventResponse(results=results)
+            return {
+                "calendar_id": request.calendar_id,
+                "deleted_event": deleted_event.model_dump(),
+                "had_attendees": bool(deleted_event.attendees),
+                "notifications": validate_send_updates(request.send_updates),
+                **result,
+            }
 
-
-def _access_token_for_handle(
-    access_token_handle: str,
-    connected_account_access_tokens: dict[str, str] | None,
-) -> str:
-    if not connected_account_access_tokens:
-        raise PermissionError("connected account access token context is required")
-    access_token = connected_account_access_tokens.get(access_token_handle)
-    if not access_token:
-        raise PermissionError("access_token_handle is not authorized for this skill call")
-    return access_token
+        results = [await run_calendar_request(item, run) for item in requests]
+        return DeleteEventResponse(results=results, error=summarize_errors(results))

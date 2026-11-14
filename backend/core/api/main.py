@@ -85,6 +85,7 @@ from backend.core.api.app.routes import connected_account_setup  # noqa: E402 # 
 from backend.core.api.app.routes import connected_account_actions  # noqa: E402 # Connected-account operation actions
 from backend.core.api.app.routes import connected_account_oauth  # noqa: E402 # One-time connected-account OAuth handoffs
 from backend.core.api.app.routes import provider_oauth_google_calendar  # noqa: E402 # Google Calendar connected-account OAuth adapter
+from backend.core.api.app.routes import provider_oauth_figma  # noqa: E402 # Figma connected-account OAuth adapter
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
 from backend.core.api.app.routes import learning_mode  # noqa: E402 # Account-wide Learning Mode policy endpoints
 from backend.core.api.app.routes import teams  # noqa: E402 # Teams V1 endpoints
@@ -1488,6 +1489,7 @@ def create_app() -> FastAPI:
     app.include_router(connected_account_actions.router, include_in_schema=False)  # Connected-account operation actions
     app.include_router(connected_account_oauth.router, include_in_schema=False)  # OAuth refresh-token handoffs - one-time browser encryption bridge
     app.include_router(provider_oauth_google_calendar.router, include_in_schema=False)  # Google Calendar OAuth adapter - creates one-time handoffs
+    app.include_router(provider_oauth_figma.router, include_in_schema=False)  # Figma OAuth adapter - creates one-time handoffs
     app.include_router(status_routes.router, include_in_schema=True)  # Status page API v3
     app.include_router(docs_routes.router, include_in_schema=True)  # Public docs API - serves doc tree, markdown, and search for CLI
     app.include_router(settings_software_update.router, include_in_schema=False)  # Software update settings - admin only, not in public API docs

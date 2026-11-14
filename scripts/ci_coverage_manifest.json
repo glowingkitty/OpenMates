@@ -498,6 +498,7 @@
         "components/maps-discovery.spec.ts",
         "components/maps-place-label.spec.ts",
         "components/agent-context-message.spec.ts",
+        "components/figma-connected-accounts.spec.ts",
         "components/project-focus-specialist.spec.ts",
         "components/rule-document-manager.spec.ts",
         "components/workflow-memory-snapshots.spec.ts",

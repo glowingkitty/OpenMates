@@ -18,10 +18,12 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.core.api.app.services.token_broker import TokenBrokerService
 from backend.core.api.app.utils.encryption import EncryptionService
-from backend.shared.providers.google_calendar.oauth import exchange_google_refresh_token
-from backend.shared.providers.revolut_business.oauth import exchange_revolut_business_refresh_token
 from backend.core.api.app.models.user import User
-from backend.shared.python_utils.connected_account_registry import is_connected_account_action_allowed
+from backend.shared.python_utils.connected_account_registry import (
+    exchange_refresh_token_for_provider,
+    is_connected_account_action_allowed,
+    normalize_connected_account_provider_id,
+)
 
 router = APIRouter(prefix="/v1/token-broker", tags=["Token Broker"])
 
@@ -114,11 +116,11 @@ def _build_token_broker(
     *,
     provider_id: str | None = None,
 ) -> TokenBrokerService:
-    exchange_refresh_token = (
-        exchange_revolut_business_refresh_token
-        if _normalize_provider_id(provider_id) == "revolut_business"
-        else exchange_google_refresh_token
-    )
+    # Every registered provider uses its own refresh exchange; unknown ones are refused.
+    try:
+        exchange_refresh_token = exchange_refresh_token_for_provider(_normalize_provider_id(provider_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Unsupported connected-account provider") from exc
     return TokenBrokerService(
         cache_service=cache_service,
         encryption_service=encryption_service,
@@ -127,11 +129,8 @@ def _build_token_broker(
 
 
 def _normalize_provider_id(value: str | None) -> str:
-    if value in {"calendar", "google_calendar"}:
-        return "google"
-    if value == "finance":
-        return "revolut_business"
-    return str(value or "google")
+    # Requests without a provider predate multi-provider support and were Google.
+    return normalize_connected_account_provider_id(value) or "google"
 
 
 async def _assert_connected_account_context(

@@ -1,0 +1,41 @@
+{
+  "status": 200,
+  "error": false,
+  "meta": {
+    "variableCollections": {
+      "VC:1": {
+        "name": "Tokens",
+        "modes": [
+          {
+            "modeId": "m1",
+            "name": "Light"
+          }
+        ],
+        "defaultModeId": "m1"
+      }
+    },
+    "variables": {
+      "V:1": {
+        "name": "Color/Accent",
+        "resolvedType": "COLOR",
+        "variableCollectionId": "VC:1",
+        "valuesByMode": {
+          "m1": {
+            "r": 1.0,
+            "g": 0.4,
+            "b": 0.0,
+            "a": 1
+          }
+        }
+      },
+      "V:2": {
+        "name": "Radius/Medium",
+        "resolvedType": "FLOAT",
+        "variableCollectionId": "VC:1",
+        "valuesByMode": {
+          "m1": 12
+        }
+      }
+    }
+  }
+}

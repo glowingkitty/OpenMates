@@ -907,6 +907,17 @@ provider_groups:
           - OAuth authorization code and refresh/access tokens needed to maintain the connection
           - Calendar IDs, calendar names, time zones, event IDs, titles, descriptions, locations, dates, and attendee email addresses needed for the requested action
           - Note: Google already stores the connected calendar data; OpenMates accesses or changes only the data covered by the scopes and action you authorize
+      figma:
+        privacy_policy: https://www.figma.com/legal/privacy/
+        location: US / provider-selected regions
+        used_for:
+          - OAuth connection to a Figma account
+          - reading the Figma file content you ask OpenMates to read, after permission checks
+        data_shared:
+          - OAuth authorization code and refresh/access tokens needed to maintain the connection (stored client-side encrypted)
+          - Figma account ID, handle, and email address shown as the connected-account label
+          - Figma file keys and the file content (frames, layers, text, styles) you request
+          - Note: Figma already stores the connected files; OpenMates reads only the data covered by the scopes you authorize
 
   # =====================================================================
   # Group J3 — Public company data. Only used for an explicit company

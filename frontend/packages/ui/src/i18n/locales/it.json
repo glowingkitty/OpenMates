@@ -78,11 +78,6 @@
       }
     }
   },
-  "ai_response_notices": {
-    "output_limit": {
-      "text": "Questa risposta è stata interrotta perché ha raggiunto la lunghezza massima del modello. Puoi chiedere all'IA di continuare."
-    }
-  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -926,6 +921,12 @@
         "text": "Ricamo",
         "description": {
           "text": "Trasforma una grafica vettoriale in file per macchine da ricamo con anteprima dei punti."
+        }
+      },
+      "get_design": {
+        "text": "Ottieni design",
+        "description": {
+          "text": "Legge un design Figma e fornisce struttura, stili e un passaggio al codice."
         }
       }
     },
@@ -14249,30 +14250,6 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Non sono riuscito a usare {skill_name} correttamente. Potresti chiarire cosa vorresti che facessi così posso riprovare?"
-    },
-    "provider_block_child_safety": {
-      "text": "Non posso aiutare con questa richiesta perché riguarda minori e rientra nelle regole sulla tutela dei minori del fornitore di IA. Queste regole proteggono i bambini da abusi, come profili falsi o contenuti di sfruttamento. Se può esserti utile, posso lavorare invece con un personaggio illustrato o chiaramente di fantasia."
-    },
-    "provider_block_child_safety_strict": {
-      "text": "Non posso aiutare con questa richiesta perché riguarda minori e rientra nelle regole sulla tutela dei minori del fornitore di IA. Queste regole proteggono i bambini da sfruttamento e abusi."
-    },
-    "provider_block_sexual": {
-      "text": "Non posso aiutare con questa richiesta perché rientra nelle regole del fornitore di IA sui contenuti sessuali. Queste regole escludono il materiale esplicito dalle risposte in cui consenso ed età non possono essere verificati. Posso invece aiutarti con una versione non esplicita della tua richiesta."
-    },
-    "provider_block_dangerous": {
-      "text": "Non posso aiutare con questa richiesta perché rientra nelle regole del fornitore di IA sulle attività pericolose. Queste regole fanno in modo che le risposte non possano essere usate per causare gravi danni. Posso invece aiutarti con informazioni sulla sicurezza o con il contesto dell'argomento."
-    },
-    "provider_block_harassment_hate": {
-      "text": "Non posso aiutare con questa richiesta perché rientra nelle regole del fornitore di IA contro molestie e odio. Queste regole proteggono le persone dall'essere prese di mira o umiliate. Posso invece aiutarti a esprimere il tuo punto di vista in modo rispettoso."
-    },
-    "provider_block_personal_data": {
-      "text": "Non posso aiutare con questa richiesta perché rientra nelle regole del fornitore di IA sulle informazioni personali sensibili. Queste regole proteggono i dati privati delle persone dall'esposizione o dall'uso improprio. Posso aiutarti se lasci fuori i dati personali."
-    },
-    "provider_block_copyright": {
-      "text": "Non posso dare questa risposta perché riprodurrebbe un testo protetto da copyright, cosa che le regole del fornitore di IA non consentono. Questo tutela il lavoro di autori ed editori. Posso invece riassumerlo o spiegarlo con parole mie."
-    },
-    "provider_block_other": {
-      "text": "Non posso aiutare con questa richiesta perché rientra nelle regole di sicurezza del fornitore di IA. Queste regole esistono per evitare risposte dannose. Puoi riformulare la richiesta, oppure posso aiutarti con qualcos'altro."
     }
   },
   "projects": {},

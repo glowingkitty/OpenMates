@@ -16,6 +16,7 @@
     import { userProfile } from '../../stores/userProfile';
     import AppStoreCard from './AppStoreCard.svelte';
     import AppDailySearchesSettings from './appSettings/AppDailySearchesSettings.svelte';
+    import FigmaConnectedAccounts from './connected_accounts/FigmaConnectedAccounts.svelte';
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
     import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
     import { SettingsButton, SettingsCard, SettingsConsentToggle, SettingsDetailRow, SettingsInfoBox, SettingsSectionHeading } from './elements';
@@ -428,6 +429,10 @@
                     </div>
                 </div>
             </div>
+        {/if}
+
+        {#if (section === 'all' || section === 'settings_memories') && isAuthenticated && appId === 'design'}
+            <FigmaConnectedAccounts />
         {/if}
 
         {#if (section === 'all' || section === 'settings_memories') && isAuthenticated && appId === 'calendar'}

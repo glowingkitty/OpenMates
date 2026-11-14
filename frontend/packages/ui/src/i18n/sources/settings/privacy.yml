@@ -4369,3 +4369,11 @@ enhanced_protection:
   context: Independent default-on toggle for optional on-device model enhancement; baseline personal-data protection remains active when disabled
   en: Enhanced personal data protection
   verified_by_human: []
+connected_accounts.provider_figma:
+  context: Provider display name for Figma connected accounts.
+  en: Figma
+  verified_by_human: []
+connected_accounts.app_design:
+  context: App label for Design connected accounts.
+  en: Design
+  verified_by_human: []

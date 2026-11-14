@@ -49,7 +49,7 @@
     transition:fade={{ duration: 200 }}
   >
     <div class="connected-account-permission-header">
-      <Icon name="calendar" type="app" size="38px" />
+      <Icon name={$currentConnectedAccountPermissionRequest.appId === 'design' ? 'design' : 'calendar'} type="app" size="38px" />
       <div>
         <span id="connected-account-permission-title" class="connected-account-permission-title">
           {$text('chat.connected_account_permissions.title')}

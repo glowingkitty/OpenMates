@@ -317,6 +317,7 @@ async def _run_mocked_protocol_guard_main_processor(
     resolved_chat_depth=0,
     always_include_skills=None,
     on_tool_generation=None,
+    encryption_service=None,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -426,6 +427,10 @@ async def _run_mocked_protocol_guard_main_processor(
     # This loop fixture owns fake integration boundaries; never make real IPC
     # requests while exercising tool parsing, fallback and prompt behavior.
     monkeypatch.setattr(main_processor, "fetch_related_chat_summaries", AsyncMock(return_value=[]))
+    # Spawned-chat lookups read Redis sets the fake caches do not model; chat
+    # orchestration has its own tests (test_chat_orchestration_skills.py).
+    monkeypatch.setattr(main_processor, "orchestration_skill_additions", AsyncMock(return_value=(set(), None)))
+    monkeypatch.setattr(main_processor, "orchestration_blocked_skills", AsyncMock(return_value=(set(), None)))
     from backend.apps.workflows.skills import saved_workflow_context
     monkeypatch.setattr(saved_workflow_context, "saved_workflow_metadata", lambda *_args, **_kwargs: [])
     from backend.core.api.app.services.cache import CacheService
@@ -542,7 +547,7 @@ async def _run_mocked_protocol_guard_main_processor(
             preprocessing_results,
             production_instructions,
             directus_service,
-            None,
+            encryption_service,
             user_vault_key_id,
             all_mates_configs or [],
             discovered_apps_metadata=discovered_apps_metadata or {},

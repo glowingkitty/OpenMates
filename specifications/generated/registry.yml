@@ -244,6 +244,17 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skills.design-figma:
+    version: 1
+    status: draft
+    path: features/app-skills/design-figma
+    fingerprint: 2671d0afe0de669504737e23d7fe2195d0ac4faf636f1a2c2f6181b6db27d382
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.app-skill.events-search:
     version: 1
     status: draft
@@ -4567,6 +4578,94 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  design-figma.connection.oauth:
+    specification: feature.app-skills.design-figma@1
+    specification_id: feature.app-skills.design-figma
+    type: security
+    fingerprint: 0e75b97716e176be9b4fa96a6f1b3dc6f9c2be393797f252eb4df7d4ed0f3a26
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.connection.minimal-scopes:
+    specification: feature.app-skills.design-figma@1
+    specification_id: feature.app-skills.design-figma
+    type: security
+    fingerprint: 0a1e70d80e6c1c536d43c9f9e42bc0f0a4fe786c56b1d5db09a95efd4b206238
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.execution.token-lifecycle:
+    specification: feature.app-skills.design-figma@1
+    specification_id: feature.app-skills.design-figma
+    type: security
+    fingerprint: 2f7bd295eeeb8a2873b10d7d7ad60cdbdf58490e6cf860921037c3e5916524ff
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.read.file-content:
+    specification: feature.app-skills.design-figma@1
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: a160f2a5dced7c5acd70c9caf58e19e71fe8bfecd572fc150acd01c149614e16
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.read.variables-images:
+    specification: feature.app-skills.design-figma@1
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: 208b816f501f67be8e198ecba5fbea04e485f5b137f7151d0b775c027606536c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.limits.rate-aware:
+    specification: feature.app-skills.design-figma@1
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: ee7680a054806e06fbea0f73103f9ed44add408b3067cdd9bf72c5d338cdd5cc
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.handoff.design-to-code:
+    specification: feature.app-skills.design-figma@1
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: 0295542443308762fd8bca9b100dd5e119a70ba425486115d2299cc876d2373d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.surface.parity:
+    specification: feature.app-skills.design-figma@1
+    specification_id: feature.app-skills.design-figma
+    type: parity
+    fingerprint: da67e01e598b48882f07ebb74924a48058054b97c0b0d77581d7704ecd4e4835
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   events-search.request.validated:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search

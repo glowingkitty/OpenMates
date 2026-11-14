@@ -1300,11 +1300,26 @@ async function hasRetainedFastAdmission(chatId: string, messageId: string): Prom
 	return isRetainedFastAdmissionSnapshot(snapshot, chatId, messageId);
 }
 
+/** Calendar and design accounts share one turn context: directory entries and token-ref inputs concatenate. */
+function mergeConnectedAccountSendContexts(
+	contexts: Array<Awaited<ReturnType<typeof buildConnectedAccountSendContext>>>,
+): Awaited<ReturnType<typeof buildConnectedAccountSendContext>> {
+	const present = contexts.filter((context): context is NonNullable<typeof context> => !!context);
+	if (present.length === 0) return undefined;
+	return {
+		directory: present.flatMap((context) => context.directory ?? []),
+		tokenRefs: present.flatMap((context) => context.tokenRefs ?? []),
+		tokenRefInputs: present.flatMap((context) => context.tokenRefInputs ?? []),
+	};
+}
+
 async function loadPostAdmissionConnectedAccounts(message: Message): Promise<PreparedConnectedAccountSendContext | undefined> {
 	const rows = await listConnectedAccounts();
-	const context = await buildConnectedAccountSendContext({
+	const calendarContext = await buildConnectedAccountSendContext({
 		rows, appId: "calendar", defaultAllowedActions: ["read"],
 	});
+	const designContext = await buildConnectedAccountSendContext({ rows, appId: "design" });
+	const context = mergeConnectedAccountSendContexts([calendarContext, designContext]);
 	return prepareConnectedAccountSendContext({
 		chatId: message.chat_id, messageId: message.message_id, context,
 	});

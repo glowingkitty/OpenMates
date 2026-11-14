@@ -106,9 +106,9 @@ async def test_calendar_get_events_executes_provider_with_hidden_access_token() 
         def __init__(self, *, access_token: str) -> None:
             self.access_token = access_token
 
-        async def list_events(self, *, calendar_id: str, time_min: str, time_max: str):
+        async def list_events(self, *, calendar_id: str, time_min: str, time_max: str, **_page):
             calls.append((self.access_token, calendar_id, time_min, time_max))
-            return [CalendarEvent(id="event-1", title="Demo")]
+            return {"events": [CalendarEvent(id="event-1", title="Demo")], "next_page_token": None}
 
     skill = object.__new__(GetEventsSkill)
     response = await skill.execute(
@@ -151,7 +151,15 @@ async def test_calendar_mutation_skills_execute_provider_with_hidden_access_toke
 
         async def create_event(self, **kwargs):
             calls.append(("create", self.access_token, kwargs))
-            return CalendarEvent(id="created-1", title=kwargs["title"])
+            return CalendarEvent(id="created-1", title=kwargs["body"]["summary"]), False
+
+        async def get_event_raw(self, **kwargs):
+            calls.append(("get", self.access_token, kwargs))
+            return {
+                "id": kwargs["event_id"], "summary": "Original Demo", "etag": "etag-original",
+                "start": {"dateTime": "2026-06-15T09:00:00Z"}, "end": {"dateTime": "2026-06-15T09:30:00Z"},
+                "location": "Original room",
+            }
 
         async def get_event(self, **kwargs):
             calls.append(("get", self.access_token, kwargs))
@@ -164,9 +172,9 @@ async def test_calendar_mutation_skills_execute_provider_with_hidden_access_toke
                 etag="etag-original",
             )
 
-        async def update_event(self, **kwargs):
+        async def patch_event(self, **kwargs):
             calls.append(("update", self.access_token, kwargs))
-            return CalendarEvent(id=kwargs["event_id"], title=kwargs["title"])
+            return CalendarEvent(id=kwargs["event_id"], title=kwargs["body"]["summary"])
 
         async def delete_event(self, **kwargs):
             calls.append(("delete", self.access_token, kwargs))
@@ -222,15 +230,25 @@ async def test_calendar_mutation_skills_execute_provider_with_hidden_access_toke
             "title": "Original Demo",
             "start": "2026-06-15T09:00:00Z",
             "end": "2026-06-15T09:30:00Z",
+            "all_day": False,
+            "timezone": None,
+            "status": None,
             "location": "Original room",
             "description": None,
             "attendees": [],
+            "recurring_event_id": None,
+            "recurrence": [],
             "html_link": None,
             "etag": "etag-original",
         },
+        "had_attendees": False,
+        "notifications": "none",
         "status": "deleted",
         "event_id": "created-1",
     }
+    # Update and delete are conditional on the re-read etag.
+    assert calls[2][2]["etag"] == "etag-original"
+    assert calls[4][2]["etag"] == "etag-original"
 
 
 # contract-test: supporting surface=rest_api assertions=calendar.events.safe-mutations
@@ -247,7 +265,9 @@ def test_calendar_update_delete_journal_payloads_include_undo_snapshots() -> Non
                     "title": "Updated",
                     "start": "2026-06-15T11:00:00Z",
                     "end": "2026-06-15T11:30:00Z",
+                    "etag": "etag-updated",
                 },
+                "changed_fields": ["start", "summary", "end"],
                 "previous_event": {
                     "id": "event-1",
                     "title": "Original",
@@ -282,6 +302,8 @@ def test_calendar_update_delete_journal_payloads_include_undo_snapshots() -> Non
                 "calendar_id": "primary",
                 "event_id": "event-1",
                 "etag": "etag-original",
+                "applied_etag": "etag-updated",
+                "changed_fields": ["end", "start", "title"],
                 "snapshot": {
                     "title": "Original",
                     "start": "2026-06-15T10:00:00Z",

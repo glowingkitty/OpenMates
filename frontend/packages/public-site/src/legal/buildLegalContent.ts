@@ -393,6 +393,7 @@ export function buildPrivacyPolicyContent(
   lines.push(t("legal.privacy.providers.connected_services.description"));
   lines.push("");
   renderProvider("legal.privacy.providers.connected_services.google_calendar", privacyPolicyLinks.googleCalendar);
+  renderProvider("legal.privacy.providers.connected_services.figma", privacyPolicyLinks.figma);
 
   // Group J3 — Public company data
   lines.push(`### ${t("legal.privacy.providers.business_data.heading")}`);

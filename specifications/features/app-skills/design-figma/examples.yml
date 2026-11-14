@@ -1,0 +1,74 @@
+schema_version: 1
+specification: feature.app-skills.design-figma@1
+connection:
+  - id: default-connect
+    given: {capabilities: [read]}
+    expect: {scopes: [file_content:read, current_user:read], pkce: S256, state_single_use: true, token_in_browser_url: false}
+  - id: enable-variables
+    given: {granted_scopes: [file_content:read, current_user:read], enable: variables}
+    action: reconnect
+    expect: {scopes: [file_content:read, current_user:read, file_variables:read], silent_upgrade: false}
+  - id: not-configured
+    given: {vault_client_id: null}
+    action: start_connect
+    expect: {status: 503, error: figma_oauth_not_configured}
+lifecycle:
+  - id: revoked-refresh-token
+    given: {refresh_response: {status: 400, error: invalid_grant}}
+    action: get_design
+    expect: {status: reconnect_required, figma_called: false}
+  - id: superseded-access-token
+    given: {figma_response: {status: 403, message: Invalid token}}
+    expect: {error: figma_token_superseded, retryable: true, reconnect_required: false}
+  - id: disconnect
+    action: disconnect
+    expect: {connector_status: revoked, server_access_enabled: false, used_in_later_turns: false, user_told_to_remove_app_in_figma: true}
+reads:
+  - id: url-with-node
+    given: {figma_url: 'https://www.figma.com/design/AbCdEf123/Landing?node-id=12-34'}
+    expect: {file_key: AbCdEf123, node_ids: ['12:34'], endpoint: /v1/files/AbCdEf123/nodes}
+  - id: branch-url
+    given: {figma_url: 'https://www.figma.com/design/AbCdEf123/branch/BrAnCh9/Landing'}
+    expect: {file_key: BrAnCh9}
+  - id: whole-file-shallow
+    given: {node_ids: []}
+    expect: {endpoint: /v1/files/AbCdEf123, depth: 2, frames_listed: true, vector_geometry: false}
+  - id: inaccessible-file
+    given: {figma_response: {status: 404}}
+    expect: {error: figma_not_found, empty_design: false}
+  - id: node-cap
+    given: {node_count: 2000}
+    expect: {nodes_returned: 800, truncated: true}
+variables_images:
+  - id: variables-plan-limited
+    given: {variables_capability: true, figma_variables_response: {status: 403, message: Limited by Figma plan}}
+    expect: {variables: {status: plan_limited}, frames_returned: true}
+  - id: variables-not-granted
+    given: {variables_capability: false, include: [variables], figma_variables_response: {status: 403, message: Invalid scope}}
+    expect: {variables: {status: not_granted}, frames_returned: true}
+  - id: export-frames
+    given: {include: [images], node_ids: ['1:2', '1:3'], image_format: png, image_scale: 2}
+    expect: {endpoint: /v1/images/AbCdEf123, calls: 1, url_expires_after_days: 30}
+limits:
+  - id: view-seat-rate-limit
+    given: {figma_response: {status: 429, headers: {Retry-After: '86400', X-Figma-Plan-Tier: starter, X-Figma-Rate-Limit-Type: low}}}
+    expect: {error: figma_rate_limited, retry_after_seconds: 86400, rate_limit_type: low, automatic_retry: false}
+  - id: one-request-call-budget
+    given: {include: [frames, components, styles, variables, images]}
+    expect: {content_calls: 1, image_calls: 1, variables_calls: 1}
+handoff:
+  - id: tokens-from-styles
+    given: {styles: [{name: Brand/Primary, type: FILL, color: '#3355FF'}]}
+    expect: {tokens_css_contains: '--brand-primary: #3355ff;', invented_values: false}
+  - id: build-in-project
+    given: {user: Build this landing page as a web app}
+    expect: {project_used: true, images_copied_to_project_files: true, tokens_used: true}
+surfaces:
+  - id: cli-get-design
+    given: {account_connected_on_web: true}
+    action: cli_chat_get_design
+    expect: {structured_result: true, permission_prompt: true}
+  - id: no-developer-api
+    given: {api_key: developer}
+    action: post_design_get_design
+    expect: {status: 404}

@@ -78,11 +78,6 @@
       }
     }
   },
-  "ai_response_notices": {
-    "output_limit": {
-      "text": "Esta respuesta se cortó porque alcanzó la longitud máxima del modelo. Puedes pedirle a la IA que continúe."
-    }
-  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -926,6 +921,12 @@
         "text": "Bordado",
         "description": {
           "text": "Convierte un gráfico vectorial en archivos para máquinas de bordar con vista previa de puntadas."
+        }
+      },
+      "get_design": {
+        "text": "Obtener diseño",
+        "description": {
+          "text": "Lee un diseño de Figma y obtén estructura, estilos y un traspaso a código."
         }
       }
     },
@@ -14249,30 +14250,6 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... No pude usar {skill_name} correctamente. ¿Podrías aclarar qué te gustaría que hiciera para poder intentarlo de nuevo?"
-    },
-    "provider_block_child_safety": {
-      "text": "No puedo ayudar con esta solicitud porque se refiere a menores, lo que entra dentro de las reglas de seguridad infantil del proveedor de IA. Estas reglas protegen a los niños frente al uso indebido, como los perfiles falsos o los contenidos de explotación. Si te sirve, puedo trabajar con un personaje ilustrado o claramente ficticio."
-    },
-    "provider_block_child_safety_strict": {
-      "text": "No puedo ayudar con esta solicitud porque se refiere a menores, lo que entra dentro de las reglas de seguridad infantil del proveedor de IA. Estas reglas protegen a los niños frente a la explotación y el uso indebido."
-    },
-    "provider_block_sexual": {
-      "text": "No puedo ayudar con esta solicitud porque entra dentro de las reglas del proveedor de IA sobre contenido sexual. Estas reglas evitan que haya material explícito en respuestas donde no se pueden comprobar el consentimiento ni la edad. En su lugar, puedo ayudarte con una versión no explícita de tu solicitud."
-    },
-    "provider_block_dangerous": {
-      "text": "No puedo ayudar con esta solicitud porque entra dentro de las reglas del proveedor de IA sobre actividades peligrosas. Estas reglas garantizan que las respuestas no puedan usarse para causar daños graves. En su lugar, puedo ayudarte con información de seguridad o con el contexto del tema."
-    },
-    "provider_block_harassment_hate": {
-      "text": "No puedo ayudar con esta solicitud porque entra dentro de las reglas del proveedor de IA contra el acoso y el odio. Estas reglas protegen a las personas de ser atacadas o menospreciadas. En su lugar, puedo ayudarte a expresar tu opinión de forma respetuosa."
-    },
-    "provider_block_personal_data": {
-      "text": "No puedo ayudar con esta solicitud porque entra dentro de las reglas del proveedor de IA sobre información personal sensible. Estas reglas protegen los datos privados de las personas frente a su exposición o uso indebido. Puedo ayudarte si omites los datos personales."
-    },
-    "provider_block_copyright": {
-      "text": "No puedo dar esta respuesta porque reproduciría texto protegido por derechos de autor, algo que las reglas del proveedor de IA no permiten. Esto protege el trabajo de autores y editoriales. En su lugar, puedo resumirlo o explicarlo con mis propias palabras."
-    },
-    "provider_block_other": {
-      "text": "No puedo ayudar con esta solicitud porque entra dentro de las reglas de seguridad del proveedor de IA. Estas reglas existen para evitar respuestas dañinas. Puedes reformular tu solicitud, o puedo ayudarte con otra cosa."
     }
   },
   "projects": {},

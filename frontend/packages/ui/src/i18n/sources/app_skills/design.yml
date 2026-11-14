@@ -101,3 +101,55 @@ embroidery.description:
   he: הפוך גרפיקה וקטורית לקובצי מכונת רקמה עם תצוגה מקדימה של התפרים.
   verified_by_human:
     - en
+
+get_design:
+  context: Skill name for Design Figma reading
+  en: Get design
+  de: Design abrufen
+  zh: 获取设计
+  es: Obtener diseño
+  fr: Lire le design
+  pt: Obter design
+  ru: Получить дизайн
+  ja: デザインを取得
+  ko: 디자인 가져오기
+  it: Ottieni design
+  tr: Tasarımı al
+  vi: Lấy thiết kế
+  id: Ambil desain
+  pl: Pobierz projekt
+  nl: Ontwerp ophalen
+  ar: جلب التصميم
+  hi: डिज़ाइन प्राप्त करें
+  th: ดึงข้อมูลดีไซน์
+  cs: Načíst návrh
+  sv: Hämta design
+  he: קריאת עיצוב
+  verified_by_human:
+    - en
+
+get_design.description:
+  context: Description for Design Figma reading skill
+  en: Read a Figma design and get structure, styles and a code handoff.
+  de: Liest ein Figma-Design und liefert Struktur, Stile und eine Code-Übergabe.
+  zh: 读取 Figma 设计，获取结构、样式和代码交接信息。
+  es: Lee un diseño de Figma y obtén estructura, estilos y un traspaso a código.
+  fr: Lisez un design Figma et obtenez structure, styles et un transfert vers le code.
+  pt: Leia um design do Figma e obtenha estrutura, estilos e uma entrega para código.
+  ru: "Читает дизайн Figma: структуру, стили и данные для передачи в код."
+  ja: Figma のデザインを読み取り、構造、スタイル、コード引き継ぎ情報を取得します。
+  ko: Figma 디자인을 읽어 구조, 스타일, 코드 인계 정보를 가져옵니다.
+  it: Legge un design Figma e fornisce struttura, stili e un passaggio al codice.
+  tr: Bir Figma tasarımını okuyup yapı, stiller ve kod aktarımı sağlar.
+  vi: Đọc thiết kế Figma và lấy cấu trúc, kiểu dáng và bàn giao mã.
+  id: Baca desain Figma dan dapatkan struktur, gaya, dan serah terima kode.
+  pl: Odczytuje projekt Figma i zwraca strukturę, style oraz przekazanie do kodu.
+  nl: Leest een Figma-ontwerp en geeft structuur, stijlen en een code-overdracht.
+  ar: يقرأ تصميم Figma ويعيد البنية والأنماط وتسليمًا للبرمجة.
+  hi: Figma डिज़ाइन पढ़ें और संरचना, स्टाइल और कोड हैंडऑफ़ पाएँ।
+  th: อ่านดีไซน์ Figma และรับโครงสร้าง สไตล์ และข้อมูลส่งต่อโค้ด
+  cs: Načte návrh z Figmy a vrátí strukturu, styly a předání do kódu.
+  sv: Läser en Figma-design och ger struktur, stilar och kodöverlämning.
+  he: קורא עיצוב Figma ומחזיר מבנה, סגנונות והעברה לקוד.
+  verified_by_human:
+    - en

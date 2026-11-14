@@ -12,6 +12,8 @@ def calendar_undo_payload(skill_id: str, results: list[dict[str, Any]]) -> dict[
         return None
     undo_events: list[dict[str, Any]] = []
     for result in results:
+        if not isinstance(result, dict) or result.get("error"):
+            continue
         calendar_id = result.get("calendar_id")
         if skill_id == "create-event":
             event = result.get("event") if isinstance(result.get("event"), dict) else {}
@@ -36,6 +38,9 @@ def calendar_undo_payload(skill_id: str, results: list[dict[str, Any]]) -> dict[
                         "calendar_id": calendar_id,
                         "event_id": event_id,
                         "etag": previous_event.get("etag"),
+                        # Undo restores only while the event still has the etag our update produced.
+                        "applied_etag": updated_event.get("etag"),
+                        "changed_fields": _changed_fields(result.get("changed_fields")),
                         "snapshot": _calendar_event_snapshot(previous_event),
                     }
                 )
@@ -67,5 +72,19 @@ def _calendar_event_snapshot(event: dict[str, Any]) -> dict[str, Any]:
         "location": event.get("location"),
         "description": event.get("description"),
         "attendees": event.get("attendees") if isinstance(event.get("attendees"), list) else [],
+        "timezone": event.get("timezone"),
     }
     return {key: value for key, value in snapshot.items() if value not in (None, "", [])}
+
+
+# Provider field names in changed_fields map back to snapshot keys.
+_PROVIDER_FIELD_TO_SNAPSHOT = {
+    "summary": "title", "start": "start", "end": "end", "location": "location",
+    "description": "description", "attendees": "attendees",
+}
+
+
+def _changed_fields(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return sorted({_PROVIDER_FIELD_TO_SNAPSHOT[item] for item in value if item in _PROVIDER_FIELD_TO_SNAPSHOT})

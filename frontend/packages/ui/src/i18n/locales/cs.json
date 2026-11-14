@@ -78,11 +78,6 @@
       }
     }
   },
-  "ai_response_notices": {
-    "output_limit": {
-      "text": "Tato odpověď byla zkrácena, protože dosáhla maximální délky modelu. Můžeš AI požádat, ať pokračuje."
-    }
-  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -926,6 +921,12 @@
         "text": "Výšivka",
         "description": {
           "text": "Převeďte vektorovou grafiku na soubory pro vyšívací stroj s náhledem stehů."
+        }
+      },
+      "get_design": {
+        "text": "Načíst návrh",
+        "description": {
+          "text": "Načte návrh z Figmy a vrátí strukturu, styly a předání do kódu."
         }
       }
     },
@@ -14222,30 +14223,6 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Nepodařilo se mi správně použít {skill_name}. Mohl bys upřesnit, co bys chtěl, abych udělal, a já to zkusím znovu?"
-    },
-    "provider_block_child_safety": {
-      "text": "S tímto požadavkem nemohu pomoci, protože se týká nezletilých a spadá pod pravidla poskytovatele AI na ochranu dětí. Tato pravidla chrání děti před zneužitím, například falešnými profily nebo vykořisťujícím obsahem. Pokud to pomůže, mohu místo toho pracovat s nakreslenou nebo jasně fiktivní postavou."
-    },
-    "provider_block_child_safety_strict": {
-      "text": "S tímto požadavkem nemohu pomoci, protože se týká nezletilých a spadá pod pravidla poskytovatele AI na ochranu dětí. Tato pravidla chrání děti před vykořisťováním a zneužitím."
-    },
-    "provider_block_sexual": {
-      "text": "S tímto požadavkem nemohu pomoci, protože spadá pod pravidla poskytovatele AI týkající se sexuálního obsahu. Tato pravidla brání tomu, aby se v odpovědích, kde nelze ověřit souhlas ani věk, objevoval explicitní obsah. Místo toho mohu pomoci s neexplicitní verzí tvého požadavku."
-    },
-    "provider_block_dangerous": {
-      "text": "S tímto požadavkem nemohu pomoci, protože spadá pod pravidla poskytovatele AI týkající se nebezpečných činností. Tato pravidla zajišťují, aby odpovědi nemohly být použity k způsobení vážné újmy. Místo toho mohu pomoci s bezpečnostními informacemi nebo pozadím tématu."
-    },
-    "provider_block_harassment_hate": {
-      "text": "S tímto požadavkem nemohu pomoci, protože spadá pod pravidla poskytovatele AI proti obtěžování a nenávisti. Tato pravidla chrání lidi před tím, aby byli napadáni nebo ponižováni. Místo toho ti mohu pomoci vyjádřit svůj názor s respektem."
-    },
-    "provider_block_personal_data": {
-      "text": "S tímto požadavkem nemohu pomoci, protože spadá pod pravidla poskytovatele AI týkající se citlivých osobních údajů. Tato pravidla chrání soukromá data lidí před odhalením nebo zneužitím. Mohu pomoci, pokud osobní údaje vynecháš."
-    },
-    "provider_block_copyright": {
-      "text": "Tuto odpověď nemohu dát, protože by reprodukovala text chráněný autorským právem, což pravidla poskytovatele AI nepovolují. To chrání práci autorů a nakladatelů. Místo toho ho mohu shrnout nebo vysvětlit vlastními slovy."
-    },
-    "provider_block_other": {
-      "text": "S tímto požadavkem nemohu pomoci, protože spadá pod bezpečnostní pravidla poskytovatele AI. Tato pravidla existují, aby zabránila škodlivým výstupům. Můžeš svůj požadavek přeformulovat, nebo ti mohu pomoci s něčím jiným."
     }
   },
   "projects": {},

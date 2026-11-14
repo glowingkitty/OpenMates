@@ -291,7 +291,7 @@ def test_google_calendar_start_uses_custom_webapp_origin_for_self_host(monkeypat
 
 
 # contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
-def test_google_calendar_start_uses_openmates_org_for_production_without_origin(monkeypatch) -> None:
+def test_google_calendar_start_uses_production_web_app_without_origin(monkeypatch) -> None:
     monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
     monkeypatch.delenv("PRODUCTION_URL", raising=False)
     monkeypatch.setenv("WEBAPP_URL", "http://localhost:5173")
@@ -310,7 +310,8 @@ def test_google_calendar_start_uses_openmates_org_for_production_without_origin(
 
     assert response.status_code == 200
     state = parse_qs(urlparse(response.json()["authorization_url"]).query)["state"][0]
-    assert cache.values[route._state_key(state)]["webapp_url"] == "https://openmates.org"
+    # The production web app lives on app.openmates.org since 17ad6f6016.
+    assert cache.values[route._state_key(state)]["webapp_url"] == "https://app.openmates.org"
 
 
 # contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable

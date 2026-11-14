@@ -3865,3 +3865,55 @@ settings_memories.entry_count:
   sv: "{count, plural, one {# post} other {# poster}}"
   he: "{count, plural, one {# רשומה} other {# רשומות}}"
   verified_by_human: []
+connected_accounts.figma.title:
+  context: Heading of the Figma connection section in Design app settings.
+  en: Figma
+  verified_by_human: []
+connected_accounts.figma.description:
+  context: Explains Figma access scope.
+  en: OpenMates reads only the Figma files you name, with read-only access.
+  verified_by_human: []
+connected_accounts.figma.variables_label:
+  context: Checkbox label to request Figma variables access.
+  en: "Variables (Figma Enterprise only)"
+  verified_by_human: []
+connected_accounts.figma.connect_button:
+  context: Button that starts the Figma OAuth connection.
+  en: Connect Figma
+  verified_by_human: []
+connected_accounts.figma.reconnect_button:
+  context: Button to reconnect a Figma account, for example to enable variables.
+  en: Reconnect
+  verified_by_human: []
+connected_accounts.figma.disconnect_button:
+  context: Button that disconnects a Figma account.
+  en: Disconnect
+  verified_by_human: []
+connected_accounts.figma.accounts_heading:
+  context: Heading above the list of connected Figma accounts.
+  en: Connected Figma accounts
+  verified_by_human: []
+connected_accounts.figma.revoke_note:
+  context: Note shown with a connected Figma account.
+  en: "Also remove OpenMates in your Figma account settings; Figma has no API to revoke access."
+  verified_by_human: []
+connected_accounts.figma.not_configured:
+  context: Error shown when the server has no Figma OAuth app configured.
+  en: Figma is not configured on this server.
+  verified_by_human: []
+connected_accounts.figma.start_error:
+  context: Error when Figma OAuth could not be started.
+  en: Could not start the Figma connection. Please try again.
+  verified_by_human: []
+connected_accounts.figma.disconnect_error:
+  context: Error when disconnecting a Figma account failed.
+  en: Could not disconnect this Figma account. Please try again.
+  verified_by_human: []
+connected_accounts.figma.disconnected_success:
+  context: Success message after disconnecting a Figma account.
+  en: Figma account disconnected locally.
+  verified_by_human: []
+connected_accounts.figma.capability_variables:
+  context: Capability label for Figma variables access.
+  en: Variables
+  verified_by_human: []

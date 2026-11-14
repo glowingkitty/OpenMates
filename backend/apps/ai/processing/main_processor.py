@@ -10454,6 +10454,10 @@ async def handle_main_processing(
                             connected_account_action_for_skill,
                             prepare_connected_account_skill_execution,
                         )
+                        from backend.shared.python_utils.connected_account_errors import (
+                            ConnectedAccountTokenExchangeError,
+                            connected_account_exchange_failure_payload,
+                        )
 
                         try:
                             connected_context = await prepare_connected_account_skill_execution(
@@ -10524,6 +10528,22 @@ async def handle_main_processing(
                                     "app_id": app_id,
                                     "skill_id": skill_id,
                                 }),
+                            })
+                            continue
+                        except ConnectedAccountTokenExchangeError as exchange_error:
+                            # A revoked/expired grant must become "reconnect", never a failed turn
+                            # or another permission prompt the user cannot satisfy.
+                            logger.warning(
+                                f"{log_prefix} Connected-account token exchange failed for "
+                                f"{app_id}.{skill_id}: {exchange_error}"
+                            )
+                            current_message_history.append({
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": json.dumps(connected_account_exchange_failure_payload(
+                                    exchange_error, app_id=app_id, skill_id=skill_id,
+                                )),
                             })
                             continue
 

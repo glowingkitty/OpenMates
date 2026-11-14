@@ -222,6 +222,7 @@
 
     function providerLabel(providerId: string): string {
         if (providerId === 'google_calendar') return $text('settings.privacy.connected_accounts.provider_google_calendar');
+        if (providerId === 'figma') return $text('settings.privacy.connected_accounts.provider_figma');
         if (providerId === 'protonmail_bridge') return $text('settings.privacy.connected_accounts.provider_proton_mail_bridge');
         return providerId;
     }
@@ -229,6 +230,7 @@
     function appLabel(appId: string): string {
         if (appId === 'calendar') return $text('apps.calendar');
         if (appId === 'mail') return $text('apps.mail');
+        if (appId === 'design') return $text('settings.privacy.connected_accounts.app_design');
         return appId;
     }
 
@@ -246,6 +248,7 @@
             if (capability === 'read') return $text('settings.app_store.connected_accounts.capability_read');
             if (capability === 'write') return $text('settings.app_store.connected_accounts.capability_write');
             if (capability === 'delete') return $text('settings.app_store.connected_accounts.capability_delete');
+            if (capability === 'variables') return $text('settings.app_store.connected_accounts.figma.capability_variables');
             return capability;
         }).join(', ');
     }

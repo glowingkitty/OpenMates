@@ -15,6 +15,8 @@ from typing import Any
 
 import httpx
 
+from backend.shared.python_utils.connected_account_errors import ConnectedAccountTokenExchangeError
+
 try:
     import jwt
 except ImportError:
@@ -39,8 +41,15 @@ REVOLUT_DEFAULT_REDIRECT_URIS = {
 logger = logging.getLogger(__name__)
 
 
-class RevolutBusinessTokenExchangeError(RuntimeError):
+class RevolutBusinessTokenExchangeError(ConnectedAccountTokenExchangeError):
     """Sanitized Revolut token exchange failure."""
+
+    def __init__(
+        self, message: str, *, status_code: int | None = None, provider_error: str | None = None,
+    ) -> None:
+        super().__init__(
+            message, provider_id="revolut_business", status_code=status_code, provider_error=provider_error,
+        )
 
 
 async def exchange_revolut_business_refresh_token(
@@ -77,7 +86,10 @@ async def exchange_revolut_business_refresh_token(
         )
     if response.is_error:
         logger.warning("Revolut Business token exchange failed: status=%s", response.status_code)
-        raise RevolutBusinessTokenExchangeError(f"Revolut Business token exchange failed with HTTP {response.status_code}")
+        raise RevolutBusinessTokenExchangeError(
+            f"Revolut Business token exchange failed with HTTP {response.status_code}",
+            status_code=response.status_code,
+        )
     payload = response.json()
     result: dict[str, Any] = {"access_token": payload.get("access_token")}
     if payload.get("expires_in") is not None:

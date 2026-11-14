@@ -116,6 +116,8 @@ pub(crate) fn assert_no_secret_leak(value: &impl Serialize) -> Result<(), Fail> 
 fn normalize_app_id(value: Option<Value>) -> Option<Value> {
     if is_str(value.as_ref(), "google_calendar") {
         Some(Value::String("calendar".into()))
+    } else if is_str(value.as_ref(), "figma") {
+        Some(Value::String("design".into()))
     } else {
         value
     }
@@ -126,6 +128,7 @@ fn app_id_for_provider(provider: &Value) -> Value {
     match provider.as_str() {
         Some("google_calendar") => Value::String("calendar".into()),
         Some("revolut_business") => Value::String("finance".into()),
+        Some("figma") => Value::String("design".into()),
         _ => provider.clone(),
     }
 }
@@ -281,7 +284,13 @@ fn primary_app_id(permissions: &Value, provider: &Value) -> Result<Option<Value>
     };
     if let Some(keys) = keys {
         let mut normalized: Vec<String> =
-            keys.into_iter().map(|key| if key == "google_calendar" { "calendar".to_string() } else { key }).collect();
+            keys.into_iter()
+            .map(|key| match key.as_str() {
+                "google_calendar" => "calendar".to_string(),
+                "figma" => "design".to_string(),
+                _ => key,
+            })
+            .collect();
         normalized.sort_by(|a, b| utf16_cmp(a, b));
         if let Some(first) = normalized.into_iter().next().filter(|first| !first.is_empty()) {
             return Ok(Some(Value::String(first)));
@@ -419,7 +428,11 @@ fn plan_send_context(
     scopes_override: Option<Vec<Value>>,
     include_scope: bool,
 ) -> Result<(Vec<DirectoryEntry>, Vec<TokenPlan>), Fail> {
-    let requested = if app_id == "google_calendar" { "calendar" } else { app_id };
+    let requested = match app_id {
+        "google_calendar" => "calendar",
+        "figma" => "design",
+        other => other,
+    };
     let mut directory: Vec<DirectoryEntry> = vec![];
     let mut tokens: Vec<TokenPlan> = vec![];
     for (position, (row, fact)) in rows.iter().zip(facts).enumerate() {

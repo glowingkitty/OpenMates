@@ -78,11 +78,6 @@
       }
     }
   },
-  "ai_response_notices": {
-    "output_limit": {
-      "text": "Câu trả lời này bị cắt ngắn vì đã đạt độ dài tối đa của mô hình. Bạn có thể yêu cầu AI tiếp tục."
-    }
-  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -926,6 +921,12 @@
         "text": "Thêu",
         "description": {
           "text": "Chuyển đồ họa vector thành tệp cho máy thêu kèm bản xem trước mũi thêu."
+        }
+      },
+      "get_design": {
+        "text": "Lấy thiết kế",
+        "description": {
+          "text": "Đọc thiết kế Figma và lấy cấu trúc, kiểu dáng và bàn giao mã."
         }
       }
     },
@@ -14222,30 +14223,6 @@
     },
     "skill_execution_failed": {
       "text": "Hmm... Tôi không thể sử dụng {skill_name} đúng cách. Bạn có thể cho tôi biết bạn muốn tôi làm gì để tôi có thể thử lại không?"
-    },
-    "provider_block_child_safety": {
-      "text": "Tôi không thể hỗ trợ yêu cầu này vì nó liên quan đến trẻ vị thành niên, thuộc quy tắc an toàn trẻ em của nhà cung cấp AI. Các quy tắc này bảo vệ trẻ em khỏi việc bị lạm dụng, chẳng hạn như hồ sơ giả hoặc nội dung bóc lột. Nếu hữu ích, tôi có thể làm việc với một nhân vật minh họa hoặc rõ ràng là hư cấu."
-    },
-    "provider_block_child_safety_strict": {
-      "text": "Tôi không thể hỗ trợ yêu cầu này vì nó liên quan đến trẻ vị thành niên, thuộc quy tắc an toàn trẻ em của nhà cung cấp AI. Các quy tắc này bảo vệ trẻ em khỏi bị bóc lột và lạm dụng."
-    },
-    "provider_block_sexual": {
-      "text": "Tôi không thể hỗ trợ yêu cầu này vì nó thuộc quy tắc của nhà cung cấp AI về nội dung tình dục. Các quy tắc này không cho phép nội dung lộ liễu xuất hiện trong câu trả lời khi không thể kiểm tra sự đồng ý và độ tuổi. Thay vào đó, tôi có thể giúp với một phiên bản không lộ liễu của yêu cầu của bạn."
-    },
-    "provider_block_dangerous": {
-      "text": "Tôi không thể hỗ trợ yêu cầu này vì nó thuộc quy tắc của nhà cung cấp AI về các hoạt động nguy hiểm. Các quy tắc này đảm bảo câu trả lời không thể bị dùng để gây tổn hại nghiêm trọng. Thay vào đó, tôi có thể giúp với thông tin an toàn hoặc bối cảnh của chủ đề này."
-    },
-    "provider_block_harassment_hate": {
-      "text": "Tôi không thể hỗ trợ yêu cầu này vì nó thuộc quy tắc của nhà cung cấp AI chống quấy rối và thù ghét. Các quy tắc này bảo vệ mọi người khỏi bị nhắm đến hoặc bị hạ thấp. Thay vào đó, tôi có thể giúp bạn trình bày quan điểm một cách tôn trọng."
-    },
-    "provider_block_personal_data": {
-      "text": "Tôi không thể hỗ trợ yêu cầu này vì nó thuộc quy tắc của nhà cung cấp AI về thông tin cá nhân nhạy cảm. Các quy tắc này bảo vệ dữ liệu riêng tư của mọi người khỏi bị lộ hoặc bị lạm dụng. Tôi có thể giúp nếu bạn bỏ các chi tiết cá nhân ra."
-    },
-    "provider_block_copyright": {
-      "text": "Tôi không thể đưa ra câu trả lời này vì nó sẽ sao chép văn bản có bản quyền, điều mà quy tắc của nhà cung cấp AI không cho phép. Điều này bảo vệ công sức của tác giả và nhà xuất bản. Thay vào đó, tôi có thể tóm tắt hoặc giải thích bằng lời của mình."
-    },
-    "provider_block_other": {
-      "text": "Tôi không thể hỗ trợ yêu cầu này vì nó thuộc quy tắc an toàn của nhà cung cấp AI. Các quy tắc này tồn tại để ngăn chặn đầu ra có hại. Bạn có thể diễn đạt lại yêu cầu, hoặc tôi có thể giúp việc khác."
     }
   },
   "projects": {},
