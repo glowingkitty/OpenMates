@@ -37,7 +37,8 @@ test('document editor formats text with a heading, bold and a bulleted list', as
   await expect(content.locator('ul > li')).toHaveText(['Apples', 'Pears']);
   await testInfo.attach('docs-editor-formatted', { body: await editor.screenshot(), contentType: 'image/png' });
 
-  await page.getByTestId('docs-editor-save').click();
+  // Save is the header check in the fullscreen; the editor itself saves on Ctrl/Cmd+S.
+  await page.keyboard.press('ControlOrMeta+s');
   await expect.poll(() => page.evaluate(() => (window as unknown as { __docsEditorSaved?: string }).__docsEditorSaved ?? ''))
     .toContain('<h2>Shopping plan</h2>');
   const saved = await page.evaluate(() => (window as unknown as { __docsEditorSaved?: string }).__docsEditorSaved ?? '');
@@ -58,7 +59,8 @@ test('document editor loads existing text and shows save errors, with reload on 
   await content.locator('h1').click();
   await page.keyboard.press('End');
   await page.keyboard.type(' 2');
-  await page.getByTestId('docs-editor-save').click();
+  // Save is the header check in the fullscreen; the editor itself saves on Ctrl/Cmd+S.
+  await page.keyboard.press('ControlOrMeta+s');
   await expect(page.getByTestId('docs-editor-error')).toContainText('changed elsewhere');
   await expect(page.getByTestId('docs-editor-reload')).toBeVisible();
   await expect(content).toContainText('Garden volunteer notes 2');

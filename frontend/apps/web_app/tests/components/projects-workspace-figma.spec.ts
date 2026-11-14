@@ -169,6 +169,42 @@ test('keeps the Figma project header and icon tabs while switching workspace pan
   expect(viewerBox).not.toBeNull();
   expect(splitProjectBox!.width).toBeLessThanOrEqual(401);
   expect(viewerBox!.x).toBeGreaterThanOrEqual(splitProjectBox!.x + splitProjectBox!.width);
+  // Beside an open file the folder panel is narrow: the Create menu stacks under the
+  // actions and wraps, so every entry keeps its own readable, clickable box.
+  await page.getByTestId('project-folder-create-menu-button').click();
+  const narrowMenu = page.getByTestId('project-create-menu');
+  await expect(narrowMenu).toBeVisible();
+  const narrowEntries = narrowMenu.getByRole('button');
+  await expect(narrowEntries).toHaveCount(8);
+  const narrowActionsBox = (await page.getByTestId('project-folder-actions').boundingBox())!;
+  const narrowMenuBox = (await narrowMenu.boundingBox())!;
+  expect(narrowMenuBox.y, 'the menu sits below Sync/Upload/Create').toBeGreaterThanOrEqual(narrowActionsBox.y + narrowActionsBox.height - 1);
+  expect(narrowMenuBox.x + narrowMenuBox.width).toBeLessThanOrEqual(splitProjectBox!.x + splitProjectBox!.width + 1);
+  const entryBoxes = [];
+  for (const entry of await narrowEntries.all()) {
+    const box = (await entry.boundingBox())!;
+    expect(box.width, 'entry is wide enough to read').toBeGreaterThanOrEqual(80);
+    expect(box.height).toBeGreaterThanOrEqual(48);
+    expect(box.x + box.width).toBeLessThanOrEqual(narrowMenuBox.x + narrowMenuBox.width + 1);
+    const label = (await entry.locator('strong, .file-label').boundingBox())!;
+    expect(label.x).toBeGreaterThanOrEqual(box.x - 1);
+    expect(label.x + label.width).toBeLessThanOrEqual(box.x + box.width + 1);
+    entryBoxes.push(box);
+  }
+  for (let a = 0; a < entryBoxes.length; a += 1) {
+    for (let b = a + 1; b < entryBoxes.length; b += 1) {
+      const [first, second] = [entryBoxes[a], entryBoxes[b]];
+      const overlapX = Math.min(first.x + first.width, second.x + second.width) - Math.max(first.x, second.x);
+      const overlapY = Math.min(first.y + first.height, second.y + second.height) - Math.max(first.y, second.y);
+      expect(overlapX > 1 && overlapY > 1, `entries ${a} and ${b} do not overlap`).toBe(false);
+    }
+  }
+  await testInfo.attach('project-create-menu-beside-open-file', { body: await page.getByTestId('projects-page').screenshot(), contentType: 'image/png' });
+  await narrowMenu.getByTestId('project-create-folder').click();
+  await expect(page.getByTestId('project-create-name-input')).toBeVisible();
+  await page.getByTestId('project-create-name-input').press('Escape');
+  await page.getByTestId('project-folder-create-menu-button').click();
+  await expect(narrowMenu).toHaveCount(0);
   await page.getByTestId('embed-minimize').click();
   await expect(viewer).toHaveCount(0);
 
@@ -181,7 +217,7 @@ test('keeps the Figma project header and icon tabs while switching workspace pan
   // Chat, workflow and plan entries keep the icon layout; the new-file entries sit below them.
   const primaryEntries = createMenu.locator('button:not([data-testid="project-create-file-entries"] button)');
   await expect(primaryEntries).toHaveCount(3);
-  await expect(createMenu.getByTestId('project-create-file-entries').getByRole('button')).toHaveCount(4);
+  await expect(createMenu.getByTestId('project-create-file-entries').getByRole('button')).toHaveCount(5);
   const actionsBox = await page.getByTestId('project-folder-actions').boundingBox();
   const menuBox = await createMenu.boundingBox();
   expect(actionsBox).not.toBeNull();

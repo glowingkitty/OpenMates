@@ -20,6 +20,18 @@ edit:
     when: Her phone saves a change based on version 2.
     then: The save is refused and version 3 stays as it is.
 
+header_button:
+  - id: doc-in-chat-pencil-to-check
+    assertion_ids: [embed-user-edits.header.edit-save-button]
+    given: Alice opens the "Venue brief" document an assistant wrote in her chat.
+    when: She presses the round pencil, changes a sentence and presses the round check that replaced it.
+    then: The document is saved as the next version, the editor closes and the pencil is back.
+  - id: code-in-project-same-button
+    assertion_ids: [embed-user-edits.header.edit-save-button]
+    given: Alice opens greet.py in her Project "Kitchen renovation".
+    when: She looks at the fullscreen top bar.
+    then: The same round pencil sits at the start of the bar as on her documents, sheets and decks, and turns into the check while she edits.
+
 event:
   - id: image-updated-notice
     assertion_ids: [embed-user-edits.event.chat-notice]

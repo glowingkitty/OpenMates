@@ -21,6 +21,7 @@ from backend.apps.ai.testing.mercury_routing_fixture import (
     GEMINI_RETRY_PROMPT, GEMINI_RETRY_RESPONSE, CHEAP_FALLBACK_PROMPT, CHEAP_FALLBACK_RESPONSE,
     WEB_RESEARCH_PROMPT, WEB_RESEARCH_RESPONSE,
     WEB_THROTTLE_PROMPT, WEB_THROTTLE_RESPONSE, SLIDES_PROMPT, SLIDES_RESPONSE,
+    EDITABLE_EMBEDS_PROMPT, EDITABLE_EMBEDS_RESPONSE,
     active, jev_response, llm_fixture,
 )
 from backend.apps.ai.utils.answer_recovery import ANSWER_RECOVERY_INSTRUCTION, build_answer_recovery_history
@@ -390,3 +391,22 @@ async def test_legacy_web_automatic_packets_consume_real_search_skill(replay, tm
         assert metadata.tool_calls_made[0].function_arguments_parsed["updated_chat_title"] == "Web search results"
     finally:
         mock_group_var.reset(token)
+
+
+@pytest.mark.asyncio
+async def test_editable_embeds_replay_streams_table_and_code(replay, tmp_path: Path):
+    """The header Edit/Save E2E gets a sheet and a separate code embed from one replayed turn."""
+    async def forbidden_provider(**_kwargs):
+        raise AssertionError("routing fixture must never dispatch a real provider")
+
+    wrapped = wrap_provider_with_cache(forbidden_provider, ApiResponseCache(root=tmp_path))
+    stream = await wrapped(model_id="mercury-3", stream=True, task_id="editable-task", reasoning_effort="medium",
+                           thinking_level="LOW", max_tokens=16384,
+                           messages=[{"role": "user", "content": EDITABLE_EMBEDS_PROMPT}], tools=[])
+    chunks = [chunk async for chunk in stream]
+    assert chunks[0] == EDITABLE_EMBEDS_RESPONSE
+    fences = EDITABLE_EMBEDS_RESPONSE.split("```")
+    assert len(fences) == 3 and fences[1].partition("\n")[0] == "python"
+    # The table comes first with text between it and the code fence (separate cards).
+    assert "| Venue | 1200 |" in fences[0]
+    assert fences[0].rstrip().endswith("And here is the greeting script.")

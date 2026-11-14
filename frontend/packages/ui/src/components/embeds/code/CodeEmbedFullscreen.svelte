@@ -53,7 +53,6 @@
   import SvgEmbedImage from './SvgEmbedImage.svelte';
   import { resolveCodePreviewKind } from './interactiveHtmlSandbox';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
-  import EmbedIconButton from '../shared/EmbedIconButton.svelte';
   import CodeEditor from './CodeEditor.svelte';
   import { EMBED_EDITS_ENABLED } from '../../../services/rustCore/embeds/embedEditSession';
   import { chatTeamOf, contentEditScope, saveContentEdit } from '../../../services/rustCore/embeds/embedContentEdit';
@@ -267,6 +266,16 @@
    * only): not streaming, not a remote preview, no PII masking in the shown text.
    */
   let canEdit = $derived(!!embedId && editScope?.kind === 'project' && data.embedData?.status !== 'processing' && dc.type !== 'remote_file_preview' && !onImport && !hasPII);
+
+  let codeEditor = $state<ReturnType<typeof CodeEditor> | undefined>(undefined);
+  let codeSaving = $state(false);
+
+  /** The header Edit button: opens the editor; while editing it is the check mark that saves and closes it. */
+  function toggleCodeEdit(): void {
+    // A save closes the editor before its saving flag is reset, so start each edit clean.
+    if (!editing) { editError = ''; editConflict = false; codeSaving = false; editing = true; return; }
+    void codeEditor?.save();
+  }
 
   async function saveEdit(next: string) {
     const scope = editScope;
@@ -1625,6 +1634,10 @@
   showPIIIncludeOriginal={canIncludeOriginalPII}
   onIncludeOriginalPII={includeOriginalPII}
   skipInitialScrollReset={!!highlightRange}
+  onEdit={canEdit ? toggleCodeEdit : undefined}
+  editActive={editing}
+  editBusy={codeSaving}
+  editTestId="code-edit-button"
 >
   {#snippet embedHeaderCta()}
     {#if hasCodeHeaderCta}
@@ -1645,13 +1658,10 @@
   {/snippet}
 
   {#snippet content()}
-    {#if canEdit && !editing}
-      <div class="code-edit-bar">
-        <EmbedIconButton icon="edit" label={$text('app_skills.code.edit')} testId="code-edit-button" onclick={() => { editError = ''; editConflict = false; editing = true; }} />
-      </div>
-    {/if}
     {#if editing}
       <CodeEditor
+        bind:this={codeEditor}
+        bind:saving={codeSaving}
         code={renderCodeContent}
         onSave={saveEdit}
         onCancel={() => { editing = false; }}
@@ -2032,12 +2042,6 @@
 {/if}
 
 <style>
-  .code-edit-bar {
-    display: flex;
-    justify-content: flex-end;
-    padding-bottom: var(--spacing-4);
-  }
-
   /* Code fullscreen container */
   .code-fullscreen-container {
     width: calc(100% - 10px);

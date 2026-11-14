@@ -121,6 +121,25 @@ export const variants = {
 		page_count: 2
 	},
 
+	/** A Project document opened from its Project: the header shows the round Edit button. */
+	editableInProject: {
+		data: { decodedContent: { html: sampleHtml, title: 'Project Architecture Overview' } },
+		embedId: 'preview-project-doc',
+		projectId: 'preview-project',
+		onClose: () => {}
+	},
+
+	/** A sent document in its own chat (stored, so editable there too). */
+	editableInChat: {
+		data: {
+			decodedContent: { html: sampleHtml, title: 'Project Architecture Overview' },
+			embedData: { hashed_message_id: 'preview-message' }
+		},
+		embedId: 'preview-chat-doc',
+		chatId: 'preview-chat',
+		onClose: () => {}
+	},
+
 	/** Generated document with a stored PDF artifact: header offers Download PDF next to Word. */
 	generatedPdfArtifact: {
 		...defaultProps,

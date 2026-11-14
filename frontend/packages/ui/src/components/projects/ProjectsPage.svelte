@@ -63,6 +63,7 @@
     updateProjectMetadata,
     uploadFileToProject,
   createProjectDocument,
+  createFolder as createProjectFolderRecord,
   type ProjectDocumentKind,
     type ProjectFolderViewModel,
     type ProjectItemViewModel,
@@ -1335,7 +1336,24 @@
     }
   }
 
-  const canCreateFiles = $derived(!!selectedProject);
+  // New files and folders are stored OpenMates folder records, so they can only be
+  // created in the root or a stored folder; path-based folders (hosted app files)
+  // and connected sources keep the chat/workflow/plan entries only.
+  const canCreateFiles = $derived(!!selectedProject && !activeRemoteSource && currentVirtualPath === null);
+
+  async function createProjectSubfolder(name: string): Promise<boolean> {
+    if (!selectedProject) return false;
+    try {
+      await createProjectFolderRecord(selectedProject, name, currentFolder?.folder_id ?? undefined, { teamId: selectedProject.teamId });
+      showCreateMenu = false;
+      await refreshSelectedProject();
+      return true;
+    } catch (error) {
+      console.error('[ProjectsPage] Failed to create Project folder:', error);
+      notificationStore.error(error instanceof Error && error.message ? error.message : $text('projects.create_folder_failed'));
+      return false;
+    }
+  }
 
   async function createProjectFile(kind: ProjectDocumentKind, name: string): Promise<boolean> {
     if (!selectedProject) return false;
@@ -2241,7 +2259,7 @@
                 <span class="menu-icon plan-icon" aria-hidden="true"></span>
                 <span><strong>New plan</strong><small>Plan work for this project</small></span>
               </button>
-              {#if canCreateFiles}<ProjectCreateFileEntries variant="root" onCreate={createProjectFile} />{/if}
+              {#if canCreateFiles}<ProjectCreateFileEntries variant="root" onCreate={createProjectFile} onCreateFolder={createProjectSubfolder} />{/if}
             </div>
           {/if}
           {#if readmeState.status === 'empty'}
@@ -2356,7 +2374,7 @@
                 <button type="button" data-testid="project-create-chat" onclick={startProjectChat}><span class="menu-icon chat-icon" aria-hidden="true"></span><span><strong>New chat</strong></span></button>
                 <button type="button" data-testid="project-create-workflow" onclick={startProjectWorkflow}><span class="menu-icon workflow-icon" aria-hidden="true"></span><span><strong>New workflow</strong></span></button>
                 <button type="button" data-testid="project-create-plan" onclick={startProjectPlan}><span class="menu-icon plan-icon" aria-hidden="true"></span><span><strong>New plan</strong></span></button>
-                {#if canCreateFiles}<ProjectCreateFileEntries variant="folder" onCreate={createProjectFile} />{/if}
+                {#if canCreateFiles}<ProjectCreateFileEntries variant="folder" onCreate={createProjectFile} onCreateFolder={createProjectSubfolder} />{/if}
               </div>
             {/if}
             </div>
@@ -3496,8 +3514,8 @@
     width: 100%;
     margin: 0;
     transform: none;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-auto-rows: 1fr;
+    /* Wraps instead of squeezing when the folder panel is narrow (e.g. beside an open file). */
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
     min-height: 10rem;
     border: 0;
     border-inline-start: 1px solid var(--color-grey-30);
@@ -3516,6 +3534,9 @@
     min-height: 10rem;
     color: var(--color-font-secondary);
     text-align: center;
+    /* Flat tiles like Sync/Upload/Create, without the global button drop shadow. */
+    filter: none;
+    text-shadow: none;
   }
 
   .create-menu.folder-create-menu .menu-icon { width: 1.75rem; height: 1.75rem; }
@@ -3911,6 +3932,17 @@
 
   @container project-page (max-width: 700px) {
     .browser-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* A narrow folder panel (small window or a file open beside it) stacks the
+     Create menu under Sync/Upload/Create so every entry stays readable and clickable. */
+  @container project-page (max-width: 899px) {
+    .browser-grid > .project-action-expander.expanded,
+    .browser-list > .project-action-expander.expanded { grid-template-columns: minmax(0, 1fr); }
+    .project-action-expander.expanded .project-actions { width: 100%; }
+    .project-action-expander.expanded .project-actions button { flex: 1; min-width: 0; }
+    .create-menu.folder-create-menu { min-height: 0; border-inline-start: 0; border-top: 1px solid var(--color-grey-30); }
+    .create-menu.folder-create-menu button { min-height: 6rem; }
   }
 
   @container project-page (max-width: 500px) {

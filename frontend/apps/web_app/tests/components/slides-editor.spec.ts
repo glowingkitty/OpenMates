@@ -125,8 +125,13 @@ test.describe('Slides editor (Rust core)', () => {
     await page.getByTestId('slides-edit').click();
     await waitForEditor(page);
     await expect(editor(page)).toHaveAttribute('data-dirty', 'false');
-    await page.getByTestId('slides-editor-done').click();
+    // In the fullscreen the header Edit button turns into the round check (save and finish);
+    // the editor toolbar has no Done of its own there.
+    await expect(page.getByTestId('slides-edit')).toHaveAttribute('data-edit-state', 'save');
+    await expect(page.getByTestId('slides-editor-done')).toHaveCount(0);
+    await page.getByTestId('slides-edit').click();
     await expect(editor(page)).toHaveCount(0);
+    await expect(page.getByTestId('slides-edit')).toHaveAttribute('data-edit-state', 'edit');
 
     await page.getByTestId('slides-edit').click();
     await waitForEditor(page);
@@ -144,13 +149,14 @@ test.describe('Slides editor (Rust core)', () => {
 
     // The preview embed is not in the local embed store: saving must fail visibly,
     // keep the editor open with the edits, and allow a retry (no silent fallback).
-    await page.getByTestId('slides-editor-done').click();
+    await page.getByTestId('slides-edit').click();
     await expect(editor(page)).toHaveAttribute('data-save-state', 'failed');
     await expect(page.getByTestId('slides-editor-save-failed')).toBeVisible();
     await expect(strip(page)).toHaveCount(4);
     await expect(editor(page)).toHaveAttribute('data-dirty', 'true');
-    await expect(page.getByTestId('slides-editor-done')).toBeEnabled();
-    // The failure sits inline beside Done in the editor bar.
+    await expect(page.getByTestId('slides-edit')).toBeEnabled();
+    await expect(page.getByTestId('slides-edit')).toHaveAttribute('data-edit-state', 'save');
+    // The failure sits inline in the editor bar.
     const toolbar = await page.getByTestId('slides-editor-toolbar').boundingBox();
     const failed = await page.getByTestId('slides-editor-save-failed').boundingBox();
     expect(failed!.y).toBeGreaterThanOrEqual(toolbar!.y - 1);

@@ -60,10 +60,28 @@ SLIDES_RESPONSE = (
     "  </slide>\n"
     "</deck>\n```\n"
 )
+# One finished turn with a sheet and a code embed for the header Edit/Save E2E
+# in a chat: the real stream consumer turns the markdown table and the python
+# fence into embeds. Text between them keeps them separate cards instead of one
+# grouped carousel. (An assistant document needs the docs artifact worker, which
+# the isolated CI stack does not run, so it would never leave "processing".)
+EDITABLE_EMBEDS_PROMPT = "Draft a budget table and a greeting script. MERCURY_ROUTING_E2E:editable_embeds"
+EDITABLE_EMBEDS_RESPONSE = (
+    "Here is the budget.\n\n"
+    "| Item | Cost |\n"
+    "|------|------|\n"
+    "| Venue | 1200 |\n"
+    "| Catering | 800 |\n\n"
+    "And here is the greeting script.\n\n"
+    "```python\n"
+    "def greet(name):\n"
+    "    return f\"Hello, {name}!\"\n"
+    "```\n"
+)
 PROTOCOL_TEXT = "```toon\napp_id: web\nskill_id: search\nstatus: finished\n```"
 PROMPTS = (SUCCESS_PROMPT, FALLBACK_PROMPT, DISABLED_PROMPT, GEMINI_RETRY_PROMPT, CHEAP_FALLBACK_PROMPT,
            HIGH_PROMPT, EXTRA_HIGH_PROMPT, HIGH_RECOVERY_PROMPT, WEB_RESEARCH_PROMPT, WEB_THROTTLE_PROMPT,
-           SLIDES_PROMPT)
+           SLIDES_PROMPT, EDITABLE_EMBEDS_PROMPT)
 MAX_FAILURE_WITNESSES = 128
 # wait_for() consumes Mercury's first chunk in a child task, so a ContextVar set
 # there would not reach the fallback task. Store only opaque task IDs, bounded.
@@ -283,9 +301,10 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
         if prompt == DISABLED_PROMPT:
             raise AssertionError("A disabled Mercury model must never reach its provider")
         _assert_mercury_policy(kwargs, "high" if prompt in {HIGH_PROMPT, EXTRA_HIGH_PROMPT} else "medium")
-        if prompt in {SUCCESS_PROMPT, HIGH_PROMPT, SLIDES_PROMPT}:
+        if prompt in {SUCCESS_PROMPT, HIGH_PROMPT, SLIDES_PROMPT, EDITABLE_EMBEDS_PROMPT}:
             return _packet(model, HIGH_RESPONSE if prompt == HIGH_PROMPT
-                           else SLIDES_RESPONSE if prompt == SLIDES_PROMPT else SUCCESS_RESPONSE)
+                           else SLIDES_RESPONSE if prompt == SLIDES_PROMPT
+                           else EDITABLE_EMBEDS_RESPONSE if prompt == EDITABLE_EMBEDS_PROMPT else SUCCESS_RESPONSE)
         _failed_tasks[task_id] = None
         _failed_tasks.move_to_end(task_id)
         while len(_failed_tasks) > MAX_FAILURE_WITNESSES:

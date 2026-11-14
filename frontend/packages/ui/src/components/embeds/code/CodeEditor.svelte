@@ -3,9 +3,11 @@
 
   Plain-text editor of a code file embed fullscreen: monospace textarea with a
   line-number gutter, Tab inserts two spaces (Shift+Tab outdents), Ctrl/Cmd+S
-  saves, Escape cancels (asks first when there are unsaved changes). The parent
-  owns persistence: `onSave` receives the edited code and may reject; the
-  message is shown in `code-editor-error`.
+  saves, Escape cancels (asks first when there are unsaved changes). Saving is
+  started by the fullscreen's header check-mark button (one Edit/Save button for
+  every editable embed) through the exported `save()`; without changes it just
+  leaves edit mode. The parent owns persistence: `onSave` receives the edited
+  code and may reject; the message is shown in `code-editor-error`.
 -->
 <script lang="ts">
   import { text } from '@repo/ui';
@@ -21,14 +23,15 @@
     error?: string;
     /** Offered next to the error, e.g. to reload after a version conflict. */
     onReload?: () => void;
+    /** True while a save runs; bound by the fullscreen to show its header button busy. */
+    saving?: boolean;
   }
 
-  let { code, onSave, onCancel, error = '', onReload }: Props = $props();
+  let { code, onSave, onCancel, error = '', onReload, saving = $bindable(false) }: Props = $props();
 
   // The editor works on its own copy; `code` is only the starting point.
   // svelte-ignore state_referenced_locally
   let draft = $state(code);
-  let saving = $state(false);
   let saveError = $state('');
   let textarea: HTMLTextAreaElement | null = $state(null);
   let gutter: HTMLElement | null = $state(null);
@@ -39,8 +42,10 @@
 
   $effect(() => { textarea?.focus(); });
 
-  async function save() {
-    if (saving || !dirty) return;
+  /** Save the edit (header check mark, Ctrl/Cmd+S); without changes just leave edit mode. */
+  export async function save(): Promise<void> {
+    if (saving) return;
+    if (!dirty) { onCancel(); return; }
     saving = true;
     saveError = '';
     try {
@@ -107,8 +112,7 @@
     {#if dirty}
       <span class="code-editor-dirty" data-testid="code-editor-dirty">{$text('app_skills.code.editor.unsaved')}</span>
     {/if}
-    <EmbedIconButton icon="close" label={$text('common.cancel')} testId="code-editor-cancel" onclick={cancel} />
-    <EmbedIconButton icon="check" primary label={$text('common.save')} testId="code-editor-save" disabled={saving || !dirty} onclick={save} />
+    <EmbedIconButton icon="close" label={$text('common.cancel')} testId="code-editor-cancel" disabled={saving} onclick={cancel} />
   </div>
   {#if shownError}
     <div class="code-editor-error" data-testid="code-editor-error" role="alert">

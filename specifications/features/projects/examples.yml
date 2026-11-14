@@ -688,6 +688,11 @@ project_document_creation:
   given: Dana works in her Project "Weather station".
   when: She chooses "New code file", names it "greet.py", types a function in the code editor and saves.
   then: The file greet.py appears in the Project files as Python code, the saved code is shown after a reload, and the edit is the file's next version.
+- id: every-create-entry-in-a-nested-folder
+  assertion_ids: [projects.items.create-documents]
+  given: Erin opens the folder "Quotes / Caterers" of her Project "Summer party", which she made with "New folder" in the Create menu.
+  when: She creates a new document, sheet, slides deck, code file, workflow and chat from that folder's Create menu.
+  then: The four files are listed in "Caterers" after a reload and not in "Quotes" or the root, the workflow belongs to "Caterers", and the chat starts with that folder as its context.
 project_surface_parity:
 - id: same-linked-object
   input:

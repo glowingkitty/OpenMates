@@ -158,11 +158,21 @@
   /** Loaded on first Edit so builds without the core never ship the editor. */
   let Editor = $state<typeof SlidesEditorComponent | null>(null);
   let editing = $state(false);
+  let editorRef = $state<{ done: () => Promise<void> } | undefined>(undefined);
+  let editorFinishing = $state(false);
 
   async function startEditing() {
     if (!canEdit) return;
     Editor ??= (await import('./SlidesEditor.svelte')).default;
+    // A successful Done unmounts the editor while its finishing flag is still set.
+    editorFinishing = false;
     editing = true;
+  }
+
+  /** The header Edit button: opens the editor; while editing it is the check mark that saves and closes it. */
+  function toggleSlidesEdit(): void {
+    if (!editing) { void startEditing(); return; }
+    void editorRef?.done();
   }
 
   /** Persists the edit as the next version; a rejection keeps the editor open with a retry. */
@@ -275,11 +285,18 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  onEdit={canEdit && (editing || !streaming) ? toggleSlidesEdit : undefined}
+  editActive={editing}
+  editBusy={editorFinishing}
+  editTestId="slides-edit"
 >
   {#snippet content()}
     <div class="deck-viewer" data-testid="slides-deck-fullscreen" data-slide-index={index}>
       {#if editing && Editor}
         <Editor
+          bind:this={editorRef}
+          bind:finishing={editorFinishing}
+          showDone={false}
           {markup}
           initialSlideId={current?.id}
           onSave={saveEdit}
@@ -328,11 +345,6 @@
           <button type="button" class="present-button" data-testid="slides-present-presenter-view" onclick={startPresenterView}>
             {$text('embeds.slides_presenter_view')}
           </button>
-          {#if canEdit && !streaming}
-            <button type="button" class="present-button" data-testid="slides-edit" onclick={startEditing}>
-              {$text('common.edit')}
-            </button>
-          {/if}
         </div>
         {#if popupBlocked}
           <p class="popup-blocked" role="status" data-testid="slides-popup-blocked">{$text('embeds.slides_popup_blocked')}</p>

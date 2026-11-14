@@ -237,10 +237,24 @@
     cellDraft = cell.formula ?? cell.content;
   }
 
-  function toggleEditMode() {
-    if (editMode) commitCellEdit();
-    editMode = !editMode;
+  let finishingEdit = $state(false);
+
+  /**
+   * The header Edit button: turns edit mode on; while editing it is the check
+   * mark that commits the open cell, waits for the queued cell saves (each cell
+   * is saved as its own version; persistEdit reports failures) and leaves edit mode.
+   */
+  async function toggleEditMode() {
+    if (!editMode) { editMode = true; activeCell = null; return; }
+    commitCellEdit();
     activeCell = null;
+    finishingEdit = true;
+    try {
+      await saveChain;
+    } finally {
+      finishingEdit = false;
+    }
+    editMode = false;
   }
 
   function cellInputAction(node: HTMLInputElement) {
@@ -563,13 +577,12 @@
   skipInitialScrollReset={!!focusSheetRange}
   onEdit={canEdit ? toggleEditMode : undefined}
   editActive={editMode}
-  editPlacement="share"
+  editBusy={finishingEdit}
   editTestId="sheet-edit-toggle"
-  editLabel={$text('common.edit')}
   reportInMore={true}
 >
   {#snippet content()}
-    <div class="sheet-fullscreen">
+    <div class="sheet-fullscreen" data-testid="sheet-fullscreen" data-edit-mode={editMode ? 'true' : 'false'}>
       <!-- PII reveal toggle bar — shown when the table contains PII placeholders -->
       {#if hasPII}
         <div class="sheet-pii-bar">

@@ -11,7 +11,7 @@ const PREVIEW = '/dev/preview/embeds/code/CodeEditor';
 const url = (variant = '') => `${PREVIEW}?${new URLSearchParams({ variant, chrome: '0', width: '880' })}`;
 
 // contract-test: supporting surface=gui.web assertions=projects.items.create-documents
-test('edits code with Tab indent, shows the dirty state and keeps Save disabled until changed', async ({ page }, testInfo) => {
+test('edits code with Tab indent, shows the dirty state and stays clean until changed', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1000, height: 700 });
   await page.goto(url());
   await waitForComponentPreview(page);
@@ -20,7 +20,9 @@ test('edits code with Tab indent, shows the dirty state and keeps Save disabled 
   const textarea = page.getByTestId('code-editor-textarea');
   await expect(editor).toBeVisible();
   await expect(textarea).toHaveValue(/export function add/);
-  await expect(page.getByTestId('code-editor-save')).toBeDisabled();
+  await expect(editor).toHaveAttribute('data-dirty', 'false');
+  // Save is the header check in the fullscreen, not a button inside the editor.
+  await expect(page.getByTestId('code-editor-save')).toHaveCount(0);
   await testInfo.attach('code-editor-viewer', { body: await page.screenshot(), contentType: 'image/png' });
 
   await textarea.click();
@@ -29,7 +31,6 @@ test('edits code with Tab indent, shows the dirty state and keeps Save disabled 
   await page.keyboard.type('// edited');
   await expect(textarea).toHaveValue(/\n {2}\/\/ edited$/);
   await expect(editor).toHaveAttribute('data-dirty', 'true');
-  await expect(page.getByTestId('code-editor-save')).toBeEnabled();
 
   await page.keyboard.press('Shift+Tab');
   await expect(textarea).toHaveValue(/\n\/\/ edited$/);

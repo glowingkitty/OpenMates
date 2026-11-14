@@ -180,12 +180,22 @@
 
   // ── Manual editing (saved as the next version through the client core) ─────
   let editing = $state(false);
+  let docsSaving = $state(false);
+  let docsEditor = $state<ReturnType<typeof DocsEditor> | undefined>(undefined);
   let editScope = $state<EmbedEditScope | null>(null);
   let canEdit = $derived(
-    // Manual editing is offered for Project documents only (spec projects.items.create-documents);
-    // a Project document is stored as soon as it is created, so it is editable at once.
-    EMBED_EDITS_ENABLED && !!embedId && editScope?.kind === 'project' && !hasPII && includedOriginalHtmlContent === null
+    // Editable where it is saved: as a Project file opened from its Project (stored at
+    // creation, so editable at once), or in its own chat once the message is sent.
+    EMBED_EDITS_ENABLED && !!embedId && !!editScope && (editScope.kind === 'project' || !isDraftEmbed)
+      && !hasPII && includedOriginalHtmlContent === null
   );
+
+  /** The header Edit button: opens the editor; while editing it is the check mark that saves and closes it. */
+  function toggleDocsEdit(): void {
+    // A save closes the editor before its saving flag is reset, so start each edit clean.
+    if (!editing) { docsSaving = false; editing = true; return; }
+    void docsEditor?.save();
+  }
 
   $effect(() => {
     if (!EMBED_EDITS_ENABLED || !embedId) { editScope = null; return; }
@@ -785,11 +795,10 @@
   showPIIToggle={hasPII}
   piiRevealed={piiRevealed}
   onTogglePII={togglePII}
-  onEdit={canEdit && !editing ? () => { editing = true; } : undefined}
+  onEdit={canEdit ? toggleDocsEdit : undefined}
   editActive={editing}
-  editPlacement="share"
+  editBusy={docsSaving}
   editTestId="docs-edit-button"
-  editLabel={$text('common.edit')}
   showPIIIncludeOriginal={canIncludeOriginalPII}
   onIncludeOriginalPII={includeOriginalPII}
   skipInitialScrollReset={!!highlightQuoteText}
@@ -798,7 +807,7 @@
 >
   {#snippet content()}
     {#if editing}
-      <DocsEditor html={latestHtmlContent} onSave={saveEditedDocument} onCancel={() => { editing = false; }} />
+      <DocsEditor bind:this={docsEditor} bind:saving={docsSaving} html={latestHtmlContent} onSave={saveEditedDocument} onCancel={() => { editing = false; }} />
     {:else if Object.keys(displayedArtifactPageUrls).length > 0}
       <div class="doc-viewer-canvas" data-testid="doc-artifact-pages" data-download-ready={preparedDocxDownloadUrl ? 'true' : 'false'}>
         <div

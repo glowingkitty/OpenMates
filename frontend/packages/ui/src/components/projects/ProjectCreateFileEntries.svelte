@@ -1,29 +1,36 @@
 <!--
-  Project create-menu entries for new empty documents, sheets, slide decks and
-  code files. Clicking an entry shows an inline name field; the parent creates
-  the Project embed and opens it. Spec: projects.items.create-documents.
-  Used by both Create menus of ProjectsPage.
+  Project create-menu entries for a new folder and new empty documents, sheets,
+  slide decks and code files. Clicking an entry shows an inline name field; the
+  parent creates the item in the folder being viewed (a file is opened right
+  away). Spec: projects.items.create-documents. Used by both Create menus of
+  ProjectsPage.
 -->
 <script lang="ts">
   import { text } from '@repo/ui';
   import type { ProjectDocumentKind } from '../../services/projectService';
+
+  /** A Project file kind, or a plain folder. */
+  type ProjectCreateKind = ProjectDocumentKind | 'folder';
 
   interface Props {
     /** 'root' stacks the entries under the chat/plan entries, 'folder' spans the folder menu grid. */
     variant: 'root' | 'folder';
     /** Creates and opens the file; resolves false on failure (the parent shows the error). */
     onCreate: (kind: ProjectDocumentKind, name: string) => Promise<boolean>;
+    /** Creates a folder inside the folder being viewed; resolves false on failure. */
+    onCreateFolder: (name: string) => Promise<boolean>;
   }
-  let { variant, onCreate }: Props = $props();
+  let { variant, onCreate, onCreateFolder }: Props = $props();
 
-  const entries: { kind: ProjectDocumentKind; testid: string; label: string; defaultName: string; icon: string }[] = [
+  const entries: { kind: ProjectCreateKind; testid: string; label: string; defaultName: string; icon: string }[] = [
+    { kind: 'folder', testid: 'project-create-folder', label: 'projects.create_folder', defaultName: 'projects.create_default_folder_name', icon: 'var(--icon-url-files)' },
     { kind: 'document', testid: 'project-create-document', label: 'projects.create_document', defaultName: 'projects.create_default_document_name', icon: 'var(--icon-url-docs)' },
     { kind: 'sheet', testid: 'project-create-sheet', label: 'projects.create_sheet', defaultName: 'projects.create_default_sheet_name', icon: 'var(--icon-url-sheets)' },
     { kind: 'slides', testid: 'project-create-slides', label: 'projects.create_slides', defaultName: 'projects.create_default_slides_name', icon: 'var(--icon-url-slides)' },
     { kind: 'code', testid: 'project-create-code', label: 'projects.create_code_file', defaultName: 'projects.create_default_code_name', icon: 'var(--icon-url-coding)' },
   ];
 
-  let pending = $state<ProjectDocumentKind | null>(null);
+  let pending = $state<ProjectCreateKind | null>(null);
   let name = $state('');
   let busy = $state(false);
 
@@ -37,7 +44,8 @@
     if (!pending || busy || !name.trim()) return;
     busy = true;
     try {
-      if (await onCreate(pending, name.trim())) pending = null;
+      const created = pending === 'folder' ? await onCreateFolder(name.trim()) : await onCreate(pending, name.trim());
+      if (created) pending = null;
     } finally {
       busy = false;
     }
@@ -70,7 +78,21 @@
     grid-column: 1 / -1;
     border-top: 1px solid var(--color-grey-25);
   }
-  .file-entries.folder { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* Wraps into more rows when the folder panel is narrow (e.g. beside an open file). */
+  .file-entries.folder {
+    grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  }
+  /* Thin divider lines on the right and bottom of each tile, so wrapped rows stay separated. */
+  .file-entries.folder button {
+    flex-direction: column;
+    min-width: 0;
+    min-height: 6rem;
+    box-shadow: inset -1px -1px 0 var(--color-grey-25);
+    filter: none;
+    text-shadow: none;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
   .file-entries button {
     display: flex;
     align-items: center;
@@ -93,7 +115,7 @@
     mask: var(--file-entry-icon) center / contain no-repeat;
   }
   .file-entries button + button { border-top: 1px solid var(--color-grey-25); }
-  .file-entries.folder button + button { border-top: 0; border-inline-start: 1px solid var(--color-grey-25); }
+  .file-entries.folder button + button { border-top: 0; }
   .file-entries button:hover:not(:disabled), .file-entries button.active { background: var(--color-grey-10); }
   .name-form {
     display: flex;

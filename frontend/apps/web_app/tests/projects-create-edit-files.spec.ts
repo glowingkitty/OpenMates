@@ -108,6 +108,29 @@ async function createFile(page: any, kind: Kind, name: string): Promise<void> {
 }
 
 /**
+ * Press the round Edit button in the embed header (`testId` is the type's id
+ * for the shared button) and check that it turned into the check-mark Save.
+ * spec: embed-user-edits.header.edit-save-button.
+ */
+async function startEditing(page: any, testId: string, kind: string): Promise<void> {
+	const button = page.getByTestId(testId);
+	await expect(button).toHaveAttribute('data-edit-state', 'edit', { timeout: 30_000 });
+	await expect(button.getByTestId('embed-edit-icon')).toBeVisible();
+	await button.click();
+	await expect(button).toHaveAttribute('data-edit-state', 'save');
+	await expect(button.getByTestId('embed-edit-save-icon')).toBeVisible();
+	await shot(page, `${kind}-header-save-button`);
+}
+
+/** Press the header check mark: saves and leaves edit mode (the button is the pencil again). */
+async function finishEditing(page: any, testId: string): Promise<void> {
+	const button = page.getByTestId(testId);
+	await expect(button).toHaveAttribute('data-edit-state', 'save');
+	await button.click();
+	await expect(button).toHaveAttribute('data-edit-state', 'edit', { timeout: 60_000 });
+}
+
+/**
  * Wait for a successful user revision commit (the editor's save). A first
  * edit of a new file is answered 409 `base_snapshot_required` and the core
  * resends it with version 1's snapshot, so only a 2xx answer counts.
@@ -220,7 +243,7 @@ test.describe('Create and edit files in a Project', () => {
 		try {
 			await createFile(page, 'document', 'Talk outline');
 			const viewer = page.getByTestId('project-embed-viewer');
-			await viewer.getByTestId('docs-edit-button').click();
+			await startEditing(page, 'docs-edit-button', 'document');
 			const content = viewer.getByTestId('docs-editor-content');
 			await expect(content).toBeVisible();
 			await content.click();
@@ -238,7 +261,7 @@ test.describe('Create and edit files in a Project', () => {
 			});
 			await proof.checkpoint('document-editing');
 			const saved = revisionSaved(page);
-			await viewer.getByTestId('docs-editor-save').click();
+			await finishEditing(page, 'docs-edit-button');
 			await proof.assert('projects.items.create-documents.document.saved', async () => {
 				expect((await saved).ok(), 'the document edit should be committed').toBe(true);
 				await expect(viewer.getByTestId('docs-editor')).toHaveCount(0, { timeout: 30_000 });
@@ -272,7 +295,7 @@ test.describe('Create and edit files in a Project', () => {
 		};
 		try {
 			await createFile(page, 'sheet', 'Budget');
-			await page.getByTestId('sheet-edit-toggle').click();
+			await startEditing(page, 'sheet-edit-toggle', 'sheet');
 			const saved = revisionSaved(page);
 			await setCell('A1', 'Venue');
 			await setCell('B1', '1200');
@@ -282,8 +305,10 @@ test.describe('Create and edit files in a Project', () => {
 			});
 			await proof.checkpoint('sheet-editing');
 			await proof.assert('projects.items.create-documents.sheet.saved', async () => {
+				await finishEditing(page, 'sheet-edit-toggle');
 				await expect(page.getByTestId('sheet-save-status')).toHaveAttribute('data-state', 'saved', { timeout: 60_000 });
 				expect((await saved).ok(), 'the sheet edit should be committed').toBe(true);
+				await expect(page.getByTestId('sheet-cell-input')).toHaveCount(0);
 			});
 			await proof.checkpoint('sheet-saved');
 
@@ -308,8 +333,9 @@ test.describe('Create and edit files in a Project', () => {
 			await createFile(page, 'slides', 'Launch deck');
 			const viewer = page.getByTestId('project-embed-viewer');
 			await expect(viewer.getByTestId('slides-deck-fullscreen')).toBeVisible({ timeout: 30_000 });
-			await viewer.getByTestId('slides-edit').click();
+			await startEditing(page, 'slides-edit', 'slides');
 			await expect(editor()).toHaveAttribute('data-status', 'ready', { timeout: 60_000 });
+			await expect(page.getByTestId('slides-editor-done'), 'Done lives in the header').toHaveCount(0);
 			await page.getByTestId('slides-editor-element').first().dblclick();
 			const input = page.getByTestId('slides-editor-text-input');
 			await expect(input).toBeFocused();
@@ -322,7 +348,7 @@ test.describe('Create and edit files in a Project', () => {
 			});
 			await proof.checkpoint('slides-editing');
 			const saved = revisionSaved(page);
-			await page.getByTestId('slides-editor-done').click();
+			await finishEditing(page, 'slides-edit');
 			await proof.assert('projects.items.create-documents.slides.saved', async () => {
 				expect((await saved).ok(), 'the deck edit should be committed').toBe(true);
 				await expect(editor()).toHaveCount(0, { timeout: 30_000 });
@@ -350,7 +376,8 @@ test.describe('Create and edit files in a Project', () => {
 		try {
 			await createFile(page, 'code', 'greet.py');
 			const viewer = page.getByTestId('project-embed-viewer');
-			await viewer.getByTestId('code-edit-button').click();
+			await startEditing(page, 'code-edit-button', 'code');
+			await expect(viewer.getByTestId('code-editor-save'), 'Save lives in the header').toHaveCount(0);
 			const textarea = viewer.getByTestId('code-editor-textarea');
 			await expect(textarea).toBeVisible();
 			await textarea.fill(code);
@@ -359,7 +386,7 @@ test.describe('Create and edit files in a Project', () => {
 			});
 			await proof.checkpoint('code-editing');
 			const saved = revisionSaved(page);
-			await viewer.getByTestId('code-editor-save').click();
+			await finishEditing(page, 'code-edit-button');
 			await proof.assert('projects.items.create-documents.code.saved', async () => {
 				expect((await saved).ok(), 'the code edit should be committed').toBe(true);
 				await expect(viewer.getByTestId('code-editor')).toHaveCount(0, { timeout: 30_000 });
@@ -374,6 +401,116 @@ test.describe('Create and edit files in a Project', () => {
 			});
 			await proof.checkpoint('code-after-reload');
 			await proof.attach();
+		} finally {
+			await deleteProject(page, projectId);
+		}
+	});
+
+	// contract-test: direct surface=gui.web assertions=projects.items.create-documents
+	test('every Create menu item is created in the open subfolder', async ({ page }: { page: any }) => {
+		// Six creations, a reload and the cleanup take longer than one file's flow.
+		test.setTimeout(480_000);
+		const projectId = await createProject(page, 'Venue research');
+		const panel = page.getByTestId('project-folders-panel');
+		const card = (name: string) => page.getByTestId('project-item-card').filter({ hasText: name });
+		const folderCard = (name: string) => page.getByTestId('project-folder-card').filter({ hasText: name });
+		const openFolder = async (name: string) => {
+			await folderCard(name).first().click();
+			await expect(panel.getByRole('heading', { name })).toBeVisible({ timeout: 30_000 });
+		};
+		const openMenu = async () => {
+			await page.getByTestId('project-folder-create-menu-button').click();
+			await expect(page.getByTestId('project-create-menu')).toBeVisible();
+		};
+		/** Create a folder in the open folder; resolves with its id from the request. */
+		const createFolder = async (name: string): Promise<string> => {
+			await openMenu();
+			await page.getByTestId('project-create-folder').click();
+			await page.getByTestId('project-create-name-input').fill(name);
+			const created = page.waitForResponse((response: any) => response.request().method() === 'POST'
+				&& new URL(response.url()).pathname === `/v1/projects/${projectId}/folders`, { timeout: 30_000 });
+			await page.getByTestId('project-create-name-submit').click();
+			const response = await created;
+			expect(response.ok(), 'the folder should be stored').toBe(true);
+			await expect(folderCard(name).first()).toBeVisible({ timeout: 30_000 });
+			return response.request().postDataJSON().folder_id as string;
+		};
+		const files: { kind: Kind; name: string }[] = [
+			{ kind: 'document', name: 'Venue checklist' },
+			{ kind: 'sheet', name: 'Catering quotes' },
+			{ kind: 'slides', name: 'Venue pitch' },
+			{ kind: 'code', name: 'compare.py' },
+		];
+		try {
+			await openFiles(page);
+			const quotesId = await createFolder('Quotes');
+			await openFolder('Quotes');
+			const caterersId = await createFolder('Caterers');
+			expect(caterersId).not.toBe(quotesId);
+			await openFolder('Caterers');
+
+			await openMenu();
+			for (const id of ['chat', 'workflow', 'plan', 'folder', 'document', 'sheet', 'slides', 'code']) {
+				await expect(page.getByTestId(`project-create-${id}`).first(), `Create menu offers ${id}`).toBeVisible();
+			}
+			await shot(page, 'subfolder-create-menu');
+			await page.getByTestId('project-folder-create-menu-button').click();
+
+			for (const file of files) {
+				await openMenu();
+				await page.getByTestId(`project-create-${file.kind}`).first().click();
+				await page.getByTestId('project-create-name-input').fill(file.name);
+				const stored = page.waitForResponse((response: any) => response.request().method() === 'POST'
+					&& /\/v1\/projects\/[^/]+\/upload-embed$/.test(new URL(response.url()).pathname), { timeout: 30_000 });
+				await page.getByTestId('project-create-name-submit').click();
+				const response = await stored;
+				expect(response.ok(), `${file.kind} should be stored`).toBe(true);
+				// The Project item that places the new file rides in the same upload request.
+				expect(response.request().postDataJSON().item?.folder_id, `${file.kind} is stored in the open subfolder`).toBe(caterersId);
+				await expect(page.getByTestId('project-embed-viewer')).toBeVisible({ timeout: 30_000 });
+				await expect(card(file.name).first()).toBeVisible({ timeout: 30_000 });
+			}
+			await shot(page, 'subfolder-files-created');
+
+			// After a reload the files are in Caterers only: not in the root, not in Quotes.
+			await page.goto(`/projects/${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('project-workspace-header')).toBeVisible({ timeout: 60_000 });
+			await openFiles(page);
+			await expect(folderCard('Quotes').first()).toBeVisible({ timeout: 60_000 });
+			for (const file of files) await expect(card(file.name)).toHaveCount(0);
+			await openFolder('Quotes');
+			await expect(folderCard('Caterers').first()).toBeVisible({ timeout: 30_000 });
+			for (const file of files) await expect(card(file.name)).toHaveCount(0);
+			await openFolder('Caterers');
+			for (const file of files) await expect(card(file.name).first()).toBeVisible({ timeout: 30_000 });
+			await shot(page, 'subfolder-after-reload');
+
+			// A new workflow from the subfolder is filed in that folder.
+			await openMenu();
+			await page.getByTestId('project-create-workflow').click();
+			await expect(page.getByTestId('workflow-blank-creator')).toBeVisible({ timeout: 30_000 });
+			await page.getByTestId('workflow-blank-title-input').fill('Ask caterers for quotes');
+			const linked = page.waitForResponse((response: any) => response.request().method() === 'POST'
+				&& new URL(response.url()).pathname === `/v1/projects/${projectId}/items` && response.ok(), { timeout: 60_000 });
+			await page.getByTestId('workflow-blank-create').click();
+			expect((await linked).request().postDataJSON()).toMatchObject({ folder_id: caterersId, item_type: 'workflow' });
+
+			// A new chat from the subfolder starts with that folder as its Project context.
+			await page.goto(`/projects/${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('project-workspace-header')).toBeVisible({ timeout: 60_000 });
+			await openFiles(page);
+			await openFolder('Quotes');
+			await openFolder('Caterers');
+			await openMenu();
+			await page.getByTestId('project-create-chat').click();
+			const messageEditor = page.getByTestId('message-editor');
+			await expect(messageEditor).toBeVisible({ timeout: 30_000 });
+			await page.getByTestId('message-field').click();
+			const mention = messageEditor.locator('[data-type="generic-mention"].mention-project-folder');
+			await expect(mention).toBeVisible({ timeout: 10_000 });
+			const syntax = await mention.getAttribute('data-mention-syntax');
+			expect(syntax, 'the chat targets the subfolder').toMatch(new RegExp(`^@project-folder:${projectId}:[^:]*Caterers:`));
+			await shot(page, 'subfolder-new-chat');
 		} finally {
 			await deleteProject(page, projectId);
 		}

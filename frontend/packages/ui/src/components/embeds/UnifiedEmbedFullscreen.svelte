@@ -109,6 +109,10 @@
     enhanceError?: string;
     enhanceUnavailableReason?: string;
     editActive?: boolean;
+    /** Saving after the check mark was pressed (see EmbedTopBar). */
+    editBusy?: boolean;
+    /** Edit is a plain on/off mode, not a saved edit (see EmbedTopBar). */
+    editToggleOnly?: boolean;
     /** Opt-in Edit placement/labels and Report-in-More layout (see EmbedTopBar). */
     editPlacement?: 'close' | 'share';
     editTestId?: string;
@@ -400,7 +404,9 @@
     enhanceError,
     enhanceUnavailableReason,
     editActive = false,
-    editPlacement = 'close',
+    editBusy = false,
+    editToggleOnly = false,
+    editPlacement = 'share',
     editTestId = 'embed-edit-button',
     editLabel,
     reportInMore = false,
@@ -1554,6 +1560,8 @@
       {enhanceError}
       {enhanceUnavailableReason}
       {editActive}
+      {editBusy}
+      {editToggleOnly}
       {editPlacement}
       {editTestId}
       {editLabel}

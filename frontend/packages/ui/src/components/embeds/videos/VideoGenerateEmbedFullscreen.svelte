@@ -287,6 +287,7 @@
   {onClose}
   onEdit={timeline ? toggleEdit : undefined}
   editActive={editing}
+  editToggleOnly={true}
   editTestId="video-edit-button"
   currentEmbedId={embedId}
   {hasPreviousEmbed}

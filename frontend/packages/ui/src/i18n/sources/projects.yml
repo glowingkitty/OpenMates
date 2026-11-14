@@ -466,6 +466,18 @@ create_code_file:
   context: Project create menu entry that makes a new empty code file
   en: New code file
   verified_by_human: []
+create_folder:
+  context: Project create menu entry that makes a new empty folder inside the folder being viewed
+  en: New folder
+  verified_by_human: []
+create_default_folder_name:
+  context: Prefilled name of a new empty folder in a Project
+  en: New folder
+  verified_by_human: []
+create_folder_failed:
+  context: Error shown when creating a new Project folder failed
+  en: Could not create the folder. Please try again.
+  verified_by_human: []
 create_name_label:
   context: Accessible label of the name field when creating a new Project file
   en: Name

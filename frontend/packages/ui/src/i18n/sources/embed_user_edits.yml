@@ -168,16 +168,6 @@ docs_editor_numbers:
   en: Numbered list
   de: Nummerierte Liste
   verified_by_human: []
-docs_editor_save:
-  context: Button that saves the edited document as its next version
-  en: Save
-  de: Speichern
-  verified_by_human: []
-docs_editor_saving:
-  context: Save button label while the edited document is being saved
-  en: Saving…
-  de: Wird gespeichert…
-  verified_by_human: []
 docs_editor_cancel:
   context: Button that leaves the document editor without saving
   en: Cancel
@@ -187,4 +177,19 @@ docs_editor_reload:
   context: Button shown after a save conflict that reloads the page to get the latest version of the document
   en: Reload
   de: Neu laden
+  verified_by_human: []
+header_edit:
+  context: Round Edit button in the header of an editable embed's fullscreen view (document, sheet, slides, code, diagram); switches to edit mode
+  en: Edit
+  de: Bearbeiten
+  verified_by_human: []
+header_save:
+  context: The same header button while editing; shows a check mark, saves the changes as the next version and leaves edit mode
+  en: Save and finish editing
+  de: Speichern und Bearbeiten beenden
+  verified_by_human: []
+header_saving:
+  context: Accessible name of the header check-mark button while the changes are being saved
+  en: Saving…
+  de: Wird gespeichert…
   verified_by_human: []

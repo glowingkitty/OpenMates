@@ -608,7 +608,9 @@ assertions:
 - id: projects.items.create-documents
   type: behavior
   must: From the Create menu of a Project, in the Project root or any folder or subfolder, a member with write access can
-    create a new document, sheet, slides deck or code file without opening a chat. The new item appears in that folder at once, opens
+    create a new chat, workflow, folder, document, sheet, slides deck or code file; files and folders are made without opening a
+    chat. Each new item belongs to exactly the folder the menu was opened in, never to the root or a parent folder. Folders that
+    mirror a hosted app or a connected remote source do not offer new files or folders. The new item appears in that folder at once, opens
     in its editor, is client-encrypted with owner and Project wrappers like an upload, and can afterwards be renamed, moved,
     edited, versioned and referenced in chats like an item created by the assistant. A new deck uses the Project's pinned
     template, else the user's chosen library template. Members without write access do not see these entries.

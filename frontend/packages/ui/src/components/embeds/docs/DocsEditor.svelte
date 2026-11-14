@@ -1,15 +1,18 @@
 <!--
   Manual document editor (minimal slice): a contenteditable page over the
   sanitized document HTML with headings, bold, italic, underline and lists.
-  Undo/redo are the browser's native ones (Ctrl/Cmd+Z). Saving is the caller's
-  job: onSave receives the cleaned, sanitized HTML and rejects with an Error
-  (optionally with code `embed_version_conflict`) to keep the editor open.
+  Undo/redo are the browser's native ones (Ctrl/Cmd+Z); Ctrl/Cmd+S saves. Saving is started by
+  the fullscreen's header check-mark button (one Edit/Save button for every
+  editable embed) through the exported `save()`; onSave receives the cleaned,
+  sanitized HTML and rejects with an Error (optionally with code
+  `embed_version_conflict`) to keep the editor open.
   Architecture: docs/architecture (embeds) and specifications/features/doc-editor.
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import { text } from '@repo/ui';
   import { cleanEditedHtml } from './docsEditorHtml';
+  import EmbedIconButton from '../shared/EmbedIconButton.svelte';
 
   interface Props {
     /** Current document HTML (sanitized again on load). */
@@ -17,18 +20,22 @@
     /** Persist the edited HTML; reject to keep the editor open and show the error. */
     onSave: (html: string) => Promise<void>;
     onCancel: () => void;
+    /** True while a save runs; bound by the fullscreen to show its header button busy. */
+    saving?: boolean;
   }
 
-  let { html, onSave, onCancel }: Props = $props();
+  let { html, onSave, onCancel, saving = $bindable(false) }: Props = $props();
 
   let contentEl: HTMLDivElement | undefined = $state(undefined);
-  let saving = $state(false);
   let error = $state('');
   let conflict = $state(false);
+  /** The loaded HTML as the editor normalises it; saving it unchanged just leaves edit mode. */
+  let initialHtml = '';
 
   onMount(() => {
     if (!contentEl) return;
     contentEl.innerHTML = cleanEditedHtml(html);
+    initialHtml = cleanEditedHtml(contentEl.innerHTML);
     // New paragraphs are <p>, not <div>.
     document.execCommand('defaultParagraphSeparator', false, 'p');
     contentEl.focus();
@@ -40,18 +47,29 @@
     document.execCommand(command, false, value);
   }
 
+  /** Ctrl/Cmd+S saves, as in the code editor. */
+  function onKeydown(event: KeyboardEvent) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      void save();
+    }
+  }
+
   /** Keep the text selection when a toolbar button is pressed. */
   function keepSelection(event: MouseEvent) {
     event.preventDefault();
   }
 
-  async function save() {
+  /** Save the edited HTML (called by the header check-mark button). */
+  export async function save(): Promise<void> {
     if (!contentEl || saving) return;
+    const edited = cleanEditedHtml(contentEl.innerHTML);
+    if (edited === initialHtml) { onCancel(); return; }
     saving = true;
     error = '';
     conflict = false;
     try {
-      await onSave(cleanEditedHtml(contentEl.innerHTML));
+      await onSave(edited);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
       conflict = (e as { code?: unknown } | null)?.code === 'embed_version_conflict';
@@ -90,12 +108,7 @@
       {/each}
     </div>
     <div class="actions">
-      <button type="button" class="action" data-testid="docs-editor-cancel" onclick={onCancel} disabled={saving}>
-        {$text('embed_user_edits.docs_editor_cancel')}
-      </button>
-      <button type="button" class="action primary" data-testid="docs-editor-save" onclick={save} disabled={saving}>
-        {saving ? $text('embed_user_edits.docs_editor_saving') : $text('embed_user_edits.docs_editor_save')}
-      </button>
+      <EmbedIconButton icon="close" label={$text('embed_user_edits.docs_editor_cancel')} testId="docs-editor-cancel" disabled={saving} onclick={onCancel} />
     </div>
   </div>
 
@@ -119,6 +132,7 @@
       aria-multiline="true"
       aria-label={$text('embed_user_edits.docs_editor_label')}
       data-testid="docs-editor-content"
+      onkeydown={onKeydown}
       bind:this={contentEl}
     ></div>
   </div>
@@ -194,12 +208,6 @@
     box-shadow: 0 0 0 1px var(--color-grey-30);
     font-size: var(--font-size-small);
     cursor: pointer;
-  }
-
-  .action.primary {
-    background: var(--color-button-primary);
-    color: var(--color-grey-0);
-    box-shadow: none;
   }
 
   .action:disabled { opacity: 0.6; cursor: default; }

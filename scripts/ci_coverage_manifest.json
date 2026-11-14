@@ -809,7 +809,8 @@
         "skill-web-read.spec.ts",
         "skill-web-search.spec.ts",
         "mercury3-model-picker.spec.ts",
-        "slides-manual-edit.spec.ts"
+        "slides-manual-edit.spec.ts",
+        "chat-embed-header-edit.spec.ts"
       ]
     },
     "local_email_signup": {
@@ -1129,6 +1130,7 @@
         "components/slides-deck-embed.spec.ts",
         "components/slides-presenter.spec.ts",
         "components/slides-editor.spec.ts",
+        "components/embed-header-edit-button.spec.ts",
         "components/code-editor.spec.ts",
         "components/docs-editor.spec.ts",
         "components/test-result-embed.spec.ts",

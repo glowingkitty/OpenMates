@@ -5,6 +5,7 @@ import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentMotion, waitForComponentPreview } from '../helpers/component-preview';
 
 // Editable Diagram Design Plan: composition, safe frames and editing controls.
+// Preview pages: /dev/preview/embeds/diagrams/DiagramHtmlEmbedFullscreen and .../DiagramHtmlEmbedPreview.
 const preview = (component: 'Preview' | 'Fullscreen', width: number, variant?: string) =>
   `/dev/preview/embeds/diagrams/DiagramHtmlEmbed${component}?${new URLSearchParams({
     theme: 'light', background: '#dbeafe', width: String(width), chrome: '0',
@@ -221,7 +222,9 @@ test('phone fullscreen keeps viewing and editing controls usable', async ({ page
   await expect(canvas).toHaveAttribute('data-editing', 'true');
   await expect(page.getByTestId('diagram-html-frame')).toHaveAttribute('sandbox', 'allow-scripts');
   await expect(canvas).toHaveAttribute('data-editor-ready', 'true');
-  for (const action of ['diagram-html-undo', 'diagram-html-cancel', 'diagram-html-save']) {
+  // Save is the header Edit button, now a round check.
+  await expect(page.getByTestId('embed-edit-button')).toHaveAttribute('data-edit-state', 'save');
+  for (const action of ['diagram-html-undo', 'diagram-html-cancel', 'embed-edit-button']) {
     const button = page.getByTestId(action);
     await expect(button).toBeVisible();
     const box = (await button.boundingBox())!;

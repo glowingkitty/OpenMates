@@ -129,6 +129,7 @@ for (const width of [390, 1000]) {
     await expect(toggle).toBeVisible();
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
     await expect(toggle.getByTestId('embed-edit-icon')).toBeVisible();
+    await expect(toggle).toHaveAttribute('data-edit-state', 'edit');
     const pill = toggle.locator('xpath=..');
     const pillBox = (await pill.boundingBox())!;
     expect(Math.abs(pillBox.width - pillBox.height)).toBeLessThanOrEqual(1);

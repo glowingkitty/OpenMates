@@ -376,6 +376,14 @@ def test_component_warmup_visits_the_spec_preview_and_fails_loudly(tmp_path, mon
     monkeypatch.setattr(runner, "pinned_node", lambda: "/synthetic/node")
     assert runner.component_warmup_route(["components/a.spec.ts"]) == "/dev/preview/embeds/slides/SlidesEditor"
     assert runner.component_warmup_route(["components/b.spec.ts"]) == runner.COMPONENT_WARMUP_DEFAULT_ROUTE
+    # A route a template literal continues is skipped for the next complete one.
+    (web / "tests/components/c.spec.ts").write_text(
+        "const p = (c) => `/dev/preview/embeds/diagrams/DiagramHtmlEmbed${c}`;\n"
+        "// also /dev/preview/embeds/diagrams/DiagramHtmlEmbedFullscreen?chrome=0\n"
+    )
+    assert runner.component_warmup_route(["components/c.spec.ts"]) == "/dev/preview/embeds/diagrams/DiagramHtmlEmbedFullscreen"
+    (web / "tests/components/d.spec.ts").write_text("const p = (c) => `/dev/preview/embeds/diagrams/DiagramHtmlEmbed${c}`;\n")
+    assert runner.component_warmup_route(["components/d.spec.ts"]) == runner.COMPONENT_WARMUP_DEFAULT_ROUTE
 
     calls = []
 
