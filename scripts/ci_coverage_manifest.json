@@ -377,6 +377,7 @@
         "components/chat-sent-message-visibility.spec.ts",
         "components/composer-send-readiness.spec.ts",
         "components/message-input-minimized-send.spec.ts",
+        "components/message-input-guest-states.spec.ts",
         "components/message-input-image-send.spec.ts",
         "components/composer-ghost-suggestion.spec.ts",
         "components/workflow-prompt-composer.spec.ts",

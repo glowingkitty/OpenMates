@@ -1470,17 +1470,30 @@ def test_hourly_free_prod_smoke_fails_when_guest_chat_gets_no_reply(tmp_path):
     """TASK-832: the hourly suite must fail when a guest chat gets no reply."""
     run_tests = load_run_tests_module()
     specs = run_tests.PROD_SMOKE_SPECS_BY_SUITE[run_tests.PROD_SMOKE_SUITE_FREE_HOURLY]
-    assert [spec[0] for spec in specs] == ["reachability", "guest-chat"]
+    assert [spec[0] for spec in specs] == ["reachability", "guest-web-send", "guest-chat"]
     (tmp_path / "guest-chat.json").write_text(
         '{"status":"failed","scenarios":{"guest_chat":{"status":"failed","error":"timed out"}}}',
         encoding="utf-8",
     )
 
-    results = run_tests._parse_prod_smoke_artifact(tmp_path, specs[1:])
+    results = run_tests._parse_prod_smoke_artifact(tmp_path, specs[2:])
 
     assert results[0]["key"] == "guest-chat"
     assert results[0]["status"] == "failed"
     assert results[0]["error"] == "timed out"
+
+
+def test_hourly_free_prod_smoke_fails_when_signed_out_web_send_has_no_output(tmp_path):
+    """TASK-2459: a signed-out web send check that produced no report counts as failed."""
+    run_tests = load_run_tests_module()
+    specs = run_tests.PROD_SMOKE_SPECS_BY_SUITE[run_tests.PROD_SMOKE_SUITE_FREE_HOURLY]
+    (tmp_path / "guest-web-send.json").write_text("", encoding="utf-8")
+
+    results = run_tests._parse_prod_smoke_artifact(tmp_path, specs[1:2])
+
+    assert results[0]["key"] == "guest-web-send"
+    assert results[0]["filename"] == "prod-smoke-guest-web-send.spec.ts"
+    assert results[0]["status"] == "failed"
 
 
 def test_preflight_account_payload_deduplicates_emails():

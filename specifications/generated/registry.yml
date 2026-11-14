@@ -834,7 +834,7 @@ specifications:
     version: 12
     status: draft
     path: features/message-input
-    fingerprint: 97700c674a80d730eba068d9b1cb8f2545110e5909d5a9a52c788a90e6dbd4ee
+    fingerprint: 364aaf32ef5903b897e13231789a9f4e3735501037eb4550232fdaa85409f27b
     required_applies_to:
     - gui.web
     - gui.apple
@@ -10772,6 +10772,14 @@ assertions:
     specification_id: feature.message-input
     type: behavior
     fingerprint: 1b2813f1a30432a0a3761e2b472a5affa76881f15fde75f72c5f776f28d4dcee
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  message-input.signed-out-two-states:
+    specification: feature.message-input@12
+    specification_id: feature.message-input
+    type: behavior
+    fingerprint: 1c66b1e08b1b9e1edfafede94221235d5b2b627dbb9c5d16751c6ffdedf6a2ee
     required_applies_to:
     - gui.web
     - gui.apple

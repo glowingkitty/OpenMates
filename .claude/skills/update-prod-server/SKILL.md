@@ -403,6 +403,13 @@ guest identity for all turns so the daily per-identity allowance is exercised:
    shared-daily and per-identity budget-enforcement test evidence and report
    that the live cap boundary was not observed.
 
+Also dispatch the free-hourly prod smoke (`python3 scripts/prod_smoke_cron.py
+free-hourly --force`). Its signed-out web send check
+(`prod-smoke-guest-web-send.spec.ts`) opens a fresh browser, requires an
+active Send (never a disabled Send or Sign up in its place), sends, and waits
+for the reply. A failure there fails the update even when the API guest chat
+works: guests on the web cannot chat.
+
 Then send one signed-in chat with a production test account (the
 authenticated production smoke when it exists) and wait for its completed
 assistant answer. If no test account is available, say so in the summary: the
@@ -434,6 +441,7 @@ Report:
 - Prod update command and final image tag or rollback tag.
 - `openmates server status` result.
 - `openmates server verify` result, including any remaining failed check IDs.
+- Result of the free-hourly prod smoke, including the signed-out web send check.
 - Results of both distinct guest chats, the first chat's follow-up, and the
   daily allowance and limit checks, including any unobserved live cap boundary.
 - Result of the signed-in chat, or that it was not run and why.

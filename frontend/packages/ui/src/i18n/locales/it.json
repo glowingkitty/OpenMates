@@ -8857,6 +8857,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "fogli oltre i primi 10"
     },
+    "guest_access_checking": {
+      "text": "Verifica in corso: puoi chattare senza account?…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Hai già effettuato l'accesso su questo dispositivo. Accedi per continuare a chattare."
+    },
+    "guest_access_usage_limit": {
+      "text": "I messaggi gratuiti senza account sono esauriti per ora. Registrati per continuare a chattare."
+    },
+    "guest_access_unavailable": {
+      "text": "Al momento non è possibile chattare senza account. Registrati per chattare."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Non è stato possibile verificare se puoi chattare senza account. Controlla la connessione o registrati per chattare."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Per inviare file serve un account. Registrati per inviarlo, oppure rimuovi il file per chattare gratis."
+    },
+    "guest_send_timeout": {
+      "text": "L'invio sta richiedendo troppo tempo e il messaggio non è stato inviato. Controlla la connessione e riprova."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Per impostazione predefinita, OpenMates seleziona automaticamente il modello AI, i mates, le competenze dell'app, le modalità di focus e le impostazioni e memorie. Cerca per sovrascrivere la selezione automatica"

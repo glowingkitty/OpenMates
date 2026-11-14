@@ -8830,6 +8830,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "các trang tính sau 10 trang đầu"
     },
+    "guest_access_checking": {
+      "text": "Đang kiểm tra xem bạn có thể trò chuyện không cần tài khoản…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Bạn đã từng đăng nhập trên thiết bị này. Hãy đăng nhập để tiếp tục trò chuyện."
+    },
+    "guest_access_usage_limit": {
+      "text": "Tin nhắn miễn phí không cần tài khoản tạm thời đã hết. Hãy đăng ký để tiếp tục trò chuyện."
+    },
+    "guest_access_unavailable": {
+      "text": "Hiện không thể trò chuyện mà không có tài khoản. Hãy đăng ký để trò chuyện."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Không thể kiểm tra xem bạn có thể trò chuyện không cần tài khoản. Hãy kiểm tra kết nối hoặc đăng ký để trò chuyện."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Gửi tệp cần có tài khoản. Hãy đăng ký để gửi, hoặc xóa tệp để trò chuyện miễn phí."
+    },
+    "guest_send_timeout": {
+      "text": "Việc gửi mất quá nhiều thời gian nên tin nhắn chưa được gửi. Hãy kiểm tra kết nối và thử lại."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Theo mặc định, OpenMates tự động chọn mô hình AI, mates, kỹ năng ứng dụng, chế độ tập trung và cài đặt & bộ nhớ. Tìm kiếm để ghi đè lựa chọn tự động"

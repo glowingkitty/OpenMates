@@ -8830,6 +8830,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "ilk 10 sayfadan sonraki sayfalar"
     },
+    "guest_access_checking": {
+      "text": "Hesap olmadan sohbet edip edemeyeceğiniz kontrol ediliyor…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Bu cihazda daha önce giriş yaptınız. Sohbete devam etmek için giriş yapın."
+    },
+    "guest_access_usage_limit": {
+      "text": "Hesapsız ücretsiz mesajlar şimdilik tükendi. Sohbete devam etmek için kaydolun."
+    },
+    "guest_access_unavailable": {
+      "text": "Şu anda hesap olmadan sohbet edilemiyor. Sohbet etmek için kaydolun."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Hesap olmadan sohbet edip edemeyeceğiniz kontrol edilemedi. Bağlantınızı kontrol edin veya sohbet etmek için kaydolun."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Dosya göndermek için hesap gerekir. Göndermek için kaydolun veya ücretsiz sohbet için dosyayı kaldırın."
+    },
+    "guest_send_timeout": {
+      "text": "Gönderim çok uzun sürdü, mesajınız gönderilmedi. Bağlantınızı kontrol edip tekrar deneyin."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Varsayılan olarak OpenMates, AI modelini, mates'leri, uygulama becerilerini, odak modlarını ve ayarlar & anıları otomatik seçer. Otomatik seçimi geçersiz kılmak için arayın"

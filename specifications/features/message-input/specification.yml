@@ -445,6 +445,17 @@ assertions:
     control with only an up-arrow icon and an accessible Send name.
   depends_on: [examples.workspace_controls]
 
+- id: message-input.signed-out-two-states
+  type: behavior
+  must: For a signed-out web visitor the composer offers exactly one of two controls, an active Send that sends or
+    a Sign up / Log in button with a visible reason; it never renders a disabled or greyed Send. While guest access
+    is still unknown it shows a short loading state that resolves to one of the two within eight seconds. A failed or
+    unreadable access check resolves to Sign up with that reason, an exhausted allowance or unavailable guest chat to
+    Sign up with that reason, an attached file to Sign up with that reason, and a browser that has logged in before to
+    Log in with that reason. Storage, flags, demo state or browser differences never add another state. A guest send
+    whose local preparation (privacy scan, model or storage readiness, status refresh) does not finish within fifteen
+    seconds stops with a visible notification and an active Send again instead of hanging, and never sends twice.
+  depends_on: [examples.signed_out_states]
 applies_to:
   rest_api:
     required: false
@@ -494,3 +505,4 @@ examples:
   - editable_transcript
   - gated_attachments
   - composer_ghost
+  - signed_out_states

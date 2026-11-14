@@ -8830,6 +8830,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "listy za prvními 10"
     },
+    "guest_access_checking": {
+      "text": "Ověřujeme, zda můžeš chatovat bez účtu…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Na tomto zařízení ses už přihlásil. Přihlas se a chatuj dál."
+    },
+    "guest_access_usage_limit": {
+      "text": "Bezplatné zprávy bez účtu jsou zatím vyčerpány. Zaregistruj se a chatuj dál."
+    },
+    "guest_access_unavailable": {
+      "text": "Chatování bez účtu teď není dostupné. Zaregistruj se a chatuj."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Nepodařilo se ověřit, zda můžeš chatovat bez účtu. Zkontroluj připojení nebo se zaregistruj a chatuj."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Odesílání souborů vyžaduje účet. Zaregistruj se, nebo soubor odeber a chatuj zdarma."
+    },
+    "guest_send_timeout": {
+      "text": "Odesílání trvá příliš dlouho, zpráva nebyla odeslána. Zkontroluj připojení a zkus to znovu."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Ve výchozím nastavení OpenMates automaticky vybírá model AI, mates, dovednosti aplikace, režimy soustředění a nastavení a vzpomínky. Vyhledejte pro přepsání automatického výběru"

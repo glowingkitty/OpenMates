@@ -8830,6 +8830,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "sheet setelah 10 sheet pertama"
     },
+    "guest_access_checking": {
+      "text": "Memeriksa apakah Anda bisa mengobrol tanpa akun…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Anda pernah masuk di perangkat ini. Masuk untuk terus mengobrol."
+    },
+    "guest_access_usage_limit": {
+      "text": "Pesan gratis tanpa akun habis untuk saat ini. Daftar untuk terus mengobrol."
+    },
+    "guest_access_unavailable": {
+      "text": "Mengobrol tanpa akun sedang tidak tersedia. Daftar untuk mengobrol."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Kami tidak bisa memeriksa apakah Anda bisa mengobrol tanpa akun. Periksa koneksi Anda, atau daftar untuk mengobrol."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Mengirim file memerlukan akun. Daftar untuk mengirimnya, atau hapus file untuk mengobrol gratis."
+    },
+    "guest_send_timeout": {
+      "text": "Pengiriman terlalu lama, jadi pesan Anda tidak terkirim. Periksa koneksi Anda dan coba lagi."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Secara default, OpenMates otomatis memilih model AI, mates, keterampilan aplikasi, mode fokus dan pengaturan & memori. Cari untuk menimpa pemilihan otomatis"

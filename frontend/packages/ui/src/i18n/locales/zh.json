@@ -8830,6 +8830,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "前 10 个之后的工作表"
     },
+    "guest_access_checking": {
+      "text": "正在检查您是否可以无账户聊天…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "您之前在此设备上登录过。请登录以继续聊天。"
+    },
+    "guest_access_usage_limit": {
+      "text": "无账户的免费消息暂时已用完。注册即可继续聊天。"
+    },
+    "guest_access_unavailable": {
+      "text": "目前无法在无账户的情况下聊天。注册即可聊天。"
+    },
+    "guest_access_status_unavailable": {
+      "text": "我们无法确认您是否可以无账户聊天。请检查网络连接，或注册后聊天。"
+    },
+    "guest_access_file_requires_account": {
+      "text": "发送文件需要账户。请注册后发送，或移除文件以免费聊天。"
+    },
+    "guest_send_timeout": {
+      "text": "发送时间过长，您的消息未发送。请检查网络连接后重试。"
+    },
     "mention_dropdown": {
       "header": {
         "text": "默认情况下，OpenMates 自动选择 AI 模型、mates、应用技能、专注模式和设置与记忆。搜索以覆盖自动选择"

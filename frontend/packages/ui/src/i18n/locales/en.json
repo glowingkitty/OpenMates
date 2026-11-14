@@ -11039,6 +11039,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "sheets beyond the first 10"
     },
+    "guest_access_checking": {
+      "text": "Checking whether you can chat without an account…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "You've logged in on this device before. Log in to keep chatting."
+    },
+    "guest_access_usage_limit": {
+      "text": "Free messages without an account are used up for now. Sign up to keep chatting."
+    },
+    "guest_access_unavailable": {
+      "text": "Chatting without an account isn't available right now. Sign up to chat."
+    },
+    "guest_access_status_unavailable": {
+      "text": "We couldn't check whether you can chat without an account. Check your connection, or sign up to chat."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Sending files needs an account. Sign up to send this, or remove the file to chat for free."
+    },
+    "guest_send_timeout": {
+      "text": "Sending is taking too long, so your message was not sent. Check your connection and try again."
+    },
     "mention_dropdown": {
       "header": {
         "text": "By default, OpenMates auto selects the AI model, mates, app- skills, focus modes and memories. Search to overwrite the auto selection"

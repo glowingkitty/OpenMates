@@ -8830,6 +8830,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "처음 10개를 넘는 시트"
     },
+    "guest_access_checking": {
+      "text": "계정 없이 채팅할 수 있는지 확인하는 중…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "이 기기에서 로그인한 적이 있습니다. 계속 채팅하려면 로그인하세요."
+    },
+    "guest_access_usage_limit": {
+      "text": "계정 없이 쓸 수 있는 무료 메시지를 지금은 모두 사용했습니다. 계속 채팅하려면 가입하세요."
+    },
+    "guest_access_unavailable": {
+      "text": "지금은 계정 없이 채팅할 수 없습니다. 가입하고 채팅하세요."
+    },
+    "guest_access_status_unavailable": {
+      "text": "계정 없이 채팅할 수 있는지 확인하지 못했습니다. 연결을 확인하거나 가입하고 채팅하세요."
+    },
+    "guest_access_file_requires_account": {
+      "text": "파일을 보내려면 계정이 필요합니다. 가입해서 보내거나 파일을 빼고 무료로 채팅하세요."
+    },
+    "guest_send_timeout": {
+      "text": "전송이 너무 오래 걸려 메시지를 보내지 못했습니다. 연결을 확인하고 다시 시도하세요."
+    },
     "mention_dropdown": {
       "header": {
         "text": "기본적으로 OpenMates는 AI 모델, mates, 앱 스킬, 집중 모드 및 설정과 기억을 자동으로 선택합니다. 자동 선택을 덮어쓰려면 검색하세요"

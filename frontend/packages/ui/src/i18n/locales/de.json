@@ -10980,6 +10980,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "Blätter nach den ersten 10"
     },
+    "guest_access_checking": {
+      "text": "Wir prüfen, ob du ohne Konto chatten kannst …"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Du hast dich auf diesem Gerät schon einmal angemeldet. Melde dich an, um weiterzuchatten."
+    },
+    "guest_access_usage_limit": {
+      "text": "Die kostenlosen Nachrichten ohne Konto sind vorerst aufgebraucht. Registriere dich, um weiterzuchatten."
+    },
+    "guest_access_unavailable": {
+      "text": "Chatten ohne Konto ist gerade nicht verfügbar. Registriere dich, um zu chatten."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Wir konnten nicht prüfen, ob du ohne Konto chatten kannst. Prüfe deine Verbindung oder registriere dich, um zu chatten."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Zum Senden von Dateien brauchst du ein Konto. Registriere dich oder entferne die Datei, um kostenlos zu chatten."
+    },
+    "guest_send_timeout": {
+      "text": "Das Senden dauert zu lange, deine Nachricht wurde nicht gesendet. Prüfe deine Verbindung und versuche es erneut."
+    },
     "mention_dropdown": {
       "header": {
         "text": "OpenMates wählt standardmäßig das KI-Modell, Mates, App-Skills, Fokusmodi sowie Einstellungen & Erinnerungen automatisch aus. Suche, um die automatische Auswahl zu überschreiben"

@@ -66,6 +66,8 @@
     import CameraView from './CameraView.svelte';
     import RecordAudio from './RecordAudio.svelte'; // Import type for ref
     import CompactSendButton from './CompactSendButton.svelte';
+    import GuestAccessReason from './GuestAccessReason.svelte';
+    import { loadGuestAccessPhase, resolveGuestComposerState, type GuestAccessPhase } from './guestComposerState';
     import MapsView from './MapsView.svelte';
     import SketchView from './SketchView.svelte';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
@@ -730,23 +732,39 @@
 
     let hasEmbedContent = $state(false);
     let draftPreviewParts = $state<DraftPreviewParts>(EMPTY_DRAFT_PREVIEW_PARTS);
-    let anonymousStatusChecked = $state(false);
-    let anonymousUsageExhausted = $derived(
-        !$authStore.isAuthenticated &&
-        $anonymousFreeUsageStatus?.can_send_text === false &&
-        ['anonymous_usage_limit', 'budget_exhausted', 'per_identity_exhausted',
-         'daily_exhausted', 'weekly_exhausted', 'monthly_exhausted'].includes(
-            $anonymousFreeUsageStatus?.reason ?? ''
-        )
-    );
-    let anonymousTextSendEnabled = $derived(
-        anonymousStatusChecked &&
-        !$authStore.isAuthenticated &&
-        !lastAuthMethod &&
-        $anonymousFreeUsageStatus?.active === true &&
-        $anonymousFreeUsageStatus?.can_send_text !== false &&
-        !anonymousFileAttachmentPending
-    );
+    // Signed out, only two composer states exist: an active Send, or Sign up /
+    // Log in with a reason. 'pending' shows a short loading state (guestComposerState.ts).
+    let guestAccessPhase = $state<GuestAccessPhase>('pending');
+    let guestComposerState = $derived($authStore.isAuthenticated ? null : resolveGuestComposerState({
+        phase: guestAccessPhase,
+        status: $anonymousFreeUsageStatus,
+        lastAuthMethod,
+        fileAttachmentPending: anonymousFileAttachmentPending,
+    }));
+    let anonymousUsageExhausted = $derived(guestComposerState?.kind === 'account' && guestComposerState.reason === 'usage_limit');
+    let anonymousTextSendEnabled = $derived(guestComposerState?.kind === 'send');
+    let guestAccessRequest = 0;
+    let lastGuestAccessRetryAt = 0;
+    /** A retry keeps showing Sign up with its reason until it succeeds; only the first check shows loading. */
+    async function checkGuestAccess(retry = false): Promise<void> {
+        const request = ++guestAccessRequest;
+        lastGuestAccessRetryAt = Date.now();
+        if (!retry) guestAccessPhase = 'pending';
+        const phase = await loadGuestAccessPhase();
+        if (request === guestAccessRequest && !composerDestroyed && (!retry || phase === 'loaded')) guestAccessPhase = phase;
+    }
+    // A failed check retries when the visitor comes back to the field (on focus, not
+    // while focused) or the network returns.
+    let guestRetryFocusHandled = false;
+    $effect(() => {
+        if (!isMessageFieldFocused) { guestRetryFocusHandled = false; return; }
+        if (guestRetryFocusHandled) return;
+        guestRetryFocusHandled = true;
+        untrack(() => {
+            if (guestAccessPhase !== 'failed' || $authStore.isAuthenticated) return;
+            if (Date.now() - lastGuestAccessRetryAt > 5_000) void checkGuestAccess(true);
+        });
+    });
     let showAnonymousTermsReminder = $derived(anonymousTextSendEnabled && hasContent && isMessageFieldFocused);
 
     function editorHasEmbedContent(editor: Editor): boolean {
@@ -1145,7 +1163,6 @@
     // --- Credits State ---
     // True when the user is authenticated but has zero or negative credits.
     // Checked client-side against the synced userProfile store — no server request needed.
-    let demoVisualAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
     let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0 && !$demoMode);
 
     // --- AI Task State ---
@@ -2440,13 +2457,14 @@
             if (!composerDestroyed && isWebPIIModelEnabled()) return preloadWebPIIDetector();
         }).catch(() => {});
         lastAuthMethod = getLastAuthMethod();
-        if ($authStore.isAuthenticated || $demoMode) {
-            anonymousStatusChecked = true;
-        } else {
-            void refreshAnonymousFreeUsageStatus().then((status) => {
-                anonymousStatusChecked = !!status;
-            });
-        }
+        if (!$authStore.isAuthenticated) void checkGuestAccess();
+        const retryGuestAccessOnline = () => {
+            if (!get(authStore).isAuthenticated && guestAccessPhase === 'failed') void checkGuestAccess(true);
+        };
+        window.addEventListener('online', retryGuestAccessOnline);
+        const stopGuestAccessRetry = () => window.removeEventListener('online', retryGuestAccessOnline);
+        const previousUnsubscribePIIModelState = unsubscribePIIModelState;
+        unsubscribePIIModelState = () => { previousUnsubscribePIIModelState?.(); stopGuestAccessRetry(); };
 
         if (!editorElement) {
             console.error("Editor element not found on mount.");
@@ -6154,8 +6172,10 @@
             return;
         }
 
-        if ($demoMode && !$authStore.isAuthenticated && !anonymousTextSendEnabled) {
-            console.info('[MessageInput] Demo mode: Send button is visual-only for unauthenticated captures');
+        // Signed out without guest access the composer shows Sign up / Log in, never
+        // a Send; a send arriving here anyway (Enter key) opens that same path.
+        if (!$authStore.isAuthenticated && guestComposerState?.kind === 'account') {
+            handleSignUpClick();
             return;
         }
 
@@ -7610,6 +7630,10 @@
         </div>
     {/if}
 
+    {#if guestComposerState?.kind === 'account' && (shouldShowActionButtons || hasSendableDraft)}
+        <GuestAccessReason reason={guestComposerState.reason} />
+    {/if}
+
     {#if showAnonymousTermsReminder}
         <div class="anonymous-terms-reminder" data-testid="anonymous-terms-reminder" transition:fade={{ duration: 160 }}>
             {$text('enter_message.anonymous_terms_reminder_prefix')}
@@ -7871,8 +7895,9 @@
                 <ActionButtons
                     showSendButton={hasSendableDraft}
                     sendInProgress={sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy}
-                    isAuthenticated={anonymousFileAttachmentPending ? false : demoVisualAuthenticated}
+                    isAuthenticated={$authStore.isAuthenticated}
                     allowAnonymousTextSend={anonymousTextSendEnabled}
+                    guestStatusLoading={guestComposerState?.kind === 'loading'}
                     {hasNoCredits}
                     {unauthenticatedCtaLabel}
                     forceUnauthenticatedCta={anonymousFileAttachmentPending || anonymousUsageExhausted}
@@ -7909,10 +7934,10 @@
             </div>
         {/if}
 
-        {#if !recordingLayoutActive && hasSendableDraft && !shouldShowActionButtons && !isMessageFieldFocused && !isFullscreen && !startNewChatOnClick && !anonymousFileAttachmentPending && !hasNoCredits && (demoVisualAuthenticated || anonymousTextSendEnabled)}
+        {#if !recordingLayoutActive && hasSendableDraft && !shouldShowActionButtons && !isMessageFieldFocused && !isFullscreen && !startNewChatOnClick && !anonymousFileAttachmentPending && !hasNoCredits && ($authStore.isAuthenticated || anonymousTextSendEnabled)}
             <CompactSendButton
                 floating={true}
-                disabled={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
+                disabled={$authStore.isAuthenticated && isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
                 busy={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
                 onclick={handleSendMessage}
             />

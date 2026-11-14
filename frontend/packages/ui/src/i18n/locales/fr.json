@@ -8857,6 +8857,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "feuilles au-delà des 10 premières"
     },
+    "guest_access_checking": {
+      "text": "Vérification de la possibilité de discuter sans compte…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Vous vous êtes déjà connecté sur cet appareil. Connectez-vous pour continuer à discuter."
+    },
+    "guest_access_usage_limit": {
+      "text": "Les messages gratuits sans compte sont épuisés pour le moment. Inscrivez-vous pour continuer à discuter."
+    },
+    "guest_access_unavailable": {
+      "text": "Discuter sans compte n'est pas disponible pour le moment. Inscrivez-vous pour discuter."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Impossible de vérifier si vous pouvez discuter sans compte. Vérifiez votre connexion ou inscrivez-vous pour discuter."
+    },
+    "guest_access_file_requires_account": {
+      "text": "L'envoi de fichiers nécessite un compte. Inscrivez-vous pour l'envoyer, ou retirez le fichier pour discuter gratuitement."
+    },
+    "guest_send_timeout": {
+      "text": "L'envoi prend trop de temps : votre message n'a pas été envoyé. Vérifiez votre connexion et réessayez."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Par défaut, OpenMates sélectionne automatiquement le modèle d'IA, les mates, les compétences d'application, les modes de focus et les paramètres et mémoires. Recherchez pour remplacer la sélection automatique"

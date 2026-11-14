@@ -393,3 +393,54 @@ quick_attachments:
   then: The file picker opens directly and permits images or other supported files. Cancelling leaves the draft unchanged; selecting a file uses the existing attachment and signup rules.
   assertion_ids:
   - message-input.attachments.quick-access
+signed_out_states:
+- id: guest-open-sends
+  given:
+    surface: gui.web
+    authenticated: false
+    guest_chat: open
+  actions:
+  - type_text: Capital of France?
+  expect:
+    composer_control: send
+    send_enabled: true
+    message_sent: true
+- id: guest-status-slow-then-resolves
+  given:
+    surface: gui.web
+    authenticated: false
+    guest_status_response: delayed
+  expect:
+    composer_control_while_unknown: loading
+    composer_control_after: send
+    disabled_send_visible: false
+- id: guest-status-fails
+  given:
+    surface: gui.web
+    authenticated: false
+    guest_status_response: error
+  expect:
+    composer_control: signup
+    visible_reason: status_unavailable
+    disabled_send_visible: false
+- id: guest-logged-in-before
+  given:
+    surface: gui.web
+    authenticated: false
+    last_auth_method: passkey
+  expect:
+    composer_control: login
+    visible_reason: logged_in_before
+- id: guest-send-preparation-hangs
+  given:
+    surface: gui.web
+    authenticated: false
+    privacy_runtime: never_loads
+  actions:
+  - type_text: Capital of France?
+  - click_send
+  expect:
+    notification: guest_send_timeout
+    composer_control: send
+    send_enabled: true
+    message_sent_twice: false

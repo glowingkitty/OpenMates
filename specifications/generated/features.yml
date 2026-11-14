@@ -6305,7 +6305,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 23
+  assertions: 24
   surfaces:
     web:
       status: failing
@@ -6314,9 +6314,9 @@ features:
       assertions:
         passing: 7
         failing: 11
-        not_run: 4
+        not_run: 5
         missing: 1
-        counted: 23
+        counted: 24
       failing_tests:
       - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts › captures ${dimension.id} stable history manifest
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts › captures ${dimension.id} chat UI umbrella contract
@@ -6384,6 +6384,7 @@ features:
       - frontend/apps/web_app/tests/components/composer-send-readiness.spec.ts
       - frontend/apps/web_app/tests/components/embed-fullscreen-followup.spec.ts
       - frontend/apps/web_app/tests/components/guest-audio-transcription.spec.ts
+      - frontend/apps/web_app/tests/components/message-input-guest-states.spec.ts
       - frontend/apps/web_app/tests/components/message-input-image-send.spec.ts
       - frontend/apps/web_app/tests/components/message-input-minimized-send.spec.ts
       - frontend/apps/web_app/tests/components/message-input-url-conversion.spec.ts
@@ -6405,6 +6406,7 @@ features:
       - frontend/apps/web_app/tests/guest-audio-transcription-live-provider.spec.ts
       - frontend/apps/web_app/tests/office-import-notices.spec.ts
       - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+      - frontend/apps/web_app/tests/prod-smoke/prod-smoke-guest-web-send.spec.ts
       - frontend/apps/web_app/tests/public-example-input-focus.spec.ts
       - frontend/apps/web_app/tests/settings-chat-viewport.spec.ts
       - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
@@ -6421,7 +6423,7 @@ features:
       - backend/tests/test_streaming_transcript_correction.py
       - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
       - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
-      unit_test_files: 45
+      unit_test_files: 46
     apple:
       status: failing
       source: tests
@@ -6430,8 +6432,8 @@ features:
         passing: 3
         failing: 7
         not_run: 1
-        missing: 12
-        counted: 23
+        missing: 13
+        counted: 24
       failing_tests:
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedFollowUpClosesComposerAndDismissesKeyboard

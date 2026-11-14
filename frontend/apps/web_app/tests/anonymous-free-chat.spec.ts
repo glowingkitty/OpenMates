@@ -1011,4 +1011,33 @@ test.describe('Anonymous free chat', () => {
 		await expect(page.locator('[data-action="send-message"]')).toBeVisible({ timeout: 5000 });
 		await assertNoMissingTranslations(page);
 	});
+	// contract-test: direct surface=gui.web assertions=message-input.signed-out-two-states
+	test('guest send whose on-device privacy runtime never loads fails visibly and keeps an active Send', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await mockAnonymousActiveServerStatus(page);
+		const streamRequests: string[] = [];
+		page.on('request', (request: any) => {
+			if (request.url().includes('/v1/anonymous/chat/stream')) streamRequests.push(request.url());
+		});
+		await openDemoForEveryoneAndStartAnonymousChat(page);
+		// Slow event networks: the privacy model and runtime downloads never finish.
+		await page.route(/\.(tflite|onnx|task|bin|wasm)(\?|$)|pii-runtime|litert|mediapipe/i, () => new Promise(() => {}));
+
+		const editor = await typeMessageText(page, 'Capital of France?');
+		const send = page.locator('[data-action="send-message"]');
+		await expect(send).toBeEnabled();
+		await send.click();
+		await expect(page.getByTestId('notification').filter({ hasText: /taking too long/i })).toBeVisible({ timeout: 30000 });
+		await expect(editor).toContainText('Capital of France?');
+		await page.getByTestId('message-field').click();
+		await expect(send).toBeVisible({ timeout: 5000 });
+		await expect(send).toBeEnabled();
+		expect(streamRequests).toEqual([]);
+		await assertNoMissingTranslations(page);
+	});
 });

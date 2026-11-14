@@ -8830,6 +8830,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "bladen na de eerste 10"
     },
+    "guest_access_checking": {
+      "text": "We controleren of je zonder account kunt chatten…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Je bent eerder op dit apparaat ingelogd. Log in om verder te chatten."
+    },
+    "guest_access_usage_limit": {
+      "text": "De gratis berichten zonder account zijn voorlopig op. Meld je aan om verder te chatten."
+    },
+    "guest_access_unavailable": {
+      "text": "Chatten zonder account is nu niet beschikbaar. Meld je aan om te chatten."
+    },
+    "guest_access_status_unavailable": {
+      "text": "We konden niet controleren of je zonder account kunt chatten. Controleer je verbinding of meld je aan om te chatten."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Voor het versturen van bestanden heb je een account nodig. Meld je aan om dit te versturen, of verwijder het bestand om gratis te chatten."
+    },
+    "guest_send_timeout": {
+      "text": "Versturen duurt te lang, dus je bericht is niet verstuurd. Controleer je verbinding en probeer het opnieuw."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Standaard selecteert OpenMates automatisch het AI-model, mates, app-vaardigheden, focusmodi en instellingen en herinneringen. Zoek om de automatische selectie te overschrijven"

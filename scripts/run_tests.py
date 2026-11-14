@@ -6014,9 +6014,11 @@ PROD_SMOKE_SPECS: list[tuple[str, str, str]] = [
     ("app-skill-web-search", "CLI web-search app-skill smoke", "verify_prod_cli_smoke.py"),
     # Signed-out chat that must get an assistant reply (TASK-832).
     ("guest-chat", "guest chat reply smoke", "verify_prod_cli_smoke.py"),
+    # Signed-out web composer: active Send that sends and gets a reply (TASK-2459).
+    ("guest-web-send", "signed-out web send smoke", "prod-smoke-guest-web-send.spec.ts"),
 ]
 PROD_SMOKE_SPECS_BY_SUITE: dict[str, list[tuple[str, str, str]]] = {
-    PROD_SMOKE_SUITE_FREE_HOURLY: [PROD_SMOKE_SPECS[0], PROD_SMOKE_SPECS[3]],
+    PROD_SMOKE_SUITE_FREE_HOURLY: [PROD_SMOKE_SPECS[0], PROD_SMOKE_SPECS[4], PROD_SMOKE_SPECS[3]],
     PROD_SMOKE_SUITE_PAID_CHAT: [PROD_SMOKE_SPECS[1]],
     PROD_SMOKE_SUITE_APP_SKILL_WEB_SEARCH: [PROD_SMOKE_SPECS[2]],
 }

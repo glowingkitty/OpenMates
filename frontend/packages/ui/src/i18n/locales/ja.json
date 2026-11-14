@@ -8830,6 +8830,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "最初の 10 枚を超えるシート"
     },
+    "guest_access_checking": {
+      "text": "アカウントなしでチャットできるか確認しています…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "このデバイスでは以前ログインしています。チャットを続けるにはログインしてください。"
+    },
+    "guest_access_usage_limit": {
+      "text": "アカウントなしの無料メッセージは現在使い切りました。チャットを続けるには登録してください。"
+    },
+    "guest_access_unavailable": {
+      "text": "現在、アカウントなしではチャットできません。登録してチャットしてください。"
+    },
+    "guest_access_status_unavailable": {
+      "text": "アカウントなしでチャットできるか確認できませんでした。接続を確認するか、登録してチャットしてください。"
+    },
+    "guest_access_file_requires_account": {
+      "text": "ファイルの送信にはアカウントが必要です。登録して送信するか、ファイルを削除して無料でチャットしてください。"
+    },
+    "guest_send_timeout": {
+      "text": "送信に時間がかかりすぎたため、メッセージは送信されませんでした。接続を確認して、もう一度お試しください。"
+    },
     "mention_dropdown": {
       "header": {
         "text": "デフォルトでは、OpenMates は AI モデル、mates、アプリスキル、フォーカスモード、設定とメモリを自動選択します。自動選択を上書きするには検索してください"

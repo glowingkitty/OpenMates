@@ -8857,6 +8857,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "hojas posteriores a las 10 primeras"
     },
+    "guest_access_checking": {
+      "text": "Comprobando si puedes chatear sin cuenta…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Ya iniciaste sesión en este dispositivo. Inicia sesión para seguir chateando."
+    },
+    "guest_access_usage_limit": {
+      "text": "Los mensajes gratis sin cuenta se han agotado por ahora. Regístrate para seguir chateando."
+    },
+    "guest_access_unavailable": {
+      "text": "Ahora mismo no se puede chatear sin cuenta. Regístrate para chatear."
+    },
+    "guest_access_status_unavailable": {
+      "text": "No pudimos comprobar si puedes chatear sin cuenta. Revisa tu conexión o regístrate para chatear."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Para enviar archivos necesitas una cuenta. Regístrate para enviarlo o quita el archivo para chatear gratis."
+    },
+    "guest_send_timeout": {
+      "text": "El envío está tardando demasiado, así que tu mensaje no se envió. Revisa tu conexión e inténtalo de nuevo."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Por defecto, OpenMates selecciona automáticamente el modelo de IA, mates, habilidades de aplicación, modos de enfoque y configuraciones y memorias. Busca para sobrescribir la selección automática"

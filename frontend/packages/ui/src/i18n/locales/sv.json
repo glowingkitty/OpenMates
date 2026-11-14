@@ -8830,6 +8830,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "blad efter de första 10"
     },
+    "guest_access_checking": {
+      "text": "Kontrollerar om du kan chatta utan konto …"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Du har loggat in på den här enheten tidigare. Logga in för att fortsätta chatta."
+    },
+    "guest_access_usage_limit": {
+      "text": "De gratis meddelandena utan konto är slut för tillfället. Registrera dig för att fortsätta chatta."
+    },
+    "guest_access_unavailable": {
+      "text": "Det går inte att chatta utan konto just nu. Registrera dig för att chatta."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Vi kunde inte kontrollera om du kan chatta utan konto. Kontrollera anslutningen eller registrera dig för att chatta."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Det krävs ett konto för att skicka filer. Registrera dig för att skicka den, eller ta bort filen för att chatta gratis."
+    },
+    "guest_send_timeout": {
+      "text": "Det tar för lång tid att skicka, så ditt meddelande skickades inte. Kontrollera anslutningen och försök igen."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Som standard väljer OpenMates automatiskt AI-modell, mates, app-färdigheter, fokusmoder samt inställningar och minnen. Sök för att åsidosätta det automatiska valet"

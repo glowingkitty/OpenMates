@@ -8830,6 +8830,27 @@
     "xlsx_feature_sheet_limit": {
       "text": "arkusze po pierwszych 10"
     },
+    "guest_access_checking": {
+      "text": "Sprawdzamy, czy możesz czatować bez konta…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Logowałeś się już na tym urządzeniu. Zaloguj się, aby dalej czatować."
+    },
+    "guest_access_usage_limit": {
+      "text": "Darmowe wiadomości bez konta na razie się skończyły. Zarejestruj się, aby dalej czatować."
+    },
+    "guest_access_unavailable": {
+      "text": "Czat bez konta jest teraz niedostępny. Zarejestruj się, aby czatować."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Nie udało się sprawdzić, czy możesz czatować bez konta. Sprawdź połączenie lub zarejestruj się, aby czatować."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Wysyłanie plików wymaga konta. Zarejestruj się, aby to wysłać, lub usuń plik, aby czatować za darmo."
+    },
+    "guest_send_timeout": {
+      "text": "Wysyłanie trwa zbyt długo, więc wiadomość nie została wysłana. Sprawdź połączenie i spróbuj ponownie."
+    },
     "mention_dropdown": {
       "header": {
         "text": "Domyślnie OpenMates automatycznie wybiera model AI, mates, umiejętności aplikacji, tryby skupienia oraz ustawienia i wspomnienia. Wyszukaj, aby nadpisać automatyczny wybór"
