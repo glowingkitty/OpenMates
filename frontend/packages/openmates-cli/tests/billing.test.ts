@@ -122,7 +122,8 @@ describe("CLI bank-transfer billing SDK", () => {
       assert.deepStrictEqual(calls[0].body, {
         credits_amount: 21000, currency: "eur", email_encryption_key: "email-key-b64", buyer_address: buyerAddress,
       });
-      assert.deepStrictEqual(calls[1].body, { credits_amount: 21000, currency: "eur" });
+      // Unset keys serialize as null, matching the Rust and Python SDK wire (null-field parity).
+      assert.deepStrictEqual(calls[1].body, { credits_amount: 21000, currency: "eur", email_encryption_key: null });
     });
   });
 

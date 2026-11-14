@@ -85510,7 +85510,7 @@ assertions:
       surface: gui.web
     - &id10798
       path: frontend/packages/openmates-cli/tests/billing.test.ts
-      line: 143
+      line: 144
       name: reads gift-card purchase status from the dedicated endpoint
       surface: cli
     - &id10799
@@ -87914,7 +87914,7 @@ assertions:
       surface: rest_api
     - &id11106
       path: frontend/packages/openmates-cli/tests/billing.test.ts
-      line: 143
+      line: 144
       name: reads gift-card purchase status from the dedicated endpoint
       surface: cli
     - &id11107
@@ -178594,7 +178594,7 @@ assertions:
       surface: gui.web
     - &id22711
       path: frontend/packages/openmates-cli/tests/billing.test.ts
-      line: 130
+      line: 131
       name: sends a Team buyer address only to the Team bank-transfer endpoint
       surface: cli
     - &id22712
