@@ -634,3 +634,32 @@ def test_payment_disabled_keeps_separate_summary_tariff_inactive(monkeypatch, pr
     monkeypatch.setattr(manager, "get_model_pricing", lambda *_args, **_kwargs: pricing)
     monkeypatch.setattr(server_mode, "is_payment_enabled", lambda: False)
     assert not summary_billing.selected_main_cache_tariff_active("google/model")
+
+
+# contract-test: supporting surface=rest_api assertions=projects.focus.custom-catalog-privacy
+def test_unrestored_private_tool_result_is_logged_without_content(caplog):
+    """A placeholder the IPC cannot restore is the 'file result could not be read' note: never silent."""
+    from backend.core.api.app.schemas.chat import AIHistoryMessage
+    from backend.shared.python_utils.recent_work_summary_client import (
+        PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER, restore_async_tool_completion_message,
+    )
+
+    request = _task_request()
+    request.is_async_skill_continuation = True
+    request.async_skill_task_id = "read-2"
+    request.message_history.append(AIHistoryMessage(
+        role="user", sender_name="async_tool_result", message_id="read-2",
+        content=PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER, created_at=2,
+    ))
+    with caplog.at_level("WARNING"):
+        restore_async_tool_completion_message(request, {})
+    assert request.message_history[-1].content == PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER
+    assert "unresolved in continuation read-2: 1 placeholder(s)" in caplog.text
+    assert "completion missing" in caplog.text
+
+    caplog.clear()
+    with caplog.at_level("WARNING"):
+        restore_async_tool_completion_message(request, {"async_tool_completion": {
+            "task_id": "read-2", "message": "SECRET FILE BODY"}})
+    assert request.message_history[-1].content == "SECRET FILE BODY"
+    assert "unresolved" not in caplog.text and "SECRET" not in caplog.text

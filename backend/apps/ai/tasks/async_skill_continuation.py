@@ -71,6 +71,10 @@ def _fit_private_async_tool_history(payload: dict[str, Any], private_fields: fro
         if len(history) <= 1:
             raise RuntimeError("Current private Project result exceeds transient handoff budget")
         history.pop(0)
+        # The expired result reaches the model as the unavailable placeholder; say so.
+        logger.warning("Expired an older private Project tool result from the continuation "
+                       "handoff (%d byte budget, %d result(s) kept)",
+                       PRIVATE_ASYNC_CONTEXT_BUDGET_BYTES, len(history))
 
 
 def _project_file_reference_preview(

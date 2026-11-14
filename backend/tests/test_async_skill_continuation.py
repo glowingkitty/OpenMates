@@ -1121,17 +1121,21 @@ async def test_restored_project_file_history_stays_opaque_across_next_tool(monke
 
 
 # contract-test: supporting surface=rest_api assertions=projects.focus.custom-catalog-privacy
-def test_private_file_history_budget_discards_old_bodies_first(async_skill_continuation):
+def test_private_file_history_budget_discards_old_bodies_first(async_skill_continuation, caplog):
     entries = [
         {"index": index, "project_id": "11111111-1111-4111-8111-111111111111",
          "content": f"FILE-{index}-" + ("x" * 75_000)}
         for index in range(3)
     ]
     payload = {"async_tool_history": entries}
-    async_skill_continuation._fit_private_async_tool_history(
-        payload, frozenset({"async_tool_history"}),
-    )
+    with caplog.at_level("WARNING"):
+        async_skill_continuation._fit_private_async_tool_history(
+            payload, frozenset({"async_tool_history"}),
+        )
     assert len(payload["async_tool_history"]) == 2
+    # An expired body later reads as "file result could not be read": it is logged.
+    assert "Expired an older private Project tool result" in caplog.text
+    assert "FILE-0-" not in caplog.text
     assert [entry["index"] for entry in payload["async_tool_history"]] == [1, 2]
     assert "FILE-0-" not in str(payload)
     oversized = {"async_tool_history": [{"index": 0, "project_id": entries[-1]["project_id"],

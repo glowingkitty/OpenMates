@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 
@@ -13,6 +14,8 @@ PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER = (
     "Private Project tool content is unavailable. Tell the user the file result could not be read; "
     "do not infer its contents."
 )
+
+logger = logging.getLogger(__name__)
 
 
 def override_safe_message_dicts(history: list) -> list[dict]:
@@ -47,6 +50,18 @@ def restore_async_tool_completion_message(request: object, transient: dict) -> N
             message.content = content
             restored.append({"index": index, "content": content,
                              "message_id": getattr(message, "message_id", None)})
+    # A placeholder left in history makes the model say the file result could not
+    # be read. Never silent: name the task and counts (no content, no ids of files).
+    unresolved = sum(1 for message in history
+                     if getattr(message, "sender_name", None) == "async_tool_result"
+                     and message.content == PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER)
+    if unresolved:
+        logger.warning(
+            "Private async tool results unresolved in continuation %s: %d placeholder(s), "
+            "%d history entr(ies) handed over, completion %s",
+            getattr(request, "async_skill_task_id", None), unresolved, len(entries),
+            "present" if isinstance(completion, dict) else "missing",
+        )
     setattr(request, "_private_async_tool_history", restored)
 
 
