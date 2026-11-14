@@ -11483,6 +11483,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Esta solicitud fue rechazada. Nunca se crean imágenes sexuales o sugerentes con menores."
+    },
+    "reason_intimate_real_person": {
+      "text": "Esta solicitud fue rechazada. Nunca se crean imágenes sexuales o íntimas de personas reales."
+    },
+    "reason_bypass": {
+      "text": "Esta solicitud fue rechazada porque intentó eludir las reglas de seguridad."
+    },
+    "reason_minor": {
+      "text": "No se crean imágenes realistas de menores, y las fotos de menores solo admiten cambios de fondo, iluminación o color, porque esas imágenes podrían usarse de forma indebida, por ejemplo para perfiles falsos que se hacen pasar por menores."
+    },
+    "alternative_minor": {
+      "text": "Se puede hacer una versión claramente estilizada, como un render 3D, una ilustración o un dibujo animado, siempre que la escena no sea sexual."
+    },
+    "reason_sexual": {
+      "text": "No se crean imágenes sexuales o explícitas."
+    },
+    "alternative_sexual": {
+      "text": "Es posible una versión no explícita de la escena."
+    },
+    "reason_violent": {
+      "text": "No se crean imágenes que muestren a personas reales heridas, atacadas o en la escena de un crimen, porque podrían usarse para perjudicarlas o difamarlas."
+    },
+    "alternative_violent": {
+      "text": "Es posible una escena con personajes ficticios en lugar de personas reales."
+    },
+    "reason_public_figure": {
+      "text": "Por ahora no se crean imágenes de personajes públicos reales, porque podrían usarse como deepfakes o para afirmaciones falsas."
+    },
+    "alternative_public_figure": {
+      "text": "Es posible un personaje original y ficticio en la misma escena."
+    },
+    "reason_identity": {
+      "text": "No se hacen intercambios de rostro ni se sustituye la identidad de una persona, porque podrían usarse para suplantarla."
+    },
+    "alternative_identity": {
+      "text": "Son posibles las ediciones que mantienen la identidad de la persona, como un fondo nuevo, otra iluminación o un estilo artístico."
+    },
+    "reason_id_document": {
+      "text": "No se crean imágenes de documentos de identidad como pasaportes, DNI o carnés de conducir, porque podrían usarse para fraude."
+    },
+    "reason_hate": {
+      "text": "No se crean imágenes con símbolos de odio ni imágenes que ataquen a las personas por quienes son."
+    },
+    "reason_self_harm": {
+      "text": "No se crean imágenes que muestren o inciten a la autolesión."
+    },
+    "alternative_self_harm": {
+      "text": "Si estás pasando por un momento difícil, hablar con alguien de confianza o con una línea de ayuda local puede ayudarte."
+    },
+    "reason_weapons": {
+      "text": "No se crean imágenes con instrucciones o planos para armas o explosivos."
+    },
+    "reason_scam": {
+      "text": "No se crean contenidos para estafas, documentos falsos o suplantación de identidad."
+    },
+    "alternative_scam": {
+      "text": "Es posible un diseño original que no imite a una persona, marca o documento real."
+    },
+    "reason_spam": {
+      "text": "No se admite la producción masiva de contenido de relleno ni la eliminación de etiquetas de IA."
+    },
+    "alternative_spam": {
+      "text": "Es posible crear unas pocas imágenes para un propósito concreto."
+    },
+    "reason_deceptive": {
+      "text": "No se crean imágenes pensadas para pasar por grabaciones reales, una declaración real o un respaldo oficial."
+    },
+    "alternative_deceptive": {
+      "text": "Es posible una versión claramente ficticia o ilustrada."
+    },
+    "reason_other": {
+      "text": "Esta solicitud no se puede crear según las reglas de seguridad."
+    },
+    "alternative_other": {
+      "text": "Otro tema u otra formulación podría funcionar."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Factura"

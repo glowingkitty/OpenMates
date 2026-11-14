@@ -11456,6 +11456,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Ta prośba została odrzucona. Obrazy seksualne lub sugestywne z udziałem nieletnich nigdy nie są tworzone."
+    },
+    "reason_intimate_real_person": {
+      "text": "Ta prośba została odrzucona. Obrazy seksualne lub intymne prawdziwych osób nigdy nie są tworzone."
+    },
+    "reason_bypass": {
+      "text": "Ta prośba została odrzucona, ponieważ próbowała obejść zasady bezpieczeństwa."
+    },
+    "reason_minor": {
+      "text": "Realistyczne obrazy nieletnich nie są tworzone, a zdjęcia nieletnich można edytować tylko pod kątem tła, oświetlenia lub kolorów, ponieważ takie obrazy mogłyby zostać nadużyte, na przykład do fałszywych profili podszywających się pod nieletnich."
+    },
+    "alternative_minor": {
+      "text": "Możliwa jest wyraźnie stylizowana wersja, na przykład render 3D, ilustracja lub kreskówka, o ile scena nie jest seksualna."
+    },
+    "reason_sexual": {
+      "text": "Obrazy seksualne lub o charakterze jednoznacznym nie są tworzone."
+    },
+    "alternative_sexual": {
+      "text": "Możliwa jest wersja tej sceny bez jednoznacznych treści."
+    },
+    "reason_violent": {
+      "text": "Obrazy przedstawiające prawdziwe osoby ranne, zaatakowane lub na miejscu zbrodni nie są tworzone, ponieważ mogłyby posłużyć do wyrządzenia im krzywdy lub zniesławienia."
+    },
+    "alternative_violent": {
+      "text": "Możliwa jest scena z fikcyjnymi postaciami zamiast prawdziwych osób."
+    },
+    "reason_public_figure": {
+      "text": "Obrazy prawdziwych osób publicznych nie są obecnie tworzone, ponieważ mogłyby zostać użyte jako deepfake'i lub do fałszywych twierdzeń."
+    },
+    "alternative_public_figure": {
+      "text": "Możliwa jest oryginalna, fikcyjna postać w tej samej scenie."
+    },
+    "reason_identity": {
+      "text": "Zamiana twarzy i podmiana tożsamości osoby nie są wykonywane, ponieważ mogłyby posłużyć do podszywania się pod kogoś."
+    },
+    "alternative_identity": {
+      "text": "Możliwe są edycje zachowujące tożsamość osoby, takie jak nowe tło, oświetlenie lub styl artystyczny."
+    },
+    "reason_id_document": {
+      "text": "Obrazy dokumentów tożsamości, takich jak paszporty, dowody osobiste czy prawa jazdy, nie są tworzone, ponieważ mogłyby posłużyć do oszustwa."
+    },
+    "reason_hate": {
+      "text": "Obrazy z symbolami nienawiści lub wymierzone w ludzi z powodu tego, kim są, nie są tworzone."
+    },
+    "reason_self_harm": {
+      "text": "Obrazy przedstawiające samookaleczenie lub do niego zachęcające nie są tworzone."
+    },
+    "alternative_self_harm": {
+      "text": "Jeśli przechodzisz trudny czas, rozmowa z kimś zaufanym albo z lokalną infolinią pomocową może pomóc."
+    },
+    "reason_weapons": {
+      "text": "Obrazy z instrukcjami lub planami budowy broni albo materiałów wybuchowych nie są tworzone."
+    },
+    "reason_scam": {
+      "text": "Materiały do oszustw, fałszywych dokumentów lub podszywania się pod kogoś nie są tworzone."
+    },
+    "alternative_scam": {
+      "text": "Możliwy jest oryginalny projekt, który nie naśladuje prawdziwej osoby, marki ani dokumentu."
+    },
+    "reason_spam": {
+      "text": "Masowe tworzenie treści zapychaczy lub usuwanie oznaczeń AI nie jest obsługiwane."
+    },
+    "alternative_spam": {
+      "text": "Możliwe jest kilka obrazów do konkretnego celu."
+    },
+    "reason_deceptive": {
+      "text": "Obrazy mające uchodzić za prawdziwe nagrania, prawdziwą wypowiedź lub oficjalne poparcie nie są tworzone."
+    },
+    "alternative_deceptive": {
+      "text": "Możliwa jest wersja wyraźnie fikcyjna lub ilustrowana."
+    },
+    "reason_other": {
+      "text": "Tej prośby nie można zrealizować zgodnie z zasadami bezpieczeństwa."
+    },
+    "alternative_other": {
+      "text": "Może zadziałać inny temat lub inne sformułowanie."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktura"

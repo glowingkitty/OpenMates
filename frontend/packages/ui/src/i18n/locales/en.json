@@ -13752,6 +13752,86 @@
       "text": "Approximate area extent unavailable; no location pin is shown."
     }
   },
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "This request was refused. Sexual or suggestive images involving minors are never created."
+    },
+    "reason_intimate_real_person": {
+      "text": "This request was refused. Sexual or intimate images of real people are never created."
+    },
+    "reason_bypass": {
+      "text": "This request was refused because it tried to get around the safety rules."
+    },
+    "reason_minor": {
+      "text": "Realistic images of minors aren't created, and photos of minors only get background, lighting or color edits, because such images could be misused, for example for fake profiles pretending to be a minor."
+    },
+    "alternative_minor": {
+      "text": "A clearly stylized version works, such as a 3D render, an illustration or a cartoon, as long as the scene is non-sexual."
+    },
+    "reason_sexual": {
+      "text": "Sexual or explicit images aren't created."
+    },
+    "alternative_sexual": {
+      "text": "A non-explicit version of the scene is possible."
+    },
+    "reason_violent": {
+      "text": "Images showing real people hurt, attacked or at a crime scene aren't created, because they could be used to harm or defame them."
+    },
+    "alternative_violent": {
+      "text": "A scene with fictional characters instead of real people is possible."
+    },
+    "reason_public_figure": {
+      "text": "Images of real public figures aren't created at the moment, because they could be used as deepfakes or for false claims."
+    },
+    "alternative_public_figure": {
+      "text": "An original, fictional character in the same scene is possible."
+    },
+    "reason_identity": {
+      "text": "Face swaps and replacing someone's identity aren't done, because they could be used to impersonate a person."
+    },
+    "alternative_identity": {
+      "text": "Edits that keep the person's identity, such as a new background, lighting or art style, are possible."
+    },
+    "reason_id_document": {
+      "text": "Images of ID documents such as passports, ID cards or driver's licenses aren't created, because they could be used for fraud."
+    },
+    "reason_hate": {
+      "text": "Images with hate symbols or images that target people for who they are aren't created."
+    },
+    "reason_self_harm": {
+      "text": "Images that show or encourage self-harm aren't created."
+    },
+    "alternative_self_harm": {
+      "text": "If you're going through a hard time, talking to someone you trust or a local helpline can help."
+    },
+    "reason_weapons": {
+      "text": "Images with instructions or blueprints for weapons or explosives aren't created."
+    },
+    "reason_scam": {
+      "text": "Media for scams, fake documents or impersonation isn't created."
+    },
+    "alternative_scam": {
+      "text": "An original design that doesn't imitate a real person, brand or document is possible."
+    },
+    "reason_spam": {
+      "text": "Mass-producing filler content or removing AI labels isn't supported."
+    },
+    "alternative_spam": {
+      "text": "A few images for a specific purpose are possible."
+    },
+    "reason_deceptive": {
+      "text": "Images made to pass as real footage, a real statement or an official endorsement aren't created."
+    },
+    "alternative_deceptive": {
+      "text": "A clearly fictional or illustrated version is possible."
+    },
+    "reason_other": {
+      "text": "This request can't be created under the safety rules."
+    },
+    "alternative_other": {
+      "text": "A different subject or phrasing may work."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Invoice"

@@ -11483,6 +11483,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Questa richiesta è stata rifiutata. Immagini sessuali o allusive che coinvolgono minori non vengono mai create."
+    },
+    "reason_intimate_real_person": {
+      "text": "Questa richiesta è stata rifiutata. Immagini sessuali o intime di persone reali non vengono mai create."
+    },
+    "reason_bypass": {
+      "text": "Questa richiesta è stata rifiutata perché cercava di aggirare le regole di sicurezza."
+    },
+    "reason_minor": {
+      "text": "Le immagini realistiche di minori non vengono create e le foto di minori ammettono solo modifiche a sfondo, illuminazione o colore, perché tali immagini potrebbero essere usate in modo improprio, ad esempio per profili falsi che si spacciano per minori."
+    },
+    "alternative_minor": {
+      "text": "È possibile una versione chiaramente stilizzata, ad esempio un render 3D, un'illustrazione o un cartone animato, purché la scena non sia sessuale."
+    },
+    "reason_sexual": {
+      "text": "Le immagini sessuali o esplicite non vengono create."
+    },
+    "alternative_sexual": {
+      "text": "È possibile una versione non esplicita della scena."
+    },
+    "reason_violent": {
+      "text": "Le immagini che mostrano persone reali ferite, aggredite o su una scena del crimine non vengono create, perché potrebbero essere usate per danneggiarle o diffamarle."
+    },
+    "alternative_violent": {
+      "text": "È possibile una scena con personaggi di fantasia al posto di persone reali."
+    },
+    "reason_public_figure": {
+      "text": "Al momento non vengono create immagini di personaggi pubblici reali, perché potrebbero essere usate come deepfake o per affermazioni false."
+    },
+    "alternative_public_figure": {
+      "text": "È possibile un personaggio originale e di fantasia nella stessa scena."
+    },
+    "reason_identity": {
+      "text": "Lo scambio di volti e la sostituzione dell'identità di una persona non vengono eseguiti, perché potrebbero essere usati per impersonare qualcuno."
+    },
+    "alternative_identity": {
+      "text": "Sono possibili modifiche che mantengono l'identità della persona, come un nuovo sfondo, un'illuminazione diversa o uno stile artistico."
+    },
+    "reason_id_document": {
+      "text": "Le immagini di documenti d'identità come passaporti, carte d'identità o patenti di guida non vengono create, perché potrebbero essere usate per frodi."
+    },
+    "reason_hate": {
+      "text": "Le immagini con simboli d'odio o che prendono di mira le persone per ciò che sono non vengono create."
+    },
+    "reason_self_harm": {
+      "text": "Le immagini che mostrano o incoraggiano l'autolesionismo non vengono create."
+    },
+    "alternative_self_harm": {
+      "text": "Se stai attraversando un momento difficile, parlare con qualcuno di cui ti fidi o con un servizio di assistenza locale può aiutare."
+    },
+    "reason_weapons": {
+      "text": "Le immagini con istruzioni o progetti per armi o esplosivi non vengono create."
+    },
+    "reason_scam": {
+      "text": "I contenuti per truffe, documenti falsi o furti d'identità non vengono creati."
+    },
+    "alternative_scam": {
+      "text": "È possibile un design originale che non imiti una persona, un marchio o un documento reali."
+    },
+    "reason_spam": {
+      "text": "La produzione di massa di contenuti riempitivi o la rimozione delle etichette IA non è supportata."
+    },
+    "alternative_spam": {
+      "text": "Sono possibili alcune immagini per uno scopo specifico."
+    },
+    "reason_deceptive": {
+      "text": "Le immagini pensate per sembrare riprese reali, una dichiarazione reale o un'approvazione ufficiale non vengono create."
+    },
+    "alternative_deceptive": {
+      "text": "È possibile una versione chiaramente fittizia o illustrata."
+    },
+    "reason_other": {
+      "text": "Questa richiesta non può essere creata in base alle regole di sicurezza."
+    },
+    "alternative_other": {
+      "text": "Un altro soggetto o un'altra formulazione potrebbe funzionare."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Fattura"

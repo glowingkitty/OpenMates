@@ -13612,6 +13612,86 @@
       "text": "Die Ausdehnung des ungefähren Gebiets ist unbekannt; es wird keine Standortmarkierung angezeigt."
     }
   },
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Diese Anfrage wurde abgelehnt. Sexuelle oder anzügliche Bilder mit Minderjährigen werden niemals erstellt."
+    },
+    "reason_intimate_real_person": {
+      "text": "Diese Anfrage wurde abgelehnt. Sexuelle oder intime Bilder echter Personen werden niemals erstellt."
+    },
+    "reason_bypass": {
+      "text": "Diese Anfrage wurde abgelehnt, weil sie versucht hat, die Sicherheitsregeln zu umgehen."
+    },
+    "reason_minor": {
+      "text": "Realistische Bilder von Minderjährigen werden nicht erstellt, und bei Fotos von Minderjährigen sind nur Änderungen an Hintergrund, Licht oder Farbe möglich, weil solche Bilder missbraucht werden könnten, zum Beispiel für gefälschte Profile, die sich als minderjährig ausgeben."
+    },
+    "alternative_minor": {
+      "text": "Eine klar stilisierte Version ist möglich, zum Beispiel als 3D-Rendering, Illustration oder Cartoon, solange die Szene nicht sexuell ist."
+    },
+    "reason_sexual": {
+      "text": "Sexuelle oder explizite Bilder werden nicht erstellt."
+    },
+    "alternative_sexual": {
+      "text": "Eine nicht explizite Version der Szene ist möglich."
+    },
+    "reason_violent": {
+      "text": "Bilder, die echte Personen verletzt, angegriffen oder an einem Tatort zeigen, werden nicht erstellt, weil sie ihnen schaden oder sie verleumden könnten."
+    },
+    "alternative_violent": {
+      "text": "Eine Szene mit erfundenen Figuren statt echter Personen ist möglich."
+    },
+    "reason_public_figure": {
+      "text": "Bilder von echten Personen des öffentlichen Lebens werden derzeit nicht erstellt, weil sie als Deepfakes oder für falsche Behauptungen genutzt werden könnten."
+    },
+    "alternative_public_figure": {
+      "text": "Eine eigene, erfundene Figur in derselben Szene ist möglich."
+    },
+    "reason_identity": {
+      "text": "Gesichtstausch und das Ersetzen der Identität einer Person werden nicht gemacht, weil sie genutzt werden könnten, um sich als diese Person auszugeben."
+    },
+    "alternative_identity": {
+      "text": "Änderungen, bei denen die Person erkennbar sie selbst bleibt, etwa ein neuer Hintergrund, anderes Licht oder ein Kunststil, sind möglich."
+    },
+    "reason_id_document": {
+      "text": "Bilder von Ausweisdokumenten wie Reisepässen, Personalausweisen oder Führerscheinen werden nicht erstellt, weil sie für Betrug genutzt werden könnten."
+    },
+    "reason_hate": {
+      "text": "Bilder mit Hasssymbolen oder Bilder, die Menschen wegen ihrer Identität angreifen, werden nicht erstellt."
+    },
+    "reason_self_harm": {
+      "text": "Bilder, die Selbstverletzung zeigen oder dazu ermutigen, werden nicht erstellt."
+    },
+    "alternative_self_harm": {
+      "text": "Wenn es dir gerade nicht gut geht, kann es helfen, mit jemandem zu sprechen, dem du vertraust, oder mit einer Beratungsstelle in deiner Nähe."
+    },
+    "reason_weapons": {
+      "text": "Bilder mit Anleitungen oder Bauplänen für Waffen oder Sprengstoffe werden nicht erstellt."
+    },
+    "reason_scam": {
+      "text": "Medien für Betrug, gefälschte Dokumente oder das Ausgeben als jemand anderes werden nicht erstellt."
+    },
+    "alternative_scam": {
+      "text": "Ein eigenes Design, das keine echte Person, Marke oder kein echtes Dokument nachahmt, ist möglich."
+    },
+    "reason_spam": {
+      "text": "Massenhaft erzeugte Füllinhalte oder das Entfernen von KI-Kennzeichnungen werden nicht unterstützt."
+    },
+    "alternative_spam": {
+      "text": "Einige Bilder für einen bestimmten Zweck sind möglich."
+    },
+    "reason_deceptive": {
+      "text": "Bilder, die wie echte Aufnahmen, eine echte Aussage oder eine offizielle Empfehlung wirken sollen, werden nicht erstellt."
+    },
+    "alternative_deceptive": {
+      "text": "Eine klar erkennbar fiktive oder gezeichnete Version ist möglich."
+    },
+    "reason_other": {
+      "text": "Diese Anfrage kann nach den Sicherheitsregeln nicht erstellt werden."
+    },
+    "alternative_other": {
+      "text": "Ein anderes Motiv oder eine andere Formulierung kann funktionieren."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Rechnung"

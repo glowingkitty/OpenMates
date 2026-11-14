@@ -352,10 +352,15 @@ class TestSafeguardParsing:
 # ---------------------------------------------------------------------------
 
 class TestRejectionMessages:
-    def test_csam_is_vague(self):
+    def test_csam_is_a_firm_hard_limit(self):
         payload = build_rejection_payload("S1_csam")
         assert payload["severity"] == "critical"
-        assert payload["user_facing_message"] == "This image couldn't be generated."
+        assert payload["hard_limit"] is True
+        assert "alternative" not in payload
+        assert payload["user_facing_message"] == (
+            "This request was refused. Sexual or suggestive images involving "
+            "minors are never created."
+        )
         assert payload["do_not_retry"] is True
 
     def test_public_figure_is_category_level(self):

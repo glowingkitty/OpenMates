@@ -88,7 +88,14 @@ from backend.shared.python_utils.image_safety import (
 )
 from backend.shared.python_utils.image_safety.audit_log import write_audit_entry
 from backend.shared.python_utils.image_safety.strike_counter import SEVERITY_WEIGHTS
-from backend.shared.python_utils.image_safety.unavailable import unavailable_tool_response
+from backend.shared.python_utils.image_safety.explanations import (
+    has_explanation,
+    localized_rejection_payload,
+)
+from backend.shared.python_utils.image_safety.unavailable import (
+    unavailable_tool_response,
+    user_language,
+)
 from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 
 logger = logging.getLogger(__name__)
@@ -490,7 +497,8 @@ async def _handle_safety_rejection(
     """
     Unified rejection handler: records the strike, writes the audit log,
     caches the rejection for the remainder of the assistant response, and
-    returns the structured tool response for the LLM.
+    returns the structured tool response for the LLM: the category-level reason
+    and, where one fits, the allowed alternative, in the user's language.
 
     A refusal because a safety check could not reach a decision (provider
     error, missing configuration) is not a violation: it records no strike,
@@ -532,8 +540,15 @@ async def _handle_safety_rejection(
         assistant_response_id=assistant_response_id,
     )
 
+    # The reason and allowed alternative, in the user's language; the cached copy
+    # answers every later images-generate call of this response the same way.
+    tool_response = localized_rejection_payload(
+        rejection.category,
+        await user_language(task._cache_service, user_id),
+        severity=rejection.severity,
+    )
     await _cache_safety_rejection(
-        task, user_id, assistant_response_id, rejection.tool_response
+        task, user_id, assistant_response_id, tool_response
     )
 
     logger.warning(
@@ -555,7 +570,7 @@ async def _handle_safety_rejection(
             log_prefix=log_prefix,
         )
 
-    return rejection.tool_response
+    return tool_response
 
 
 async def _trigger_safety_ban(
@@ -902,6 +917,13 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         )
         if not media_decision.allowed:
             tool_response = media_decision.to_rejection_payload()
+            if has_explanation(media_decision.category or ""):
+                tool_response = localized_rejection_payload(
+                    str(media_decision.category),
+                    await user_language(task._cache_service, user_id),
+                    severity=media_decision.severity,
+                    error=str(tool_response["error"]),
+                )
             logger.warning(
                 "%s [MediaSafety] REJECTED category=%s reason=%s",
                 log_prefix,

@@ -11456,6 +11456,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Yêu cầu này đã bị từ chối. Hình ảnh khiêu dâm hoặc gợi dục liên quan đến trẻ vị thành niên sẽ không bao giờ được tạo."
+    },
+    "reason_intimate_real_person": {
+      "text": "Yêu cầu này đã bị từ chối. Hình ảnh khiêu dâm hoặc riêng tư của người thật sẽ không bao giờ được tạo."
+    },
+    "reason_bypass": {
+      "text": "Yêu cầu này đã bị từ chối vì cố vượt qua các quy tắc an toàn."
+    },
+    "reason_minor": {
+      "text": "Hình ảnh chân thực của trẻ vị thành niên không được tạo, và ảnh của trẻ vị thành niên chỉ được chỉnh nền, ánh sáng hoặc màu sắc, vì những hình ảnh này có thể bị lạm dụng, ví dụ cho hồ sơ giả mạo là trẻ vị thành niên."
+    },
+    "alternative_minor": {
+      "text": "Có thể tạo phiên bản được cách điệu rõ ràng, chẳng hạn như ảnh dựng 3D, minh họa hoặc hoạt hình, miễn là cảnh không mang tính tình dục."
+    },
+    "reason_sexual": {
+      "text": "Hình ảnh khiêu dâm hoặc nhạy cảm lộ liễu không được tạo."
+    },
+    "alternative_sexual": {
+      "text": "Có thể tạo phiên bản không lộ liễu của cảnh này."
+    },
+    "reason_violent": {
+      "text": "Hình ảnh cho thấy người thật bị thương, bị tấn công hoặc ở hiện trường vụ án không được tạo, vì chúng có thể bị dùng để gây hại hoặc bôi nhọ họ."
+    },
+    "alternative_violent": {
+      "text": "Có thể tạo cảnh với nhân vật hư cấu thay vì người thật."
+    },
+    "reason_public_figure": {
+      "text": "Hiện tại hình ảnh của nhân vật của công chúng thật không được tạo, vì chúng có thể bị dùng làm deepfake hoặc cho các tuyên bố sai sự thật."
+    },
+    "alternative_public_figure": {
+      "text": "Có thể dùng một nhân vật hư cấu độc đáo trong cùng cảnh."
+    },
+    "reason_identity": {
+      "text": "Việc hoán đổi khuôn mặt và thay thế danh tính của ai đó không được thực hiện, vì chúng có thể bị dùng để mạo danh một người."
+    },
+    "alternative_identity": {
+      "text": "Có thể chỉnh sửa mà vẫn giữ nguyên danh tính của người đó, chẳng hạn đổi nền, ánh sáng hoặc phong cách nghệ thuật."
+    },
+    "reason_id_document": {
+      "text": "Hình ảnh giấy tờ tùy thân như hộ chiếu, căn cước hoặc bằng lái xe không được tạo, vì chúng có thể bị dùng để lừa đảo."
+    },
+    "reason_hate": {
+      "text": "Hình ảnh có biểu tượng thù ghét hoặc nhắm vào con người vì danh tính của họ không được tạo."
+    },
+    "reason_self_harm": {
+      "text": "Hình ảnh thể hiện hoặc cổ xúy hành vi tự làm hại bản thân không được tạo."
+    },
+    "alternative_self_harm": {
+      "text": "Nếu bạn đang trải qua giai đoạn khó khăn, trò chuyện với người bạn tin tưởng hoặc gọi đường dây hỗ trợ tại địa phương có thể giúp ích."
+    },
+    "reason_weapons": {
+      "text": "Hình ảnh có hướng dẫn hoặc bản vẽ chế tạo vũ khí hoặc chất nổ không được tạo."
+    },
+    "reason_scam": {
+      "text": "Nội dung phục vụ lừa đảo, giấy tờ giả hoặc mạo danh không được tạo."
+    },
+    "alternative_scam": {
+      "text": "Có thể tạo thiết kế độc đáo không bắt chước người thật, thương hiệu hay giấy tờ thật."
+    },
+    "reason_spam": {
+      "text": "Không hỗ trợ sản xuất hàng loạt nội dung rác hoặc gỡ bỏ nhãn AI."
+    },
+    "alternative_spam": {
+      "text": "Có thể tạo một vài hình ảnh cho một mục đích cụ thể."
+    },
+    "reason_deceptive": {
+      "text": "Hình ảnh được làm ra để giả làm cảnh quay thật, phát ngôn thật hoặc sự chứng thực chính thức không được tạo."
+    },
+    "alternative_deceptive": {
+      "text": "Có thể tạo phiên bản rõ ràng là hư cấu hoặc minh họa."
+    },
+    "reason_other": {
+      "text": "Yêu cầu này không thể được tạo theo các quy tắc an toàn."
+    },
+    "alternative_other": {
+      "text": "Một chủ đề hoặc cách diễn đạt khác có thể được."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Hóa đơn"

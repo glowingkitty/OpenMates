@@ -11456,6 +11456,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Den här begäran avslogs. Sexuella eller antydande bilder med minderåriga skapas aldrig."
+    },
+    "reason_intimate_real_person": {
+      "text": "Den här begäran avslogs. Sexuella eller intima bilder av verkliga personer skapas aldrig."
+    },
+    "reason_bypass": {
+      "text": "Den här begäran avslogs eftersom den försökte kringgå säkerhetsreglerna."
+    },
+    "reason_minor": {
+      "text": "Realistiska bilder av minderåriga skapas inte, och foton av minderåriga får bara ändras i bakgrund, ljus eller färg, eftersom sådana bilder kan missbrukas, till exempel för falska profiler som utger sig för att vara minderåriga."
+    },
+    "alternative_minor": {
+      "text": "En tydligt stiliserad version är möjlig, till exempel som 3D-rendering, illustration eller tecknad serie, så länge scenen inte är sexuell."
+    },
+    "reason_sexual": {
+      "text": "Sexuella eller explicita bilder skapas inte."
+    },
+    "alternative_sexual": {
+      "text": "En icke-explicit version av scenen är möjlig."
+    },
+    "reason_violent": {
+      "text": "Bilder som visar verkliga personer skadade, attackerade eller på en brottsplats skapas inte, eftersom de kan användas för att skada eller smäda dem."
+    },
+    "alternative_violent": {
+      "text": "En scen med fiktiva figurer i stället för verkliga personer är möjlig."
+    },
+    "reason_public_figure": {
+      "text": "Bilder av verkliga offentliga personer skapas för närvarande inte, eftersom de kan användas som deepfakes eller för falska påståenden."
+    },
+    "alternative_public_figure": {
+      "text": "En egen, fiktiv figur i samma scen är möjlig."
+    },
+    "reason_identity": {
+      "text": "Ansiktsbyten och utbyte av någons identitet görs inte, eftersom de kan användas för att utge sig för att vara en annan person."
+    },
+    "alternative_identity": {
+      "text": "Ändringar som bevarar personens identitet, till exempel en ny bakgrund, annat ljus eller en konststil, är möjliga."
+    },
+    "reason_id_document": {
+      "text": "Bilder av id-handlingar som pass, id-kort eller körkort skapas inte, eftersom de kan användas för bedrägeri."
+    },
+    "reason_hate": {
+      "text": "Bilder med hatsymboler eller bilder som riktar sig mot människor på grund av vilka de är skapas inte."
+    },
+    "reason_self_harm": {
+      "text": "Bilder som visar eller uppmuntrar till självskada skapas inte."
+    },
+    "alternative_self_harm": {
+      "text": "Om du går igenom en svår tid kan det hjälpa att prata med någon du litar på eller med en lokal stödlinje."
+    },
+    "reason_weapons": {
+      "text": "Bilder med instruktioner eller ritningar för vapen eller sprängämnen skapas inte."
+    },
+    "reason_scam": {
+      "text": "Medier för bedrägerier, falska dokument eller identitetsstöld skapas inte."
+    },
+    "alternative_scam": {
+      "text": "En egen design som inte imiterar en verklig person, ett varumärke eller ett dokument är möjlig."
+    },
+    "reason_spam": {
+      "text": "Massproduktion av utfyllnadsinnehåll eller borttagning av AI-märkning stöds inte."
+    },
+    "alternative_spam": {
+      "text": "Några få bilder för ett specifikt syfte är möjliga."
+    },
+    "reason_deceptive": {
+      "text": "Bilder som ska framstå som äkta material, ett äkta uttalande eller ett officiellt stöd skapas inte."
+    },
+    "alternative_deceptive": {
+      "text": "En tydligt fiktiv eller tecknad version är möjlig."
+    },
+    "reason_other": {
+      "text": "Den här begäran kan inte skapas enligt säkerhetsreglerna."
+    },
+    "alternative_other": {
+      "text": "Ett annat motiv eller en annan formulering kan fungera."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktura"

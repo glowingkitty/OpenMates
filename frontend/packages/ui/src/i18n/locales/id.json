@@ -11456,6 +11456,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Permintaan ini ditolak. Gambar seksual atau sugestif yang melibatkan anak di bawah umur tidak pernah dibuat."
+    },
+    "reason_intimate_real_person": {
+      "text": "Permintaan ini ditolak. Gambar seksual atau intim dari orang nyata tidak pernah dibuat."
+    },
+    "reason_bypass": {
+      "text": "Permintaan ini ditolak karena mencoba menghindari aturan keamanan."
+    },
+    "reason_minor": {
+      "text": "Gambar realistis anak di bawah umur tidak dibuat, dan foto anak di bawah umur hanya bisa diedit pada latar belakang, pencahayaan, atau warna, karena gambar semacam itu bisa disalahgunakan, misalnya untuk profil palsu yang berpura-pura sebagai anak di bawah umur."
+    },
+    "alternative_minor": {
+      "text": "Versi yang jelas bergaya artistik dimungkinkan, misalnya render 3D, ilustrasi, atau kartun, selama adegannya tidak bersifat seksual."
+    },
+    "reason_sexual": {
+      "text": "Gambar seksual atau eksplisit tidak dibuat."
+    },
+    "alternative_sexual": {
+      "text": "Versi adegan yang tidak eksplisit dimungkinkan."
+    },
+    "reason_violent": {
+      "text": "Gambar yang menunjukkan orang nyata terluka, diserang, atau berada di tempat kejadian kejahatan tidak dibuat, karena bisa digunakan untuk merugikan atau mencemarkan nama mereka."
+    },
+    "alternative_violent": {
+      "text": "Adegan dengan tokoh fiksi sebagai pengganti orang nyata dimungkinkan."
+    },
+    "reason_public_figure": {
+      "text": "Saat ini gambar tokoh publik nyata tidak dibuat, karena bisa digunakan sebagai deepfake atau untuk klaim palsu."
+    },
+    "alternative_public_figure": {
+      "text": "Tokoh fiksi orisinal dalam adegan yang sama dimungkinkan."
+    },
+    "reason_identity": {
+      "text": "Penukaran wajah dan penggantian identitas seseorang tidak dilakukan, karena bisa digunakan untuk menyamar sebagai orang tersebut."
+    },
+    "alternative_identity": {
+      "text": "Pengeditan yang mempertahankan identitas orang tersebut, seperti latar belakang baru, pencahayaan, atau gaya seni, dimungkinkan."
+    },
+    "reason_id_document": {
+      "text": "Gambar dokumen identitas seperti paspor, KTP, atau SIM tidak dibuat, karena bisa digunakan untuk penipuan."
+    },
+    "reason_hate": {
+      "text": "Gambar dengan simbol kebencian atau yang menyerang orang karena jati diri mereka tidak dibuat."
+    },
+    "reason_self_harm": {
+      "text": "Gambar yang menunjukkan atau mendorong tindakan menyakiti diri sendiri tidak dibuat."
+    },
+    "alternative_self_harm": {
+      "text": "Jika kamu sedang melalui masa sulit, berbicara dengan seseorang yang kamu percaya atau layanan bantuan setempat bisa membantu."
+    },
+    "reason_weapons": {
+      "text": "Gambar berisi petunjuk atau cetak biru senjata atau bahan peledak tidak dibuat."
+    },
+    "reason_scam": {
+      "text": "Media untuk penipuan, dokumen palsu, atau penyamaran tidak dibuat."
+    },
+    "alternative_scam": {
+      "text": "Desain orisinal yang tidak meniru orang, merek, atau dokumen nyata dimungkinkan."
+    },
+    "reason_spam": {
+      "text": "Pembuatan massal konten pengisi atau penghapusan label AI tidak didukung."
+    },
+    "alternative_spam": {
+      "text": "Beberapa gambar untuk tujuan tertentu dimungkinkan."
+    },
+    "reason_deceptive": {
+      "text": "Gambar yang dibuat agar tampak seperti rekaman asli, pernyataan asli, atau dukungan resmi tidak dibuat."
+    },
+    "alternative_deceptive": {
+      "text": "Versi yang jelas fiktif atau berupa ilustrasi dimungkinkan."
+    },
+    "reason_other": {
+      "text": "Permintaan ini tidak dapat dibuat sesuai aturan keamanan."
+    },
+    "alternative_other": {
+      "text": "Subjek atau kalimat yang berbeda mungkin berhasil."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktur"
