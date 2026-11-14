@@ -13,12 +13,13 @@ def test_managed_schedule_contains_all_test_lanes() -> None:
     assert "daily_ci_notification.py --send" in block
     assert "# CI migration HOLD --hourly-dev" in block
     assert "# CI migration HOLD --prod-free-hourly" not in block
-    assert "5 6-23 * * * " in block and "scripts/run_tests.py --prod-free-hourly" in block
+    assert "5 6-23 * * * " in block and "scripts/prod_smoke_cron.py free-hourly'" in block
     assert "# CI migration HOLD --prod-paid-chat" not in block
     assert "# CI migration HOLD --prod-app-skill" not in block
-    assert "10 7,13,19 * * * " in block and "scripts/run_tests.py --prod-paid-chat" in block
-    assert "15 9 * * * " in block and "scripts/run_tests.py --prod-app-skill" in block
+    assert "10 7,13,19 * * * " in block and "scripts/prod_smoke_cron.py paid-chat'" in block
+    assert "15 9 * * * " in block and "scripts/prod_smoke_cron.py app-skill'" in block
     assert "scripts/tests.py run" not in block
+    assert "scripts/run_tests.py --prod" not in block
     assert "CRON_TZ=Europe/Berlin" in block
 
 

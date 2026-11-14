@@ -29,6 +29,9 @@ LEGACY_COMMAND_MARKERS = (
     "scripts/tests.py run --prod-free-hourly",
     "scripts/tests.py run --prod-paid-chat",
     "scripts/tests.py run --prod-app-skill",
+    "scripts/run_tests.py --prod-free-hourly",
+    "scripts/run_tests.py --prod-paid-chat",
+    "scripts/run_tests.py --prod-app-skill",
 )
 
 
@@ -45,14 +48,15 @@ def managed_block(root: Path = PROJECT_ROOT) -> str:
         "# Hourly dev core journeys during the existing 08:00-18:00 UTC window.",
         "# CI migration HOLD --hourly-dev: legacy shared-runtime execution retired; explicit isolated coverage disposition pending.",
         "CRON_TZ=Europe/Berlin",
-        "# Production monitoring is GitHub-hosted and independent of dev Docker state.",
+        "# Production monitoring is GitHub-hosted and independent of dev Docker state. prod_smoke_cron.py, not",
+        "# run_tests.py: run_tests.py forwards to the isolated CI dispatcher, which has no prod modes.",
         "# Hourly prod reachability + guest chat that must get a reply, 06-23 Berlin (TASK-832). It only",
         "# dispatches the GitHub-hosted prod-smoke workflow; failures go to DISCORD_WEBHOOK_PROD_SMOKE and email.",
-        f"5 6-23 * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/run_tests.py --prod-free-hourly' >> {log_root}/hourly-prod-tests.log 2>&1",
+        f"5 6-23 * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py free-hourly' >> {log_root}/hourly-prod-tests.log 2>&1",
         "# Signed-in prod chat 3x/day and CLI web search 1x/day with the dedicated prod smoke test account",
         "# (GitHub secret OPENMATES_TEST_ACCOUNT_API_KEY; about 2 and 10 credits per run).",
-        f"10 7,13,19 * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/run_tests.py --prod-paid-chat' >> {log_root}/prod-paid-chat-tests.log 2>&1",
-        f"15 9 * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/run_tests.py --prod-app-skill' >> {log_root}/prod-app-skill-tests.log 2>&1",
+        f"10 7,13,19 * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py paid-chat' >> {log_root}/prod-paid-chat-tests.log 2>&1",
+        f"15 9 * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py app-skill' >> {log_root}/prod-app-skill-tests.log 2>&1",
         "CRON_TZ=UTC",
         END,
     ])
