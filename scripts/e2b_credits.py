@@ -214,6 +214,8 @@ def check(post=None, now: float | None = None, today: dt.date | None = None) -> 
     message = warning_message(data)
     agent_question.deliver(agent_question.webhook(canonical_root()), message,
                            post or discord_webhook.post_message)
+    agent_question.record_push(canonical_root(), message, now, title="E2B credits",
+                               asks="top up E2B credits or lower the dev spend", source="e2b_credits")
     warning_file().write_text(json.dumps({"ts": now, "runway_days": data["balance"]["runway_days"],
                                           "estimated_remaining_usd": data["balance"]["estimated_remaining_usd"]}))
     return message

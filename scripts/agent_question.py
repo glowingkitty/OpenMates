@@ -9,7 +9,9 @@ then DISCORD_WEBHOOK_DEV_NIGHTLY (environment, then the canonical checkout's ``.
 lookup as scripts/daily_meeting_briefing.py). The URL is never printed or logged. One message per
 chat per 20 minutes unless ``--force``. A success marker
 ``logs/claude-idle-chats/questions/<chat-id>.json`` tells scripts/claude_idle_nudge.py that the
-chat already asked. An unconfirmed delivery (network error, Discord 429/5xx) is retried twice
+chat already asked. Every confirmed push (also other scripts' pushes through ``record_push``) is
+appended to ``logs/agent-questions/pushes.jsonl`` (time, chat id and title, the text, what it asks),
+so the dev connector can look a push up by time and open its chat. An unconfirmed delivery (network error, Discord 429/5xx) is retried twice
 after 2 and 5 seconds, because this push is how the user learns a chat needs a decision. Failures
 that remain exit non-zero with a message; there is no silent fallback.
 """
@@ -31,6 +33,7 @@ from pending_work_gate import canonical_root
 WEBHOOK_KEYS = ("DISCORD_WEBHOOK_AGENT_QUESTIONS", "DISCORD_WEBHOOK_DAILY_MEETING",
                 "DISCORD_WEBHOOK_DEV_NIGHTLY")
 RATE_LIMIT_SECONDS = 20 * 60
+PUSH_LOG = Path("logs") / "agent-questions" / "pushes.jsonl"
 RETRY_DELAYS = (2.0, 5.0)
 MAX_CHARS = 1800
 SECRET_PATTERNS = (
@@ -127,6 +130,21 @@ def deliver(url: str, message: str, post: Callable[..., dict | None],
             sleep(delay)
     raise QuestionError(f"Discord delivery was not confirmed after {len(RETRY_DELAYS) + 1} attempts")
 
+def record_push(root: Path, message: str, now: float, *, chat_id: str = "", title: str = "", asks: str = "",
+                recommendation: str = "", options: list[str] | None = None, task_id: str = "",
+                source: str = "agent_question") -> Path:
+    """Append one delivered push to the push log (one JSON object per line); returns the log path."""
+    first = next((line for line in message.splitlines()[1:] if line.strip()), message)
+    entry = {"ts": now, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)), "source": source,
+             "chat_id": chat_id, "title": scrub(title), "asks": scrub(asks or first),
+             "recommendation": scrub(recommendation), "options": [scrub(o) for o in options or []],
+             "task": scrub(task_id), "text": message}
+    path = root / PUSH_LOG
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    return path
+
 def ask(args: argparse.Namespace, root: Path, chat_id: str, now: float,
         post: Callable[..., dict | None] = discord_webhook.post_message,
         sleep: Callable[[float], None] = time.sleep) -> str:
@@ -141,6 +159,9 @@ def ask(args: argparse.Namespace, root: Path, chat_id: str, now: float,
     if not args.force and recently_asked(root, chat_id, now):
         raise QuestionError("this chat already sent a question in the last 20 minutes (use --force)")
     deliver(webhook(root), message, post, sleep)
+    record_push(root, message, now, chat_id=chat_id,
+                title=os.environ.get("CLAUDE_CHAT_TITLE") or task_text, asks=args.question,
+                recommendation=args.recommendation or "", options=args.option or [], task_id=args.task or "")
     path = marker_path(root, chat_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"ts": now, "question": scrub(args.question)}), encoding="utf-8")

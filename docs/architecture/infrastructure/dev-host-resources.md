@@ -65,6 +65,37 @@ with their resume command), `events.jsonl`. The connector reports archiving with
 the daily meeting briefing ("Chats waiting on you") and the connector's
 chat_changes.
 
+### Waiting on background work
+
+A chat that waits on background work is never stopped as idle
+(`scripts/claude_chat_pending.py`):
+
+- **CI jobs.** A chat whose sessions.py session (`.claude/sessions.json`,
+  `agent_task_id`) owns a CI job in state `running` (`logs/ci-coordinator/queue.sqlite3`,
+  table `jobs`, column `owner`) is kept ("waits on CI"). An unreadable queue keeps
+  every chat that has a session, with a warning.
+- **Undelivered notifications.** Claude Code delivers a finished background job as a
+  `<task-notification>` prompt. When the UserPromptSubmit host-load hook refuses it
+  (transcript `system` record "UserPromptSubmit operation blocked by hook",
+  `promptKept: false`) nothing re-delivers it. Such a refused notification is
+  undelivered until a later prompt carries the same task id; a later assistant
+  reply clears it. Chats with undelivered notifications are kept, and `release`
+  skips them and refusals with `promptKept: false`; for a kept prompt it presses
+  Enter once per refusal (`released.json`).
+- **One-time wake.** Each cycle wakes an idle pane chat with undelivered
+  notifications once per task set (`woken.json`): Ctrl+U to empty the input box, a
+  line naming the task ids and output files, Enter. Events `woken` / `wake_failed`
+  go to `events.jsonl`.
+- **Stalled list.** `status.json` has `stalled_chats` and a `stalled` list: chats
+  woken without a reply, chats that could not be woken, busy or CI-waiting chats
+  quiet for 30 minutes, and stopped or done chats whose transcript holds
+  undelivered results (listed with the resume command, never woken).
+
+Pushes that reach the user through `scripts/agent_question.py` (and
+`scripts/e2b_credits.py`, which calls its `record_push`) are appended to
+`logs/agent-questions/pushes.jsonl` (time, chat id and title, text, what it asks),
+so the connector can match a push to its chat.
+
 ## 3. Host-resources tick (`scripts/host_resources.py`, every minute)
 
 `host_load_guard.py monitor` (openmates-host-load-guard.timer) samples memory, then:

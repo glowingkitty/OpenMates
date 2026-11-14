@@ -89,3 +89,19 @@ def test_gives_up_after_all_attempts(root, monkeypatch):
     with pytest.raises(aq.QuestionError, match="after 3 attempts"):
         aq.ask(args(), root, "chat-1", 1.0, post=lambda **_: calls.append(1), sleep=lambda _: None)
     assert len(calls) == 3
+
+
+def test_delivered_push_is_logged_for_the_connector(root, monkeypatch):
+    monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
+    monkeypatch.setenv("CLAUDE_CHAT_TITLE", "Billing fix")
+    text = aq.ask(args(), root, "chat-1", 1000.0, post=lambda **_: {"message_id": "1"})
+    entry = json.loads((root / aq.PUSH_LOG).read_text().splitlines()[-1])
+    assert entry["chat_id"] == "chat-1" and entry["title"] == "Billing fix" and entry["ts"] == 1000.0
+    assert entry["asks"] == "Which region?" and entry["recommendation"] == "eu"
+    assert entry["options"] == ["eu", "us"] and entry["task"] == "TASK-1" and entry["text"] == text
+
+def test_failed_push_is_not_logged(root, monkeypatch):
+    monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
+    with pytest.raises(aq.QuestionError):
+        aq.ask(args(), root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
+    assert not (root / aq.PUSH_LOG).exists()

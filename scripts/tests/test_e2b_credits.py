@@ -29,6 +29,7 @@ def state(tmp_path: Path, monkeypatch) -> Path:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(credits, "_today", lambda: TODAY)
     monkeypatch.setattr(agent_question, "webhook", lambda root: "https://example.org/hook")
+    monkeypatch.setattr("pending_work_gate.canonical_root", lambda: tmp_path)  # push log goes to tmp
     return tmp_path
 
 
@@ -74,7 +75,7 @@ def test_balance_is_a_labelled_estimate_minus_dev_spend_since_the_reading() -> N
 
 
 # contract-test: tooling
-def test_low_runway_sends_one_feedback_needed_push_per_day() -> None:
+def test_low_runway_sends_one_feedback_needed_push_per_day(state: Path) -> None:
     for offset in range(1, 8):
         ledger(TODAY - dt.timedelta(days=offset), 5.0)
     credits.set_balance(100.0, as_of=TODAY - dt.timedelta(days=2))  # minus $10 since -> $90, 18 days
@@ -91,6 +92,9 @@ def test_low_runway_sends_one_feedback_needed_push_per_day() -> None:
     assert credits.check(post=post, now=1_000_000.0 + 3600) is None
     assert credits.check(post=post, now=1_000_000.0 + 25 * 3600) is not None
     assert len(sent) == 2
+    logged = [json.loads(line) for line in (state / agent_question.PUSH_LOG).read_text().splitlines()]
+    assert [entry["source"] for entry in logged] == ["e2b_credits", "e2b_credits"]
+    assert logged[0]["text"] == message and logged[0]["ts"] == 1_000_000.0
 
 
 # contract-test: tooling

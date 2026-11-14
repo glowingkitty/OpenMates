@@ -221,3 +221,181 @@ def test_release_presses_enter_only_when_the_refused_prompt_is_still_typed(tmp_p
     assert not any(call[0] == "write" and call[2] == "terminal_42" for call in calls)
     events = (tmp_path / "events.jsonl").read_text()
     assert "held_prompt_released" in events and "held_prompt_lost" in events
+
+
+# ---------------------------------------------------------------------------
+# Background work: running CI jobs and job notifications the host hook refused.
+# ---------------------------------------------------------------------------
+
+import sqlite3  # noqa: E402  (grouped with the background-work tests)
+
+import claude_chat_pending as pending  # noqa: E402
+
+NOTIFICATION = ("<task-notification><task-id>bsnq24fr0</task-id><output-file>/tmp/x.output</output-file>"
+                "<status>completed</status><summary>Wait for strip rerun job</summary></task-notification>")
+
+
+def refusal(at="2026-11-14T13:20:00Z", kept=False, body=NOTIFICATION) -> dict:
+    return {"type": "system", "timestamp": at, "promptSubmitEnding": {"promptKept": kept},
+            "content": f"{lc.REFUSED_PREFIX}:\nBLOCKED\nOriginal prompt: {body}"}
+
+
+def reply(text="Waiting for the CI job.") -> dict:
+    return {"type": "assistant", "message": {"content": [{"type": "text", "text": text}]}}
+
+
+def undelivered_item() -> dict:
+    return pending.notifications(NOTIFICATION)[0]
+
+
+def test_chat_with_running_ci_job_is_kept_even_after_days():
+    decision = lc.decide(chat(last_activity=NOW - 72 * HOUR, ci_jobs=["e2e abcd1234"]), NOW, CONFIG, "other")
+    assert decision.action == "keep" and decision.hard and "waits on CI" in decision.reason
+
+
+def test_chat_with_undelivered_notification_is_kept_even_after_days():
+    decision = lc.decide(chat(last_activity=NOW - 72 * HOUR, undelivered=[undelivered_item()]),
+                         NOW, CONFIG, "other")
+    assert decision.action == "keep" and decision.hard and "bsnq24fr0" in decision.reason
+
+
+def test_scan_refusal_after_last_reply_is_undelivered_and_parsed():
+    result = pending.scan([reply(), refusal()])
+    assert result.task_ids == ["bsnq24fr0"] and result.refusal_kept is False
+    assert result.undelivered[0]["output"] == "/tmp/x.output" and result.undelivered[0]["status"] == "completed"
+    assert result.undelivered[0]["summary"] == "Wait for strip rerun job"
+
+
+def test_scan_later_user_record_with_same_task_id_is_delivered():
+    delivered = {"type": "user", "message": {"content": NOTIFICATION}}
+    assert pending.scan([reply(), refusal(), delivered]).undelivered == []
+
+
+def test_scan_assistant_reply_after_the_refusal_clears_it():
+    assert pending.scan([refusal(), reply("Moving on.")]).undelivered == []
+
+
+def test_scan_ignores_refusals_without_notifications():
+    assert pending.scan([refusal(body="please continue")]).undelivered == []
+
+
+def fake_zellij_factory(calls, screen_text="❯ \n"):
+    def fake(session, *args):
+        calls.append(args)
+        text = screen_text if args[0] == "dump-screen" else ""
+        return type("Result", (), {"returncode": 0, "stdout": text, "stderr": ""})()
+    return fake
+
+
+def test_stalled_pane_chat_is_woken_exactly_once_per_task_set(tmp_path, monkeypatch):
+    calls: list = []
+    monkeypatch.setattr(lc, "zellij", fake_zellij_factory(calls))
+    stalled_chat = chat(pane_id="41", zellij_session="claude", undelivered=[undelivered_item()])
+    first = lc.stalled_chats([stalled_chat], {}, tmp_path, NOW, tmp_path, act=True)
+    assert first == []  # woken: not listed as stalled
+    typed = [call for call in calls if call[0] == "write-chars"]
+    assert len(typed) == 1 and "bsnq24fr0" in typed[0][-1] and ("write", "--pane-id", "terminal_41", "13") in calls
+    assert "woken" in (tmp_path / "events.jsonl").read_text()
+    calls.clear()
+    second = lc.stalled_chats([stalled_chat], {}, tmp_path, NOW + 600, tmp_path, act=True)
+    assert not calls and len(second) == 1 and "woken, no reply yet" in second[0]["reason"]
+    other_set = chat(pane_id="41", zellij_session="claude",
+                     undelivered=[{**undelivered_item(), "task_id": "other1"}])
+    lc.stalled_chats([other_set], {}, tmp_path, NOW + 1200, tmp_path, act=True)
+    assert any(call[0] == "write-chars" for call in calls)
+
+
+def test_stalled_wake_clears_a_typed_input_line_first_and_logs_failures(tmp_path, monkeypatch):
+    calls: list = []
+    screens = iter(["❯ half typed\n", "❯ \n"])
+
+    def fake(session, *args):
+        calls.append(args)
+        text = next(screens) if args[0] == "dump-screen" else ""
+        return type("Result", (), {"returncode": 0, "stdout": text, "stderr": ""})()
+
+    monkeypatch.setattr(lc, "zellij", fake)
+    target = chat(pane_id="41", zellij_session="claude", undelivered=[undelivered_item()])
+    lc.stalled_chats([target], {}, tmp_path, NOW, tmp_path, act=True)
+    assert ("write", "--pane-id", "terminal_41", "21") in calls
+    monkeypatch.setattr(lc, "zellij", lambda session, *args: type(
+        "Result", (), {"returncode": 1, "stdout": "", "stderr": "gone"})())
+    broken = chat(session_id="chat-b", pane_id="42", zellij_session="claude", undelivered=[undelivered_item()])
+    listed = lc.stalled_chats([broken], {}, tmp_path, NOW, tmp_path, act=True)
+    assert "wake_failed" in (tmp_path / "events.jsonl").read_text() and len(listed) == 1
+
+
+def test_stopped_registry_chat_with_undelivered_results_is_listed_but_not_woken(tmp_path, monkeypatch):
+    calls: list = []
+    monkeypatch.setattr(lc, "zellij", fake_zellij_factory(calls))
+    project = tmp_path / "home" / "projects" / "-home-x"
+    project.mkdir(parents=True)
+    (project / "gone.jsonl").write_text("\n".join(json.dumps(r) for r in [reply(), refusal()]) + "\n")
+    registry = {"gone": {"state": "stopped", "title": "Old chat", "kind": "pane",
+                         "last_activity": iso(NOW - 5 * HOUR), "stopped_at": iso(NOW - 4 * HOUR),
+                         "reason": "idle 60 min", "resume": "claude --resume gone"}}
+    listed = lc.stalled_chats([], registry, tmp_path / "home", NOW, tmp_path, act=True)
+    assert not calls
+    assert len(listed) == 1 and listed[0]["stopped"] is True and listed[0]["tasks"][0]["task_id"] == "bsnq24fr0"
+    done_registry = {"gone": {**registry["gone"], "state": "done"}}
+    assert len(lc.stalled_chats([], done_registry, tmp_path / "home", NOW, tmp_path, act=False)) == 1
+
+
+def test_status_json_carries_stalled_entries(tmp_path):
+    entry = {"session_id": "chat-a", "reason": "x"}
+    lc.write_status(tmp_path, {"running": 1}, {}, [entry])
+    data = json.loads((tmp_path / "status.json").read_text())
+    assert data["stalled"] == [entry] and data["stalled_chats"] == 1
+
+
+def test_held_prompts_skip_not_kept_refusals_and_undelivered_chats():
+    kept_false = chat(session_id="a", last_speaker="user", last_text=lc.REFUSED_PREFIX, refusal_kept=False)
+    undelivered = chat(session_id="b", last_speaker="user", last_text=lc.REFUSED_PREFIX,
+                       undelivered=[undelivered_item()])
+    kept = chat(session_id="c", last_speaker="user", last_text=lc.REFUSED_PREFIX, refusal_kept=True)
+    assert [item.session_id for item in lc.held_prompts([kept_false, undelivered, kept])] == ["c"]
+
+
+def test_release_presses_enter_once_per_refusal(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENMATES_CHAT_LIFECYCLE_DIR", str(tmp_path))
+    held = [chat(session_id="full", pane_id="41", zellij_session="claude", last_speaker="user",
+                 last_text=lc.REFUSED_PREFIX, refusal_kept=True, refusal_at="t1")]
+    monkeypatch.setattr(lc, "live_chats", lambda home, config: held)
+    calls: list = []
+    monkeypatch.setattr(lc, "zellij", fake_zellij_factory(calls, "❯ [Pasted text #1]\n"))
+    lc.release(tmp_path, CONFIG, limit=5)
+    lc.release(tmp_path, CONFIG, limit=5)
+    assert calls.count(("write", "--pane-id", "terminal_41", "13")) == 1
+    held[0].refusal_at = "t2"  # a new refusal gets its own Enter
+    lc.release(tmp_path, CONFIG, limit=5)
+    assert calls.count(("write", "--pane-id", "terminal_41", "13")) == 2
+
+
+def make_queue(path: Path, rows) -> None:
+    path.parent.mkdir(parents=True)
+    with sqlite3.connect(path) as conn:
+        conn.execute("CREATE TABLE jobs (id TEXT, owner TEXT, mode TEXT, state TEXT)")
+        conn.executemany("INSERT INTO jobs VALUES (?, ?, ?, ?)", rows)
+
+
+def test_running_ci_jobs_reads_running_jobs_by_owner_and_maps_chats(tmp_path):
+    make_queue(tmp_path / "logs" / "ci-coordinator" / "queue.sqlite3", [
+        ("abcdef123456", "8535", "e2e", "running"), ("zzzzzzzz", "8535", "pytest", "queued"),
+        ("11112222333", "9999", "vitest", "running")])
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude" / "sessions.json").write_text(json.dumps(
+        {"sessions": {"8535": {"agent_task_id": "chat-a"}, "other": {}}}))
+    jobs = pending.running_ci_jobs(tmp_path)
+    assert jobs == {"8535": ["e2e abcdef12"], "9999": ["vitest 11112222"]}
+    sessions = pending.session_ids_by_chat(tmp_path)
+    assert pending.ci_jobs_for("chat-a", sessions, jobs) == ["e2e abcdef12"]
+    assert pending.ci_jobs_for("chat-z", sessions, jobs) == []
+
+
+def test_running_ci_jobs_without_queue_is_empty_and_broken_db_raises(tmp_path):
+    assert pending.running_ci_jobs(tmp_path) == {}
+    broken = tmp_path / "logs" / "ci-coordinator" / "queue.sqlite3"
+    broken.parent.mkdir(parents=True)
+    broken.write_text("not a database")
+    with pytest.raises(RuntimeError, match="CI queue unreadable"):
+        pending.running_ci_jobs(tmp_path)
