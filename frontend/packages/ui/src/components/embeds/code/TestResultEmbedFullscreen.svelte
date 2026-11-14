@@ -71,7 +71,11 @@
     let cancelled = false;
     const load = (evidence: TestResultEvidence | undefined, assign: (url: string | null) => void) => {
       if (!evidence?.assetId) return;
-      resolveEvidenceUrl(evidence).then((url) => { if (!cancelled) assign(url); }).catch(() => { if (!cancelled) assign(null); });
+      resolveEvidenceUrl(evidence).then((url) => { if (!cancelled) assign(url); }).catch((error) => {
+        // Never silent: otherwise this reads as "no video recorded".
+        console.warn(`[TestResultEmbedFullscreen] ${evidence.kind} evidence unavailable:`, error instanceof Error ? error.message : error);
+        if (!cancelled) assign(null);
+      });
     };
     load(video, (url) => { videoUrl = url; });
     load(frame, (url) => { frameUrl = url; });

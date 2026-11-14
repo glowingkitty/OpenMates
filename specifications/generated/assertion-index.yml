@@ -38042,55 +38042,55 @@ assertions:
       surface: rest_api
     - &id4831
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 18
+      line: 19
       name: browser run shows the preview frame image with status and counts
       surface: gui.web
     - &id4832
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 37
+      line: 55
       name: browser run without a frame shows a status-styled placeholder, not a blank
         frame
       surface: gui.web
     - &id4833
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 48
+      line: 66
       name: failed browser run placeholder or frame reports failed status
       surface: gui.web
     - &id4834
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 55
+      line: 73
       name: cli and unit runs render a compact status card without a frame area
       surface: gui.web
     - &id4835
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 66
+      line: 84
       name: stale run shows a visible stale marker
       surface: gui.web
     - &id4836
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 74
+      line: 92
       name: 'browser kind: video beside a vertical timeline; clicking a step seeks
         and highlights'
       surface: gui.web
     - &id4837
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 106
+      line: 124
       name: browser failed step shows its error and failed status
       surface: gui.web
     - &id4838
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 114
+      line: 132
       name: 'cli kind: terminal view with command, output and status per step, no
         video'
       surface: gui.web
     - &id4839
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 127
+      line: 145
       name: 'unit kind: counts and per-test list with status and error text'
       surface: gui.web
     - &id4840
       path: frontend/apps/web_app/tests/components/test-result-embed.spec.ts
-      line: 141
+      line: 159
       name: stale marker visible only when the result is not current
       surface: gui.web
     - &id4841

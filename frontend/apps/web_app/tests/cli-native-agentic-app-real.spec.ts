@@ -343,6 +343,24 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
 
     // The recorded browser test in the web chat: fullscreen with video and step timeline.
     if (testResultId) {
+      // Record the evidence link requests (status only) of the card and the
+      // fullscreen, so a missing frame or video names its cause.
+      const evidenceRequests: { status: number; variant: string; step?: string }[] = [];
+      page.on('response', (response) => {
+        const match = /\/v1\/generated-assets\/[^/]+\/files\/([^/]+)\/(download-url|download)\b/.exec(response.url());
+        if (match) evidenceRequests.push({ status: response.status(), variant: match[1].slice(0, 24), step: match[2] });
+      });
+      page.on('console', (message) => {
+        if (message.type() === 'warning' && /TestResult|evidence/i.test(message.text())) {
+          evidenceRequests.push({ status: -1, variant: message.text().slice(0, 120) });
+        }
+      });
+      page.on('requestfailed', (request) => {
+        if (/\/v1\/generated-assets\/|openmates.*\/download/.test(request.url())) {
+          evidenceRequests.push({ status: 0, variant: (request.failure()?.errorText ?? 'failed').slice(0, 40) });
+        }
+      });
+      Object.assign(evidence, { webEvidenceRequests: evidenceRequests });
       await page.goto(`${APP}/#chat-id=${chatId}`);
       const card = page.locator('[data-testid="embed-preview"][data-skill-id="test_result"]').last();
       await expect.soft(card, 'test result card in chat').toBeVisible({ timeout: 90_000 });
@@ -358,14 +376,11 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
         await card.evaluate((el) => el.scrollIntoView({ block: 'center' }));
         await page.waitForTimeout(500);
         await page.screenshot({ path: info.outputPath('chat-test-result-card.png') });
-        // Record the evidence link requests (status only) so a missing video names its cause.
-        const evidenceRequests: { status: number; variant: string }[] = [];
-        page.on('response', (response) => {
-          const match = /\/v1\/generated-assets\/[^/]+\/files\/([^/]+)\/download-url/.exec(response.url());
-          if (match) evidenceRequests.push({ status: response.status(), variant: match[1].slice(0, 24) });
-        });
-        Object.assign(evidence, { webEvidenceRequests: evidenceRequests });
-        await card.getByTestId('result-preview-expand').click({ timeout: 30_000 });
+        // Several results render as one carousel whose own fullscreen control sits
+        // over the card's expand button: click what the user sees at that spot.
+        const expand = await card.getByTestId('result-preview-expand').boundingBox();
+        expect(expand, 'test result expand control').not.toBeNull();
+        if (expand) await page.mouse.click(expand.x + expand.width / 2, expand.y + expand.height / 2);
         const body = page.getByTestId('test-result-fullscreen-body');
         await expect.soft(body).toBeVisible({ timeout: 30_000 });
         await expect.soft(page.getByTestId('test-result-video'), 'recorded test video').toBeVisible({ timeout: 60_000 });

@@ -1,4 +1,5 @@
 // playwright-account: not_required reason=isolated_component_preview
+// proof-video: not_required reason=isolated_component_preview
 import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 import type { Page } from '@playwright/test';
@@ -27,7 +28,24 @@ test.describe('test result preview card', () => {
 		await expect(page.getByTestId('test-result-preview-stale')).toHaveCount(0);
 		// The title names the test; the execution target ("e2b") is never the title.
 		await expect(page.getByTestId('test-result-preview-title')).toHaveText('Signing in opens the dashboard');
+		// The compact card keeps its 24px text inset (the arrow clearance is for wide cards only).
+		const compact = await page.getByTestId('test-result-preview').boundingBox();
+		const compactTitle = await page.getByTestId('test-result-preview-title').boundingBox();
+		expect(compact && compactTitle && compactTitle.x - compact.x <= 30, 'compact card keeps its text width').toBe(true);
 		await testInfo.attach('test-result-preview-card', {
+			body: await page.getByTestId('test-result-preview').screenshot(),
+			contentType: 'image/png'
+		});
+		// Grouped results render the card wide with carousel arrows 10px from its
+		// bottom corners (36px): title and counts start clear of them.
+		await page.addStyleTag({ content: '[data-testid="embed-preview"] { width: 900px !important; height: 520px !important; max-width: none !important; }' });
+		const card = await page.getByTestId('test-result-preview').boundingBox();
+		expect(card && card.width > 800, 'wide card rendered').toBe(true);
+		for (const id of ['test-result-preview-title', 'test-result-preview-counts']) {
+			const text = await page.getByTestId(id).boundingBox();
+			expect(card && text && text.x - card.x >= 46 && card.x + card.width - (text.x + text.width) >= 46, `${id} clears the carousel arrows`).toBe(true);
+		}
+		await testInfo.attach('test-result-preview-card-wide', {
 			body: await page.getByTestId('test-result-preview').screenshot(),
 			contentType: 'image/png'
 		});
