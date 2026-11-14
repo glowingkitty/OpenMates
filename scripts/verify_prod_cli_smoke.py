@@ -6,7 +6,11 @@ the browser-heavy Playwright stack. The paid chat scenario is intentionally one
 short prompt so it verifies the LLM pipeline while keeping cost bounded. The web
 app-skill scenario calls the typed `openmates apps web search` command directly
 so production app-skill routing is covered without involving chat UI state.
-Security: reads the API key from env/arguments and never prints it.
+The guest-chat scenario sends one signed-out chat through the anonymous chat
+route and fails unless an assistant reply arrives: on 2026-11-13 every AI worker
+was crash-looping for ~20 h while health checks stayed green (TASK-832).
+Security: reads the API key from env/arguments and never prints it; the guest
+scenario needs no key.
 """
 
 from __future__ import annotations
@@ -16,6 +20,9 @@ import json
 import os
 import subprocess
 import time
+import urllib.error
+import urllib.request
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +34,10 @@ CHAT_PROMPT = "Reply with exactly: PONG"
 WEB_SEARCH_QUERY = "OpenMates official website"
 SDK_DEVICE_ID = "prod-smoke-github-actions"
 API_KEY_REDACTION_PREFIX = "sk-api-"
+GUEST_CHAT_PROMPT = "What is the capital of France? Answer with the city name only."
+GUEST_CHAT_EXPECTED = "PARIS"
+GUEST_CHAT_TIMEOUT_SECONDS = 120
+GUEST_ORIGIN = "https://openmates.org"
 
 
 def redact_api_keys(value: str) -> str:
@@ -155,6 +166,39 @@ def verify_web_search(api_url: str, api_key: str) -> dict[str, Any]:
     }
 
 
+def verify_guest_chat(api_url: str, _api_key: str) -> dict[str, Any]:
+    """Send one signed-out chat and require a completed assistant reply."""
+    started = time.time()
+    chat_id = str(uuid.uuid4())
+    body = json.dumps({
+        "anonymous_id": f"prod-smoke-{chat_id}",
+        "client_chat_id": chat_id,
+        "client_message_id": f"{chat_id}-m1",
+        "plaintext_message": GUEST_CHAT_PROMPT,
+    }).encode()
+    request = urllib.request.Request(
+        f"{api_url.rstrip('/')}/v1/anonymous/chat/stream",
+        data=body,
+        method="POST",
+        headers={"Content-Type": "application/json", "Accept": "application/json", "Origin": GUEST_ORIGIN},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=GUEST_CHAT_TIMEOUT_SECONDS) as response:
+            result = json.loads(response.read().decode())
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")[:300]
+        raise RuntimeError(f"Guest chat returned HTTP {exc.code}: {detail}") from exc
+    assistant = str(result.get("assistant") or "")
+    if GUEST_CHAT_EXPECTED not in assistant.upper():
+        raise AssertionError(f"Expected a guest reply naming Paris, got: {assistant[:300]!r}")
+    return {
+        "status": "passed",
+        "duration_seconds": round(time.time() - started, 2),
+        "assistant_preview": assistant[:80],
+        "model_name": result.get("modelName"),
+    }
+
+
 def scenario_failure(error: BaseException) -> dict[str, Any]:
     return {
         "status": "failed",
@@ -166,17 +210,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run production OpenMates CLI smoke checks.")
     parser.add_argument("--api-url", default=DEFAULT_API_URL, help="Production API URL")
     parser.add_argument("--api-key", default=os.environ.get("OPENMATES_API_KEY", ""), help="Production smoke API key")
-    parser.add_argument("--scenario", choices=["paid-chat", "app-skill-web-search", "all"], default="all")
+    parser.add_argument("--scenario", choices=["paid-chat", "app-skill-web-search", "guest-chat", "all"], default="all")
     parser.add_argument("--skip-build", action="store_true", help="Do not rebuild the CLI before running")
     args = parser.parse_args()
 
-    if not args.api_key:
+    needs_cli = args.scenario != "guest-chat"
+    if needs_cli and not args.api_key:
         print(json.dumps({"status": "failed", "error": "OPENMATES_API_KEY is required"}, indent=2))
         return 1
 
-    configure_stable_sdk_device()
+    if needs_cli:
+        configure_stable_sdk_device()
 
-    if not args.skip_build:
+    if needs_cli and not args.skip_build:
         build = run(["npm", "run", "build"], cwd=CLI_DIR, timeout=240)
         if build.returncode != 0:
             print(json.dumps({"status": "failed", "error": (build.stderr or build.stdout)[:900]}, indent=2))
@@ -188,6 +234,8 @@ def main() -> int:
         checks.append(("paid_chat", verify_paid_chat))
     if args.scenario in {"app-skill-web-search", "all"}:
         checks.append(("app_skill_web_search", verify_web_search))
+    if args.scenario in {"guest-chat", "all"}:
+        checks.append(("guest_chat", verify_guest_chat))
 
     for name, fn in checks:
         try:

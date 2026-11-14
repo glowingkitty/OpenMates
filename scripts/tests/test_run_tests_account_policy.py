@@ -1466,6 +1466,23 @@ def test_prod_smoke_parser_accepts_flattened_cli_artifact(tmp_path):
     }]
 
 
+def test_hourly_free_prod_smoke_fails_when_guest_chat_gets_no_reply(tmp_path):
+    """TASK-832: the hourly suite must fail when a guest chat gets no reply."""
+    run_tests = load_run_tests_module()
+    specs = run_tests.PROD_SMOKE_SPECS_BY_SUITE[run_tests.PROD_SMOKE_SUITE_FREE_HOURLY]
+    assert [spec[0] for spec in specs] == ["reachability", "guest-chat"]
+    (tmp_path / "guest-chat.json").write_text(
+        '{"status":"failed","scenarios":{"guest_chat":{"status":"failed","error":"timed out"}}}',
+        encoding="utf-8",
+    )
+
+    results = run_tests._parse_prod_smoke_artifact(tmp_path, specs[1:])
+
+    assert results[0]["key"] == "guest-chat"
+    assert results[0]["status"] == "failed"
+    assert results[0]["error"] == "timed out"
+
+
 def test_preflight_account_payload_deduplicates_emails():
     run_tests = load_run_tests_module()
 

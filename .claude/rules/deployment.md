@@ -22,3 +22,8 @@ paths:
   --deployment <id> --expected-version <version> --out <private-evidence-dir>`.
   Never use raw alias/promote commands. Emergency restores repeat the check.
   Production is not done without a passing browser receipt.
+- Urgent production outage (owner standing rule, 2026-11-14): apply the
+  necessary hotfix directly on production yourself, then commit the permanent
+  fix to dev; see "Urgent Production Outage" in
+  `.claude/skills/update-prod-server/SKILL.md`. Every production update ends
+  with real chats that get assistant replies; no reply fails the update.
