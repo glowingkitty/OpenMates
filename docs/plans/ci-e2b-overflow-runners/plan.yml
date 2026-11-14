@@ -194,6 +194,16 @@ decisions:
       pushed to Discord and logged in memory-alerts.jsonl, naming mode and specs.
     reason: Owner asked to watch peak memory on heavier specs and to hear about any that exceed 8 GB.
     decided_at: '2026-11-13'
+  - id: D-5
+    status: active
+    decision: >
+      The dev E2B daily budget is $100 (was $60; owner receipt f8b098edaeb6d9d8); the 70% cap stays. E2B has no API or documented
+      console endpoint for the credit balance (public OpenAPI spec and billing docs checked 2026-11-14, owner receipt
+      b8ec1fe00cd0713c), so scripts/e2b_credits.py shows a labelled estimate (console balance recorded with set-balance minus the
+      dev spend recorded since; product usage not included), the daily spend and the runway, and sends one "Feedback needed"
+      Discord push per day while the runway is below 30 days.
+    reason: Owner reviews the budget and the remaining credits every 14 days and wants an early warning in between.
+    decided_at: '2026-11-14'
 attempts:
   - id: A-1
     task_id: TASK-1

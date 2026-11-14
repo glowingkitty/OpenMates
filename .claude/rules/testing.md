@@ -55,8 +55,10 @@ paths:
     or `bash -c "cd DIR && CMD 2>&1 | grep -E 'a|b'; echo done"`); file
     redirection, `&` and substitution run locally.
   - Dev E2B use is capped at 70% of the team's concurrency limit (E2B Pro: 100;
-    the rest stays free for product usage) with a daily budget
-    (`scripts/e2b_dev_capacity.py status`). At the cap, cargo/vitest/Playwright
+    the rest stays free for product usage) with a $100 daily budget
+    (`scripts/e2b_dev_capacity.py status`). `scripts/e2b_credits.py` shows the
+    daily spend, the credit balance (an estimate: E2B has no balance API) and
+    the runway, and pushes "Feedback needed" below 30 days of runway. At the cap, cargo/vitest/Playwright
     runs wait in the E2B queue; the translation build runs locally instead.
     If E2B is unavailable or the budget is used up it says so and runs
     locally; `--local` forces a local run. Refresh the template with

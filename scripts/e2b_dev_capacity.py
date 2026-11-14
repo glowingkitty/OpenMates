@@ -13,8 +13,12 @@ is not limited by it; the cap exists so that product usage always has room.
 - Dev share: dev jobs may hold at most DEV_SHARE (70%) of the team limit; the
   remaining 30% stays free for product usage. A dev job that finds the share
   used up waits in line for a slot instead of running on the dev server.
-- Daily budget: when today's estimated dev E2B spend reaches DAILY_BUDGET_USD,
-  new dev runs are refused (callers fall back to the local queue and say so).
+- Daily budget: $100/day (owner decision 2026-11-14; reviewed with the remaining
+  credits every 14 days). When today's estimated dev E2B spend reaches it, new dev
+  runs are refused (callers fall back to the local queue and say so).
+- Credits: `e2b_credits.py` shows the daily spend, the (estimated) credit balance
+  and the runway, and sends a "Feedback needed" push when the runway drops below
+  30 days; it is checked after every recorded run.
 
 Override without a deploy: write `{"team_concurrency_limit": 600}` (any of
 the keys in DEFAULTS) to `<state dir>/e2b-dev-capacity.json`, or set
@@ -24,6 +28,7 @@ Standard library only (imported by heavy_slot.py under the system python).
 
 Usage:
   python3 scripts/e2b_dev_capacity.py status
+  python3 scripts/e2b_credits.py          # spend, credit balance estimate, runway
 """
 
 from __future__ import annotations
@@ -47,7 +52,7 @@ USD_PER_GIB_SECOND = 0.0000045
 DEFAULTS = {
     "team_concurrency_limit": 100,  # E2B Pro plan
     "dev_share": 0.70,
-    "daily_budget_usd": 60.0,
+    "daily_budget_usd": 100.0,
 }
 ENV_OVERRIDES = {
     "team_concurrency_limit": ("OPENMATES_E2B_TEAM_LIMIT", int),
@@ -126,7 +131,18 @@ def record_spend(seconds: float, cpus: int, memory_mb: int) -> float:
         data = {"usd": round(data["usd"] + cost, 4), "runs": data["runs"] + 1,
                 "seconds": round(data["seconds"] + seconds, 1)}
         path.write_text(json.dumps(data))
+    check_runway()
     return cost
+
+def check_runway() -> None:
+    """Low-credit push after each run; a delivery problem is reported, never fails the run."""
+    import e2b_credits  # cyclic sibling (it reads this ledger); imported at call time
+    import agent_question
+
+    try:
+        e2b_credits.check()
+    except agent_question.QuestionError as error:
+        print(f"e2b_dev_capacity: low-runway warning not delivered: {error}", file=sys.stderr)
 
 
 def budget_exhausted(config: Settings | None = None) -> str | None:
@@ -219,7 +235,14 @@ def status() -> dict:
     held = held_slots()
     return {"team_concurrency_limit": config.team_concurrency_limit, "dev_share": config.dev_share,
             "dev_slots": config.dev_slots, "busy": len(held), "daily_budget_usd": config.daily_budget_usd,
-            "spent_today": spent_today(), "running": held}
+            "spent_today": spent_today(), "running": held, "credits": _credits_summary()}
+
+def _credits_summary() -> dict:
+    import e2b_credits  # cyclic sibling; imported at call time
+
+    data = e2b_credits.summary()
+    return {"average_daily_dev_usd": data["average_daily_dev_usd"], "balance": data["balance"],
+            "real_balance": data["real_balance"]}
 
 
 if __name__ == "__main__":
