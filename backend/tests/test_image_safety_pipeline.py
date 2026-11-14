@@ -124,6 +124,31 @@ class TestSightengineThresholds:
         assert f.hard_block
         assert f.category_hint == "S1_csam"
 
+    def test_output_minor_noise_scores_are_not_csam(self):
+        # A clothed generated portrait of a child carries tiny non-zero scores;
+        # they must not be filed as a CSAM hit (or strike) on output.
+        f = SightengineFindings(
+            minor_detected=True,
+            minor_confidence=0.9,
+            sexual_display=0.01,
+            suggestive=0.02,
+        )
+        SightengineSafetyClient._apply_thresholds(f, stage="output")
+        assert not f.hard_block
+        assert f.category_hint is None
+
+    def test_output_minor_with_suggestion_stays_csam(self):
+        # Output stays stricter than input (0.2 suggestive at input).
+        f = SightengineFindings(
+            minor_detected=True,
+            minor_confidence=0.9,
+            suggestive=0.08,
+        )
+        SightengineSafetyClient._apply_thresholds(f, stage="output")
+        assert f.hard_block
+        assert f.category_hint == "S1_csam"
+        assert f.hard_block_reason == "minor_on_output_any_suggestion"
+
     def test_minor_clothed_safe(self):
         # Minor in completely clean photo should NOT hard-block at Sightengine level;
         # the safeguard reasoner decides the edit policy.
