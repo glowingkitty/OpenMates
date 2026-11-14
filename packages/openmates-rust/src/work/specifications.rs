@@ -83,7 +83,32 @@ pub struct SpecificationDocument {
     pub models: Vec<SpecModel>,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub preview_notice: String,
+    /// `product`, `design` or `technical` when a project is split into linked
+    /// Specifications; empty for a single Specification.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub role: String,
+    /// Assumptions the user has not confirmed yet, kept visible for review.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub assumptions: Vec<String>,
+    /// Agreed design decisions the requirements rely on.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub design_decisions: Vec<String>,
+    /// Other Specifications of the same project this one links to.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub related_specifications: Vec<SpecRelated>,
 }
+/// A link from one Specification to another of the same split project.
+#[derive(Clone, Default, Serialize, Deserialize, PartialEq, Debug)]
+#[serde(default)]
+pub struct SpecRelated {
+    pub title: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub role: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub relation: String,
+}
+/// Roles of linked Specifications.
+pub const SPEC_ROLES: [&str; 3] = ["product", "design", "technical"];
 /// Input of `create` and `revise`; ids are client-made and kept for retries.
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -129,6 +154,17 @@ impl SpecificationDocument {
             .any(|f| !matches!(f.kind.as_str(), "user_flow" | "edge_case"))
         {
             return Err(Error::Invalid("Flow kind must be user_flow or edge_case."));
+        }
+        let role_ok = |role: &str| role.is_empty() || SPEC_ROLES.contains(&role);
+        if !role_ok(&self.role)
+            || self
+                .related_specifications
+                .iter()
+                .any(|r| r.title.trim().is_empty() || !role_ok(&r.role))
+        {
+            return Err(Error::Invalid(
+                "Specification roles must be product, design or technical, and links need a title.",
+            ));
         }
         let known =
             |ids: &[String], from: &[&str]| ids.iter().all(|id| from.contains(&id.as_str()));

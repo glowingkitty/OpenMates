@@ -41,6 +41,14 @@ export interface SpecChapter {
   flowIds: string[];
   modelIds: string[];
 }
+/** Link to another Specification of the same split project. */
+export interface SpecRelated {
+  title: string;
+  role: '' | SpecRole;
+  relation: string;
+}
+/** Role of a Specification when a complex project is split into linked ones. */
+export type SpecRole = 'product' | 'design' | 'technical';
 export interface SpecificationDocument {
   title: string;
   project: string;
@@ -56,4 +64,11 @@ export interface SpecificationDocument {
   /** Optional note for design previews only; never set for real documents. */
   previewNotice?: string;
   linkedChecks?: SpecCheckPreview[];
+  /** Empty for a single Specification; set when the user agreed to a split. */
+  role?: '' | SpecRole;
+  /** Assumptions the user has not confirmed yet. */
+  assumptions?: string[];
+  /** Agreed design decisions the requirements rely on. */
+  designDecisions?: string[];
+  relatedSpecifications?: SpecRelated[];
 }

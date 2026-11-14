@@ -183,3 +183,38 @@ save.failed:
   en: "The Specification could not be saved to the Project. Nothing was saved."
   de: "Die Spezifikation konnte nicht im Projekt gespeichert werden. Es wurde nichts gespeichert."
   verified_by_human: []
+fullscreen.assumptions:
+  context: "Specification section heading: assumptions the user has not confirmed yet"
+  en: "Open assumptions"
+  de: "Offene Annahmen"
+  verified_by_human: []
+fullscreen.assumptions_hint:
+  context: "Short note under the open assumptions heading of a Specification"
+  en: "Not confirmed yet. Confirm or correct each one before the work starts."
+  de: "Noch nicht bestätigt. Bestätige oder korrigiere jede Annahme, bevor die Arbeit beginnt."
+  verified_by_human: []
+fullscreen.design_decisions:
+  context: "Specification section heading: agreed design decisions"
+  en: "Design decisions"
+  de: "Designentscheidungen"
+  verified_by_human: []
+fullscreen.related:
+  context: "Specification section heading: other Specifications of the same project this one links to"
+  en: "Linked Specifications"
+  de: "Verknüpfte Spezifikationen"
+  verified_by_human: []
+role.product:
+  context: "Role label of a Specification in a project split into linked Specifications"
+  en: "Product Specification"
+  de: "Produkt-Spezifikation"
+  verified_by_human: []
+role.design:
+  context: "Role label of a Specification in a project split into linked Specifications"
+  en: "Design Specification"
+  de: "Design-Spezifikation"
+  verified_by_human: []
+role.technical:
+  context: "Role label of a Specification in a project split into linked Specifications"
+  en: "Technical Specification"
+  de: "Technische Spezifikation"
+  verified_by_human: []

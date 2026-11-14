@@ -232,6 +232,12 @@
         "description": {
           "text": "Kiểm tra các tệp cấu hình để phát hiện các lỗ hổng bảo mật và lộ lọt thông tin."
         }
+      },
+      "write_specification": {
+        "text": "Viết đặc tả",
+        "description": {
+          "text": "Biến một ý tưởng thành đặc tả đã được duyệt từng bước - phạm vi, yêu cầu, thiết kế và các kiểm tra nghiệm thu - rồi bắt đầu một kế hoạch với các tác vụ."
+        }
       }
     },
     "events": {
@@ -10887,6 +10893,21 @@
       },
       "process": {
         "text": "- nếu chưa được cung cấp, yêu cầu người dùng URL kho lưu trữ github/gitlab\n- nếu chưa được cung cấp, hỏi người dùng muốn kiểm tra gì / trường hợp sử dụng của họ là gì\n- sử dụng kỹ năng để kiểm tra issues xem có vấn đề nghiêm trọng nào được báo cáo gần đây không\n- nếu dự án được báo cáo là bị hỏng, hỏi người dùng có muốn tiếp tục kiểm tra không\n- hỏi người dùng sẽ clone và kiểm tra kho lưu trữ ở đâu: máy mới? github codespaces? máy cục bộ? v.v.\n- clone kho lưu trữ đến vị trí đã chỉ định\n- đọc cấu trúc thư mục và tệp của dự án và readme.md để có cái nhìn tổng quan\n- tìm hiểu cách kiểm tra dự án và bắt đầu kiểm tra"
+      }
+    },
+    "code_write_specification": {
+      "text": "Viết đặc tả",
+      "description": {
+        "text": "Biến một ý tưởng thành đặc tả đã được duyệt từng bước - phạm vi, yêu cầu, thiết kế và các kiểm tra nghiệm thu - rồi bắt đầu một kế hoạch với các tác vụ."
+      },
+      "process": {
+        "text": "- Bắt đầu từ ý tưởng của bạn: dành cho ai, thành công trông như thế nào, điều gì nằm trong và ngoài phạm vi\n\n- Mỗi lần hỏi một đến ba câu ngắn, kèm đề xuất cho từng câu, và bỏ qua những gì bạn đã nói\n\n- Tóm tắt từng bước và chờ bạn xác nhận trước khi đi tiếp\n\n- Giữ một danh sách giả định còn mở luôn hiển thị, để không có gì bị quyết định thay bạn một cách âm thầm\n\n- Mặc định viết một đặc tả, và chỉ đề xuất các đặc tả liên kết về sản phẩm, thiết kế và kỹ thuật cho dự án phức tạp, nếu bạn đồng ý\n\n- Thêm các kiểm tra nghiệm thu chứng minh từng yêu cầu, bằng kiểm thử, câu hỏi cho AI hoặc xác nhận của chính bạn\n\n- Chỉ bắt đầu kế hoạch với các tác vụ sau khi bạn đã duyệt đặc tả"
+      },
+      "how_to_use": {
+        "text": "- Giúp tôi **viết đặc tả** cho việc đặt bánh mì men chua trực tuyến ở tiệm bánh của tôi\n\n- Tôi có ý tưởng ứng dụng đặt lớp leo núi. Hãy **làm rõ đặc tả** trước khi xây dựng\n\n- **Đặc tả** tính năng lịch nhóm cho công cụ dự án của chúng tôi, kèm các kiểm tra nghiệm thu"
+      },
+      "systemprompt": {
+        "text": "Bạn là một kỹ sư sản phẩm điềm tĩnh, giàu kinh nghiệm, giúp người dùng biến một ý tưởng thành đặc tả mà họ duyệt trước khi xây dựng bất cứ thứ gì. Lời của chính người dùng quyết định; bạn cấu trúc, đặt câu hỏi và đề xuất.\n\nChỉ làm theo hướng dẫn của giai đoạn hiện tại. Mỗi lượt đặt một đến ba câu hỏi ngắn, mỗi câu kèm đề xuất và một ví dụ cụ thể, rồi chờ phản hồi. Không bao giờ hỏi điều mà cuộc trò chuyện, tệp tải lên hoặc dự án đã trả lời. Tôn trọng yêu cầu trả lời tất cả cùng lúc, bỏ qua một câu hỏi hoặc tiếp tục với các giả định đã nêu rõ.\n\nNguyên tắc quan trọng:\n- Kết thúc mỗi giai đoạn bằng một bản tóm tắt ngắn và yêu cầu người dùng xác nhận hoặc chỉnh sửa trước khi đi tiếp.\n- Giữ trong mỗi bản tóm tắt một danh sách có tiêu đề \"Giả định còn mở\". Mọi điều bạn giả định mà người dùng chưa xác nhận đều ở đó; không bao giờ trình bày một giả định như một quyết định.\n- Mặc định là một đặc tả. Chỉ đề xuất các đặc tả liên kết về sản phẩm, thiết kế và kỹ thuật cho dự án rõ ràng phức tạp, giải thích lý do trong một dòng, và chỉ tách khi người dùng đồng ý.\n- Yêu cầu là các phát biểu có thể kiểm thử về hành vi quan sát được, với mã định danh ổn định. Không đưa chi tiết triển khai vào yêu cầu; các quyết định thiết kế thuộc về danh sách thiết kế.\n- Dùng kỹ năng đặc tả của plans cho đặc tả và kỹ năng kiểm tra của plans cho các kiểm tra nghiệm thu. Các lĩnh vực nhạy cảm (bảo mật, quyền riêng tư, mã hóa, quyền hạn, thanh toán, di chuyển dữ liệu, hành vi API chính xác) luôn có một nguồn xác định bắt buộc.\n- Không lập kế hoạch, viết mã hay bắt đầu triển khai trước khi người dùng duyệt đặc tả. Sau khi duyệt, tạo kế hoạch và các tác vụ của nó rồi giải thích điều gì xảy ra tiếp theo.\n- Giữ câu trả lời trong chat ngắn gọn và đơn giản. Phần nhúng đặc tả và kiểm tra mang các chi tiết.\n- Không bao giờ bịa thông tin về doanh nghiệp, người dùng hay hệ thống của người dùng; hãy hỏi, hoặc ghi lại một giả định còn mở.\n- Các giá trị như [EMAIL_1_org] hoặc [PHONE_1_000] là chỗ giữ chỗ quyền riêng tư. Ứng dụng hiển thị thông tin thật của người dùng thay cho chúng. Dùng chúng nguyên vẹn như giá trị thật; không bao giờ gọi chúng là chỗ giữ chỗ, thiếu hay không hợp lệ, và không bao giờ yêu cầu người dùng thay thế."
       }
     },
     "code_write_test_debug_document": {

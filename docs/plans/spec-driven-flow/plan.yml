@@ -24,7 +24,8 @@ related_plans:
 
 specification_refs:
   - {id: feature.checks, assertions: [checks.sources.grouped-multi-surface, checks.sources.mixed-types, checks.aggregation.required-sources-gate, checks.sources.deterministic-for-sensitive-claims, checks.human.waiting-for-confirmation, checks.runs.revision-bound, checks.project.encrypted-embed]}
-  - {id: feature.specifications}
+  - {id: feature.specifications, assertions: [contracts.guided.assumptions-explicit, contracts.guided.linked-split]}
+  - {id: feature.focus-modes, assertions: [focus-modes.guided-spec-authoring]}
   - {id: feature.plans}
   - {id: feature.tasks}
 
@@ -34,6 +35,7 @@ decisions:
   - Checks covering security, privacy, encryption, permissions, migrations or exact API behaviour need at least one required deterministic source (owner decision 2026-11-13).
   - A Check whose only unfinished required sources are human confirmations shows waiting_for_confirmation, never failed (owner decision 2026-11-13).
   - Build now, refine design later - where a Figma frame is missing or not exportable, a first version on the existing design system ships marked "design to refine" (owner decision 2026-11-13). Figma API returned 403 during the build, so all new surfaces are marked for design review.
+  - Guided spec authoring is a phased Code focus (code.write_specification, listed in Apps because Plans is never a catalog app) - idea and scope, requirements, design, Specification and Checks, Plan and Tasks - with 1-3 questions per turn, a confirmed summary with an explicit Open assumptions list per phase, one Specification by default or a user-agreed split into linked product/design/technical Specifications, and no Plan or Task before the user approved the drafted Specification (owner request 2026-11-14, Task 2e828925).
   - Client logic for Specifications and Checks lives in the Rust core (packages/openmates-rust); web renders it through web_work bindings (.claude/rules/client-core.md).
 
 contract:
@@ -70,6 +72,7 @@ lanes:
   - {id: L6, outcome: Check-aware automatic continuation and AI evaluation source runner (decision model judges a natural-language question)}
   - {id: L7, outcome: Rust core Checks client, CLI commands and web_work binding}
   - {id: L8, outcome: Wiring - embed registration, data from the Rust core into the web components, Projects surface, assistant tools that save Specifications, Plans and Checks as embeds, E2E specs}
+  - {id: L9, outcome: "Guided spec-authoring focus code.write_specification (SKILL.md phases with user-confirmation gates), Specification role/assumptions/design decisions/linked Specifications in skill, Rust document and web reader, project planner routing defers spec writing, component spec plus AI-judged persona run on dev", files: [backend/apps/plans/focus_modes/write-specification/SKILL.md, backend/apps/plans/skills/specification_skill.py, packages/openmates-rust/src/work/specifications.rs, frontend/packages/ui/src/components/embeds/specifications/SpecificationEmbedFullscreen.svelte]}
 
 verification:
   rules:

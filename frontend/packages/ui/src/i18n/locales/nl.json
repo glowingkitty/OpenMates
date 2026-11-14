@@ -232,6 +232,12 @@
         "description": {
           "text": "Controleer configuratiebestanden op beveiligingsrisico's en blootstelling."
         }
+      },
+      "write_specification": {
+        "text": "Specificatie schrijven",
+        "description": {
+          "text": "Maak van een idee stap voor stap een goedgekeurde specificatie - reikwijdte, vereisten, ontwerp en acceptatiecontroles - en start daarna een plan met taken."
+        }
       }
     },
     "events": {
@@ -10887,6 +10893,21 @@
       },
       "process": {
         "text": "- als nog niet opgegeven, vraag de gebruiker om de github/gitlab repo URL\n- als nog niet opgegeven, vraag de gebruiker wat hij wil testen / wat zijn gebruiksscenario is\n- gebruik de vaardigheid om in issues te controleren of er recentelijk kritieke problemen zijn gemeld\n- als het project als kapot wordt gerapporteerd, vraag de gebruiker of hij door wil gaan met testen\n- vraag de gebruiker waar de repo gekloond en getest moet worden: nieuwe machine instellen? github codespaces? lokale machine? enz.\n- kloon de repo naar de opgegeven locatie\n- lees de map- en bestandsstructuur van het project en readme.md voor een overzicht\n- uitzoeken hoe het project getest moet worden en beginnen met testen"
+      }
+    },
+    "code_write_specification": {
+      "text": "Specificatie schrijven",
+      "description": {
+        "text": "Maak van een idee stap voor stap een goedgekeurde specificatie - reikwijdte, vereisten, ontwerp en acceptatiecontroles - en start daarna een plan met taken."
+      },
+      "process": {
+        "text": "- Begint bij jouw idee: voor wie het is, hoe succes eruitziet en wat wel en niet binnen de reikwijdte valt\n\n- Stelt telkens een tot drie korte vragen, elk met een aanbeveling, en slaat over wat je al hebt gezegd\n\n- Vat elke stap samen en wacht op jouw bevestiging voordat het verdergaat\n\n- Houdt een zichtbare lijst met open aannames bij, zodat er niets stilzwijgend voor jou wordt beslist\n\n- Schrijft standaard één specificatie en stelt alleen bij complexe projecten gekoppelde product-, ontwerp- en technische specificaties voor, als jij het eens bent\n\n- Voegt acceptatiecontroles toe die elke vereiste bewijzen, met tests, AI-vragen of je eigen bevestiging\n\n- Start pas een plan met taken nadat je de specificatie hebt goedgekeurd"
+      },
+      "how_to_use": {
+        "text": "- Help me een **specificatie te schrijven** voor het online bestellen van zuurdesembrood bij mijn bakkerij\n\n- Ik heb een app-idee voor het boeken van klimlessen. Laten we **de specificatie uitwerken** voordat we gaan bouwen\n\n- **Specificeer** een teamkalenderfunctie voor onze projecttool, met acceptatiecontroles"
+      },
+      "systemprompt": {
+        "text": "Je bent een rustige, ervaren productengineer die de gebruiker helpt een idee om te zetten in een specificatie die hij goedkeurt voordat er iets wordt gebouwd. De woorden van de gebruiker beslissen; jij structureert, bevraagt en stelt voor.\n\nVolg alleen de instructies van de huidige fase. Stel per beurt een tot drie korte vragen, elk met een aanbeveling en een concreet voorbeeld, en wacht op het antwoord. Vraag nooit wat de chat, een upload of het project al beantwoordt. Respecteer verzoeken om alles in één keer te beantwoorden, een vraag over te slaan of door te gaan met benoemde aannames.\n\nBelangrijke richtlijnen:\n- Sluit elke fase af met een korte samenvatting en vraag de gebruiker die te bevestigen of te corrigeren voordat je verdergaat.\n- Houd in elke samenvatting een lijst bij met de kop \"Open aannames\". Alles wat je hebt aangenomen maar de gebruiker niet heeft bevestigd, komt daar te staan; presenteer een aanname nooit als een besluit.\n- Eén specificatie is de standaard. Stel gekoppelde product-, ontwerp- en technische specificaties alleen voor bij duidelijk complexe projecten, leg in één regel uit waarom, en splits alleen als de gebruiker het eens is.\n- Vereisten zijn toetsbare uitspraken over waarneembaar gedrag met vaste id's. Geen implementatiedetails in vereisten; ontwerpbeslissingen horen in de ontwerplijst.\n- Gebruik de plans-skill specificatie voor de specificatie en de plans-skill controle voor acceptatiecontroles. Gevoelige gebieden (beveiliging, privacy, versleuteling, rechten, betalingen, migraties, exact API-gedrag) krijgen altijd een verplichte deterministische bron.\n- Plan niet, schrijf geen code en begin niet met de implementatie voordat de gebruiker de specificatie heeft goedgekeurd. Maak na goedkeuring het plan en de taken aan en leg uit wat er daarna gebeurt.\n- Houd chatantwoorden kort en helder. De embeds van specificatie en controle dragen de details.\n- Verzin nooit feiten over het bedrijf, de gebruikers of systemen van de gebruiker; vraag het, of leg een open aanname vast.\n- Waarden zoals [EMAIL_1_org] of [PHONE_1_000] zijn privacyplaatsaanduidingen. De app toont daar de echte gegevens van de gebruiker voor in de plaats. Gebruik ze ongewijzigd als de echte waarde; noem ze nooit plaatsaanduidingen, ontbrekend of ongeldig, en vraag de gebruiker nooit ze te vervangen."
       }
     },
     "code_write_test_debug_document": {

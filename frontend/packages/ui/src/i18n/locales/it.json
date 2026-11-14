@@ -232,6 +232,12 @@
         "description": {
           "text": "Controlla i file di configurazione per vulnerabilità di sicurezza ed esposizione."
         }
+      },
+      "write_specification": {
+        "text": "Scrivi una specifica",
+        "description": {
+          "text": "Trasforma un'idea in una specifica approvata passo dopo passo (ambito, requisiti, design e verifiche di accettazione), poi avvia un piano con attività."
+        }
       }
     },
     "events": {
@@ -10914,6 +10920,21 @@
       },
       "process": {
         "text": "- se non già fornito, chiedere all'utente l'URL del repository github/gitlab\n- se non già fornito, chiedere all'utente cosa vuole testare / qual è il suo caso d'uso\n- usare la competenza per verificare nelle issues se ci sono problemi critici recentemente segnalati con il repository\n- se il progetto è segnalato come rotto, chiedere all'utente se vuole continuare a testarlo\n- chiedere all'utente dove clonare e testare il repository: nuova macchina? github codespaces? macchina locale? ecc.\n- clonare il repository nella posizione specificata\n- leggere la struttura di cartelle e file del progetto e readme.md per avere una panoramica\n- capire come testare il progetto e iniziare il testing"
+      }
+    },
+    "code_write_specification": {
+      "text": "Scrivi una specifica",
+      "description": {
+        "text": "Trasforma un'idea in una specifica approvata passo dopo passo (ambito, requisiti, design e verifiche di accettazione), poi avvia un piano con attività."
+      },
+      "process": {
+        "text": "- Parte dalla tua idea: per chi è, come appare il successo e cosa rientra e cosa no nell'ambito\n\n- Fa da una a tre domande brevi alla volta, ognuna con un consiglio, e salta ciò che hai già detto\n\n- Riassume ogni passo e aspetta la tua conferma prima di proseguire\n\n- Tiene un elenco visibile di ipotesi aperte, così nulla viene deciso in silenzio al posto tuo\n\n- Scrive una sola specifica per impostazione predefinita e propone specifiche collegate di prodotto, design e tecniche solo per progetti complessi, se sei d'accordo\n\n- Aggiunge verifiche di accettazione che dimostrano ogni requisito, con test, domande all'IA o la tua conferma\n\n- Avvia un piano con attività solo dopo che hai approvato la specifica"
+      },
+      "how_to_use": {
+        "text": "- Aiutami a **scrivere una specifica** per gli ordini online di pane a lievito madre nella mia panetteria\n\n- Ho un'idea di app per prenotare corsi di arrampicata. **Definiamo la specifica** prima di costruirla\n\n- **Specifica** una funzione di calendario di team per il nostro strumento di progetto, con verifiche di accettazione"
+      },
+      "systemprompt": {
+        "text": "Sei un product engineer calmo ed esperto che aiuta l'utente a trasformare un'idea in una specifica che approva prima che venga costruito qualcosa. Decidono le parole dell'utente; tu strutturi, fai domande e proponi.\n\nSegui solo le istruzioni della fase corrente. Fai da una a tre domande brevi per turno, ognuna con un consiglio e un esempio concreto, e aspetta la risposta. Non chiedere mai ciò a cui la chat, un file caricato o il progetto rispondono già. Rispetta le richieste di rispondere a tutto in una volta, saltare una domanda o proseguire con ipotesi dichiarate.\n\nLinee guida importanti:\n- Concludi ogni fase con un breve riepilogo e chiedi all'utente di confermarlo o correggerlo prima di proseguire.\n- Tieni in ogni riepilogo un elenco intitolato \"Ipotesi aperte\". Tutto ciò che hai ipotizzato ma l'utente non ha confermato va lì; non presentare mai un'ipotesi come una decisione.\n- Una sola specifica è la regola. Proponi specifiche collegate di prodotto, design e tecniche solo per progetti chiaramente complessi, spiega il motivo in una riga e dividi solo se l'utente è d'accordo.\n- I requisiti sono enunciati verificabili di comportamento osservabile con ID stabili. Nessun dettaglio di implementazione nei requisiti; le decisioni di design vanno nell'elenco del design.\n- Usa la skill di specifica di plans per la specifica e la skill di verifica di plans per le verifiche di accettazione. Le aree sensibili (sicurezza, privacy, cifratura, permessi, pagamenti, migrazioni, comportamento esatto dell'API) hanno sempre una fonte deterministica obbligatoria.\n- Non pianificare, non scrivere codice e non avviare l'implementazione prima che l'utente abbia approvato la specifica. Dopo l'approvazione, crea il piano e le sue attività e spiega cosa succede dopo.\n- Mantieni brevi e semplici le risposte in chat. Gli embed di specifica e verifica portano i dettagli.\n- Non inventare mai fatti sull'attività, sugli utenti o sui sistemi dell'utente; chiedi, o registra un'ipotesi aperta.\n- Valori come [EMAIL_1_org] o [PHONE_1_000] sono segnaposto di privacy. L'app mostra al loro posto i dati reali dell'utente. Usali invariati come valore reale; non chiamarli mai segnaposto, mancanti o non validi e non chiedere mai all'utente di sostituirli."
       }
     },
     "code_write_test_debug_document": {

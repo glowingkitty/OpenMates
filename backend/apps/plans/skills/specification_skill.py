@@ -18,6 +18,10 @@ from backend.apps.base_skill import BaseSkill
 logger = logging.getLogger(__name__)
 
 FLOW_KINDS = frozenset({"user_flow", "edge_case"})
+# A guided spec-authoring run proposes one Specification by default; complex
+# projects may split into linked product, design and technical Specifications.
+SPEC_ROLES = frozenset({"product", "design", "technical"})
+MAX_LIST_ITEMS = 40
 
 
 class SpecificationValidationError(ValueError):
@@ -34,6 +38,10 @@ class SpecificationResponse(BaseModel):
     scope: dict[str, list[str]] = Field(default_factory=lambda: {"included": [], "excluded": []})
     requirements: list[dict[str, Any]] = Field(default_factory=list)
     flows: list[dict[str, Any]] = Field(default_factory=list)
+    role: str = ""
+    assumptions: list[str] = Field(default_factory=list)
+    design_decisions: list[str] = Field(default_factory=list)
+    related_specifications: list[dict[str, str]] = Field(default_factory=list)
     chat_id: str | None = None
     error: str | None = None
 
@@ -45,6 +53,37 @@ def _text_list(values: Any, label: str) -> list[str]:
         raise SpecificationValidationError(f"{label} must be a list")
     return [str(v).strip() for v in values if str(v).strip()]
 
+
+def _bounded_text_list(values: Any, label: str) -> list[str]:
+    items = _text_list(values, label)
+    if len(items) > MAX_LIST_ITEMS:
+        raise SpecificationValidationError(f"{label} allows at most {MAX_LIST_ITEMS} entries")
+    return items
+
+def _role(value: Any, label: str) -> str:
+    role = str(value or "").strip().lower()
+    if role and role not in SPEC_ROLES:
+        raise SpecificationValidationError(f"{label} must be product, design or technical")
+    return role
+
+def _related(items: Any) -> list[dict[str, str]]:
+    if items is None:
+        return []
+    if not isinstance(items, list):
+        raise SpecificationValidationError("related_specifications must be a list")
+    result: list[dict[str, str]] = []
+    for item in items[:MAX_LIST_ITEMS]:
+        if not isinstance(item, dict):
+            raise SpecificationValidationError("Every related Specification needs a title")
+        title = str(item.get("title") or "").strip()
+        if not title:
+            raise SpecificationValidationError("Every related Specification needs a title")
+        entry = {"title": title, "role": _role(item.get("role"), f"Related Specification {title} role")}
+        note = str(item.get("relation") or "").strip()
+        if note:
+            entry["relation"] = note
+        result.append(entry)
+    return result
 
 def _requirements(items: Any) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
@@ -101,6 +140,10 @@ class SpecificationSkill(BaseSkill):
         scope_excluded: list[str] | None = None,
         requirements: list[dict[str, Any]] | None = None,
         flows: list[dict[str, Any]] | None = None,
+        role: str | None = None,
+        assumptions: list[str] | None = None,
+        design_decisions: list[str] | None = None,
+        related_specifications: list[dict[str, Any]] | None = None,
         chat_id: str | None = None,
         **kwargs: Any,
     ) -> SpecificationResponse:
@@ -123,6 +166,10 @@ class SpecificationSkill(BaseSkill):
                 },
                 requirements=_requirements(requirements),
                 flows=_flows(flows),
+                role=_role(role, "role"),
+                assumptions=_bounded_text_list(assumptions, "assumptions"),
+                design_decisions=_bounded_text_list(design_decisions, "design_decisions"),
+                related_specifications=_related(related_specifications),
                 chat_id=chat_id,
             )
         except SpecificationValidationError as exc:

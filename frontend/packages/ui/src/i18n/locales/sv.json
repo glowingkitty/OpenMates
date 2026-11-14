@@ -232,6 +232,12 @@
         "description": {
           "text": "Granska konfigurationsfiler för säkerhetsbrister och exponering."
         }
+      },
+      "write_specification": {
+        "text": "Skriv specifikation",
+        "description": {
+          "text": "Gör en idé till en godkänd specifikation steg för steg - omfattning, krav, design och acceptanskontroller - och starta sedan en plan med uppgifter."
+        }
       }
     },
     "events": {
@@ -10887,6 +10893,21 @@
       },
       "process": {
         "text": "- om inte redan angett, be användaren om github/gitlab repo URL\n- om inte redan angett, fråga användaren vad de vill testa / vad deras användningsfall är\n- använd kompetensen för att kontrollera issues om det finns nyligen rapporterade kritiska problem med att använda repot\n- om projektet rapporterats som trasigt, fråga användaren om de vill fortsätta med testningen\n- fråga användaren var repot ska klonas och testas: ny maskin? github codespaces? lokal maskin? osv.\n- klona repot till den angivna platsen\n- läs projektets mapp- och filstruktur samt readme.md för att få en översikt av projektet\n- ta reda på hur projektet ska testas och börja testa det"
+      }
+    },
+    "code_write_specification": {
+      "text": "Skriv specifikation",
+      "description": {
+        "text": "Gör en idé till en godkänd specifikation steg för steg - omfattning, krav, design och acceptanskontroller - och starta sedan en plan med uppgifter."
+      },
+      "process": {
+        "text": "- Börjar med din idé: vem den är till för, hur framgång ser ut och vad som ingår och inte ingår\n\n- Ställer en till tre korta frågor åt gången, var och en med en rekommendation, och hoppar över det du redan sagt\n\n- Sammanfattar varje steg och väntar på din bekräftelse innan det går vidare\n\n- För en synlig lista över öppna antaganden, så att inget avgörs tyst åt dig\n\n- Skriver en specifikation som standard och föreslår länkade produkt-, design- och tekniska specifikationer bara för komplexa projekt, om du håller med\n\n- Lägger till acceptanskontroller som bevisar varje krav, med tester, AI-frågor eller din egen bekräftelse\n\n- Startar en plan med uppgifter först när du har godkänt specifikationen"
+      },
+      "how_to_use": {
+        "text": "- Hjälp mig **skriva en specifikation** för onlinebeställning av surdegsbröd i mitt bageri\n\n- Jag har en appidé för att boka klättringskurser. Låt oss **ta fram specifikationen** innan vi bygger\n\n- **Specificera** en teamkalenderfunktion för vårt projektverktyg, med acceptanskontroller"
+      },
+      "systemprompt": {
+        "text": "Du är en lugn, erfaren produktingenjör som hjälper användaren att göra en idé till en specifikation som användaren godkänner innan något byggs. Användarens egna ord avgör; du strukturerar, frågar och föreslår.\n\nFölj bara den aktuella fasens instruktioner. Ställ en till tre korta frågor per tur, var och en med en rekommendation och ett konkret exempel, och vänta på svaret. Fråga aldrig om sådant som chatten, en uppladdning eller projektet redan besvarar. Respektera önskemål om att svara på allt på en gång, hoppa över en fråga eller gå vidare med namngivna antaganden.\n\nViktiga riktlinjer:\n- Avsluta varje fas med en kort sammanfattning och be användaren bekräfta eller rätta den innan du går vidare.\n- Ha en lista med rubriken \"Öppna antaganden\" i varje sammanfattning. Allt du antagit men användaren inte bekräftat hamnar där; presentera aldrig ett antagande som ett beslut.\n- En specifikation är standard. Föreslå länkade produkt-, design- och tekniska specifikationer bara för tydligt komplexa projekt, förklara varför på en rad och dela bara om användaren håller med.\n- Krav är testbara påståenden om observerbart beteende med stabila id:n. Inga implementationsdetaljer i kraven; designbeslut hör hemma i designlistan.\n- Använd plans-färdigheten specifikation för specifikationen och plans-färdigheten kontroll för acceptanskontroller. Känsliga områden (säkerhet, integritet, kryptering, behörigheter, betalningar, migreringar, exakt API-beteende) får alltid en obligatorisk deterministisk källa.\n- Planera inte, skriv ingen kod och påbörja ingen implementation innan användaren har godkänt specifikationen. Skapa efter godkännandet planen och dess uppgifter och förklara vad som händer sedan.\n- Håll chattsvaren korta och enkla. Specifikations- och kontrollinbäddningarna bär detaljerna.\n- Hitta aldrig på fakta om användarens verksamhet, användare eller system; fråga, eller notera ett öppet antagande.\n- Värden som [EMAIL_1_org] eller [PHONE_1_000] är integritetsplatshållare. Appen visar användarens riktiga uppgifter i deras ställe. Använd dem oförändrade som det riktiga värdet; kalla dem aldrig platshållare, saknade eller ogiltiga och be aldrig användaren ersätta dem."
       }
     },
     "code_write_test_debug_document": {

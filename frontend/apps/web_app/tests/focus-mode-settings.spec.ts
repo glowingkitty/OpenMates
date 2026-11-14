@@ -114,7 +114,10 @@ async function navigateToApp(
 	await appCard.click();
 	await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible();
 	if (focusModes) {
-		await page.getByTestId('apps-tab-focus_modes').click();
+		// Focus modes live in the app's settings, opened from the app home's gear.
+		await page.getByTestId('apps-settings-open').click();
+		await expect(page.getByTestId('settings-menu')).toBeVisible();
+		await expect(page.getByTestId('settings-focus-cards-scroll')).toBeVisible({ timeout: 15000 });
 	}
 	logCheckpoint(`Opened ${appId} app ${focusModes ? 'focus modes' : 'overview'}.`);
 }
@@ -165,7 +168,7 @@ test('Career insights focus mode appears in Jobs app settings with name and desc
 	logCheckpoint('Looking for Career insights focus mode in Jobs app settings...');
 
 	// Find the AppStoreCard that contains "Career" text
-	const focusCard = page.getByTestId('app-store-card').filter({ hasText: /career/i });
+	const focusCard = page.getByTestId('settings-focus-cards-scroll').getByTestId('app-store-card').filter({ hasText: /career/i });
 	await expect(focusCard.first()).toBeVisible({ timeout: 10000 });
 	logCheckpoint('Found Career insights focus mode card.');
 	await takeStepScreenshot(page, 'career-insights-found');
@@ -258,7 +261,7 @@ test('Deep research focus mode omits retired public examples', async ({
 	await navigateToApp(page, 'web', logCheckpoint);
 	await takeStepScreenshot(page, 'web-app-opened');
 
-	const focusCard = page.getByTestId('app-store-card').filter({ hasText: /deep research/i });
+	const focusCard = page.getByTestId('settings-focus-cards-scroll').getByTestId('app-store-card').filter({ hasText: /deep research/i });
 	await expect(focusCard.first()).toBeVisible({ timeout: 10000 });
 	await focusCard.first().click();
 	await page.waitForTimeout(1000);
@@ -269,6 +272,34 @@ test('Deep research focus mode omits retired public examples', async ({
 	await expect(examplesSection).toHaveCount(0);
 	await assertNoMissingTranslations(page);
 	logCheckpoint('Deep research omits retired public examples without missing translations.');
+});
+
+// contract-test: direct surface=gui.web assertions=focus-modes.guided-spec-authoring,focus-modes.phases
+test('Code Write specification focus shows its five gated phases', async ({ page }: { page: any }) => {
+	setupPageListeners(page);
+	test.setTimeout(120000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	const logCheckpoint = createSignupLogger('SPEC_FOCUS_SETTINGS');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'spec-focus-settings' });
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await openSettingsPanel(page, logCheckpoint);
+	await navigateToAppStore(page, logCheckpoint);
+	await openAllAppsList(page, logCheckpoint);
+	await navigateToApp(page, 'code', logCheckpoint);
+	const focusCard = page.getByTestId('settings-focus-cards-scroll').getByTestId('app-store-card').filter({ hasText: /Write specification/i });
+	await expect(focusCard.first()).toBeVisible({ timeout: 10000 });
+	await takeStepScreenshot(page, 'write-specification-card');
+	await focusCard.first().click();
+	const phases = page.getByTestId('focus-mode-phases');
+	await expect(page.getByTestId('focus-mode-phase')).toHaveCount(5, { timeout: 10000 });
+	for (const title of ['Idea and scope', 'Requirements', 'Design', 'Specification and Checks', 'Plan and Tasks']) {
+		await expect(phases).toContainText(title);
+	}
+	await expect(phases).toContainText('Your confirmation is required');
+	await expect(page.locator(SELECTORS.focusProcessBullet).filter({ hasText: /open assumptions/i })).toHaveCount(1);
+	await expect(page.locator(SELECTORS.focusProcessBullet).filter({ hasText: /only after you approved the Specification/i })).toHaveCount(1);
+	await takeStepScreenshot(page, 'write-specification-phases');
+	await assertNoMissingTranslations(page);
 });
 
 // contract-test: direct surface=gui.web assertions=focus-modes.retired-welcome-and-suki

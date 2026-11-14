@@ -232,6 +232,12 @@
         "description": {
           "text": "Audit configuration files for security vulnerabilities and exposure."
         }
+      },
+      "write_specification": {
+        "text": "Write specification",
+        "description": {
+          "text": "Turn an idea into an approved Specification step by step - scope, requirements, design and acceptance Checks - then start a Plan with Tasks."
+        }
       }
     },
     "events": {
@@ -13177,6 +13183,21 @@
       },
       "process": {
         "text": "- if not provided already, ask user for the github/gitlab repo url\n- if not provided already, ask user what they want to test / what their usecase is\n- use skill to check in issues if there are any critital issues recently with using the repo reported\n- if project is reported to be broken, ask user if they want to continue with testing it\n- ask user where to clone and test the repo? setting up new machine? using github codespaces? local machine? etc.\n- clone the repo to the specified location\n- read project folder & file structure and readme.md to get an overview of the project\n- figure out how to test the project and start testing it"
+      }
+    },
+    "code_write_specification": {
+      "text": "Write specification",
+      "description": {
+        "text": "Turn an idea into an approved Specification step by step - scope, requirements, design and acceptance Checks - then start a Plan with Tasks."
+      },
+      "process": {
+        "text": "- Starts with your idea: who it is for, what success looks like, and what is in and out of scope\n\n- Asks one to three short questions at a time, each with a recommendation, and skips what you already said\n\n- Summarizes every step and waits for your confirmation before moving on\n\n- Keeps a visible list of open assumptions, so nothing is silently decided for you\n\n- Writes one Specification by default, and proposes linked product, design and technical Specifications only for complex projects, if you agree\n\n- Adds acceptance Checks that prove each requirement, with tests, AI questions or your own confirmation\n\n- Starts a Plan with Tasks only after you approved the Specification"
+      },
+      "how_to_use": {
+        "text": "- Help me **write a spec** for online sourdough ordering at my bakery\n\n- I have an app idea for booking climbing classes. Let's **work out the specification** before we build it\n\n- **Spec out** a team calendar feature for our project tool, with acceptance checks"
+      },
+      "systemprompt": {
+        "text": "You are a calm, experienced product engineer who helps the user turn an idea into a Specification they approve before anything is built. The user's own words decide; you structure, question and propose.\n\nFollow only the current phase's instructions. Ask one to three short questions per turn, each with a recommendation and a concrete example, and wait for the reply. Never ask what the chat, an upload or the Project already answers. Honor requests to answer everything at once, skip a question or move on with named assumptions.\n\nImportant guidelines:\n- End every phase with a short summary and ask the user to confirm or correct it before moving on.\n- Keep a list headed \"Open assumptions\" in every summary. Everything you assumed but the user did not confirm goes there; never present an assumption as a decision.\n- One Specification is the default. Propose linked product, design and technical Specifications only for clearly complex projects, explain why in one line, and split only when the user agrees.\n- Requirements are testable statements of observable behavior with stable ids. No implementation detail in requirements; design decisions go in the design list.\n- Use the plans specification skill for the Specification and the plans check skill for acceptance Checks. Sensitive areas (security, privacy, encryption, permissions, payments, migrations, exact API behavior) always get a required deterministic source.\n- Do not plan, write code or start implementation before the user approved the Specification. After approval, create the Plan and its Tasks and explain what happens next.\n- Keep chat answers short and plain. The Specification and Check embeds carry the details.\n- Never invent facts about the user's business, users or systems; ask, or record an open assumption.\n- Values such as [EMAIL_1_org] or [PHONE_1_000] are privacy placeholders. The app shows the user's real details in their place. Use them unchanged as the real value; never call them placeholders, missing or invalid, and never ask the user to replace them."
       }
     },
     "code_write_test_debug_document": {
@@ -27274,6 +27295,18 @@
       },
       "subtitle_no_project": {
         "text": "{category} · Specification"
+      },
+      "assumptions": {
+        "text": "Open assumptions"
+      },
+      "assumptions_hint": {
+        "text": "Not confirmed yet. Confirm or correct each one before the work starts."
+      },
+      "design_decisions": {
+        "text": "Design decisions"
+      },
+      "related": {
+        "text": "Linked Specifications"
       }
     },
     "revisions": {
@@ -27363,6 +27396,17 @@
       },
       "failed": {
         "text": "The Specification could not be saved to the Project. Nothing was saved."
+      }
+    },
+    "role": {
+      "product": {
+        "text": "Product Specification"
+      },
+      "design": {
+        "text": "Design Specification"
+      },
+      "technical": {
+        "text": "Technical Specification"
       }
     }
   },

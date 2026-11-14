@@ -41,6 +41,33 @@ async def test_specification_validation_errors(kwargs, message):
     assert not result.success and message in result.error
 
 
+# contract-test: supporting surface=rest_api assertions=contracts.guided.assumptions-explicit,contracts.guided.linked-split
+@pytest.mark.asyncio
+async def test_specification_carries_role_assumptions_design_and_links():
+    result = await _skill(SpecificationSkill).execute(
+        title="Bakery ordering - product", summary="Customers order loaves online.", role="Product",
+        assumptions=[" Pickup only, no delivery ", ""], design_decisions=["One-page order form"],
+        related_specifications=[{"title": "Bakery ordering - technical", "role": "technical", "relation": "implements payments"}],
+    )
+    assert result.success and result.role == "product"
+    assert result.assumptions == ["Pickup only, no delivery"] and result.design_decisions == ["One-page order form"]
+    assert result.related_specifications == [{"title": "Bakery ordering - technical", "role": "technical", "relation": "implements payments"}]
+
+
+# contract-test: supporting surface=rest_api assertions=contracts.guided.linked-split
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kwargs,message", [
+    ({"role": "marketing"}, "role must be"),
+    ({"related_specifications": [{"title": " "}]}, "needs a title"),
+    ({"related_specifications": [{"title": "x", "role": "legal"}]}, "role must be"),
+    ({"assumptions": "pickup only"}, "assumptions must be a list"),
+    ({"design_decisions": [f"d{i}" for i in range(41)]}, "at most 40"),
+])
+async def test_specification_guided_field_validation(kwargs, message):
+    result = await _skill(SpecificationSkill).execute(title="t", summary="s", **kwargs)
+    assert not result.success and message in result.error
+
+
 # contract-test: supporting surface=rest_api assertions=checks.sources.mixed-types,checks.definition.reusable-revisioned
 @pytest.mark.asyncio
 async def test_check_result_shape_mixed_sources():

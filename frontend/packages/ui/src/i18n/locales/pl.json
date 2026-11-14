@@ -232,6 +232,12 @@
         "description": {
           "text": "Przeprowadź audyt plików konfiguracyjnych pod kątem luk bezpieczeństwa i ekspozycji."
         }
+      },
+      "write_specification": {
+        "text": "Napisz specyfikację",
+        "description": {
+          "text": "Zamień pomysł w zatwierdzoną specyfikację krok po kroku - zakres, wymagania, projekt i testy akceptacyjne - a potem rozpocznij plan z zadaniami."
+        }
       }
     },
     "events": {
@@ -10887,6 +10893,21 @@
       },
       "process": {
         "text": "- jeśli nie podano, poprosić użytkownika o URL repozytorium github/gitlab\n- jeśli nie podano, zapytać użytkownika, co chce przetestować / jaki jest jego przypadek użycia\n- użyć umiejętności do sprawdzenia issues, czy były niedawno zgłoszone krytyczne problemy z użyciem repozytorium\n- jeśli projekt jest zgłoszony jako uszkodzony, zapytać użytkownika, czy chce kontynuować testowanie\n- zapytać użytkownika, gdzie sklonować i przetestować repo: nowa maszyna? github codespaces? maszyna lokalna? itp.\n- sklonować repo do wskazanego miejsca\n- przeczytać strukturę folderów i plików projektu oraz readme.md, aby uzyskać przegląd projektu\n- dowiedzieć się, jak przetestować projekt, i rozpocząć testowanie"
+      }
+    },
+    "code_write_specification": {
+      "text": "Napisz specyfikację",
+      "description": {
+        "text": "Zamień pomysł w zatwierdzoną specyfikację krok po kroku - zakres, wymagania, projekt i testy akceptacyjne - a potem rozpocznij plan z zadaniami."
+      },
+      "process": {
+        "text": "- Zaczyna od Twojego pomysłu: dla kogo jest, jak wygląda sukces oraz co wchodzi w zakres, a co nie\n\n- Zadaje od jednego do trzech krótkich pytań naraz, każde z rekomendacją, i pomija to, co już powiedziałeś\n\n- Podsumowuje każdy krok i czeka na Twoje potwierdzenie, zanim ruszy dalej\n\n- Prowadzi widoczną listę otwartych założeń, żeby nic nie było rozstrzygane za Ciebie po cichu\n\n- Domyślnie pisze jedną specyfikację, a powiązane specyfikacje produktową, projektową i techniczną proponuje tylko przy złożonych projektach, jeśli się zgodzisz\n\n- Dodaje sprawdzenia akceptacyjne, które dowodzą każdego wymagania, za pomocą testów, pytań do AI lub Twojego własnego potwierdzenia\n\n- Rozpoczyna plan z zadaniami dopiero po tym, jak zatwierdzisz specyfikację"
+      },
+      "how_to_use": {
+        "text": "- Pomóż mi **napisać specyfikację** zamawiania online chleba na zakwasie w mojej piekarni\n\n- Mam pomysł na aplikację do rezerwacji zajęć wspinaczkowych. **Dopracujmy specyfikację**, zanim zaczniemy budować\n\n- **Opisz w specyfikacji** funkcję kalendarza zespołu dla naszego narzędzia do projektów, ze sprawdzeniami akceptacyjnymi"
+      },
+      "systemprompt": {
+        "text": "Jesteś spokojnym, doświadczonym inżynierem produktu, który pomaga użytkownikowi zamienić pomysł w specyfikację, którą zatwierdzi, zanim cokolwiek powstanie. Decydują słowa użytkownika; ty porządkujesz, pytasz i proponujesz.\n\nPostępuj wyłącznie zgodnie z instrukcjami bieżącej fazy. Zadawaj od jednego do trzech krótkich pytań na turę, każde z rekomendacją i konkretnym przykładem, i czekaj na odpowiedź. Nigdy nie pytaj o to, na co odpowiada już czat, przesłany plik lub projekt. Szanuj prośby o odpowiedź na wszystko naraz, pominięcie pytania lub dalszą pracę z nazwanymi założeniami.\n\nWażne wytyczne:\n- Kończ każdą fazę krótkim podsumowaniem i poproś użytkownika o potwierdzenie lub poprawkę, zanim przejdziesz dalej.\n- W każdym podsumowaniu prowadź listę zatytułowaną \"Otwarte założenia\". Wszystko, co założyłeś, a użytkownik nie potwierdził, trafia tam; nigdy nie przedstawiaj założenia jako decyzji.\n- Domyślnie jedna specyfikacja. Powiązane specyfikacje produktową, projektową i techniczną proponuj tylko przy wyraźnie złożonych projektach, wyjaśnij powód w jednym wierszu i dziel tylko za zgodą użytkownika.\n- Wymagania to testowalne stwierdzenia o obserwowalnym zachowaniu ze stałymi identyfikatorami. Bez szczegółów implementacji w wymaganiach; decyzje projektowe trafiają na listę projektu.\n- Używaj umiejętności specyfikacji z plans do specyfikacji i umiejętności sprawdzenia z plans do sprawdzeń akceptacyjnych. Obszary wrażliwe (bezpieczeństwo, prywatność, szyfrowanie, uprawnienia, płatności, migracje, dokładne zachowanie API) zawsze dostają wymagane deterministyczne źródło.\n- Nie planuj, nie pisz kodu i nie zaczynaj implementacji, zanim użytkownik zatwierdzi specyfikację. Po zatwierdzeniu utwórz plan i jego zadania oraz wyjaśnij, co dzieje się dalej.\n- Odpowiedzi na czacie utrzymuj krótkie i proste. Szczegóły niosą osadzenia specyfikacji i sprawdzeń.\n- Nigdy nie zmyślaj faktów o firmie, użytkownikach ani systemach użytkownika; pytaj lub zapisz otwarte założenie.\n- Wartości takie jak [EMAIL_1_org] czy [PHONE_1_000] to symbole zastępcze prywatności. Aplikacja pokazuje w ich miejscu prawdziwe dane użytkownika. Używaj ich bez zmian jako prawdziwej wartości; nigdy nie nazywaj ich symbolami zastępczymi, brakującymi ani nieprawidłowymi i nigdy nie proś użytkownika o ich zastąpienie."
       }
     },
     "code_write_test_debug_document": {

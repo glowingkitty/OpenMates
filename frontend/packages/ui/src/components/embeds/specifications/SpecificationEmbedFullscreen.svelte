@@ -144,6 +144,7 @@
     {#snippet content()}
       <article class="spec-document" aria-label={`${document.title} Specification`}>
         <div class="document-intro">
+          {#if document.role}<span class="role-pill" data-testid="spec-role">{$text(`specifications.role.${document.role}`)}</span>{/if}
           <p class="summary">{document.summary}</p>
           {#if document.previewNotice}<p class="preview-notice">{document.previewNotice}</p>{/if}
         </div>
@@ -174,6 +175,32 @@
             <div><h3>Outside this scope</h3><ul>{#each document.scope.excluded as item}<li>{item}</li>{/each}</ul></div>
           </div>
         </section>
+
+        {#if document.assumptions?.length}
+          <section aria-labelledby="spec-assumptions" class="major-section" data-testid="spec-assumptions">
+            <h2 id="spec-assumptions">{@render icon('warning')}{$text('specifications.fullscreen.assumptions')}</h2>
+            <p class="chapter-introduction">{$text('specifications.fullscreen.assumptions_hint')}</p>
+            <ul class="plain-list">{#each document.assumptions as item}<li data-testid="spec-assumption">{item}</li>{/each}</ul>
+          </section>
+        {/if}
+
+        {#if document.designDecisions?.length}
+          <section aria-labelledby="spec-design" class="major-section" data-testid="spec-design-decisions">
+            <h2 id="spec-design">{@render icon('design')}{$text('specifications.fullscreen.design_decisions')}</h2>
+            <ul class="plain-list">{#each document.designDecisions as item}<li>{item}</li>{/each}</ul>
+          </section>
+        {/if}
+
+        {#if document.relatedSpecifications?.length}
+          <section aria-labelledby="spec-related" class="major-section" data-testid="spec-related">
+            <h2 id="spec-related">{@render icon('files')}{$text('specifications.fullscreen.related')}</h2>
+            <ul class="plain-list related-list">
+              {#each document.relatedSpecifications as link}
+                <li data-testid="spec-related-item"><strong>{link.title}</strong>{#if link.role}<span class="role-pill">{$text(`specifications.role.${link.role}`)}</span>{/if}{#if link.relation}<span class="relation">{link.relation}</span>{/if}</li>
+              {/each}
+            </ul>
+          </section>
+        {/if}
 
         {#each displayChapters as chapter (chapter.id)}
           {@const userFlows = flows(chapter.flowIds, 'user_flow')}
@@ -255,6 +282,11 @@
   .boundaries h3 { font-size: var(--font-size-small); margin: 4px 0 8px; }
   .boundaries ul { padding-left: 18px; margin: 0; color: var(--color-font-secondary); line-height: 1.6; font-size: var(--font-size-small); }
   .boundaries li + li { margin-top: 7px; }
+  .plain-list { padding: 0 8px 0 26px; margin: 0; color: var(--color-font-secondary); line-height: 1.6; font-size: var(--font-size-small); }
+  .plain-list li + li { margin-top: 7px; }
+  .related-list strong { color: var(--color-font-primary); font-weight: 600; }
+  .related-list .relation { display: block; }
+  .role-pill { display: inline-block; margin: 0 0 8px 8px; padding: 2px 10px; border-radius: 999px; font-size: var(--font-size-xs); font-weight: 600; background: var(--color-grey-20); color: var(--color-font-primary); }
   .subheading { display: flex; align-items: center; gap: 18px; font-size: var(--font-size-lg); margin: 34px 8px 18px; }
   .requirement { margin: 24px 8px; }
   .applicability { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: var(--font-size-xxs); margin: 0 0 11px 36px; }

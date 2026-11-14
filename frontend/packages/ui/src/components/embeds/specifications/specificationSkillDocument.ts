@@ -3,7 +3,7 @@
  * read-only SpecificationDocument the shared Specification components render.
  * Pure mapping, no I/O. Requirements carry no proof yet, so every one is 'open'.
  */
-import type { SpecificationDocument, SpecFlow, SpecRequirement } from './SpecificationDocument';
+import type { SpecificationDocument, SpecFlow, SpecRelated, SpecRequirement, SpecRole } from './SpecificationDocument';
 import type { SpecificationListItem } from './SpecificationRevision';
 
 const asText = (value: unknown): string => (typeof value === 'string' ? value : '');
@@ -11,6 +11,9 @@ const asList = (value: unknown): unknown[] => (Array.isArray(value) ? value : []
 const asStrings = (value: unknown): string[] => asList(value).filter((item): item is string => typeof item === 'string');
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+
+const ROLES: readonly SpecRole[] = ['product', 'design', 'technical'];
+const asRole = (value: unknown): '' | SpecRole => (ROLES.includes(value as SpecRole) ? (value as SpecRole) : '');
 
 export function specificationDocumentFromSkill(content: Record<string, unknown>): SpecificationDocument {
   const requirements: SpecRequirement[] = asList(content.requirements).map((raw, index) => {
@@ -32,6 +35,10 @@ export function specificationDocumentFromSkill(content: Record<string, unknown>)
       steps: asStrings(item.steps),
     };
   });
+  const relatedSpecifications: SpecRelated[] = asList(content.related_specifications)
+    .map(asRecord)
+    .filter((item) => asText(item.title))
+    .map((item) => ({ title: asText(item.title), role: asRole(item.role), relation: asText(item.relation) }));
   const scope = asRecord(content.scope);
   return {
     title: asText(content.title),
@@ -46,6 +53,10 @@ export function specificationDocumentFromSkill(content: Record<string, unknown>)
       flowIds: flows.map((item) => item.id), modelIds: [],
     }],
     requirements, flows, models: [],
+    role: asRole(content.role),
+    assumptions: asStrings(content.assumptions),
+    designDecisions: asStrings(content.design_decisions),
+    relatedSpecifications,
   };
 }
 

@@ -232,6 +232,12 @@
         "description": {
           "text": "Konfigurationsdateien auf Sicherheitslücken und Exposition überprüfen."
         }
+      },
+      "write_specification": {
+        "text": "Spezifikation schreiben",
+        "description": {
+          "text": "Mach aus einer Idee Schritt für Schritt eine freigegebene Spezifikation - Umfang, Anforderungen, Design und Abnahmeprüfungen - und starte dann einen Plan mit Aufgaben."
+        }
       }
     },
     "events": {
@@ -13061,6 +13067,21 @@
       },
       "process": {
         "text": "- falls noch nicht angegeben, den Nutzer nach der github/gitlab-Repo-URL fragen\n- falls noch nicht angegeben, den Nutzer fragen, was er testen möchte / was sein Anwendungsfall ist\n- Fähigkeit verwenden, um in Issues zu prüfen, ob kürzlich kritische Probleme mit dem Repo gemeldet wurden\n- wenn das Projekt als defekt gemeldet wurde, den Nutzer fragen, ob er mit dem Testen fortfahren möchte\n- den Nutzer fragen, wo das Repo geklont und getestet werden soll? Neue Maschine einrichten? GitHub Codespaces verwenden? Lokale Maschine? usw.\n- das Repo an den angegebenen Ort klonen\n- Ordner- und Dateistruktur des Projekts sowie readme.md lesen, um einen Überblick über das Projekt zu erhalten\n- herausfinden, wie das Projekt getestet werden soll, und mit dem Testen beginnen"
+      }
+    },
+    "code_write_specification": {
+      "text": "Spezifikation schreiben",
+      "description": {
+        "text": "Mach aus einer Idee Schritt für Schritt eine freigegebene Spezifikation - Umfang, Anforderungen, Design und Abnahmeprüfungen - und starte dann einen Plan mit Aufgaben."
+      },
+      "process": {
+        "text": "- Beginnt mit deiner Idee: für wen sie ist, woran sich Erfolg misst und was dazugehört und was nicht\n\n- Stellt jeweils ein bis drei kurze Fragen, jede mit einer Empfehlung, und überspringt, was du schon gesagt hast\n\n- Fasst jeden Schritt zusammen und wartet auf deine Bestätigung, bevor es weitergeht\n\n- Führt eine sichtbare Liste offener Annahmen, damit nichts stillschweigend für dich entschieden wird\n\n- Schreibt standardmäßig eine Spezifikation und schlägt verknüpfte Produkt-, Design- und Technik-Spezifikationen nur bei komplexen Projekten vor, wenn du zustimmst\n\n- Ergänzt Abnahmeprüfungen, die jede Anforderung belegen, mit Tests, KI-Fragen oder deiner eigenen Bestätigung\n\n- Startet einen Plan mit Aufgaben erst, nachdem du die Spezifikation freigegeben hast"
+      },
+      "how_to_use": {
+        "text": "- Hilf mir, eine **Spezifikation zu schreiben** für die Online-Bestellung von Sauerteigbrot in meiner Bäckerei\n\n- Ich habe eine App-Idee für die Buchung von Kletterkursen. Lass uns die **Spezifikation ausarbeiten**, bevor wir bauen\n\n- **Spezifiziere** eine Team-Kalender-Funktion für unser Projekt-Tool, mit Abnahmeprüfungen"
+      },
+      "systemprompt": {
+        "text": "Du bist ein ruhiger, erfahrener Product Engineer, der dem Nutzer hilft, aus einer Idee eine Spezifikation zu machen, die er freigibt, bevor irgendetwas gebaut wird. Die Worte des Nutzers entscheiden; du strukturierst, fragst nach und schlägst vor.\n\nFolge nur den Anweisungen der aktuellen Phase. Stelle pro Runde ein bis drei kurze Fragen, jede mit einer Empfehlung und einem konkreten Beispiel, und warte auf die Antwort. Frage nie nach etwas, das der Chat, ein Upload oder das Projekt schon beantwortet. Respektiere den Wunsch, alles auf einmal zu beantworten, eine Frage zu überspringen oder mit benannten Annahmen weiterzumachen.\n\nWichtige Richtlinien:\n- Beende jede Phase mit einer kurzen Zusammenfassung und bitte den Nutzer, sie zu bestätigen oder zu korrigieren, bevor es weitergeht.\n- Führe in jeder Zusammenfassung eine Liste mit der Überschrift \"Offene Annahmen\". Alles, was du angenommen hast, der Nutzer aber nicht bestätigt hat, gehört dorthin; stelle eine Annahme nie als Entscheidung dar.\n- Eine Spezifikation ist der Standard. Schlage verknüpfte Produkt-, Design- und Technik-Spezifikationen nur bei klar komplexen Projekten vor, erkläre in einer Zeile warum, und teile nur auf, wenn der Nutzer zustimmt.\n- Anforderungen sind prüfbare Aussagen über beobachtbares Verhalten mit stabilen IDs. Keine Implementierungsdetails in Anforderungen; Designentscheidungen gehören in die Design-Liste.\n- Nutze den Plans-Skill Spezifikation für die Spezifikation und den Plans-Skill Prüfung für Abnahmeprüfungen. Sensible Bereiche (Sicherheit, Datenschutz, Verschlüsselung, Berechtigungen, Zahlungen, Migrationen, exaktes API-Verhalten) bekommen immer eine erforderliche deterministische Quelle.\n- Plane nicht, schreibe keinen Code und beginne keine Umsetzung, bevor der Nutzer die Spezifikation freigegeben hat. Erstelle nach der Freigabe den Plan und seine Aufgaben und erkläre, wie es weitergeht.\n- Halte Chat-Antworten kurz und schlicht. Die Embeds für Spezifikation und Prüfung tragen die Details.\n- Erfinde nie Fakten über das Unternehmen, die Nutzer oder Systeme des Nutzers; frage nach oder halte eine offene Annahme fest.\n- Werte wie [EMAIL_1_org] oder [PHONE_1_000] sind Datenschutz-Platzhalter. Die App zeigt dem Nutzer an ihrer Stelle seine echten Angaben. Verwende sie unverändert als echten Wert; nenne sie nie Platzhalter, fehlend oder ungültig und bitte den Nutzer nie, sie zu ersetzen."
       }
     },
     "code_write_test_debug_document": {
@@ -26456,6 +26477,18 @@
       },
       "subtitle_no_project": {
         "text": "{category} · Spezifikation"
+      },
+      "assumptions": {
+        "text": "Offene Annahmen"
+      },
+      "assumptions_hint": {
+        "text": "Noch nicht bestätigt. Bestätige oder korrigiere jede Annahme, bevor die Arbeit beginnt."
+      },
+      "design_decisions": {
+        "text": "Designentscheidungen"
+      },
+      "related": {
+        "text": "Verknüpfte Spezifikationen"
       }
     },
     "revisions": {
@@ -26545,6 +26578,17 @@
       },
       "failed": {
         "text": "Die Spezifikation konnte nicht im Projekt gespeichert werden. Es wurde nichts gespeichert."
+      }
+    },
+    "role": {
+      "product": {
+        "text": "Produkt-Spezifikation"
+      },
+      "design": {
+        "text": "Design-Spezifikation"
+      },
+      "technical": {
+        "text": "Technische Spezifikation"
       }
     }
   },

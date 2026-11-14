@@ -132,6 +132,16 @@ assertions:
     is enforced.
   depends_on:
   - examples.phases
+- id: focus-modes.guided-spec-authoring
+  type: behavior
+  must: Code Write specification uses the shared phased lifecycle in the order idea and scope, requirements, design, Specification
+    and Checks, Plan and Tasks. Each turn asks at most three questions, each with a recommendation; each phase ends with a
+    summary that keeps an explicit Open assumptions list and advances only after the user confirms or corrects it. One Specification
+    is the default; linked product, design and technical Specifications are drafted only after the user agreed to a proposed
+    split. No Plan, Task or implementation starts before the user approved the drafted Specification and its acceptance Checks;
+    after approval the hand-off creates a Plan and chat-linked Tasks so automatic continuation can work through them.
+  depends_on:
+  - examples.guided_spec_authoring
 - id: focus-modes.learning.progress-and-suggestions
   type: behavior
   must: Study Learn topic and Test knowledge use the shared phased lifecycle with a brief goal intake, teaching or assessment,
@@ -253,6 +263,7 @@ examples:
   - specializations
   - retirement
   - learning_progress
+  - guided_spec_authoring
   - project_specialist
   - context_reselection
   - recommendation_catalog

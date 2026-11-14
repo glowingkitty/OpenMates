@@ -232,6 +232,12 @@
         "description": {
           "text": "Audite archivos de configuración para detectar vulnerabilidades y exposición de seguridad."
         }
+      },
+      "write_specification": {
+        "text": "Redactar especificación",
+        "description": {
+          "text": "Convierte una idea en una especificación aprobada paso a paso (alcance, requisitos, diseño y comprobaciones de aceptación) y empieza después un plan con tareas."
+        }
       }
     },
     "events": {
@@ -10914,6 +10920,21 @@
       },
       "process": {
         "text": "- si no se proporcionó, pedir al usuario la URL del repositorio github/gitlab\n- si no se proporcionó, preguntar al usuario qué quiere probar / cuál es su caso de uso\n- usar la habilidad para revisar issues si hay problemas críticos reportados recientemente con el repositorio\n- si el proyecto está reportado como roto, preguntar si el usuario quiere continuar con las pruebas\n- preguntar al usuario dónde clonar y probar el repositorio ¿nueva máquina? ¿github codespaces? ¿máquina local? etc.\n- clonar el repositorio en la ubicación especificada\n- leer la estructura de carpetas y archivos del proyecto y readme.md para obtener una visión general\n- descubrir cómo probar el proyecto y comenzar a probarlo"
+      }
+    },
+    "code_write_specification": {
+      "text": "Redactar especificación",
+      "description": {
+        "text": "Convierte una idea en una especificación aprobada paso a paso (alcance, requisitos, diseño y comprobaciones de aceptación) y empieza después un plan con tareas."
+      },
+      "process": {
+        "text": "- Parte de tu idea: para quién es, qué aspecto tiene el éxito y qué entra y qué no entra en el alcance\n\n- Hace de una a tres preguntas breves cada vez, cada una con una recomendación, y se salta lo que ya dijiste\n\n- Resume cada paso y espera tu confirmación antes de continuar\n\n- Mantiene una lista visible de supuestos abiertos, para que nada se decida en silencio por ti\n\n- Redacta una especificación por defecto y propone especificaciones vinculadas de producto, diseño y técnica solo en proyectos complejos, si estás de acuerdo\n\n- Añade comprobaciones de aceptación que demuestran cada requisito, con pruebas, preguntas a la IA o tu propia confirmación\n\n- Inicia un plan con tareas solo después de que hayas aprobado la especificación"
+      },
+      "how_to_use": {
+        "text": "- Ayúdame a **redactar una especificación** para los pedidos online de pan de masa madre en mi panadería\n\n- Tengo una idea de app para reservar clases de escalada. **Definamos la especificación** antes de construirla\n\n- **Especifica** una función de calendario de equipo para nuestra herramienta de proyectos, con comprobaciones de aceptación"
+      },
+      "systemprompt": {
+        "text": "Eres un ingeniero de producto sereno y con experiencia que ayuda al usuario a convertir una idea en una especificación que él aprueba antes de construir nada. Deciden las palabras del usuario; tú estructuras, preguntas y propones.\n\nSigue solo las instrucciones de la fase actual. Haz de una a tres preguntas breves por turno, cada una con una recomendación y un ejemplo concreto, y espera la respuesta. No preguntes nunca lo que el chat, un archivo subido o el proyecto ya responden. Respeta que el usuario quiera responder todo a la vez, saltarse una pregunta o seguir con supuestos señalados.\n\nPautas importantes:\n- Termina cada fase con un resumen breve y pide al usuario que lo confirme o lo corrija antes de continuar.\n- Incluye en cada resumen una lista titulada \"Supuestos abiertos\". Todo lo que hayas supuesto y el usuario no haya confirmado va ahí; nunca presentes un supuesto como una decisión.\n- Una sola especificación es lo habitual. Propón especificaciones vinculadas de producto, diseño y técnica solo para proyectos claramente complejos, explica el motivo en una línea y divide solo si el usuario está de acuerdo.\n- Los requisitos son enunciados comprobables de comportamiento observable con identificadores estables. Sin detalles de implementación en los requisitos; las decisiones de diseño van en la lista de diseño.\n- Usa la skill de especificación de plans para la especificación y la skill de comprobación de plans para las comprobaciones de aceptación. Las áreas sensibles (seguridad, privacidad, cifrado, permisos, pagos, migraciones, comportamiento exacto de la API) siempre llevan una fuente determinista obligatoria.\n- No planifiques, no escribas código ni empieces la implementación antes de que el usuario apruebe la especificación. Tras la aprobación, crea el plan y sus tareas y explica qué ocurre a continuación.\n- Mantén las respuestas del chat breves y sencillas. Los embeds de especificación y comprobación llevan los detalles.\n- Nunca inventes hechos sobre el negocio, los usuarios o los sistemas del usuario; pregunta o anota un supuesto abierto.\n- Valores como [EMAIL_1_org] o [PHONE_1_000] son marcadores de privacidad. La app muestra en su lugar los datos reales del usuario. Úsalos sin cambios como el valor real; nunca los llames marcadores, ausentes o no válidos, y nunca pidas al usuario que los sustituya."
       }
     },
     "code_write_test_debug_document": {

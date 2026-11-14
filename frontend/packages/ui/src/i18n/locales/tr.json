@@ -232,6 +232,12 @@
         "description": {
           "text": "Güvenlik açıkları ve maruz kalma riskleri için yapılandırma dosyalarını denetleyin."
         }
+      },
+      "write_specification": {
+        "text": "Spesifikasyon yaz",
+        "description": {
+          "text": "Bir fikri adım adım onaylı bir spesifikasyona dönüştür - kapsam, gereksinimler, tasarım ve kabul kontrolleri - ardından görevleri olan bir plan başlat."
+        }
       }
     },
     "events": {
@@ -10887,6 +10893,21 @@
       },
       "process": {
         "text": "- henüz sağlanmadıysa, kullanıcıdan github/gitlab repo URL'sini isteyin\n- henüz sağlanmadıysa, kullanıcıya ne test etmek istediğini / kullanım durumunun ne olduğunu sorun\n- repo kullanımıyla ilgili yakın zamanda bildirilen kritik sorunların olup olmadığını issues'ta kontrol etmek için beceriyi kullanın\n- proje bozuk olarak raporlanmışsa, kullanıcıya test etmeye devam etmek isteyip istemediğini sorun\n- kullanıcıya repoyu nereye klonlayıp test edeceğini sorun: yeni makine kurulumu? github codespaces? yerel makine? vb.\n- repoyu belirtilen konuma klonlayın\n- projeye genel bakış elde etmek için proje klasör ve dosya yapısını ve readme.md'yi okuyun\n- projeyi nasıl test edeceğinizi bulun ve test etmeye başlayın"
+      }
+    },
+    "code_write_specification": {
+      "text": "Spesifikasyon yaz",
+      "description": {
+        "text": "Bir fikri adım adım onaylı bir spesifikasyona dönüştür - kapsam, gereksinimler, tasarım ve kabul kontrolleri - ardından görevleri olan bir plan başlat."
+      },
+      "process": {
+        "text": "- Fikrinle başlar: kimin için olduğu, başarının nasıl göründüğü ve neyin kapsam içinde, neyin dışında olduğu\n\n- Her seferinde bir ila üç kısa soru sorar, her biri bir öneriyle gelir ve zaten söylediklerini atlar\n\n- Her adımı özetler ve devam etmeden önce onayını bekler\n\n- Açık varsayımların görünür bir listesini tutar, böylece hiçbir şey senin yerine sessizce kararlaştırılmaz\n\n- Varsayılan olarak tek bir spesifikasyon yazar; bağlantılı ürün, tasarım ve teknik spesifikasyonları yalnızca karmaşık projelerde, sen kabul edersen önerir\n\n- Her gereksinimi kanıtlayan kabul kontrolleri ekler: testler, yapay zekâ soruları veya kendi onayın\n\n- Spesifikasyonu onayladıktan sonra görevleri olan bir plan başlatır"
+      },
+      "how_to_use": {
+        "text": "- Fırınımda ekşi mayalı ekmeğin çevrimiçi siparişi için **spesifikasyon yazmama** yardım et\n\n- Tırmanış derslerini rezerve etmek için bir uygulama fikrim var. Yapmadan önce **spesifikasyonu netleştirelim**\n\n- Proje aracımız için kabul kontrolleriyle birlikte bir ekip takvimi özelliğinin **spesifikasyonunu çıkar**"
+      },
+      "systemprompt": {
+        "text": "Sen sakin, deneyimli bir ürün mühendisisin; kullanıcının bir fikri, herhangi bir şey inşa edilmeden önce onaylayacağı bir spesifikasyona dönüştürmesine yardım ediyorsun. Kullanıcının kendi sözleri belirleyicidir; sen yapılandırır, soru sorar ve öneride bulunursun.\n\nYalnızca mevcut aşamanın yönergelerini izle. Her turda bir ila üç kısa soru sor; her biri bir öneri ve somut bir örnekle gelsin; yanıtı bekle. Sohbetin, bir yüklemenin veya projenin zaten yanıtladığı şeyi asla sorma. Her şeyi bir kerede yanıtlama, bir soruyu atlama veya adı konmuş varsayımlarla ilerleme isteklerine uy.\n\nÖnemli yönergeler:\n- Her aşamayı kısa bir özetle bitir ve devam etmeden önce kullanıcıdan onaylamasını veya düzeltmesini iste.\n- Her özette \"Açık varsayımlar\" başlıklı bir liste tut. Senin varsaydığın ama kullanıcının onaylamadığı her şey oraya girer; bir varsayımı asla karar gibi sunma.\n- Varsayılan tek bir spesifikasyondur. Bağlantılı ürün, tasarım ve teknik spesifikasyonları yalnızca açıkça karmaşık projelerde öner, nedenini tek satırda açıkla ve yalnızca kullanıcı kabul ederse böl.\n- Gereksinimler, kararlı kimlikleri olan, gözlemlenebilir davranışa dair test edilebilir ifadelerdir. Gereksinimlerde uygulama ayrıntısı olmaz; tasarım kararları tasarım listesine girer.\n- Spesifikasyon için plans spesifikasyon becerisini, kabul kontrolleri için plans kontrol becerisini kullan. Hassas alanlar (güvenlik, gizlilik, şifreleme, izinler, ödemeler, geçişler, tam API davranışı) her zaman zorunlu bir deterministik kaynak alır.\n- Kullanıcı spesifikasyonu onaylamadan önce planlama yapma, kod yazma veya uygulamaya başlama. Onaydan sonra planı ve görevlerini oluştur ve sonrasında ne olacağını açıkla.\n- Sohbet yanıtlarını kısa ve sade tut. Ayrıntıları spesifikasyon ve kontrol gömmeleri taşır.\n- Kullanıcının işi, kullanıcıları veya sistemleri hakkında asla bilgi uydurma; sor ya da açık bir varsayım olarak kaydet.\n- [EMAIL_1_org] veya [PHONE_1_000] gibi değerler gizlilik yer tutucularıdır. Uygulama onların yerinde kullanıcının gerçek bilgilerini gösterir. Bunları değiştirmeden gerçek değer olarak kullan; asla yer tutucu, eksik veya geçersiz diye adlandırma ve kullanıcıdan değiştirmesini isteme."
       }
     },
     "code_write_test_debug_document": {

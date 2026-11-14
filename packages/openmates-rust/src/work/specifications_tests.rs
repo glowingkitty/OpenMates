@@ -45,6 +45,33 @@ fn validation_refuses_unresolved_references_and_bad_kinds() {
 }
 
 #[test]
+fn guided_fields_round_trip_and_roles_are_checked() {
+    let mut doc = document();
+    doc.role = "product".into();
+    doc.assumptions = vec!["Pickup only".into()];
+    doc.design_decisions = vec!["One-page order form".into()];
+    doc.related_specifications = vec![SpecRelated {
+        title: "Ordering - technical".into(),
+        role: "technical".into(),
+        relation: "implements payments".into(),
+    }];
+    assert!(doc.validate().is_ok());
+    let text = serde_json::to_value(&doc).unwrap();
+    assert_eq!(text["designDecisions"][0], "One-page order form");
+    assert_eq!(text["relatedSpecifications"][0]["role"], "technical");
+    let back: SpecificationDocument = serde_json::from_value(text).unwrap();
+    assert_eq!(back, doc);
+    let plain = serde_json::to_value(document()).unwrap();
+    assert!(plain.get("assumptions").is_none() && plain.get("role").is_none());
+    let mut bad = doc.clone();
+    bad.role = "marketing".into();
+    assert!(bad.validate().is_err());
+    let mut bad = doc;
+    bad.related_specifications[0].title = " ".into();
+    assert!(bad.validate().is_err());
+}
+
+#[test]
 fn revision_body_round_trips_and_binds_the_plaintext_hash() {
     let key = crypto::random_key();
     let input = SpecificationInput {

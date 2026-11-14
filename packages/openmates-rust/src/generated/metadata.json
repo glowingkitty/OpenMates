@@ -7254,6 +7254,57 @@
               "kind"
             ]
           }
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "product",
+            "design",
+            "technical"
+          ],
+          "description": "Only when the user agreed to split a complex project into linked Specifications - this Specification's role. Omit for a single Specification."
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Open assumptions the user has not confirmed yet, each stated plainly so it can be confirmed or corrected."
+        },
+        "design_decisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Agreed design decisions (screens, layout, interaction, data or architecture choices) the requirements rely on."
+        },
+        "related_specifications": {
+          "type": "array",
+          "description": "Other Specifications of the same project this one links to, when the user agreed to a split.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "product",
+                  "design",
+                  "technical"
+                ]
+              },
+              "relation": {
+                "type": "string",
+                "description": "How the two Specifications relate",
+                "in a few words.": null
+              }
+            },
+            "required": [
+              "title"
+            ]
+          }
         }
       },
       "required": [

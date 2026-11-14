@@ -43,7 +43,10 @@ relationships:
     Keep related capability behavior, including its UI flows, in one primary
     Specification. Link a sub-Specification only when the behavior is reused by multiple
     capabilities, has an independent lifecycle or approval boundary, or would
-    otherwise make ownership materially ambiguous.
+    otherwise make ownership materially ambiguous. Guided authoring follows the
+    same rule: one Specification by default; for a clearly complex project the
+    assistant may propose linked product, design and technical Specifications,
+    which are created only after the user agrees.
   related_specifications:
     - feature.projects
     - feature.plans
@@ -262,6 +265,14 @@ assertions:
     type: invariant
     must: Plans, Checks, sources, documentation, and related Specifications link to exact Specification revisions or stable Requirement and flow ids so changes and stale proof can be identified without copying Specification text.
     depends_on: [models.SpecificationLink, examples.specification_links]
+  - id: contracts.guided.assumptions-explicit
+    type: behavior
+    must: A Specification may carry an Open assumptions list and agreed design decisions; the readable detail shows open assumptions under their own heading as not yet confirmed, separate from requirements, and they persist with the saved encrypted revision.
+    depends_on: [examples.specification_guided_authoring, applies_to.gui]
+  - id: contracts.guided.linked-split
+    type: behavior
+    must: A Specification of a split project states its role (product, design or technical) and names its linked Specifications with their roles; a single Specification has no role. Roles other than product, design and technical and links without a title are refused.
+    depends_on: [examples.specification_guided_authoring, examples.specification_composition]
   - id: contracts.surface.semantic-parity
     type: parity
     must: REST, CLI, SDK, web, and later Apple channels preserve the same revision, approval, composition, linking, encryption, and visible-failure semantics wherever Specification operations are exposed.
@@ -314,4 +325,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [specification_boundaries, specification_revisions, specification_composition, specification_ui_requirements, specification_flows, specification_model_placement, specification_human_presentation, specification_diagrams, specification_project_embed, specification_links, specification_surface_parity]
+  required_groups: [specification_boundaries, specification_revisions, specification_composition, specification_ui_requirements, specification_flows, specification_model_placement, specification_human_presentation, specification_diagrams, specification_project_embed, specification_links, specification_surface_parity, specification_guided_authoring]

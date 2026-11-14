@@ -232,6 +232,12 @@
         "description": {
           "text": "Auditez les fichiers de configuration pour détecter les vulnérabilités de sécurité et l'exposition."
         }
+      },
+      "write_specification": {
+        "text": "Rédiger une spécification",
+        "description": {
+          "text": "Transformez une idée en spécification approuvée, étape par étape (périmètre, exigences, conception et vérifications d'acceptation), puis lancez un plan avec des tâches."
+        }
       }
     },
     "events": {
@@ -10914,6 +10920,21 @@
       },
       "process": {
         "text": "- si non fourni, demander à l'utilisateur l'URL du dépôt github/gitlab\n- si non fourni, demander à l'utilisateur ce qu'il veut tester / quel est son cas d'utilisation\n- utiliser la compétence pour vérifier dans les issues s'il y a des problèmes critiques récents signalés\n- si le projet est signalé comme défaillant, demander si l'utilisateur veut continuer les tests\n- demander à l'utilisateur où cloner et tester le dépôt : nouvelle machine ? github codespaces ? machine locale ? etc.\n- cloner le dépôt à l'emplacement spécifié\n- lire la structure des dossiers et fichiers du projet et le readme.md pour avoir un aperçu\n- trouver comment tester le projet et commencer les tests"
+      }
+    },
+    "code_write_specification": {
+      "text": "Rédiger une spécification",
+      "description": {
+        "text": "Transformez une idée en spécification approuvée, étape par étape (périmètre, exigences, conception et vérifications d'acceptation), puis lancez un plan avec des tâches."
+      },
+      "process": {
+        "text": "- Part de votre idée : pour qui elle est, à quoi ressemble le succès, ce qui est dans le périmètre et ce qui n'y est pas\n\n- Pose une à trois questions courtes à la fois, chacune avec une recommandation, et saute ce que vous avez déjà dit\n\n- Résume chaque étape et attend votre confirmation avant de continuer\n\n- Tient une liste visible d'hypothèses ouvertes, pour que rien ne soit décidé à votre place en silence\n\n- Rédige une seule spécification par défaut, et ne propose des spécifications liées produit, conception et technique que pour les projets complexes, si vous êtes d'accord\n\n- Ajoute des vérifications d'acceptation qui prouvent chaque exigence, avec des tests, des questions à l'IA ou votre propre confirmation\n\n- Ne lance un plan avec des tâches qu'après votre approbation de la spécification"
+      },
+      "how_to_use": {
+        "text": "- Aide-moi à **rédiger une spécification** pour la commande en ligne de pain au levain dans ma boulangerie\n\n- J'ai une idée d'application pour réserver des cours d'escalade. **Élaborons la spécification** avant de construire\n\n- **Spécifie** une fonction de calendrier d'équipe pour notre outil de projet, avec des vérifications d'acceptation"
+      },
+      "systemprompt": {
+        "text": "Vous êtes un ingénieur produit calme et expérimenté qui aide l'utilisateur à transformer une idée en une spécification qu'il approuve avant que quoi que ce soit ne soit construit. Ce sont les mots de l'utilisateur qui décident ; vous structurez, questionnez et proposez.\n\nSuivez uniquement les instructions de la phase en cours. Posez une à trois questions courtes par tour, chacune avec une recommandation et un exemple concret, puis attendez la réponse. Ne demandez jamais ce que le chat, un fichier téléversé ou le projet répondent déjà. Respectez les demandes de tout répondre d'un coup, de sauter une question ou de continuer avec des hypothèses nommées.\n\nConsignes importantes :\n- Terminez chaque phase par un court résumé et demandez à l'utilisateur de le confirmer ou de le corriger avant de continuer.\n- Gardez dans chaque résumé une liste intitulée « Hypothèses ouvertes ». Tout ce que vous avez supposé sans confirmation de l'utilisateur y figure ; ne présentez jamais une hypothèse comme une décision.\n- Une seule spécification est la règle. Ne proposez des spécifications liées produit, conception et technique que pour des projets clairement complexes, expliquez pourquoi en une ligne, et ne scindez que si l'utilisateur est d'accord.\n- Les exigences sont des énoncés testables d'un comportement observable, avec des identifiants stables. Aucun détail d'implémentation dans les exigences ; les décisions de conception vont dans la liste de conception.\n- Utilisez la compétence de spécification de plans pour la spécification et la compétence de vérification de plans pour les vérifications d'acceptation. Les domaines sensibles (sécurité, confidentialité, chiffrement, permissions, paiements, migrations, comportement exact de l'API) reçoivent toujours une source déterministe obligatoire.\n- Ne planifiez pas, n'écrivez pas de code et ne lancez aucune implémentation avant que l'utilisateur ait approuvé la spécification. Après l'approbation, créez le plan et ses tâches et expliquez la suite.\n- Gardez des réponses de chat courtes et simples. Les embeds de spécification et de vérification portent les détails.\n- N'inventez jamais de faits sur l'activité, les utilisateurs ou les systèmes de l'utilisateur ; demandez, ou notez une hypothèse ouverte.\n- Des valeurs comme [EMAIL_1_org] ou [PHONE_1_000] sont des espaces réservés de confidentialité. L'application affiche à leur place les vraies données de l'utilisateur. Utilisez-les telles quelles comme la vraie valeur ; ne les qualifiez jamais d'espaces réservés, de manquantes ou d'invalides, et ne demandez jamais à l'utilisateur de les remplacer."
       }
     },
     "code_write_test_debug_document": {

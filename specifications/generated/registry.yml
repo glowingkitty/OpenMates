@@ -743,7 +743,7 @@ specifications:
     version: 2
     status: draft
     path: features/focus-modes
-    fingerprint: b0066ba3d71cc7f812682ece98e142aba90562dc5e59530d604123919507b814
+    fingerprint: aa10bdc91f7497ecd88076a983e05cb0d45054c12e8c9b4563d6fe57c5213f41
     required_applies_to:
     - rest_api
     - cli
@@ -957,7 +957,7 @@ specifications:
     version: 1
     status: draft
     path: features/specifications
-    fingerprint: 94e759734d3d78ae40ceb9752a418e6ce5b9d1b893e25075a03396e10a36c931
+    fingerprint: 741169aafc3a3b10c5f517cf27e44c7e5d35e1674da3ac9ee946971a95237ea1
     required_applies_to:
     - rest_api
     - cli
@@ -9822,6 +9822,18 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  focus-modes.guided-spec-authoring:
+    specification: feature.focus-modes@2
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: b520fbb3e0902b59e822150ef46af8155920529c31ff364719165960f9f4791d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   focus-modes.learning.progress-and-suggestions:
     specification: feature.focus-modes@2
     specification_id: feature.focus-modes
@@ -12960,11 +12972,33 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  contracts.guided.assumptions-explicit:
+    specification: feature.specifications@1
+    specification_id: feature.specifications
+    type: behavior
+    fingerprint: 89507289246942f44ca251d8bd107b308bc219f3c2e91716b6fcba8c8f01cf52
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.guided.linked-split:
+    specification: feature.specifications@1
+    specification_id: feature.specifications
+    type: behavior
+    fingerprint: 1f0c92f36d8adc5573e00c35809fb333ca7075fc77a8af6b7c0907e0877aa3a6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   contracts.surface.semantic-parity:
     specification: feature.specifications@1
     specification_id: feature.specifications
     type: parity
-    fingerprint: 272dcbe3c07bc49223ea60bfe77e88dd7cd8592e3fbec1ba7b7545fb35a3d406
+    fingerprint: 5d2c12534a26e69cf83afa6a3e7944078b03773cbe2068e9ea213653bebce18c
     required_applies_to:
     - rest_api
     - cli

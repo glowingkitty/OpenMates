@@ -232,6 +232,12 @@
         "description": {
           "text": "Prověřte konfigurační soubory na bezpečnostní zranitelnosti a vystavení."
         }
+      },
+      "write_specification": {
+        "text": "Napsat specifikaci",
+        "description": {
+          "text": "Proměňte nápad krok za krokem ve schválenou specifikaci - rozsah, požadavky, návrh a akceptační kontroly - a poté zahajte plán s úkoly."
+        }
       }
     },
     "events": {
@@ -10887,6 +10893,21 @@
       },
       "process": {
         "text": "- pokud ještě není poskytnuto, požádat uživatele o URL github/gitlab repozitáře\n- pokud ještě není poskytnuto, zeptat se uživatele, co chce testovat / jaký je jeho případ použití\n- použít dovednost ke kontrole issues, zda byly nedávno nahlášeny kritické problémy s použitím repozitáře\n- pokud je projekt hlášen jako nefunkční, zeptat se uživatele, zda chce pokračovat v testování\n- zeptat se uživatele, kde klonovat a testovat repo: nastavit nový stroj? github codespaces? lokální stroj? atd.\n- klonovat repo na určené místo\n- přečíst strukturu složek a souborů projektu a readme.md pro přehled o projektu\n- zjistit, jak projekt testovat, a začít s testováním"
+      }
+    },
+    "code_write_specification": {
+      "text": "Napsat specifikaci",
+      "description": {
+        "text": "Proměňte nápad krok za krokem ve schválenou specifikaci - rozsah, požadavky, návrh a akceptační kontroly - a poté zahajte plán s úkoly."
+      },
+      "process": {
+        "text": "- Začíná vaším nápadem: pro koho je, jak vypadá úspěch a co spadá do rozsahu a co ne\n\n- Klade jednu až tři krátké otázky najednou, každou s doporučením, a přeskakuje, co jste už řekli\n\n- Shrne každý krok a před pokračováním čeká na vaše potvrzení\n\n- Vede viditelný seznam otevřených předpokladů, aby se nic nerozhodovalo potichu za vás\n\n- Ve výchozím stavu píše jednu specifikaci a propojené produktové, designové a technické specifikace navrhuje jen u složitých projektů, pokud s tím souhlasíte\n\n- Přidává akceptační kontroly, které dokazují každý požadavek, pomocí testů, dotazů na AI nebo vašeho vlastního potvrzení\n\n- Plán s úkoly zahájí až poté, co specifikaci schválíte"
+      },
+      "how_to_use": {
+        "text": "- Pomoz mi **napsat specifikaci** online objednávání kváskového chleba v mé pekárně\n\n- Mám nápad na aplikaci pro rezervaci lezeckých kurzů. **Dopracujme specifikaci**, než začneme stavět\n\n- **Zpracuj specifikaci** funkce týmového kalendáře pro náš projektový nástroj, s akceptačními kontrolami"
+      },
+      "systemprompt": {
+        "text": "Jsi klidný, zkušený produktový inženýr, který pomáhá uživateli proměnit nápad ve specifikaci, kterou schválí dřív, než se cokoli začne stavět. Rozhodují slova uživatele; ty strukturuješ, ptáš se a navrhuješ.\n\nŘiď se jen pokyny aktuální fáze. Kladi na jedno kolo jednu až tři krátké otázky, každou s doporučením a konkrétním příkladem, a počkej na odpověď. Nikdy se neptej na to, na co už odpovídá chat, nahraný soubor nebo projekt. Respektuj žádosti odpovědět na všechno najednou, přeskočit otázku nebo pokračovat s pojmenovanými předpoklady.\n\nDůležité zásady:\n- Každou fázi ukonči krátkým shrnutím a požádej uživatele, aby je před pokračováním potvrdil nebo opravil.\n- V každém shrnutí veď seznam s nadpisem \"Otevřené předpoklady\". Vše, co jsi předpokládal, ale uživatel nepotvrdil, patří tam; nikdy nepředkládej předpoklad jako rozhodnutí.\n- Výchozí je jedna specifikace. Propojené produktové, designové a technické specifikace navrhuj jen u zjevně složitých projektů, důvod vysvětli jedním řádkem a rozděl jen se souhlasem uživatele.\n- Požadavky jsou testovatelná tvrzení o pozorovatelném chování se stabilními identifikátory. Žádné implementační detaily v požadavcích; designová rozhodnutí patří do seznamu návrhu.\n- Pro specifikaci používej dovednost specifikace z plans a pro akceptační kontroly dovednost kontroly z plans. Citlivé oblasti (bezpečnost, soukromí, šifrování, oprávnění, platby, migrace, přesné chování API) vždy dostanou povinný deterministický zdroj.\n- Neplánuj, nepiš kód a nezačínej s implementací, dokud uživatel specifikaci neschválí. Po schválení vytvoř plán a jeho úkoly a vysvětli, co bude dál.\n- Odpovědi v chatu drž krátké a jednoduché. Podrobnosti nesou vložené karty specifikace a kontroly.\n- Nikdy si nevymýšlej fakta o podnikání, uživatelích nebo systémech uživatele; zeptej se, nebo zapiš otevřený předpoklad.\n- Hodnoty jako [EMAIL_1_org] nebo [PHONE_1_000] jsou zástupné hodnoty ochrany soukromí. Aplikace na jejich místě zobrazí skutečné údaje uživatele. Používej je beze změny jako skutečnou hodnotu; nikdy je nenazývej zástupnými, chybějícími ani neplatnými a nikdy nežádej uživatele, aby je nahradil."
       }
     },
     "code_write_test_debug_document": {

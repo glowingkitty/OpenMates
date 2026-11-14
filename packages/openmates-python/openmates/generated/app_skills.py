@@ -7129,7 +7129,18 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'spec, specification, requirements document or PRD for a feature, product or '
                  'change. Content is saved by the client into the Project on approval.',
   'description_key': 'plans.skills.specification.description',
-  'schema': {'properties': {'category': {'description': 'Optional category.', 'type': 'string'},
+  'schema': {'properties': {'assumptions': {'description': 'Open assumptions the user has not '
+                                                           'confirmed yet, each stated plainly so '
+                                                           'it can be confirmed or corrected.',
+                                            'items': {'type': 'string'},
+                                            'type': 'array'},
+                            'category': {'description': 'Optional category.', 'type': 'string'},
+                            'design_decisions': {'description': 'Agreed design decisions (screens, '
+                                                                'layout, interaction, data or '
+                                                                'architecture choices) the '
+                                                                'requirements rely on.',
+                                                 'items': {'type': 'string'},
+                                                 'type': 'array'},
                             'flows': {'description': 'User flows and edge cases with unique ids.',
                                       'items': {'properties': {'id': {'type': 'string'},
                                                                'kind': {'enum': ['user_flow',
@@ -7144,6 +7155,25 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                             'outcome': {'description': 'The user-visible outcome the Specification '
                                                        'delivers.',
                                         'type': 'string'},
+                            'related_specifications': {'description': 'Other Specifications of the '
+                                                                      'same project this one links '
+                                                                      'to, when the user agreed to '
+                                                                      'a split.',
+                                                       'items': {'properties': {'relation': {'description': 'How '
+                                                                                                            'the '
+                                                                                                            'two '
+                                                                                                            'Specifications '
+                                                                                                            'relate',
+                                                                                             'in a few words.': None,
+                                                                                             'type': 'string'},
+                                                                                'role': {'enum': ['product',
+                                                                                                  'design',
+                                                                                                  'technical'],
+                                                                                         'type': 'string'},
+                                                                                'title': {'type': 'string'}},
+                                                                 'required': ['title'],
+                                                                 'type': 'object'},
+                                                       'type': 'array'},
                             'requirements': {'description': 'Requirements with unique ids.',
                                              'items': {'properties': {'example': {'type': 'string'},
                                                                       'id': {'type': 'string'},
@@ -7151,6 +7181,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                        'required': ['id', 'statement'],
                                                        'type': 'object'},
                                              'type': 'array'},
+                            'role': {'description': 'Only when the user agreed to split a complex '
+                                                    'project into linked Specifications - this '
+                                                    "Specification's role. Omit for a single "
+                                                    'Specification.',
+                                     'enum': ['product', 'design', 'technical'],
+                                     'type': 'string'},
                             'scope_excluded': {'description': 'What is explicitly out of scope.',
                                                'items': {'type': 'string'},
                                                'type': 'array'},

@@ -152,6 +152,28 @@ phases:
   expect: The requested earlier phase is current, a clickable system message records the return, and encrypted state restores
     it. Current instructions and requirements are full while other phases have IDs/titles only. Unmet or uncertain requirements
     retain the phase; stale decisions and the same rewind turn cannot bounce forward.
+guided_spec_authoring:
+- id: idea-to-approved-specification
+  given: A bakery owner activates Write specification with "Help me write a spec for online sourdough ordering".
+  when: The owner answers the scope, requirement and design questions and confirms each phase summary.
+  then: Every turn asks at most three questions with a recommendation; every summary lists Open assumptions; the drafted
+    Specification embed carries the requirements, design decisions and the still-open assumptions, followed by acceptance
+    Checks; the Plan and Tasks are created only after the owner wrote that they approve the Specification.
+  assertion_ids:
+  - focus-modes.guided-spec-authoring
+- id: split-only-after-agreement
+  given: A user describes a marketplace with buyers, sellers, a brand redesign and a reusable payments platform.
+  when: The scope phase ends.
+  then: The assistant proposes linked product, design and technical Specifications with a one-line reason and keeps one
+    Specification when the user declines; linked Specifications name each other only after the user agreed.
+  assertion_ids:
+  - focus-modes.guided-spec-authoring
+- id: no-plan-before-approval
+  given: The Specification and Checks are drafted and the user asks a follow-up question without approving.
+  when: The assistant answers.
+  then: The focus stays in the Specification and Checks phase and no Plan or Task is created.
+  assertion_ids:
+  - focus-modes.guided-spec-authoring
 learning_progress:
 - id: fraction-practice-no-answer-leak
   given: Learning mode asks the learner to try 1/5 + 1/2 and waits for an answer.
