@@ -7307,8 +7307,7 @@ export const APP_SKILL_METADATA = [
               },
               "relation": {
                 "type": "string",
-                "description": "How the two Specifications relate",
-                "in a few words.": null
+                "description": "How the two Specifications relate, in a few words."
               }
             },
             "required": [

@@ -413,10 +413,14 @@ def _email_hash(email: str) -> str:
 
 
 def acquire_real_test_account(
-    prefix: str, session_id: str, test_name: str, *, stack_timeout: int, allow_throwaway: bool = True
+    prefix: str, session_id: str, test_name: str, *, stack_timeout: int, allow_throwaway: bool = True,
+    prefer_throwaway: bool = False,
 ) -> RealTestAccount:
-    """Personal account when free, else a throwaway account (or wait when not allowed)."""
-    account_lease = try_personal_account_lease(prefix, session_id)
+    """Personal account when free, else a throwaway account (or wait when not allowed).
+
+    ``prefer_throwaway`` skips the personal account, e.g. when it has no credits left.
+    """
+    account_lease = None if prefer_throwaway else try_personal_account_lease(prefix, session_id)
     if account_lease is None and not allow_throwaway:
         return RealTestAccount(
             "personal", personal_environment(), wait_for_personal_leases(prefix, session_id, stack_timeout),

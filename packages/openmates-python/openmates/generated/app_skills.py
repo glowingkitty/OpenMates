@@ -7163,8 +7163,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                             'the '
                                                                                                             'two '
                                                                                                             'Specifications '
-                                                                                                            'relate',
-                                                                                             'in a few words.': None,
+                                                                                                            'relate, '
+                                                                                                            'in '
+                                                                                                            'a '
+                                                                                                            'few '
+                                                                                                            'words.',
                                                                                              'type': 'string'},
                                                                                 'role': {'enum': ['product',
                                                                                                   'design',

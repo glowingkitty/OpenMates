@@ -196,7 +196,7 @@ skills:
             properties:
               title: {type: string}
               role: {type: string, enum: [product, design, technical]}
-              relation: {type: string, description: How the two Specifications relate, in a few words.}
+              relation: {type: string, description: "How the two Specifications relate, in a few words."}
             required: [title]
       required:
         - title

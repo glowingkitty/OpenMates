@@ -36,6 +36,8 @@ from workflow_schedule_real_test import API_URL, ProofError, sessions, write_rec
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = "@Gemini-3.8-Flash"
 FOCUS_ID = "code-write_specification"
+# The user picks the focus explicitly, as when choosing it in the focus picker.
+FOCUS_MENTION = "@focus:code:write_specification"
 MAX_TURNS = 16
 EMBED_REF = re.compile(r'"embed_id":\s*"([0-9a-f-]{36})"')
 APPROVAL = re.compile(r"\b(approve|approved|genehmig|freigeb)", re.IGNORECASE)
@@ -52,7 +54,7 @@ PERSONA = (
     "the assistant once if it assumes something wrong. She says she approves only after the assistant has "
     "shown a drafted Specification and Checks and asked for approval; before that she never uses the word approve."
 )
-OPENING = (f"{MODEL} Hi! I run a small sourdough bakery in Leipzig. I'd like customers to order bread online "
+OPENING = (f"{MODEL} {FOCUS_MENTION} Hi! I run a small sourdough bakery in Leipzig. I'd like customers to order bread online "
            "before they come in. Can you help me write a proper spec for that before anyone builds it?")
 RUBRIC = {
     "questions_per_turn": "Every assistant turn asks at most three questions, each with a recommendation or example.",
@@ -67,19 +69,31 @@ RUBRIC = {
 
 
 def chat_reply(cli: str, args: list[str], timeout: int, path: Path) -> dict:
-    reply = command(cli, [*args, "--personal", "--auto-approve", "--accept-task-proposals",
+    # No --accept-task-proposals: the hand-off creates Tasks through tasks.create; extracted proposals stay pending.
+    reply = command(cli, [*args, "--personal", "--auto-approve",
                           "--response-timeout-seconds", str(timeout)], timeout=timeout + 30, diagnostic_path=path)
     if not isinstance(reply, dict) or reply.get("status") != "completed":
         raise ProofError("chat_turn_not_completed")
+    if NO_CREDITS.search(str(reply.get("assistant") or "")):
+        raise ProofError("account_out_of_credits")
     return reply
 
 
+NO_CREDITS = re.compile(r"don't have enough credits", re.IGNORECASE)
+ERROR_KEY = re.compile(r"[a-z_]+(\.[a-z_]+)+")
+
+
 def incognito(cli: str, prompt: str, path: Path) -> str:
-    reply = command(cli, ["chats", "incognito", prompt, "--personal"], timeout=300, diagnostic_path=path)
-    text = reply.get("assistant") if isinstance(reply, dict) else None
-    if not isinstance(text, str) or not text.strip():
-        raise ProofError("incognito_reply_missing")
-    return text.strip()
+    """One stateless reply; a transient provider error (a bare i18n error key) is retried once."""
+    for attempt in range(2):
+        reply = command(cli, ["chats", "incognito", prompt, "--personal"], timeout=300,
+                        diagnostic_path=path.with_name(f"{path.stem}-{attempt}{path.suffix}") if attempt else path)
+        text = reply.get("assistant") if isinstance(reply, dict) else None
+        if isinstance(text, str) and NO_CREDITS.search(text):
+            raise ProofError("account_out_of_credits")
+        if isinstance(text, str) and text.strip() and not ERROR_KEY.fullmatch(text.strip()):
+            return text.strip()
+    raise ProofError("incognito_reply_missing")
 
 
 def plain(text: str, limit: int) -> str:
@@ -96,6 +110,22 @@ def persona_reply(cli: str, history: list[tuple[str, str]], out: Path, turn: int
               "no quotes, no name prefix, no tools, no headings.")
     text = incognito(cli, prompt, out / f"persona-{turn:02d}.json")
     return text.strip().strip('"').removeprefix("Lena:").strip()
+
+
+def delete_run_tasks(cli: str, chat_id: str | None, project_id: str | None) -> dict:
+    """Delete the Tasks this run's chat or Project created (accepted proposals and hand-off Tasks)."""
+    ids: dict[str, None] = {}
+    for scope in (["--chat", chat_id] if chat_id else []), (["--project", project_id] if project_id else []):
+        if not scope:
+            continue
+        listed = command(cli, ["tasks", "list", *scope, "--personal", "--json"])
+        tasks = listed.get("tasks") if isinstance(listed, dict) else listed
+        for task in tasks if isinstance(tasks, list) else []:
+            if isinstance(task, dict) and (task.get("id") or task.get("task_id")):
+                ids[str(task.get("id") or task.get("task_id"))] = None
+    for task_id in ids:
+        command(cli, ["tasks", "delete", task_id, "--confirm", "--personal", "--json"])
+    return {"deleted": len(ids)}
 
 
 def classify_embeds(cli: str, chat_id: str, messages: list[dict], out: Path) -> list[dict]:
@@ -179,6 +209,8 @@ def main() -> int:
     parser.add_argument("--cli", default="openmates")
     parser.add_argument("--timeout-seconds", type=int, default=420)
     parser.add_argument("--allow-paid-dev-inference", action="store_true")
+    parser.add_argument("--throwaway-account", action="store_true",
+                        help="use a fresh throwaway dev account (gifted dev credits) instead of the personal one")
     args = parser.parse_args()
     if any(os.getenv(key) for key in ("CI", "GITHUB_ACTIONS", "BUILDKITE", "GITLAB_CI")):
         parser.error("real inference is dev-only and cannot run in CI")
@@ -203,7 +235,8 @@ def main() -> int:
             os.environ.pop(key, None)
         require_runtime_revision(args.revision)
         account = dev_test_account.acquire_real_test_account("spec-focus-personal", args.session,
-                                                             "spec-authoring-focus", stack_timeout=120)
+                                                             "spec-authoring-focus", stack_timeout=120,
+                                                             prefer_throwaway=args.throwaway_account)
         receipt["account_role"] = "personal_dev_test" if account.kind == "personal" else "throwaway_dev_test"
 
         def renew() -> None:
@@ -239,15 +272,16 @@ def main() -> int:
             if not chat_id:
                 raise ProofError("created_chat_id_missing")
             receipt["chat_id"] = chat_id
-            history += [("Lena", message.removeprefix(MODEL).strip()), ("Assistant", str(reply.get("assistant") or ""))]
+            history += [("Lena", message.removeprefix(MODEL).strip().removeprefix(FOCUS_MENTION).strip()), ("Assistant", str(reply.get("assistant") or ""))]
             print(f"turn {turn}: {plain(str(reply.get('assistant') or ''), 160)!r}", flush=True)
             if re.search(r'"app_id":\s*"tasks"', str(reply.get("assistant") or "")) and turn > 2:
                 break
-            message = persona_reply(cli, history, out, turn)
+            message = f"{MODEL} {persona_reply(cli, history, out, turn)}"
         receipt["turns"] = turn
         shown = command(cli, ["chats", "show", chat_id, "--all", "--personal"])
         write_receipt(out / "chat.json", shown)
         messages = [m for m in shown.get("messages", []) if isinstance(m, dict)] if isinstance(shown, dict) else []
+        receipt["active_focus_id"] = (shown.get("chat") or {}).get("activeFocusId") if isinstance(shown, dict) else None
         embeds = classify_embeds(cli, chat_id, messages, out)
         receipt["embeds"] = embeds
         receipt["checks"] = deterministic_checks(shown, messages, embeds)
@@ -268,6 +302,17 @@ def main() -> int:
         receipt["status"] = "failed"
         receipt["error_code"] = str(exc) if isinstance(exc, ProofError) else type(exc).__name__
     finally:
+        if chat_id and not (out / "chat.json").exists():
+            try:
+                write_receipt(out / "chat.json", command(cli, ["chats", "show", chat_id, "--all", "--personal"]))
+            except (ProofError, subprocess.TimeoutExpired):
+                receipt["cleanup"]["chat_snapshot"] = "failed"
+        if chat_id or project_id:
+            try:
+                receipt["cleanup"]["tasks"] = delete_run_tasks(cli, chat_id, project_id)
+            except (ProofError, subprocess.TimeoutExpired):
+                receipt["cleanup"]["tasks"] = "failed"
+                receipt["status"] = "failed"
         if chat_id:
             try:
                 delete_owned_chat(cli, chat_id)
