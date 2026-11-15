@@ -254,6 +254,45 @@ def apply_patch_fuzzy(content: str, diff: ParsedDiff, max_offset: int = 3) -> Pa
     )
 
 
+def apply_patch_unique_context(content: str, diff: ParsedDiff) -> PatchResult:
+    """
+    Tier 2a: Apply each hunk where its context and removed lines occur exactly once.
+
+    Models often get hunk line numbers wrong by more than the fuzzy window
+    (a long template or deck shifts every later slide) while copying the
+    lines themselves exactly. A hunk whose old lines match one place in the
+    content is applied there; a hunk that matches nowhere or more than once
+    fails, so an ambiguous edit is never guessed.
+    """
+    content_lines = content.split('\n')
+    sorted_hunks = sorted(diff.hunks, key=lambda h: h.old_start, reverse=True)
+
+    for hunk in sorted_hunks:
+        old_lines = [line[1:] for line in hunk.lines if line.startswith((' ', '-'))]
+        new_lines = [line[1:] for line in hunk.lines if line.startswith((' ', '+'))]
+        if not old_lines:
+            return PatchResult(
+                success=False, new_content=None, tier=2,
+                error="Unique-context fallback needs context or removed lines",
+            )
+        match_len = len(old_lines)
+        matches = [
+            idx for idx in range(0, len(content_lines) - match_len + 1)
+            if content_lines[idx:idx + match_len] == old_lines
+        ]
+        if len(matches) != 1:
+            return PatchResult(
+                success=False, new_content=None, tier=2,
+                error=(
+                    f"Unique-context fallback expected one match for hunk "
+                    f"@@ -{hunk.old_start},{hunk.old_count}, found {len(matches)}"
+                ),
+            )
+        content_lines[matches[0]:matches[0] + match_len] = new_lines
+
+    return PatchResult(success=True, new_content='\n'.join(content_lines), tier=2, error=None)
+
+
 def apply_patch_unique_removals(content: str, diff: ParsedDiff) -> PatchResult:
     """
     Tier 2b: Apply hunks by uniquely matching removed line runs.
@@ -450,7 +489,7 @@ def apply_patch(content: str, diff: ParsedDiff) -> PatchResult:
 
 
 def _apply_patch_tiers(content: str, diff: ParsedDiff) -> PatchResult:
-    """Run the exact, fuzzy, unique-removal and JSON-key tiers in order."""
+    """Run the exact, fuzzy, unique-context, unique-removal and JSON-key tiers in order."""
     # Tier 1: Exact match
     result = apply_patch_exact(content, diff)
     if result.success:
@@ -468,6 +507,13 @@ def _apply_patch_tiers(content: str, diff: ParsedDiff) -> PatchResult:
 
     tier2_error = result.error
 
+    result = apply_patch_unique_context(content, diff)
+    if result.success:
+        logger.info(f"Patch applied successfully (tier 2, unique context) for {diff.embed_ref}")
+        return result
+
+    tier2a_error = result.error
+
     result = apply_patch_unique_removals(content, diff)
     if result.success:
         logger.info(f"Patch applied successfully (tier 2, unique removals) for {diff.embed_ref}")
@@ -483,7 +529,7 @@ def _apply_patch_tiers(content: str, diff: ParsedDiff) -> PatchResult:
     tier2c_error = result.error
     logger.debug(
         f"Patch tiers failed for {diff.embed_ref}. "
-        f"Tier 1: {tier1_error}. Tier 2: {tier2_error}. "
+        f"Tier 1: {tier1_error}. Tier 2: {tier2_error}. Tier 2a: {tier2a_error}. "
         f"Tier 2b: {tier2b_error}. Tier 2c: {tier2c_error}. "
         f"Trying the remaining fallbacks."
     )
@@ -492,7 +538,7 @@ def _apply_patch_tiers(content: str, diff: ParsedDiff) -> PatchResult:
     return PatchResult(
         success=False, new_content=None, tier=3,
         error=(
-            f"Exact: {tier1_error}. Fuzzy: {tier2_error}. "
+            f"Exact: {tier1_error}. Fuzzy: {tier2_error}. Unique context: {tier2a_error}. "
             f"Unique removals: {tier2b_error}. JSON keys: {tier2c_error}"
         )
     )

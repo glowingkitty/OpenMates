@@ -108,6 +108,16 @@ async function waitForReply(page: any, log: any, before: number) {
 }
 
 /**
+ * A focus mention first returns the activation card, then the focus mode's first question as a
+ * second assistant message (auto-confirmed continuation). Wait for that question like a person
+ * would; answering during it races the continuation. Returns the count to pass to answerUntil.
+ */
+async function waitForFocusQuestion(page: any, log: any, briefSent: number): Promise<number> {
+	await waitForReply(page, log, briefSent + 1);
+	return briefSent + 1;
+}
+
+/**
  * After each finished reply, return once `done` is true; otherwise send the next scripted answer.
  * Fails clearly when the expected element is still missing after MAX_TURNS replies.
  */
@@ -176,7 +186,7 @@ test('template designer focus leads a beginner to a refined, saved template (rea
 			.toBeVisible({ timeout: 60_000 });
 		await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 30_000 });
 		const chatUrl = page.url();
-		await answerUntil(page, log, screenshot, 'designer', DESIGN_REPLIES, briefSent, async () => (await templateCards().count()) >= 3);
+		await answerUntil(page, log, screenshot, 'designer', DESIGN_REPLIES, await waitForFocusQuestion(page, log, briefSent), async () => (await templateCards().count()) >= 3);
 		await screenshot(page, 'designer-three-cards');
 
 		// The designs share one carousel (EmbedPreviewLarge); only the current card is visible.
@@ -228,7 +238,7 @@ test('presentation planner focus takes a beginner from idea to a deck with speak
 		const chatUrl = page.url();
 
 		let designChosen = false;
-		await answerUntil(page, log, screenshot, 'planner', PLAN_REPLIES, beginnerSent, async () => {
+		await answerUntil(page, log, screenshot, 'planner', PLAN_REPLIES, await waitForFocusQuestion(page, log, beginnerSent), async () => {
 			if ((await decks().count()) > 0) return true;
 			if ((await templateCards().count()) >= 1 && !designChosen) {
 				designChosen = true;

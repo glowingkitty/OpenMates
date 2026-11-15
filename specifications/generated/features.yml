@@ -16960,7 +16960,7 @@ features:
       - backend/tests/test_slides_focus_modes.py
       - backend/tests/test_slides_markup_core_fixed_points.py
       - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
-      unit_test_files: 6
+      unit_test_files: 7
     sdk_npm:
       status: implemented
       source: intent
