@@ -4868,13 +4868,14 @@ features:
       assertions:
         passing: 11
         failing: 1
-        not_run: 4
-        missing: 10
+        not_run: 5
+        missing: 9
         counted: 26
       failing_tests:
       - frontend/apps/web_app/tests/focus-mode-settings.spec.ts › OpenMates app does not offer the retired Welcome focus mode
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/agentic-remote-project-web-real.spec.ts
       - frontend/apps/web_app/tests/components/agent-context-message.spec.ts
       - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
       - frontend/apps/web_app/tests/components/focus-banner-placement.spec.ts
@@ -11540,7 +11541,7 @@ features:
     - app:code
     dev: enabled
     prod: enabled
-  assertions: 29
+  assertions: 33
   surfaces:
     web:
       status: failing
@@ -11550,8 +11551,8 @@ features:
         passing: 6
         failing: 1
         not_run: 11
-        missing: 13
-        counted: 31
+        missing: 17
+        counted: 35
       failing_tests:
       - frontend/apps/web_app/tests/skill-code-docs.spec.ts
       key_tests:
@@ -11583,8 +11584,8 @@ features:
         passing: 9
         failing: 0
         not_run: 0
-        missing: 20
-        counted: 29
+        missing: 24
+        counted: 33
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/AgenticCodingPreviewUITests.swift
@@ -11608,8 +11609,8 @@ features:
         passing: 1
         failing: 0
         not_run: 14
-        missing: 14
-        counted: 29
+        missing: 18
+        counted: 33
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-project-file-chat.spec.ts
@@ -11643,8 +11644,8 @@ features:
         passing: 7
         failing: 0
         not_run: 11
-        missing: 11
-        counted: 29
+        missing: 15
+        counted: 33
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -11662,8 +11663,8 @@ features:
         passing: 0
         failing: 0
         not_run: 2
-        missing: 27
-        counted: 29
+        missing: 31
+        counted: 33
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -11677,8 +11678,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 29
-        counted: 29
+        missing: 33
+        counted: 33
       key_tests: []
       evidence: generated/app_skills.py apps.code (generic skill call)
       e2e_tests: []
@@ -15619,8 +15620,8 @@ features:
       assertions:
         passing: 19
         failing: 14
-        not_run: 6
-        missing: 19
+        not_run: 7
+        missing: 18
         counted: 58
       failing_tests:
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_mixed_project_and_web_batch_defers_web_until_file_result
@@ -15640,6 +15641,7 @@ features:
         binding is unavailable
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/agentic-remote-project-web-real.spec.ts
       - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
       - frontend/apps/web_app/tests/components/agent-context-message.spec.ts
       - frontend/apps/web_app/tests/components/code-editor.spec.ts
@@ -15828,8 +15830,8 @@ features:
         assertions:
           passing: 0
           failing: 3
-          not_run: 2
-          missing: 2
+          not_run: 3
+          missing: 1
           counted: 7
         failing_tests:
         - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts › groups saved chats, navigates deep folders and reveals

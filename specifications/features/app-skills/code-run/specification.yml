@@ -286,7 +286,7 @@ assertions:
     depends_on: [models.RemoteCommandRequest, examples.remote_commands]
   - id: code-run.remote.private-path-deny
     type: security
-    must: On supported Linux remote executors, an AppArmor-first command adapter applies kernel-enforced per-access restrictions to the original live Project folder and every command descendant. Private filenames and ordinary metadata may remain visible, but opening, reading, mapping, executing, overwriting, renaming, linking, or otherwise obtaining or changing private content is denied. Pathname enforcement covers newly created matching private paths, symlinks resolving into denied paths, and known pre-existing hard-link aliases; the sandbox cannot create or rename a denied source into an allowed alias. Source-owning peers using the same policy retain that boundary. An external unconfined owner deliberately copying or hard-linking private data to a new allowed pathname republishes that data outside this path-based boundary, just as copying a secret into ordinary source would. Command approval, preset activation, read-write source mode, an exact ignored-file grant, shell composition, repository instructions, deleting or editing policy files, or reconnecting cannot weaken active policy. The adapter uses no copied source tree, overlay worktree, staging mirror, or post-command writeback. If current private rules cannot be represented and enforced for the execution lifetime, launch fails with a visible unsupported-confinement result rather than direct unconfined execution. Private bytes do not enter review, output, logs, artifacts, or model context; a visible filename alone is not treated as content disclosure.
+    must: On every supported remote executor, the sandbox tier of code-run.remote.sandbox-tiers applies kernel-enforced restrictions to the original live Project folder (or the chat's worktree) and every command descendant. Private filenames and ordinary metadata may remain visible, but opening, reading, mapping, executing, overwriting, renaming, linking, or otherwise obtaining or changing private content is denied. Pathname enforcement covers newly created matching private paths, symlinks resolving into denied paths, and known pre-existing hard-link aliases; the sandbox cannot create or rename a denied source into an allowed alias. Source-owning peers using the same policy retain that boundary. An external unconfined owner deliberately copying or hard-linking private data to a new allowed pathname republishes that data outside this path-based boundary, just as copying a secret into ordinary source would. Command approval, preset activation, read-write source mode, an exact ignored-file grant, shell composition, repository instructions, deleting or editing policy files, or reconnecting cannot weaken active policy. The adapter uses no copied source tree, overlay worktree, staging mirror, or post-command writeback. If current private rules cannot be represented and enforced for the execution lifetime, launch fails with a visible unsupported-confinement result rather than direct unconfined execution. Private bytes do not enter review, output, logs, artifacts, or model context; a visible filename alone is not treated as content disclosure.
     depends_on: [models.RemoteCommandRequest, examples.remote_commands]
   - id: code-run.remote.explicit-approval
     type: security
@@ -294,6 +294,26 @@ assertions:
   - id: code-run.remote.command-lists
     type: security
     must: Reviewable command-list definitions may be stored in .openmates/permissions.yml. The file is private from agent file and terminal access; loading, cloning, pulling or any attempted agent edit cannot activate or broaden permission grants or weaken file_access.private_paths. Only an explicit user action outside agent-controlled Project operations activates a scoped selection in trusted state outside the command-writable Project; changes cannot inherit a mismatched prior grant. Matching uses explicit argv/cwd/resource scope rather than broad shell prefixes, and never bypasses current Project authority, private paths, or isolation. Users can inspect and revoke their selections.
+  - id: code-run.remote.sandbox-tiers
+    type: security
+    must: A command on a connected machine runs only inside an operating-system sandbox chosen by that machine's remote-access host from three tiers. On Linux it uses bubblewrap without root when the system allows unprivileged user namespaces, otherwise bubblewrap allowed through the OpenMates AppArmor profile (for example Ubuntu 24.04 and later). On macOS it uses a Seatbelt (sandbox-exec) profile without sudo. The result names the tier that ran it. When no tier is usable the command is refused as unsupported_confinement, with the missing setup named; there is no unconfined tier and no fallback to running the command directly. Windows hosts do not offer commands. Reading and writing Project files through remote access needs no sandbox and keeps working without any setup.
+    depends_on:
+    - examples.sandbox_tiers
+  - id: code-run.remote.sandbox-setup
+    type: security
+    must: Starting remote access never asks for sudo and never changes the operating system. The one-time AppArmor setup is offered only when the user turns on commands for a Linux machine that needs it, with a plain explanation of what it installs (a dedicated bubblewrap copy and a profile that lets only that copy use user namespaces) and why. Declining leaves file access working and commands refused. macOS and Linux machines that allow unprivileged user namespaces need no setup.
+    depends_on:
+    - examples.sandbox_setup
+  - id: code-run.remote.sandbox-boundary
+    type: security
+    must: Every tier enforces the same boundary on the command and all of its child processes. It may write only inside the Project folder, or the chat's worktree when one exists, plus declared cache and output paths. It may read the Project and the declared toolchain paths. Private paths stay denied as in code-run.remote.private-path-deny. It has no network unless a granted resource profile allows it, a minimal environment without the host's secrets, and a private temporary home. A tier that cannot enforce any part of this for the whole run refuses the command instead of running it with less.
+    depends_on:
+    - examples.sandbox_boundary
+  - id: code-run.remote.run-limits
+    type: security
+    must: A remote command is an argument list, not a shell string; it runs a shell only when the approved arguments name one. It has at most 128 arguments of at most 16 KiB each, and a time limit between 100 ms and 30 minutes, after which its whole process tree is stopped. The output returned from the machine is capped (64 KiB by default, never more than 96 KiB per run), and a cut-off output is marked as truncated. Larger output never reaches OpenMates unbounded.
+    depends_on:
+    - examples.run_limits
   - id: code-run.remote.explanation
     type: behavior
     must: Before each remote execution, a separate Gemini Flash-Lite call explains the exact command's expected effects and uncertainty using fixed review instructions and minimal authorized context. It does not inherit the coding conversation or Project agent instructions, treats code/comments as untrusted data, receives no credential values and has no execution or approval authority. The configured latest supported Flash-Lite version is explicit. A reassuring explanation never bypasses permissions; explanation failure is visible and cannot silently authorize execution.
@@ -398,6 +418,10 @@ examples:
   file: examples.yml
   required_groups:
   - valid_requests
+  - sandbox_tiers
+  - sandbox_setup
+  - sandbox_boundary
+  - run_limits
   - invalid_requests
   - execution_outputs
   - billing_and_limits
