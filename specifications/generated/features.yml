@@ -6281,7 +6281,7 @@ features:
   description: 'The chat composer: text, attachments, drafts, voice recording, suggestions and send.'
   specifications:
   - id: feature.message-input
-    status: draft
+    status: approved
     path: specifications/features/message-input
   apps: []
   product_features:

@@ -839,9 +839,9 @@ specifications:
     - gui.web
   feature.message-input:
     version: 12
-    status: draft
+    status: approved
     path: features/message-input
-    fingerprint: 364aaf32ef5903b897e13231789a9f4e3735501037eb4550232fdaa85409f27b
+    fingerprint: bf9a6c84dc062740436906fa43e864205610f2b7ec0324efb284c27ce79bcf14
     required_applies_to:
     - gui.web
     - gui.apple
@@ -10857,7 +10857,7 @@ assertions:
     specification: feature.message-input@12
     specification_id: feature.message-input
     type: behavior
-    fingerprint: 1c66b1e08b1b9e1edfafede94221235d5b2b627dbb9c5d16751c6ffdedf6a2ee
+    fingerprint: 0a2cc91d3cdd8631147e960ce3ca2f80655495e84367bfbbe30e0d1a180d441a
     required_applies_to:
     - gui.web
     - gui.apple

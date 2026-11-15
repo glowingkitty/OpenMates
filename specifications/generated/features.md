@@ -1986,7 +1986,7 @@ Free-form memories (with when-to-use, start and expiry) that the assistant loads
 
 The chat composer: text, attachments, drafts, voice recording, suggestions and send.
 
-- Specifications: [feature.message-input](../../specifications/features/message-input/specification.yml) (draft) · 24 assertion(s)
+- Specifications: [feature.message-input](../../specifications/features/message-input/specification.yml) (approved) · 24 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.5.0-alpha
 
 <details><summary>Tests per surface</summary>

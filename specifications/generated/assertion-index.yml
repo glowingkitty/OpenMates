@@ -143996,7 +143996,7 @@ assertions:
     current_direct_proof: false
   message-input.signed-out-two-states:
     specification: feature.message-input@12
-    fingerprint: 1c66b1e08b1b9e1edfafede94221235d5b2b627dbb9c5d16751c6ffdedf6a2ee
+    fingerprint: 0a2cc91d3cdd8631147e960ce3ca2f80655495e84367bfbbe30e0d1a180d441a
     direct_tests:
     - &id18347
       path: frontend/apps/web_app/tests/anonymous-free-chat.spec.ts

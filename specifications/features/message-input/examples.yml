@@ -394,53 +394,11 @@ quick_attachments:
   assertion_ids:
   - message-input.attachments.quick-access
 signed_out_states:
-- id: guest-open-sends
-  given:
-    surface: gui.web
-    authenticated: false
-    guest_chat: open
-  actions:
-  - type_text: Capital of France?
-  expect:
-    composer_control: send
-    send_enabled: true
-    message_sent: true
-- id: guest-status-slow-then-resolves
-  given:
-    surface: gui.web
-    authenticated: false
-    guest_status_response: delayed
-  expect:
-    composer_control_while_unknown: loading
-    composer_control_after: send
-    disabled_send_visible: false
-- id: guest-status-fails
-  given:
-    surface: gui.web
-    authenticated: false
-    guest_status_response: error
-  expect:
-    composer_control: signup
-    visible_reason: status_unavailable
-    disabled_send_visible: false
-- id: guest-logged-in-before
-  given:
-    surface: gui.web
-    authenticated: false
-    last_auth_method: passkey
-  expect:
-    composer_control: login
-    visible_reason: logged_in_before
+- id: guest-composer-resolves-to-send-or-account
+  given: A signed-out visitor opens the web app in a fresh browser and types "Capital of France?" while guest access is still being checked; the check then answers open, answers slowly, fails or hangs, or this browser has logged in before.
+  when: The composer decides which control to show.
+  then: A short loading state shows while access is unknown and resolves within eight seconds. Open guest chat gives an active Send that sends the message. A failed or hanging check gives Sign up with the reason "status unavailable"; a browser that logged in before gives Log in with that reason. A disabled or greyed Send never appears at any moment.
 - id: guest-send-preparation-hangs
-  given:
-    surface: gui.web
-    authenticated: false
-    privacy_runtime: never_loads
-  actions:
-  - type_text: Capital of France?
-  - click_send
-  expect:
-    notification: guest_send_timeout
-    composer_control: send
-    send_enabled: true
-    message_sent_twice: false
+  given: A signed-out visitor with guest chat open types "Capital of France?" and clicks Send, but the on-device privacy runtime never finishes loading.
+  when: Fifteen seconds pass without the send reaching the server.
+  then: A notification says the send is taking too long, the draft text stays in the composer, an active Send comes back, and the message is never sent twice.
