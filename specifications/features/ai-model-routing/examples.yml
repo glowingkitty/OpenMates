@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.ai-model-routing@11
+specification: feature.ai-model-routing@12
 
 skill_internal_models:
   - id: saved-complex-model-authors-and-judges
@@ -68,7 +68,7 @@ tier_classification:
   - id: avoid-unnecessary-max
     given: Alice says a short summary is extremely important, or asks a difficult debugging question for which the classifier is uncertain between high and max.
     when: Automatic routing classifies her request, or receives a malformed classification.
-    then: Importance alone keeps the summary at low, high-versus-max uncertainty chooses high, and malformed output uses medium instead of inventing a tier.
+    then: Importance alone keeps the summary at low, high-versus-max uncertainty chooses high, and malformed or missing output uses low instead of inventing a tier; the server log records the tier and its reason.
 
 tier_preferences:
   - id: independent-compatible-defaults

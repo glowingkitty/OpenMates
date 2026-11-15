@@ -293,7 +293,13 @@ def _early_routing_questions(topic_areas: list[str], skip_mate_routing: bool) ->
         }},
         "complexity": {"type": "choice", "instructions": (
             "Select the minimum reasoning depth the main assistant needs for a high-quality answer, "
-            "excluding reasoning delegated to app skills. Most requests are low. "
+            "excluding reasoning delegated to app skills. Judge only the LATEST user request; earlier "
+            "chat history is context, not a reason to raise the level. Most requests are low: short "
+            "factual, conversational or greeting messages, quick lookups, definitions, translations, "
+            "rewrites and follow-up questions are low (for example 'What is the capital of Peru?', "
+            "'hi, how are you?', 'translate this sentence', 'thanks!'). Comparisons, multi-step "
+            "analysis or debugging of a real problem are medium (for example 'compare these two "
+            "database designs for my app'). If unsure, choose low. "
             "Forwarding a known Shopping query and reference images for skill-owned visual comparison "
             "is low; forty candidates or three photos alone do not raise the assistant tier. "
             "Length, importance, tools, attachments, or dissatisfaction alone do not justify max. "

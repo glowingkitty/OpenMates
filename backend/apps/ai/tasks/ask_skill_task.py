@@ -2333,6 +2333,16 @@ async def _drain_preparation_tasks(*tasks):
         await asyncio.gather(*pending, return_exceptions=True)
 
 
+async def _settle_metadata_before_finalize(*tasks, timeout: float = 8.0) -> None:
+    """Let the background metadata write finish before finalizing; log failures."""
+    pending = [task for task in tasks if task is not None and not task.done()]
+    if pending:
+        await asyncio.wait(pending, timeout=timeout)
+    for task in tasks:
+        if task is not None and task.done() and not task.cancelled() and task.exception():
+            logger.warning("Background metadata persistence failed (%s)", type(task.exception()).__name__)
+
+
 @asynccontextmanager
 async def _overlap_preparation(operation):
     """Join a preparation write and drain it when preparation exits early."""
@@ -4283,9 +4293,9 @@ async def _async_process_ai_skill_ask_task(
                     logger.warning("[Task ID: %s] Sealed metadata notice unavailable (%s)",
                                    task_id, type(exc).__name__)
 
-        if early_metadata_task and initial_metadata_task:
-            # New metadata generation is wholly independent of first visible
-            # output. Its sealed notification may arrive while main is streaming.
+        if initial_metadata_task:
+            # Metadata persistence never gates first visible or spoken output
+            # (text or voice). It is joined before the turn is finalized. Its sealed notification may arrive while main is streaming.
             initial_metadata_notice_task = asyncio.create_task(publish_initial_metadata_after_seal())
 
         try:
@@ -4321,8 +4331,6 @@ async def _async_process_ai_skill_ask_task(
                         completion_timing=completion_timing,
                         voice_waiting_started_at=voice_waiting_started_at,
                         owned_live_speech=_owned_live_speech.get(),
-                        before_first_chunk_publish=(publish_initial_metadata_after_seal
-                            if initial_metadata_task and not early_metadata_task else None),
                     )
                 if not revoked_in_consumer and not soft_limited_in_consumer:
                     budget_failure = _orchestration_budget_failure_result(main_processor_debug_metadata)
@@ -4527,6 +4535,7 @@ async def _async_process_ai_skill_ask_task(
                     debug_cache_task, debug_cache_started_at, wait_for_budget=False,
                     write_cancelled=debug_cache_write_cancelled,
                 )
+            await _settle_metadata_before_finalize(initial_metadata_notice_task, initial_metadata_task)
             await _drain_preparation_tasks(initial_metadata_notice_task, initial_metadata_task, early_metadata_task)
 
     if legacy_batch_proof is not None:

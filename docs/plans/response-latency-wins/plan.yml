@@ -1,0 +1,56 @@
+schema_version: 2
+profile: concise
+id: response-latency-wins
+title: Faster first answer in voice calls and chat
+status: implementing
+goal: >
+  Marco's decisions on the TASK-9356 latency report, on dev (nothing to production
+  before Marco merges a release), quick wins first, each with tests and a
+  before/after measurement (median and p90). 1 Routing: log the reason for every
+  tier decision, tune the classifier and the unsure-to-medium fallback so simple
+  questions land on low thinking or Mercury; report new tier shares. 2 Caching: log
+  Gemini's cached-token count (real hit rate on dev and prod), explicit caching for
+  the large system prompt, cached input priced lower in user credits. 3 Parallel
+  preprocessing: independent steps in parallel, main model started optimistically
+  and cancelled if a check fails; the mate choice finishes before the main model and
+  TTS start, kept fast and parallel with other checks. 4 EU region: switch the
+  default Gemini route to Vertex EU only if the current Google credits are valid
+  there; otherwise stay on AI Studio and report. 5 Voice pre-pipeline: hard timeout
+  on the "done talking?" check so it never blocks; voice uses the fast send path; no
+  end-of-speech tuning. 6 Speculative prep: on Voxtral eager_end the browser only
+  prepares the send (text so far, encryption, request, connection), no model call;
+  on confirmation it sends or appends the last words; if the user continues it
+  discards the prepared message. 7 Answer first, save later: safety check in
+  parallel with TTS with a timeout; sentence N+1 is checked while N plays; only the
+  first sentence waits for its check; no audio plays unchecked; database writes go
+  to the background after audio starts (memory first, database second); same number
+  of safety checks as today. 8 Title and metadata saved in the background, speech
+  never waits for them; fix the intermittent 409 existing_chat_metadata_forbidden
+  (TASK-6166).
+specification: feature.ai-model-routing
+scope:
+  in:
+    - Backend AI pipeline (preprocessor, model routing, Jev classifier prompt, ask_skill_task, stream consumer, stage-one task).
+    - Gemini client usage logging and explicit cachedContents for the stable system-prompt prefix; system-prompt order (stable first, clock last).
+    - Billing of cached input tokens (credit price for cache reads).
+    - Voice call backend (completion gate, realtime turn writer, clause persistence, waiting speech).
+    - Web voice call send path and eager_end preparation through the Rust client core.
+    - Probes in backend/scripts/latency and scripts/voice_call_latency_probe.py for before/after numbers.
+  out:
+    - Production settings or deploys.
+    - End-of-speech (Voxtral turn detection) parameter changes.
+    - Speculative model calls or speculative server turns.
+    - Speech-to-speech models, WebRTC/PCM audio transport.
+decisions:
+  - Speculation is client-side preparation only; the server never starts a model call before the confirmed end of turn.
+  - Optimistic main start holds delivery, tool calls and side effects behind the gates (credit, URL safety, harm, admission); admission/authority, Project consent and the mate choice still finish before the main call starts.
+  - A gate rejection cancels the optimistic stream before any chunk is delivered; such a never-released stream is not billed to the user (provider cost is absorbed and logged). Streams the user cancels after release stay billed as today.
+  - Speculative eager_end preparation is held out of the dev deploy until the owner decides between a Rust core sendPrep path and a TypeScript shell exception (client-core rule).
+  - Routing voice call turns onto the web fast send path is held out too: the fast admission rejected call turns in voice-call.spec.ts (7 regressions), and send policy belongs to the Rust core. It ships with the eager_end decision.
+  - Voice safety keeps one check per sentence; playback of sentence N is gated on its own approval, never on a later one.
+  - The EU switch depends on credit validity evidence; without it the default stays on AI Studio.
+checks:
+  - Focused pytest for routing, caching/billing, preprocessing order, voice gates and metadata paths pass in isolated pytest CI.
+  - Rust client core and web voice send changes pass rust-check and the affected vitest/E2E voice specs in isolated CI.
+  - Before/after probe runs on dev (voice call timeline, provider probes) recorded with median and p90 in the TASK-9356 report.
+evidence: {}

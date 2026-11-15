@@ -2167,6 +2167,18 @@ const isEmptyDraftShell = (chat) => Number(chat.messages_v ?? 0) === 0
   && Number(chat.title_v ?? 0) === 0
   && Number(chat.metadata_v ?? 0) === 0
   && chat.last_message_timestamp == null;
+const CALL_LIFECYCLE_MESSAGE_RE = /^(?:00000000-voice-call-[a-f0-9]{32}-started|ffffffff-voice-call-[a-f0-9]{32}-ended)$/;
+// A voice call commits its own "started" system message right after the key
+// shell is registered. That must not turn the shell into a "real" chat that
+// the first turn's metadata would overwrite: only lifecycle messages exist.
+async function isCallLifecycleOnlyShell(trx, chat) {
+  if (Number(chat.title_v ?? 0) !== 0 || Number(chat.metadata_v ?? 0) !== 0) return false;
+  const version = Number(chat.messages_v ?? 0);
+  if (version === 0) return chat.last_message_timestamp == null;
+  const rows = await trx(MESSAGES).where({ chat_id: chat.id }).select(['client_message_id', 'role']);
+  return rows.length === version && rows.every((row) => row.role === 'system'
+    && CALL_LIFECYCLE_MESSAGE_RE.test(String(row.client_message_id ?? '')));
+}
 const hashIdentifier = (value) => createHash('sha256').update(value).digest('hex');
 
 function parsePreflightData(raw, operation = 'prepare_preflight') {
@@ -2469,15 +2481,16 @@ async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLoc
     if (chat) {
       if (chatMetadata) {
         if (directChat) fail(409, 'existing_chat_metadata_forbidden');
-        if (!isEmptyDraftShell(chat) || !canCompleteChatMetadata(chat, chatMetadata)) {
+        if (!(isEmptyDraftShell(chat) || await isCallLifecycleOnlyShell(trx, chat))
+          || !canCompleteChatMetadata(chat, chatMetadata)) {
           fail(409, 'existing_chat_metadata_forbidden');
         }
         const metadataCompletion = missingChatMetadata(chat, chatMetadata);
         if (Object.keys(metadataCompletion).length > 0) {
           timing?.enter('chat_metadata_update');
           const scope = teamHash
-            ? { id: chatId, hashed_team_id: teamHash, messages_v: 0 }
-            : { id: chatId, hashed_user_id: ownerHash, messages_v: 0 };
+            ? { id: chatId, hashed_team_id: teamHash, messages_v: chat.messages_v ?? 0 }
+            : { id: chatId, hashed_user_id: ownerHash, messages_v: chat.messages_v ?? 0 };
           if (await trx(CHATS).where(scope).update(metadataCompletion) !== 1) fail(409, 'version_conflict');
           chat = { ...chat, ...metadataCompletion };
         }

@@ -24,7 +24,9 @@ APPROVED_REQUEST_TIERS: tuple[RequestTier, ...] = (
     HIGH_TIER,
     MAX_TIER,
 )
-DEFAULT_SAFE_TIER: RequestTier = MEDIUM_TIER
+# A missing, unsure or unparseable classification lands on the cheapest tier;
+# medium or higher is chosen only when the classifier says so.
+DEFAULT_SAFE_TIER: RequestTier = LOW_TIER
 AUTO_CHAT_MODEL_PREFERENCE = "auto"
 
 # Existing settings and clients retain their three saved preference fields.
@@ -129,6 +131,21 @@ def history_requires_non_text(history: Any) -> bool:
                 return True
     return False
 
+
+def tier_resolution_reason(raw_tier: Any) -> str:
+    """Machine-readable reason why a classified tier value became its tier."""
+    if raw_tier in APPROVED_REQUEST_TIERS:
+        return f"jev_{raw_tier}"
+    if isinstance(raw_tier, str) and raw_tier in LEGACY_REQUEST_TIERS:
+        return f"jev_legacy_{raw_tier}"
+    return "jev_missing_default" if raw_tier is None else "jev_unparseable_default"
+
+def format_routing_decision(
+    *, tier: str, thinking_level: str | None, model_id: str | None, path: str, reason: str,
+) -> str:
+    """One structured log line per main turn; contains no user content."""
+    return (f"ROUTING_DECISION tier={tier} thinking={thinking_level or 'unset'} "
+            f"model={model_id or 'none'} path={path} reason={reason}")
 
 def mercury_allowed_by_preferences(preferences: Mapping[str, Any] | None) -> bool:
     preferences = preferences or {}

@@ -4415,7 +4415,7 @@ async def handle_main_processing(
 
     # Convert current time to user's local timezone so the LLM works in local time directly
     now_local = now_utc.astimezone(user_tz)
-    date_time_str = now_local.strftime("%Y-%m-%d %H:%M:%S %Z")
+    date_time_str = now_local.strftime("%Y-%m-%d %H:%M %Z")
 
     if user_timezone:
         # Include both local time and timezone name so the LLM never needs to convert
@@ -4425,15 +4425,17 @@ async def handle_main_processing(
         )
     else:
         # No timezone info — fall back to UTC and note it
-        date_time_str_utc = now_utc.strftime("%Y-%m-%d %H:%M:%S %Z")
+        date_time_str_utc = now_utc.strftime("%Y-%m-%d %H:%M %Z")
         clock_instruction = f"Current date and time: {date_time_str_utc} (user timezone unknown)"
-    prompt_parts.append(clock_instruction)
+    # The clock and heard-context change every turn; they are appended last
+    # (see the volatile tail below) so the prompt prefix stays cache-identical.
+    volatile_prompt_tail: list[str] = [clock_instruction]
     if getattr(request_data, "voice_mode", False):
         from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
 
         heard_context = build_voice_heard_context(getattr(request_data, "voice_heard_boundary", None), request_data.message_history)
         if heard_context:
-            prompt_parts.append(heard_context)
+            volatile_prompt_tail.append(heard_context)
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
@@ -5445,6 +5447,7 @@ async def handle_main_processing(
     )
     if voice_main_instruction:
         prompt_parts.append(voice_main_instruction)
+    prompt_parts.extend(volatile_prompt_tail)
     full_system_prompt = "\n\n".join(filter(None, prompt_parts))
     answer_recovery_system_prompt = "\n\n".join(
         part for part in prompt_parts if part and part not in research_only_prompt_parts

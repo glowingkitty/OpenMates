@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 11
+version: 12
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -48,7 +48,9 @@ models:
         max_requires_additional_exceptional_factor: true
         long_prompt_importance_tools_attachments_or_dissatisfaction_alone_insufficient: true
         uncertainty_between_high_and_max_resolves_to_high: true
-        invalid_or_missing_classification_resolves_to_medium: true
+        invalid_or_missing_classification_resolves_to_low: true
+        classifier_judges_latest_request_only: true
+        every_decision_logs_tier_and_reason: true
 
   PreferenceBucket:
     value:
@@ -267,7 +269,7 @@ assertions:
     depends_on: [models.RequestTier, examples.early_resolution]
   - id: ai-model-routing.tiers.conservative-three-way
     type: behavior
-    must: Automatic model routing classifies each request as low, medium, high, or max using the reasoning the main assistant must perform. Low covers ordinary Q&A, retrieval, straightforward transformations and known-query reference-image searches whose comparison is delegated to an app skill; medium covers bounded multi-step reasoning and synthesis; high covers intricate debugging, proofs and sustained reasoning across interacting constraints. Delegated candidate counts, reference-image counts and tool-internal evaluation alone do not raise the assistant tier. Max requires sustained multi-stage reasoning plus an exceptional complexity or correctness factor; prompt length, stated importance, tool use, attachments or dissatisfaction alone never qualify. Uncertainty between high and max resolves to high, and malformed classification resolves to medium. Existing exact-model and saved-tier preferences and automatic thinking profiles retain precedence.
+    must: Automatic model routing classifies each request as low, medium, high, or max using the reasoning the main assistant must perform. Low covers ordinary Q&A, retrieval, straightforward transformations and known-query reference-image searches whose comparison is delegated to an app skill; medium covers bounded multi-step reasoning and synthesis; high covers intricate debugging, proofs and sustained reasoning across interacting constraints. Delegated candidate counts, reference-image counts and tool-internal evaluation alone do not raise the assistant tier. Max requires sustained multi-stage reasoning plus an exceptional complexity or correctness factor; prompt length, stated importance, tool use, attachments or dissatisfaction alone never qualify. Uncertainty between high and max resolves to high; the classifier judges the latest request rather than earlier turns, chooses low when unsure, and missing or malformed classification resolves to low. Every routing decision records its tier, thinking level, model, decision path and reason in the server log without request content. Existing exact-model and saved-tier preferences and automatic thinking profiles retain precedence.
     depends_on: [models.RequestTier, examples.tier_classification]
   - id: ai-model-routing.preferences.exclusive-tier-defaults
     type: invariant

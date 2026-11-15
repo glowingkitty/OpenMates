@@ -1820,6 +1820,25 @@ test('prepare_preflight completes a key-only empty shell but rejects conflicting
   );
 });
 
+// TASK-6166: a call's own "started" system message must not make the key shell look like a real chat.
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('prepare_preflight completes a voice-call shell whose only message is the call-started lifecycle message', async () => {
+  const metadata = prepareBody().encrypted_chat_metadata;
+  const lifecycleId = `00000000-voice-call-${'a'.repeat(32)}-started`;
+  const shell = {
+    id: CHAT_ID, hashed_user_id: OWNER, encrypted_chat_key: metadata.encrypted_chat_key,
+    created_at: metadata.created_at, updated_at: metadata.updated_at,
+    messages_v: 1, title_v: 0, metadata_v: 0, last_message_timestamp: 100,
+  };
+  const lifecycle = { ...userMessage(lifecycleId), client_message_id: lifecycleId, role: 'system', chat_id: CHAT_ID };
+  const database = fakeDatabase({ chats: [shell], messages: [lifecycle], chat_turn_preflights: [] });
+  const result = await executeOperation(database, 'prepare_preflight', prepareBody({ expected_messages_v: 1 }),
+    new Date('2029-01-01T00:00:00Z'));
+  assert.equal(result.state, 'PREPARED');
+  assert.equal(database.rows.chats[0].encrypted_title, metadata.encrypted_title);
+  assert.equal(database.rows.chats[0].messages_v, 2);
+});
+
 // contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 test('prepare_preflight rejects metadata for an existing non-empty chat', async () => {
   const metadata = prepareBody().encrypted_chat_metadata;

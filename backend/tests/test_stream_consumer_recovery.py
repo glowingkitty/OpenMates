@@ -2150,3 +2150,42 @@ def test_sub_chat_continuation_after_hangup_continues_as_a_text_turn(monkeypatch
     assert payload["voice_call_id"] is None and payload["voice_turn_id"] is None
     assert payload["is_sub_chat_continuation"] is True
     assert payload["assistant_response_source_revision"] == 2
+
+
+def test_revocation_probe_rate_limits_celery_state_reads(monkeypatch):
+    """The hot chunk path must not do a synchronous Redis GET per chunk."""
+    calls = []
+    monkeypatch.setattr(
+        stream_consumer.celery_config.app, "AsyncResult",
+        lambda task_id: calls.append(task_id) or SimpleNamespace(state="REVOKED"),
+    )
+    clock = [100.0]
+    monkeypatch.setattr(stream_consumer.time, "monotonic", lambda: clock[0])
+    probe = stream_consumer._RevocationProbe("task-1", interval=0.25)
+    assert probe.revoked() is True
+    assert [probe.revoked() for _ in range(50)] == [False] * 50
+    assert len(calls) == 1
+    clock[0] += 0.3
+    assert probe.revoked() is True
+    assert len(calls) == 2
+
+
+def test_metadata_settle_waits_and_logs_without_raising():
+    from backend.apps.ai.tasks import ask_skill_task
+
+    async def check():
+        done = []
+
+        async def slow_write():
+            await asyncio.sleep(0.05)
+            done.append(True)
+
+        async def failing_write():
+            raise RuntimeError("db down")
+
+        slow = asyncio.create_task(slow_write())
+        failing = asyncio.create_task(failing_write())
+        await ask_skill_task._settle_metadata_before_finalize(slow, failing, None)
+        assert done == [True]
+
+    asyncio.run(check())

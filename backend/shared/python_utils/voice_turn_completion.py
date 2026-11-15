@@ -17,10 +17,11 @@ from backend.shared.providers.typesafe.models import ChoiceAnswer
 VoiceTurnCompletion = Literal["complete", "incomplete", "uncertain", "unavailable"]
 MAX_COMPLETION_CHARACTERS = 8_000
 COMPLETION_CONFIDENCE = 0.8
-# Warm TypeSafe answers in ~0.2-0.3s; the per-provider budget leaves room for
-# one network hiccup while the overall bound keeps the call responsive.
+# Warm TypeSafe answers in ~0.2s (p90 0.20s). Both providers are raced in
+# parallel under one hard overall deadline; a miss is "unavailable", which the
+# call treats as complete so this check can never block a spoken turn.
 PROVIDER_TIMEOUT_SECONDS = 0.6
-COMPLETION_TIMEOUT_SECONDS = 1.2
+COMPLETION_TIMEOUT_SECONDS = 0.6
 logger = logging.getLogger(__name__)
 
 _QUESTIONS = {"completion": {
@@ -84,7 +85,30 @@ async def prewarm_voice_turn_completion() -> None:
             logger.warning("Voice completion connection warmup unavailable")
 
 
-async def classify_voice_turn_completion(text: str, secrets_manager: Any) -> VoiceTurnCompletion:
+async def _first_valid_decision(text: str, secrets_manager: Any) -> Any:
+    """Query every provider in parallel; the first valid verdict wins."""
+    tasks = [asyncio.create_task(JevDecisionClient(
+        secrets_manager=secrets_manager, http_client=_client(),
+        timeout_seconds=PROVIDER_TIMEOUT_SECONDS, max_retries=0, provider=provider,
+    ).evaluate(state={"speech": text}, questions=_QUESTIONS)) for provider in PROVIDER_SETTINGS]
+    last_error: Exception | None = None
+    try:
+        for finished in asyncio.as_completed(tasks):
+            try:
+                return await finished
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                last_error = exc
+        raise last_error or RuntimeError("No decision provider configured")
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+async def classify_voice_turn_completion(text: str, secrets_manager: Any,
+                                         timeout: float | None = None) -> VoiceTurnCompletion:
     """Judge only utterance completion, without skills, history or preprocessing.
 
     A low-confidence answer is "uncertain"; a timeout or provider failure is
@@ -92,15 +116,16 @@ async def classify_voice_turn_completion(text: str, secrets_manager: Any) -> Voi
     """
     if not text.strip() or len(text) > MAX_COMPLETION_CHARACTERS:
         return "uncertain"
+    timeout = COMPLETION_TIMEOUT_SECONDS if timeout is None else timeout
     try:
-        async with asyncio.timeout(COMPLETION_TIMEOUT_SECONDS):
-            result = await JevDecisionClient(
-                secrets_manager=secrets_manager, http_client=_client(),
-                timeout_seconds=PROVIDER_TIMEOUT_SECONDS, max_retries=0,
-            ).evaluate(state={"speech": text}, questions=_QUESTIONS)
+        async with asyncio.timeout(timeout):
+            result = await _first_valid_decision(text, secrets_manager)
+    except TimeoutError:
+        logger.warning("VOICE_COMPLETION_CHECK timeout after=%.2fs", timeout)
+        return "unavailable"
     except Exception as exc:
         # Exception messages and upstream bodies may contain the transcript.
-        logger.warning("Voice completion unavailable category=%s", type(exc).__name__)
+        logger.warning("VOICE_COMPLETION_CHECK unavailable category=%s", type(exc).__name__)
         return "unavailable"
     answer = result.answers.get("completion")
     if (isinstance(answer, ChoiceAnswer) and answer.confidence >= COMPLETION_CONFIDENCE

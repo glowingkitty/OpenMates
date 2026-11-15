@@ -357,7 +357,7 @@ features:
       - backend/tests/test_preprocessor.py
       - backend/tests/test_preprocessor_jev.py
       - backend/tests/test_main_factual_prompt.py
-      unit_test_files: 28
+      unit_test_files: 29
     sdk_npm:
       status: implemented
       source: intent
@@ -1177,9 +1177,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 6
+        passing: 7
         failing: 1
-        not_run: 12
+        not_run: 11
         missing: 11
         counted: 30
       failing_tests:
@@ -1618,7 +1618,7 @@ features:
       - backend/tests/test_bank_transfer.py
       - backend/tests/test_billing_settlement_reliability.py
       - backend/tests/test_temporary_model_pricing.py
-      unit_test_files: 64
+      unit_test_files: 65
     sdk_npm:
       status: not_run
       source: tests
@@ -10024,16 +10024,16 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 9
+        passing: 10
         failing: 0
-        not_run: 6
+        not_run: 5
         missing: 0
         counted: 15
       key_tests: []
       e2e_tests: []
       key_unit_tests:
-      - backend/tests/test_call_message_completed_handler.py
       - backend/tests/test_voice_realtime_turn.py
+      - backend/tests/test_call_message_completed_handler.py
       - backend/tests/test_voice_status.py
       - backend/tests/test_preprocessing_voice_delivery.py
       - backend/tests/test_voice_call_instructions.py

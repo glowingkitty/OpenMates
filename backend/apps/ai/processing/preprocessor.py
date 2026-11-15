@@ -67,7 +67,9 @@ from backend.apps.ai.processing.model_routing import (
     HIGH_TIER,
     MERCURY_MODEL,
     selects_media_generation,
+    format_routing_decision,
     history_requires_non_text,
+    tier_resolution_reason,
     automatic_model_candidates,
     automatic_model_allowed_servers,
     LOW_TIER,
@@ -90,6 +92,7 @@ from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 from backend.core.api.app.schemas.chat import AIHistoryMessage
+from backend.apps.ai.processing.parallel_url_safeguard import sanitize_texts_parallel
 from backend.shared.python_utils.url_normalizer import (
     extract_urls_from_text,
     sanitize_text_urls_with_safeguard,
@@ -1786,6 +1789,18 @@ def _resolve_explicit_mate(
     return None, None
 
 
+STAGE_ONE_CREDIT_ADMISSION_MAX_AGE_SECONDS = 30.0
+
+
+def stage_one_credit_admission_fresh(precomputed_stage_one: Optional[Dict[str, Any]]) -> bool:
+    """True when the sealed stage-one snapshot carries a recent passed credit check."""
+    admitted_at = (precomputed_stage_one or {}).get("credit_admitted_at")
+    if not isinstance(admitted_at, (int, float)) or isinstance(admitted_at, bool):
+        return False
+    age = time.time() - admitted_at
+    return 0 <= age <= STAGE_ONE_CREDIT_ADMISSION_MAX_AGE_SECONDS
+
+
 async def check_preprocessing_credits(
     request_data: AskSkillRequest,
     cache_service: CacheService,
@@ -1931,6 +1946,9 @@ async def _select_main_model(
     """Resolve the answer model once from the public first-stage decisions."""
     raw_complexity = llm_analysis_args.get("complexity")
     complexity_val = normalize_request_tier(raw_complexity)
+    tier_reason = tier_resolution_reason(raw_complexity)
+    selection_path = "intelligent"
+    mercury_skip_reasons: list[str] = []
     if raw_complexity not in APPROVED_REQUEST_TIERS and raw_complexity != complexity_val:
         logger.warning(
             f"{log_prefix} Normalized complexity '{raw_complexity}' to '{complexity_val}'. "
@@ -2058,6 +2076,7 @@ async def _select_main_model(
             # Look up human-readable name from config (e.g., "Claude Haiku 5.5" instead of "claude-haiku-5-5")
             selected_llm_for_main_name = config_manager.get_model_display_name(raw_model_id, provider_id) or raw_model_id
             model_override_applied = True
+            selection_path = "user_override"
             model_selection_reason = f"User override: {selected_llm_for_main_id}"
             logger.info(
                 f"{log_prefix} USER_OVERRIDE: Applied full model reference: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
@@ -2075,6 +2094,7 @@ async def _select_main_model(
             # Look up human-readable name from config
             selected_llm_for_main_name = config_manager.get_model_display_name(override_model_id, selected_provider) or override_model_id
             model_override_applied = True
+            selection_path = "user_override"
             model_selection_reason = f"User override with provider: {selected_llm_for_main_id}"
             logger.info(
                 f"{log_prefix} USER_OVERRIDE: Constructed model reference from provider: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
@@ -2091,6 +2111,7 @@ async def _select_main_model(
                 # Look up human-readable name from config
                 selected_llm_for_main_name = config_manager.get_model_display_name(override_model_id, resolved_provider) or override_model_id
                 model_override_applied = True
+                selection_path = "user_override"
                 model_selection_reason = f"User override (provider resolved): {selected_llm_for_main_id}"
                 logger.info(
                     f"{log_prefix} USER_OVERRIDE: Resolved provider '{resolved_provider}' for model '{override_model_id}'. "
@@ -2132,6 +2153,7 @@ async def _select_main_model(
             else:
                 selected_llm_for_main_id, selected_llm_for_main_name = validated_default
                 model_override_applied = True
+                selection_path = "user_default"
                 model_selection_reason = f"User default ({user_default_key}): {selected_llm_for_main_id}"
                 logger.info(
                     f"{log_prefix} USER_DEFAULT_MODEL: Applying user default model "
@@ -2203,6 +2225,7 @@ async def _select_main_model(
                     provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
                     selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
 
+                selection_path = "selector_failure_fallback"
                 model_selection_reason = f"Fallback to skill_config (complexity={complexity_val}) after model selector error"
                 logger.info(
                     f"{log_prefix} MODEL_SELECTION: Using fallback model from skill_config: "
@@ -2227,6 +2250,7 @@ async def _select_main_model(
                 provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
                 selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
 
+            selection_path = "auto_selection_disabled"
             model_selection_reason = f"Hardcoded from skill_config (auto-selection disabled, complexity={complexity_val})"
 
     # Apply the same restrictions to every automatic tier and recovery model.
@@ -2251,13 +2275,21 @@ async def _select_main_model(
             ):
                 continue
             if model_id == MERCURY_MODEL:
-                if has_image_upload_embed or history_requires_non_text(request_data.message_history):
+                if has_image_upload_embed:
+                    mercury_skip_reasons.append("image_upload")
+                    continue
+                # Dispatch also refuses Mercury for media anywhere in history
+                # (visual evidence is never stripped), so route the same way.
+                if history_requires_non_text(request_data.message_history):
+                    mercury_skip_reasons.append("image_in_history")
                     continue
                 if selects_media_generation(selected_app_ids, llm_analysis_args.get("relevant_app_skills")):
+                    mercury_skip_reasons.append("media_generation_selected")
                     continue
                 # Avoid a known unavailable primary without a provider call.
                 # Recovery attempts recheck health at the dispatch boundary.
                 if not candidates and not await is_provider_healthy("inception", CacheService()):
+                    mercury_skip_reasons.append("inception_unhealthy")
                     continue
             candidates.append(model_id)
         selected_llm_for_main_id = candidates[0] if candidates else None
@@ -2282,6 +2314,30 @@ async def _select_main_model(
             use_case_thinking_level(use_case_val, selected_llm_for_main_id) if use_case_applied
             else automatic_profile_thinking_level(complexity_val, selected_llm_for_main_id)
         )
+    elif selected_llm_for_main_id and selected_llm_for_main_id.startswith("google/"):
+        # An explicit Gemini choice without a level would fall to Google's slow
+        # default dynamic thinking; send the tier's profile level (else LOW).
+        selected_llm_thinking_level = (
+            automatic_profile_thinking_level(complexity_val, selected_llm_for_main_id) or "LOW"
+        )
+
+    if model_override_applied:
+        decision_reason = selection_path
+    elif use_case_applied:
+        decision_reason = f"use_case:{use_case_val}"
+    else:
+        decision_reason = tier_reason
+    if not model_override_applied and use_case_applied:
+        decision_reason = f"{decision_reason},{tier_reason}"
+    if mercury_skip_reasons:
+        decision_reason += ",mercury_skipped:" + "+".join(dict.fromkeys(mercury_skip_reasons))
+    if not model_override_applied and selected_llm_for_main_id is None:
+        decision_reason += ",no_permitted_model"
+    logger.info("%s %s", log_prefix, format_routing_decision(
+        tier=complexity_val, thinking_level=selected_llm_thinking_level,
+        model_id=selected_llm_for_main_id,
+        path=f"{selection_path}+use_case" if use_case_applied and not model_override_applied else selection_path,
+        reason=decision_reason))
 
     return {
         "complexity_val": complexity_val,
@@ -2478,10 +2534,15 @@ async def handle_preprocessing(
             credit_rejection = await check_preprocessing_credits(
                 request_data, cache_service, directus_service, encryption_service,
             )
-    else:
+    elif not stage_one_credit_admission_fresh(precomputed_stage_one):
         credit_rejection = await check_preprocessing_credits(
             request_data, cache_service, directus_service, encryption_service,
         )
+    else:
+        # Stage one passed the same live check moments ago; billing still
+        # settles against the real balance when the turn completes.
+        credit_rejection = None
+        logger.info("%s PREPROCESS_TIMING step=credit_check_reused ms=0", log_prefix)
     if credit_rejection is not None:
         return credit_rejection
 
@@ -2543,6 +2604,7 @@ async def handle_preprocessing(
     # which use invisible Unicode characters to embed hidden instructions.
     # See: docs/architecture/prompt_injection_protection.md
     sanitized_message_history = []
+    pending_url_checks: list[tuple[int, str, str]] = []
     for msg in projection_source:
         msg_dict = msg.model_dump() if hasattr(msg, "model_dump") else dict(msg)
         if msg_dict.get("role") == "user":
@@ -2550,24 +2612,29 @@ async def handle_preprocessing(
             if isinstance(original_content, str):
                 # Use comprehensive ASCII smuggling sanitization
                 sanitized_content = _sanitize_text_content(original_content, log_prefix=log_prefix)
-                sanitized_content = await sanitize_text_urls_with_safeguard(
-                    sanitized_content,
-                    secrets_manager=secrets_manager,
-                    log_prefix=log_prefix,
-                    allowed_source_urls=extract_urls_from_text(sanitized_content),
-                )
-                # Update the 'content' in the dictionary representation
-                msg_dict["content"] = sanitized_content
-                if original_content != sanitized_content: # Log only if changed
-                    logger.debug(f"{log_prefix} Sanitized user message content. Original length: {len(original_content)}, Sanitized length: {len(sanitized_content)}")
-                sanitized_message_history.append(msg_dict)
-            else:
-                # If content is not str (e.g. already a dict from Tiptap), append the dict representation of original msg
-                # The content in msg_dict is already correct from model_dump()
-                sanitized_message_history.append(msg_dict)
-        else:
-            # For non-user messages, append the dict representation
-            sanitized_message_history.append(msg_dict)
+                pending_url_checks.append((len(sanitized_message_history), original_content, sanitized_content))
+        sanitized_message_history.append(msg_dict)
+
+    # The per-message URL safeguard calls are independent; run them concurrently.
+    async def _safeguard_one(text: str) -> str:
+        return await sanitize_text_urls_with_safeguard(
+            text,
+            secrets_manager=secrets_manager,
+            log_prefix=log_prefix,
+            allowed_source_urls=extract_urls_from_text(text),
+        )
+
+    _url_started = time.monotonic()
+    safeguarded = await sanitize_texts_parallel(
+        [item[2] for item in pending_url_checks], _safeguard_one,
+    )
+    for (index, original_content, _), sanitized_content in zip(pending_url_checks, safeguarded):
+        sanitized_message_history[index]["content"] = sanitized_content
+        if original_content != sanitized_content:  # Log only if changed
+            logger.debug(f"{log_prefix} Sanitized user message content. Original length: {len(original_content)}, Sanitized length: {len(sanitized_content)}")
+    if pending_url_checks:
+        logger.info("PREPROCESS_TIMING step=url_safeguard ms=%.1f messages=%d",
+                    (time.monotonic() - _url_started) * 1000, len(pending_url_checks))
 
     # Compatibility histories can still be large. The bounded path is normally a
     # few recent messages, but both paths retain an explicit provider safety margin.

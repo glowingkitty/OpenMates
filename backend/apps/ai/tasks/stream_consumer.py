@@ -6498,6 +6498,22 @@ class _FirstChunkPublishBarrier:
             await self.operation()
 
 
+class _RevocationProbe:
+    """Rate-limit the synchronous Celery state (Redis GET) check on the chunk hot path."""
+
+    def __init__(self, task_id: str, interval: float = 0.25):
+        self.task_id = task_id
+        self.interval = interval
+        self._last_check = float("-inf")
+
+    def revoked(self) -> bool:
+        now = time.monotonic()
+        if now - self._last_check < self.interval:
+            return False
+        self._last_check = now
+        return celery_config.app.AsyncResult(self.task_id).state == TASK_STATE_REVOKED
+
+
 def _should_prepare_assistant_speech(request_data, preprocessing_result, user_overrides) -> bool:
     """Activation-only Focus turns have no answer/profile until their continuation."""
     if request_data.is_external or request_data.is_incognito or getattr(preprocessing_result, "routing_only", False):
@@ -6552,6 +6568,7 @@ async def _consume_main_processing_stream(
 
     standardized_error_message = STANDARDIZED_USER_ERROR_MESSAGE
     first_chunk_barrier = _FirstChunkPublishBarrier(before_first_chunk_publish)
+    revocation_probe = _RevocationProbe(task_id)
 
     # Local flags for interruption status
     was_revoked_during_stream = False
@@ -7516,8 +7533,8 @@ async def _consume_main_processing_stream(
                 usage = chunk
                 continue
             
-            # Check for revocation BEFORE processing the chunk
-            if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
+            # Check for revocation BEFORE processing the chunk (rate-limited)
+            if revocation_probe.revoked():
                 logger.warning(f"{log_prefix} Task revoked during main processing stream. Including current chunk and finalizing partial response.")
                 was_revoked_during_stream = True
                 # Include the current chunk before breaking - don't discard it

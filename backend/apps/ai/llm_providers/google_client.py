@@ -115,7 +115,8 @@ def _log_google_stream_usage(timing: _GoogleStreamTiming, usage: Any) -> None:
     try:
         counters = {}
         for field in ("prompt_token_count", "candidates_token_count", "total_token_count",
-                      "thoughts_token_count", "system_prompt_tokens", "user_input_tokens"):
+                      "thoughts_token_count", "cached_content_token_count",
+                      "system_prompt_tokens", "user_input_tokens"):
             value = getattr(usage, field, None)
             counters[field] = value if type(value) is int and value >= 0 else None
         logger.info(

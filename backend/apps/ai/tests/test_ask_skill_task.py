@@ -244,11 +244,13 @@ def test_preparation_and_metadata_join_boundaries():
             "wait_for_budget=True")
     assert body.index('initial_metadata_job = await time_pre_main("metadata_barrier_wait", initial_metadata_task)') < body.index(
         "metadata_recovery_job=initial_metadata_job", body.index("async def publish_initial_metadata_after_seal"))
-    assert "if initial_metadata_task and not early_metadata_task else None" in body
+    # Metadata persistence never gates first output: no barrier is passed.
+    assert "before_first_chunk_publish=" not in body
+    assert "if initial_metadata_task and not early_metadata_task" not in body
     assert body.index("initial_metadata_notice_task = asyncio.create_task(publish_initial_metadata_after_seal())") < body.index(
         "_consume_main_processing_stream(")
-    assert body.index("before_first_chunk_publish=(publish_initial_metadata_after_seal") < body.index(
-        "wait_for_budget=True")
+    assert body.index("_settle_metadata_before_finalize(initial_metadata_notice_task") < body.index(
+        "_drain_preparation_tasks(initial_metadata_notice_task")
     assert "if not request_data.is_external:" in body
     assert "if not typing_lifecycle.started:" in body
 

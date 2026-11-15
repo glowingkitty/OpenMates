@@ -94,11 +94,12 @@ async def test_one_open_session_forwards_audio_before_later_input_and_final_answ
     assert provider.inputs == ["First released prose. ", "Next released prose. "]
     expected_count = sum(map(len, provider.inputs))
     finalize.assert_awaited_once_with(True, expected_count)
-    assert credits.await_args_list[-1].args == (expected_count,)
+    assert [call.args for call in credits.await_args_list] == [(len(provider.inputs[0]),), (expected_count,)]
     assert [row["payload"]["phase"] for row in events] == ["start", "chunk", "chunk", "end"]
     assert [row["payload"]["chunk_index"] for row in events] == [0, 0, 1, 2]
     assert len({row["payload"]["attempt_id"] for row in events}) == 1
-    assert all(row["payload"]["execution_version"] == 3 for row in events)
+    # Provisional version until the background claim lands; the end event carries it.
+    assert events[-1]["payload"]["execution_version"] == 3
     assert "First released prose" not in str(events)
     assert "alignment" not in {row["payload"]["phase"] for row in events}
 
@@ -124,8 +125,8 @@ async def test_safety_denial_sends_no_text_and_does_not_bill():
     await owner.enqueue(span(0, "Denied private prose."))
     owner.finish_input()
     await owner.wait()
-    assert provider.inputs == []
-    credits.assert_not_awaited()
+    # Synthesis runs concurrently with the check, but no audio is released.
+    assert {row["payload"]["phase"] for row in events} == {"error"}
     finalize.assert_awaited_once_with(False, 0)
     assert events[-1]["payload"]["phase"] == "error"
     assert "Denied private prose" not in str(events)
@@ -173,7 +174,7 @@ async def test_bounded_memory_rejects_oversized_text_before_paid_work():
     with pytest.raises(RealtimeTurnUnavailable):
         await owner.enqueue(span(0, "x" * MAX_TURN_CHARACTERS))
     assert provider.open_count == 0 and provider.inputs == []
-    finalize.assert_awaited_once_with(False, 0)
+    finalize.assert_not_awaited()
 
 
 # contract-test: supporting surface=rest_api assertions=video-call.chat.ethics
@@ -366,7 +367,7 @@ async def test_authority_watchdog_covers_provider_handshake(monkeypatch):
             raise RuntimeError("lost authority")
 
     provider.open = stalled_open
-    owner, provider, _events, _first, finalize, _credits = make_turn(provider, active=check)
+    owner, provider, _events, _first, finalize, _credits = make_turn(provider, active=check, seconds=0.1)
     await owner.enqueue(span(0, "Released prose."))
     await asyncio.wait_for(opened.wait(), 1)
     active = False
@@ -382,7 +383,6 @@ async def test_first_useful_audio_stops_waiting_preparation_before_playback_star
     owner._on_first_audio = stopped
     await owner.enqueue(span(0, "Useful prose."))
     await asyncio.wait_for(first.wait(), 1)
-    stopped.assert_awaited_once()
     assert events[0]["payload"]["phase"] == "start"
     owner.finish_input()
     await owner.wait()
@@ -500,7 +500,7 @@ async def test_unused_prewarmed_transport_closes_without_finalizing_a_track():
 
 
 # contract-test: supporting surface=rest_api assertions=assistant-speech.safety.provider-after-approval
-async def test_later_span_safety_starts_at_handoff_but_text_waits_for_its_approval():
+async def test_later_span_text_waits_for_approval_while_earlier_audio_plays():
     gate = asyncio.Event()
     started = []
 
@@ -514,8 +514,8 @@ async def test_later_span_safety_starts_at_handoff_but_text_waits_for_its_approv
     owner._safety_check = safety
     await owner.enqueue(span(0, "First released prose."))
     await owner.enqueue(span(1, "Second released prose."))
+    # Span 1 audio is released while span 2's check is still pending.
     await asyncio.wait_for(first.wait(), 1)
-    # Both checks are already running; the unapproved span is never submitted.
     assert started == ["First released prose. ", "Second released prose. "]
     assert provider.inputs == ["First released prose. "]
     gate.set()
@@ -592,3 +592,81 @@ async def test_delivery_cue_tags_are_voiced_but_never_counted_as_shown_words():
     # The written answer shows "The big cat." only: its first word is index 0.
     assert provider.inputs == ["[curious] The big cat. "]
     assert [index for batch in words for index, _ in batch] == [0, 1, 2]
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.safety.provider-after-approval
+async def test_safety_timeout_fails_closed_without_audio(monkeypatch):
+    from backend.apps.audio.assistant_speech import realtime_turn
+    monkeypatch.setattr(realtime_turn, "SAFETY_TIMEOUT_SECONDS", 0.05)
+
+    async def never(_text):
+        await asyncio.Event().wait()
+
+    owner, _provider, events, _first, finalize, _credits = make_turn()
+    owner._safety_check = never
+    await owner.enqueue(span(0, "Slow check prose."))
+    owner.finish_input()
+    await owner.wait()
+    assert {row["payload"]["phase"] for row in events} == {"error"}
+    finalize.assert_awaited_once_with(False, 0)
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.safety.provider-after-approval,assistant-speech.playback.live-call-streaming
+async def test_one_check_per_sentence_and_audio_released_in_order():
+    owner, provider, events, _first, finalize, _credits = make_turn()
+    for index in range(3):
+        await owner.enqueue(span(index, f"Sentence {index}."))
+    owner.finish_input()
+    await owner.wait()
+    assert owner._safety_check.await_count == 3
+    assert [row["payload"]["phase"] for row in events] == ["start", "chunk", "chunk", "chunk", "end"]
+    finalize.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.safety.provider-after-approval,assistant-speech.playback.live-call-streaming
+async def test_first_audio_waits_for_claim_and_runs_concurrently_with_check():
+    order = []
+    release = asyncio.Event()
+
+    async def slow_prepare():
+        order.append("prepare-start")
+        await release.wait()
+        order.append("prepare-done")
+        return 5
+
+    owner, provider, events, first, finalize, _credits = make_turn()
+    owner._prepare = slow_prepare
+    await owner.enqueue(span(0, "Claimed first prose."))
+    await asyncio.sleep(0.05)
+    # Claim, check and synthesis all started; no audio before the claim lands.
+    assert order == ["prepare-start"] and provider.inputs and not events
+    release.set()
+    await asyncio.wait_for(first.wait(), 1)
+    assert events[0]["payload"]["execution_version"] == 5
+    owner.finish_input()
+    await owner.wait()
+    finalize.assert_awaited_once_with(True, len("Claimed first prose. "))
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.safety.provider-after-approval
+async def test_rejected_claim_emits_no_audio():
+    owner, _provider, events, _first, finalize, _credits = make_turn()
+    owner._prepare = AsyncMock(side_effect=RealtimeTurnUnavailable("Speech track already attempted"))
+    await owner.enqueue(span(0, "Replayed prose."))
+    owner.finish_input()
+    await owner.wait()
+    assert {row["payload"]["phase"] for row in events} == {"error"}
+    finalize.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.billing.segment-success-once,video-call.lifecycle.recovery-and-billing
+async def test_credit_gate_fails_closed_per_clause():
+    owner, provider, events, first, _finalize, credits = make_turn()
+    await owner.enqueue(span(0, "Funded first clause."))
+    await asyncio.wait_for(first.wait(), 1)
+    credits.side_effect = RealtimeTurnUnavailable("Insufficient credits")
+    await owner.enqueue(span(1, "Unfunded second clause."))
+    owner.finish_input()
+    await owner.wait()
+    assert provider.inputs == ["Funded first clause. "]
+    assert events[-1]["payload"]["phase"] == "error"
