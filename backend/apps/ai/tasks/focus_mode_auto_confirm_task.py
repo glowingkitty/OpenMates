@@ -293,6 +293,7 @@ async def _async_focus_mode_auto_confirm(
             "team_id_hash": pending_context.get("team_id_hash"),
             "team_workspace_type": pending_context.get("team_workspace_type", "chat"),
             "team_object_id_hash": pending_context.get("team_object_id_hash"),
+            "client_capabilities": list(pending_context.get("client_capabilities") or []),
             # Signal that this is a continuation after focus mode activation.
             # The task should NOT re-persist the user message (it's already persisted).
             # This continuation creates a SEPARATE assistant message (new task_id = new message_id).
