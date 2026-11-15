@@ -119,6 +119,9 @@ def _log_google_stream_usage(timing: _GoogleStreamTiming, usage: Any) -> None:
                       "thoughts_token_count", "cached_content_token_count",
                       "system_prompt_tokens", "user_input_tokens"):
             value = getattr(usage, field, None)
+            if field == "cached_content_token_count" and value is None:
+                # GoogleUsageMetadata stores the SDK counter as cache_read_input_tokens.
+                value = getattr(usage, "cache_read_input_tokens", None)
             counters[field] = value if type(value) is int and value >= 0 else None
         logger.info(
             "[%s] Google stream usage host=%s model=%s counters=%s",
