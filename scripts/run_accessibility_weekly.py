@@ -32,6 +32,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 from backend.shared.python_utils.live_email_policy import require_live_email  # noqa: E402 (repo path bootstrap)
+from scripts.brevo_ipv4 import urlopen as brevo_urlopen  # noqa: E402 (repo path bootstrap)
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "test-results" / "accessibility"
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 DEFAULT_SENDER_EMAIL = "noreply@openmates.org"
@@ -207,7 +208,7 @@ def _send_brevo_email(
         headers={"accept": "application/json", "api-key": api_key, "content-type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with brevo_urlopen(req, timeout=30) as resp:
         resp.read()
 
 

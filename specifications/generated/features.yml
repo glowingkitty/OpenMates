@@ -7603,17 +7603,18 @@ features:
       assertions:
         passing: 0
         failing: 0
-        not_run: 3
+        not_run: 4
         missing: 0
-        counted: 3
+        counted: 4
       key_tests: []
       e2e_tests: []
       key_unit_tests:
+      - backend/tests/test_newsletter_campaign_send_args.py
       - backend/tests/test_probe_newsletter_delivery.py
       - backend/tests/test_email_delivery_feedback.py
       - backend/tests/test_events_newsletter_generator.py
       - backend/tests/test_live_email_policy.py
-      unit_test_files: 4
+      unit_test_files: 5
     sdk_npm:
       status: not_planned
       source: intent

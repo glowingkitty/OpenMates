@@ -10,6 +10,7 @@ These modes never touch the shared dev stack: run_tests.main() dispatches
 .github/workflows/prod-smoke.yml on GitHub, waits for it, parses its artifacts
 and sends the alerts. This script imports run_tests (the forwarder only runs
 when run_tests.py is the main program) and calls main() with one prod flag.
+free-hourly first runs scripts/prod_email_health.py (prod transactional email).
 
 Usage: python3 scripts/prod_smoke_cron.py {free-hourly|paid-chat|app-skill} [--dry-run] [--force]
 Architecture: docs/architecture/test-orchestration.md
@@ -45,10 +46,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--force", action="store_true", help="run even if the dedup window says skip")
     args = parser.parse_args(argv)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
+    email_rc = 0
+    if args.suite == "free-hourly":
+        # Transactional email health rides with the hourly smoke (TASK-427):
+        # its own Discord alert, independent of the GitHub-hosted browser run.
+        import prod_email_health
+
+        email_rc = prod_email_health.run(dry_run=args.dry_run)
     import run_tests
 
     sys.argv = run_tests_argv(args.suite, args.dry_run, args.force)
-    return run_tests.main()
+    smoke_rc = run_tests.main()
+    return smoke_rc or email_rc
 
 
 if __name__ == "__main__":

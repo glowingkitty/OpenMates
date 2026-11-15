@@ -8,7 +8,6 @@ reused safely until it is refactored to read campaign bodies directly.
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import logging
@@ -221,19 +220,10 @@ class NewsletterCampaignService:
         sent_langs: list[str] = []
         with self._legacy_files(campaign):
             for lang in self._available_langs(campaign):
-                rc = await send_newsletter.run(argparse.Namespace(
+                rc = await send_newsletter.run(send_newsletter.programmatic_args(
                     slug=slug,
                     lang=lang,
-                    dry_run=False,
-                    render_to=None,
                     test_to=admin_email,
-                    send=False,
-                    admin_email=None,
-                    resume=False,
-                    simulate=False,
-                    limit=None,
-                    base_url=None,
-                    resend_confirm=False,
                     non_interactive_approved=False,
                 ))
                 if rc != 0:
@@ -305,19 +295,12 @@ class NewsletterCampaignService:
                 if not live:
                     raise NewsletterCampaignError(f"Public newsletter page is not live: {campaign['public_page_url']}")
             with self._legacy_files(campaign):
-                rc = await send_newsletter.run(argparse.Namespace(
+                rc = await send_newsletter.run(send_newsletter.programmatic_args(
                     slug=slug,
-                    lang=None,
-                    dry_run=False,
-                    render_to=None,
-                    test_to=None,
                     send=True,
                     admin_email=os.getenv("SERVER_OWNER_EMAIL") or os.getenv("ADMIN_NOTIFY_EMAIL") or "admin@openmates.org",
                     resume=True,
                     simulate=simulate,
-                    limit=None,
-                    base_url=None,
-                    resend_confirm=False,
                     non_interactive_approved=True,
                 ))
             status = "sent" if rc == 0 and not simulate else "approved" if simulate else "failed"

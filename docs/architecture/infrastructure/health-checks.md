@@ -106,6 +106,8 @@ App and external-service checks run every **5 minutes**. Provider inference prob
 | AWS Bedrock   | `boto3.list_foundation_models()` | Vault `kv/data/providers/aws`            |
 | Vercel Domain | HTTP GET (follow redirects)      | `VERCEL_DOMAIN` env var                  |
 
+The hourly prod smoke also checks transactional email sending (account, credits, prod error rate); see [transactional-email-monitoring.md](./transactional-email-monitoring.md).
+
 Missing credentials yield `unhealthy` with `missing_credentials`. HTTP errors return the status code; timeouts return `"timeout"`.
 
 ### Health Event Persistence

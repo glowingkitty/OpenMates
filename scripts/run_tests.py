@@ -129,6 +129,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 from backend.shared.python_utils.live_email_policy import require_live_email  # noqa: E402 (repo path bootstrap)
+from scripts.brevo_ipv4 import urlopen as brevo_urlopen  # noqa: E402 (repo path bootstrap)
 CONTROL_PLANE_ROOT = _resolve_control_plane_root(PROJECT_ROOT)
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 STORAGE_AUDIT_CANDIDATE_DIR = RESULTS_DIR / "storage-audit-candidate"
@@ -4655,7 +4656,7 @@ class NotificationService:
                 "api-key": self.brevo_api_key,
                 "content-type": "application/json",
             }, method="POST")
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with brevo_urlopen(req, timeout=30) as resp:
                 resp.read()
             _log("Email accepted via Brevo")
             return True

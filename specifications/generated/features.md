@@ -81,7 +81,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Layout and actions | **FAIL** 1/3 | **FAIL** 0/3 |  | ? | ? | ? | — | — | | | |
 | &nbsp;&nbsp;↳ PII highlighting | **FAIL** 3/5 | partial 2/5 |  | not run 0/5 | ? | not run 0/1 | — | — | | | |
 | &nbsp;&nbsp;↳ Mentions | not run 0/2 | ? |  | not run 0/2 | ? | not run 0/2 | — | — | | | |
-| [Newsletter Campaign Automation](#newsletter-campaigns) | **FAIL** 0/2 | — |  | not run 0/4 | — | not run 0/3 | — | — | on (no flag) | on (no flag) | v0.19.0 |
+| [Newsletter Campaign Automation](#newsletter-campaigns) | **FAIL** 0/2 | — |  | not run 0/4 | — | not run 0/4 | — | — | on (no flag) | on (no flag) | v0.19.0 |
 | [Newsletter Subscription](#newsletter) | **FAIL** 2/6 | impl |  | impl | impl | not run 0/6 | — | — | on (no flag) | on (no flag) | v0.5.0-alpha |
 | [Notifications](#notifications) | **FAIL** 14/28 | partial 6/28 |  | not run 0/28 | impl | partial 5/28 | impl | impl | on (no flag) | on (no flag) | v0.5.0-alpha |
 | [OpenMates Terminal UI](#terminal-ui) | — | — |  | **FAIL** 0/14 | **FAIL** 1/11 | — | — | — | on (no flag) | on (no flag) | untagged-main |
@@ -2065,7 +2065,7 @@ Internal automation that drafts localised newsletter campaigns for review and se
 | Apple | — | — | — |
 | CLI | not run 0/4 | 0 pass · 0 fail · 4 not run · 0 no test | 6 unit test file(s), e.g. [test_events_newsletter_broadcast.py](../../backend/tests/test_events_newsletter_broadcast.py), [test_events_newsletter_generator.py](../../backend/tests/test_events_newsletter_generator.py) |
 | TUI | — | — | — |
-| REST API | not run 0/3 | 0 pass · 0 fail · 3 not run · 0 no test | 4 unit test file(s), e.g. [test_probe_newsletter_delivery.py](../../backend/tests/test_probe_newsletter_delivery.py), [test_email_delivery_feedback.py](../../backend/tests/test_email_delivery_feedback.py) |
+| REST API | not run 0/4 | 0 pass · 0 fail · 4 not run · 0 no test | 5 unit test file(s), e.g. [test_newsletter_campaign_send_args.py](../../backend/tests/test_newsletter_campaign_send_args.py), [test_probe_newsletter_delivery.py](../../backend/tests/test_probe_newsletter_delivery.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 

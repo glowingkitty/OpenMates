@@ -16,6 +16,7 @@ import selectors
 import shutil
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 from datetime import datetime, timezone
@@ -24,6 +25,9 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from scripts.brevo_ipv4 import urlopen as brevo_urlopen  # noqa: E402 (repo path bootstrap)
 
 API_URL = "https://api.dev.openmates.org"
 DEV_HOSTNAME = "dev-server"
@@ -112,7 +116,9 @@ def request_json(url, *, data=None, headers=None, form=False):
         body = (urlencode(data) if form else json.dumps(data)).encode()
         headers["Content-Type"] = "application/x-www-form-urlencoded" if form else "application/json"
     try:
-        with urlopen(Request(url, data=body, headers=headers), timeout=HTTP_TIMEOUT) as response:
+        # Brevo only accepts the host's IPv4 egress (TASK-427).
+        opener = brevo_urlopen if url.startswith("https://api.brevo.com/") else urlopen
+        with opener(Request(url, data=body, headers=headers), timeout=HTTP_TIMEOUT) as response:
             return json.load(response)
     except HTTPError as exc:
         raise ProbeError(f"http_{exc.code}") from None
