@@ -388,6 +388,25 @@ provider_groups:
           - Note: Shared without user identifiers
 
   # =====================================================================
+  # Status page — only used when you open status.openmates.org.
+  # =====================================================================
+  status_page:
+    description: >
+      This provider is only used when you open the public status page at
+      status.openmates.org. It is not used for your account or any other part
+      of OpenMates.
+    providers:
+      netcup:
+        privacy_policy: https://www.netcup.com/de/kontakt/datenschutzerklaerung  # verified 2026-11-14 (en URL returns 404)
+        location: EU (Germany)
+        used_for:
+          - hosting the public status page (static page plus status JSON) on a server in Nuremberg, Germany
+          - sending automated test requests to OpenMates (no user data)
+        data_shared:
+          - IP address and TLS connection metadata of visitors of status.openmates.org
+          - Note: We keep no access logs and use no cookies or trackers on the status page
+
+  # =====================================================================
   # Group B — Payment providers. Only used when you purchase credits or
   # subscribe to auto top-up.
   # =====================================================================

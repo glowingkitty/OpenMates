@@ -123,6 +123,10 @@ Discord webhook resolution:
 
 Email is disabled unless `OPENMATES_HEALTH_ALERT_EMAIL_ENABLED=true`. When enabled, the recipient resolves in this order: `OPENMATES_HEALTH_ALERT_EMAIL_TO`, `OPENMATES_RUNTIME_HEALTH_EMAIL_TO`, `SERVER_OWNER_EMAIL`, then `ADMIN_NOTIFY_EMAIL`. This lets self-hosting operators opt into email explicitly without enabling it on the OpenMates dev server by accident.
 
+Delegation: with `OPENMATES_HEALTH_ALERTS_DELEGATED=true` (default false) provider, app and external-service transition alerts are not sent to Discord or email, because the external status monitor alerts with escalation. Transitions are still recorded in `health_events` and logged at info ("delegated to external status monitor").
+
+Liveness: `GET /v1/health/liveness` (public, rate-limited, no auth) dispatches the no-spend `runtime_health.worker_probe` task to `app_ai` and returns `{"status","api","ai_worker","checked_at"}`; the outcome is cached for 30 s with a single-flight lock. Unlike `/v1/health` (a cache filled by Celery tasks) it shows worker liveness.
+
 Alert policy:
 - Send one Discord alert when a provider, app, or external service enters `degraded` or `unhealthy`.
 - Send one recovery alert when a `degraded` or `unhealthy` service returns to `healthy`.

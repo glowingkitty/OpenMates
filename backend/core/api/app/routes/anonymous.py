@@ -22,6 +22,9 @@ from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
 from backend.core.api.app.utils.server_mode import validate_request_domain
+from backend.shared.python_utils.monitor_traffic import (
+    MONITOR_REQUEST_PREFIX, MONITOR_TOKEN_HEADER, is_monitor_probe,
+)
 from backend.shared.python_utils.learning_mode import build_anonymous_request_learning_mode_context
 from backend.shared.python_utils.chat_failure_notifications import notify_chat_failure
 from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
@@ -54,6 +57,17 @@ MAX_ANONYMOUS_SKILL_BODY_BYTES = 20_000
 def _allowance_denial(reason: str | None) -> dict[str, Any]:
     return {"code": reason or "budget_exhausted", "signup_required": True,
             "message": ANONYMOUS_USAGE_LIMIT_MESSAGE}
+
+
+async def _monitor_request_id(request: Request) -> Optional[str]:
+    """Server-generated id for a status-monitor probe (valid Vault token), else None."""
+    presented = request.headers.get(MONITOR_TOKEN_HEADER)
+    if not presented:
+        return None
+    if not await is_monitor_probe(getattr(request.app.state, "secrets_manager", None), presented):
+        return None
+    logger.info("monitor probe")
+    return f"{MONITOR_REQUEST_PREFIX}{uuid.uuid4()}"
 
 
 async def _open_anonymous_request(service: Any, **kwargs: Any) -> Any:
@@ -496,7 +510,7 @@ async def anonymous_app_skill(
         bucket="execution",
         max_requests=ANONYMOUS_CHAT_LOCAL_RATE_LIMIT_PER_MINUTE,
     )
-    request_id = str(uuid.uuid4())
+    request_id = await _monitor_request_id(request) or str(uuid.uuid4())
     await _open_anonymous_request(service,
         request_id=request_id, anonymous_id=anonymous_id,
         ip_address=_anonymous_client_ip(request),
@@ -679,7 +693,7 @@ async def anonymous_chat_stream(
     """Run a text-only anonymous chat turn against the shared free-usage budget."""
     _require_official_cloud(request)
     reject_anonymous_file_payloads(payload)
-    request_id = str(uuid.uuid4())
+    request_id = await _monitor_request_id(request) or str(uuid.uuid4())
     service = _anonymous_usage_service(directus_service, cache_service)
     await _enforce_local_rate_limit(
         service,

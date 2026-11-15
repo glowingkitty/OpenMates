@@ -1710,6 +1710,17 @@ def create_app() -> FastAPI:
             "external_services": public_external_services_health,
         }
 
+    # Liveness endpoint: unlike /v1/health (a Celery-filled cache) it dispatches a no-spend
+    # probe task to the app_ai queue. Access model: PUBLIC, unauthenticated, rate-limited
+    # per IP; outcome cached 30 s with a single-flight lock so abuse cannot flood the broker.
+    @app.get("/v1/health/liveness", dependencies=[])
+    @limiter.limit("30/minute")
+    async def health_liveness(request: Request):
+        from backend.core.api.app.services.cache import CacheService
+        from backend.core.api.app.services.liveness_probe import get_liveness
+
+        return await get_liveness(CacheService())
+
     # Health history endpoint - provides historical health data for incident analysis
     # Public endpoint (no auth required) - enables status pages and monitoring
     @app.get("/v1/health/history", dependencies=[])  # No dependencies (public endpoint)

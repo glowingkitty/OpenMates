@@ -280,3 +280,38 @@ async def test_baseten_health_only_uses_nonbillable_catalog(monkeypatch):
     monkeypatch.setattr(baseten, "resolve_api_key", key)
     success, error, elapsed = await hct._check_provider_via_test_request("baseten", "deepseek/deepseek-v4.1-flash", sentinel)
     assert success and error is None and elapsed >= 0 and calls == ["models"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("delegated,expected_calls", [("true", 0), ("false", 2), ("", 2)])
+async def test_dispatch_health_status_alerts_respects_delegation_flag(
+    monkeypatch: pytest.MonkeyPatch, delegated: str, expected_calls: int
+) -> None:
+    calls: list[object] = []
+
+    class FakeCeleryApp:
+        def send_task(self, name: str, **kwargs: object) -> None:
+            calls.append(name)
+
+    async def fake_discord(content: str, webhook_url: str) -> None:
+        calls.append("discord")
+
+    monkeypatch.setenv("OPENMATES_HEALTH_ALERTS_DELEGATED", delegated)
+    monkeypatch.setenv("OPENMATES_HEALTH_ALERT_EMAIL_ENABLED", "true")
+    monkeypatch.setenv("SERVER_OWNER_EMAIL", "owner@example.org")
+    monkeypatch.setattr(hct, "app", FakeCeleryApp())
+    monkeypatch.setattr(hct, "select_degraded_report_webhook_url", lambda _environment: "https://example.test/discord")
+    monkeypatch.setattr(hct, "send_discord_degraded_report", fake_discord)
+
+    await hct._dispatch_health_status_alerts(
+        service_type="provider",
+        service_id="my_provider",
+        previous_status="healthy",
+        new_status="unhealthy",
+        error_message="timeout",
+        response_time_ms=None,
+        duration_seconds=None,
+        occurred_at="2026-08-15T21:00:00+00:00",
+    )
+
+    assert len(calls) == expected_calls

@@ -1,7 +1,10 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-11-14
 key_files:
+- deployment/status_server/gatus/config.yaml
+- deployment/status_server/agent/status_agent/alerts.py
+- scripts/status_server.py
 - backend/status/main.py
 - backend/core/api/app/routes/status_routes.py
 - backend/core/api/app/services/status_aggregator.py
@@ -45,21 +48,37 @@ claims:
 
 # Status Page
 
-> Independent status service (`status.openmates.org`) with a V2 redesign surfacing services, apps, and Playwright-backed functionality health on the main web app.
+> `status.openmates.org` is an external monitor on one small VPS (netcup, Nuremberg). It runs Gatus checks and a small status agent, and publishes a static public page. The web app's own `/status` route (V2 below) is separate.
 
 ## Why This Exists
 
-Users and operators need a public status page that stays available even when core services are degraded. The independent service on a separate VM provides this guarantee.
+All production AI chats were down on 13 Nov 2026 from 16:58 UTC and nobody was alerted. Production's own `/v1/health` stayed "healthy" from a stale cache. Monitoring that runs inside the monitored servers cannot report that they are down. So the monitor lives outside our infrastructure, uses real chat requests, and alerts by Discord and email.
 
 ## How It Works
 
-### Independent Status Service (`backend/status/`)
+### External status server (`deployment/status_server/`)
 
-- FastAPI + SQLite, deployed on a dedicated VM.
-- Svelte SPA (Vite build) served by the same FastAPI process.
-- Direct HTTP checks for web app, core API, upload, and preview endpoints.
-- Provider/external-service status read from each core API environment's `/v1/health` (avoids duplicating provider API calls).
-- Environment views: `/` = production, `/dev` = development.
+Contract: `specifications/architecture/external-status-monitoring`. Runbook: `deployment/status_server/README.md`.
+
+- **Gatus** (`gatus/config.yaml`) runs the free HTTP checks every minute: web app, app shell, API, AI-worker liveness (`GET /v1/health/liveness`), uploads and link previews. Every 5 minutes it reads providers' official Statuspage feeds. It stores the results in SQLite. Its own alerting is off, and its UI is reachable only through an SSH tunnel.
+- **Status agent** (`agent/status_agent/`, stdlib Python) runs the paid probes and pushes them to Gatus external endpoints:
+  - every 5 minutes, a real Gemini Flash Lite chat without an account, using the `X-OpenMates-Monitor-Token` header;
+  - every 5 minutes, the same chat with an account, using the monitoring account's API key;
+  - every 30 minutes, a web-search skill;
+  - every 5 minutes, the Google Cloud incident feed.
+  
+  The agent also reads production `/v1/health` each minute, for alerts only. Then it:
+  - applies the escalation policy (`alerts.py`): 2 failures confirm an outage; reminders follow at 15 min, at 1 h, then every 3 h; one resolved message when it recovers; state is persisted;
+  - sends alerts to Discord, with Brevo email as backup;
+  - writes `status.json` for the page (components, providers, 90 daily bars, incidents).
+- **Caddy** serves the static page (`site/`) and `/data/status.json`. It handles TLS and keeps no access log.
+- **Monitor traffic** is never billed. It does not use the free anonymous allowance and is left out of usage entries and growth metrics (`backend/shared/python_utils/monitor_traffic.py`).
+- **Delegated alerts.** With `OPENMATES_HEALTH_ALERTS_DELEGATED=true`, the backend still records health transitions but stops posting them. The external monitor alerts for them instead, with repeats and a resolved message.
+- **Dev-server cross-check.** `scripts/status_server.py watch` runs on a 5-minute user timer (`scripts/status-server-watch-setup.sh`). It alerts when the page is unreachable or `status.json` is older than 10 minutes.
+
+### Legacy independent service (`backend/status/`)
+
+An earlier FastAPI + SQLite + Svelte status service that was never deployed. The external status server above replaces it. Its old behavior: direct HTTP checks of the web app, API, upload and preview endpoints, provider status read from `/v1/health`, and environment views at `/` and `/dev`.
 
 ### V2 Status Page (Main Web App)
 

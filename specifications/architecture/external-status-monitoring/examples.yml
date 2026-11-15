@@ -1,0 +1,46 @@
+schema_version: 1
+specification: architecture.external-status-monitoring@1
+
+alerts:
+  - id: single-failure-is-silent
+    given: {results: [ok, fail]}
+    expect: {notifications: []}
+  - id: two-failures-alert
+    given: {results: [ok, fail, fail]}
+    expect: {notifications: [down]}
+  - id: stale-results-count-as-down
+    given: {newest_result_age: 3_intervals_plus_3_minutes}
+    expect: {status: down}
+  - id: reminders-escalate
+    given: {down_for: [15m, 1h, 4h, 7h]}
+    expect: {reminders: [still_down_15m, still_down_1h, still_down_4h, still_down_7h]}
+  - id: recovery-resolves-once
+    given: {results: [fail, fail, ok, ok]}
+    expect: {notifications: [down, resolved]}
+  - id: restart-keeps-state
+    given: {alert_open: true, checker_restarted: true}
+    expect: {repeated_down_notice: false, alert_open: true}
+
+public_page:
+  - id: outage-shows-component-only
+    given: {component: ai_chat, failing_checks: all}
+    expect: {status: outage, error_text: absent, check_urls: absent}
+
+probe_traffic:
+  - id: anonymous-probe-skips-allowance
+    given: {route: anonymous_chat, monitor_token: valid}
+    expect: {allowance_consumed: false, stats_recorded: false}
+  - id: wrong-token-is-normal-traffic
+    given: {route: anonymous_chat, monitor_token: wrong}
+    expect: {allowance_consumed: true}
+  - id: monitoring-account-not-charged
+    given: {user: configured_monitoring_account, route: ai_ask}
+    expect: {credits_charged: 0, usage_entry: absent, growth_metrics: excluded}
+
+liveness:
+  - id: worker-answers
+    given: {worker_probe: completed_in_2s}
+    expect: {status: ok, ai_worker: ok}
+  - id: worker-silent
+    given: {worker_probe: no_answer_in_8s}
+    expect: {status: degraded, ai_worker: unavailable}

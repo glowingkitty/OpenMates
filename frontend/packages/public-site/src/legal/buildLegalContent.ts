@@ -272,6 +272,13 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.always_active.sightengine", privacyPolicyLinks.sightengine);
   renderProvider("legal.privacy.providers.always_active.api_video", privacyPolicyLinks.apiVideo);
 
+  // Status page — only when visiting status.openmates.org
+  lines.push(`### ${t("legal.privacy.providers.status_page.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.status_page.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.status_page.netcup", privacyPolicyLinks.netcup);
+
   // Group B — Payments
   lines.push(`### ${t("legal.privacy.providers.payments.heading")}`);
   lines.push("");

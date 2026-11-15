@@ -266,6 +266,16 @@ async def _dispatch_health_status_alerts(
     if not _should_send_health_status_alert(previous_status, new_status):
         return
 
+    if _is_truthy_env("OPENMATES_HEALTH_ALERTS_DELEGATED"):
+        logger.info(
+            "[HEALTH_EVENT] Transition %s/%s: %s -> %s recorded; alert delegated to external status monitor",
+            service_type,
+            service_id,
+            previous_status or "initial",
+            new_status,
+        )
+        return
+
     environment = os.getenv("SERVER_ENVIRONMENT", "development")
     discord_webhook = None
     if not _is_truthy_env("OPENMATES_HEALTH_ALERT_DISCORD_DISABLED"):

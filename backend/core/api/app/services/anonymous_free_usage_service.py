@@ -19,6 +19,8 @@ from datetime import date, datetime, timezone, timedelta
 from typing import Any, Callable, Optional
 from uuid import uuid4
 
+from backend.shared.python_utils.monitor_traffic import is_monitor_request_id
+
 
 ANONYMOUS_BUDGET_COLLECTION = "anonymous_free_usage_budget"
 ANONYMOUS_IDENTITY_DAILY_COLLECTION = "anonymous_free_usage_identity_daily"
@@ -63,6 +65,8 @@ class AnonymousBudgetStatus:
     reason: Optional[str]
     reset_at: str
     updated_at: Optional[str]
+
+MONITOR_REQUEST_BUDGET_CREDITS = 1000
 
 
 @dataclass(frozen=True)
@@ -315,6 +319,18 @@ class AnonymousFreeUsageService:
                 estimated_credits=estimated_credits,
             )
 
+    async def _mark_monitor_operation(self, *ids: str) -> None:
+        """Remember operations of an admitted monitor probe so later calls skip accounting."""
+        if self.cache is None:
+            return
+        for op_id in ids:
+            await self.cache.set(f"anon_monitor_op:{op_id}", "1", ttl=7200)
+
+    async def _is_monitor_operation(self, op_id: str) -> bool:
+        if self.cache is None:
+            return False
+        return bool(await self.cache.get(f"anon_monitor_op:{op_id}"))
+
     async def open_request(
         self,
         *,
@@ -323,6 +339,8 @@ class AnonymousFreeUsageService:
         ip_address: str,
     ) -> AnonymousReservationResult:
         """Open a zero-cost request ledger that operations can safely charge."""
+        if is_monitor_request_id(request_id):
+            return AnonymousReservationResult(accepted=True, request_id=request_id)
         if not request_id or not ip_address:
             return AnonymousReservationResult(accepted=False, request_id=request_id, reason="invalid_identity")
         if self.require_distributed_lock:
@@ -396,6 +414,9 @@ class AnonymousFreeUsageService:
     ) -> AnonymousReservationResult:
         if quoted_credits < 1:
             return AnonymousReservationResult(accepted=False, request_id=operation_id, reason="invalid_estimate")
+        if is_monitor_request_id(parent_request_id):
+            await self._mark_monitor_operation(operation_id, charge_id)
+            return AnonymousReservationResult(accepted=True, request_id=operation_id)
         if self.require_distributed_lock:
             try:
                 row = await self._execute_transaction(
@@ -532,6 +553,11 @@ class AnonymousFreeUsageService:
     ) -> AnonymousCheckpointResult:
         if checkpoint_credits < 0:
             raise ValueError("checkpoint_credits must be >= 0")
+        if await self._is_monitor_operation(operation_id):
+            return AnonymousCheckpointResult(
+                operation_id=operation_id, reserved_credits=0, checkpoint_credits=int(checkpoint_credits),
+                effective_hold_credits=0, status="monitor_probe", idempotent=True,
+            )
         if self.require_distributed_lock:
             try:
                 row = await self._execute_transaction(
@@ -581,6 +607,8 @@ class AnonymousFreeUsageService:
 
     async def get_request_budget(self, parent_request_id: str) -> int:
         """Return an advisory live-cap snapshot for an open anonymous request."""
+        if is_monitor_request_id(parent_request_id):
+            return MONITOR_REQUEST_BUDGET_CREDITS
         if self.require_distributed_lock:
             try:
                 row = await self._execute_transaction(
@@ -635,6 +663,8 @@ class AnonymousFreeUsageService:
     async def finalize_charge(self, charge_id: str, *, actual_credits: int) -> None:
         if actual_credits < 0:
             raise ValueError("actual_credits must be >= 0")
+        if await self._is_monitor_operation(charge_id):
+            return
         if self.require_distributed_lock:
             try:
                 await self._execute_transaction(
@@ -696,6 +726,8 @@ class AnonymousFreeUsageService:
                 await self._refund_reservation_hold_locked(row, hold - row_actual)
 
     async def release_reservation(self, request_id: str, *, reason: str) -> None:
+        if await self._is_monitor_operation(request_id):
+            return
         if self.require_distributed_lock:
             try:
                 await self._execute_transaction(

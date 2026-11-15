@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenMates Status</title>
+  <meta name="description" content="Current status, uptime and incident history of OpenMates.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/status.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="https://openmates.org" data-testid="status-brand">
+        <img src="/favicon.svg" alt="" width="28" height="28">
+        <span>OpenMates <strong>Status</strong></span>
+      </a>
+      <a class="top-link" href="https://openmates.org">Open OpenMates</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="overall" id="overall" data-testid="status-overall" data-status="unknown">
+      <span class="overall-dot" aria-hidden="true"></span>
+      <div>
+        <h1 id="overall-text">Checking status…</h1>
+        <p class="muted" id="updated">Loading the latest checks.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="components-title">
+      <div class="section-head">
+        <h2 id="components-title">System status</h2>
+        <span class="muted legend">Uptime over the past 90 days</span>
+      </div>
+      <ul class="card components" id="components" data-testid="status-components"></ul>
+    </section>
+
+    <section aria-labelledby="providers-title">
+      <div class="section-head">
+        <h2 id="providers-title">External providers</h2>
+        <span class="muted legend">From each provider's official status page</span>
+      </div>
+      <ul class="providers" id="providers" data-testid="status-providers"></ul>
+    </section>
+
+    <section aria-labelledby="incidents-title">
+      <div class="section-head"><h2 id="incidents-title">Past incidents</h2></div>
+      <ol class="card incidents" id="incidents" data-testid="status-incidents"></ol>
+    </section>
+  </main>
+
+  <footer class="wrap foot muted">
+    <p>Checked every minute from a separate server outside our infrastructure. AI chat and app skills are tested with real requests.</p>
+    <p><a href="https://openmates.org/legal/privacy">Privacy</a> · <a href="https://openmates.org/legal/imprint">Imprint</a></p>
+  </footer>
+
+  <template id="component-row">
+    <li class="component">
+      <div class="component-head">
+        <span class="name"></span>
+        <span class="state"></span>
+      </div>
+      <div class="bars" role="img"></div>
+      <div class="bars-foot muted"><span>90 days ago</span><span class="uptime"></span><span>Today</span></div>
+    </li>
+  </template>
+
+  <script src="/status.js" defer></script>
+</body>
+</html>

@@ -91,11 +91,13 @@ def _inside(moment: datetime | None, window: tuple[datetime, datetime]) -> bool:
 
 
 def compute_growth_metrics(users: Iterable[dict], invoices: Iterable[dict], *, now: datetime,
-                           since: datetime, excluded_email_hashes: set[str]) -> dict[str, Any]:
+                           since: datetime, excluded_email_hashes: set[str],
+                           excluded_user_ids: frozenset[str] = frozenset()) -> dict[str, Any]:
     """Counts only. ``users``/``invoices`` are raw Directus rows; nothing per-user is returned."""
     counted, excluded_ids, started = [], set(), []
     for user in users:
-        if user.get("is_admin") or (user.get("hashed_email") or "") in excluded_email_hashes:
+        if (user.get("is_admin") or (user.get("hashed_email") or "") in excluded_email_hashes
+                or str(user.get("id", "")) in excluded_user_ids):
             excluded_ids.add(hashlib.sha256(str(user.get("id", "")).encode()).hexdigest())
             continue
         started.append(parse_moment(user.get("signup_started_at")))
@@ -166,6 +168,9 @@ async def get_growth_metrics(
         logger.error("Growth metrics read failed: %s", error)
         raise HTTPException(status_code=502, detail="Directus read failed") from error
     excluded = set(body.exclude_email_hashes) | configured_test_account_hashes()
+    from backend.shared.python_utils.monitor_traffic import monitor_account_ids
     metrics = compute_growth_metrics(users or [], invoices or [], now=now, since=since,
-                                     excluded_email_hashes=excluded)
+                                     excluded_email_hashes=excluded,
+                                     excluded_user_ids=await monitor_account_ids(
+                                         getattr(request.app.state, "secrets_manager", None)))
     return {"success": True, "metrics": metrics}

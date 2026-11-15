@@ -1,0 +1,130 @@
+# Gatus checks for status.openmates.org (config as code).
+#
+# Gatus runs the plain HTTP checks and stores every result. It sends no alerts
+# itself: the status agent (../agent) reads results from Gatus' API, applies the
+# escalation policy and builds the public page. Gatus' own UI is not published;
+# open it through an SSH tunnel (see ../README.md).
+#
+# Every key in ../agent/status_agent/catalog.py must exist here
+# (scripts/tests/test_status_server_config.py). Keys are "<group>_<name>".
+# Only free requests: public pages, health endpoints and providers' official
+# status APIs. ${VAR} values come from the server's .env (scripts/status_server.py).
+
+storage:
+  type: sqlite
+  path: /data/gatus.db
+  maximum-number-of-results: 120
+
+web:
+  port: 8080
+
+ui:
+  title: OpenMates checks (internal)
+  header: OpenMates checks
+
+x-minute: &every-minute
+  interval: 1m
+  client:
+    timeout: 15s
+
+x-provider: &provider
+  group: providers
+  interval: 5m
+  client:
+    timeout: 20s
+  conditions:
+    - "[STATUS] == 200"
+    # Statuspage indicator: only a major or critical outage counts as down.
+    - "[BODY].status.indicator == any(none, minor, maintenance)"
+
+endpoints:
+  - name: web-app
+    group: openmates
+    url: https://openmates.org/
+    <<: *every-minute
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 10000"
+
+  - name: web-app-shell
+    group: openmates
+    url: https://app.openmates.org/
+    <<: *every-minute
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 10000"
+
+  - name: link-previews
+    group: openmates
+    url: https://preview.openmates.org/health
+    <<: *every-minute
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: api
+    group: openmates
+    url: https://api.openmates.org/v1/health
+    <<: *every-minute
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 10000"
+
+  # The API reports whether an AI worker finished a heartbeat task from the AI
+  # queue within the last few minutes. Enabled once production serves the
+  # liveness route (AI_WORKER_CHECK_ENABLED in the server's .env).
+  - name: ai-workers
+    group: openmates
+    enabled: ${AI_WORKER_CHECK_ENABLED}
+    url: https://api.openmates.org/v1/health/liveness
+    <<: *every-minute
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].ai_worker == ok"
+
+  - name: uploads
+    group: openmates
+    url: https://upload.openmates.org/health
+    <<: *every-minute
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: openai
+    url: https://status.openai.com/api/v2/status.json
+    <<: *provider
+  - name: anthropic
+    url: https://status.claude.com/api/v2/status.json
+    <<: *provider
+  - name: mistral
+    url: https://status.mistral.ai/api/v2/status.json
+    <<: *provider
+  - name: groq
+    url: https://groqstatus.com/api/v2/status.json
+    <<: *provider
+  - name: cerebras
+    url: https://status.cerebras.ai/api/v2/status.json
+    <<: *provider
+  - name: stripe
+    url: https://www.stripestatus.com/api/v2/status.json
+    <<: *provider
+  - name: brevo
+    url: https://status.brevo.com/api/v2/status.json
+    <<: *provider
+  - name: vercel
+    url: https://www.vercel-status.com/api/v2/status.json
+    <<: *provider
+
+# Results pushed by the status agent (real chats, a real skill, and providers
+# whose official feed needs parsing beyond a Gatus condition).
+external-endpoints:
+  - name: chat-without-account
+    group: synthetic
+    token: "${GATUS_EXTERNAL_TOKEN}"
+  - name: chat-with-account
+    group: synthetic
+    token: "${GATUS_EXTERNAL_TOKEN}"
+  - name: skill-web-search
+    group: synthetic
+    token: "${GATUS_EXTERNAL_TOKEN}"
+  - name: google-cloud
+    group: providers
+    token: "${GATUS_EXTERNAL_TOKEN}"

@@ -4,9 +4,9 @@ schema_version: 2
 source: specifications/features.yml
 results_as_of: '2026-11-14'
 summary:
-  features: 123
-  enabled_on_prod: 107
-  enabled_on_dev: 111
+  features: 124
+  enabled_on_prod: 108
+  enabled_on_dev: 112
   status_by_surface:
     web:
       live: 3
@@ -14,7 +14,7 @@ summary:
       failing: 58
       not_run: 10
       implemented: 19
-      not_planned: 17
+      not_planned: 18
     apple:
       tested: 14
       partial: 30
@@ -22,7 +22,7 @@ summary:
       implemented: 40
       in_progress: 6
       planned: 5
-      not_planned: 18
+      not_planned: 19
     watchos:
       tested: 7
       partial: 3
@@ -34,20 +34,20 @@ summary:
       not_run: 29
       implemented: 41
       in_progress: 2
-      not_planned: 29
+      not_planned: 30
     tui:
       live: 2
       failing: 13
       not_run: 1
       implemented: 57
       in_progress: 10
-      not_planned: 40
+      not_planned: 41
     rest_api:
       live: 5
       tested: 1
       partial: 29
       failing: 14
-      not_run: 29
+      not_run: 30
       implemented: 17
       planned: 2
       not_planned: 26
@@ -55,13 +55,13 @@ summary:
       partial: 3
       not_run: 20
       implemented: 50
-      not_planned: 50
+      not_planned: 51
     sdk_pypi:
       partial: 3
       not_run: 18
       implemented: 42
       in_progress: 9
-      not_planned: 51
+      not_planned: 52
 unmapped:
   specifications: []
   apps: []
@@ -21680,6 +21680,128 @@ features:
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0
+    sdk_npm:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    sdk_pypi:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+- id: external-status-monitoring
+  name: External Status Monitoring And Public Status Page
+  kind: internal
+  description: A small EU server outside our infrastructure checks production, publishes status.openmates.org and sends escalating
+    alerts.
+  specifications:
+  - id: architecture.external-status-monitoring
+    status: draft
+    path: specifications/architecture/external-status-monitoring
+  apps: []
+  product_features: []
+  release: unverified
+  flags:
+    ids: []
+    dev: no_flag
+    prod: no_flag
+  assertions: 7
+  surfaces:
+    web:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    apple:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+      platforms:
+      - ios
+      - ipados
+      - macos
+    cli:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    tui:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    rest_api:
+      status: not_run
+      source: tests
+      intent: implemented
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 2
+        missing: 5
+        counted: 7
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests:
+      - backend/tests/test_liveness_probe.py
+      - backend/tests/test_monitor_traffic.py
+      unit_test_files: 2
     sdk_npm:
       status: not_planned
       source: intent

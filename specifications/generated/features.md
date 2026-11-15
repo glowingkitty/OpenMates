@@ -14,18 +14,18 @@ Flags: dev/prod enablement from committed config (`backend_config.dev.yml` / `ba
 Apple covers the shared iOS, iPadOS and macOS app (TestFlight); Watch is shown where relevant.
 Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface apple`.
 
-**123 features** · enabled on prod: 107 · enabled on dev: 111
+**124 features** · enabled on prod: 108 · enabled on dev: 112
 
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Web | 3 | 0 | 16 | 58 | 10 | 19 | 0 | 0 | 0 | 17 |
-| Apple | 0 | 14 | 30 | 10 | 0 | 40 | 6 | 5 | 0 | 18 |
+| Web | 3 | 0 | 16 | 58 | 10 | 19 | 0 | 0 | 0 | 18 |
+| Apple | 0 | 14 | 30 | 10 | 0 | 40 | 6 | 5 | 0 | 19 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
-| CLI | 0 | 0 | 15 | 7 | 29 | 41 | 2 | 0 | 0 | 29 |
-| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 40 |
-| REST API | 5 | 1 | 29 | 14 | 29 | 17 | 0 | 2 | 0 | 26 |
-| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 50 |
-| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 51 |
+| CLI | 0 | 0 | 15 | 7 | 29 | 41 | 2 | 0 | 0 | 30 |
+| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 41 |
+| REST API | 5 | 1 | 29 | 14 | 30 | 17 | 0 | 2 | 0 | 26 |
+| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 51 |
+| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 52 |
 
 ## Core product
 
@@ -211,6 +211,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Automated Security Monitoring and Guarded Remediation](#security-monitoring) | — | — |  | impl | — | — | — | — | on (no flag) | on (no flag) | unverified |
 | [Cost-Safe Daily AI Inference Testing](#daily-ai-test-inference) | not run 0/1 | — |  | not run 0/10 | — | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
 | [Daily Test Orchestration And Recovery](#test-orchestration) | — | — |  | not run 0/8 | — | — | — | — | on (no flag) | on (no flag) | unverified |
+| [External Status Monitoring And Public Status Page](#external-status-monitoring) | — | — |  | — | — | not run 0/7 | — | — | on (no flag) | on (no flag) | unverified |
 | [Operational Monitoring And Operator Alerts](#operational-monitoring) | **live** 1/1 | — |  | not run 0/16 | — | **FAIL** 2/16 | — | — | on (no flag) | on (no flag) | untagged-main |
 | [Specifications](#specifications) | partial 6/18 | tested 2/2 |  | impl | — | partial 3/18 | — | — | on (no flag) | on (no flag) | v0.19.0 |
 
@@ -1435,6 +1436,28 @@ Keep saved event information.
 | REST API | **FAIL** 11/12 | 11 pass · 1 fail · 0 not run · 0 no test | 8 unit test file(s), e.g. [test_events_topic_relevance.py](../../backend/tests/test_events_topic_relevance.py), [test_rest_api_events.py](../../backend/tests/test_rest_api_events.py)<br>❌ [test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned](../../backend/tests/test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned) |
 | npm SDK | impl | 0 pass · 0 fail · 0 not run · 12 no test | — |
 | PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 12 no test | — |
+
+</details>
+
+### External Status Monitoring And Public Status Page
+<a id="external-status-monitoring"></a>
+
+A small EU server outside our infrastructure checks production, publishes status.openmates.org and sends escalating alerts.
+
+- Specifications: [architecture.external-status-monitoring](../../specifications/architecture/external-status-monitoring/specification.yml) (draft) · 7 assertion(s)
+- Flags: none · dev on (no flag) · prod on (no flag) · release unverified
+
+<details><summary>Tests per surface</summary>
+
+| Surface | Status | Assertions | Proof |
+|---|---|---|---|
+| Web | — | — | — |
+| Apple | — | — | — |
+| CLI | — | — | — |
+| TUI | — | — | — |
+| REST API | not run 0/7 | 0 pass · 0 fail · 2 not run · 5 no test | 2 unit test file(s), e.g. [test_liveness_probe.py](../../backend/tests/test_liveness_probe.py), [test_monitor_traffic.py](../../backend/tests/test_monitor_traffic.py) |
+| npm SDK | — | — | — |
+| PyPI SDK | — | — | — |
 
 </details>
 
