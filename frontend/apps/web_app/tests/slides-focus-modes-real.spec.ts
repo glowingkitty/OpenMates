@@ -18,7 +18,7 @@ export {};
  * - PLAYWRIGHT_TEST_BASE_URL
  */
 
-const { test, expect, attachConsoleListeners, attachNetworkListeners } = require('./console-monitor');
+const { test, expect, attachConsoleListeners, attachNetworkListeners, allowConsoleErrorPatterns } = require('./console-monitor');
 const { createSignupLogger, createStepScreenshotter, getTestAccount } = require('./signup-flow-helpers');
 const {
 	loginToTestAccount,
@@ -153,6 +153,8 @@ async function begin(page: any, name: string) {
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: name });
 	attachConsoleListeners(page);
 	attachNetworkListeners(page);
+	// Known startup race shared with the isolated slides specs (slides-focus-*.spec.ts, slides-manual-edit.spec.ts).
+	allowConsoleErrorPatterns([/WebSocket changed before message dispatch/, /Connection failed, cannot send message: \{type: get_chat_model_preference/]);
 	await page.setViewportSize({ width: 1440, height: 1000 });
 	await loginToTestAccount(page, log, screenshot);
 	await startNewChat(page, log);
@@ -180,12 +182,24 @@ test('template designer focus leads a beginner to a refined, saved template (rea
 		await waitForReply(page, log, await pressUseDesign(page, overlay, chatUrl));
 		await screenshot(page, 'designer-design-chosen');
 
+		// The refinement either re-emits the template as a new card or edits the chosen card in
+		// place with a diff (design-template SKILL.md, refine phase); both change a card's rendering.
+		const allCards = () => page.locator(FINISHED).filter({ has: page.getByTestId('slides-template-card') });
+		const cardStates = (): Promise<string[]> => allCards().evaluateAll((cards: Element[]) =>
+			cards.map((card) => `${card.getAttribute('data-embed-id')}|${card.innerHTML}`));
+		const beforeRefinement = new Set(await cardStates());
 		const refinementSent = await sendWithGemini(page, 'Make the headings bigger and the accent a bit warmer.', log, screenshot, 'refinement');
 		await waitForReply(page, log, refinementSent);
-		await expect(templateCards().first()).toBeVisible({ timeout: ANSWER_TIMEOUT });
+		let refinedIndex = -1;
+		await expect.poll(async () => {
+			refinedIndex = (await cardStates()).findIndex((state) => !beforeRefinement.has(state));
+			return refinedIndex;
+		}, { timeout: 120_000 }).toBeGreaterThanOrEqual(0);
+		const refinedCard = allCards().nth(refinedIndex);
+		await refinedCard.scrollIntoViewIfNeeded();
 		await screenshot(page, 'designer-refined-card');
 
-		overlay = await openFullscreen(page, templateCards().first());
+		overlay = await openFullscreen(page, await showCarouselCard(page.getByTestId('message-assistant').filter({ has: refinedCard }).last(), refinedCard));
 		const save = overlay.getByTestId('slides-template-save');
 		await expect(save).toBeVisible({ timeout: 20_000 });
 		await save.click();
