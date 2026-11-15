@@ -61,9 +61,11 @@ The email key is read from `kv/data/providers/brevo`. On the VPS the values exis
 Production needs, once and with owner approval:
 - the same `probe_token` and the monitoring account's user id in production Vault (`status_monitor.probe_token`, `status_monitor.account_user_ids`);
 - `OPENMATES_HEALTH_ALERTS_DELEGATED=true`;
-- a deployed `GET /v1/health/liveness`. After that, run `publish-config --ai-worker-check on` and `setup` again.
+- a deployed `GET /v1/health/liveness`. After that, run `publish-config --ai-worker-check on --synthetic-probes on` and `setup` again.
 
-Until production has the probe token, the anonymous probe uses the normal free allowance. That allowance runs out within the day, so the chat-without-account check would fail. Keep the agent's `MONITOR_PROBE_TOKEN` and production's in sync.
+Until then the real chat and skill probes stay off (`SYNTHETIC_PROBES=off`), so no test chats reach production as normal usage; the page shows AI chat and Apps as "No data yet" and the overall status as unknown.
+
+Keep the agent's `MONITOR_PROBE_TOKEN` and production's in sync.
 
 DNS: an `A` record (plus `AAAA`) for `status.openmates.org` pointing to the VPS, set at the registrar. Caddy gets the certificate on first request.
 

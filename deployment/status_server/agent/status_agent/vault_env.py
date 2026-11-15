@@ -50,6 +50,9 @@ def render(status: Mapping[str, str], brevo_api_key: str) -> str:
     env.update({
         "BREVO_API_KEY": brevo_api_key if status.get("alert_email_to") else "",
         "AI_WORKER_CHECK_ENABLED": "true" if status.get("ai_worker_check") == "true" else "false",
+        # Real chat and skill probes stay off until production knows the probe token
+        # and the monitoring account; otherwise they would count as normal usage.
+        "SYNTHETIC_PROBES": "on" if status.get("synthetic_probes") == "on" else "off",
         "STATUS_DOMAIN": domain,
         "STATUS_PAGE_URL": f"https://{domain}",
     })

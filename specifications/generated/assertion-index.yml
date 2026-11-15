@@ -12766,17 +12766,17 @@ assertions:
       surface: tooling
     - &id1634
       path: scripts/tests/test_status_server_setup.py
-      line: 46
+      line: 48
       name: test_incomplete_or_unsafe_config_stops_setup
       surface: tooling
     - &id1635
       path: scripts/tests/test_status_server_setup.py
-      line: 56
+      line: 58
       name: test_vault_reads_status_secret_and_brevo_key_only_when_email_is_on
       surface: tooling
     - &id1636
       path: scripts/tests/test_status_server_setup.py
-      line: 70
+      line: 72
       name: test_repository_files_hold_no_addresses_or_secrets
       surface: tooling
     supporting_tests: []
@@ -12800,12 +12800,12 @@ assertions:
     direct_tests:
     - &id1637
       path: scripts/tests/test_status_server_setup.py
-      line: 86
+      line: 88
       name: test_compose_runs_the_published_image_with_gatus_on_loopback
       surface: tooling
     - &id1638
       path: scripts/tests/test_status_server_setup.py
-      line: 98
+      line: 100
       name: test_image_ships_compose_and_setup_and_runs_unprivileged
       surface: tooling
     supporting_tests: []

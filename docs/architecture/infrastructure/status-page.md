@@ -72,6 +72,8 @@ Contract: `specifications/architecture/external-status-monitoring`. Runbook: `de
   - every 5 minutes, the same chat with an account, using the monitoring account's API key;
   - every 30 minutes, a web-search skill;
   - every 5 minutes, the Google Cloud incident feed.
+
+  The chat and skill probes run only when Vault's `synthetic_probes` is `on` (`publish-config --synthetic-probes on`), which is set only after production knows the probe token and the monitoring account, so probes never count as normal usage.
   
   The agent also reads production `/v1/health` each minute, for alerts only. Then it:
   - applies the escalation policy (`alerts.py`): 2 failures confirm an outage; reminders follow at 15 min, at 1 h, then every 3 h; one resolved message when it recovers; state is persisted;

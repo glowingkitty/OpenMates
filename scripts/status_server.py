@@ -208,8 +208,11 @@ def cmd_publish_config(args: argparse.Namespace) -> int:
     values["status_domain"] = config.get("domain", DEFAULT_DOMAIN)
     if args.ai_worker_check:
         config["ai_worker_check"] = args.ai_worker_check == "on"
-        save_config(config)
+    if args.synthetic_probes:
+        config["synthetic_probes"] = args.synthetic_probes == "on"
+    save_config(config)
     values["ai_worker_check"] = "true" if config.get("ai_worker_check") else "false"
+    values["synthetic_probes"] = "on" if config.get("synthetic_probes") else "off"
     store(values)
     print(f"Stored in Vault: {', '.join(sorted(values))}. Apply on the VPS with `setup`.")
     return 0
@@ -308,6 +311,9 @@ def main(argv: list[str] | None = None) -> int:
     publish = sub.add_parser("publish-config")
     publish.add_argument("--ai-worker-check", choices=["on", "off"],
                          help="turn the AI-worker liveness check on once production serves the route")
+    publish.add_argument("--synthetic-probes", choices=["on", "off"],
+                         help="real chat/skill probes; turn on only after production has the probe token "
+                              "and the monitoring account (otherwise they count as normal usage)")
     publish.set_defaults(func=cmd_publish_config)
     setup = sub.add_parser("setup")
     setup.add_argument("--host", help="public IPv4 of the UpCloud server")

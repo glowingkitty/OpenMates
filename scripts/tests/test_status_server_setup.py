@@ -37,6 +37,8 @@ def test_env_file_has_only_allowlisted_values() -> None:
     env = _env(vault_env.render(STATUS, "brevo-key"))
     assert env["GATUS_EXTERNAL_TOKEN"] == "g-token" and env["BREVO_API_KEY"] == "brevo-key"
     assert env["AI_WORKER_CHECK_ENABLED"] == "true"
+    assert env["SYNTHETIC_PROBES"] == "off"  # until production knows the probe token
+    assert _env(vault_env.render(dict(STATUS, synthetic_probes="on"), "k"))["SYNTHETIC_PROBES"] == "on"
     assert env["STATUS_DOMAIN"] == "status.openmates.org"
     assert "never-exported" not in "\n".join(env.values())
     assert not any("UNRELATED" in name for name in env)
