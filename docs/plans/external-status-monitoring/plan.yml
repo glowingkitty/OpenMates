@@ -16,14 +16,16 @@ goal: >
 specification: architecture.external-status-monitoring
 scope:
   in:
-    - deployment/status_server (Gatus, status agent, Caddy, static page) on one netcup VPS pico.
-    - scripts/status_server.py for Vault secrets, netcup login, provisioning, deploy and the dev-server cross-check timer.
+    - deployment/status_server (Gatus, status agent, Caddy, static page) as one Docker image published by CI, running only on one netcup VPS pico.
+    - deployment/status_server/setup.sh plus docker-compose.yml: one command on the server pulls the image, writes the config from Vault and starts it; updating is the same command.
+    - scripts/status_server.py for Vault secrets and config, netcup login, provisioning, starting the setup and the dev-server cross-check timer.
     - Public GET /v1/health/liveness with a real no-spend AI-queue probe, cached and single-flight.
     - Monitor probe token and monitoring accounts exempt from billing, free allowance, usage entries and growth metrics.
     - OPENMATES_HEALTH_ALERTS_DELEGATED flag moving backend health-transition alerts to the external monitor.
     - netcup as status-page host in the privacy policy.
   out:
     - Any production setting change without the owner's explicit approval.
+    - An OpenMates CLI command for the status server (owner decision 2026-11-15).
     - Additional servers, the Gatus UI on the public internet, and the never-deployed backend/status service.
     - Free checks for voice calls (no no-spend path exists; voice uses worker liveness plus the Mistral status page).
 decisions:
@@ -31,10 +33,12 @@ decisions:
   - Gatus for plain checks and storage; a small stdlib agent for paid probes, escalation and the public JSON, because Gatus alerts cannot repeat with "still down for X" text and its UI exposes check URLs.
   - Production /v1/health is used for API reachability and alert-only integration checks, not liveness, since it served stale healthy results during the outage.
   - The public page publishes catalog names, statuses, daily uptime and incident times only.
-  - Secrets in dev Vault kv/data/providers/status_monitor, entered by the operator with hidden input; only the VPS .env (mode 600) holds copies.
+  - Secrets in dev Vault kv/data/providers/status_monitor, entered by the operator with hidden input; only the VPS status.env (mode 600) holds copies.
+  - Owner decisions 2026-11-15 - code stays in the public repo with no secrets, server addresses or tokens; one small image built and published by CI; runs only on the separate status server; a setup script plus compose file instead of a CLI command.
 checks:
   - scripts/tests/test_status_agent_alerts.py and scripts/tests/test_status_agent_modules.py pass.
   - backend/tests/test_liveness_probe.py, test_health_status_alerts.py and test_monitor_traffic.py pass in isolated pytest CI.
   - Gatus accepts deployment/status_server/gatus/config.yaml (container start against the config).
+  - The image builds in CI; on the dev server the image started by setup.sh serves the page, writes status.json and keeps the Gatus UI on loopback.
   - After the VPS exists, a deployed page shows live component status and a forced failure produces DOWN, STILL DOWN and RESOLVED messages.
 evidence: {}

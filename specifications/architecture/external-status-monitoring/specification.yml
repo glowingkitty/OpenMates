@@ -20,11 +20,16 @@ scope:
     - Production integration states from the existing health endpoint as alert-only checks, replacing the backend's own transition alerts when delegated.
     - Monitor probe traffic excluded from billing, free-usage allowances, usage entries and growth statistics.
     - A dev-server cross-check that alerts when the status page is unreachable or stale.
+    - Code in the public OpenMates repository, packaged as one small Docker image that CI builds and publishes.
+    - A setup script plus a compose file - one command on the status server pulls the image, writes the config from Vault and starts it; updating is the same command (pull and restart).
   excludes:
     - Any write to production beyond the synthetic probe requests themselves.
     - Internal hostnames, error text, secrets, user data or check configuration on the public page.
     - The Gatus web UI on the public internet.
     - Additional servers beyond the one status VPS and the existing dev server.
+    - Running the status server on or next to production or on the dev server (only short dev tests).
+    - Secrets, tokens or server addresses in the repository or the image.
+    - An OpenMates CLI command for the status server.
 
 models:
   CheckResult:
@@ -37,9 +42,9 @@ models:
   PublicStatus:
     generated_at: {type: timestamp, required: true}
     overall: {type: enum, values: [operational, degraded, outage, unknown], required: true}
-    components: {type: array, required: true, constraints: {fields: [key, name, status, days, uptime_percent]}}
-    providers: {type: array, required: true, constraints: {fields: [key, name, status]}}
-    incidents: {type: array, required: true, constraints: {fields: [component, started_at, resolved_at]}}
+    components: {type: array, required: true, constraints: {fields: [id, name, description, status, uptime_percent, days]}}
+    providers: {type: array, required: true, constraints: {fields: [id, name, category, status_page, status]}}
+    incidents: {type: array, required: true, constraints: {fields: [id, component, component_name, title, started_at, resolved_at]}}
 
 assertions:
   - id: external-status-monitoring.alerts.confirmed-failures
@@ -62,6 +67,10 @@ assertions:
     type: privacy
     must: The public status data contains only component and provider names, status words, daily uptime counts and incident times; no hostnames, URLs of internal checks, error text, tokens or user data. Visitor IPs are not logged.
     depends_on: [examples.public_page]
+  - id: external-status-monitoring.page.overall-honest
+    type: behavior
+    must: The page says all systems are operational only when every component has current data and is up; any confirmed outage or partial failure is shown as such, and a component without data makes the overall status unknown.
+    depends_on: [examples.public_page]
   - id: external-status-monitoring.probes.no-billing
     type: invariant
     must: Requests carrying the monitor probe token and requests from configured monitoring accounts are never charged, never consume the free anonymous allowance, never create usage entries and are excluded from growth statistics; requests without them are unaffected.
@@ -70,6 +79,14 @@ assertions:
     type: behavior
     must: GET /v1/health/liveness answers without authentication with only status, api, ai_worker and checked_at; the AI worker is reported ok only when a real no-spend task on the AI queue completed within 8 seconds; results are cached for 30 seconds and at most one probe runs per window.
     depends_on: [examples.liveness]
+  - id: external-status-monitoring.deploy.config-from-vault
+    type: privacy
+    must: The status server's tokens, webhook, alert address and domain come only from Vault at setup time and are written to one root-only env file on the server; only allowlisted keys are written, and missing required values or values with line breaks stop the setup without starting the server with a partial config.
+    depends_on: [examples.deploy]
+  - id: external-status-monitoring.deploy.one-image-one-command
+    type: behavior
+    must: The status server runs one CI-published image (Gatus, Caddy and the agent) as a non-root process with the Gatus UI bound to loopback; one setup command pulls the image, installs the compose file shipped in that image, applies new config when given and restarts, and the same command without new config keeps the existing config.
+    depends_on: [examples.deploy]
 
 applies_to:
   rest_api:
@@ -77,7 +94,7 @@ applies_to:
     role: Public liveness route and monitor-traffic exemption on the existing chat and skill routes.
   cli:
     required: false
-    role: Operator tooling is scripts/status_server.py on the dev server, not the product CLI.
+    role: No OpenMates CLI command. The server is operated with its setup script; scripts/status_server.py on the dev server handles Vault config, provisioning and the cross-check.
   sdks:
     required: false
     role: Not an SDK surface.
@@ -94,4 +111,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [alerts, public_page, probe_traffic, liveness]
+  required_groups: [alerts, public_page, probe_traffic, liveness, deploy]

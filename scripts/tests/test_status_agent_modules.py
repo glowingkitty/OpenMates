@@ -46,7 +46,7 @@ def test_component_is_outage_only_when_every_check_is_down() -> None:
     assert page_data.component_status(component, {}, {}) == "unknown"
 
 
-# contract-test: direct surface=tooling assertions=external-status-monitoring.page.public-safe
+# contract-test: direct surface=tooling assertions=external-status-monitoring.page.public-safe,external-status-monitoring.page.overall-honest
 def test_public_document_carries_no_internal_details() -> None:
     component = _ai_chat()
     alerts = {c.key: OpenAlert(NOW - 600, NOW - 540) for c in component.checks}

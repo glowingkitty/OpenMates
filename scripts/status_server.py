@@ -6,14 +6,21 @@ Commands:
   secret set <name>          Ask for one secret without echo and store it in Vault.
   netcup-login               Approve a netcup login in the browser; stores the API token in Vault.
   provision --wipe           Install Debian 13 with our SSH key on the netcup VPS (erases its disk).
-  deploy [--host <ip>]       Copy deployment/status_server to the VPS, write its .env, start it.
+  publish-config             Put everything the status server needs into Vault: generated tokens,
+                             the Discord webhook and alert email from this server's .env.
+  setup [--host <ip>]        Read the status config from Vault and run the setup script on the VPS
+                             (pulls the image, writes status.env from stdin, starts it). Updates
+                             on the VPS itself: `openmates-status-setup` (pull and restart).
   watch                      Cross-check from the dev server: alert when the status page is
                              unreachable or stale (run every 5 minutes by a systemd user timer,
                              scripts/status-server-watch-setup.sh).
 
-Secrets live in Vault at kv/data/providers/status_monitor and are read through
-the dev api container (same pattern as other host scripts). Nothing secret is
-printed, passed on a command line, or written outside the VPS's mode-600 .env.
+Secrets live in Vault at kv/data/providers/status_monitor. They are read through
+the dev api container (read-only token) and written like every provider secret:
+SECRET__STATUS_MONITOR__* in the canonical .env, imported by vault-setup. Nothing secret is
+printed, passed on a command line, or written outside the VPS's mode-600 status.env.
+The status server itself runs the published image (deployment/status_server/Dockerfile)
+and nothing else; this script never copies source code to it.
 Spec: specifications/architecture/external-status-monitoring.
 """
 
@@ -37,23 +44,27 @@ sys.path.insert(0, str(SCRIPT_DIR.parent / "deployment/status_server/agent"))
 import _status_server_netcup as netcup  # noqa: E402 - sibling helper, path set above
 from status_agent.alerts import CheckResult, CheckSnapshot, OpenAlert, evaluate  # noqa: E402 - agent package, path set above
 from status_agent.notify import Channels, deliver  # noqa: E402 - agent package, path set above
+from status_agent.vault_env import BREVO_PATH, ConfigError, render  # noqa: E402 - agent package, path set above
 
 GIT_COMMON = subprocess.run(["git", "-C", str(SCRIPT_DIR), "rev-parse", "--path-format=absolute",
                              "--git-common-dir"], capture_output=True, text=True, check=False).stdout.strip()
 CANONICAL_ROOT = Path(GIT_COMMON).parent if GIT_COMMON else SCRIPT_DIR.parent
 SOURCE_DIR = SCRIPT_DIR.parent / "deployment/status_server"
 VAULT_PATH = "kv/data/providers/status_monitor"
+ENV_PREFIX = "SECRET__STATUS_MONITOR__"
 SECRET_NAMES = {
     "monitor_api_key": "API key of the dedicated production monitoring account",
     "netcup_refresh_token": "netcup SCP API token (prefer: netcup-login)",
     "probe_token": "shared token marking anonymous monitor probes (auto-generated)",
     "gatus_external_token": "token for pushing probe results into Gatus (auto-generated)",
+    "discord_webhook_url": "Discord webhook for alerts (publish-config fills it from .env if unset)",
 }
 GENERATED = ("probe_token", "gatus_external_token")
 CONFIG_PATH = Path.home() / ".config/openmates/status_server.json"
 WATCH_STATE = Path.home() / ".local/state/openmates/status_server_watch.json"
 SSH_KEY = Path.home() / ".ssh/openmates_status_ed25519"
-REMOTE_DIR = "/opt/openmates-status"
+SETUP_SCRIPT = SOURCE_DIR / "setup.sh"
+REMOTE_SETUP = "/usr/local/bin/openmates-status-setup"
 DEFAULT_DOMAIN = "status.openmates.org"
 STALE_AFTER_S = 10 * 60
 WATCH_EVERY_S = 5 * 60
@@ -66,12 +77,7 @@ async def main():
     sm = SecretsManager()
     await sm.initialize()
     current = await sm.get_secrets_from_path(request["path"]) or {}
-    if request["op"] == "set":
-        current.update(request["values"])
-        if not await sm.store_secrets_at_path(request["path"], current):
-            raise SystemExit("vault write failed")
-        print(json.dumps({"stored": sorted(request["values"])}))
-    elif request["op"] == "get":
+    if request["op"] == "get":
         print(json.dumps(current))
     else:
         print(json.dumps({"present": sorted(k for k, v in current.items() if v)}))
@@ -91,17 +97,43 @@ def dotenv(key: str) -> str:
     return ""
 
 
-def vault(op: str, values: dict[str, str] | None = None, path: str = VAULT_PATH) -> dict:
-    """Run one Vault operation inside the dev api container; payload goes via stdin."""
+def vault(op: str, path: str = VAULT_PATH) -> dict:
+    """Read Vault inside the dev api container (its token is read-only); request via stdin."""
     command = ["docker", "compose", "--env-file", str(CANONICAL_ROOT / ".env"), "-f",
                str(CANONICAL_ROOT / "backend/core/docker-compose.yml"), "exec", "-T", "api",
                "python3", "-c", VAULT_SNIPPET]
-    payload = json.dumps({"op": op, "path": path, "values": values or {}})
+    payload = json.dumps({"op": op, "path": path})
     result = subprocess.run(command, input=payload, capture_output=True, text=True, timeout=60,
                             cwd=CANONICAL_ROOT, check=False)
     if result.returncode != 0:
         raise SystemExit(f"Vault {op} failed (api container exit {result.returncode}).")
     return json.loads(result.stdout.strip().splitlines()[-1])
+
+
+def store(values: dict[str, str]) -> None:
+    """Write status secrets to Vault the way the dev server imports all provider secrets.
+
+    Each value goes into the canonical .env as SECRET__STATUS_MONITOR__<NAME>; the
+    vault-setup service copies it to kv/data/providers/status_monitor and replaces
+    the .env value with IMPORTED_TO_VAULT. Values never appear on a command line.
+    """
+    for name, value in values.items():
+        if not value or "\n" in value:
+            raise SystemExit(f"Refusing to store an empty or multi-line value for {name}.")
+    env_file = CANONICAL_ROOT / ".env"
+    keys = {f"{ENV_PREFIX}{name.upper()}": value for name, value in values.items()}
+    lines = [line for line in env_file.read_text(encoding="utf-8").splitlines()
+             if line.split("=", 1)[0] not in keys]
+    lines += [f"{key}={value}" for key, value in keys.items()]
+    env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    restart = ["python3", str(CANONICAL_ROOT / "scripts/sessions.py"), "docker", "run-setup",
+               "--service", "vault-setup"]
+    if os.environ.get("OPENMATES_SESSION_ID"):
+        restart[4:4] = ["--session", os.environ["OPENMATES_SESSION_ID"]]
+    subprocess.run(restart, cwd=SCRIPT_DIR.parent, check=True, timeout=900)
+    missing = set(values) - set(vault("status")["present"])
+    if missing:
+        raise SystemExit(f"vault-setup did not import: {', '.join(sorted(missing))}.")
 
 
 def load_config() -> dict:
@@ -124,7 +156,7 @@ def cmd_secret(args: argparse.Namespace) -> int:
     value = getpass.getpass(f"Paste {SECRET_NAMES[args.name]} (input hidden): ").strip()
     if not value:
         raise SystemExit("Nothing entered; Vault unchanged.")
-    vault("set", {args.name: value})
+    store({args.name: value})
     print(f"Stored {args.name} in Vault ({VAULT_PATH}).")
     return 0
 
@@ -136,7 +168,7 @@ def cmd_netcup_login(_: argparse.Namespace) -> int:
     print(f"Code shown there should be: {login.user_code}")
     print("Waiting for your approval…")
     token = netcup.wait_for_refresh_token(login)
-    vault("set", {"netcup_refresh_token": token})
+    store({"netcup_refresh_token": token})
     servers = netcup.Client(netcup.access_token(token)).servers()
     print(f"Stored the netcup API token in Vault. netcup shows {len(servers)} server(s):")
     for server in servers:
@@ -178,28 +210,40 @@ def cmd_provision(args: argparse.Namespace) -> int:
     print(f"Installing {flavour['name']} …")
     client.wait_task(client.install_image(int(server["id"]), int(flavour["id"]), key_id, "status-openmates"))
     save_config({**load_config(), "host": ipv4[0] if ipv4 else "", "server_id": server["id"]})
-    print("Done. Next: add the DNS record, then run `python3 scripts/status_server.py deploy`.")
+    print("Done. Next: add the DNS record, then run `python3 scripts/status_server.py publish-config` and `setup`.")
     return 0
 
 
-def build_env(stored: dict[str, str]) -> dict[str, str]:
-    """The VPS .env: tokens from Vault, delivery settings from the dev server."""
-    brevo = vault("get", path="kv/data/providers/brevo").get("api_key", "")
-    discord = (dotenv("STATUS_ALERT_DISCORD_WEBHOOK") or dotenv("DISCORD_WEBHOOK_DEGRADED_SERVICES")
-               or dotenv("DISCORD_WEBHOOK_AGENT_QUESTIONS"))
-    return {
-        "GATUS_EXTERNAL_TOKEN": stored["gatus_external_token"],
-        "MONITOR_PROBE_TOKEN": stored["probe_token"],
-        "MONITOR_API_KEY": stored.get("monitor_api_key", ""),
-        "AI_WORKER_CHECK_ENABLED": "true" if load_config().get("ai_worker_check") else "false",
-        "DISCORD_WEBHOOK_URL": discord,
-        "BREVO_API_KEY": brevo,
-        "ALERT_EMAIL_TO": dotenv("ADMIN_NOTIFY_EMAIL") or dotenv("SERVER_OWNER_EMAIL"),
-        "ALERT_EMAIL_FROM": "noreply@openmates.org",
-        "STATUS_DOMAIN": load_config().get("domain", DEFAULT_DOMAIN),
-        "STATUS_PAGE_URL": f"https://{load_config().get('domain', DEFAULT_DOMAIN)}",
-        "PROD_API_URL": "https://api.openmates.org",
-    }
+def cmd_publish_config(args: argparse.Namespace) -> int:
+    """Store everything the status server reads from Vault (values are never printed)."""
+    stored = vault("get")
+    values = {name: secrets.token_urlsafe(32) for name in GENERATED if not stored.get(name)}
+    if not stored.get("discord_webhook_url"):
+        discord = (dotenv("STATUS_ALERT_DISCORD_WEBHOOK") or dotenv("DISCORD_WEBHOOK_DEGRADED_SERVICES")
+                   or dotenv("DISCORD_WEBHOOK_AGENT_QUESTIONS"))
+        if not discord:
+            raise SystemExit("No Discord webhook in .env: run `secret set discord_webhook_url`.")
+        values["discord_webhook_url"] = discord
+    config = load_config()
+    values["alert_email_to"] = dotenv("ADMIN_NOTIFY_EMAIL") or dotenv("SERVER_OWNER_EMAIL")
+    values["status_domain"] = config.get("domain", DEFAULT_DOMAIN)
+    if args.ai_worker_check:
+        config["ai_worker_check"] = args.ai_worker_check == "on"
+        save_config(config)
+    values["ai_worker_check"] = "true" if config.get("ai_worker_check") else "false"
+    store(values)
+    print(f"Stored in Vault: {', '.join(sorted(values))}. Apply on the VPS with `setup`.")
+    return 0
+
+
+def status_env() -> str:
+    """The VPS env file, rendered from Vault with the same code the image uses."""
+    stored = vault("get")
+    brevo = vault("get", path=BREVO_PATH).get("api_key", "") if stored.get("alert_email_to") else ""
+    try:
+        return render(stored, brevo)
+    except ConfigError as error:
+        raise SystemExit(str(error)) from error
 
 
 def ssh(host: str, command: str, stdin: str | None = None) -> None:
@@ -207,34 +251,19 @@ def ssh(host: str, command: str, stdin: str | None = None) -> None:
                     f"root@{host}", command], input=stdin, text=True, check=True, timeout=1800)
 
 
-BOOTSTRAP = ("set -e; export DEBIAN_FRONTEND=noninteractive; apt-get update -q; "
-             "apt-get install -y -q docker.io docker-compose rsync ufw unattended-upgrades; "
-             "ufw allow 22/tcp; ufw allow 80/tcp; ufw allow 443/tcp; ufw --force enable; "
-             "systemctl enable --now docker; mkdir -p " + REMOTE_DIR)
-
-
-def cmd_deploy(args: argparse.Namespace) -> int:
+def cmd_setup(args: argparse.Namespace) -> int:
     config = load_config()
     host = args.host or config.get("host")
     if not host:
         raise SystemExit("No host known: pass --host <ip> (or run provision first).")
-    stored = vault("get")
-    missing = [name for name in GENERATED if not stored.get(name)]
-    if missing:
-        vault("set", {name: secrets.token_urlsafe(32) for name in missing})
-        stored = vault("get")
+    env_text = status_env()
     ensure_ssh_key()
-    ssh(host, BOOTSTRAP)
-    subprocess.run(["rsync", "-a", "--delete", "--exclude", ".env", "-e",
-                    f"ssh -i {SSH_KEY} -o StrictHostKeyChecking=accept-new",
-                    f"{SOURCE_DIR}/", f"root@{host}:{REMOTE_DIR}/"], check=True, timeout=600)
-    env_text = "".join(f"{key}={value}\n" for key, value in build_env(stored).items())
-    ssh(host, f"umask 077; cat > {REMOTE_DIR}/.env", stdin=env_text)
-    ssh(host, f"cd {REMOTE_DIR} && {{ docker compose version >/dev/null 2>&1 && C='docker compose' || C=docker-compose; }}"
-               " && $C up -d --build --remove-orphans")
+    ssh(host, f"umask 022; cat > {REMOTE_SETUP}.new && chmod 755 {REMOTE_SETUP}.new && mv {REMOTE_SETUP}.new {REMOTE_SETUP}",
+        stdin=SETUP_SCRIPT.read_text(encoding="utf-8"))
+    ssh(host, f"{REMOTE_SETUP} --config-stdin", stdin=env_text)
     save_config({**config, "host": host, "domain": config.get("domain", DEFAULT_DOMAIN),
                  "deployed_at": int(time.time())})
-    print(f"Deployed to {host}. Page: https://{config.get('domain', DEFAULT_DOMAIN)} "
+    print(f"Status server set up on {host}. Page: https://{config.get('domain', DEFAULT_DOMAIN)} "
           "(TLS appears once DNS points there). The dev-server watch is now active.")
     return 0
 
@@ -293,9 +322,13 @@ def main(argv: list[str] | None = None) -> int:
     provision.add_argument("--server")
     provision.add_argument("--wipe", action="store_true")
     provision.set_defaults(func=cmd_provision)
-    deploy = sub.add_parser("deploy")
-    deploy.add_argument("--host")
-    deploy.set_defaults(func=cmd_deploy)
+    publish = sub.add_parser("publish-config")
+    publish.add_argument("--ai-worker-check", choices=["on", "off"],
+                         help="turn the AI-worker liveness check on once production serves the route")
+    publish.set_defaults(func=cmd_publish_config)
+    setup = sub.add_parser("setup")
+    setup.add_argument("--host")
+    setup.set_defaults(func=cmd_setup)
     sub.add_parser("watch").set_defaults(func=cmd_watch)
     args = parser.parse_args(argv)
     if args.command == "secret" and args.action == "set" and not args.name:

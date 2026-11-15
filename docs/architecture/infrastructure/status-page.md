@@ -1,8 +1,10 @@
 ---
 status: active
-last_verified: 2026-11-14
+last_verified: 2026-11-15
 key_files:
 - deployment/status_server/gatus/config.yaml
+- deployment/status_server/Dockerfile
+- deployment/status_server/setup.sh
 - deployment/status_server/agent/status_agent/alerts.py
 - scripts/status_server.py
 - backend/status/main.py
@@ -59,6 +61,10 @@ All production AI chats were down on 13 Nov 2026 from 16:58 UTC and nobody was a
 ### External status server (`deployment/status_server/`)
 
 Contract: `specifications/architecture/external-status-monitoring`. Runbook: `deployment/status_server/README.md`.
+
+- **Packaging.** Everything below ships as one Docker image, `ghcr.io/glowingkitty/openmates-status` (`Dockerfile`), built and published by `.github/workflows/publish-status-image.yml` on pushes to `dev` and `main`. Inside, `status_agent.supervise` starts Gatus and Caddy and runs the agent; if any part stops, the container exits and Docker restarts it.
+- **Where it runs.** Only on the separate status server, never next to production or on the dev server, so it stays up when production is down.
+- **Config.** The repository and the image hold no secrets, tokens or server addresses. `setup.sh` (installed on the server as `openmates-status-setup`) pulls the image, writes `status.env` (mode 600) from Vault through `status_agent.vault_env`, installs the compose file from the image and restarts. The same command, without new config, is the update: pull and restart. Today the dev server reads Vault and pipes the values in (`scripts/status_server.py setup`), because Vault has no public port.
 
 - **Gatus** (`gatus/config.yaml`) runs the free HTTP checks every minute: web app, app shell, API, AI-worker liveness (`GET /v1/health/liveness`), uploads and link previews. Every 5 minutes it reads providers' official Statuspage feeds. It stores the results in SQLite. Its own alerting is off, and its UI is reachable only through an SSH tunnel.
 - **Status agent** (`agent/status_agent/`, stdlib Python) runs the paid probes and pushes them to Gatus external endpoints:

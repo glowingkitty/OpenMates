@@ -39,6 +39,7 @@ class Settings:
     api_url: str
     monitor_token: str
     monitor_api_key: str
+    synthetic_probes: bool
     state_dir: Path
     public_dir: Path
     channels: Channels
@@ -52,6 +53,8 @@ class Settings:
             api_url=env.get("PROD_API_URL", "https://api.openmates.org").rstrip("/"),
             monitor_token=env.get("MONITOR_PROBE_TOKEN", ""),
             monitor_api_key=env.get("MONITOR_API_KEY", ""),
+            # Off only for image smoke tests in CI, which must not send real chats.
+            synthetic_probes=env.get("SYNTHETIC_PROBES", "on") != "off",
             state_dir=Path(env.get("STATE_DIR", "/var/lib/status-agent")),
             public_dir=Path(env.get("PUBLIC_DATA_DIR", "/srv/data")),
             channels=Channels(
@@ -91,10 +94,12 @@ def read_json(path: Path, default: object) -> object:
 
 
 def build_schedules(settings: Settings) -> list[Schedule]:
-    schedules = [Schedule("synthetic_chat-without-account",
-                          lambda: probes.chat_without_account(settings.api_url, settings.monitor_token),
-                          every_s=300, retry_s=300),
-                 Schedule("providers_google-cloud", probes.google_cloud_status, every_s=300, retry_s=300)]
+    schedules = [Schedule("providers_google-cloud", probes.google_cloud_status, every_s=300, retry_s=300)]
+    if not settings.synthetic_probes:
+        return schedules
+    schedules.append(Schedule("synthetic_chat-without-account",
+                              lambda: probes.chat_without_account(settings.api_url, settings.monitor_token),
+                              every_s=300, retry_s=300))
     if settings.monitor_api_key:
         schedules += [
             Schedule("synthetic_chat-with-account",

@@ -25,6 +25,12 @@ public_page:
   - id: outage-shows-component-only
     given: {component: ai_chat, failing_checks: all}
     expect: {status: outage, error_text: absent, check_urls: absent}
+  - id: no-data-is-not-operational
+    given: {components: {web_app: operational, ai_chat: no_data}}
+    expect: {overall: unknown}
+  - id: everything-up
+    given: {components: all_operational_with_data}
+    expect: {overall: operational}
 
 probe_traffic:
   - id: anonymous-probe-skips-allowance
@@ -44,3 +50,14 @@ liveness:
   - id: worker-silent
     given: {worker_probe: no_answer_in_8s}
     expect: {status: degraded, ai_worker: unavailable}
+
+deploy:
+  - id: setup-writes-config-from-vault
+    given: {vault: {gatus_external_token: set, discord_webhook_url: set, netcup_refresh_token: set}}
+    expect: {status_env: [GATUS_EXTERNAL_TOKEN, DISCORD_WEBHOOK_URL], netcup_token_on_server: false, mode: "600"}
+  - id: incomplete-config-stops
+    given: {vault: {gatus_external_token: set, discord_webhook_url: missing}}
+    expect: {server_started: false, message: run_publish_config}
+  - id: update-is-pull-and-restart
+    given: {command: openmates-status-setup, new_config: none}
+    expect: {image: pulled, config: kept, server: restarted}

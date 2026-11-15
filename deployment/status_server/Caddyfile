@@ -1,6 +1,5 @@
 # status.openmates.org: static public page plus the agent's status.json.
 # Gatus is not proxied: its UI shows internal check details.
-
 {
 	email letsencrypt83hd@openmates.org
 }
@@ -20,14 +19,15 @@
 	# No visitor IPs are logged (no access log directive).
 
 	handle /data/status.json {
-		root * /srv
+		root * /var/lib/openmates-status/public
+		rewrite * /status.json
 		header Cache-Control "no-store"
 		header Access-Control-Allow-Origin "*"
 		file_server
 	}
 
 	handle {
-		root * /srv/site
+		root * /app/site
 		header Cache-Control "public, max-age=300"
 		file_server
 	}

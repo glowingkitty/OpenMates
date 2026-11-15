@@ -1,13 +1,17 @@
 # status.openmates.org: external status server
 
-One small VPS outside our own infrastructure: netcup VPS pico, Nuremberg. It checks production from the outside, publishes the public status page and sends alerts.
+One small VPS outside our own infrastructure (EU, a different company and network than production). It checks production from the outside, publishes the public status page and sends alerts. It runs there only, never next to production, so it stays up when production is down.
 Design: `docs/architecture/infrastructure/status-page.md`. Contract: `specifications/architecture/external-status-monitoring`.
+
+One image, `ghcr.io/glowingkitty/openmates-status` (`Dockerfile`, published by CI from `dev` and `main`):
 
 ```
 gatus   1-min HTTP checks + provider status feeds; stores results (loopback only)
 agent   real chat/skill probes, escalating alerts (Discord, then email), status.json
 caddy   TLS, static page (site/) and /data/status.json; no access log
 ```
+
+The repository and the image contain no secrets, tokens or server addresses. They come from Vault at setup time.
 
 ## What is checked
 
@@ -33,22 +37,32 @@ python3 scripts/status_server.py netcup-login             # one browser approval
 python3 scripts/status_server.py secret set monitor_api_key  # monitoring account's API key, hidden input
 python3 scripts/status_server.py provision                # dry run: shows the server and IP
 python3 scripts/status_server.py provision --wipe         # installs Debian 13 with our deploy key (erases disk)
-python3 scripts/status_server.py deploy                   # copies this folder, writes .env from Vault, starts it
+python3 scripts/status_server.py publish-config           # tokens, Discord webhook, alert email into Vault (via .env + vault-setup)
+python3 scripts/status_server.py setup                    # runs setup.sh on the VPS with the config from Vault
 scripts/status-server-watch-setup.sh                      # dev-server cross-check every 5 minutes
 ```
+
+On the VPS (as root):
+
+```
+openmates-status-setup        # update: pull the newest image and restart (keeps status.env)
+```
+
+`setup.sh` is installed as `/usr/local/bin/openmates-status-setup`. On the first run it installs Docker, a firewall (22/80/443) and automatic security updates. On every run it pulls the image, writes `/opt/openmates-status/status.env` (mode 600) when new config arrives, installs the compose file from the image and restarts. Optional `/opt/openmates-status/settings.env`: `STATUS_IMAGE` (default `…:main`), or `VAULT_ADDR` plus `VAULT_TOKEN_FILE` if the VPS should read Vault itself.
 
 Secrets live in Vault at `kv/data/providers/status_monitor`:
 - `monitor_api_key`
 - `netcup_refresh_token`
 - `probe_token`, auto-generated
 - `gatus_external_token`, auto-generated
+- `discord_webhook_url`, `alert_email_to`, `status_domain`, `ai_worker_check` (written by `publish-config`)
 
-On the VPS they exist only in `/opt/openmates-status/.env` (mode 600).
+The email key is read from `kv/data/providers/brevo`. On the VPS the values exist only in `/opt/openmates-status/status.env` (mode 600). `status_agent/vault_env.py` decides which keys go there.
 
 Production needs, once and with owner approval:
 - the same `probe_token` and the monitoring account's user id in production Vault (`status_monitor.probe_token`, `status_monitor.account_user_ids`);
 - `OPENMATES_HEALTH_ALERTS_DELEGATED=true`;
-- a deployed `GET /v1/health/liveness`. After that, set `"ai_worker_check": true` in `~/.config/openmates/status_server.json` and deploy again.
+- a deployed `GET /v1/health/liveness`. After that, run `publish-config --ai-worker-check on` and `setup` again.
 
 Until production has the probe token, the anonymous probe uses the normal free allowance. That allowance runs out within the day, so the chat-without-account check would fail. Keep the agent's `MONITOR_PROBE_TOKEN` and production's in sync.
 

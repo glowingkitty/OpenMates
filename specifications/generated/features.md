@@ -233,7 +233,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Automated Security Monitoring and Guarded Remediation](#security-monitoring) | — | — |  | impl | — | — | — | — | on (no flag) | on (no flag) | unverified |
 | [Cost-Safe Daily AI Inference Testing](#daily-ai-test-inference) | not run 0/1 | — |  | partial 3/10 | — | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
 | [Daily Test Orchestration And Recovery](#test-orchestration) | — | — |  | not run 0/8 | — | — | — | — | on (no flag) | on (no flag) | unverified |
-| [External Status Monitoring And Public Status Page](#external-status-monitoring) | — | — |  | — | — | partial 2/7 | — | — | on (no flag) | on (no flag) | unverified |
+| [External Status Monitoring And Public Status Page](#external-status-monitoring) | — | — |  | — | — | partial 2/10 | — | — | on (no flag) | on (no flag) | unverified |
 | [Operational Monitoring And Operator Alerts](#operational-monitoring) | **live** 1/1 | — |  | not run 0/16 | — | **FAIL** 2/16 | — | — | on (no flag) | on (no flag) | untagged-main |
 | [Specifications](#specifications) | partial 6/18 | tested 2/2 |  | impl | — | partial 3/18 | — | — | on (no flag) | on (no flag) | v0.19.0 |
 
@@ -1467,7 +1467,7 @@ Keep saved event information.
 
 A small EU server outside our infrastructure checks production, publishes status.openmates.org and sends escalating alerts.
 
-- Specifications: [architecture.external-status-monitoring](../../specifications/architecture/external-status-monitoring/specification.yml) (draft) · 7 assertion(s)
+- Specifications: [architecture.external-status-monitoring](../../specifications/architecture/external-status-monitoring/specification.yml) (draft) · 10 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release unverified
 
 <details><summary>Tests per surface</summary>
@@ -1478,7 +1478,7 @@ A small EU server outside our infrastructure checks production, publishes status
 | Apple | — | — | — |
 | CLI | — | — | — |
 | TUI | — | — | — |
-| REST API | partial 2/7 | 2 pass · 0 fail · 0 not run · 5 no test | 2 unit test file(s), e.g. [test_liveness_probe.py](../../backend/tests/test_liveness_probe.py), [test_monitor_traffic.py](../../backend/tests/test_monitor_traffic.py) |
+| REST API | partial 2/10 | 2 pass · 0 fail · 0 not run · 8 no test | 2 unit test file(s), e.g. [test_liveness_probe.py](../../backend/tests/test_liveness_probe.py), [test_monitor_traffic.py](../../backend/tests/test_monitor_traffic.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 

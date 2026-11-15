@@ -23502,7 +23502,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 7
+  assertions: 10
   surfaces:
     web:
       status: not_planned
@@ -23572,8 +23572,8 @@ features:
         passing: 2
         failing: 0
         not_run: 0
-        missing: 5
-        counted: 7
+        missing: 8
+        counted: 10
       key_tests: []
       e2e_tests: []
       key_unit_tests:

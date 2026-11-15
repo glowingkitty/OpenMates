@@ -6,13 +6,14 @@
 # open it through an SSH tunnel (see ../README.md).
 #
 # Every key in ../agent/status_agent/catalog.py must exist here
-# (scripts/tests/test_status_server_config.py). Keys are "<group>_<name>".
+# (scripts/tests/test_status_agent_modules.py). Keys are "<group>_<name>".
 # Only free requests: public pages, health endpoints and providers' official
-# status APIs. ${VAR} values come from the server's .env (scripts/status_server.py).
+# status APIs. ${VAR} values come from the server's env file, which setup.sh
+# writes from Vault.
 
 storage:
   type: sqlite
-  path: /data/gatus.db
+  path: /var/lib/openmates-status/gatus.db
   maximum-number-of-results: 120
 
 web:
@@ -71,7 +72,7 @@ endpoints:
 
   # The API reports whether an AI worker finished a heartbeat task from the AI
   # queue within the last few minutes. Enabled once production serves the
-  # liveness route (AI_WORKER_CHECK_ENABLED in the server's .env).
+  # liveness route (AI_WORKER_CHECK_ENABLED in the server's env file).
   - name: ai-workers
     group: openmates
     enabled: ${AI_WORKER_CHECK_ENABLED}
