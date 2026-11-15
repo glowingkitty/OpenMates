@@ -4854,7 +4854,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 24
+  assertions: 25
   surfaces:
     web:
       status: failing
@@ -4863,15 +4863,16 @@ features:
       assertions:
         passing: 9
         failing: 1
-        not_run: 5
+        not_run: 6
         missing: 9
-        counted: 24
+        counted: 25
       failing_tests:
       - frontend/apps/web_app/tests/focus-mode-settings.spec.ts › OpenMates app does not offer the retired Welcome focus mode
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/agent-context-message.spec.ts
       - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
+      - frontend/apps/web_app/tests/components/focus-banner-placement.spec.ts
       - frontend/apps/web_app/tests/components/focus-mode-activation.spec.ts
       - frontend/apps/web_app/tests/components/focus-mode-instructions.spec.ts
       - frontend/apps/web_app/tests/components/focus-phases.spec.ts
@@ -4895,8 +4896,8 @@ features:
         passing: 8
         failing: 0
         not_run: 1
-        missing: 15
-        counted: 24
+        missing: 16
+        counted: 25
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/FocusPhaseNativeUITests.swift
@@ -4920,8 +4921,8 @@ features:
         passing: 3
         failing: 0
         not_run: 9
-        missing: 12
-        counted: 24
+        missing: 13
+        counted: 25
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -4951,18 +4952,18 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 13
+        passing: 14
         failing: 0
         not_run: 4
         missing: 7
-        counted: 24
+        counted: 25
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/jev-project-context-api.spec.ts
       key_unit_tests:
+      - backend/tests/test_focus_mode_routing.py
       - backend/tests/test_project_authoring.py
       - backend/tests/test_project_write_authorization.py
-      - backend/tests/test_focus_mode_routing.py
       - backend/tests/test_focus_phases.py
       - backend/tests/test_focus_continuation_history.py
       unit_test_files: 29
@@ -4974,8 +4975,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 24
-        counted: 24
+        missing: 25
+        counted: 25
       key_tests: []
       evidence: focusMode option sdk.ts; focus_mode param sdk.py ask
       e2e_tests: []
@@ -4989,8 +4990,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 24
-        counted: 24
+        missing: 25
+        counted: 25
       key_tests: []
       evidence: focusMode option sdk.ts; focus_mode param sdk.py ask
       e2e_tests: []

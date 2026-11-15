@@ -9,7 +9,7 @@ scope:
   includes:
   - Shared focus activation, cancellation, deactivation, per-request system prompts and historical events.
   - Current-state restoration and historical rendering across supported first-party surfaces.
-  - Web focus activation display, details/off interactions and Career insights banner placement.
+  - Web focus activation display, details/off interactions and active focus banner placement for all focus modes.
   - Retirement of the Welcome focus mode and its dedicated Suki mate from new selection and routing.
   - Composition with individual focus-mode specifications.
   - Project base/specialist display, Focus/phase context refresh and Project-only recommendation/background authoring lifecycle.
@@ -41,11 +41,19 @@ assertions:
   - examples.project_off_read
 - id: focus-modes.activation
   type: behavior
-  must: A suggested or relevant focus is not active merely because it was discovered or an activation embed finished rendering.
-    A pending activation becomes active only through its accepted activation transition; rejecting a genuinely pending request
-    resumes without applying its instructions.
+  must: A suggested focus activates automatically after a short visible countdown unless the user cancels it; it needs no
+    acceptance. It counts as active only once that activation has really completed, never because it was discovered, an
+    activation card rendered or old history shows it. Cancelling a genuinely pending request resumes without applying its
+    instructions.
   depends_on:
   - examples.activation
+- id: focus-modes.explicit-activation
+  type: behavior
+  must: When the user explicitly names a focus mode, by an @focus mention or a direct request such as "turn on Deep research",
+    it activates immediately with no countdown, no cancellation window and no waiting, including over an active Project base
+    focus.
+  depends_on:
+  - examples.explicit_activation
 - id: focus-modes.full-instruction
   type: invariant
   must: Every request while a focus is active includes its full global instruction. For an unphased focus this is the full
@@ -99,9 +107,8 @@ assertions:
   - examples.restoration
 - id: focus-modes.banner-placement
   type: behavior
-  must: On web, position the Career insights active banner approximately 10 CSS pixels above its pre-fix composer position,
-    with readable label and usable controls and no overlap on phone and laptop. Apply the lift to the active focus banner
-    without shifting unrelated incognito or IdeaBucket pills.
+  must: On web, the active focus banner of every focus mode sits directly above the composer with no overlap, a readable
+    label and usable controls on phone and laptop. Placing it does not shift unrelated incognito or IdeaBucket pills.
   depends_on:
   - examples.banner_placement
 - id: focus-modes.specializations
@@ -158,8 +165,10 @@ assertions:
   type: behavior
   must: An active Project base remains effective when one specialist Focus is activated or switched. Apply both instruction
     layers, showing only the specialist as Project name | Focus name; shorten visually when space requires while retaining
-    full identity. Switching specialists retains Project authority. Turning off the Project clears its specialist and future
-    Project-only instructions/context; shared deactivation guards still apply.
+    full identity. Switching specialists retains Project authority. An explicit @focus or @plan request in a chat whose
+    only active focus is the Project base activates that specialist over the base; the base never silently suppresses
+    it. Turning off the Project clears its specialist and future Project-only instructions/context; shared deactivation
+    guards still apply.
   depends_on:
   - examples.project_specialist
 - id: focus-modes.context-reselection
@@ -216,10 +225,10 @@ assertions:
   - examples.updated_followup
 - id: focus-modes.natural-request
   type: behavior
-  must: When a natural request uniquely matches an opted-in public focus mode, propose its normal cancellable activation before
-    beginning the substantive answer. Simple lookups, ambiguous matches, an existing focus, exact user skill selections and
+  must: When a natural request that does not name a focus mode uniquely matches an opted-in public focus mode, propose its
+    normal countdown activation before beginning the substantive answer. Simple lookups, ambiguous matches, an existing focus, exact user skill selections and
     continuation or rejection turns retain their normal path. The proposal alone never applies focus instructions, grants
-    private access or starts research child chats; those require accepted active state.
+    private access or starts research child chats; those require completed activation.
   depends_on:
   - examples.natural_request
 applies_to:
@@ -230,8 +239,8 @@ applies_to:
   cli:
     required: true
     parity: semantic
-    role: Verify active/off prompts and history through supported real chat commands; browser countdown/pixel geometry is
-      not a terminal UI requirement.
+    role: Verify active/off prompts and history through supported real chat commands; browser countdown and banner geometry
+      are not a terminal UI requirement.
   sdks:
     required: true
     parity: semantic
@@ -248,13 +257,14 @@ applies_to:
         required: true
       apple:
         required: true
-        role: Shared operation, prompt, history and state semantics; web-specific 10px banner offset is excluded.
+        role: Shared operation, prompt, history and state semantics; web banner geometry is excluded.
 examples:
   file: examples.yml
   required_groups:
   - project_write_gate
   - project_off_read
   - activation
+  - explicit_activation
   - full_instruction
   - off_instruction
   - history_events

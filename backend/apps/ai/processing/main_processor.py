@@ -33,7 +33,7 @@ from backend.apps.ai.processing.preprocessor import (
     PreprocessingResult, _history_has_loaded_image_blocks,
     _image_reference_consumer_skills, _request_has_image_upload_embed,
 )
-from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS
+from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, has_active_app_focus
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
@@ -3898,7 +3898,8 @@ async def handle_main_processing(
 
     user_requested_focus_only = getattr(preprocessing_results, "user_requested_focus_only", False)
     relevant_focus_modes = preprocessing_results.relevant_focus_modes or []
-    has_active_focus_mode = bool(request_data.active_focus_id or getattr(request_data, "active_project_focus", None))
+    # The Project base focus is not an app focus: an explicit mention layers over it.
+    has_active_focus_mode = has_active_app_focus(request_data)
     project_candidates = {f"project-{row['project_id']}": row for row in getattr(request_data, "project_focus_candidates", [])}
     # --- User-requested focus mode: bypass LLM + countdown ---
     # When the user explicitly mentioned a focus mode via @focus:app_id:focus_id in their message,
@@ -5653,7 +5654,16 @@ async def handle_main_processing(
                                 f"The focus mode to activate. Must be one of: {_valid_ids_list}. "
                                 "Format: app_id-focus_id."
                             ),
-                        }
+                        },
+                        "named_by_user": {
+                            "type": "boolean",
+                            "description": (
+                                "true only when the user's latest message itself names this focus mode or "
+                                "directly asks to switch it on (for example 'turn on Deep research'); it then "
+                                "activates immediately. false when you chose it because it fits the request; "
+                                "the user then gets a short countdown to cancel."
+                            ),
+                        },
                     },
                     "required": ["focus_id"]
                 }
@@ -6135,8 +6145,13 @@ async def handle_main_processing(
             log_prefix=log_prefix,
         )
 
-    async def request_app_focus(focus_id: str):
-        """Use the same cancellable transition for model and natural matches."""
+    async def request_app_focus(focus_id: str, *, named_by_user: bool = False):
+        """Use the same transition for model and natural matches.
+
+        A suggested focus activates after a short cancellable countdown. A focus
+        the user named directly activates at once with no countdown, like an
+        @focus mention (feature.focus-modes, focus-modes.explicit-activation).
+        """
         if focus_id not in relevant_focus_modes:
             raise PermissionError("Focus activation was not offered for this turn")
         private_definition = None
@@ -6262,6 +6277,8 @@ async def handle_main_processing(
                 pending_context = {
                     "focus_id": focus_id,
                     "focus_prompt": focus_prompt_text,
+                    # A directly named focus has no rejection window (activate_at = now).
+                    **({"user_override": True} if named_by_user else {}),
                     **_forward_agentic_context(request_data),
                     "embed_id": fm_embed_id,
                     "chat_id": request_data.chat_id,
@@ -6324,11 +6341,12 @@ async def handle_main_processing(
                     "request_id": fm_embed_id,
                 },
                 queue='app_ai',
-                countdown=FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
+                countdown=0 if named_by_user else FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
             )
             # Positive live eligibility is a transient event, never embed metadata.
             # Expiry is display-only; auto-confirm remains the state authority.
-            if cache_service and pending_context_stored:
+            # A directly named focus never shows a countdown, so no pending event.
+            if cache_service and pending_context_stored and not named_by_user:
                 redis_client = await cache_service.client
                 if redis_client:
                     await redis_client.publish(
@@ -6342,7 +6360,8 @@ async def handle_main_processing(
                     )
             logger.info(
                 f"{log_prefix} [FOCUS_MODE] Scheduled auto-confirm task with "
-                f"countdown={FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN}s"
+                f"countdown={0 if named_by_user else FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN}s"
+                f" (named_by_user={named_by_user})"
             )
         except Exception as e:
             logger.error(f"{log_prefix} [FOCUS_MODE] Failed to schedule auto-confirm task: {e}", exc_info=True)
@@ -9733,7 +9752,9 @@ async def handle_main_processing(
                             yield f"```json\n{embed_reference}\n```\n\n"
                             yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
                             return
-                        async for focus_chunk in request_app_focus(focus_id):
+                        async for focus_chunk in request_app_focus(
+                            focus_id, named_by_user=parsed_args.get("named_by_user") is True,
+                        ):
                             yield focus_chunk
                         return
                         

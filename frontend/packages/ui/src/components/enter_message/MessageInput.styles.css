@@ -395,10 +395,11 @@
 }
 
 /* Left clickable area: icon + label + "focus on" */
-/* Approved focus banner lift; privacy and IdeaBucket pills retain their position. */
+/* The active focus banner sits fully above the composer: its 36px height ends at the
+   composer's top edge, so it never covers text or controls (focus-modes.banner-placement).
+   Privacy and IdeaBucket pills retain their position. */
 .focus-pill:not(.incognito-pill):not(.ideabucket-pill) {
-  --active-focus-banner-lift: 10px;
-  top: calc(-20px - var(--active-focus-banner-lift));
+  top: -36px;
 }
 
 .focus-pill-body {

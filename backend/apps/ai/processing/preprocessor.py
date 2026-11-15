@@ -54,7 +54,7 @@ from backend.apps.ai.processing.focus_mode_routing import (
     spec_authoring_skill_scope,
 )
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev, _complete_public_decisions
-from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, select_explicit_plan_focus
+from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, has_active_app_focus, select_explicit_plan_focus
 from backend.apps.ai.utils.authored_result_instructions import admitted_authoring_definitions
 from backend.apps.ai.testing.voice_pipeline_fixture import voice_preprocessing_scope
 from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
@@ -4343,7 +4343,7 @@ async def handle_preprocessing(
     # planner the detailed pass ranked for this (multilingual) message, else the
     # generic planner; main processing then activates it immediately.
     if (user_overrides and user_overrides.plan_requested and not user_requested_focus_only
-            and not request_data.active_focus_id):
+            and not has_active_app_focus(request_data)):
         explicit_plan_focus = select_explicit_plan_focus(validated_relevant_focus_modes, available_focus_mode_ids)
         if explicit_plan_focus:
             validated_relevant_focus_modes = [explicit_plan_focus]

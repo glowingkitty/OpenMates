@@ -388,3 +388,35 @@ def test_active_spec_authoring_focus_keeps_plans_and_tasks_skills_offered() -> N
                                       available_skills=available, exact_request=True) == ["web-search"]
     assert spec_authoring_skill_scope(active_focus_id="code-write_specification", selected_skills=[],
                                       available_skills={"plans-check"}, exact_request=False) == ["plans-check"]
+
+
+def _request_app_focus_source() -> str:
+    import ast
+
+    tree = ast.parse(Path("backend/apps/ai/processing/main_processor.py").read_text())
+    function = next(
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.AsyncFunctionDef) and n.name == "request_app_focus"
+    )
+    return ast.unparse(function)
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.explicit-activation
+def test_directly_named_focus_activates_without_countdown_or_pending_event() -> None:
+    source = _request_app_focus_source()
+    assert "named_by_user: bool=False" in source
+    # No rejection window: auto-confirm runs at once and the pending entry activates now.
+    assert "countdown=0 if named_by_user else FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN" in source
+    assert "**({'user_override': True} if named_by_user else {})" in source
+    # The client shows a countdown only after focus_mode_pending; a named focus never sends it.
+    assert "if cache_service and pending_context_stored and (not named_by_user):" in source
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.explicit-activation,focus-modes.activation
+def test_model_marks_directly_named_focus_and_suggestions_keep_the_countdown() -> None:
+    source = Path("backend/apps/ai/processing/main_processor.py").read_text()
+    assert '"named_by_user": {\n                            "type": "boolean"' in source
+    # Only an explicit true from the tool call skips the countdown; anything else is a suggestion.
+    assert 'named_by_user=parsed_args.get("named_by_user") is True' in source
+    cache_source = Path("backend/core/api/app/services/cache_chat_mixin.py").read_text()
+    assert '"activate_at": time.time() + (0 if context.get("user_override") is True else 4)' in cache_source

@@ -761,7 +761,7 @@ specifications:
     version: 2
     status: draft
     path: features/focus-modes
-    fingerprint: f0b7ea98013dc8938eecc3ca8adebd6218ea6f192144db81d6e8c7db9f3a95e7
+    fingerprint: 95af0783aaa8fd647c56b58d39b1e3a9cf3caec95b4d9cab673af476b5cd3bc5
     required_applies_to:
     - rest_api
     - cli
@@ -9872,7 +9872,19 @@ assertions:
     specification: feature.focus-modes@2
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: e414223347bafb2fbd505065b6353233d385f7372a9f1839cc9c5ccc7897a742
+    fingerprint: 3c06f90aefcb337a2ff81c1310fc068e1013cee194c7c5e3bc7a88c25e980bb1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.explicit-activation:
+    specification: feature.focus-modes@2
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: ee1387884a9247f427bea613f9ee10253ab2b671f2132906d0d1b20d3cc87875
     required_applies_to:
     - rest_api
     - cli
@@ -9968,7 +9980,7 @@ assertions:
     specification: feature.focus-modes@2
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: bacf0d80f5b1c7bc946b32f2823c39c4acae2ff555c4316c6303bd28ed2325f9
+    fingerprint: 8fa1155c9c1c96f260bb90b5604960c8aa28185cd0d079da934c51ed64a95196
     required_applies_to:
     - rest_api
     - cli
@@ -10040,7 +10052,7 @@ assertions:
     specification: feature.focus-modes@2
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: a5aa247a89702a870abe2d79d4abcc9f118f8a32d7b9c28bb3ef64d5fe2e47f9
+    fingerprint: d9c2eeca5392dcc027433ed817e733ee6f5530c34336454cb8b8d02d498959a8
     required_applies_to:
     - rest_api
     - cli
@@ -10124,7 +10136,7 @@ assertions:
     specification: feature.focus-modes@2
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: 046f4ad2cfdd437bcb84898c2345cbd0dd2e103c28b638ba32b51deabe84976e
+    fingerprint: 044425fa0c5e07841d10f7eb3d614ac2b3f99d1f231aae508e0116cc0909132b
     required_applies_to:
     - rest_api
     - cli

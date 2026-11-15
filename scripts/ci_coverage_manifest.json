@@ -501,6 +501,7 @@
         "components/agent-context-message.spec.ts",
         "components/figma-connected-accounts.spec.ts",
         "components/project-focus-specialist.spec.ts",
+        "components/focus-banner-placement.spec.ts",
         "components/rule-document-manager.spec.ts",
         "components/workflow-memory-snapshots.spec.ts",
         "components/wiki-learning.spec.ts",

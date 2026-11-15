@@ -17,6 +17,7 @@ from backend.apps.ai.processing.plan_focus_routing import (
     CODE_PLAN_FOCUS_ID,
     GENERIC_PLAN_FOCUS_ID,
     PLANNER_FOCUS_IDS,
+    has_active_app_focus,
     select_explicit_plan_focus,
 )
 from backend.core.api.app.utils.override_parser import UserOverrides, parse_overrides
@@ -38,6 +39,7 @@ def _run_preprocessor_plan_override(
     llm_focus_modes: list[str],
     user_requested_focus_only: bool = False,
     active_focus_id: str | None = None,
+    active_project_focus: dict | None = None,
 ) -> tuple[list[str], bool]:
     """Execute the real preprocessor @plan block without importing the preprocessor."""
     path = BACKEND / "apps/ai/processing/preprocessor.py"
@@ -50,7 +52,9 @@ def _run_preprocessor_plan_override(
     namespace = {
         "user_overrides": parse_overrides(message),
         "user_requested_focus_only": user_requested_focus_only,
-        "request_data": SimpleNamespace(active_focus_id=active_focus_id),
+        "request_data": SimpleNamespace(active_focus_id=active_focus_id,
+                                        active_project_focus=active_project_focus),
+        "has_active_app_focus": has_active_app_focus,
         "validated_relevant_focus_modes": list(llm_focus_modes),
         "available_focus_mode_ids": sorted(ALL_PLANNERS),
         "select_explicit_plan_focus": select_explicit_plan_focus,
@@ -165,3 +169,66 @@ def test_stage_one_catalogue_shows_planner_relevance_hint() -> None:
     )
     assert "plan focus: Select only when the latest message, in any language, explicitly asks the assistant to create" in catalogue[0]
     assert "task breakdown" in catalogue[0]
+
+
+PROJECT_BASE = {"project_id": "proj-1", "focus_id": "71cf5c30-0000-4000-8000-000000000001"}
+
+
+def _main_processor_override_gate(**request: object) -> bool:
+    """Evaluate the real explicit-focus gate of main processing for one request."""
+    module = ast.parse((BACKEND / "apps/ai/processing/main_processor.py").read_text())
+    assign = next(
+        node for node in ast.walk(module)
+        if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "has_active_focus_mode"
+        and "has_active_app_focus" in ast.unparse(node.value)
+    )
+    gate = next(
+        node for node in ast.walk(module)
+        if isinstance(node, ast.If) and "user_requested_focus_only and relevant_focus_modes" in ast.unparse(node.test)
+        and "_trusted_focus_override" in ast.unparse(node.test)
+    )
+    namespace = {
+        "request_data": SimpleNamespace(**{"active_focus_id": None, "active_project_focus": None, **request}),
+        "has_active_app_focus": has_active_app_focus,
+        "user_requested_focus_only": True,
+        "relevant_focus_modes": ["code-write_specification"],
+        "project_candidates": {},
+        "user_overrides": parse_overrides("@focus:code:write_specification Write the spec"),
+        "_trusted_focus_override": _function_from(
+            BACKEND / "apps/ai/processing/main_processor.py", "_trusted_focus_override",
+            {"UserOverrides": UserOverrides, "PLANNER_FOCUS_IDS": PLANNER_FOCUS_IDS},
+        ),
+    }
+    exec(compile(ast.Module(body=[assign], type_ignores=[]), "gate", "exec"), namespace)
+    return bool(eval(compile(ast.Expression(gate.test), "gate", "eval"), namespace))
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-specialist-composition
+def test_a_project_base_focus_is_not_an_active_app_focus() -> None:
+    base_id = PROJECT_BASE["focus_id"]
+    assert has_active_app_focus(SimpleNamespace(active_focus_id=None, active_project_focus=PROJECT_BASE)) is False
+    assert has_active_app_focus(SimpleNamespace(active_focus_id=base_id, active_project_focus=PROJECT_BASE)) is False
+    assert has_active_app_focus(SimpleNamespace(
+        active_focus_id="code-write_specification", active_project_focus=PROJECT_BASE)) is True
+    assert has_active_app_focus(SimpleNamespace(active_focus_id="jobs-career_insights", active_project_focus=None)) is True
+    # A stale base id without a current Project binding still blocks, as before.
+    assert has_active_app_focus(SimpleNamespace(active_focus_id=base_id, active_project_focus=None)) is True
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-specialist-composition
+def test_an_explicit_focus_mention_activates_over_an_active_project_focus() -> None:
+    assert _main_processor_override_gate(active_project_focus=PROJECT_BASE) is True
+    assert _main_processor_override_gate(
+        active_focus_id=PROJECT_BASE["focus_id"], active_project_focus=PROJECT_BASE) is True
+    # An app focus that is already active still keeps its normal path.
+    assert _main_processor_override_gate(
+        active_focus_id="jobs-career_insights", active_project_focus=PROJECT_BASE) is False
+    assert _main_processor_override_gate(active_focus_id="jobs-career_insights") is False
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-specialist-composition
+def test_explicit_plan_resolves_a_planner_in_a_project_chat() -> None:
+    assert _run_preprocessor_plan_override(
+        "@plan the garden app", llm_focus_modes=[CODE_PLAN_FOCUS_ID],
+        active_focus_id=PROJECT_BASE["focus_id"], active_project_focus=PROJECT_BASE,
+    ) == ([CODE_PLAN_FOCUS_ID], True)

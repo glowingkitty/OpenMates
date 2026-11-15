@@ -32,6 +32,30 @@ export const variants = {
     onFocusPillDeepLink: () => {},
     onFocusPillDeactivate: () => {},
   },
+  // Banner placement is the same for every focus mode (focus-modes.banner-placement).
+  careerInsightsFocus: {
+    showActionButtons: false,
+    activeFocusId: 'jobs-career_insights',
+    activeFocusAppId: 'jobs',
+    activeSpecialistFocusName: 'Career insights',
+    activeFocusModeMetadata: { name_translation_key: 'jobs.career_insights', icon_image: 'insight.svg' },
+    onFocusPillDeepLink: () => {},
+    onFocusPillDeactivate: () => {},
+  },
+  deepResearchFocus: {
+    showActionButtons: false,
+    activeFocusId: 'web-research',
+    activeFocusAppId: 'web',
+    activeSpecialistFocusName: 'Deep research',
+    activeFocusModeMetadata: { name_translation_key: 'web.research' },
+    onFocusPillDeepLink: () => {},
+    onFocusPillDeactivate: () => {},
+  },
+  incognitoPill: {
+    showActionButtons: false,
+    isIncognitoMode: true,
+    onIncognitoPillDeactivate: () => {},
+  },
   longProjectSpecialist: {
     showActionButtons: false,
     activeFocusId: 'project-focus:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222',
