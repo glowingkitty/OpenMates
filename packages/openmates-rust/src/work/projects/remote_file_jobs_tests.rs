@@ -188,3 +188,26 @@ fn proposal_debug_never_shows_the_path_or_text() {
     );
     assert!(!shown.contains("secret") && !shown.contains("beds"));
 }
+
+#[tokio::test]
+async fn a_commit_job_reaches_the_host_as_an_approved_git_commit() {
+    let reply = json!({"ok":true,"result":{"commit":"abc123","ahead":1,"target_branch":"main"}});
+    let (api, server) = host_with_write_mode(reply, "apply_and_show").await;
+    let mut c = client(&api);
+    let result = c
+        .projects()
+        .remote_commit_job(PROJECT, "src", CHAT, "op-commit", "Add beds")
+        .await
+        .unwrap();
+    assert_eq!(
+        (result["commit_id"].as_str(), result["message"].as_str()),
+        (Some("abc123"), Some("Add beds"))
+    );
+    let (body, opened) = opened_envelope(&server.await.unwrap());
+    assert_eq!(body["operation"], "git_commit");
+    assert!(
+        body["proposal_digest"].is_string(),
+        "the commit is approved under its digest"
+    );
+    assert_eq!(opened["arguments"]["chat_id"], CHAT);
+}

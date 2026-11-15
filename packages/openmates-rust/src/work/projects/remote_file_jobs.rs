@@ -1,13 +1,13 @@
 //! Requester side of assistant Project file jobs aimed at a remote source (a
 //! Project folder on one of the user's machines): `list`, `search`,
-//! `read_text`, `create_file` and `update_file` go to the source host through
+//! `read_text`, `create_file`, `update_file` and `commit` (`git_commit`) go to the source host through
 //! the sealed requester transport of `remote_files.rs` (`source_call`).
 //! Mirrors the web executor (`browserProjectFileExecutor.ts` ->
 //! `requestProjectRemoteAccess`); host contract `source_host/dispatch.rs`.
 //! The chat id travels with every call, so writes land in the chat's worktree
 //! on the machine and later reads see them (like `run_command`).
 //! spec: specifications/features/projects (projects.creation.machine-folder).
-use super::remote_ops::{FileMutationProposal, WireCall, WriteProposal};
+use super::remote_ops::{FileMutationProposal, RemoteOpError, WireCall, WriteProposal};
 use super::*;
 
 /// Upper bound of one relayed file job; the job lease bounds it again.
@@ -87,6 +87,41 @@ impl Projects<'_> {
             .source_call(project_id, Some(source_id), call, PROTOCOL_TIMEOUT)
             .await?;
         Ok(result)
+    }
+
+    /// Run an assistant `commit` job on the remote source: the host commits
+    /// every change of chat `chat`'s worktree (`git_commit`, approved under
+    /// the job's `operation_id`). The result mirrors the hosted commit job
+    /// (`commit_id`, `message`) plus the host's `ahead` / `target_branch`.
+    ///
+    /// # Errors
+    /// [`ProjectRequesterError::Remote`] with the host code
+    /// (`nothing_to_commit`, `identity_missing`, `no_worktree`,
+    /// `source_offline`, ...); core errors as [`ProjectRequesterError::Core`].
+    pub(crate) async fn remote_commit_job(
+        &mut self,
+        project_id: &str,
+        source_id: &str,
+        chat: &str,
+        operation_id: &str,
+        message: &str,
+    ) -> std::result::Result<Value, ProjectRequesterError> {
+        match self
+            .git_commit(project_id, Some(source_id), chat, operation_id, message)
+            .await
+        {
+            Ok(commit) => Ok(json!({
+                "commit_id": commit.commit,
+                "message": message,
+                "ahead": commit.ahead,
+                "target_branch": commit.target_branch,
+            })),
+            Err(RemoteOpError::Core(error)) => Err(ProjectRequesterError::Core(error)),
+            Err(RemoteOpError::Host { code, message }) => Err(ProjectRequesterError::Remote {
+                code: code.wire().to_owned(),
+                message,
+            }),
+        }
     }
 }
 

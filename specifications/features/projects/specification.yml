@@ -696,7 +696,9 @@ assertions:
     machine's host and reports the host's result; while the machine is unreachable the job keeps waiting for an executor
     instead of failing or falling back to hosted storage. A new application in such a Project is written file by file
     with the Project file tools into its folder there, not as a hosted application block; creating a file also creates
-    its missing parent folders inside the Project folder. The host never writes outside the configured folder and never into or over an existing path; a machine without that setting does not offer creation. A refusal (creation_not_configured,
+    its missing parent folders inside the Project folder. An assistant commit there is a Git commit of the chat's
+    worktree on that machine, recorded under the job's operation; deleting or renaming files there is refused as
+    unsupported and changes nothing. The host never writes outside the configured folder and never into or over an existing path; a machine without that setting does not offer creation. A refusal (creation_not_configured,
     invalid_project_name, creation_folder_unavailable, identity_missing, target_exists) creates nothing and consumes no
     confirmation, and the pending request can be retried or removed without the machine. Only the bound machine of the
     confirming user can complete the creation.

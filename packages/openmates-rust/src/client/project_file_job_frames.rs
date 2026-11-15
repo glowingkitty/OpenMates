@@ -71,6 +71,15 @@ pub(super) trait JobRunner {
         job: &HostedFileJob,
         mutation: Option<HostedFileMutation>,
     ) -> std::result::Result<Value, ProjectRequesterError>;
+    /// Commit the chat's worktree on the remote source `source_id`.
+    async fn commit_remote(
+        &mut self,
+        focus: &Focus,
+        source_id: &str,
+        chat: &str,
+        operation_id: &str,
+        message: &str,
+    ) -> std::result::Result<Value, ProjectRequesterError>;
 }
 
 /// The validated one-line message of a `commit` job.
@@ -134,6 +143,42 @@ async fn commit_frames<R: JobRunner>(
             Ok(vec![result_frame(job, "completed", body)])
         }
     }
+}
+
+/// Result frames of a `commit` job of a remote source: the host commits the
+/// chat's worktree; the same waiting/failed mapping as other relayed jobs.
+async fn remote_commit_frames<R: JobRunner>(
+    runner: &mut R,
+    job: &Value,
+    focus: &Focus,
+    chat: &str,
+    source: &str,
+    remaining: Duration,
+    state: &mut FileJobState,
+) -> Result<Vec<(&'static str, Value)>> {
+    let operation = job["operation_id"].as_str().unwrap_or_default().to_owned();
+    let message = match commit_message(&job["arguments"]) {
+        Ok(message) => message,
+        Err(error) => {
+            state.finish(&operation);
+            return Ok(vec![error_frame(job, &error)]);
+        }
+    };
+    let outcome = crate::platform::time::timeout(
+        remaining,
+        runner.commit_remote(focus, source, chat, &operation, &message),
+    )
+    .await;
+    let frames = remote_frames(job, source, outcome, None, state, &operation)?;
+    if frames
+        .first()
+        .is_some_and(|(_, frame)| frame["status"] == "completed")
+    {
+        state
+            .notices
+            .push(format!("Project commit recorded on the machine: {message}"));
+    }
+    Ok(frames)
 }
 
 /// Result frames of a `snapshot` job: the bounded plaintext files.
@@ -339,8 +384,8 @@ pub(super) async fn job_frames<R: JobRunner>(
     let remote_source = job["source_id"].as_str().map(str::to_owned);
     let is_commit = job["operation"] == COMMIT_OPERATION;
     let is_snapshot = job["operation"] == SNAPSHOT_OPERATION;
-    if remote_source.is_some() && (is_commit || is_snapshot) {
-        // Commits and snapshots of a machine source belong to its own executor.
+    if remote_source.is_some() && is_snapshot {
+        // Snapshots of a machine source belong to its own executor.
         return Ok(vec![result_frame(
             job,
             "waiting_for_executor",
@@ -381,6 +426,10 @@ pub(super) async fn job_frames<R: JobRunner>(
     let Some(hosted) = hosted else {
         if is_snapshot {
             return snapshot_frames(runner, job, &focus, remaining, state).await;
+        }
+        if let Some(source) = remote_source {
+            return remote_commit_frames(runner, job, &focus, chat, &source, remaining, state)
+                .await;
         }
         return commit_frames(runner, job, &focus, chat, remaining, state).await;
     };
@@ -592,6 +641,20 @@ impl JobRunner for Client {
             json!({"commit_id": commit.commit_id, "message": commit.message,
             "file_count": commit.files.len()}),
         )
+    }
+
+    async fn commit_remote(
+        &mut self,
+        focus: &Focus,
+        source_id: &str,
+        chat: &str,
+        operation_id: &str,
+        message: &str,
+    ) -> std::result::Result<Value, ProjectRequesterError> {
+        self.projects()
+            .with_filters(filters(focus))
+            .remote_commit_job(&focus.project_id, source_id, chat, operation_id, message)
+            .await
     }
 
     async fn execute_remote(

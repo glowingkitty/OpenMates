@@ -93,6 +93,21 @@ impl JobRunner for Fake {
         ));
         self.remote.clone()
     }
+    async fn commit_remote(
+        &mut self,
+        _: &Focus,
+        source_id: &str,
+        _: &str,
+        operation_id: &str,
+        message: &str,
+    ) -> std::result::Result<Value, ProjectRequesterError> {
+        self.relayed.push((
+            source_id.to_owned(),
+            operation_id.to_owned(),
+            Some(format!("commit:{message}")),
+        ));
+        self.remote.clone()
+    }
 }
 
 /// In-memory snapshot source: `(path, text)`; a `None` text is binary.
@@ -276,6 +291,16 @@ async fn a_lease_that_runs_out_during_execution_is_failed() {
         ) -> std::result::Result<Value, ProjectRequesterError> {
             Ok(json!({}))
         }
+        async fn commit_remote(
+            &mut self,
+            _: &Focus,
+            _: &str,
+            _: &str,
+            _: &str,
+            _: &str,
+        ) -> std::result::Result<Value, ProjectRequesterError> {
+            Ok(json!({}))
+        }
     }
     let sent = job_frames(
         &mut Slow,
@@ -451,18 +476,27 @@ async fn an_always_ask_remote_write_is_declined_without_relaying_when_not_approv
 }
 
 #[tokio::test]
-async fn a_remote_source_commit_waits_for_the_machine_executor() {
-    let mut fake = Fake::new(false);
-    let sent = run(
-        &mut fake,
-        REQUEST,
-        &remote_request("commit"),
-        &mut FileJobState::default(),
-    )
-    .await;
+async fn a_remote_source_commit_is_relayed_to_the_machine_and_snapshots_wait() {
+    let (mut fake, mut state) = (Fake::new(false), FileJobState::default());
+    fake.remote = Ok(json!({"commit_id": "abc123", "message": "Add beds", "ahead": 1}));
+    let mut event = remote_request("commit");
+    event["arguments"] = json!({"message": "Add beds"});
+    let sent = run(&mut fake, REQUEST, &event, &mut state).await;
+    assert_eq!(sent[0].1["status"], "completed");
+    assert_eq!(sent[0].1["result"]["commit_id"], "abc123");
+    assert_eq!(sent[0].1["result"]["source_id"], "source-1");
+    assert_eq!(fake.relayed[0].2.as_deref(), Some("commit:Add beds"));
+    assert_eq!(
+        state.notices,
+        vec!["Project commit recorded on the machine: Add beds".to_owned()]
+    );
+    assert!(fake.executed.is_empty(), "never a hosted commit");
+
+    let mut snapshot = remote_request("snapshot");
+    snapshot["operation_id"] = json!("op-2");
+    let sent = run(&mut fake, REQUEST, &snapshot, &mut state).await;
     assert_eq!(sent[0].1["status"], "waiting_for_executor");
-    assert_eq!(sent[0].1["result"]["reason"], "source_offline");
-    assert!(fake.relayed.is_empty() && fake.executed.is_empty());
+    assert_eq!(fake.relayed.len(), 1);
 }
 
 #[tokio::test]
