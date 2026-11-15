@@ -359,7 +359,7 @@ def answer_recovery_runner(monkeypatch):
         monkeypatch.setattr(
             llm_utils,
             "resolve_fallback_servers_from_provider_config",
-            lambda model_id: (
+            lambda model_id, _region="eu": (
                 ["google/hidden-server"]
                 if hidden_server_fallback and model_id == primary_model
                 else []

@@ -2440,6 +2440,8 @@ async def call_main_llm_stream(
             if (_retry_provider_prefix == "openai" and sanitized_cacheable_prefix
                     and _cache_checkpoint_allowed(_retry_tariff, "openai")):
                 _retry_input["cacheable_system_prefix"] = sanitized_cacheable_prefix
+            if _retry_provider_prefix == "google_ai_studio" and sanitized_cacheable_prefix:
+                _retry_input["cacheable_system_prefix"] = sanitized_cacheable_prefix
             if _retry_provider_prefix in {"mistral", "baseten", "openrouter", "together", "cerebras"} and prompt_cache_key:
                 _retry_input["prompt_cache_key"] = prompt_cache_key
             if _retry_provider_prefix == "openrouter":
@@ -2690,6 +2692,9 @@ async def call_main_llm_stream(
             server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
         if (prepared_native_context is None and server_provider_prefix == "openai" and sanitized_cacheable_prefix
                 and _cache_checkpoint_allowed(tariff_snapshot, "openai")):
+            server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
+        # Explicit Gemini cache creation is platform cost; reads bill via cache_read tokens.
+        if server_provider_prefix == "google_ai_studio" and sanitized_cacheable_prefix:
             server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
         if server_provider_prefix in {"mistral", "baseten", "openrouter", "together", "cerebras"} and prompt_cache_key:
             server_llm_input_details["prompt_cache_key"] = prompt_cache_key

@@ -1626,7 +1626,7 @@ features:
       - backend/tests/test_bank_transfer.py
       - backend/tests/test_billing_settlement_reliability.py
       - backend/tests/test_temporary_model_pricing.py
-      unit_test_files: 65
+      unit_test_files: 66
     sdk_npm:
       status: not_run
       source: tests

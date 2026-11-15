@@ -45,10 +45,10 @@ decisions:
   - Speculation is client-side preparation only; the server never starts a model call before the confirmed end of turn.
   - Optimistic main start holds delivery, tool calls and side effects behind the gates (credit, URL safety, harm, admission); admission/authority, Project consent and the mate choice still finish before the main call starts.
   - A gate rejection cancels the optimistic stream before any chunk is delivered; such a never-released stream is not billed to the user (provider cost is absorbed and logged). Streams the user cancels after release stay billed as today.
-  - Speculative eager_end preparation is held out of the dev deploy until the owner decides between a Rust core sendPrep path and a TypeScript shell exception (client-core rule).
-  - Routing voice call turns onto the web fast send path is held out too: the fast admission rejected call turns in voice-call.spec.ts (7 regressions), and send policy belongs to the Rust core. It ships with the eager_end decision.
+  - Owner decision (15 Nov 2026) - the voice fast-send path and the eager_end preparation are built in the Rust client core (sendPrep unit with prepare, commit and discard), not as a TypeScript exception. The first TypeScript attempt failed fast admission for call turns (7 voice-call.spec.ts regressions) and stays reverted.
+  - Owner decision (15 Nov 2026) - explicit Gemini cachedContents is built. Implicit caching never hit for Gemini 3.8 Flash (0 of 37 dev requests; a synthetic probe covered AI Studio and all Vertex regions). The cache holds the system prompt without its volatile tail, plus tools and tool config; the volatile tail travels in the request contents. A cache miss never waits for cache creation; it sends the normal request and creates the cache in the background. Creation and storage cost is platform cost, logged; users pay cached input at the cache-read rate.
+  - Owner decision (15 Nov 2026) - the default stays on Google AI Studio; no EU region switch for now.
   - Voice safety keeps one check per sentence; playback of sentence N is gated on its own approval, never on a later one.
-  - The EU switch depends on credit validity evidence; without it the default stays on AI Studio.
 checks:
   - Focused pytest for routing, caching/billing, preprocessing order, voice gates and metadata paths pass in isolated pytest CI.
   - Rust client core and web voice send changes pass rust-check and the affected vitest/E2E voice specs in isolated CI.

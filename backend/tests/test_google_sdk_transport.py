@@ -27,6 +27,7 @@ def test_stream_usage_keeps_numeric_attribution_private_and_missing_thoughts_unk
     counters = json.loads(caplog.records[-1].getMessage().split("counters=", 1)[1])
     assert counters == {"prompt_token_count": 3818, "candidates_token_count": 64,
                         "total_token_count": 3900, "thoughts_token_count": None,
+                        "cached_content_token_count": None,
                         "system_prompt_tokens": 3800, "user_input_tokens": 18}
     assert "private-request" not in caplog.text and "private-answer" not in caplog.text
     usage.thoughts_token_count = 18
