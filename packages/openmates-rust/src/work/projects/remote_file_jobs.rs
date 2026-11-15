@@ -1,0 +1,95 @@
+//! Requester side of assistant Project file jobs aimed at a remote source (a
+//! Project folder on one of the user's machines): `list`, `search`,
+//! `read_text`, `create_file` and `update_file` go to the source host through
+//! the sealed requester transport of `remote_files.rs` (`source_call`).
+//! Mirrors the web executor (`browserProjectFileExecutor.ts` ->
+//! `requestProjectRemoteAccess`); host contract `source_host/dispatch.rs`.
+//! The chat id travels with every call, so writes land in the chat's worktree
+//! on the machine and later reads see them (like `run_command`).
+//! spec: specifications/features/projects (projects.creation.machine-folder).
+use super::remote_ops::{FileMutationProposal, WireCall, WriteProposal};
+use super::*;
+
+/// Upper bound of one relayed file job; the job lease bounds it again.
+const PROTOCOL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45);
+
+/// Stable code of a job operation the remote host does not implement.
+pub(crate) const REMOTE_OPERATION_UNSUPPORTED: &str = "unsupported_operation";
+
+/// The relay call of one file job; `None` when the host has no such operation
+/// (rename/delete exist only for hosted Project files).
+fn file_job_call(
+    chat: &str,
+    operation: HostedFileOperation,
+    arguments: &Value,
+    mutation: Option<HostedFileMutation>,
+) -> Option<WireCall> {
+    let read = |name: &'static str, capability: Option<&'static str>| WireCall {
+        name,
+        arguments: arguments.clone(),
+        capability,
+        chat: Some(chat.to_owned()),
+        write: None,
+    };
+    match (operation, mutation) {
+        (HostedFileOperation::List, _) => Some(read("list", None)),
+        // A content search reads file text, so it also needs `read`.
+        (HostedFileOperation::Search, _) => Some(read(
+            "search",
+            (arguments["include_content"] == true).then_some("read"),
+        )),
+        (HostedFileOperation::ReadText, _) => Some(read("read_text", Some("read"))),
+        (
+            operation @ (HostedFileOperation::CreateFile | HostedFileOperation::UpdateFile),
+            Some(mutation),
+        ) => {
+            let proposal = WriteProposal::FileMutation(FileMutationProposal(mutation));
+            Some(WireCall {
+                name: operation.wire(),
+                arguments: proposal.arguments(chat),
+                capability: Some("write_request"),
+                chat: Some(chat.to_owned()),
+                write: Some((chat.to_owned(), proposal)),
+            })
+        }
+        _ => None,
+    }
+}
+
+impl Projects<'_> {
+    /// Run one assistant file job on the remote source `source_id` of Project
+    /// `project_id` for chat `chat` and return the host's result. Reads pass
+    /// the job arguments through; a create/update sends the validated
+    /// `mutation`, approved under its proposal digest (`source_call` stores
+    /// the approval for `always_ask` Projects).
+    ///
+    /// # Errors
+    /// [`ProjectRequesterError::Remote`] with the relay or host code
+    /// (`source_offline`, `source_capability_denied`, `protocol_timeout`,
+    /// [`REMOTE_OPERATION_UNSUPPORTED`], host write codes); core transport
+    /// errors as [`ProjectRequesterError::Core`].
+    pub(crate) async fn remote_file_job(
+        &mut self,
+        project_id: &str,
+        source_id: &str,
+        chat: &str,
+        operation: HostedFileOperation,
+        arguments: &Value,
+        mutation: Option<HostedFileMutation>,
+    ) -> std::result::Result<Value, ProjectRequesterError> {
+        let Some(call) = file_job_call(chat, operation, arguments, mutation) else {
+            return Err(ProjectRequesterError::Remote {
+                code: REMOTE_OPERATION_UNSUPPORTED.to_owned(),
+                message: "This Project source does not support this file operation.".to_owned(),
+            });
+        };
+        let (_, _, result) = self
+            .source_call(project_id, Some(source_id), call, PROTOCOL_TIMEOUT)
+            .await?;
+        Ok(result)
+    }
+}
+
+#[cfg(test)]
+#[path = "remote_file_jobs_tests.rs"]
+mod tests;

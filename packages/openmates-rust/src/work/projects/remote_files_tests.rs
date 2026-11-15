@@ -71,7 +71,7 @@ pub(in crate::work::projects) async fn host_with_write_mode(
             {
                 (
                     200,
-                    json!({"sources":[{"source_id":"src","status":"connected","source_session_id":"sess","key_epoch":1,"capabilities":["read","run_command"]}]}),
+                    json!({"sources":[{"source_id":"src","status":"connected","source_session_id":"sess","key_epoch":1,"capabilities":["read","run_command","write_request"]}]}),
                 )
             } else if line.starts_with(&format!("GET /v1/projects/{PROJECT}/settings ")) {
                 (200, json!({"settings":{"write_mode":write_mode}}))

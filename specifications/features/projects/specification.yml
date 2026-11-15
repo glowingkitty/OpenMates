@@ -691,8 +691,11 @@ assertions:
     user confirms that exact request. After confirmation the remote-access host creates a new folder for the Project
     inside the configured folder, initializes a Git repository on the branch main with a first commit, and serves it as
     a connected source of the Project. While that folder is the Project's only remote source, an assistant Project file
-    operation that names no source goes to it, so the files land in the machine folder and not in hosted storage. The
-    host never writes outside the configured folder and never into or over an existing path; a machine without that setting does not offer creation. A refusal (creation_not_configured,
+    operation that names no source goes to it, so the files land in the machine folder and not in hosted storage. Every
+    client that runs assistant file jobs for the chat (web app and CLI) relays such a job end to end encrypted to that
+    machine's host and reports the host's result; while the machine is unreachable the job keeps waiting for an executor
+    instead of failing or falling back to hosted storage. A new application in such a Project is written file by file
+    with the Project file tools into its folder there, not as a hosted application block. The host never writes outside the configured folder and never into or over an existing path; a machine without that setting does not offer creation. A refusal (creation_not_configured,
     invalid_project_name, creation_folder_unavailable, identity_missing, target_exists) creates nothing and consumes no
     confirmation, and the pending request can be retried or removed without the machine. Only the bound machine of the
     confirming user can complete the creation.
@@ -708,7 +711,8 @@ assertions:
     subfolder is an ordinary folder whose files are visible, and the application card is shown at the top of that folder
     as the entry for starting and previewing the application. Every file the assistant writes for the application is one
     of these files, also script sources it sends after a combined file bundle or as unfenced language:path sections; none
-    of them stays chat text.
+    of them stays chat text. In a Project whose files live only in a machine folder, projects.creation.machine-folder
+    applies instead.
   depends_on:
   - models.ProjectItemLink
 - id: projects.agentic.long-turn-stays-online

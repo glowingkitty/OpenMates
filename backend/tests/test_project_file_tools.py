@@ -74,3 +74,19 @@ def test_operation_without_source_goes_to_the_only_remote_source() -> None:
     assert default_operation_source_id([], "write_request") is None
     assert default_operation_source_id([machine, read_only], "read") is None
     assert default_operation_source_id([read_only], "write_request") is None
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.machine-folder
+def test_a_machine_project_writes_a_new_app_with_the_file_tools() -> None:
+    machine = {"source_id": "machine-folder", "source_type": "local_git_repository", "status": "connected",
+               "capabilities": ["read", "run_command", "write_request"]}
+    focus = {"instruction": "Work in this Project."}
+
+    # Only source is the machine folder: an application block would land in hosted storage.
+    prompt = build_project_focus_prompt(focus, [machine])
+    assert "do not emit an application_preview block" in prompt
+    assert "folder on the user's machine" in prompt
+    # Hosted Projects keep the single application block.
+    hosted = build_project_focus_prompt(focus, [])
+    assert "emit it once as one application_preview" in hosted
+    assert "folder on the user's machine" not in hosted

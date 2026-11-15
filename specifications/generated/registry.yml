@@ -909,7 +909,7 @@ specifications:
     version: 2
     status: draft
     path: features/projects
-    fingerprint: e29f21404030c4192c564cc28ee9d967d7965980657df0de3276001941c56ca7
+    fingerprint: 34a438fc62dd340f2504ff22ec9f2b35094cb0b6e700af9a65229a880ceaf4af
     required_applies_to:
     - rest_api
     - cli
@@ -12363,7 +12363,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: c0efb67793ef8a4495c84e3f4dee0031b08cd761a9a4750fb310b143ab2e5cc3
+    fingerprint: e3d989893651eb9db1c766231be0f643357a131509e17acdee04fa37a10fc146
     required_applies_to:
     - rest_api
     - cli
@@ -12375,7 +12375,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: a51441520ba89606ec939be90be2079a59af87456eb8da1d5bcdb29236de7568
+    fingerprint: b6c3614d7393e0988a9e77b63e35c282e7c9d151d46c00775655080cca698d8c
     required_applies_to:
     - rest_api
     - cli

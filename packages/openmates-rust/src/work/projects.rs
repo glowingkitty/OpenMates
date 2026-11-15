@@ -110,6 +110,11 @@ pub use remote_files::{
     ProjectFileOperation, ProjectRequesterError, remote_error_message, safe_relative_path,
     select_source,
 };
+/// Assistant file jobs relayed to a remote source (native only, like the hosted writer).
+#[cfg(all(feature = "workflow-yaml", unix))]
+mod remote_file_jobs;
+#[cfg(all(feature = "workflow-yaml", unix))]
+pub(crate) use remote_file_jobs::REMOTE_OPERATION_UNSUPPORTED;
 mod remote_ops;
 pub use remote_ops::{
     GitChangedFile, GitCommitResult, GitLandOutcome, GitStatusResult, RemoteCommand,

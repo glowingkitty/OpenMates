@@ -371,15 +371,29 @@ def build_project_focus_prompt(
     sources: list[dict[str, Any]] | None = None,
 ) -> str:
     instruction = str(focus.get("instruction") or "").strip()
+    if default_operation_source_id(sources or [], "write_request") is not None:
+        # projects.creation.machine-folder: the Project's files live only in a
+        # machine folder, and an application_preview block would store them as
+        # hosted Project files instead, so new apps go through the file tools.
+        new_application = (
+            "This Project's files live in a folder on the user's machine. When the user asks for a new "
+            "runnable web application, do not emit an application_preview block; create each of its files "
+            "with the Project file tools in the application's folder (web-app/ unless Project creation "
+            "named another subfolder), so they land in that folder. "
+        )
+    else:
+        new_application = (
+            "When the user asks for a new runnable web application, emit it once as one application_preview "
+            "block: its files are stored as Project files in the application's folder (web-app/ unless Project "
+            "creation named another subfolder) and the chat shows the runnable preview. Do not create those same "
+            "files with the Project file tools; use the tools for every later change to them. "
+        )
     prompt = (
         "An authorized Project focus is active for this chat. Use the Project file tools when the "
         "request requires inspecting or changing Project files. Read a file before updating it and "
         "use the exact expected_base returned by the read. Change, rename or delete Project files only with "
         "the Project file tools; a raw diff block in the reply that targets a Project file is not applied. "
-        "When the user asks for a new runnable web application, emit it once as one application_preview "
-        "block: its files are stored as Project files in the application's folder (web-app/ unless Project "
-        "creation named another subfolder) and the chat shows the runnable preview. Do not create those same "
-        "files with the Project file tools; use the tools for every later change to them. "
+        f"{new_application}"
         "Never invent, weaken, or change Project "
         "authority, write policy, approval, or source readiness. A pending client operation means "
         "wait for its continuation; do not poll or claim that a file changed until its result arrives.\n\n"
