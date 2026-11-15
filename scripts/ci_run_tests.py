@@ -156,6 +156,10 @@ MARKER_CHAT_EPOCH_SPECS = frozenset(
         "cli-recovery-fixtures.spec.ts",
         "cli-recovery-discovery.spec.ts",
         "diagram-html-editing.spec.ts",
+        # Slides focus replies come from the server-fired Focus continuation, which
+        # has no legacy claim; like dev and production they persist through epoch one.
+        "slides-focus-template-designer.spec.ts",
+        "slides-focus-presentation-planner.spec.ts",
         "maps-discovery-chat.spec.ts",
         "audio-recording-deferred-send.spec.ts",
         "chat-queued-followups-protocol.spec.ts",
