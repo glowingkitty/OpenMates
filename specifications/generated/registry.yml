@@ -963,9 +963,9 @@ specifications:
     - gui.apple
   feature.slides:
     version: 1
-    status: draft
+    status: approved
     path: features/slides
-    fingerprint: a5f8ad48d41217915bda69b8d45692dab74ef7502eab0dc05eccdd6f272daf97
+    fingerprint: e580ad327655c9c2677756cd6f79f3ac758ac7fd1b4f4bab34a8340400836474
     required_applies_to:
     - rest_api
     - cli

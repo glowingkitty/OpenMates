@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.slides
 version: 1
-status: draft
+status: approved
 title: Slides
 summary: >
   Slides are presentation decks built with web technology. A deck is a list of

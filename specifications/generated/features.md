@@ -2684,7 +2684,7 @@ Signed-out web and Apple main-app visitors use the ordinary new-chat welcome wit
 
 Create, edit and present slide decks; templates with built-in designs and an account or Team library; Design a template and Plan a presentation focus modes.
 
-- Specifications: [feature.slides](../../specifications/features/slides/specification.yml) (draft) · 20 assertion(s)
+- Specifications: [feature.slides](../../specifications/features/slides/specification.yml) (approved) · 20 assertion(s)
 - Apps: `slides`
 - Flags: `app:slides` · dev on · prod on · release untagged-main
 - Notes: Templates and both focus modes are web only; Apple renders template themes only after its own slides lane.

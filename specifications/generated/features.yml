@@ -16934,7 +16934,7 @@ features:
     a template and Plan a presentation focus modes.
   specifications:
   - id: feature.slides
-    status: draft
+    status: approved
     path: specifications/features/slides
   apps:
   - slides
