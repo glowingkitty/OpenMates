@@ -2697,7 +2697,7 @@ Create, edit and present slide decks; templates with built-in designs and an acc
 | Apple | tested 1/1 | 1 pass · 0 fail · 0 not run · 0 no test | 1 unit test file(s), e.g. [SlidesDeckRendererTests.swift](../../apple/OpenMatesTests/SlidesDeckRendererTests.swift) |
 | CLI | — | 0 pass · 0 fail · 0 not run · 20 no test | — |
 | TUI | wip | — | — |
-| REST API | partial 7/20 | 7 pass · 0 fail · 3 not run · 10 no test | 5 unit test file(s), e.g. [test_slides_markup.py](../../backend/tests/test_slides_markup.py), [test_slides_stream_consumer.py](../../backend/tests/test_slides_stream_consumer.py) |
+| REST API | partial 7/20 | 7 pass · 0 fail · 3 not run · 10 no test | 6 unit test file(s), e.g. [test_slides_markup.py](../../backend/tests/test_slides_markup.py), [test_slides_stream_consumer.py](../../backend/tests/test_slides_stream_consumer.py) |
 | npm SDK | impl | — | — |
 | PyPI SDK | — | — | — |
 

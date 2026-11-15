@@ -387,9 +387,40 @@ def apply_patch_json_key_replacements(content: str, diff: ParsedDiff) -> PatchRe
     )
 
 
+ESCAPED_QUOTE = '\\"'
+
+
+def unescape_quoted_hunks(content: str, diff: ParsedDiff) -> Optional[ParsedDiff]:
+    """Return the diff with ``\\"`` read as ``"`` when only the diff carries that escape.
+
+    Stored embeds reach the model as TOON strings, where every quote inside
+    markup or code appears as ``\\"``. Models sometimes copy those escapes into
+    diff lines; the stored text never had them, so no line can match. The
+    rewrite applies only when the stored content holds no ``\\"`` at all, so a
+    real escaped quote in the content is never changed.
+    """
+    if ESCAPED_QUOTE in content:
+        return None
+    if not any(ESCAPED_QUOTE in line for hunk in diff.hunks for line in hunk.lines):
+        return None
+    hunks = [
+        DiffHunk(
+            old_start=hunk.old_start, old_count=hunk.old_count,
+            new_start=hunk.new_start, new_count=hunk.new_count,
+            lines=[line.replace(ESCAPED_QUOTE, '"') for line in hunk.lines],
+        )
+        for hunk in diff.hunks
+    ]
+    return ParsedDiff(embed_ref=diff.embed_ref, hunks=hunks, raw_diff=diff.raw_diff)
+
+
 def apply_patch(content: str, diff: ParsedDiff) -> PatchResult:
     """
     Apply a parsed diff to content using 3-tier fallback strategy.
+
+    When every tier fails and the diff carries quote escapes the content never
+    had (copied from the TOON form of the embed), the tiers run once more on
+    the unescaped hunks.
 
     Returns PatchResult with:
     - tier=1/2 + success=True: patch applied, new_content has result
@@ -401,6 +432,25 @@ def apply_patch(content: str, diff: ParsedDiff) -> PatchResult:
             error="No hunks found in diff"
         )
 
+    result = _apply_patch_tiers(content, diff)
+    if result.success:
+        return result
+    unescaped = unescape_quoted_hunks(content, diff)
+    if unescaped is not None:
+        retry = _apply_patch_tiers(content, unescaped)
+        if retry.success:
+            logger.info(f"Patch applied after reading escaped quotes as plain quotes for {diff.embed_ref}")
+            return retry
+        result = PatchResult(
+            success=False, new_content=None, tier=3,
+            error=f"{result.error}. Unescaped quotes: {retry.error}",
+        )
+    logger.warning(f"Patch application failed for {diff.embed_ref}; showing a visual diff card. {result.error}")
+    return result
+
+
+def _apply_patch_tiers(content: str, diff: ParsedDiff) -> PatchResult:
+    """Run the exact, fuzzy, unique-removal and JSON-key tiers in order."""
     # Tier 1: Exact match
     result = apply_patch_exact(content, diff)
     if result.success:
@@ -431,11 +481,11 @@ def apply_patch(content: str, diff: ParsedDiff) -> PatchResult:
         return result
 
     tier2c_error = result.error
-    logger.warning(
-        f"Patch application failed for {diff.embed_ref}. "
+    logger.debug(
+        f"Patch tiers failed for {diff.embed_ref}. "
         f"Tier 1: {tier1_error}. Tier 2: {tier2_error}. "
         f"Tier 2b: {tier2b_error}. Tier 2c: {tier2c_error}. "
-        f"Falling back to visual diff card (tier 3)."
+        f"Trying the remaining fallbacks."
     )
 
     # Tier 3: Visual fallback — return failure so caller renders diff as card

@@ -69,11 +69,15 @@ async function sendWithGemini(page: any, prompt: string, log: any, screenshot: a
 	const editor = page.getByTestId('message-field').last().getByTestId('message-editor');
 	await expect(editor).toBeVisible();
 	// Like a person, wait until the composer accepts a new message: the previous send can hold
-	// the send guard (aria-busy) after its reply finished. The wait is logged so the delay stays visible.
+	// the send guard (aria-busy) after its reply finished, and a message sent meanwhile stays queued in
+	// the composer until the guard is released. The wait is logged so the delay stays visible.
 	const busySince = Date.now();
 	const sendButton = page.getByTestId('message-field').last().getByTestId('composer-send-button');
-	await expect.poll(async () => (await sendButton.count()) > 0 && (await sendButton.last().getAttribute('aria-busy')) === 'true',
-		{ timeout: 180_000 }).toBe(false);
+	await expect.poll(async () => {
+		const busy = (await sendButton.count()) > 0 && (await sendButton.last().getAttribute('aria-busy')) === 'true';
+		const leftover = ((await editor.textContent()) ?? '').trim();
+		return busy || leftover.length > 0;
+	}, { timeout: 180_000 }).toBe(false);
 	const busyMs = Date.now() - busySince;
 	if (busyMs > 2000) log(`composer send stayed busy for ${Math.round(busyMs / 1000)}s before "${label}"`);
 	await focusMessageEditor(editor);
