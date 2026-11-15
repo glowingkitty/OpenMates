@@ -957,6 +957,7 @@ features:
       - frontend/apps/web_app/tests/components/landing-authored-event-animation.spec.ts
       - frontend/apps/web_app/tests/components/result-embed-card-media.spec.ts
       - frontend/apps/web_app/tests/components/result-travel-event-design.spec.ts
+      - frontend/apps/web_app/tests/components/results-calendar-sticky-axes.spec.ts
       - frontend/apps/web_app/tests/conference-talk-fullscreen-real.spec.ts
       - frontend/apps/web_app/tests/fosdem-authored-event-example.spec.ts
       key_unit_tests:
@@ -965,7 +966,7 @@ features:
       - frontend/apps/web_app/src/routes/share/embed/sharedEmbedGraph.test.ts
       - frontend/packages/ui/src/components/embeds/events/__tests__/eventCalendar.test.ts
       - frontend/packages/ui/src/components/embeds/events/__tests__/eventDates.test.ts
-      unit_test_files: 22
+      unit_test_files: 23
     apple:
       status: implemented
       source: intent
@@ -11104,6 +11105,7 @@ features:
       e2e_tests:
       - frontend/apps/web_app/tests/calendar-event-embed.spec.ts
       - frontend/apps/web_app/tests/components/calendar-event-embed.spec.ts
+      - frontend/apps/web_app/tests/components/results-calendar-sticky-axes.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/components/embeds/events/__tests__/eventCalendar.test.ts
       unit_test_files: 1

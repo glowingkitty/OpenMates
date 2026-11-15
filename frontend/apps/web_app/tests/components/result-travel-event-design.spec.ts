@@ -512,3 +512,25 @@ test('narrow mobile connection keeps both journey pills and carrier clear of the
   await expect(card.locator('.journey-arrival').first()).toBeHidden();
   await testInfo.attach('travel-mobile-itinerary', { body: await card.screenshot(), contentType: 'image/png' });
 });
+
+test.describe('authored travel times in another viewer zone', () => {
+  // The viewer is in New York; the station board time in Europe must not shift.
+  test.use({ timezoneId: 'America/New_York' });
+
+  // contract-test: supporting surface=gui.web assertions=authored-results.content.typed-and-useful,authored-results.actions.truthful-and-explicit
+  test('authored train shows station-local readable times and names the site its link opens', async ({ page }, testInfo) => {
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(preview('travel/TravelConnectionEmbedFullscreen', width, 'authoredResearchedTrain'));
+      await waitForComponentPreview(page);
+      await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
+      const overlay = page.getByTestId('embed-fullscreen-overlay');
+      await expect(overlay).toContainText('06:43');
+      await expect(overlay).toContainText(/03:00\sPM|15:00/);
+      await expect(overlay).not.toContainText('00:43');
+      await expect(overlay).not.toContainText('2026-11-16T');
+      await expect(page.getByTestId('booking-cta')).toContainText('Open on example.org');
+      await testInfo.attach(`authored-train-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
+    }
+  });
+});

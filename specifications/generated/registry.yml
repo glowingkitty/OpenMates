@@ -570,7 +570,7 @@ specifications:
     version: 1
     status: draft
     path: features/assistant-authored-result-embeds
-    fingerprint: 754168cd00ff6005210575c09cea58ae480c9c30e7f301ba835e0bcc4eaf9e2a
+    fingerprint: 7692d65f948096a6ad9c69d1d504f19f7a8d5d1af4b32e837807bccd7766f06e
     required_applies_to:
     - rest_api
     - cli
@@ -7291,7 +7291,7 @@ assertions:
     specification: feature.assistant-authored-result-embeds@1
     specification_id: feature.assistant-authored-result-embeds
     type: validation
-    fingerprint: 094e2d423440b9e83f4ef85b147968fd678594fb9d39dff50e4a500a50aabfbc
+    fingerprint: c4bcf6fa0ddcfa99672d61a5716c126f45ab306d33235196c78c5ef50bc0fb81
     required_applies_to:
     - rest_api
     - cli
@@ -7327,7 +7327,7 @@ assertions:
     specification: feature.assistant-authored-result-embeds@1
     specification_id: feature.assistant-authored-result-embeds
     type: behavior
-    fingerprint: c2a2c57313ab1628aa951a1772aabddca01c44754330af9fb5074969a599b389
+    fingerprint: 5cc5f2dd6677ace34effd845a51a0b38fde7fa80f9ae3642e0422d9be3c298bd
     required_applies_to:
     - rest_api
     - cli
@@ -7351,7 +7351,7 @@ assertions:
     specification: feature.assistant-authored-result-embeds@1
     specification_id: feature.assistant-authored-result-embeds
     type: behavior
-    fingerprint: cf54520bf7729a2a314c354cfe6bab6d59eed5c50c902950b67f2d2c96957ef5
+    fingerprint: e59eb1f5c800e8dec8771692643f4ef173c22ddbdf0170aa5ce9716a94980a0a
     required_applies_to:
     - rest_api
     - cli

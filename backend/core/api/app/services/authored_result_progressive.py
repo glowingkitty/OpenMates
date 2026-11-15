@@ -53,6 +53,8 @@ class CarrierProgress:
     order: list[str] = field(default_factory=list)
     geocoding: set[str] = field(default_factory=set)
     last_snapshot: tuple[Any, ...] | None = None
+    # Lazily built SkillResultMatcher of the chat (skill result cards to reuse).
+    skill_results: Any = None
 
     def bind(self, local_id: str, embed_id: str) -> None:
         """Record an accepted label in source order."""

@@ -18,6 +18,7 @@
 -->
 
 <script lang="ts">
+  import { formatStationDate, formatStationDateTime, formatStationTime } from './travelTime';
   import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
   import transportIconUrl from '../../../../static/icons/travel.svg';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
@@ -285,6 +286,12 @@
   // The decodedContent fields map directly to ConnectionData since ActiveChat
   // previously passed the whole decodedContent as-is to construct the connection prop
   let dc = $derived(authoredContext?.presentationContent ?? authoredContext?.content ?? data.decodedContent);
+  // An authored card names the site its link opens; it never claims a booking.
+  let authoredLinkLabel = $derived.by(() => {
+    const url = typeof dc?.booking_url === 'string' ? dc.booking_url : '';
+    const domain = url && URL.canParse(url) ? new URL(url).hostname.replace(/^www\./, '') : '';
+    return domain ? $text('embeds.authoring.open_domain').replace('{domain}', domain) : $text('embeds.authoring.open_source');
+  });
   let authoredTitle = $derived(isAuthored && typeof dc?.title === "string" ? dc.title.trim() : "");
 
   // Store example flag — set by SkillExamplesSection when browsing app-store examples.
@@ -377,13 +384,7 @@
   
   // Format time from ISO string
   function formatTime(isoString: string): string {
-    if (!isoString) return '';
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return isoString;
-    }
+    return formatStationTime(isoString);
   }
 
   function displayTime(scheduledTime: string, actualTime?: string): string {
@@ -410,13 +411,7 @@
   
   // Format date from ISO string
   function formatDate(isoString: string): string {
-    if (!isoString) return '';
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-    } catch {
-      return isoString;
-    }
+    return formatStationDate(isoString);
   }
   
   // Stops label
@@ -1570,7 +1565,7 @@
         <EmbedHeaderCtaButton testId="save-embed-cta" label={$text(isSaved ? 'embeds.saved_item' : 'embeds.save_item')} variant="secondary" iconName="heart" iconOnly pressed={isSaved} onclick={handleToggleSaved} />
       {/if}
       {#if (isAuthored && connection.booking_url) || (!isAuthored && bookingState === 'loaded' && resolvedBookingUrl)}
-        <EmbedHeaderCtaButton testId="booking-cta" label={isAuthored ? $text('embeds.authoring.open_source') : $text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
+        <EmbedHeaderCtaButton testId="booking-cta" label={isAuthored ? authoredLinkLabel : $text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
       {:else if !isAuthored && bookingState === 'loading'}
         <EmbedHeaderCtaButton testId="booking-cta" label="" variant="loading" />
       {:else if !isAuthored && bookingState === 'error'}
@@ -1583,8 +1578,8 @@
 
   {#snippet summary()}
     {#if formattedPrice}<ResultEmbedInfo icon="euro" label="Fare" value={formattedPrice}>{fareSummary || formattedPrice}</ResultEmbedInfo>{/if}
-    {#if isAuthored && connection.departure}<ResultEmbedInfo icon="clock" label="Departure" value={connection.departure}>{formatTime(connection.departure)}</ResultEmbedInfo>{/if}
-    {#if isAuthored && connection.arrival}<ResultEmbedInfo icon="clock" label="Arrival" value={connection.arrival}>{formatTime(connection.arrival)}</ResultEmbedInfo>{/if}
+    {#if isAuthored && connection.departure}<ResultEmbedInfo icon="clock" label="Departure" value={formatStationDateTime(connection.departure)}>{formatTime(connection.departure)}</ResultEmbedInfo>{/if}
+    {#if isAuthored && connection.arrival}<ResultEmbedInfo icon="clock" label="Arrival" value={formatStationDateTime(connection.arrival)}>{formatTime(connection.arrival)}</ResultEmbedInfo>{/if}
     {#if connection.duration}<ResultEmbedInfo icon="clock" label="Journey duration" value={connection.duration}>{connection.duration}</ResultEmbedInfo>{/if}
     {#if travelClassLabel}<ResultEmbedInfo icon="armchair" label="Travel class" value={travelClassLabel}>{travelClassLabel}</ResultEmbedInfo>{/if}
   {/snippet}
@@ -1635,8 +1630,8 @@
           {#if leg.segments.length === 0}
             <div class="summary-fallback" data-testid="connection-partial-leg">
               {#if leg.origin || leg.destination}<span>{[leg.origin, leg.destination].filter(Boolean).join(' → ')}</span>{/if}
-              {#if leg.departure}<ResultEmbedInfo icon="clock" label="Departure" value={leg.departure}>{formatTime(leg.departure)}</ResultEmbedInfo>{/if}
-              {#if leg.arrival}<ResultEmbedInfo icon="clock" label="Arrival" value={leg.arrival}>{formatTime(leg.arrival)}</ResultEmbedInfo>{/if}
+              {#if leg.departure}<ResultEmbedInfo icon="clock" label="Departure" value={formatStationDateTime(leg.departure)}>{formatTime(leg.departure)}</ResultEmbedInfo>{/if}
+              {#if leg.arrival}<ResultEmbedInfo icon="clock" label="Arrival" value={formatStationDateTime(leg.arrival)}>{formatTime(leg.arrival)}</ResultEmbedInfo>{/if}
               {#if leg.duration}<span>{leg.duration}</span>{/if}
             </div>
           {/if}

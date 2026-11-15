@@ -13,6 +13,7 @@
 -->
 
 <script lang="ts">
+  import { formatStationDate, formatStationTime } from './travelTime';
   import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
   import { getContext } from "svelte";
   import transportIconUrl from '../../../../static/icons/travel.svg';
@@ -141,9 +142,7 @@
     return legs.length ? legs : [{ origin, destination, departure, arrival: _arrival, duration }];
   });
   function legDate(value: unknown) {
-    if (typeof value !== 'string') return '';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    return typeof value === 'string' ? formatStationDate(value) : '';
   }
   function legText(value: unknown) { return typeof value === 'string' ? value : ''; }
   let routeMap = $derived(extractResultRoute(connection || {}));
@@ -167,12 +166,9 @@
     return formatTravelFare({ fare, total_price: price, currency: effectiveCurrency, fare_is_partial: fareIsPartial });
   });
   
-  // Match the existing fullscreen locale-aware travel times.
+  // Station-local times, as in the fullscreen.
   function formatTime(value?: string): string {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return formatStationTime(value);
   }
 
   let failedCarrierLogos = $state<string[]>([]);

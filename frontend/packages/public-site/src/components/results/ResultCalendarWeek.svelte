@@ -19,6 +19,7 @@
     interactive = true, showNavigation = true, locale,
     labels = { week: 'Week', previous: 'Previous week', next: 'Next week', primary: 'Primary event', context: 'Context event', empty: 'No dated events' },
   }: Props = $props();
+  const CALENDAR_ITEM_MIN_WIDTH = 44;
   let selectedWeek = $state<number | null>(null);
   let calendarHeight = $state(160);
   let weeks = $derived(calendarWeeksWithEntries(entries));
@@ -34,6 +35,10 @@
   let startMinutes = $derived(timed.length ? Math.floor(Math.min(...timed.map(item => item.startMinutes)) / 60) * 60 : 8 * 60);
   let hours = $derived(timed.length ? Math.max(1, Math.min(24 - startMinutes / 60, Math.max(8, Math.ceil((Math.max(...timed.map(calendarEndMinutes)) - startMinutes) / 60)))) : 8);
   let hourLabels = $derived(Array.from({ length: hours + 1 }, (_, index) => startMinutes + index * 60));
+  // Overlapping entries share a day side by side; widen the days (the week scrolls sideways under the
+  // pinned hour column) so each entry keeps a readable width instead of shrinking to a sliver.
+  let overlapColumns = $derived(Math.max(1, ...timed.map(item => item.columnCount ?? 1)));
+  let dayMinWidth = $derived(Math.max(80, overlapColumns * CALENDAR_ITEM_MIN_WIDTH + 6));
   let headerHeight = $derived(compact ? 26 : 42);
   let allDayHeight = $derived(compact ? 36 : 64);
   let hourHeight = $derived(compact ? Math.max(3, (calendarHeight - 36 - headerHeight - allDayRows * allDayHeight) / hours) : 46);
@@ -64,25 +69,25 @@
 
 <div class="results-view-calendar" class:compact class:date-only={!timed.length}
   bind:clientHeight={calendarHeight} data-testid="embeds-results-view-calendar"
-  style={`--calendar-row-template: ${rowTemplate}; --calendar-timeline-hours: ${hours}; --calendar-hour-height: ${hourHeight}px; --calendar-all-day-height: ${allDayHeight}px`}>
+  style={`--calendar-row-template: ${rowTemplate}; --calendar-timeline-hours: ${hours}; --calendar-hour-height: ${hourHeight}px; --calendar-all-day-height: ${allDayHeight}px; --calendar-day-min: ${dayMinWidth}px`}>
   {#if activeWeek != null}
     {@const week = calendarWeekNumber(activeWeek)}
-    <header class="calendar-week-toolbar" class:static-toolbar={!showNavigation}>
+    <header class="calendar-week-toolbar" class:static-toolbar={!showNavigation} data-testid="embeds-results-view-calendar-toolbar">
       {#if showNavigation}<button type="button" aria-label={labels.previous} disabled={weekIndex <= 0} onclick={() => moveWeek(-1)}><span aria-hidden="true">&lt;</span></button>{/if}
       <strong data-testid="embeds-results-view-calendar-week-label">{labels.week} {week.week} {week.year}<span class="visually-hidden"> {dayDate(activeWeek)} – {dayDate(activeWeek + 6)}</span></strong>
       {#if showNavigation}<button type="button" aria-label={labels.next} disabled={weekIndex >= weeks.length - 1} onclick={() => moveWeek(1)}><span aria-hidden="true">&gt;</span></button>{/if}
     </header>
     <div class="calendar-week" class:date-only={!timed.length} data-testid="embeds-results-view-calendar-week">
       {#if timed.length}
-        <div class="calendar-time-column" aria-hidden="true">
+        <div class="calendar-time-column" aria-hidden="true" data-testid="embeds-results-view-calendar-time-column">
           <span></span>
           {#if allDayRows}<div></div>{/if}
-          <div class="calendar-time-slots">{#each hourLabels as hour}<span>{calendarTime(hour)}</span>{/each}</div>
+          <div class="calendar-time-slots">{#each hourLabels as hour}<span data-testid="embeds-results-view-calendar-hour">{calendarTime(hour)}</span>{/each}</div>
         </div>
       {/if}
       {#each days as day}
         <section class="calendar-day" class:today={day.isToday} data-testid="embeds-results-view-calendar-day" aria-label={dayDate(day.dateOrdinal)}>
-          <header class="calendar-day-header" title={dayDate(day.dateOrdinal)}><span>{dayLabel(day.dateOrdinal)}</span> <span>{new Date(day.dateOrdinal * 86_400_000).getUTCDate()}</span></header>
+          <header class="calendar-day-header" data-testid="embeds-results-view-calendar-day-header" title={dayDate(day.dateOrdinal)}><span>{dayLabel(day.dateOrdinal)}</span> <span>{new Date(day.dateOrdinal * 86_400_000).getUTCDate()}</span></header>
           {#if allDayRows}
             <div class="calendar-date-only">
               {#each day.entries.filter(item => item.dateOnly) as item}
@@ -117,23 +122,27 @@
 </div>
 
 <style>
-  .results-view-calendar { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 8px; height: 535px; min-height: 535px; max-height: 535px; box-sizing: border-box; min-width: 0; overflow: auto; padding: 14px 14px 24px; background: var(--color-grey-20); }
+  /* One scroll box: the toolbar and day headers stay at the top, the time column stays on the left,
+     so scrolling sideways moves only the days and scrolling down keeps the week header in view. */
+  .results-view-calendar { --calendar-sticky-top: 58px; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 0; height: 535px; min-height: 535px; max-height: 535px; box-sizing: border-box; min-width: 0; overflow: auto; overscroll-behavior: contain; padding: 0 0 24px 0; background: var(--color-grey-20); }
   .results-view-calendar.date-only { height: auto; min-height: 0; }
-  .calendar-week-toolbar { display: grid; grid-template-columns: 28px minmax(0, 1fr) 28px; align-items: center; gap: 20px; justify-self: center; width: min(100%, 260px); min-height: 36px; position: sticky; left: 0; z-index: 1; }
+  .calendar-week-toolbar { display: grid; grid-template-columns: 28px minmax(0, 1fr) 28px; align-items: center; gap: 20px; justify-self: stretch; box-sizing: border-box; min-height: var(--calendar-sticky-top); padding: 14px max(0px, calc((100% - 260px) / 2)) 8px; position: sticky; top: 0; left: 0; z-index: 4; background: var(--color-grey-20); }
   .calendar-week-toolbar strong { color: var(--color-font-tertiary); font-size: var(--font-size-small); font-weight: 500; text-align: center; white-space: nowrap; }
   .calendar-week-toolbar button { display: inline-grid; width: 28px; min-width: 28px; height: 28px; place-items: center; border: 0; border-radius: var(--radius-4); background: transparent; color: var(--color-font-tertiary); padding: 0; font: inherit; font-size: var(--font-size-h3); line-height: 1; cursor: pointer; }
   .calendar-week-toolbar button:hover:not(:disabled) { background: var(--color-grey-10); }
   .calendar-week-toolbar button:disabled { opacity: .35; cursor: default; }
   .static-toolbar { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .calendar-week { display: grid; grid-template-columns: 44px repeat(7, minmax(0, 1fr)); gap: 0; min-width: 620px; border-radius: var(--radius-6); }
+  .calendar-week { display: grid; grid-template-columns: 44px repeat(7, minmax(var(--calendar-day-min, 80px), 1fr)); gap: 0; min-width: 0; box-sizing: border-box; padding-right: 14px; border-radius: var(--radius-6); }
   .calendar-week.date-only { grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .calendar-time-column, .calendar-day { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--calendar-row-template); min-height: 0; min-width: 0; }
-  .calendar-time-column { color: var(--color-font-primary); font-size: var(--font-size-xxs); font-weight: 500; }
+  .calendar-time-column { position: sticky; left: 0; z-index: 3; background: var(--color-grey-20); color: var(--color-font-primary); font-size: var(--font-size-xxs); font-weight: 500; }
+  .calendar-time-column > span:first-child { position: sticky; top: var(--calendar-sticky-top); z-index: 1; background: var(--color-grey-20); }
   .calendar-time-slots { position: relative; display: grid; grid-auto-rows: var(--calendar-hour-height); }
   .calendar-time-slots span { align-self: start; justify-self: end; padding: 0 6px 0 0; transform: translateY(-.55em); }
   .calendar-day { gap: 0; padding: 0; border-radius: var(--radius-4); }
   .calendar-day.today { background: var(--color-grey-25); }
-  .calendar-day-header { display: flex; align-items: center; justify-content: center; gap: .25rem; min-height: 42px; color: var(--color-font-primary); font-size: var(--font-size-small); font-weight: 500; white-space: nowrap; }
+  .calendar-day-header { position: sticky; top: var(--calendar-sticky-top); z-index: 2; display: flex; align-items: center; justify-content: center; gap: .25rem; min-height: 42px; background: var(--color-grey-20); color: var(--color-font-primary); font-size: var(--font-size-small); font-weight: 500; white-space: nowrap; }
+  .calendar-day.today .calendar-day-header { background: var(--color-grey-25); }
   .calendar-items { position: relative; min-height: calc(var(--calendar-hour-height) * var(--calendar-timeline-hours)); }
   .calendar-item { position: absolute; top: calc(var(--calendar-item-top-hours) * var(--calendar-hour-height)); left: calc(100% * var(--calendar-item-column) / var(--calendar-item-columns) + 3px); width: calc(100% / var(--calendar-item-columns) - 6px); min-width: 0; display: block; box-sizing: border-box; height: calc(var(--calendar-item-height-hours) * var(--calendar-hour-height)); min-height: 0; overflow: hidden; border: 0; border-left: 3px solid var(--color-error); border-radius: var(--radius-2); background: color-mix(in srgb, var(--color-error) 16%, var(--color-grey-20)); color: var(--color-font-primary); padding: 4px; text-align: left; font: inherit; box-shadow: none; cursor: pointer; }
   .calendar-item.highlighted, .calendar-item.hovered { border-color: var(--color-primary-start); }
@@ -152,9 +161,10 @@
   .calendar-empty { display: grid; min-height: 8rem; place-items: center; color: var(--color-font-secondary); }
   .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .compact, .compact.date-only { height: 100%; min-height: 0; max-height: none; padding: 2px; gap: 2px; overflow: hidden; background: transparent; }
-  .compact .calendar-week-toolbar { min-height: 20px; width: 100%; }
+  .compact .calendar-week-toolbar { position: static; min-height: 20px; width: 100%; padding: 0; background: transparent; }
+  .compact .calendar-day-header, .compact .calendar-time-column, .compact .calendar-time-column > span:first-child { position: static; background: transparent; }
   .compact .calendar-week-toolbar strong { font-size: .625rem; }
-  .compact .calendar-week { min-width: 0; width: 100%; grid-template-columns: 18px repeat(7, minmax(0, 1fr)); }
+  .compact .calendar-week { min-width: 0; width: 100%; padding-right: 0; grid-template-columns: 18px repeat(7, minmax(0, 1fr)); }
   .compact .calendar-week.date-only { grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .compact .calendar-day-header { min-height: 26px; gap: 0; flex-direction: column; font-size: .5625rem; line-height: 1.1; }
   .compact .calendar-time-column { font-size: .4375rem; }

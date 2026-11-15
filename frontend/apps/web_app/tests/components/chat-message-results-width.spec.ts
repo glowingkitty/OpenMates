@@ -16,7 +16,7 @@ for (const width of [390, 820, 1000]) {
       await page.goto(`/dev/preview/ChatMessage?${params}`);
       await waitForComponentPreview(page);
       const results = page.getByTestId('embeds-map-view');
-      const map = results.getByTestId('embed-leaflet-map');
+      const map = results.getByTestId('embeds-map-view-map').getByTestId('embed-leaflet-map');
       async function expectVisibleMap() {
         await expect(map).toHaveAttribute('data-map-ready', 'true');
         await expect(map).toBeVisible();

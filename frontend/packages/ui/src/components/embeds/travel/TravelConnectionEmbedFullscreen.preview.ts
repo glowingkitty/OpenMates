@@ -83,6 +83,18 @@ export const variants = {
     }, embedData: { status: "finished" }, attrs: { app_id: "travel" } },
   },
 
+  /** Researched train with station offsets: times stay station-local and readable (TASK-3927). */
+  authoredResearchedTrain: {
+    data: { decodedContent: {
+      type: "connection", status: "finished", title: "Example Rail 279 direct",
+      transport_method: "train", origin: "Example Central", destination: "Sample Main Station",
+      departure: "2026-11-16T06:43:00+01:00", arrival: "2026-11-16T15:00:00+01:00", duration: "8h 17m",
+      booking_url: "https://www.example.org/journeys/279",
+      authoring: { schema_version: 1, kind: "travel.connection", origin: "researched",
+        sources: [{ url: "https://www.example.org/journeys/279", title: "Example Rail timetable" }] },
+    }, embedData: { status: "finished" }, attrs: { app_id: "travel" } },
+  },
+
   /** Multi-leg connection with stopover */
   multiLeg: {
     data: {

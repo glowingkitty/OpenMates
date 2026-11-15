@@ -29,6 +29,7 @@ from backend.core.api.app.services.authored_existing_cards import (
     authored_card_kind,
     resolve_existing_card,
 )
+from backend.core.api.app.services.authored_skill_result_reuse import SkillResultMatcher
 from backend.core.api.app.services.authored_result_progressive import (
     CarrierProgress,
     PublishedCard,
@@ -434,8 +435,18 @@ async def _publish_progress(
         progress.last_snapshot = ((), 0, existing.get("title"))
     chat_id = cached["chat_id"]
     new_children: list[tuple[int, dict[str, Any]]] = []
+    if progress.skill_results is None:
+        progress.skill_results = SkillResultMatcher(
+            service, getattr(service, "authoring_reference_index", None), chat_id=chat_id,
+            user_id_hash=user_id_hash, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+        )
     for entry in progress.envelope.feed_source(source_json or ""):
         if entry.item is not None:
+            reused = await progress.skill_results.match(entry.item.kind, entry.item.content)
+            if reused is not None:
+                if reused not in progress.bindings.values():
+                    progress.bind(entry.local_id, reused)
+                continue
             child = await _materialize_child(
                 service, embed_id, entry.item, [], chat_id=chat_id, user_id_hash=user_id_hash,
                 user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
@@ -448,7 +459,7 @@ async def _publish_progress(
         card = await resolve_existing_card(
             service, entry.reference.embed_ref, index=getattr(service, "authoring_reference_index", None),
             chat_id=chat_id, user_id_hash=user_id_hash, user_vault_key_id=user_vault_key_id,
-            log_prefix=log_prefix,
+            log_prefix=log_prefix, include_skill_results=True,
         )
         if card is not None and card.embed_id not in progress.bindings.values():
             progress.bind(entry.local_id, card.embed_id)
@@ -568,7 +579,20 @@ async def update_authored_results_embed(
     warnings = list(normalized.warnings) if normalized else []
     children: list[dict[str, Any]] = []
     bindings: dict[str, str] = {}
+    matcher = (progress.skill_results if progress is not None and progress.skill_results is not None
+               else SkillResultMatcher(
+                   service, getattr(service, "authoring_reference_index", None), chat_id=chat_id,
+                   user_id_hash=user_id_hash, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
+               ))
+    member_titles: list[str] = []
     for item in (normalized.items if normalized else []):
+        # A researched item repeating a skill result shows that complete card instead.
+        reused = await matcher.match(item.kind, item.content)
+        if reused is not None:
+            if reused not in bindings.values():
+                bindings[item.local_id] = reused
+                member_titles.append(str(item.content.get("title") or ""))
+            continue
         child = await _materialize_child(
             service, embed_id, item, warnings, chat_id=chat_id, user_id_hash=user_id_hash,
             user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
@@ -581,14 +605,13 @@ async def update_authored_results_embed(
         child["published"] = published is not None and published.content_hash == _content_hash(child["content"])
         bindings[item.local_id] = child["id"]
         children.append(child)
-    member_titles: list[str] = []
     for reference in (normalized.references if normalized else []):
         # A reused card stays a child of its original carrier with its own key;
         # this carrier only lists it as a member. Never resolve a guessed id.
         card = await resolve_existing_card(
             service, reference.embed_ref, index=getattr(service, "authoring_reference_index", None),
             chat_id=chat_id, user_id_hash=user_id_hash, user_vault_key_id=user_vault_key_id,
-            log_prefix=log_prefix,
+            log_prefix=log_prefix, include_skill_results=True,
         )
         if card is None:
             warnings.append({"code": "unavailable_existing_card", "path": f"items[{reference.index}]"})
