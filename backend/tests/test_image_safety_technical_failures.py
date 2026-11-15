@@ -259,6 +259,24 @@ class TestContentSafetyRejectEndpoint:
         directus.delete_user.assert_not_called()
 
 
+    @pytest.mark.asyncio
+    async def test_suggestive_only_upload_is_not_counted(self):
+        # Regression: four suggestive-only uploads in 24 h deleted the account.
+        cache, directus = _reject_deps(current_count=3)
+        result = await content_safety_reject(
+            ContentSafetyRejectRequest(
+                user_id="user-1",
+                rejection_reason="suggestive=0.93",
+            ),
+            directus_service=directus,
+            cache_service=cache,
+        )
+        assert result == {"result": "not_counted", "reject_count": 0}
+        cache.get.assert_not_called()
+        cache.set.assert_not_called()
+        directus.delete_user.assert_not_called()
+
+
 class _ToolCallRejected(Exception):
     """Shape of Groq's 400 when the forced tool call misses the schema."""
 

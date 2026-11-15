@@ -2883,6 +2883,14 @@ async def content_safety_reject(
         logger.warning(f"{log_prefix} Safety check unavailable; not counted as a violation")
         return {"result": "not_counted", "reject_count": 0}
 
+    # A suggestive-only score (swimwear, underwear, fitness photos) is not a policy
+    # violation: it never counts as a strike and never deletes an account. The upload
+    # server reports "suggestive=<score>" only when no explicit sexual score crossed
+    # its threshold; explicit sexual scores keep counting below.
+    if payload.rejection_reason.strip().startswith("suggestive="):
+        logger.info(f"{log_prefix} Suggestive-only rejection; not counted as a strike")
+        return {"result": "not_counted", "reject_count": 0}
+
     try:
         if payload.strike_count is not None:
             # Generation already counted this violation in the shared counter.
