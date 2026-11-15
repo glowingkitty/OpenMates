@@ -33,9 +33,13 @@ A chat is never stopped when any of these hold (hard rules, also for the cap):
   * its state is not `idle` (working, or waiting for a permission or an answer),
   * a child process other than its tool (MCP) servers runs (a background command),
   * its last turn is a message without a reply, including a prompt a hook refused,
-  * it waits on background work: a CI job of its sessions.py session still runs, or a
-    finished job's notification was refused and never reached it
-    (scripts/claude_chat_pending.py).
+  * it waits on background work: a waiter that has not timed out (a disk-coordinator
+    request, a queued or running CI job of its sessions.py session, or a registered
+    handoff/background waiter; scripts/claude_chat_waiters.py), or a finished job's
+    notification was refused and never reached it (scripts/claude_chat_pending.py).
+Waiters: when a wait is over the chat is woken (idle pane chat: one typed line) or, when
+it is not running, reopened with `claude --resume` and the line as its next message; a
+timed-out waiter is listed as stalled and no longer blocks idle stop.
 Waking: the reap pass types one wake prompt into a zellij-pane chat whose job
 notifications were refused (once per notification), so finished CI, E2B or heavy_slot
 results are always read. Remote Control workers and stopped chats with such pending
@@ -76,6 +80,7 @@ import json
 import os
 import re
 import signal
+import sqlite3
 import subprocess
 import sys
 import time
@@ -87,6 +92,7 @@ from pathlib import Path
 # sys.path; without this the sibling import fails and the lifecycle (idle stop, cap of 20) stops.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import claude_chat_pending  # noqa: E402  (path set above)
+import claude_chat_waiters  # noqa: E402  (path set above)
 import worktree_wip  # noqa: E402  (path set above)
 
 DEFAULTS = {
@@ -167,7 +173,7 @@ class Chat:
     undelivered: list[dict] = field(default_factory=list)  # refused job notifications (claude_chat_pending)
     refusal_kept: bool | None = None
     refusal_at: str = ""
-    ci_jobs: list[str] = field(default_factory=list)  # running CI jobs of its sessions.py session
+    waiters: list = field(default_factory=list)  # claude_chat_waiters.Waiter: disk, CI, handoff, background
 
 
 @dataclass
@@ -187,7 +193,7 @@ def asks_something(text: str) -> bool:
     return bool(QUESTION_RE.search(tail))
 
 
-def hard_blocker(chat: Chat, own_session_id: str) -> str | None:
+def hard_blocker(chat: Chat, own_session_id: str, now: float | None = None) -> str | None:
     if chat.kind == "terminal":
         return "not a managed chat (started by hand in a terminal)"
     if own_session_id and chat.session_id == own_session_id:
@@ -199,8 +205,9 @@ def hard_blocker(chat: Chat, own_session_id: str) -> str | None:
     busy = [command for command in chat.children if TOOL_SERVER_MARKER not in command.lower()]
     if busy:
         return f"background process running: {busy[0][:60]}"
-    if chat.ci_jobs:
-        return f"waits on CI: {', '.join(chat.ci_jobs[:3])}"
+    now = time.time() if now is None else now
+    if waiting := [waiter for waiter in chat.waiters if waiter.blocks_stop(now)]:
+        return "waits on " + "; ".join(waiter.label(now) for waiter in waiting[:3])
     if chat.undelivered:
         return f"background job finished but its result never reached the chat ({chat.undelivered[0]['task_id']})"
     if chat.last_speaker == "user":
@@ -210,7 +217,7 @@ def hard_blocker(chat: Chat, own_session_id: str) -> str | None:
 
 def decide(chat: Chat, now: float, config: dict, own_session_id: str, idle_minutes: float | None = None) -> Decision:
     """Pure rule: what happens to this chat's process now."""
-    reason = hard_blocker(chat, own_session_id)
+    reason = hard_blocker(chat, own_session_id, now)
     if reason:
         return Decision("keep", reason, hard=True)
     idle = now - chat.last_activity
@@ -231,7 +238,7 @@ def cap_victims(chats: list[Chat], now: float, config: dict, own_session_id: str
         return []
     minimum = config["cap_min_idle_minutes"] * 60
     question_minimum = config["cap_question_idle_hours"] * 3600
-    eligible = [chat for chat in chats if hard_blocker(chat, own_session_id) is None
+    eligible = [chat for chat in chats if hard_blocker(chat, own_session_id, now) is None
                 and now - chat.last_activity > minimum]
     plain = [chat for chat in eligible if not asks(chat)]
     asking = [chat for chat in eligible if asks(chat) and now - chat.last_activity > question_minimum]
@@ -379,15 +386,25 @@ def classify(args: list[str], zellij_env: dict[str, str], sessions: list[str]) -
     return "terminal"
 
 
-def live_chats(claude_home: Path, config: dict) -> list[Chat]:
-    chats: dict[str, Chat] = {}
+UNREADABLE = "unreadable"
+
+
+def gather_waiters(now: float) -> dict[str, list]:
+    """chat id -> its waiters; {UNREADABLE: [...]} when a source cannot be read."""
     root = canonical_root()
-    sessions = claude_chat_pending.session_ids_by_chat(root)
+    sources = claude_chat_waiters.Sources(root=root, state=state_dir(),
+                                          sessions=claude_chat_pending.session_ids_by_chat(root))
     try:
-        jobs = claude_chat_pending.running_ci_jobs(root)
-    except RuntimeError as error:  # unreadable queue: treat every chat as maybe waiting, never stop blindly
-        print(f"claude_idle_chats: {error}; chats with a sessions.py session are kept", file=sys.stderr)
-        jobs = {session: ["CI queue unreadable"] for ids in sessions.values() for session in ids}
+        return claude_chat_waiters.collect(sources, now)
+    except (RuntimeError, sqlite3.Error) as error:  # never stop blindly: every chat counts as waiting
+        print(f"claude_idle_chats: {error}; every chat is kept this cycle", file=sys.stderr)
+        return {UNREADABLE: [claude_chat_waiters.Waiter("", "background", "unreadable", str(error)[:120],
+                                                        now, now + 3600)]}
+
+
+def live_chats(claude_home: Path, config: dict, waiters: dict[str, list] | None = None) -> list[Chat]:
+    chats: dict[str, Chat] = {}
+    waiters = gather_waiters(time.time()) if waiters is None else waiters
     for record_path in sorted((claude_home / "sessions").glob("*.json")):
         try:
             record = json.loads(_read(record_path))
@@ -413,7 +430,7 @@ def live_chats(claude_home: Path, config: dict) -> list[Chat]:
             title=_flag(args, "--remote-control"), cwd=str(record.get("cwd") or ""),
             zellij_session=zellij_env.get("ZELLIJ_SESSION_NAME", ""), pane_id=zellij_env.get("ZELLIJ_PANE_ID", ""),
             model=_flag(args, "--model"), undelivered=pending.undelivered, refusal_kept=pending.refusal_kept,
-            refusal_at=pending.refusal_at, ci_jobs=claude_chat_pending.ci_jobs_for(session_id, sessions, jobs),
+            refusal_at=pending.refusal_at, waiters=waiters.get(session_id) or waiters.get(UNREADABLE) or [],
         )
         previous = chats.get(session_id)
         if previous is None or previous.pid < pid:  # a resumed chat can leave an older process behind
@@ -491,7 +508,7 @@ def refresh_registry(registry: dict[str, dict], live: list[Chat], now: float, co
 
 
 def counts(live: list[Chat], registry: dict[str, dict], now: float, config: dict, own: str,
-           queued: int = 0) -> dict:
+           queued: int = 0, waiting: list[dict] | None = None) -> dict:
     limit = config["idle_stop_minutes"] * 60
     working = sum(1 for chat in live if chat.status != "idle" or now - chat.last_activity <= limit)
     states = [entry["state"] for entry in registry.values()]
@@ -500,6 +517,8 @@ def counts(live: list[Chat], registry: dict[str, dict], now: float, config: dict
         "working": working, "idle_running": len(live) - working,
         "idle_stopped": states.count("stopped"), "done_to_archive": states.count("done"),
         "archived": states.count("archived"), "queued_new_chats": queued,
+        "waiting_running": sum(1 for entry in waiting or [] if entry["running"]),
+        "waiting_closed": sum(1 for entry in waiting or [] if not entry["running"]),
         "idle_stop_minutes": config["idle_stop_minutes"], "done_hours": config["done_hours"],
     }
 
@@ -510,14 +529,15 @@ def queued_launches() -> int:
 
 
 def write_status(directory: Path, summary: dict, registry: dict[str, dict], stalled: list[dict] | None = None,
-                 unfinished_stops: list[dict] | None = None) -> None:
+                 unfinished_stops: list[dict] | None = None, waiting: list[dict] | None = None) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     done = [{"session_id": sid, **entry} for sid, entry in registry.items() if entry["state"] == "done"]
     stalled = stalled or []
     unfinished = [entry for entry in stalled if entry.get("unfinished_session")]
     tmp = directory / f".status.{os.getpid()}.tmp"
     tmp.write_text(json.dumps({**summary, "stalled_chats": len(stalled), "done": done, "stalled": stalled,
-                               "unfinished_work": unfinished, "stopped_with_unfinished_work": unfinished_stops or []},
+                               "unfinished_work": unfinished, "stopped_with_unfinished_work": unfinished_stops or [],
+                               "waiting": waiting or []},
                               indent=1, sort_keys=True), encoding="utf-8")
     os.replace(tmp, directory / "status.json")
 
@@ -581,10 +601,11 @@ def stalled_chats(live: list[Chat], registry: dict[str, dict], claude_home: Path
             stalled.append(_stalled_entry(chat.session_id, title, chat.kind, chat.last_activity,
                                           f"finished background work never reached it ({how})",
                                           tasks=chat.undelivered))
-        elif quiet > STALLED_MINUTES * 60 and (chat.status == "busy" or chat.ci_jobs or any(
+        elif quiet > STALLED_MINUTES * 60 and not chat.waiters and (chat.status == "busy" or any(
                 TOOL_SERVER_MARKER not in command.lower() for command in chat.children)):
-            doing = ("waits on CI: " + ", ".join(chat.ci_jobs[:3]) if chat.ci_jobs
-                     else "working" if chat.status == "busy" else "runs a background command")
+            # A chat with waiters is reported as waiting (status.json `waiting`), and as
+            # stalled only when a waiter times out (claude_chat_waiters.stalled_entries).
+            doing = "working" if chat.status == "busy" else "runs a background command"
             stalled.append(_stalled_entry(chat.session_id, title, chat.kind, chat.last_activity,
                                           f"{doing}, no activity for {quiet / 60:.0f} min"))
     for session_id, entry in registry.items():
@@ -683,7 +704,9 @@ def status_line(summary: dict) -> str:
             f"({summary['working']} working, {summary['idle_running']} idle but kept for an open question "
             f"or unanswered message), "
             f"{summary['idle_stopped']} idle-stopped, {summary['done_to_archive']} done to archive, "
-            f"{summary['archived']} archived, {summary['queued_new_chats']} new chats queued"
+            f"{summary['archived']} archived, {summary['queued_new_chats']} new chats queued, "
+            f"{summary.get('waiting_running', 0)} running and {summary.get('waiting_closed', 0)} closed chats "
+            "waiting on disk, CI or a handoff"
             + (f", {summary['stalled_chats']} stalled." if "stalled_chats" in summary else "."))
 
 
@@ -692,7 +715,8 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
     now = time.time()
     own = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
     directory = state_dir()
-    live = sorted(live_chats(args.claude_home, config), key=lambda item: item.last_activity)
+    waiters = gather_waiters(now)
+    live = sorted(live_chats(args.claude_home, config, waiters), key=lambda item: item.last_activity)
     registry = load_registry(directory)
     refresh_registry(registry, live, now, config)
     idle_minutes = config["pressure_idle_minutes"] if getattr(args, "pressure", False) else None
@@ -730,12 +754,46 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
     left = [chat for chat in live if chat.session_id not in stopped]
     if not args.dry_run:
         save_registry(directory, registry)
+        waiters.pop(UNREADABLE, None)
+        wake_failures = wake_waiting(waiters, left, registry, directory, now, config)
         stalled = stalled_chats(left, registry, args.claude_home, now, directory, act=True)
-        stalled += [entry for entry in unfinished_stalled(registry)
-                    if entry["session_id"] not in {item["session_id"] for item in stalled}]
-        write_status(directory, counts(left, registry, now, config, own, queued_launches()), registry, stalled,
-                     flagged)
+        live_map = {chat.session_id: chat for chat in left}
+        for entry in (unfinished_stalled(registry) + wake_failures
+                      + claude_chat_waiters.stalled_entries(waiters, live_map, registry, now)):
+            if entry["session_id"] not in {item["session_id"] for item in stalled}:
+                stalled.append(entry)
+        waiting = claude_chat_waiters.status_entries(waiters, live_map, registry, now)
+        write_status(directory, counts(left, registry, now, config, own, queued_launches(), waiting), registry,
+                     stalled, flagged, waiting)
     return left, failed
+
+
+def wake_waiting(waiters: dict[str, list], left: list[Chat], registry: dict[str, dict], directory: Path,
+                 now: float, config: dict) -> list[dict]:
+    """Wake or reopen every chat whose wait is over (claude_chat_waiters.deliver); returns failures."""
+    import claude_dispatch  # noqa: E402  (sibling script; imports nothing from here)
+
+    resumed: list[str] = []
+
+    def reopen(chat_id: str, text: str) -> str:
+        try:
+            outcome = claude_dispatch.resume_chat(chat_id, text, title=f"wake {chat_id[:8]}", admitted=True)
+        except (claude_dispatch.DispatchError, subprocess.SubprocessError, OSError) as error:
+            return f"resume failed: {error}"[:200]
+        if outcome == "ok":
+            resumed.append(chat_id)
+        return outcome
+
+    delivered, failures = claude_chat_waiters.deliver(
+        waiters, {chat.session_id: chat for chat in left}, registry, directory, now, type_into=wake,
+        resume=reopen, room=int(config["max_running"]) - len(left), log=lambda event: log_event(directory, event),
+        asks=asks)
+    claude_chat_waiters.remember(directory, waiters, delivered)
+    if resumed:  # resume_chat marked them resumed on disk; keep this cycle's copy in step
+        for chat_id in resumed:
+            registry.pop(chat_id, None)
+        save_registry(directory, registry)
+    return failures
 
 
 def zellij(session: str, *args: str) -> subprocess.CompletedProcess[str]:
@@ -820,14 +878,20 @@ def main(argv: list[str] | None = None) -> int:
         return release(args.claude_home, config, args.limit)
     if args.command == "status":
         now, directory = time.time(), state_dir()
-        live = live_chats(args.claude_home, config)
+        waiters = gather_waiters(now)
+        live = live_chats(args.claude_home, config, waiters)
+        waiters.pop(UNREADABLE, None)
         registry = load_registry(directory)
         refresh_registry(registry, live, now, config)
         save_registry(directory, registry)
+        live_map = {chat.session_id: chat for chat in live}
+        waiting = claude_chat_waiters.status_entries(waiters, live_map, registry, now)
         summary = counts(live, registry, now, config, os.environ.get("CLAUDE_CODE_SESSION_ID", ""),
-                         queued_launches())
+                         queued_launches(), waiting)
         stalled = stalled_chats(live, registry, args.claude_home, now, directory, act=False)
-        write_status(directory, summary, registry, stalled)
+        stalled += [entry for entry in claude_chat_waiters.stalled_entries(waiters, live_map, registry, now)
+                    if entry["session_id"] not in {item["session_id"] for item in stalled}]
+        write_status(directory, summary, registry, stalled, waiting=waiting)
         summary["stalled_chats"] = len(stalled)
         print(json.dumps(summary, indent=1) if args.json else status_line(summary))
         return 0

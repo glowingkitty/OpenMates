@@ -59,7 +59,10 @@ when a skill or this file points to it.
    repeated sleep/poll turns. Never end a turn while your own job, deploy or
    script is still running unless a background waiter or a scheduled wake-up
    will re-invoke you; a Stop hook refuses the turn end when CI jobs of this
-   chat have no waiter. Report outcome, commit and verification.
+   chat have no waiter. Waiting on another chat or an outside event: register
+   it (`python3 scripts/claude_chat_waiters.py add --on "<what>"`, the other side
+   runs `fire`); the chat lifecycle never stops a waiting chat as idle and reopens
+   it when the wait ends. Report outcome, commit and verification.
 7. Root operations on the dev server: `scripts/agent_root.sh <verb>` (fixed
    allowlist: Caddy validate/reload/apply, start/status of named units,
    AppArmor profile reload). Ask the user to run a command by hand only when

@@ -260,12 +260,16 @@ def launch_claude_chat(
     return _open_chat_tab(title, prompt, model, effort)
 
 
-def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None) -> str:
+def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, title: str = "",
+                admitted: bool = False) -> str:
     """Reopen a stopped chat in a new tab with `prompt` as its next message; 'ok' or why not.
 
-    Used by scripts/worktree_wip.py to wake the owner of unfinished worktree work. The
+    Used by scripts/worktree_wip.py to wake the owner of unfinished worktree work and by
+    the chat lifecycle when a chat's wait is over (scripts/claude_chat_waiters.py). The
     chat keeps its history (`--resume`) and its model, except Fable, which reopens on the
     default. It is never queued: with no free slot the caller retries on its next run.
+    `admitted`: the caller (the lifecycle itself) already checked the cap of running
+    chats; `admit` would start a second lifecycle cycle inside the first.
     """
     if not UUID_RE.match(chat_id):
         raise DispatchError(f"not a chat id: {chat_id!r}")
@@ -286,15 +290,16 @@ def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None) -> s
     if not cwd or not Path(cwd).is_dir():
         return f"its folder is gone ({cwd or 'unknown'})"
     model = model if model.startswith("claude-") and not is_fable(model) else CLAUDE_MODEL
-    why = admit_new_chat()
+    why = None if admitted else admit_new_chat()
     if why:
         return f"no free chat slot ({why})"
-    title = f"finish {chat_id[:8]}"
+    title = title or f"finish {chat_id[:8]}"
     ensure_zellij_session()
     _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", cwd, "--",
             *_chat_command("--resume", chat_id, "--remote-control", title, "--model", model,
                            "--effort", CLAUDE_EFFORT, "--permission-mode", "auto", prompt))
-    _record_launch({"kind": "worktree-wip-resume", "title": title, "model": model, "chat": chat_id})
+    _record_launch({"kind": "waiter-resume" if admitted else "worktree-wip-resume", "title": title, "model": model,
+                    "chat": chat_id})
     subprocess.run([sys.executable, str(REPO_ROOT / "scripts" / "claude_idle_chats.py"), "mark",
                     "--session", chat_id, "--state", "resumed"], capture_output=True, timeout=60, check=False)
     return "ok"

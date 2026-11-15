@@ -1,10 +1,12 @@
 ---
 status: active
-last_verified: 2026-11-14
+last_verified: 2026-11-15
 key_files:
 - scripts/host_load_guard.py
 - scripts/host_resources.py
 - scripts/claude_idle_chats.py
+- scripts/claude_chat_waiters.py
+- scripts/disk_coordinator.py
 - scripts/claude_dispatch.py
 - scripts/heavy_slot.py
 - .claude/hooks/host-load-gate.sh
@@ -67,17 +69,53 @@ chat_changes.
 
 ### Waiting on background work
 
-A chat that waits on background work is never stopped as idle
-(`scripts/claude_chat_pending.py`):
+A chat that waits on something is never stopped as idle, done or by the cap
+(`scripts/claude_chat_waiters.py`). On 2026-11-15 chat d2a774d9 parked its CI step
+on a disk-coordinator wait (disk at 91%) and told the owner "the coordinator
+notifies me". Only the Codex adapter delivered such notices, so the lifecycle saw
+an idle chat, stopped it after 64 min, and it stayed closed for two hours after
+the disk was cleaned (TASK-662). Now one *waiter* list covers every kind:
 
-- **CI jobs.** A chat whose sessions.py session (`.claude/sessions.json`,
-  `agent_task_id`) owns a CI job in state `running` (`logs/ci-coordinator/queue.sqlite3`,
-  table `jobs`, column `owner`) is kept ("waits on CI"). An unreadable queue keeps
-  every chat that has a session, with a warning.
+| Waiter | Source | Over when | Timeout |
+| --- | --- | --- | --- |
+| disk | disk-coordinator ledger request with the chat id as `thread`, state waiting or granted | granted, or the coordinator marked a parked request ready | 6 h |
+| ci | CI job of the chat's sessions.py session (`.claude/sessions.json` `agent_task_id`, queue column `owner`) in state queued, dispatching, submitted, running or attention | the job reaches success, failure or cancelled | 4 h |
+| handoff, background | registered by the chat: `claude_chat_waiters.py add --kind handoff --on "<what>" [--timeout-minutes N]` | the other side runs `claude_chat_waiters.py fire --chat <id> --key <key> --message "…"` | 4 h |
+
+A disk request that is older than a later request of the same chat that went
+through does not count: the chat moved on (most of the 190 waiting ledger rows
+on 2026-11-15 were such leftovers of CI result downloads).
+
+- **Waking.** Each lifecycle cycle (5 min) wakes every chat whose wait is over,
+  through one path for all kinds: an idle zellij-pane chat gets one line typed
+  into its pane (`[chat lifecycle] A wait of this chat is over, so it was woken:
+  …`); a chat that is not running (stopped by the lifecycle, killed with its
+  zellij server, closed while waiting) is reopened with `claude --resume` and
+  that line as its next message (`claude_dispatch.resume_chat`, tab `wake
+  <id>`), within the cap of running chats. A busy chat is woken on a later
+  cycle, a chat whose last reply asks the owner something waits for the answer,
+  and an archived chat is never reopened. Each ready set is delivered once
+  (`waiter_wakes.json`); a failed reopen is retried and listed as stalled. A CI
+  job that ended while its live chat was active again (its own background
+  waiter brought the result) does not wake it twice. Events `waiter_woken` /
+  `waiter_wake_failed` go to `events.jsonl`.
+- **Timeout.** A waiter past its timeout is `stalled`: it no longer keeps the
+  chat from idle stop and is listed in `stalled`, but it still reopens the chat
+  if it ends later.
+- **Unreadable sources.** When the ledger or the CI queue cannot be read, every
+  chat is kept that cycle, with a warning.
+- **Status.** `status.json` has `waiting` (per chat: running or closed, the
+  waiters with state waiting/ready/STALLED, since, stalled, ready) and the counts
+  `waiting_running` and `waiting_closed`. The connector's `chat_changes` lists
+  these chats under "Waiting on background work (disk, CI, handoff)" instead of
+  "Finished a turn" or "Stopped by the chat lifecycle", and `host_status` counts
+  them apart from idle chats with one line per chat. `claude_chat_waiters.py
+  list` prints every chat's waiters.
 - **Undelivered notifications.** Claude Code delivers a finished background job as a
   `<task-notification>` prompt. When the UserPromptSubmit host-load hook refuses it
   (transcript `system` record "UserPromptSubmit operation blocked by hook",
-  `promptKept: false`) nothing re-delivers it. Such a refused notification is
+  `promptKept: false`) nothing re-delivers it (`scripts/claude_chat_pending.py`).
+  Such a refused notification is
   undelivered until a later prompt carries the same task id; a later assistant
   reply clears it. Chats with undelivered notifications are kept, and `release`
   skips them and refusals with `promptKept: false`; for a kept prompt it presses
@@ -87,9 +125,10 @@ A chat that waits on background work is never stopped as idle
   line naming the task ids and output files, Enter. Events `woken` / `wake_failed`
   go to `events.jsonl`.
 - **Stalled list.** `status.json` has `stalled_chats` and a `stalled` list: chats
-  woken without a reply, chats that could not be woken, busy or CI-waiting chats
-  quiet for 30 minutes, and stopped or done chats whose transcript holds
-  undelivered results (listed with the resume command, never woken).
+  woken without a reply, chats that could not be woken, busy chats or chats with
+  a background command quiet for 30 minutes, waiters past their timeout, wakes
+  that failed, and stopped or done chats whose transcript holds undelivered
+  results (listed with the resume command, never woken).
 
 Pushes that reach the user through `scripts/agent_question.py` (and
 `scripts/e2b_credits.py`, which calls its `record_push`) are appended to

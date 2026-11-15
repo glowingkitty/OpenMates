@@ -256,6 +256,7 @@ def test_release_never_presses_enter_on_a_claude_suggestion(tmp_path, monkeypatc
 import sqlite3  # noqa: E402  (grouped with the background-work tests)
 
 import claude_chat_pending as pending  # noqa: E402
+import claude_chat_waiters as waiters  # noqa: E402
 
 NOTIFICATION = ("<task-notification><task-id>bsnq24fr0</task-id><output-file>/tmp/x.output</output-file>"
                 "<status>completed</status><summary>Wait for strip rerun job</summary></task-notification>")
@@ -274,9 +275,10 @@ def undelivered_item() -> dict:
     return pending.notifications(NOTIFICATION)[0]
 
 
-def test_chat_with_running_ci_job_is_kept_even_after_days():
-    decision = lc.decide(chat(last_activity=NOW - 72 * HOUR, ci_jobs=["e2e abcd1234"]), NOW, CONFIG, "other")
-    assert decision.action == "keep" and decision.hard and "waits on CI" in decision.reason
+def test_chat_with_running_ci_job_is_kept_until_the_waiter_times_out():
+    job = waiters.Waiter("chat-a", "ci", "ci:abcd1234", "CI e2e job abcd1234 (running)", NOW - HOUR, NOW + HOUR)
+    decision = lc.decide(chat(last_activity=NOW - 72 * HOUR, waiters=[job]), NOW, CONFIG, "other")
+    assert decision.action == "keep" and decision.hard and "waits on ci: CI e2e job abcd1234" in decision.reason
 
 
 def test_chat_with_undelivered_notification_is_kept_even_after_days():
@@ -401,31 +403,30 @@ def test_release_presses_enter_once_per_refusal(tmp_path, monkeypatch):
 def make_queue(path: Path, rows) -> None:
     path.parent.mkdir(parents=True)
     with sqlite3.connect(path) as conn:
-        conn.execute("CREATE TABLE jobs (id TEXT, owner TEXT, mode TEXT, state TEXT)")
-        conn.executemany("INSERT INTO jobs VALUES (?, ?, ?, ?)", rows)
+        conn.execute("CREATE TABLE jobs (id TEXT, owner TEXT, mode TEXT, state TEXT, created REAL, updated REAL)")
+        conn.executemany("INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?)", rows)
 
 
-def test_running_ci_jobs_reads_running_jobs_by_owner_and_maps_chats(tmp_path):
+def test_ci_waiters_count_queued_and_active_jobs_of_the_chats_sessions(tmp_path):
     make_queue(tmp_path / "logs" / "ci-coordinator" / "queue.sqlite3", [
-        ("abcdef123456", "8535", "e2e", "running"), ("zzzzzzzz", "8535", "pytest", "queued"),
-        ("11112222333", "9999", "vitest", "running")])
+        ("abcdef123456", "8535", "e2e", "running", NOW, NOW), ("zzzzzzzz9", "8535", "pytest", "queued", NOW, NOW),
+        ("done0000000", "8535", "vitest", "success", NOW, NOW), ("11112222333", "9999", "vitest", "running", NOW, NOW)])
     (tmp_path / ".claude").mkdir()
     (tmp_path / ".claude" / "sessions.json").write_text(json.dumps(
         {"sessions": {"8535": {"agent_task_id": "chat-a"}, "other": {}}}))
-    jobs = pending.running_ci_jobs(tmp_path)
-    assert jobs == {"8535": ["e2e abcdef12"], "9999": ["vitest 11112222"]}
     sessions = pending.session_ids_by_chat(tmp_path)
-    assert pending.ci_jobs_for("chat-a", sessions, jobs) == ["e2e abcdef12"]
-    assert pending.ci_jobs_for("chat-z", sessions, jobs) == []
+    found = waiters.ci_waiters(tmp_path, sessions, NOW)
+    assert sorted(w.key for w in found) == ["ci:abcdef123456", "ci:zzzzzzzz9"]
+    assert {w.chat_id for w in found} == {"chat-a"}
 
 
-def test_running_ci_jobs_without_queue_is_empty_and_broken_db_raises(tmp_path):
-    assert pending.running_ci_jobs(tmp_path) == {}
+def test_ci_waiters_without_queue_are_empty_and_a_broken_db_raises(tmp_path):
+    assert waiters.ci_waiters(tmp_path, {"chat-a": ["8535"]}, NOW) == []
     broken = tmp_path / "logs" / "ci-coordinator" / "queue.sqlite3"
     broken.parent.mkdir(parents=True)
     broken.write_text("not a database")
     with pytest.raises(RuntimeError, match="CI queue unreadable"):
-        pending.running_ci_jobs(tmp_path)
+        waiters.ci_waiters(tmp_path, {"chat-a": ["8535"]}, NOW)
 
 
 def test_runs_as_isolated_python_like_the_systemd_unit():

@@ -39,6 +39,14 @@ KINDS = ("managed", "worktrees", "docker", "proof", "host")
 PROACTIVE_INTERVAL = 6 * 3600
 PROACTIVE_PRESSURE_INTERVAL = 1800
 PROACTIVE_PERCENT = 80
+# A threaded wait whose owner process exited (the chat checkpointed and yielded) is
+# "parked": the service never grants it, because nobody would claim the grant. Each
+# tick checks whether capacity would admit it and then sets PARKED_READY_REASON, so
+# the chat lifecycle (scripts/claude_chat_waiters.py) reopens the chat, which retries
+# the step, re-attaches to the same request and is granted. A parked wait older than
+# PARKED_WAIT_EXPIRY is cancelled: its chat never came back (TASK-662).
+PARKED_READY_REASON = "Ready: capacity is available; the owning chat must retry its step to claim it"
+PARKED_WAIT_EXPIRY = 24 * 3600
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS repositories (
  path TEXT PRIMARY KEY, enabled INTEGER NOT NULL, maintenance TEXT NOT NULL);

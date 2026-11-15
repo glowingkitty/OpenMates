@@ -11,15 +11,14 @@ then sat idle for seven hours with its CI results unread. A refused notification
 "undelivered" until a later prompt carries the same task id; only refusals after the
 chat's last reply count (a later reply means the chat moved on).
 
-A chat whose sessions.py session has a CI job in state `running`
-(logs/ci-coordinator/queue.sqlite3, column `owner`) is waiting on CI.
+CI jobs, disk-coordinator requests and registered handoffs a chat waits on are read
+by scripts/claude_chat_waiters.py.
 """
 
 from __future__ import annotations
 
 import json
 import re
-import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -107,23 +106,3 @@ def session_ids_by_chat(root: Path) -> dict[str, list[str]]:
         if isinstance(info, dict) and info.get("agent_task_id"):
             mapping.setdefault(str(info["agent_task_id"]), []).append(str(key))
     return mapping
-
-
-def running_ci_jobs(root: Path) -> dict[str, list[str]]:
-    """sessions.py session id -> ids of its CI jobs that still run (read-only)."""
-    path = root / "logs" / "ci-coordinator" / "queue.sqlite3"
-    if not path.exists():
-        return {}
-    try:
-        with sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=5) as conn:
-            rows = conn.execute("SELECT owner, id, mode FROM jobs WHERE state = 'running'").fetchall()
-    except sqlite3.Error as error:
-        raise RuntimeError(f"CI queue unreadable: {error}") from error
-    jobs: dict[str, list[str]] = {}
-    for owner, job_id, mode in rows:
-        jobs.setdefault(str(owner), []).append(f"{mode} {str(job_id)[:8]}")
-    return jobs
-
-
-def ci_jobs_for(chat_id: str, sessions: dict[str, list[str]], jobs: dict[str, list[str]]) -> list[str]:
-    return [job for session in sessions.get(chat_id, []) for job in jobs.get(session, [])]
