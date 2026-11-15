@@ -234,6 +234,21 @@ class ImageSafetyPipeline:
         )
         se_findings, vlm_findings = await asyncio.gather(se_task, vlm_task)
 
+        if self._is_stylized_lookalike(se_findings, vlm_findings, stage=stage):
+            # The face database matched a drawn or rendered face. That is a
+            # resemblance, not a likeness of a real person, so it goes to the
+            # policy review below (which still sees the match) instead of a
+            # hard block. A 3D cartoon of a child matched an actress at 0.92.
+            logger.info(
+                "[ImageSafety] stage=%s celebrity match on a non-photorealistic "
+                "image (confidence %.2f) sent to policy review",
+                stage,
+                se_findings.celebrity_confidence,
+            )
+            se_findings.hard_block = False
+            se_findings.hard_block_reason = None
+            se_findings.category_hint = None
+
         se_audit = se_findings.to_audit_dict()
         vlm_audit = vlm_findings.to_audit_dict()
 
@@ -346,6 +361,27 @@ class ImageSafetyPipeline:
         # No ambiguity → allow without safeguard call
         return PipelineDecision(
             allowed=True, sightengine_audit=se_audit, vlm_audit=vlm_audit
+        )
+
+    @staticmethod
+    def _is_stylized_lookalike(
+        se: SightengineFindings, vlm: VisionSafetyFindings, *, stage: str
+    ) -> bool:
+        """
+        True when the only output hard block is a celebrity face match and the
+        vision model explicitly reported a non-photorealistic image that shows
+        no public figure. Any VLM error, block or missing style answer keeps
+        the hard block.
+        """
+        return (
+            stage == "output"
+            and se.hard_block
+            and se.category_hint == "S6_public_figure_blocked"
+            and se.celebrity_match
+            and vlm.error is None
+            and not vlm.hard_block
+            and vlm.raw.get("photorealistic") is False
+            and not vlm.public_figure_detected
         )
 
     @staticmethod
