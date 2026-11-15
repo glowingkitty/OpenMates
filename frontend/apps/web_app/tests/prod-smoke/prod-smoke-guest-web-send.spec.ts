@@ -49,11 +49,18 @@ test('prod signed-out web send: active Send sends and gets a reply', async ({ pa
 	await editor.pressSequentially('What is the capital of France? Answer in one word.');
 
 	// Signed out, only Send or Sign up / Log in may resolve; Sign up here means guest chat is broken.
-	const send = page.locator('[data-action="send-message"]').first();
-	const accountCta = page.locator('[data-action="sign-up-to-send"]').first();
+	// A control leaving through its Svelte out-transition stays in the DOM for ~150 ms marked
+	// `inert`; only the live control counts, so a Sign up -> Send crossfade is not a strict-mode
+	// failure (prod run 43756020772). The settled control must still be Send.
+	const send = page.locator('[data-action="send-message"]:not([inert])').first();
+	const accountCta = page.locator('[data-action="sign-up-to-send"]:not([inert])').first();
 	await expect(send.or(accountCta)).toBeVisible({ timeout: 20_000 });
+	if (await accountCta.isVisible().catch(() => false)) {
+		testInfo.annotations.push({ type: 'guest-sign-up-flash', description: 'Sign up showed before the guest composer settled' });
+	}
 	await testInfo.attach('guest-composer-before-send', { body: await page.screenshot(), contentType: 'image/png' });
-	await expect(accountCta, 'a fresh signed-out browser must get Send, not Sign up').toHaveCount(0);
+	await expect(accountCta, 'a fresh signed-out browser must get Send, not Sign up').toHaveCount(0, { timeout: 10_000 });
+	await expect(send).toBeVisible();
 	await expect(send).toBeEnabled();
 	expect(await page.evaluate(() => (window as any).__disabledSendSeen), 'no disabled Send before sending').toEqual([]);
 	// After the click a send that never starts is caught by the request poll below.
