@@ -775,7 +775,11 @@ def release(claude_home: Path, config: dict, limit: int) -> int:
         if screen.returncode:
             print(f"skipped {label}: zellij dump-screen failed: {screen.stderr.strip()[:120]}")
             continue
-        if not input_line(screen.stdout):
+        import claude_chat_inputs  # imports this module, so not at the top
+
+        # The box may show only Claude Code's grey suggestion over an empty box: Enter does
+        # nothing there (2026-11-15), so it counts as lost, never as released.
+        if claude_chat_inputs.probe(zellij, chat.zellij_session, pane) != "typed":
             lost += 1
             print(f"lost {label}: the refused prompt is no longer in its input box; resend it")
             log_event(directory, {"event": "held_prompt_lost", "session_id": chat.session_id, "title": label})

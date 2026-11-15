@@ -31,6 +31,7 @@ class Calls:
     def __init__(self) -> None:
         self.scripts: list[tuple[str, ...]] = []
         self.alerts: list[str] = []
+        self.watches = 0  # claude_chat_inputs.py watch runs
 
 
 @pytest.fixture
@@ -38,6 +39,9 @@ def calls(monkeypatch) -> Calls:
     record = Calls()
 
     def fake_script(*args):
+        if args[0] == "claude_chat_inputs.py":
+            record.watches += 1
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
         record.scripts.append(args)
         out = "stopped Idle chat (abc, pid 1): idle 30 min\n" if "reap" in args else "released Held chat (def)\n"
         return type("Result", (), {"returncode": 0, "stdout": out, "stderr": ""})()
@@ -67,6 +71,12 @@ def test_healthy_host_with_headroom_releases_a_few_held_prompts_per_tick(tmp_pat
     assert calls.scripts == []
     res.tick(sample(6), HEALTHY, tmp_path, tmp_path, now=NOW)
     assert calls.scripts == [("claude_idle_chats.py", "release", "--limit", str(res.RELEASE_PER_TICK))]
+
+
+def test_every_tick_refreshes_the_input_box_watch(tmp_path, calls):
+    res.tick(sample(1), OVERLOADED, tmp_path, tmp_path, now=NOW)
+    res.tick(sample(6), HEALTHY, tmp_path, tmp_path, now=NOW + 60)
+    assert calls.watches == 2
 
 
 def test_alert_only_after_self_healing_failed_for_twenty_minutes_and_once_per_incident(tmp_path, calls):

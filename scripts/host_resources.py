@@ -187,6 +187,13 @@ def tick(sample: guard.Sample, decision: guard.Decision, directory: Path | None 
             guard.append_event(directory, "prompts_released", {"released": released, "code": result.returncode,
                                                                "error": result.stderr.strip()[-300:]})
 
+    # Input boxes: typed-but-unsent text vs Claude Code's suggestion, with first-seen age
+    # (claude_chat_inputs.py, inputs.json; the dev connector's send_message reads it).
+    result = _script("claude_chat_inputs.py", "watch")
+    if result.returncode:
+        guard.append_event(directory, "inputs_watch_failed", {"code": result.returncode,
+                                                               "error": result.stderr.strip()[-300:]})
+
     disk = disk_problem(repo)
     if disk and not _service_active(DISK_SERVICE):
         disk += f"; {DISK_SERVICE} is not running"

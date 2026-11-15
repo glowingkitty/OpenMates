@@ -103,8 +103,11 @@ so the connector can match a push to its chat.
 1. Memory overloaded: `claude_idle_chats.py reap --pressure` (idle limit
    `pressure_idle_minutes`, 15), at most every 5 min.
 2. Healthy with more than 4 GiB free: `claude_idle_chats.py release --limit 2`
-   resubmits prompts that an older hook version refused. They still sit in the
-   chat's input box, so Enter sends them.
+   resubmits prompts that an older hook version refused, when they are still
+   typed in the chat's input box (checked with the probe below; a suggestion
+   counts as lost, never as released).
+2b. Every tick: `claude_chat_inputs.py watch` refreshes
+   `logs/claude-chat-lifecycle/inputs.json` (see "Input boxes" below).
 3. Disk: more than 92% used or less than 20 GiB free on the repository
    filesystem. Cleanup belongs to the disk coordinator; the tick checks that
    `openmates-disk-coordinator.service` runs.
@@ -181,3 +184,29 @@ that had ended or been stopped (TASK-9700). Now:
 
 `scripts/host-load-guard-setup.sh` and `scripts/claude-idle-chats-setup.sh` install
 the systemd user timers. `scripts/worktree-wip-setup.sh` installs the WIP sweep and nightly readiness timers.
+
+## Input boxes: typed text or Claude's suggestion
+
+Claude Code shows its predicted next prompt as grey ghost text in an empty input
+box, and `zellij action dump-screen` has no colours, so a dump cannot tell it from
+a message someone typed and did not send. On 2026-11-14/15 this made the dev
+connector's send_message refuse six chats for hours ("its input box still holds an
+earlier unsent message ... held while the dev host is overloaded"), and `release`
+pressed Enter on them every minute without effect: every one was a suggestion over
+an empty box. The host-load hook held no prompt in that time (no `prompt_held`
+event); since 1661195 it never refuses and lets a prompt run after at most 9 min.
+
+`claude_chat_inputs.probe` types one letter: a suggestion disappears and the box
+shows only that letter; typed text gets it appended. The letter is deleted again.
+`watch` records per running pane chat the shown text and when it was first seen,
+and probes text that stays unchanged for 10 min in an idle chat once
+(`verdict`: `typed`, `suggestion` or `unchecked`; `unsent_input` event for typed
+text). It never presses Enter.
+
+The connector (private, outside this repo) uses the same probe before typing:
+a suggestion never blocks a message; typed text is never merged with a new one.
+send_message `held=auto` replaces typed text older than 30 min (age from
+`inputs.json`, a copy is logged) and otherwise shows both texts for the caller to
+choose `replace` or `send_first`. host_status lists the typed entries as the queue
+of unsent messages.
+

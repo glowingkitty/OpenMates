@@ -212,15 +212,41 @@ def test_release_presses_enter_only_when_the_refused_prompt_is_still_typed(tmp_p
 
     def fake_zellij(session, *args):
         calls.append(args)
-        text = "❯ [Pasted text #1]\n" if args[-1] == "terminal_41" else "❯ \n"
+        text = "────\n❯ [Pasted text #1]\n────\n" if args[2] == "terminal_41" else "────\n❯ \n────\n"
         return type("Result", (), {"returncode": 0, "stdout": text, "stderr": ""})()
 
     monkeypatch.setattr(lc, "zellij", fake_zellij)
+    monkeypatch.setattr("claude_chat_inputs.PROBE_PAUSE", 0)
     assert lc.release(tmp_path, CONFIG, limit=5) == 0
     assert ("write", "--pane-id", "terminal_41", "13") in calls
-    assert not any(call[0] == "write" and call[2] == "terminal_42" for call in calls)
+    assert not any(call[0] == "write" and call[2] == "terminal_42" and call[3] == "13" for call in calls)
     events = (tmp_path / "events.jsonl").read_text()
     assert "held_prompt_released" in events and "held_prompt_lost" in events
+
+
+def test_release_never_presses_enter_on_a_claude_suggestion(tmp_path, monkeypatch):
+    """2026-11-14/15: Enter every minute on the grey next-prompt suggestion of an empty box."""
+    monkeypatch.setenv("OPENMATES_CHAT_LIFECYCLE_DIR", str(tmp_path))
+    held = [chat(session_id="ghost", pane_id="43", zellij_session="claude", last_speaker="user",
+                 last_text=lc.REFUSED_PREFIX, last_activity=NOW - HOUR)]
+    monkeypatch.setattr(lc, "live_chats", lambda home, config: held)
+    box, calls = {"typed": ""}, []
+
+    def fake_zellij(session, *args):
+        calls.append(args)
+        if args[0] == "write-chars":
+            box["typed"] += args[-1]
+        elif args[0] == "write" and args[-1] == "127":
+            box["typed"] = box["typed"][:-1]
+        shown = box["typed"] or "go ahead and deploy once they're green"
+        return type("Result", (), {"returncode": 0, "stdout": f"────\n❯ {shown}\n────\n", "stderr": ""})()
+
+    monkeypatch.setattr(lc, "zellij", fake_zellij)
+    monkeypatch.setattr("claude_chat_inputs.PROBE_PAUSE", 0)
+    assert lc.release(tmp_path, CONFIG, limit=5) == 0
+    assert not any(call[-1] == "13" for call in calls)
+    assert box["typed"] == ""
+    assert "held_prompt_lost" in (tmp_path / "events.jsonl").read_text()
 
 
 # ---------------------------------------------------------------------------
@@ -362,7 +388,8 @@ def test_release_presses_enter_once_per_refusal(tmp_path, monkeypatch):
                  last_text=lc.REFUSED_PREFIX, refusal_kept=True, refusal_at="t1")]
     monkeypatch.setattr(lc, "live_chats", lambda home, config: held)
     calls: list = []
-    monkeypatch.setattr(lc, "zellij", fake_zellij_factory(calls, "❯ [Pasted text #1]\n"))
+    monkeypatch.setattr(lc, "zellij", fake_zellij_factory(calls, "────\n❯ [Pasted text #1]\n────\n"))
+    monkeypatch.setattr("claude_chat_inputs.PROBE_PAUSE", 0)
     lc.release(tmp_path, CONFIG, limit=5)
     lc.release(tmp_path, CONFIG, limit=5)
     assert calls.count(("write", "--pane-id", "terminal_41", "13")) == 1
