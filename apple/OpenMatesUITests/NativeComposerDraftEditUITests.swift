@@ -276,7 +276,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertTrue(summary.label.contains("Synthetic chat image draft"))
         XCTAssertFalse(app.buttons["send-button"].exists)
         XCTAssertFalse(app.buttons["composer-attachment-toggle"].exists)
-        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
         app.buttons["record-audio-button"].tap()
         let recording = element(in: app, identifier: "record-overlay")
         XCTAssertTrue(recording.waitForExistence(timeout: 5))
@@ -507,9 +507,19 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         let suggestion = try NativeUITestElementResolution.requireVisible(suggestions, in: app, timeout: 5)
         suggestion.tap()
 
-        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: fullscreen)
-        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.keyboards.firstMatch)
-        waitForExpectations(timeout: 8)
+        let closed = XCTWaiter.wait(for: [
+            XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: fullscreen),
+            XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
+        ], timeout: 8)
+        if closed != .completed {
+            // Focus-origin phases (editor-focus vs ChatView focus) for the failure report.
+            let outcome = element(in: app, identifier: "composer-send-fixture-outcome")
+            let probe = XCTAttachment(string: "outcome=\(outcome.value as? String ?? "missing")")
+            probe.name = "Follow-up focus phases"
+            probe.lifetime = .keepAlways
+            add(probe)
+        }
+        XCTAssertEqual(closed, .completed, "An accepted follow-up closes the composer and dismisses the keyboard")
         attachScreenshot(name: "Accepted follow-up closes composer and keyboard")
     }
 
@@ -522,10 +532,10 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         ]
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
         app.launch()
-        let banner = element(in: app, identifier: "streaming-banner")
+        // The standalone streaming banner was removed from the native chat (the
+        // web shows processing state in the message and the composer Stop action).
         let stop = app.buttons["stop-processing-button"]
-        XCTAssertTrue(banner.waitForExistence(timeout: 12))
-        XCTAssertTrue(stop.waitForExistence(timeout: 5))
+        XCTAssertTrue(stop.waitForExistence(timeout: 12))
         XCTAssertTrue(stop.isHittable)
         let recover = app.buttons["composer-processing-recover"]
         XCTAssertTrue(recover.waitForExistence(timeout: 5))
@@ -533,7 +543,6 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         recover.tap()
 
         expectation(for: NSPredicate(format: "value == %@", "completed"), evaluatedWith: recover)
-        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: banner)
         expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: stop)
         waitForExpectations(timeout: 8)
         XCTAssertEqual(recover.value as? String, "completed", "Synthetic recovery action receipt")
@@ -552,7 +561,6 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertTrue(send.waitForExistence(timeout: 5))
         XCTAssertTrue(send.isEnabled)
         XCTAssertTrue(send.isHittable)
-        XCTAssertFalse(banner.exists)
         XCTAssertFalse(stop.exists)
         attachScreenshot(name: "Authoritative processing completion restores composer after stale replay")
     }

@@ -2,7 +2,7 @@
 # Do not edit by hand. Refresh: python3 scripts/feature_overview.py   Verify: --check
 schema_version: 2
 source: specifications/features.yml
-results_as_of: '2026-11-14'
+results_as_of: '2026-11-15'
 summary:
   features: 124
   enabled_on_prod: 108
@@ -16,9 +16,9 @@ summary:
       implemented: 19
       not_planned: 18
     apple:
-      tested: 14
+      tested: 15
       partial: 30
-      failing: 10
+      failing: 9
       implemented: 40
       in_progress: 6
       planned: 5
@@ -30,8 +30,8 @@ summary:
       not_run: 2
     cli:
       partial: 15
-      failing: 7
-      not_run: 29
+      failing: 8
+      not_run: 28
       implemented: 41
       in_progress: 2
       not_planned: 30
@@ -45,9 +45,9 @@ summary:
     rest_api:
       live: 5
       tested: 1
-      partial: 29
+      partial: 33
       failing: 14
-      not_run: 30
+      not_run: 26
       implemented: 17
       planned: 2
       not_planned: 26
@@ -1244,9 +1244,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 12
+        passing: 13
         failing: 2
-        not_run: 6
+        not_run: 5
         missing: 6
         counted: 26
       failing_tests:
@@ -1384,13 +1384,13 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_run
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 1
         failing: 0
-        not_run: 25
+        not_run: 24
         missing: 1
         counted: 26
       key_tests: []
@@ -1589,9 +1589,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 4
+        passing: 6
         failing: 7
-        not_run: 22
+        not_run: 20
         missing: 1
         counted: 34
       failing_tests:
@@ -5771,13 +5771,13 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_run
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 1
         failing: 0
-        not_run: 2
+        not_run: 1
         missing: 3
         counted: 5
       key_tests: []
@@ -6426,19 +6426,24 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 3
-        failing: 7
+        passing: 4
+        failing: 6
         not_run: 1
         missing: 13
         counted: 24
       failing_tests:
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
+      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testChatPreviewComposerUsesSharedIdentifiersAndWidthCap
+      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testFocusedWelcomeComposerScreenshotShowsActionButtons
+      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSavedChatMicrophoneStaysBesideSpeechAndBeforeSendAcrossDraftTransitions
+      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSavedChatPersistentRecordHintKeepsMicrophoneBesideSpeechBeforeTrailingSend
+      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSeededImageAndAudioPreviewsStayLeftAlignedAcrossRotation
+      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomeComposerExpandsAndCollapsesAcrossRotation
+      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomePersistentRecordHintKeepsMicrophoneBeforeTrailingSend
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedFollowUpClosesComposerAndDismissesKeyboard
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedSendClosesExpandedComposerAndDismissesKeyboard
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft
-      - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatMixedDraftCompactMicrophoneAppendsAudioAndRestoresFullEditor
-      - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testRejectedSendRetainsDraftExpansionAndKeyboardFocus
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews
       key_tests: []
       e2e_tests:
@@ -6660,17 +6665,15 @@ features:
         - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts › voice-first chat preflights before persisting
           its speech preference
       apple:
-        status: failing
+        status: tested
         source: tests
         intent: unverified
         assertions:
-          passing: 0
-          failing: 1
+          passing: 1
+          failing: 0
           not_run: 0
           missing: 0
           counted: 1
-        failing_tests:
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatMixedDraftCompactMicrophoneAppendsAudioAndRestoresFullEditor
       cli:
         status: unverified
         source: intent
@@ -6752,7 +6755,7 @@ features:
           missing: 1
           counted: 2
         failing_tests:
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatMixedDraftCompactMicrophoneAppendsAudioAndRestoresFullEditor
+        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSeededImageAndAudioPreviewsStayLeftAlignedAcrossRotation
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews
       cli:
         status: unverified
@@ -6845,7 +6848,6 @@ features:
           counted: 5
         failing_tests:
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatMixedDraftCompactMicrophoneAppendsAudioAndRestoresFullEditor
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews
       cli:
         status: unverified
@@ -7040,7 +7042,6 @@ features:
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedSendClosesExpandedComposerAndDismissesKeyboard
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testRejectedSendRetainsDraftExpansionAndKeyboardFocus
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews
       cli:
         status: unverified
@@ -7140,11 +7141,16 @@ features:
           counted: 3
         failing_tests:
         - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
+        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testChatPreviewComposerUsesSharedIdentifiersAndWidthCap
+        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testFocusedWelcomeComposerScreenshotShowsActionButtons
+        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSavedChatMicrophoneStaysBesideSpeechAndBeforeSendAcrossDraftTransitions
+        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSavedChatPersistentRecordHintKeepsMicrophoneBesideSpeechBeforeTrailingSend
+        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSeededImageAndAudioPreviewsStayLeftAlignedAcrossRotation
+        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomeComposerExpandsAndCollapsesAcrossRotation
+        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomePersistentRecordHintKeepsMicrophoneBeforeTrailingSend
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedFollowUpClosesComposerAndDismissesKeyboard
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedSendClosesExpandedComposerAndDismissesKeyboard
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatMixedDraftCompactMicrophoneAppendsAudioAndRestoresFullEditor
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testRejectedSendRetainsDraftExpansionAndKeyboardFocus
       cli:
         status: unverified
         source: intent
@@ -7565,15 +7571,18 @@ features:
       - ipados
       - macos
     cli:
-      status: not_run
+      status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 0
-        failing: 0
-        not_run: 4
+        passing: 2
+        failing: 1
+        not_run: 1
         missing: 0
         counted: 4
+      failing_tests:
+      - backend/tests/test_newsletter_assets.py › test_preview_approval_is_exact_and_ci_capture_uses_no_live_transport
+      - backend/tests/test_newsletter_assets.py › test_sender_stamps_trusted_preview_audience
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -7598,13 +7607,13 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_run
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 2
         failing: 0
-        not_run: 4
+        not_run: 2
         missing: 0
         counted: 4
       key_tests: []
@@ -10407,19 +10416,15 @@ features:
       - frontend/packages/ui/src/utils/settingsHashUtils.workspace.test.ts
       unit_test_files: 5
     apple:
-      status: failing
+      status: tested
       source: tests
       intent: implemented
       assertions:
-        passing: 1
-        failing: 1
+        passing: 2
+        failing: 0
         not_run: 0
         missing: 0
         counted: 2
-      failing_tests:
-      - apple/OpenMatesUITests/WorkspaceSwitcherUITests.swift › testNarrowHeaderHidesFaviconThenGiftAndRestoresWithoutLosingNavigation
-      - apple/OpenMatesUITests/WorkspaceSwitcherUITests.swift › testOutsideDismissAndExternalNavigationPreserveSelectionWithReducedMotion
-      - apple/OpenMatesUITests/WorkspaceSwitcherUITests.swift › testShortViewportKeepsGradientPanelInsideCanvasAndScrollsToEveryOption
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/ChatFlowParityUITests.swift
@@ -23370,13 +23375,13 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_run
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 2
         failing: 0
-        not_run: 2
+        not_run: 0
         missing: 5
         counted: 7
       key_tests: []

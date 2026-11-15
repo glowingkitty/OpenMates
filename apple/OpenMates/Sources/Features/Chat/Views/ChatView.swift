@@ -3188,6 +3188,9 @@ struct ChatView: View {
             .padding(.horizontal, .spacing4)
             .padding(.vertical, .spacing3)
             .onChange(of: isInputFocused) { _, focused in
+                #if DEBUG
+                recordComposerSendFixturePhase("focus:\(focused)")
+                #endif
                 composerSearchFocusTask?.cancel()
                 if focused { composerSearchRecentlyFocused = true }
                 else {
@@ -3442,7 +3445,7 @@ struct ChatView: View {
             }
             MessageComposerView(
                 session: composerSession,
-                isFocused: $isInputFocused,
+                isFocused: composerFocusBinding,
                 compact: compact && !overlayActive,
                 placeholder: placeholder,
                 expandedMinHeight: isComposerExpanded
@@ -4630,6 +4633,21 @@ struct ChatView: View {
             guard !Task.isCancelled else { return }
             recordHintVisible = false
         }
+    }
+
+    // The composer's focus binding. DEBUG fixtures mark changes that originate
+    // in the editor (UIKit/AppKit first responder) so a UI test can tell them
+    // from ChatView focus requests.
+    private var composerFocusBinding: Binding<Bool> {
+        #if DEBUG
+        guard ProcessInfo.processInfo.arguments.contains("--ui-test-composer-send") else { return $isInputFocused }
+        return Binding(get: { isInputFocused }, set: { focused in
+            if focused != isInputFocused { recordComposerSendFixturePhase("editor-focus:\(focused)") }
+            isInputFocused = focused
+        })
+        #else
+        return $isInputFocused
+        #endif
     }
 
     #if DEBUG

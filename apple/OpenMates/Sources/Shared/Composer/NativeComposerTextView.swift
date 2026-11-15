@@ -17,6 +17,7 @@ import SwiftUI
 
 #if canImport(UIKit)
 import UIKit
+import UIKit.UIGestureRecognizerSubclass
 #elseif canImport(AppKit)
 import AppKit
 #endif
@@ -54,6 +55,8 @@ final class NativeComposerTextView: NSObject {
     var onCanonicalMarkdownChange: @MainActor (String) -> Void
     var onFocusChange: @MainActor (Bool) -> Void
     var onSubmit: @MainActor () -> Void
+    /// The host's focus binding, mirrored before each UIKit reconciliation.
+    var focusRequested = false
     private var actionsByEmbedID: [String: [AccessibilityAction]] = [:]
     private var isSynchronizing = false
     #if canImport(UIKit)
@@ -103,9 +106,9 @@ final class NativeComposerTextView: NSObject {
         #if DEBUG && !OPENMATES_SHARE_EXTENSION
         if ProcessInfo.processInfo.arguments.contains("--ui-test-composer-focus-trace") {
             textView = NativeComposerFocusProbeTextView(usingTextLayoutManager: true)
-        } else { textView = UITextView(usingTextLayoutManager: true) }
+        } else { textView = NativeComposerEditorTextView(usingTextLayoutManager: true) }
         #else
-        textView = UITextView(usingTextLayoutManager: true)
+        textView = NativeComposerEditorTextView(usingTextLayoutManager: true)
         #endif
         textView.delegate = self
         textView.autocapitalizationType = .none
@@ -407,6 +410,18 @@ extension NativeComposerTextView: UIGestureRecognizerDelegate {
 
 #if canImport(UIKit)
 extension NativeComposerTextView: UITextViewDelegate {
+    /// Web parity: the editor focuses on a direct tap or an explicit focus
+    /// request, never because a tapped control (follow-up, microphone) left the
+    /// screen. Assistive technologies keep their own activation paths.
+    func textViewShouldBeginEditing(_ textView: UITextView) -> Bool {
+        if focusRequested || UIAccessibility.isVoiceOverRunning || UIAccessibility.isSwitchControlRunning {
+            return true
+        }
+        if UIFocusSystem.focusSystem(for: textView)?.focusedItem === textView { return true }
+        guard let editor = textView as? NativeComposerEditorTextView else { return true }
+        return editor.hasRecentDirectTouch
+    }
+
     func scrollViewDidScroll(_ scrollView: UIScrollView) { onScroll(scrollView) }
 
     static func shouldUseTextViewInteraction(for attachment: NSTextAttachment) -> Bool {
@@ -533,11 +548,48 @@ extension NativeComposerTextView: NSTextViewDelegate {
 }
 #endif
 
+#if canImport(UIKit)
+/// Composer text view that remembers its last direct touch, so editing can be
+/// limited to a user tap or the host's explicit focus request.
+class NativeComposerEditorTextView: UITextView {
+    private var lastTouchBeganUptime: TimeInterval = -.infinity
+    private var touchObserver: NativeComposerTouchObserver?
+    var hasRecentDirectTouch: Bool { ProcessInfo.processInfo.systemUptime - lastTouchBeganUptime < 1.5 }
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard touchObserver == nil else { return }
+        // UITextView's own text interaction consumes the touch before the
+        // view's touchesBegan; a recognizer sees every touch-down first.
+        let observer = NativeComposerTouchObserver { [weak self] in
+            self?.lastTouchBeganUptime = ProcessInfo.processInfo.systemUptime
+        }
+        addGestureRecognizer(observer)
+        touchObserver = observer
+    }
+}
+
+/// Records a touch-down and fails at once: never claims, delays or cancels it.
+private final class NativeComposerTouchObserver: UIGestureRecognizer {
+    private let onTouchDown: () -> Void
+    init(onTouchDown: @escaping () -> Void) {
+        self.onTouchDown = onTouchDown
+        super.init(target: nil, action: nil)
+        cancelsTouchesInView = false
+        delaysTouchesBegan = false
+        delaysTouchesEnded = false
+    }
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        onTouchDown()
+        state = .failed
+    }
+}
+#endif
+
 #if DEBUG && canImport(UIKit) && !OPENMATES_SHARE_EXTENSION
 /// Opt-in observation only. Preserve TextKit 2 and UIKit's responder/gesture
 /// decisions; never force focus or inject a replacement gesture recognizer.
 @MainActor
-final class NativeComposerFocusProbeTextView: UITextView {
+final class NativeComposerFocusProbeTextView: NativeComposerEditorTextView {
     private static var nextProbeID = 0
     private lazy var probeID: Int = {
         Self.nextProbeID += 1

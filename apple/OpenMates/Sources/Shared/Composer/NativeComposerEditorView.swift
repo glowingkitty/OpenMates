@@ -254,6 +254,7 @@ struct NativeComposerEditorView: UIViewRepresentable {
         context.coordinator.updateScrollFade(textView)
         context.coordinator.onFocusChange = { isFocused.wrappedValue = $0 }
         context.coordinator.onSubmit = onSubmit
+        context.coordinator.adapter.focusRequested = isFocused.wrappedValue
         context.coordinator.adapter.updatePIIDecorations(piiDecorations, onExclude: onExcludePII)
         context.coordinator.adapter.synchronize(textView)
         let nativeOverflow = context.coordinator.overflowMeasurement(textView, width: textView.bounds.width, limit: maximumUnscrolledHeight)

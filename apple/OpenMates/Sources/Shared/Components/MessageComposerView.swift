@@ -263,6 +263,11 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
     @ViewBuilder var overlayContent: () -> OverlayContent
     @ViewBuilder var actionButtons: () -> ActionButtons
 
+    // The summary surface (and its microphone) exists only once a draft preview
+    // was shown, until the editor regains focus. A permanently mounted hidden
+    // copy leaves a second `record-audio-button` in the accessibility tree.
+    @State private var previewMicrophoneRetained = false
+
     var body: some View {
         VStack(spacing: .spacing2) {
             preFieldContent()
@@ -295,7 +300,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
             .accessibilityHidden(showsDraftPreview)
             .overlay {
                 // Keep the microphone mounted across the recording-start transition.
-                if let draftPreviewMicrophone {
+                if let draftPreviewMicrophone, showsDraftPreview || previewMicrophoneRetained {
                     ComposerDraftPreviewField(
                         summary: MessageComposerPresentation.draftPreviewSummary(document: session.controller.document),
                         microphone: draftPreviewMicrophone,
@@ -308,6 +313,13 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
                 }
             }
             .animation(.easeInOut(duration: 0.25), value: showsDraftPreview)
+        }
+        .onAppear { if showsDraftPreview { previewMicrophoneRetained = true } }
+        .onChange(of: showsDraftPreview) { _, shown in
+            if shown { previewMicrophoneRetained = true }
+        }
+        .onChange(of: isFocused.wrappedValue) { _, focused in
+            if focused { previewMicrophoneRetained = false }
         }
         .frame(maxWidth: maxWidth ?? .infinity)
         .accessibilityElement(children: .contain)

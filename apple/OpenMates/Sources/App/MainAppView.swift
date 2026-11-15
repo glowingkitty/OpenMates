@@ -7853,7 +7853,14 @@ struct OpenMatesWebHeader: View {
                         .padding(.trailing, .spacing4)
                     }
 
-                    if isAuthenticated {
+                    if isAuthenticated, !showsHeaderGift {
+                        // Yielded gift: same-width placeholder, absent from accessibility.
+                        Color.clear.frame(width: intrinsicGiftWidth, height: 38)
+                            .accessibilityHidden(true)
+                            .padding(.trailing, .spacing4)
+                            .frame(width: 0)
+                            .clipped()
+                    } else if isAuthenticated {
                         Button(action: onOpenReferral) {
                             HStack(spacing: .spacing3) {
                                 Icon("gift", size: 22)
@@ -7949,7 +7956,11 @@ struct OpenMatesWebHeader: View {
 
     @ViewBuilder
     private var headerLogo: some View {
-        if isCompact {
+        if isCompact, !showsHeaderLogo {
+            // A yielded logo leaves the accessibility tree (an opacity-0 button
+            // stays queryable); the placeholder keeps the measured slot width.
+            Color.clear.frame(width: 38, height: 38).accessibilityHidden(true)
+        } else if isCompact {
             Button(action: { onSelectWorkspace(.chat) }) {
                 Image("openmates-favicon-png")
                     .renderingMode(.original)

@@ -105806,7 +105806,7 @@ assertions:
       surface: gui.apple
     - &id13393
       path: apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift
-      line: 517
+      line: 527
       name: testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
       surface: gui.apple
     - &id13395
@@ -110117,7 +110117,7 @@ assertions:
       surface: gui.apple
     - &id13963
       path: apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift
-      line: 517
+      line: 527
       name: testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
       surface: gui.apple
     - &id13966
@@ -112693,7 +112693,7 @@ assertions:
       surface: gui.apple
     - &id14310
       path: apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift
-      line: 517
+      line: 527
       name: testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
       surface: gui.apple
     - &id14318
@@ -140665,7 +140665,7 @@ assertions:
     direct_tests:
     - &id17923
       path: apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift
-      line: 517
+      line: 527
       name: testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
       surface: gui.apple
     - &id17929
