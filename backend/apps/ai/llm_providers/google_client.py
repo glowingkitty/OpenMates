@@ -128,6 +128,25 @@ def _log_google_stream_usage(timing: _GoogleStreamTiming, usage: Any) -> None:
         pass
 
 
+def _prompt_fingerprint(system_prompt: Any, tools: Any) -> str:
+    """Short hashes of the request prefix so implicit-cache misses can be traced.
+
+    Gemini caches by identical prefix; equal hashes across requests mean the
+    prefix was stable. Only digests are logged, never prompt text.
+    """
+    text = system_prompt if isinstance(system_prompt, str) else ""
+    names = sorted(
+        str((tool.get("function") or {}).get("name") or tool.get("name") or "")
+        for tool in (tools or []) if isinstance(tool, dict)
+    )
+
+    def digest(value: str) -> str:
+        return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+
+    return (f"prefix8k={digest(text[:8000])} system={digest(text)} "
+            f"system_chars={len(text)} tools={digest(','.join(names))} tool_count={len(names)}")
+
+
 async def _on_google_http_request_start(_session, trace_context, _params) -> None:
     try:
         trace_context.google_timing = _active_google_stream.get()
@@ -1024,6 +1043,8 @@ async def invoke_google_ai_studio_chat_completions(
             tool_config=tool_config_dict if tool_config_dict else None,
             **transport_options,
         )
+        logger.info("%s GEMINI_PROMPT_FINGERPRINT model=%s %s", log_prefix, normalized_model_id,
+                    _prompt_fingerprint(system_prompt, tools))
     except Exception as e:
         err_msg = f"Error during request preparation: {e}"
         logger.error(f"{log_prefix} {err_msg}", exc_info=True)

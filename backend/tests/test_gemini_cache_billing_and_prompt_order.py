@@ -74,3 +74,17 @@ def test_system_prompt_clock_is_minute_granular_and_last():
     assert join - tail < 120
     # No catalog/mate/app block is appended after the volatile tail at first assembly.
     assert re.search(r"volatile_prompt_tail: list\[str\] = \[clock_instruction\]", source)
+
+
+# contract-test: supporting surface=rest_api assertions=billing.models.verified-host-prices
+def test_prompt_fingerprint_is_stable_and_never_contains_prompt_text():
+    tools = [{"type": "function", "function": {"name": "web_search"}}, {"function": {"name": "calc"}}]
+    first = google_client._prompt_fingerprint("SECRET stable prefix", tools)
+    assert first == google_client._prompt_fingerprint("SECRET stable prefix", list(reversed(tools)))
+    assert "SECRET" not in first and "stable" not in first
+    assert "tool_count=2" in first
+    long_prompt = "SECRET stable prefix " * 500  # over 8k chars
+    changed = google_client._prompt_fingerprint(long_prompt + "volatile tail", tools)
+    first = google_client._prompt_fingerprint(long_prompt, tools)
+    assert first.split()[1] != changed.split()[1]  # whole-prompt digest moves
+    assert first.split()[0] == changed.split()[0]  # shared first 8k chars keep their digest
