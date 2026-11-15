@@ -132,6 +132,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
+    import { SEND_CHAT_MESSAGE_EVENT } from './embeds/slides/slidesTemplateUse';
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { reminderContext } from '../stores/reminderContextStore';
     import {
@@ -365,7 +366,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         flushCurrentDraft?: () => Promise<void> | void;
         flushCurrentDraftLocally: () => Promise<boolean>;
         prepareVoiceCallDraft?: (chatId: string) => Promise<boolean>;
-        sendCurrentMessage: () => Promise<void> | void;
+        sendCurrentMessage: (testMockMarker?: string) => Promise<void> | void;
         getTextContent: () => string;
         hasMeaningfulDraftForChat: (chatId: string) => boolean;
         hasLiveUserEditForChat: (chatId: string) => boolean;
@@ -2593,7 +2594,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
     }
 
-    async function handleFollowUpSuggestionClick(suggestion: string) {
+    async function handleFollowUpSuggestionClick(suggestion: string, testMockMarker?: string) {
         console.debug('[ActiveChat] Follow-up suggestion quick-send:', suggestion);
         dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
 
@@ -2606,7 +2607,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             await messageInputFieldRef.clearMessageField(false);
             messageInputFieldRef.setSuggestionText(suggestion);
             await tick();
-            messageInputFieldRef.sendCurrentMessage();
+            messageInputFieldRef.sendCurrentMessage(testMockMarker);
         }
     }
 
@@ -12095,6 +12096,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             activeChatStore.clearActiveChat();
         };
         
+        // A slide template's "Use this design" asks to send a message into this chat.
+        const handleSendChatMessageEvent = (event: Event) => {
+            const detail = (event as CustomEvent<{ message?: string; testMockMarker?: string }>).detail;
+            if (detail?.message) void handleFollowUpSuggestionClick(detail.message, detail.testMockMarker);
+        };
+        window.addEventListener(SEND_CHAT_MESSAGE_EVENT, handleSendChatMessageEvent);
         window.addEventListener('openLoginInterface', handleOpenLoginInterface);
         window.addEventListener('openSignupInterface', handleOpenSignupInterface);
         
@@ -13839,6 +13846,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             window.removeEventListener('language-changed', handleLanguageChange);
             window.removeEventListener('language-changed-complete', handleLanguageChange);
             // Remove login interface event listeners
+            window.removeEventListener(SEND_CHAT_MESSAGE_EVENT, handleSendChatMessageEvent);
             window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListenerCallback);
             window.removeEventListener('openSignupInterface', handleOpenSignupInterface as EventListenerCallback);
             window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListenerCallback);

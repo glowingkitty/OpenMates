@@ -4976,7 +4976,7 @@ features:
       - backend/tests/test_focus_mode_routing.py
       - backend/tests/test_focus_phases.py
       - backend/tests/test_focus_continuation_history.py
-      unit_test_files: 28
+      unit_test_files: 29
     sdk_npm:
       status: implemented
       source: intent
@@ -16727,7 +16727,8 @@ features:
 - id: slides
   name: Slides
   kind: app
-  description: Create, edit and present slide decks.
+  description: Create, edit and present slide decks; templates with built-in designs and an account or Team library; Design
+    a template and Plan a presentation focus modes.
   specifications:
   - id: feature.slides
     status: draft
@@ -16741,31 +16742,35 @@ features:
     - app:slides
     dev: enabled
     prod: enabled
-  assertions: 17
+  assertions: 20
   surfaces:
     web:
       status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 6
+        passing: 7
         failing: 0
-        not_run: 0
-        missing: 11
-        counted: 17
+        not_run: 4
+        missing: 9
+        counted: 20
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/slides-deck-embed.spec.ts
       - frontend/apps/web_app/tests/components/slides-editor.spec.ts
       - frontend/apps/web_app/tests/components/slides-presenter.spec.ts
+      - frontend/apps/web_app/tests/components/slides-template-embed.spec.ts
+      - frontend/apps/web_app/tests/slides-focus-modes-real.spec.ts
+      - frontend/apps/web_app/tests/slides-focus-presentation-planner.spec.ts
+      - frontend/apps/web_app/tests/slides-focus-template-designer.spec.ts
       - frontend/apps/web_app/tests/slides-manual-edit.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/components/embeds/slides/slidesMarkup.test.ts
       - frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts
+      - frontend/packages/ui/src/components/embeds/slides/slidesTemplates.test.ts
       - frontend/packages/ui/src/components/embeds/slides/__tests__/slidesDeckFullscreenOwner.test.ts
       - frontend/packages/ui/src/components/embeds/slides/slidesEditor.test.ts
-      - frontend/packages/ui/src/components/embeds/slides/slidesPresentation.test.ts
-      unit_test_files: 6
+      unit_test_files: 9
     apple:
       status: tested
       source: tests
@@ -16793,9 +16798,9 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 17
-        counted: 17
-      conflict: marked not_planned, but 17 required assertion(s) apply to cli
+        missing: 20
+        counted: 20
+      conflict: marked not_planned, but 20 required assertion(s) apply to cli
       key_tests: []
       e2e_tests: []
       key_unit_tests: []
@@ -16820,19 +16825,20 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 5
+        passing: 7
         failing: 0
-        not_run: 1
-        missing: 11
-        counted: 17
+        not_run: 3
+        missing: 10
+        counted: 20
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_slides_markup.py
-      - backend/tests/test_slides_markup_core_fixed_points.py
       - backend/tests/test_slides_stream_consumer.py
+      - backend/tests/test_slides_focus_modes.py
+      - backend/tests/test_slides_markup_core_fixed_points.py
       - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
-      unit_test_files: 4
+      unit_test_files: 5
     sdk_npm:
       status: implemented
       source: intent
@@ -16862,6 +16868,7 @@ features:
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0
+  notes: Templates and both focus modes are web only; Apple renders template themes only after its own slides lane.
 - id: social-media
   name: Social Media
   kind: app

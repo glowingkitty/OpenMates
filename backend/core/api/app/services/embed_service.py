@@ -733,6 +733,7 @@ class EmbedService(SlidesEmbedMixin):
             "sheet": ("sheets", "sheet"),
             "document": ("docs", "document"),
             "deck": ("slides", "deck"),
+            "template": ("slides", "template"),
             "mail": ("mail", "email"),
             "math-plot": ("math", "plot"),
             "mermaid": ("diagrams", "mermaid"),

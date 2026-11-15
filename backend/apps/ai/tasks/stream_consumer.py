@@ -2419,7 +2419,7 @@ async def _apply_diff_block_to_existing_embed(
             queue="app_docs",
             output_kind="diff", output_version=new_version,
         )
-    elif embed_type == "deck":
+    elif embed_type in ("deck", "template"):
         try:
             new_deck = normalise_slides_markup(patch_result.new_content)
         except SlidesMarkupError as exc:

@@ -373,6 +373,20 @@
         }
       }
     },
+    "slides": {
+      "design_template": {
+        "text": "Sjabloon ontwerpen",
+        "description": {
+          "text": "Ontwerp stap voor stap een herbruikbaar diasjabloon - drie ontwerpen om uit te kiezen, samen verfijnd en daarna opgeslagen in je bibliotheek."
+        }
+      },
+      "plan_presentation": {
+        "text": "Presentatie plannen",
+        "description": {
+          "text": "Plan een presentatie stap voor stap - doel, verhaal, één boodschap per dia, ontwerp - en maak daarna de dia's met sprekersnotities en controleer ze."
+        }
+      }
+    },
     "social_media": {
       "content_calendar_strategist": {
         "text": "Content-kalender strategist",
@@ -7853,6 +7867,42 @@
     "slides_count_plural": {
       "text": "dia's"
     },
+    "slides_template_default_title": {
+      "text": "Sjabloon"
+    },
+    "slides_template_label": {
+      "text": "Sjabloon"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} lay-outs"
+    },
+    "slides_template_use": {
+      "text": "Dit ontwerp gebruiken"
+    },
+    "slides_template_use_message": {
+      "text": "Gebruik het ontwerp \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Titel"
+    },
+    "slides_layout_section": {
+      "text": "Sectie"
+    },
+    "slides_layout_content": {
+      "text": "Inhoud"
+    },
+    "slides_layout_two_column": {
+      "text": "Twee kolommen"
+    },
+    "slides_layout_image": {
+      "text": "Afbeelding"
+    },
+    "slides_layout_quote": {
+      "text": "Citaat"
+    },
+    "slides_layout_closing": {
+      "text": "Afsluiting"
+    },
     "slides_prev": {
       "text": "Vorige dia"
     },
@@ -8489,6 +8539,33 @@
     },
     "progress_result_one": {
       "text": "1 resultaat"
+    },
+    "slides_template_pick": {
+      "text": "Sjabloon"
+    },
+    "slides_template_picker_title": {
+      "text": "Kies een sjabloon"
+    },
+    "slides_template_builtin": {
+      "text": "Ingebouwd"
+    },
+    "slides_template_library_personal": {
+      "text": "Jouw bibliotheek"
+    },
+    "slides_template_library_team": {
+      "text": "Teambibliotheek"
+    },
+    "slides_template_updated": {
+      "text": "Bijgewerkt"
+    },
+    "slides_template_apply": {
+      "text": "Sjabloon toepassen"
+    },
+    "slides_template_apply_failed": {
+      "text": "Het sjabloon kon niet worden toegepast"
+    },
+    "slides_template_library_empty": {
+      "text": "Nog geen opgeslagen sjablonen"
     }
   },
   "embeds_input": {},
@@ -11053,6 +11130,24 @@
       },
       "systemprompt": {
         "text": "Je bent een neutrale coach voor burgerdiscussies en een onderzoeksassistent. Je doel is om gebruikers te helpen zich voor te bereiden op politieke, maatschappelijke, beleidsmatige, electorale, geopolitieke en andere gesprekken van algemeen belang met nauwkeurigheid, bescheidenheid en goede trouw.\n\nBegin met het begrijpen van de situatie. Reageer bij de eerste reactie van de assistent nadat deze focus is geactiveerd op het oorspronkelijke verzoek van de gebruiker met een korte contextuele intake, zelfs als de gebruiker niet expliciet om vragen heeft gevraagd. Stel één tot drie specifieke vragen over ontbrekende details, zoals de jurisdictie, het gewenste resultaat van de gebruiker en de positie of relatie van de andere persoon. Gebruik het onderwerp en andere feiten die de gebruiker al heeft verstrekt; vraag hen niet om die details te herhalen of hun verzoek opnieuw te formuleren. Als de gebruiker vraagt om met vragen te beginnen, honoreer die volgorde dan, zelfs als het onderwerp bekend is. Als alle essentiële context al is verstrekt, stel dan één vraag over de hoogste prioriteit van de gebruiker of bevestig kort de specifieke inkadering voordat je verdergaat. Wacht op het antwoord van de gebruiker voordat je overgaat tot feitelijk onderzoek, een beleidsuitleg of een volledig voorbereidingsblad, tenzij de gebruiker expliciet vraagt om een onmiddellijk onderzocht antwoord. Stop niet bij het bevestigen van de activering en maak van de intake geen lange vragenlijst.\n\nGebruik deze workflow:\n- Herformuleer het onderwerp en het gewenste resultaat van de gebruiker in neutrale taal.\n- Identificeer de belangrijkste claims die waarschijnlijk naar voren zullen komen. Maak onderscheid tussen feitelijke claims, waardeoordelen, aannames, voorspellingen en persoonlijke ervaringen.\n- Gebruik voor feitelijke of actuele claims web-search, news search en web-read wanneer nauwkeurigheid afhangt van recente of betwiste informatie. Geef de voorkeur aan primaire bronnen, officiële gegevens, verkiezingsmateriaal, wetgeving, rapporten van toezichthouders, rechtbankdocumenten, gerenommeerde journalistiek en deskundige instellingen boven samenvattingen op sociale media.\n- Evalueer bronnen op basis van actualiteit, relevantie, autoriteit, nauwkeurigheid en doel. Vermeld wanneer een bron een belangenbehartigings-, partij-, overheids-, commercieel of campagnebelang heeft.\n- Breng de sterkste versie van elk belangrijk standpunt in kaart voordat je het kritisch bekijkt. Neem punten van overeenstemming, afwegingen, onzekerheden en legitieme waarden aan elke kant op.\n- Bereid vragen voor die uitnodigen tot uitleg, termen definiëren, aannames toetsen en bewijsmateriaal naar boven halen. Vermijd instinkvragen, tenzij de gebruiker expliciet voorbereiding op een formeel debat nodig heeft.\n- Help de gebruiker bij het kiezen van rustige bewoordingen, grenzen en exit-lijnen voor gevoelige gesprekken.\n\nStandaard outputstructuur:\n\n## Discussiedoel\nVat samen waar de gebruiker zich op voorbereidt en hoe een succesvol gesprek eruit zou zien.\n\n## Belangrijke feiten om te controleren\nLijst met belangrijke feitelijke claims, het best beschikbare bewijs en eventuele onzekerheid. Geef aan wanneer meer onderzoek nodig is.\n\n## Waarschijnlijke perspectieven\nBeschrijf de sterkste argumenten en zorgen te goeder trouw van de belangrijkste zijden. Maak geen karikatuur van tegengestelde opvattingen.\n\n## Vragen om te stellen\nGeef doordachte, open vragen die definities, bewijsmateriaal, afwegingen, waarden en praktische gevolgen verduidelijken.\n\n## Claims om niet te overdrijven\nWaarschuw voor zwakke claims, verouderde feiten, claims uit één bron, misleidende inkadering of punten die nuance behoeven.\n\n## Voorgesteld gespreksplan\nGeef een kort plan voor het openen van de discussie, het constructief houden ervan, het omgaan met spanning en de opvolging.\n\nBelangrijke grenzen:\n- Schrijf geen manipulatieve propaganda, intimidatie, doxing, afdreiging of ontmenselijkende retoriek.\n- Bied geen gerichte politieke overtuigingsstrategie aan op basis van demografische, psychologische, identiteits- of kwetsbaarheidsprofielen.\n- Optimaliseer geen campagneboodschappen, kiezersbenadering, onderdrukking van de opkomst of activistische logistiek. Als het verzoek van de gebruiker overgaat in belangenbehartiging of organisatie, houd de hulp dan op een hoog niveau, rechtmatig en niet-manipulatief, of raad de Activism mate aan voor ethische organisatiestrategie.\n- Presenteer onzekere of betwiste claims niet als vaststaande feiten. Maak een duidelijk onderscheid tussen bewijs, gevolgtrekking, interpretatie en mening.\n- Ga niet uit van kwade trouw, corruptie, extremisme of kwaadaardige opzet, tenzij betrouwbaar bewijs dat kader ondersteunt.\n- Respecteer privacy. Vraag niet om onnodige persoonlijke gegevens over de gebruiker of andere betrokken personen."
+      }
+    },
+    "slides_design_template": {
+      "text": "Sjabloon ontwerpen",
+      "description": {
+        "text": "Ontwerp stap voor stap een herbruikbaar diasjabloon - drie ontwerpen om uit te kiezen, samen verfijnd en daarna opgeslagen in je bibliotheek."
+      },
+      "process": {
+        "text": "- Vraagt waarvoor het sjabloon is en bij welke merkkleuren, lettertypen of logo het moet passen\n- Toont drie duidelijk verschillende ontwerpen als sjabloonkaarten met voorbeelden van zes dia-indelingen\n- Je kiest er een met \"Dit ontwerp gebruiken\" of door de naam te noemen\n- Verfijnt kleuren, lettertypen en indelingen met je en werkt de kaart na elke wijziging bij\n- Vertelt je op Opslaan te drukken op de laatste kaart zodat die in je bibliotheek komt\n- Biedt aan een eerste presentatie te maken met je nieuwe sjabloon"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Presentatie plannen",
+      "description": {
+        "text": "Plan een presentatie stap voor stap - doel, verhaal, één boodschap per dia, ontwerp - en maak daarna de dia's met sprekersnotities en controleer ze."
+      },
+      "process": {
+        "text": "- Vraagt naar je doel, publiek, lengte en setting, met eenvoudige voorbeelden en een aanbeveling\n- Stelt een passend verhaal voor, bijvoorbeeld probleem, oplossing, demo, impact en vraag voor een pitch\n- Zet één boodschap per dia op een rij en wacht op je bevestiging voordat er iets wordt gemaakt\n- Toont passende ingebouwde ontwerpen als kaarten, gebruikt je opgeslagen sjabloon of ontwerpt samen met je een nieuw\n- Maakt de dia's met sprekersnotities op elke dia, afgestemd op de lengte van je praatje\n- Controleert het resultaat en verbetert wat je accepteert, zoals te veel tekst op een dia"
       }
     },
     "social_media_content_calendar_strategist": {

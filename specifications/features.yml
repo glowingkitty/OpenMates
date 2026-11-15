@@ -1222,7 +1222,7 @@ features:
   - id: slides
     name: "Slides"
     kind: app
-    description: "Create, edit and present slide decks."
+    description: "Create, edit and present slide decks; templates with built-in designs and an account or Team library; Design a template and Plan a presentation focus modes."
     specifications: [feature.slides]
     apps: [slides]
     release: untagged-main
@@ -1230,6 +1230,7 @@ features:
     evidence:
       tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
       sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
+    notes: "Templates and both focus modes are web only; Apple renders template themes only after its own slides lane."
   - id: social-media
     name: "Social Media"
     kind: app

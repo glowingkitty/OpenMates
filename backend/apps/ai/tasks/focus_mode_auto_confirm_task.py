@@ -196,6 +196,13 @@ async def _async_focus_mode_auto_confirm(
         logger.warning(f"{log_prefix} Focus continuation history unavailable: {exc.code}")
         await publish_current_focus_continuation_failure(cache_service, pending_context)
         return
+    live_mock_marker = pending_context.get("live_mock_marker")
+    if isinstance(live_mock_marker, str) and live_mock_marker and message_history:
+        # Signed isolated-CI replay marker (mock_context.signed_focus_continuation_marker):
+        # the cached user turn has none, and ask_skill re-verifies it for this account.
+        latest_user = message_history[-1]
+        if latest_user.get("role") == "user" and isinstance(latest_user.get("content"), str):
+            latest_user["content"] = f"{latest_user['content']} {live_mock_marker}"
     from backend.core.api.app.services.embed_service import EmbedService
     embed_file_path_index = await resolve_continuation_embed_references(
         message_history,

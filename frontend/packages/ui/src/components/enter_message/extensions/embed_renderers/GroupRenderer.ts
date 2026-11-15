@@ -418,6 +418,14 @@ export class GroupRenderer implements EmbedRenderer {
           ),
       ],
       [
+        "slides-template",
+        (item, embedData, decodedContent, content) =>
+          mountSlidesDeckPreview(item, decodedContent, content, () =>
+            this.openFullscreen(item, embedData, decodedContent),
+            true,
+          ),
+      ],
+      [
         "sheets-sheet",
         (item, embedData, decodedContent, content) =>
           this.renderSheetComponent(item, embedData, decodedContent, content),

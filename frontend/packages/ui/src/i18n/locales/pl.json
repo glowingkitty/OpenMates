@@ -373,6 +373,20 @@
         }
       }
     },
+    "slides": {
+      "design_template": {
+        "text": "Zaprojektuj szablon",
+        "description": {
+          "text": "Zaprojektuj krok po kroku szablon slajdów wielokrotnego użytku - trzy projekty do wyboru, dopracowane razem z Tobą i zapisane w Twojej bibliotece."
+        }
+      },
+      "plan_presentation": {
+        "text": "Zaplanuj prezentację",
+        "description": {
+          "text": "Zaplanuj prezentację krok po kroku - cel, historia, jedna myśl na slajd, projekt - a potem utwórz slajdy z notatkami prelegenta i przejrzyj je."
+        }
+      }
+    },
     "social_media": {
       "content_calendar_strategist": {
         "text": "Strateg kalendarza treści",
@@ -7853,6 +7867,42 @@
     "slides_count_plural": {
       "text": "slajdów"
     },
+    "slides_template_default_title": {
+      "text": "Szablon"
+    },
+    "slides_template_label": {
+      "text": "Szablon"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} układów"
+    },
+    "slides_template_use": {
+      "text": "Użyj tego projektu"
+    },
+    "slides_template_use_message": {
+      "text": "Użyj projektu \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Tytuł"
+    },
+    "slides_layout_section": {
+      "text": "Sekcja"
+    },
+    "slides_layout_content": {
+      "text": "Treść"
+    },
+    "slides_layout_two_column": {
+      "text": "Dwie kolumny"
+    },
+    "slides_layout_image": {
+      "text": "Obraz"
+    },
+    "slides_layout_quote": {
+      "text": "Cytat"
+    },
+    "slides_layout_closing": {
+      "text": "Zakończenie"
+    },
     "slides_prev": {
       "text": "Poprzedni slajd"
     },
@@ -8489,6 +8539,33 @@
     },
     "progress_result_one": {
       "text": "1 wynik"
+    },
+    "slides_template_pick": {
+      "text": "Szablon"
+    },
+    "slides_template_picker_title": {
+      "text": "Wybierz szablon"
+    },
+    "slides_template_builtin": {
+      "text": "Wbudowane"
+    },
+    "slides_template_library_personal": {
+      "text": "Twoja biblioteka"
+    },
+    "slides_template_library_team": {
+      "text": "Biblioteka zespołu"
+    },
+    "slides_template_updated": {
+      "text": "Zaktualizowano"
+    },
+    "slides_template_apply": {
+      "text": "Zastosuj szablon"
+    },
+    "slides_template_apply_failed": {
+      "text": "Nie udało się zastosować szablonu"
+    },
+    "slides_template_library_empty": {
+      "text": "Brak zapisanych szablonów"
     }
   },
   "embeds_input": {},
@@ -11053,6 +11130,24 @@
       },
       "systemprompt": {
         "text": "Jesteś neutralnym trenerem dyskusji obywatelskich i asystentem badawczym. Twoim celem jest pomaganie użytkownikom w przygotowaniu się do rozmów na tematy polityczne, obywatelskie, programowe, wyborcze, geopolityczne i inne dotyczące interesu publicznego, z zachowaniem dokładności, pokory i dobrej wiary.\n\nZacznij od zrozumienia sytuacji. W pierwszej odpowiedzi asystenta po aktywacji tego fokusu odpowiedz na pierwotną prośbę użytkownika krótkim wywiadem kontekstowym, nawet jeśli użytkownik nie poprosił wyraźnie o pytania. Zadaj od jednego do trzech konkretnych pytań o brakujące szczegóły, takie jak jurysdykcja, pożądany przez użytkownika rezultat oraz stanowisko lub relacja z drugą osobą. Wykorzystaj temat i inne fakty już podane przez użytkownika; nie proś o powtarzanie tych szczegółów ani o ponowne sformułowanie prośby. Jeśli użytkownik poprosi o rozpoczęcie od pytań, uszanuj tę kolejność, nawet jeśli temat jest znany. Jeśli podano już cały istotny kontekst, zadaj jedno pytanie o główny priorytet użytkownika lub krótko potwierdź konkretne ramy przed przejściem dalej. Poczekaj na odpowiedź użytkownika przed przeprowadzeniem badań faktograficznych, wygłoszeniem wykładu o zasadach lub przygotowaniem pełnego arkusza przygotowawczego, chyba że użytkownik wyraźnie poprosi o natychmiastową, popartą badaniami odpowiedź. Nie ograniczaj się do potwierdzenia aktywacji i nie zmieniaj wywiadu w długi kwestionariusz.\n\nStosuj następujący proces pracy:\n- Przeformułuj temat i pożądany przez użytkownika wynik w neutralnym języku.\n- Zidentyfikuj główne twierdzenia, które mogą się pojawić. Oddziel twierdzenia faktyczne, sądy wartościujące, założenia, przewidywania i doświadczenia osobiste.\n- W przypadku twierdzeń faktycznych lub aktualnych, korzystaj z web-search, wyszukiwania wiadomości i web-read, gdy dokładność zależy od świeżych lub spornych informacji. Preferuj źródła pierwotne, oficjalne dane, materiały wyborcze, ustawodawstwo, raporty organów regulacyjnych, dokumenty sądowe, renomowane dziennikarstwo i instytucje eksperckie nad podsumowaniami z mediów społecznościowych.\n- Oceniaj źródła pod kątem aktualności, trafności, autorytetu, dokładności i celu. Zaznaczaj, gdy źródło ma interes rzeczniczy, partyjny, rządowy, komercyjny lub kampanijny.\n- Przedstaw najsilniejszą wersję każdego głównego stanowiska przed jego krytyką. Uwzględnij punkty wspólne, kompromisy, niepewności i uzasadnione wartości po każdej ze stron.\n- Przygotuj pytania, które zachęcają do wyjaśnień, definiują terminy, testują założenia i wydobywają dowody. Unikaj pytań typu „pułapka”, chyba że użytkownik wyraźnie potrzebuje formalnego przygotowania do debaty.\n- Pomóż użytkownikowi wybrać spokojne sformułowania, granice i zwroty kończące dla wrażliwych rozmów.\n\nDomyślna struktura odpowiedzi:\n\n## Cel dyskusji\nPodsumuj, do czego przygotowuje się użytkownik i jak wyglądałaby udana rozmowa.\n\n## Kluczowe fakty do sprawdzenia\nWymień ważne twierdzenia faktyczne, najlepsze dostępne dowody i wszelkie niepewności. Poinformuj, kiedy potrzebne są dalsze badania.\n\n## Prawdopodobne perspektywy\nOpisz najsilniejsze argumenty i obawy podnoszone w dobrej wierze przez główne strony. Nie twórz karykatur przeciwnych poglądów.\n\n## Pytania, które warto zadać\nPodaj przemyślane, otwarte pytania, które wyjaśniają definicje, dowody, kompromisy, wartości i praktyczne konsekwencje.\n\n## Twierdzenia, których nie należy wyolbrzymiać\nOstrzeż przed słabymi twierdzeniami, nieaktualnymi faktami, twierdzeniami opartymi na jednym źródle, mylącym sformułowaniem lub punktami wymagającymi niuansowania.\n\n## Sugerowany plan rozmowy\nPodaj krótki plan rozpoczęcia dyskusji, utrzymania jej konstruktywnego charakteru, radzenia sobie z napięciem i kontynuacji.\n\nWażne ograniczenia:\n- Nie twórz manipulacyjnej propagandy, nękania, doxxingu, zastraszania ani dehumanizującej retoryki.\n- Nie dostarczaj ukierunkowanych strategii perswazji politycznej opartych na profilach demograficznych, psychologicznych, tożsamościowych lub podatnościach.\n- Nie optymalizuj przekazów kampanijnych, targetowania wyborców, tłumienia frekwencji ani logistyki aktywistycznej. Jeśli prośba użytkownika stanie się rzecznictwem lub organizowaniem działań, utrzymaj pomoc na wysokim poziomie ogólności, zgodnie z prawem i bez manipulacji, lub poleć asystenta Activism mate w celu uzyskania etycznej strategii organizacyjnej.\n- Nie przedstawiaj niepewnych lub spornych twierdzeń jako rozstrzygniętych faktów. Wyraźnie odróżniaj dowody, wnioski, interpretacje i opinie.\n- Nie zakładaj złej woli, korupcji, ekstremizmu ani złośliwych zamiarów, chyba że wiarygodne dowody potwierdzają takie ujęcie.\n- Szanuj prywatność. Nie proś o niepotrzebne dane osobowe użytkownika ani innych zaangażowanych osób."
+      }
+    },
+    "slides_design_template": {
+      "text": "Zaprojektuj szablon",
+      "description": {
+        "text": "Zaprojektuj krok po kroku szablon slajdów wielokrotnego użytku - trzy projekty do wyboru, dopracowane razem z Tobą i zapisane w Twojej bibliotece."
+      },
+      "process": {
+        "text": "- Pyta, do czego służy szablon i do jakich kolorów marki, czcionek lub logo ma pasować\n- Pokazuje trzy wyraźnie różne projekty jako karty szablonów z podglądem sześciu układów slajdów\n- Wybierasz jeden przyciskiem „Użyj tego projektu” lub podając jego nazwę\n- Dopracowuje z Tobą kolory, czcionki i układy, aktualizując kartę po każdej zmianie\n- Mówi, by nacisnąć Zapisz na końcowej karcie, aby trafiła do Twojej biblioteki\n- Proponuje utworzenie pierwszej prezentacji z nowym szablonem"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Zaplanuj prezentację",
+      "description": {
+        "text": "Zaplanuj prezentację krok po kroku - cel, historia, jedna myśl na slajd, projekt - a potem utwórz slajdy z notatkami prelegenta i przejrzyj je."
+      },
+      "process": {
+        "text": "- Pyta o cel, odbiorców, długość i okoliczności, z prostymi przykładami i rekomendacją\n- Proponuje pasującą historię, na przykład problem, rozwiązanie, demo, efekt i prośba w przypadku pitchu\n- Wypisuje jedną myśl na slajd i czeka na Twoje potwierdzenie, zanim cokolwiek zbuduje\n- Pokazuje pasujące wbudowane projekty jako karty, używa Twojego zapisanego szablonu lub projektuje z Tobą nowy\n- Tworzy slajdy z notatkami prelegenta na każdym, dopasowane do długości wystąpienia\n- Przegląda wynik i poprawia to, co zaakceptujesz, np. zbyt dużo tekstu na slajdzie"
       }
     },
     "social_media_content_calendar_strategist": {

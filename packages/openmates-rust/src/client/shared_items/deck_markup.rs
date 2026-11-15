@@ -6,6 +6,7 @@
 
 use super::deck_error::DeckError;
 use super::deck_inline::parse_inline;
+use super::deck_theme::{DeckKind, DeckTheme, THEME_ATTRIBUTES, clean_theme_value};
 use super::deck_values::{
     DeckAspect, ElementKind, GEOMETRY, clamp_box, clean_attribute, clean_layout, clean_note_text,
     clean_title, clean_transition, escape_attr, escape_text, is_valid_id, is_valid_template,
@@ -25,6 +26,12 @@ pub struct DeckModel {
     pub aspect: DeckAspect,
     /// `builtin:<name>` or `library:<ref>`.
     pub template: String,
+    /// `deck` (default) or `template`.
+    #[serde(default)]
+    pub kind: DeckKind,
+    /// Fonts and colours; `None` renders with Plain.
+    #[serde(default)]
+    pub theme: Option<DeckTheme>,
     /// Slides in display order.
     pub slides: Vec<SlideModel>,
 }
@@ -156,11 +163,18 @@ pub fn parse_deck_markup(markup: &str) -> Result<DeckModel, DeckError> {
 /// order `id`, `x y w h`, kind attributes, `animate step`; trailing newline).
 pub fn serialise_deck_markup(model: &DeckModel) -> String {
     let mut out = format!(
-        "<deck title=\"{}\" aspect=\"{}\" template=\"{}\">\n",
+        "<deck title=\"{}\" aspect=\"{}\" template=\"{}\"",
         escape_attr(&model.title),
         model.aspect.as_str(),
         escape_attr(&model.template)
     );
+    if model.kind == DeckKind::Template {
+        out.push_str(" kind=\"template\"");
+    }
+    out.push_str(">\n");
+    if let Some(theme) = &model.theme {
+        out.push_str(&theme.line());
+    }
     for slide in &model.slides {
         out.push_str("  <slide id=\"");
         out.push_str(&escape_attr(&slide.id));
@@ -272,7 +286,7 @@ impl<'a> Parser<'a> {
         let rest = &self.src[self.pos..];
         let len = rest
             .bytes()
-            .take_while(|b| b.is_ascii_lowercase() || *b == b'-')
+            .take_while(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'-')
             .count();
         self.pos += len;
         &rest[..len]
@@ -321,7 +335,24 @@ impl<'a> Parser<'a> {
         if clean_title(&title) != title || !is_valid_template(&template) {
             return self.fail("invalid deck title or template");
         }
+        let kind = match get("kind").as_deref() {
+            None => DeckKind::Deck,
+            Some("template") => DeckKind::Template,
+            Some(_) => return self.fail("unknown deck kind"),
+        };
+        if attrs
+            .iter()
+            .any(|(k, _)| !matches!(k.as_str(), "title" | "aspect" | "template" | "kind"))
+        {
+            return self.fail("unknown deck attribute");
+        }
         self.expect("\n", "expected a newline")?;
+        let theme = if self.src[self.pos..].starts_with("  <theme") {
+            self.pos += 2;
+            Some(self.theme()?)
+        } else {
+            None
+        };
         let mut ids = HashSet::new();
         let mut slides = Vec::new();
         while !self.eat("</deck>\n") {
@@ -335,8 +366,32 @@ impl<'a> Parser<'a> {
             title,
             aspect,
             template,
+            kind,
+            theme,
             slides,
         })
+    }
+
+    /// `<theme .../>` line (indent already consumed); every value must be canonical.
+    fn theme(&mut self) -> Result<DeckTheme, DeckError> {
+        let (name, attrs, self_closing) = self.start_tag()?;
+        if name != "theme" || !self_closing {
+            return self.fail("expected a self-closing <theme/>");
+        }
+        for (key, value) in &attrs {
+            if !THEME_ATTRIBUTES.contains(&key.as_str())
+                || clean_theme_value(key, value).as_deref() != Some(value.as_str())
+            {
+                return self.fail("invalid theme attribute");
+            }
+        }
+        if attrs.is_empty() {
+            return self.fail("theme without attributes");
+        }
+        self.expect("\n", "expected a newline")?;
+        Ok(DeckTheme::from_entries(
+            attrs.iter().map(|(k, v)| (k.as_str(), v.clone())),
+        ))
     }
 
     fn take_id(&self, id: Option<String>, ids: &mut HashSet<String>) -> Result<String, DeckError> {

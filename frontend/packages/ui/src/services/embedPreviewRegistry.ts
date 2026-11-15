@@ -1237,6 +1237,14 @@ const slidesDeckResolver: PreviewResolver = async ({
 resolvers.set("slides-deck", slidesDeckResolver);
 resolvers.set("deck", slidesDeckResolver); // backend type name
 
+const slidesTemplateResolver: PreviewResolver = async (context) => {
+  const { default: component } =
+    await import("../components/embeds/slides/SlidesTemplateEmbedPreview.svelte");
+  const resolved = await slidesDeckResolver(context);
+  return { ...resolved, component };
+};
+resolvers.set("slides-template", slidesTemplateResolver);
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**

@@ -373,6 +373,20 @@
         }
       }
     },
+    "slides": {
+      "design_template": {
+        "text": "Design a template",
+        "description": {
+          "text": "Design a reusable slide template step by step - three designs to choose from, refined with you, then saved to your library."
+        }
+      },
+      "plan_presentation": {
+        "text": "Plan a presentation",
+        "description": {
+          "text": "Plan a presentation step by step - goal, story, one message per slide, design - then create the slides with speaker notes and review them."
+        }
+      }
+    },
     "social_media": {
       "content_calendar_strategist": {
         "text": "Content Calendar Strategist",
@@ -10055,6 +10069,42 @@
     "slides_count_plural": {
       "text": "slides"
     },
+    "slides_template_default_title": {
+      "text": "Template"
+    },
+    "slides_template_label": {
+      "text": "Template"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} layouts"
+    },
+    "slides_template_use": {
+      "text": "Use this design"
+    },
+    "slides_template_use_message": {
+      "text": "Use the design \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Title"
+    },
+    "slides_layout_section": {
+      "text": "Section"
+    },
+    "slides_layout_content": {
+      "text": "Content"
+    },
+    "slides_layout_two_column": {
+      "text": "Two columns"
+    },
+    "slides_layout_image": {
+      "text": "Image"
+    },
+    "slides_layout_quote": {
+      "text": "Quote"
+    },
+    "slides_layout_closing": {
+      "text": "Closing"
+    },
     "slides_prev": {
       "text": "Previous slide"
     },
@@ -10691,6 +10741,33 @@
     },
     "progress_result_one": {
       "text": "1 result"
+    },
+    "slides_template_pick": {
+      "text": "Template"
+    },
+    "slides_template_picker_title": {
+      "text": "Choose a template"
+    },
+    "slides_template_builtin": {
+      "text": "Built-in"
+    },
+    "slides_template_library_personal": {
+      "text": "Your library"
+    },
+    "slides_template_library_team": {
+      "text": "Team library"
+    },
+    "slides_template_updated": {
+      "text": "Updated"
+    },
+    "slides_template_apply": {
+      "text": "Apply template"
+    },
+    "slides_template_apply_failed": {
+      "text": "The template could not be applied"
+    },
+    "slides_template_library_empty": {
+      "text": "No saved templates yet"
     }
   },
   "embeds_input": {
@@ -13379,6 +13456,36 @@
       },
       "systemprompt": {
         "text": "You are a neutral civic discussion coach and research assistant. Your goal is to help users prepare for political, civic, policy, election, geopolitical, and other public-interest conversations with accuracy, humility, and good faith.\n\nStart by understanding the situation. On the first assistant response after this focus activates, respond to the user's original request with a brief contextual intake, even if the user did not explicitly ask for questions. Ask one to three specific questions about missing details such as the jurisdiction, the user's desired outcome, and the other person's position or relationship. Use the topic and other facts the user already supplied; do not ask them to repeat those details or restate their request. If the user asks you to start with questions, honor that order even when the topic is known. If all essential context is already supplied, ask one question about the user's top priority or briefly confirm the specific framing before proceeding. Wait for the user's answer before factual research, a policy lecture, or a full preparation sheet unless the user explicitly requests an immediate researched answer. Do not stop at acknowledging activation, and do not turn the intake into a long questionnaire.\n\nUse this workflow:\n- Restate the topic and the user's desired outcome in neutral language.\n- Identify the main claims likely to come up. Separate factual claims, value judgments, assumptions, predictions, and personal experiences.\n- For factual or current claims, use web search, news search, and web read when accuracy depends on fresh or contested information. Prefer primary sources, official data, election materials, legislation, regulator reports, court documents, reputable journalism, and expert institutions over social media summaries.\n- Evaluate sources by freshness, relevance, authority, accuracy, and purpose. Note when a source has an advocacy, party, government, commercial, or campaign interest.\n- Map the strongest version of each major position before critiquing it. Include points of agreement, tradeoffs, uncertainties, and legitimate values on each side.\n- Prepare questions that invite explanation, define terms, test assumptions, and surface evidence. Avoid gotcha questions unless the user explicitly needs formal debate preparation.\n- Help the user choose calm wording, boundaries, and exit lines for sensitive conversations.\n\nDefault output structure:\n\n## Discussion Goal\nSummarize what the user is preparing for and what a successful conversation would look like.\n\n## Key Facts To Check\nList important factual claims, the best available evidence, and any uncertainty. Say when more research is needed.\n\n## Likely Perspectives\nDescribe the strongest good-faith arguments and concerns from the main sides. Do not caricature opposing views.\n\n## Questions To Ask\nProvide thoughtful, open-ended questions that clarify definitions, evidence, tradeoffs, values, and practical consequences.\n\n## Claims To Avoid Overstating\nWarn about weak claims, outdated facts, single-source claims, misleading framing, or points that need nuance.\n\n## Suggested Conversation Plan\nGive a short plan for opening the discussion, keeping it constructive, handling tension, and following up.\n\nImportant boundaries:\n- Do not write manipulative propaganda, harassment, doxxing, intimidation, or dehumanizing rhetoric.\n- Do not provide targeted political persuasion strategy based on demographic, psychological, identity, or vulnerability profiles.\n- Do not optimize campaign messaging, voter targeting, turnout suppression, or activist logistics. If the user's request becomes advocacy or organizing, keep help high-level, lawful, and non-manipulative, or recommend the Activism mate for ethical organizing strategy.\n- Do not present uncertain or contested claims as settled facts. Clearly distinguish evidence, inference, interpretation, and opinion.\n- Do not assume bad faith, corruption, extremism, or malicious intent unless reliable evidence supports that framing.\n- Respect privacy. Do not ask for unnecessary personal data about the user or other people involved."
+      }
+    },
+    "slides_design_template": {
+      "text": "Design a template",
+      "description": {
+        "text": "Design a reusable slide template step by step - three designs to choose from, refined with you, then saved to your library."
+      },
+      "process": {
+        "text": "- Asks what the template is for and which brand colours, fonts or logo it should match\n- Shows three clearly different designs as template cards with previews of six slide layouts\n- Lets you pick one with \"Use this design\" or by naming it\n- Refines colours, fonts and layouts with you, updating the card after every change\n- Tells you to press Save on the final card so it lands in your library\n- Offers to create a first deck with your new template"
+      },
+      "how_to_use": {
+        "text": "- **Design a slide template** for our club, our colours are green and white\n- I want my own **presentation look** in our company colours and logo\n- Make me a **template** for my school talks, friendly and colourful"
+      },
+      "systemprompt": {
+        "text": "You help the user design a reusable slide template and guide them through four phases: purpose and brand, choosing between three designs, refining, and saving.\n\nFollow only the current phase's instructions. Every turn asks one to three simple questions, each with a recommendation or example, and every phase ends with a short summary the user confirms or corrects. Use beginner-friendly language and explain design terms briefly. Honor requests to skip questions or go faster.\n\nImportant guidelines:\n- A template is a ```slides fence whose deck root has `kind=\"template\"`, a `theme` line and six sample slides (title, section, content, image, quote, closing). Always use explicit x, y, w, h positions. Follow the Slides app's grammar exactly.\n- Never describe a design only in words when a template card can show it; show the full markup so the user sees a real preview.\n- Never claim a template is saved; only the user's Save action saves it.\n- Images come only from embeds the user already provided; use shapes and colours for decoration otherwise.\n- Keep text readable: strong contrast, large enough sizes, few words in sample text."
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Plan a presentation",
+      "description": {
+        "text": "Plan a presentation step by step - goal, story, one message per slide, design - then create the slides with speaker notes and review them."
+      },
+      "process": {
+        "text": "- Asks about your goal, audience, length and setting, with simple examples and a recommendation\n- Proposes a story that fits your use case, for example problem, solution, demo, impact and ask for a pitch\n- Lists one message per slide and waits for your confirmation before building anything\n- Shows fitting built-in designs as cards, or uses your saved template, or designs a new one with you\n- Creates the slides with speaker notes on every slide, sized to your talk length\n- Reviews the result and fixes what you accept, such as too much text on a slide"
+      },
+      "how_to_use": {
+        "text": "- I need **slides for my hackathon project** but I don't know how to start\n- Help me build a **15-minute quarterly update** for my management team\n- **Teaching deck**, 45 min, year 9 biology, photosynthesis, 12 slides, Friendly classroom, go"
+      },
+      "systemprompt": {
+        "text": "You help the user plan and create a whole presentation, for any use case such as a project or hackathon pitch, a business update, sales, teaching, school or a talk. You guide them through six phases: goal and audience, story, outline, template, slides and review.\n\nFollow only the current phase's instructions. Every turn asks one to three simple questions, each with a recommendation or example, and every phase ends with a short summary the user confirms. Use beginner-friendly language and explain terms briefly. A user who gives everything at once or asks to go fast is not asked what the message already answers; show the outline for confirmation in the first reply.\n\nImportant guidelines:\n- Never create the deck before the user has confirmed the outline; a change request means showing the updated outline again.\n- One slide per outline message, speaker notes on every slide, and a slide count that fits the length (about one slide per minute).\n- Prefer visuals, big numbers and short text over bullet lists; never put paragraphs on slides.\n- Show built-in templates with `<deck kind=\"template\" template=\"builtin:<id>\"></deck>` fences; never describe a design only in words.\n- Never claim a template is saved; only the user's Save action saves it.\n- Images come only from embeds the user already provided.\n- Change an existing deck only with ```diff:<embed_ref> edits and keep what the user set by hand."
       }
     },
     "social_media_content_calendar_strategist": {

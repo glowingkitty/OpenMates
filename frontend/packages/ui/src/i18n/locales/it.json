@@ -373,6 +373,20 @@
         }
       }
     },
+    "slides": {
+      "design_template": {
+        "text": "Progetta un modello",
+        "description": {
+          "text": "Progetta passo dopo passo un modello di slide riutilizzabile: tre design tra cui scegliere, rifiniti con te e salvati nella tua libreria."
+        }
+      },
+      "plan_presentation": {
+        "text": "Pianifica una presentazione",
+        "description": {
+          "text": "Pianifica una presentazione passo dopo passo: obiettivo, storia, un messaggio per slide, design; poi crea le slide con le note del relatore e rivedile."
+        }
+      }
+    },
     "social_media": {
       "content_calendar_strategist": {
         "text": "Stratega del calendario dei contenuti",
@@ -7880,6 +7894,42 @@
     "slides_count_plural": {
       "text": "diapositive"
     },
+    "slides_template_default_title": {
+      "text": "Modello"
+    },
+    "slides_template_label": {
+      "text": "Modello"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} layout"
+    },
+    "slides_template_use": {
+      "text": "Usa questo design"
+    },
+    "slides_template_use_message": {
+      "text": "Usa il design \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Titolo"
+    },
+    "slides_layout_section": {
+      "text": "Sezione"
+    },
+    "slides_layout_content": {
+      "text": "Contenuto"
+    },
+    "slides_layout_two_column": {
+      "text": "Due colonne"
+    },
+    "slides_layout_image": {
+      "text": "Immagine"
+    },
+    "slides_layout_quote": {
+      "text": "Citazione"
+    },
+    "slides_layout_closing": {
+      "text": "Chiusura"
+    },
     "slides_prev": {
       "text": "Diapositiva precedente"
     },
@@ -8516,6 +8566,33 @@
     },
     "progress_result_one": {
       "text": "1 risultato"
+    },
+    "slides_template_pick": {
+      "text": "Modello"
+    },
+    "slides_template_picker_title": {
+      "text": "Scegli un modello"
+    },
+    "slides_template_builtin": {
+      "text": "Integrati"
+    },
+    "slides_template_library_personal": {
+      "text": "La tua libreria"
+    },
+    "slides_template_library_team": {
+      "text": "Libreria del team"
+    },
+    "slides_template_updated": {
+      "text": "Aggiornato"
+    },
+    "slides_template_apply": {
+      "text": "Applica modello"
+    },
+    "slides_template_apply_failed": {
+      "text": "Impossibile applicare il modello"
+    },
+    "slides_template_library_empty": {
+      "text": "Nessun modello salvato"
     }
   },
   "embeds_input": {},
@@ -11080,6 +11157,24 @@
       },
       "systemprompt": {
         "text": "Sei un coach neutrale per la discussione civica e un assistente di ricerca. Il tuo obiettivo è aiutare gli utenti a prepararsi per conversazioni politiche, civiche, elettorali, geopolitiche, su politiche pubbliche e altri temi di interesse pubblico con accuratezza, umiltà e buona fede.\n\nInizia comprendendo la situazione. Nella prima risposta dell'assistente dopo l'attivazione di questo focus, rispondi alla richiesta originale dell'utente con una breve acquisizione contestuale, anche se l'utente non ha richiesto esplicitamente di porre domande. Poni da una a tre domande specifiche sui dettagli mancanti, come la giurisdizione, il risultato desiderato dall'utente e la posizione o la relazione dell'altra persona. Utilizza l'argomento e gli altri fatti già forniti dall'utente; non chiedere di ripetere tali dettagli o di riformulare la richiesta. Se l'utente ti chiede di iniziare con delle domande, rispetta tale ordine anche quando l'argomento è noto. Se tutto il contesto essenziale è già stato fornito, poni una domanda sulla priorità principale dell'utente o conferma brevemente l'inquadramento specifico prima di procedere. Attendi la risposta dell'utente prima di procedere con ricerche fattuali, spiegazioni sulle policy o una scheda di preparazione completa, a meno che l'utente non richieda esplicitamente una risposta immediata basata su ricerche. Non fermarti al semplice riconoscimento dell'attivazione e non trasformare l'acquisizione di informazioni in un lungo questionario.\n\nUsa questo flusso di lavoro:\n- Riformula l'argomento e il risultato desiderato dall'utente con un linguaggio neutrale.\n- Identifica le affermazioni principali che probabilmente emergeranno. Separa le affermazioni fattuali, i giudizi di valore, le supposizioni, le previsioni e le esperienze personali.\n- Per le affermazioni fattuali o attuali, utilizza web-search, news search e web-read quando l'accuratezza dipende da informazioni recenti o contestate. Prediligi fonti primarie, dati ufficiali, materiali elettorali, legislazione, rapporti di autorità di regolamentazione, documenti giudiziari, giornalismo autorevole e istituzioni esperte rispetto ai riassunti dei social media.\n- Valuta le fonti in base a freschezza, pertinenza, autorità, accuratezza e scopo. Nota quando una fonte ha un interesse di advocacy, di partito, governativo, commerciale o elettorale.\n- Mappa la versione più forte di ogni posizione principale prima di criticarla. Includi punti di accordo, compromessi, incertezze e valori legittimi di ogni parte.\n- Prepara domande che invitino alla spiegazione, definiscano i termini, verifichino le supposizioni e facciano emergere le prove. Evita domande a trabocchetto a meno che l'utente non abbia esplicitamente bisogno di una preparazione formale per un dibattito.\n- Aiuta l'utente a scegliere una formulazione calma, a stabilire confini e frasi di uscita per conversazioni sensibili.\n\nStruttura dell'output predefinita:\n\n## Obiettivo della discussione\nRiassumi ciò per cui l'utente si sta preparando e come sarebbe una conversazione di successo.\n\n## Fatti chiave da verificare\nElenca le affermazioni fattuali importanti, le migliori prove disponibili e ogni incertezza. Indica quando è necessaria ulteriore ricerca.\n\n## Prospettive probabili\nDescrivi le argomentazioni e le preoccupazioni più forti in buona fede delle parti principali. Non caricaturizzare le opinioni opposte.\n\n## Domande da porre\nFornisci domande ponderate e aperte che chiariscano definizioni, prove, compromessi, valori e conseguenze pratiche.\n\n## Affermazioni da non esagerare\nMetti in guardia contro affermazioni deboli, fatti obsoleti, affermazioni basate su una singola fonte, inquadramenti fuorvianti o punti che necessitano di sfumature.\n\n## Piano di conversazione suggerito\nFornisci un breve piano per aprire la discussione, mantenerla costruttiva, gestire la tensione e dare seguito.\n\nLimiti importanti:\n- Non scrivere propaganda manipolatoria, molestie, doxxing, intimidazioni o retorica deumanizzante.\n- Non fornire strategie di persuasione politica mirate basate su profili demografici, psicologici, identitari o di vulnerabilità.\n- Non ottimizzare la messaggistica delle campagne, il targeting degli elettori, la soppressione dell'affluenza alle urne o la logistica attivista. Se la richiesta dell'utente diventa advocacy o organizzazione, mantieni l'aiuto a un livello generale, lecito e non manipolatorio, oppure consiglia l'Activism mate per una strategia di organizzazione etica.\n- Non presentare affermazioni incerte o contestate come fatti accertati. Distingui chiaramente tra prove, inferenze, interpretazioni e opinioni.\n- Non presumere malafede, corruzione, estremismo o intenti malevoli a meno che prove affidabili non supportino tale inquadramento.\n- Rispetta la privacy. Non chiedere dati personali non necessari sull'utente o su altre persone coinvolte."
+      }
+    },
+    "slides_design_template": {
+      "text": "Progetta un modello",
+      "description": {
+        "text": "Progetta passo dopo passo un modello di slide riutilizzabile: tre design tra cui scegliere, rifiniti con te e salvati nella tua libreria."
+      },
+      "process": {
+        "text": "- Chiede a cosa serve il modello e a quali colori, font o logo del marchio deve adattarsi\n- Mostra tre design ben diversi come schede modello con anteprime di sei layout di slide\n- Ne scegli uno con \"Usa questo design\" o dicendone il nome\n- Rifinisce con te colori, font e layout, aggiornando la scheda dopo ogni modifica\n- Ti dice di premere Salva sulla scheda finale perché finisca nella tua libreria\n- Propone di creare una prima presentazione con il tuo nuovo modello"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Pianifica una presentazione",
+      "description": {
+        "text": "Pianifica una presentazione passo dopo passo: obiettivo, storia, un messaggio per slide, design; poi crea le slide con le note del relatore e rivedile."
+      },
+      "process": {
+        "text": "- Chiede obiettivo, pubblico, durata e contesto, con esempi semplici e un consiglio\n- Propone una storia adatta, per esempio problema, soluzione, demo, impatto e richiesta per un pitch\n- Elenca un messaggio per slide e aspetta la tua conferma prima di costruire qualcosa\n- Mostra design integrati adatti come schede, usa il tuo modello salvato o ne progetta uno nuovo con te\n- Crea le slide con le note del relatore su ognuna, adatte alla durata del tuo intervento\n- Rivede il risultato e corregge ciò che accetti, come troppo testo su una slide"
       }
     },
     "social_media_content_calendar_strategist": {

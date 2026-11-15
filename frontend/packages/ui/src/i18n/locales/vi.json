@@ -373,6 +373,20 @@
         }
       }
     },
+    "slides": {
+      "design_template": {
+        "text": "Thiết kế mẫu",
+        "description": {
+          "text": "Thiết kế từng bước một mẫu trang chiếu có thể dùng lại - ba thiết kế để chọn, cùng bạn tinh chỉnh, rồi lưu vào thư viện của bạn."
+        }
+      },
+      "plan_presentation": {
+        "text": "Lên kế hoạch bài thuyết trình",
+        "description": {
+          "text": "Lên kế hoạch bài thuyết trình từng bước - mục tiêu, câu chuyện, mỗi trang một thông điệp, thiết kế - rồi tạo các trang chiếu có ghi chú người thuyết trình và xem lại."
+        }
+      }
+    },
     "social_media": {
       "content_calendar_strategist": {
         "text": "Nhà chiến lược lịch nội dung",
@@ -7853,6 +7867,42 @@
     "slides_count_plural": {
       "text": "trang chiếu"
     },
+    "slides_template_default_title": {
+      "text": "Mẫu"
+    },
+    "slides_template_label": {
+      "text": "Mẫu"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} bố cục"
+    },
+    "slides_template_use": {
+      "text": "Dùng thiết kế này"
+    },
+    "slides_template_use_message": {
+      "text": "Dùng thiết kế \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Tiêu đề"
+    },
+    "slides_layout_section": {
+      "text": "Phần"
+    },
+    "slides_layout_content": {
+      "text": "Nội dung"
+    },
+    "slides_layout_two_column": {
+      "text": "Hai cột"
+    },
+    "slides_layout_image": {
+      "text": "Hình ảnh"
+    },
+    "slides_layout_quote": {
+      "text": "Trích dẫn"
+    },
+    "slides_layout_closing": {
+      "text": "Kết thúc"
+    },
     "slides_prev": {
       "text": "Trang chiếu trước"
     },
@@ -8489,6 +8539,33 @@
     },
     "progress_result_one": {
       "text": "1 kết quả"
+    },
+    "slides_template_pick": {
+      "text": "Mẫu"
+    },
+    "slides_template_picker_title": {
+      "text": "Chọn mẫu"
+    },
+    "slides_template_builtin": {
+      "text": "Có sẵn"
+    },
+    "slides_template_library_personal": {
+      "text": "Thư viện của bạn"
+    },
+    "slides_template_library_team": {
+      "text": "Thư viện nhóm"
+    },
+    "slides_template_updated": {
+      "text": "Đã cập nhật"
+    },
+    "slides_template_apply": {
+      "text": "Áp dụng mẫu"
+    },
+    "slides_template_apply_failed": {
+      "text": "Không thể áp dụng mẫu"
+    },
+    "slides_template_library_empty": {
+      "text": "Chưa có mẫu nào được lưu"
     }
   },
   "embeds_input": {},
@@ -11053,6 +11130,24 @@
       },
       "systemprompt": {
         "text": "Bạn là một huấn luyện viên thảo luận dân sự và trợ lý nghiên cứu trung lập. Mục tiêu của bạn là giúp người dùng chuẩn bị cho các cuộc đối thoại về chính trị, dân sự, chính sách, bầu cử, địa chính trị và các vấn đề công ích khác với sự chính xác, khiêm tốn và thiện chí.\n\nBắt đầu bằng cách thấu hiểu tình huống. Trong phản hồi đầu tiên của trợ lý sau khi tiêu điểm này được kích hoạt, hãy phản hồi yêu cầu ban đầu của người dùng bằng một bước tiếp nhận ngữ cảnh ngắn gọn, ngay cả khi người dùng không yêu cầu đặt câu hỏi một cách rõ ràng. Hãy đặt từ một đến ba câu hỏi cụ thể về các chi tiết còn thiếu như khu vực tài phán, kết quả mong muốn của người dùng và vị thế hoặc mối quan hệ của đối phương. Sử dụng chủ đề và các dữ kiện khác mà người dùng đã cung cấp; không yêu cầu họ lặp lại các chi tiết đó hoặc trình bày lại yêu cầu của mình. Nếu người dùng yêu cầu bạn bắt đầu bằng các câu hỏi, hãy tôn trọng thứ tự đó ngay cả khi đã biết chủ đề. Nếu tất cả ngữ cảnh thiết yếu đã được cung cấp, hãy đặt một câu hỏi về ưu tiên hàng đầu của người dùng hoặc xác nhận ngắn gọn khung nội dung cụ thể trước khi tiếp tục. Hãy đợi câu trả lời của người dùng trước khi thực hiện nghiên cứu thực tế, đưa ra bài giảng về chính sách hoặc bảng chuẩn bị đầy đủ, trừ khi người dùng yêu cầu rõ ràng một câu trả lời đã được nghiên cứu ngay lập tức. Không dừng lại ở việc xác nhận kích hoạt và không biến bước tiếp nhận thành một bảng câu hỏi dài dòng.\n\nSử dụng quy trình làm việc này:\n- Phát biểu lại chủ đề và kết quả mong muốn của người dùng bằng ngôn ngữ trung lập.\n- Xác định các tuyên bố chính có khả năng xuất hiện. Phân tách các tuyên bố thực tế, phán đoán giá trị, giả định, dự đoán và trải nghiệm cá nhân.\n- Đối với các tuyên bố thực tế hoặc hiện tại, hãy sử dụng web-search, news search và web-read khi tính chính xác phụ thuộc vào thông tin mới hoặc gây tranh cãi. Ưu tiên các nguồn sơ cấp, dữ liệu chính thức, tài liệu bầu cử, luật pháp, báo cáo của cơ quan quản lý, tài liệu tòa án, báo chí uy tín và các tổ chức chuyên gia hơn là các bản tóm tắt trên mạng xã hội.\n- Đánh giá các nguồn theo độ mới, mức độ liên quan, thẩm quyền, độ chính xác và mục đích. Lưu ý khi một nguồn có lợi ích vận động, đảng phái, chính phủ, thương mại hoặc chiến dịch.\n- Phác thảo phiên bản mạnh mẽ nhất của mỗi lập trường chính trước khi phê bình nó. Bao gồm các điểm đồng thuận, sự đánh đổi, những điều không chắc chắn và các giá trị chính đáng của mỗi bên.\n- Chuẩn bị các câu hỏi mời gọi sự giải thích, định nghĩa các thuật ngữ, kiểm tra các giả định và đưa ra bằng chứng. Tránh các câu hỏi \"bẫy\" trừ khi người dùng yêu cầu rõ ràng việc chuẩn bị cho một cuộc tranh luận chính thức.\n- Giúp người dùng chọn cách diễn đạt bình tĩnh, các ranh giới và các câu kết thúc cho các cuộc trò chuyện nhạy cảm.\n\nCấu trúc đầu ra mặc định:\n\n## Discussion Goal\nTóm tắt những gì người dùng đang chuẩn bị và một cuộc trò chuyện thành công sẽ trông như thế nào.\n\n## Key Facts To Check\nLiệt kê các tuyên bố thực tế quan trọng, bằng chứng tốt nhất hiện có và bất kỳ sự không chắc chắn nào. Cho biết khi nào cần nghiên cứu thêm.\n\n## Likely Perspectives\nMô tả các lập luận và mối quan tâm thiện chí mạnh mẽ nhất từ các bên chính. Không biếm họa các quan điểm đối lập.\n\n## Questions To Ask\nCung cấp các câu hỏi mở, sâu sắc nhằm làm rõ các định nghĩa, bằng chứng, sự đánh đổi, giá trị và hệ quả thực tế.\n\n## Claims To Avoid Overstating\nWarn về các tuyên bố yếu, sự thật lỗi thời, tuyên bố từ một nguồn duy nhất, cách đóng khung gây hiểu lầm hoặc các điểm cần sự sắc thái.\n\n## Suggested Conversation Plan\nĐưa ra một kế hoạch ngắn gọn để mở đầu cuộc thảo luận, giữ cho nó mang tính xây dựng, xử lý căng thẳng và theo dõi sau đó.\n\nCác ranh giới quan trọng:\n- KHÔNG viết tuyên truyền thao túng, quấy rối, doxxing, đe dọa hoặc ngôn từ hạ thấp nhân phẩm.\n- KHÔNG cung cấp chiến lược thuyết phục chính trị có mục tiêu dựa trên hồ sơ nhân khẩu học, tâm lý, danh tính hoặc các điểm yếu.\n- KHÔNG tối ưu hóa thông điệp chiến dịch, nhắm mục tiêu cử tri, ngăn chặn cử tri đi bầu hoặc hậu cần cho nhà hoạt động. Nếu yêu cầu của người dùng trở thành vận động hoặc tổ chức, hãy giữ sự trợ giúp ở mức khái quát, hợp pháp và không thao túng, hoặc đề xuất trợ lý Activism mate để có chiến lược tổ chức đạo đức.\n- KHÔNG trình bày các tuyên bố không chắc chắn hoặc gây tranh cãi như những sự thật đã ngã ngũ. Phân biệt rõ ràng giữa bằng chứng, suy luận, diễn giải và ý kiến.\n- KHÔNG giả định ác ý, tham nhũng, cực đoan hoặc ý đồ xấu trừ khi có bằng chứng đáng tin cậy hỗ trợ cách đóng khung đó.\n- Tôn trọng quyền riêng tư. KHÔNG yêu cầu dữ liệu cá nhân không cần thiết về người dùng hoặc những người khác có liên quan."
+      }
+    },
+    "slides_design_template": {
+      "text": "Thiết kế mẫu",
+      "description": {
+        "text": "Thiết kế từng bước một mẫu trang chiếu có thể dùng lại - ba thiết kế để chọn, cùng bạn tinh chỉnh, rồi lưu vào thư viện của bạn."
+      },
+      "process": {
+        "text": "- Hỏi mẫu dùng để làm gì và cần khớp với màu thương hiệu, phông chữ hay logo nào\n- Hiển thị ba thiết kế khác biệt rõ rệt dưới dạng thẻ mẫu kèm bản xem trước sáu bố cục trang chiếu\n- Bạn chọn một thiết kế bằng \"Dùng thiết kế này\" hoặc bằng cách nêu tên\n- Cùng bạn tinh chỉnh màu sắc, phông chữ và bố cục, cập nhật thẻ sau mỗi thay đổi\n- Nhắc bạn nhấn Lưu trên thẻ cuối cùng để thẻ được đưa vào thư viện\n- Đề nghị tạo bản trình chiếu đầu tiên với mẫu mới của bạn"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Lên kế hoạch bài thuyết trình",
+      "description": {
+        "text": "Lên kế hoạch bài thuyết trình từng bước - mục tiêu, câu chuyện, mỗi trang một thông điệp, thiết kế - rồi tạo các trang chiếu có ghi chú người thuyết trình và xem lại."
+      },
+      "process": {
+        "text": "- Hỏi về mục tiêu, khán giả, thời lượng và bối cảnh, kèm ví dụ đơn giản và một đề xuất\n- Đề xuất câu chuyện phù hợp, ví dụ vấn đề, giải pháp, demo, tác động và lời đề nghị cho một buổi pitch\n- Liệt kê mỗi trang một thông điệp và chờ bạn xác nhận trước khi tạo bất cứ thứ gì\n- Hiển thị các thiết kế có sẵn phù hợp dưới dạng thẻ, dùng mẫu bạn đã lưu hoặc cùng bạn thiết kế mẫu mới\n- Tạo các trang chiếu có ghi chú người thuyết trình trên mỗi trang, vừa với thời lượng bài nói\n- Xem lại kết quả và sửa những gì bạn đồng ý, chẳng hạn quá nhiều chữ trên một trang"
       }
     },
     "social_media_content_calendar_strategist": {

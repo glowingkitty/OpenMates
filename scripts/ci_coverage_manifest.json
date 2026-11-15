@@ -819,7 +819,9 @@
         "skill-web-search.spec.ts",
         "mercury3-model-picker.spec.ts",
         "slides-manual-edit.spec.ts",
-        "chat-embed-header-edit.spec.ts"
+        "chat-embed-header-edit.spec.ts",
+        "slides-focus-template-designer.spec.ts",
+        "slides-focus-presentation-planner.spec.ts"
       ]
     },
     "local_email_signup": {
@@ -1069,6 +1071,7 @@
         "teams-chat-collaboration-real.spec.ts",
         "vector-graphic-chat.spec.ts",
         "design-embroidery-chat.spec.ts",
+        "slides-focus-modes-real.spec.ts",
         "skill-search-live-progress-chat.spec.ts",
         "videos-generate-chat.spec.ts",
         "chat-orchestration-main-chats.spec.ts"
@@ -1146,7 +1149,8 @@
         "components/code-editor.spec.ts",
         "components/docs-editor.spec.ts",
         "components/test-result-embed.spec.ts",
-        "components/application-embed-preview.spec.ts"
+        "components/application-embed-preview.spec.ts",
+        "components/slides-template-embed.spec.ts"
       ]
     },
     "chat_message_timeline": {

@@ -16,11 +16,11 @@ related_contracts:
   - specification: feature.interactive-html-visuals@2
     relationship: Interactive blocks inside a slide reuse the isolation of interactive HTML visuals unchanged; this contract adds no network or app access for author code.
   - specification: feature.focus-modes@2
-    relationship: The template-creation focus mode uses the shared focus-mode activation, countdown and cancel lifecycle.
+    relationship: The template designer and presentation planner focus modes use the shared phased focus-mode activation, countdown, cancel and phase lifecycle.
   - specification: feature.chats@7
     relationship: Decks reuse embed streaming, storage, version history, diff editing and sharing; this contract adds the slides content type.
   - specification: feature.projects@2
-    relationship: Decks and templates can be Project items in folders; creation from a Project is owned by projects.items.create-documents.
+    relationship: Decks can be Project items in folders; creation from a Project is owned by projects.items.create-documents.
   - specification: feature.live-collaboration@1
     relationship: Simultaneous editing of a deck by several members is owned by the live collaboration contract.
 
@@ -30,7 +30,7 @@ scope:
     - Safe rendering of decks from the assistant, uploads, imports and shared links.
     - Images, SVGs and videos in slides, including media from other embeds and allow-listed video platforms.
     - Notepad and to-do elements that are filled in during a presentation.
-    - Templates in an account or Team library and in Projects, and the focus mode that builds the first template.
+    - Templates in an account or Team library with built-in designs, applying a template to a deck, and the focus modes that design a template and plan a presentation.
     - Creating and changing decks by the assistant and direct editing by the user.
     - Presenter view, live following through a share link, PowerPoint import, and PDF and PowerPoint export.
   excludes:
@@ -39,6 +39,7 @@ scope:
     - Audience members typing into a deck from their own devices.
     - A Google Drive connection; Google Slides decks are imported from their PowerPoint export.
     - Apple editing and presenting, which follow in a separate contract version.
+    - Templates saved into Project folders and a pinned Project default template, which follow in a later version.
 
 assertions:
   - id: slides.format.positioned-elements
@@ -112,27 +113,85 @@ assertions:
       is then shown at once. More elaborate motion is possible only inside an
       interactive block.
     depends_on: [examples.animations]
-  - id: slides.templates.library-and-project
+  - id: slides.templates.library
     type: behavior
     must: >
-      A template defines fonts, colours, aspect ratio and named layouts. Each
-      account, and each Team in Team context, has a template library that
-      also offers built-in templates. A template can additionally be saved
-      into a Project folder, where it is listed like a deck and marked as a
-      template. A Project can pin a default template. Changing a template does
-      not alter existing decks until a user applies it to a deck.
+      A template is a presentation template item with a name, an aspect
+      ratio, colours (background, foreground, accent, accent-2, muted,
+      surface), a heading and a body font from the safe font set, and one
+      sample slide for each layout it offers: at least title, section,
+      content, image, quote and closing. Its card and fullscreen show these
+      sample slides as the design preview. Pressing Save on a template card
+      or fullscreen puts it in the library of the active Personal or Team
+      account; every template picker lists that library beside the built-in
+      templates and never mixes in another account's items. Changing a saved
+      template does not alter existing decks until a user applies it to a
+      deck.
     depends_on: [examples.templates]
-  - id: slides.templates.first-deck-focus-mode
+  - id: slides.templates.built-in-set
     type: behavior
     must: >
-      When a user asks for slides and no template of their own, their Team or
-      the active Project exists, the template-creation focus mode is offered
-      through the standard focus-mode activation. In it the assistant shows
-      several distinct design options with previews as a choice, refines the
-      chosen one with the user, saves it as a template and then creates the
-      requested deck with it. A user who declines gets the deck in a built-in
-      template.
-    depends_on: [examples.template_focus]
+      Every account has the same built-in templates without saving anything:
+      Plain and four designs for common uses, Bold pitch, Clean business,
+      Friendly classroom and Calm talk, each with the title, section,
+      content, image, quote and closing layouts. Built-in templates are
+      read-only; a user who wants changes designs their own template from
+      one. Plain follows the app's light and dark colours; the other
+      built-ins have fixed colours and fonts.
+    depends_on: [examples.templates]
+  - id: slides.templates.apply-to-deck
+    type: behavior
+    must: >
+      The deck fullscreen has a Template action that lists the built-in
+      templates and the active account's library with a preview of each.
+      Applying one changes the deck's colours and fonts to the template's and
+      saves the result as the next version; text, positions, images and
+      speaker notes stay as they were, and the change can be undone from the
+      version timeline. A deck keeps its own copy of the applied colours and
+      fonts, so it looks the same when shared or opened without access to the
+      library. When the applied library template was changed later, the
+      action marks it as updated and applying it again brings the change to
+      this deck only.
+    depends_on: [examples.apply_template]
+  - id: slides.focus.template-designer
+    type: behavior
+    must: >
+      The Slides focus mode Design a template uses the shared phased focus
+      lifecycle with the phases purpose and brand, design choice, refine and
+      save. It asks about purpose, audience and existing brand colours or
+      logo, then shows three clearly different designs as template cards with
+      real slide previews; the user picks one with the card's Use this design
+      action or by naming it. The chosen design is refined with the user
+      (colours, fonts and the title, section, content, image, quote and
+      closing layouts), each change shown as an updated template card. The
+      finished template is saved when the user presses Save on its card;
+      afterwards the assistant offers to create a deck with it. Each turn
+      asks one to three questions with a recommendation, and each phase ends
+      with a short summary the user confirms or corrects.
+    depends_on: [examples.template_designer]
+  - id: slides.focus.presentation-planner
+    type: behavior
+    must: >
+      The Slides focus mode Plan a presentation uses the shared phased focus
+      lifecycle with the phases goal and audience, story, outline, template,
+      slides and review, for any use case such as a project or hackathon
+      pitch, a business update, sales, teaching, school or a talk. Goal and
+      audience settles the goal, audience, length and setting. Story picks a
+      story arc that fits the use case and says why. Outline lists one
+      message per slide and advances only after the user confirms or
+      corrects it. Template shows the built-in templates as template cards,
+      accepts a saved template the user names or references, or designs a
+      new one with the template designer's steps inside the planner. Slides
+      creates the deck with one slide per outline message, speaker notes on
+      every slide and a slide count that fits the length. Review reports
+      concrete best-practice findings on text density, readability, visuals
+      over bullet lists, timing, the opening and the close, and applies the
+      ones the user accepts as targeted edits. Each turn asks one to three
+      questions with a recommendation or example, and each phase ends with a
+      short summary the user confirms. A user who gives everything at once or
+      asks to go fast is not asked what the message already answers and gets
+      the outline for confirmation in the first reply.
+    depends_on: [examples.presentation_planner]
   - id: slides.assistant.create-and-diff-edit
     type: behavior
     must: >
@@ -232,4 +291,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [format, render, security, media, video_platforms, interactive, animations, templates, template_focus, assistant, editor, present, follow_live, import, export, surfaces]
+  required_groups: [format, render, security, media, video_platforms, interactive, animations, templates, apply_template, template_designer, presentation_planner, assistant, editor, present, follow_live, import, export, surfaces]

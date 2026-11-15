@@ -1,0 +1,220 @@
+slides_design_template:
+  context: Focus mode name
+  en: Design a template
+  de: "Vorlage gestalten"
+  zh: "设计模板"
+  es: "Diseñar una plantilla"
+  fr: "Concevoir un modèle"
+  pt: "Criar um modelo"
+  ru: "Создать шаблон"
+  ja: "テンプレートをデザイン"
+  ko: "템플릿 디자인"
+  it: "Progetta un modello"
+  tr: "Şablon tasarla"
+  vi: "Thiết kế mẫu"
+  id: "Desain templat"
+  pl: "Zaprojektuj szablon"
+  nl: "Sjabloon ontwerpen"
+  ar: "تصميم قالب"
+  hi: "टेम्पलेट डिज़ाइन करें"
+  th: "ออกแบบเทมเพลต"
+  cs: "Navrhnout šablonu"
+  sv: "Designa en mall"
+  he: "עיצוב תבנית"
+  verified_by_human: []
+description:
+  context: Focus mode description
+  en: Design a reusable slide template step by step - three designs to choose from, refined with you,
+    then saved to your library.
+  de: "Gestalte Schritt für Schritt eine wiederverwendbare Folienvorlage - drei Designs zur Auswahl, gemeinsam verfeinert, dann in deiner Bibliothek gespeichert."
+  zh: "一步步设计可重复使用的幻灯片模板 - 三种设计可选，与你一起完善，然后保存到你的资料库。"
+  es: "Diseña paso a paso una plantilla de diapositivas reutilizable: tres diseños para elegir, refinados contigo y guardados en tu biblioteca."
+  fr: "Concevez pas à pas un modèle de diapositives réutilisable : trois designs au choix, affinés avec vous, puis enregistrés dans votre bibliothèque."
+  pt: "Crie passo a passo um modelo de slides reutilizável - três designs para escolher, refinados com você e salvos na sua biblioteca."
+  ru: "Шаг за шагом создайте многоразовый шаблон слайдов - три дизайна на выбор, доработка вместе с вами, затем сохранение в вашу библиотеку."
+  ja: "再利用できるスライドテンプレートを段階的にデザイン - 3つのデザインから選び、一緒に仕上げて、ライブラリに保存します。"
+  ko: "재사용 가능한 슬라이드 템플릿을 단계별로 디자인하세요 - 세 가지 디자인 중 선택하고 함께 다듬은 뒤 라이브러리에 저장합니다."
+  it: "Progetta passo dopo passo un modello di slide riutilizzabile: tre design tra cui scegliere, rifiniti con te e salvati nella tua libreria."
+  tr: "Yeniden kullanılabilir bir slayt şablonunu adım adım tasarlayın - seçebileceğiniz üç tasarım, sizinle birlikte iyileştirilir ve kitaplığınıza kaydedilir."
+  vi: "Thiết kế từng bước một mẫu trang chiếu có thể dùng lại - ba thiết kế để chọn, cùng bạn tinh chỉnh, rồi lưu vào thư viện của bạn."
+  id: "Desain templat slide yang dapat dipakai ulang langkah demi langkah - tiga desain untuk dipilih, disempurnakan bersama Anda, lalu disimpan ke pustaka Anda."
+  pl: "Zaprojektuj krok po kroku szablon slajdów wielokrotnego użytku - trzy projekty do wyboru, dopracowane razem z Tobą i zapisane w Twojej bibliotece."
+  nl: "Ontwerp stap voor stap een herbruikbaar diasjabloon - drie ontwerpen om uit te kiezen, samen verfijnd en daarna opgeslagen in je bibliotheek."
+  ar: "صمّم خطوة بخطوة قالب شرائح قابلاً لإعادة الاستخدام - ثلاثة تصاميم للاختيار، يُحسَّن معك، ثم يُحفظ في مكتبتك."
+  hi: "चरण-दर-चरण एक दोबारा उपयोग होने वाला स्लाइड टेम्पलेट डिज़ाइन करें - चुनने के लिए तीन डिज़ाइन, आपके साथ निखारे गए, फिर आपकी लाइब्रेरी में सहेजे गए।"
+  th: "ออกแบบเทมเพลตสไลด์ที่ใช้ซ้ำได้ทีละขั้นตอน - มีสามดีไซน์ให้เลือก ปรับแต่งร่วมกับคุณ แล้วบันทึกลงคลังของคุณ"
+  cs: "Navrhněte krok za krokem opakovaně použitelnou šablonu snímků - tři návrhy na výběr, doladěné s vámi a uložené do vaší knihovny."
+  sv: "Designa steg för steg en återanvändbar bildmall - tre designer att välja mellan, finslipade tillsammans med dig och sedan sparade i ditt bibliotek."
+  he: "עצבו צעד אחר צעד תבנית שקופיות לשימוש חוזר - שלושה עיצובים לבחירה, משופרים יחד איתכם ונשמרים בספרייה שלכם."
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: |
+    - Asks what the template is for and which brand colours, fonts or logo it should match
+    - Shows three clearly different designs as template cards with previews of six slide layouts
+    - Lets you pick one with "Use this design" or by naming it
+    - Refines colours, fonts and layouts with you, updating the card after every change
+    - Tells you to press Save on the final card so it lands in your library
+    - Offers to create a first deck with your new template
+  de: |
+    - Fragt, wofür die Vorlage ist und zu welchen Markenfarben, Schriften oder welchem Logo sie passen soll
+    - Zeigt drei klar unterschiedliche Designs als Vorlagenkarten mit Vorschauen von sechs Folienlayouts
+    - Du wählst eines mit "Dieses Design verwenden" oder indem du es nennst
+    - Verfeinert Farben, Schriften und Layouts mit dir und aktualisiert die Karte nach jeder Änderung
+    - Sagt dir, auf der fertigen Karte Speichern zu drücken, damit sie in deiner Bibliothek landet
+    - Bietet an, mit deiner neuen Vorlage eine erste Präsentation zu erstellen
+  zh: |
+    - 询问模板的用途，以及要匹配哪些品牌颜色、字体或标志
+    - 以模板卡片展示三种明显不同的设计，并预览六种幻灯片版式
+    - 通过“使用此设计”或说出名称来选择一种
+    - 与你一起完善颜色、字体和版式，每次修改后更新卡片
+    - 提示你在最终卡片上点击保存，使其进入你的资料库
+    - 提出用你的新模板创建第一份演示文稿
+  es: |
+    - Pregunta para qué es la plantilla y con qué colores, fuentes o logotipo de marca debe coincidir
+    - Muestra tres diseños claramente distintos como tarjetas de plantilla con vistas previas de seis diseños de diapositiva
+    - Eliges uno con "Usar este diseño" o diciendo su nombre
+    - Ajusta contigo colores, fuentes y diseños, actualizando la tarjeta tras cada cambio
+    - Te indica que pulses Guardar en la tarjeta final para que quede en tu biblioteca
+    - Ofrece crear una primera presentación con tu nueva plantilla
+  fr: |
+    - Demande à quoi sert le modèle et à quelles couleurs, polices ou logo de marque il doit correspondre
+    - Montre trois designs nettement différents sous forme de cartes de modèle avec l'aperçu de six mises en page
+    - Vous en choisissez un avec « Utiliser ce design » ou en le nommant
+    - Affine avec vous couleurs, polices et mises en page, en mettant la carte à jour après chaque changement
+    - Vous indique d'appuyer sur Enregistrer sur la carte finale pour l'ajouter à votre bibliothèque
+    - Propose de créer une première présentation avec votre nouveau modèle
+  pt: |
+    - Pergunta para que serve o modelo e com quais cores, fontes ou logotipo da marca ele deve combinar
+    - Mostra três designs claramente diferentes como cartões de modelo com prévias de seis layouts de slide
+    - Você escolhe um com "Usar este design" ou dizendo o nome
+    - Refina cores, fontes e layouts com você, atualizando o cartão após cada mudança
+    - Diz para você tocar em Salvar no cartão final para que ele vá para a sua biblioteca
+    - Oferece criar uma primeira apresentação com o seu novo modelo
+  ru: |
+    - Спрашивает, для чего шаблон и каким фирменным цветам, шрифтам или логотипу он должен соответствовать
+    - Показывает три явно разных дизайна как карточки шаблонов с превью шести макетов слайдов
+    - Вы выбираете один кнопкой «Использовать этот дизайн» или называя его
+    - Дорабатывает с вами цвета, шрифты и макеты, обновляя карточку после каждого изменения
+    - Подсказывает нажать «Сохранить» на итоговой карточке, чтобы она попала в вашу библиотеку
+    - Предлагает создать первую презентацию с вашим новым шаблоном
+  ja: |
+    - テンプレートの用途と、合わせるべきブランドカラー、フォント、ロゴを尋ねます
+    - はっきり異なる3つのデザインを、6種類のスライドレイアウトのプレビュー付きテンプレートカードで表示します
+    - 「このデザインを使う」または名前を伝えて1つを選びます
+    - 色、フォント、レイアウトを一緒に調整し、変更のたびにカードを更新します
+    - 完成したカードで保存を押すとライブラリに入ることを案内します
+    - 新しいテンプレートで最初のスライド資料を作ることを提案します
+  ko: |
+    - 템플릿의 용도와 맞춰야 할 브랜드 색상, 글꼴, 로고를 묻습니다
+    - 확연히 다른 세 가지 디자인을 여섯 가지 슬라이드 레이아웃 미리보기가 있는 템플릿 카드로 보여줍니다
+    - "이 디자인 사용"을 누르거나 이름을 말해 하나를 고릅니다
+    - 색상, 글꼴, 레이아웃을 함께 다듬고 변경할 때마다 카드를 업데이트합니다
+    - 최종 카드에서 저장을 눌러 라이브러리에 넣도록 안내합니다
+    - 새 템플릿으로 첫 프레젠테이션을 만들도록 제안합니다
+  it: |
+    - Chiede a cosa serve il modello e a quali colori, font o logo del marchio deve adattarsi
+    - Mostra tre design ben diversi come schede modello con anteprime di sei layout di slide
+    - Ne scegli uno con "Usa questo design" o dicendone il nome
+    - Rifinisce con te colori, font e layout, aggiornando la scheda dopo ogni modifica
+    - Ti dice di premere Salva sulla scheda finale perché finisca nella tua libreria
+    - Propone di creare una prima presentazione con il tuo nuovo modello
+  tr: |
+    - Şablonun ne için olduğunu ve hangi marka renkleri, yazı tipleri veya logoyla uyumlu olması gerektiğini sorar
+    - Belirgin şekilde farklı üç tasarımı altı slayt düzeni önizlemesiyle şablon kartları olarak gösterir
+    - "Bu tasarımı kullan" ile veya adını söyleyerek birini seçersiniz
+    - Renkleri, yazı tiplerini ve düzenleri sizinle iyileştirir, her değişiklikten sonra kartı günceller
+    - Kitaplığınıza girmesi için son kartta Kaydet'e basmanızı söyler
+    - Yeni şablonunuzla ilk sunumu oluşturmayı önerir
+  vi: |
+    - Hỏi mẫu dùng để làm gì và cần khớp với màu thương hiệu, phông chữ hay logo nào
+    - Hiển thị ba thiết kế khác biệt rõ rệt dưới dạng thẻ mẫu kèm bản xem trước sáu bố cục trang chiếu
+    - Bạn chọn một thiết kế bằng "Dùng thiết kế này" hoặc bằng cách nêu tên
+    - Cùng bạn tinh chỉnh màu sắc, phông chữ và bố cục, cập nhật thẻ sau mỗi thay đổi
+    - Nhắc bạn nhấn Lưu trên thẻ cuối cùng để thẻ được đưa vào thư viện
+    - Đề nghị tạo bản trình chiếu đầu tiên với mẫu mới của bạn
+  id: |
+    - Menanyakan untuk apa templat itu dan warna merek, font, atau logo apa yang harus dicocokkan
+    - Menampilkan tiga desain yang jelas berbeda sebagai kartu templat dengan pratinjau enam tata letak slide
+    - Anda memilih satu dengan "Gunakan desain ini" atau dengan menyebut namanya
+    - Menyempurnakan warna, font, dan tata letak bersama Anda, memperbarui kartu setelah setiap perubahan
+    - Memberi tahu Anda untuk menekan Simpan pada kartu akhir agar masuk ke pustaka Anda
+    - Menawarkan untuk membuat presentasi pertama dengan templat baru Anda
+  pl: |
+    - Pyta, do czego służy szablon i do jakich kolorów marki, czcionek lub logo ma pasować
+    - Pokazuje trzy wyraźnie różne projekty jako karty szablonów z podglądem sześciu układów slajdów
+    - Wybierasz jeden przyciskiem „Użyj tego projektu” lub podając jego nazwę
+    - Dopracowuje z Tobą kolory, czcionki i układy, aktualizując kartę po każdej zmianie
+    - Mówi, by nacisnąć Zapisz na końcowej karcie, aby trafiła do Twojej biblioteki
+    - Proponuje utworzenie pierwszej prezentacji z nowym szablonem
+  nl: |
+    - Vraagt waarvoor het sjabloon is en bij welke merkkleuren, lettertypen of logo het moet passen
+    - Toont drie duidelijk verschillende ontwerpen als sjabloonkaarten met voorbeelden van zes dia-indelingen
+    - Je kiest er een met "Dit ontwerp gebruiken" of door de naam te noemen
+    - Verfijnt kleuren, lettertypen en indelingen met je en werkt de kaart na elke wijziging bij
+    - Vertelt je op Opslaan te drukken op de laatste kaart zodat die in je bibliotheek komt
+    - Biedt aan een eerste presentatie te maken met je nieuwe sjabloon
+  ar: |
+    - يسأل عن الغرض من القالب وما يجب أن يطابقه من ألوان العلامة التجارية أو الخطوط أو الشعار
+    - يعرض ثلاثة تصاميم مختلفة بوضوح كبطاقات قوالب مع معاينات لستة تخطيطات شرائح
+    - تختار واحدًا عبر "استخدم هذا التصميم" أو بذكر اسمه
+    - يحسّن معك الألوان والخطوط والتخطيطات ويحدّث البطاقة بعد كل تغيير
+    - ينبهك إلى الضغط على حفظ في البطاقة النهائية لتصل إلى مكتبتك
+    - يعرض إنشاء أول عرض تقديمي بقالبك الجديد
+  hi: |
+    - पूछता है कि टेम्पलेट किसलिए है और उसे किन ब्रांड रंगों, फ़ॉन्ट या लोगो से मेल खाना चाहिए
+    - छह स्लाइड लेआउट के पूर्वावलोकन के साथ तीन साफ़ तौर पर अलग डिज़ाइन टेम्पलेट कार्ड के रूप में दिखाता है
+    - आप "यह डिज़ाइन इस्तेमाल करें" से या नाम बताकर एक चुनते हैं
+    - आपके साथ रंग, फ़ॉन्ट और लेआउट निखारता है और हर बदलाव के बाद कार्ड अपडेट करता है
+    - बताता है कि अंतिम कार्ड पर सहेजें दबाएँ ताकि वह आपकी लाइब्रेरी में आ जाए
+    - आपके नए टेम्पलेट से पहली प्रस्तुति बनाने की पेशकश करता है
+  th: |
+    - ถามว่าเทมเพลตใช้ทำอะไร และต้องเข้ากับสีแบรนด์ แบบอักษร หรือโลโก้ใด
+    - แสดงสามดีไซน์ที่แตกต่างกันชัดเจนเป็นการ์ดเทมเพลตพร้อมตัวอย่างเลย์เอาต์สไลด์หกแบบ
+    - คุณเลือกหนึ่งแบบด้วย "ใช้ดีไซน์นี้" หรือบอกชื่อ
+    - ปรับสี แบบอักษร และเลย์เอาต์ร่วมกับคุณ และอัปเดตการ์ดหลังทุกการเปลี่ยนแปลง
+    - บอกให้คุณกดบันทึกบนการ์ดสุดท้ายเพื่อให้เข้าไปอยู่ในคลังของคุณ
+    - เสนอสร้างงานนำเสนอชุดแรกด้วยเทมเพลตใหม่ของคุณ
+  cs: |
+    - Zeptá se, k čemu šablona slouží a k jakým barvám značky, písmům nebo logu má ladit
+    - Ukáže tři zřetelně odlišné návrhy jako karty šablon s náhledy šesti rozvržení snímků
+    - Jeden vyberete tlačítkem „Použít tento návrh“ nebo jeho názvem
+    - Doladí s vámi barvy, písma a rozvržení a po každé změně kartu aktualizuje
+    - Řekne vám, ať na finální kartě stisknete Uložit, aby se dostala do vaší knihovny
+    - Nabídne vytvoření první prezentace s vaší novou šablonou
+  sv: |
+    - Frågar vad mallen ska användas till och vilka varumärkesfärger, typsnitt eller logotyp den ska matcha
+    - Visar tre tydligt olika designer som mallkort med förhandsvisningar av sex bildlayouter
+    - Du väljer en med "Använd den här designen" eller genom att nämna den
+    - Finslipar färger, typsnitt och layouter med dig och uppdaterar kortet efter varje ändring
+    - Säger åt dig att trycka på Spara på det slutliga kortet så att det hamnar i ditt bibliotek
+    - Erbjuder att skapa en första presentation med din nya mall
+  he: |
+    - שואל למה מיועדת התבנית ולאילו צבעי מותג, גופנים או לוגו עליה להתאים
+    - מציג שלושה עיצובים שונים בבירור ככרטיסי תבנית עם תצוגה מקדימה של שש פריסות שקופיות
+    - בוחרים אחד באמצעות "להשתמש בעיצוב הזה" או בציון שמו
+    - משפר איתכם צבעים, גופנים ופריסות ומעדכן את הכרטיס אחרי כל שינוי
+    - מזכיר ללחוץ על שמירה בכרטיס הסופי כדי שייכנס לספרייה שלכם
+    - מציע ליצור מצגת ראשונה עם התבנית החדשה שלכם
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: |
+    - **Design a slide template** for our club, our colours are green and white
+    - I want my own **presentation look** in our company colours and logo
+    - Make me a **template** for my school talks, friendly and colourful
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: |
+    You help the user design a reusable slide template and guide them through four phases: purpose and brand, choosing between three designs, refining, and saving.
+
+    Follow only the current phase's instructions. Every turn asks one to three simple questions, each with a recommendation or example, and every phase ends with a short summary the user confirms or corrects. Use beginner-friendly language and explain design terms briefly. Honor requests to skip questions or go faster.
+
+    Important guidelines:
+    - A template is a ```slides fence whose deck root has `kind="template"`, a `theme` line and six sample slides (title, section, content, image, quote, closing). Always use explicit x, y, w, h positions. Follow the Slides app's grammar exactly.
+    - Never describe a design only in words when a template card can show it; show the full markup so the user sees a real preview.
+    - Never claim a template is saved; only the user's Save action saves it.
+    - Images come only from embeds the user already provided; use shapes and colours for decoration otherwise.
+    - Keep text readable: strong contrast, large enough sizes, few words in sample text.
+  verified_by_human: []

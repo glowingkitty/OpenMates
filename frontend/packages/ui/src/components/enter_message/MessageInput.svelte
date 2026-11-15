@@ -6894,7 +6894,10 @@
         finally { questionEditor?.destroy(); sendClickInProgress = false; }
     }
 
-    export async function sendCurrentMessage(): Promise<void> { await handleSendMessage(); }
+    export async function sendCurrentMessage(testMockMarker?: string): Promise<void> {
+        // The marker only takes effect behind the E2E gate (getE2EServerContentOverride).
+        await handleSendMessage(testMockMarker ? new CustomEvent('custom-send-message', { detail: { testMockMarker } }) : undefined);
+    }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);
         console.debug('[MessageInput] editor available:', !!editor);

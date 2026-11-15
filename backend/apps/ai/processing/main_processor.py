@@ -557,6 +557,9 @@ def _forward_agentic_context(request: AskSkillRequest) -> dict:
         "project_context_documents", "related_task_candidates",
     )}
     context["memory_catalog"] = memory_catalog_snapshot(request_memory_catalog(request))
+    from backend.shared.testing.mock_context import signed_focus_continuation_marker
+    if marker := signed_focus_continuation_marker(getattr(request, "user_id", None)):
+        context["live_mock_marker"] = marker  # isolated CI replay only; see the helper
     return context
 
 
@@ -800,6 +803,8 @@ _FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
     "docs-doc",
     "deck",
     "slides-deck",
+    "template",
+    "slides-template",
     "email",
     "mail",
     "mail-email",

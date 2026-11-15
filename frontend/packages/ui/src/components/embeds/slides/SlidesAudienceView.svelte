@@ -123,7 +123,7 @@
           {slide}
           width={deck.width}
           height={deck.height}
-          template={deck.template}
+          template={deck.template} theme={deck.theme}
           step={position.step}
           interactive={true}
           animated={true}

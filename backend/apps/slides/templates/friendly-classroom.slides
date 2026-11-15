@@ -1,0 +1,45 @@
+<deck title="Friendly classroom" aspect="16:9" template="builtin:plain" kind="template">
+  <theme heading="Trebuchet MS" body="Verdana" background="#fff8e7" foreground="#2d2a4a" accent="#ff7a3d" accent-2="#3ec1d3" muted="#7a6f8f" surface="#ffffff"/>
+  <slide id="s1" layout="title">
+    <shape id="e1" x="1300" y="0" w="620" h="620" kind="ellipse" fill="accent-2"/>
+    <shape id="e2" x="1500" y="600" w="400" h="400" kind="ellipse" fill="accent"/>
+    <shape id="e3" x="0" y="780" w="300" h="300" kind="ellipse" fill="accent-2"/>
+    <text id="e4" x="160" y="330" w="1250" h="300" role="title" font="heading" size="100" color="foreground" align="left" weight="bold">Let us learn something new</text>
+    <text id="e5" x="160" y="680" w="1200" h="80" role="subtitle" size="44" color="accent" align="left" weight="bold">Class 5B - Welcome back</text>
+  </slide>
+  <slide id="s2" layout="section">
+    <shape id="e6" x="160" y="300" w="260" h="260" kind="ellipse" fill="accent"/>
+    <text id="e7" x="160" y="350" w="260" h="160" role="caption" font="heading" size="160" color="background" align="center" weight="bold">2</text>
+    <text id="e8" x="500" y="360" w="1200" h="200" role="title" font="heading" size="88" color="foreground" align="left" weight="bold">Today we explore</text>
+  </slide>
+  <slide id="s3" layout="content">
+    <shape id="e9" x="160" y="110" w="200" h="200" kind="ellipse" fill="accent-2"/>
+    <text id="e10" x="400" y="130" w="1360" h="160" role="title" font="heading" size="76" color="foreground" align="left" weight="bold">What we will do</text>
+    <shape id="e11" x="160" y="360" w="1600" h="170" kind="rect" fill="surface"/>
+    <shape id="e12" x="160" y="570" w="1600" h="170" kind="rect" fill="surface"/>
+    <shape id="e13" x="160" y="780" w="1600" h="170" kind="rect" fill="surface"/>
+    <text id="e14" x="220" y="400" w="1500" h="90" role="body" size="44" color="foreground" align="left">1. Look at an example</text>
+    <text id="e15" x="220" y="610" w="1500" h="90" role="body" size="44" color="foreground" align="left">2. Try it in small groups</text>
+    <text id="e16" x="220" y="820" w="1500" h="90" role="body" size="44" color="foreground" align="left">3. Share what we found</text>
+  </slide>
+  <slide id="s4" layout="image">
+    <text id="e17" x="160" y="100" w="1600" h="130" role="title" font="heading" size="76" color="foreground" align="left" weight="bold">Look closely</text>
+    <shape id="e18" x="160" y="260" w="1100" h="640" kind="rect" fill="surface"/>
+    <shape id="e19" x="1100" y="200" w="220" h="220" kind="ellipse" fill="accent-2"/>
+    <shape id="e20" x="1340" y="300" w="420" h="420" kind="ellipse" fill="accent"/>
+    <text id="e21" x="1340" y="760" w="420" h="160" role="caption" size="36" color="accent" align="center" weight="bold">What do you notice?</text>
+    <text id="e22" x="160" y="930" w="1100" h="50" role="caption" size="26" color="muted" align="left">Picture placeholder</text>
+  </slide>
+  <slide id="s5" layout="quote">
+    <shape id="e23" x="160" y="180" w="180" h="180" kind="ellipse" fill="accent-2"/>
+    <text id="e24" x="160" y="160" w="180" h="260" role="quote" font="heading" size="220" color="background" align="center" weight="bold">"</text>
+    <text id="e25" x="400" y="300" w="1360" h="360" role="quote" font="heading" size="68" color="foreground" align="left" weight="bold">There are no silly questions, only questions not yet asked</text>
+    <text id="e26" x="400" y="720" w="1360" h="60" role="caption" size="36" color="accent" align="left" weight="bold">Our class rule</text>
+  </slide>
+  <slide id="s6" layout="closing">
+    <shape id="e27" x="160" y="160" w="300" h="300" kind="ellipse" fill="accent-2"/>
+    <shape id="e28" x="1460" y="620" w="300" h="300" kind="ellipse" fill="accent"/>
+    <text id="e29" x="160" y="420" w="1600" h="200" role="title" font="heading" size="110" color="foreground" align="center" weight="bold">Great work today!</text>
+    <text id="e30" x="160" y="660" w="1600" h="80" role="subtitle" size="48" color="accent" align="center" weight="bold">See you next time</text>
+  </slide>
+</deck>

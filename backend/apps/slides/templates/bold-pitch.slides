@@ -1,0 +1,44 @@
+<deck title="Bold pitch" aspect="16:9" template="builtin:plain" kind="template">
+  <theme heading="Arial" body="Helvetica" background="#0b0b12" foreground="#ffffff" accent="#ffd400" accent-2="#ff3d71" muted="#9a9aab" surface="#1b1b2a"/>
+  <slide id="s1" layout="title">
+    <shape id="e1" x="0" y="0" w="48" h="1080" kind="rect" fill="accent"/>
+    <shape id="e2" x="140" y="250" w="220" h="18" kind="rect" fill="accent-2"/>
+    <text id="e3" x="140" y="300" w="1700" h="380" role="title" font="heading" size="150" color="foreground" align="left" weight="900">Big idea, <b>bold</b> start</text>
+    <text id="e4" x="140" y="740" w="1400" h="100" role="subtitle" size="52" color="accent" align="left" weight="bold">One sentence that makes them lean in</text>
+  </slide>
+  <slide id="s2" layout="section">
+    <shape id="e5" x="0" y="0" w="1920" h="1080" kind="rect" fill="accent"/>
+    <shape id="e6" x="1400" y="0" w="520" h="1080" kind="rect" fill="accent-2"/>
+    <text id="e7" x="120" y="120" w="1000" h="360" role="caption" font="heading" size="300" color="background" align="left" weight="900">02</text>
+    <text id="e8" x="120" y="560" w="1300" h="300" role="title" font="heading" size="120" color="background" align="left" weight="900">The next chapter</text>
+  </slide>
+  <slide id="s3" layout="content">
+    <shape id="e9" x="140" y="140" w="16" h="140" kind="rect" fill="accent"/>
+    <text id="e10" x="190" y="130" w="1560" h="160" role="title" font="heading" size="88" color="foreground" align="left" weight="900">Three things to remember</text>
+    <shape id="e11" x="140" y="360" w="1640" h="150" kind="rect" fill="surface"/>
+    <shape id="e12" x="140" y="550" w="1640" h="150" kind="rect" fill="surface"/>
+    <shape id="e13" x="140" y="740" w="1640" h="150" kind="rect" fill="surface"/>
+    <text id="e14" x="180" y="385" w="1560" h="100" role="body" size="56" color="foreground" align="left" weight="bold">Make it <b>loud</b></text>
+    <text id="e15" x="180" y="575" w="1560" h="100" role="body" size="56" color="foreground" align="left" weight="bold">Make it <b>simple</b></text>
+    <text id="e16" x="180" y="765" w="1560" h="100" role="body" size="56" color="accent" align="left" weight="bold">Make it <b>yours</b></text>
+  </slide>
+  <slide id="s4" layout="image">
+    <shape id="e17" x="1000" y="0" w="920" h="1080" kind="rect" fill="surface"/>
+    <shape id="e18" x="1180" y="260" w="560" h="560" kind="ellipse" fill="accent"/>
+    <shape id="e19" x="1500" y="160" w="220" h="220" kind="ellipse" fill="accent-2"/>
+    <text id="e20" x="140" y="260" w="780" h="420" role="title" font="heading" size="96" color="foreground" align="left" weight="900">Show it, do not tell it</text>
+    <text id="e21" x="140" y="760" w="780" h="120" role="caption" size="36" color="muted" align="left">Caption: what the picture proves</text>
+  </slide>
+  <slide id="s5" layout="quote">
+    <text id="e22" x="120" y="40" w="500" h="500" role="quote" font="heading" size="400" color="accent" align="left" weight="900">"</text>
+    <text id="e23" x="200" y="360" w="1520" h="400" role="quote" font="heading" size="84" color="foreground" align="left" weight="900">The best way to predict the future is to build it</text>
+    <shape id="e24" x="200" y="820" w="160" h="12" kind="rect" fill="accent-2"/>
+    <text id="e25" x="200" y="860" w="1200" h="60" role="caption" size="36" color="muted" align="left">Name, role</text>
+  </slide>
+  <slide id="s6" layout="closing">
+    <shape id="e26" x="1200" y="100" w="720" h="720" kind="ellipse" fill="accent"/>
+    <shape id="e27" x="0" y="760" w="320" h="320" kind="ellipse" fill="accent-2"/>
+    <text id="e28" x="140" y="300" w="1100" h="300" role="title" font="heading" size="130" color="foreground" align="left" weight="900">Let us build it</text>
+    <text id="e29" x="140" y="660" w="1000" h="100" role="subtitle" size="52" color="accent" align="left" weight="bold">hello@example.org</text>
+  </slide>
+</deck>

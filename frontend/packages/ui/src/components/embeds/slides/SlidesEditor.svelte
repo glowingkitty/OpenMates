@@ -19,7 +19,7 @@
   import SlidesEditorToolbar from './SlidesEditorToolbar.svelte';
   import SlidesEditorStrip from './SlidesEditorStrip.svelte';
   import EmbedIconButton from '../shared/EmbedIconButton.svelte';
-  import { getTemplate, placeElements } from './slidesTemplates';
+  import { placeElements, readThemeValue, resolveTemplate } from './slidesTemplates';
   import { escapeInlineText } from './slidesEditorText';
   import { effectiveTextStyle, isTypingTarget, toRenderSlide, type CanvasBox } from './slidesEditorView';
   import {
@@ -82,7 +82,9 @@
 
   let slides = $derived(view?.slides ?? []);
   let current = $derived(slides.find((slide) => slide.id === currentId) ?? slides[0] ?? null);
-  let template = $derived(getTemplate(view?.template ?? ''));
+  /** The core's DeckView gains `theme`; read it defensively until every core build has it. */
+  let theme = $derived(readThemeValue((view as { theme?: unknown } | null)?.theme));
+  let template = $derived(resolveTemplate(view?.template ?? '', theme));
   /** The deck differs from what was opened exactly when the core has an undo step. */
   let dirty = $derived(view?.can_undo ?? false);
   let placedCurrent = $derived(
@@ -495,6 +497,7 @@
         width={view.canvas_width}
         height={view.canvas_height}
         template={view.template}
+        {theme}
         {selectedId}
         {typingId}
         onSelect={select}
@@ -525,6 +528,7 @@
         width={view.canvas_width}
         height={view.canvas_height}
         template={view.template}
+        {theme}
         currentId={current.id}
         onOpen={openSlide}
         onAdd={addSlide}

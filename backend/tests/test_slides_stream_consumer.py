@@ -156,3 +156,59 @@ async def test_new_deck_is_sent_with_catalog_identity_and_a_version_one_snapshot
     finished = host.sent[-1]
     assert finished["content_hash"]
     assert [(row["version_number"], row["snapshot"]) for row in finished["version_history_rows"]] == [(1, deck.markup)]
+
+
+TEMPLATE_FENCE = (
+    '<deck title="Club Green" kind="template"><theme accent="#1f9d55"/>'
+    '<slide layout="title"><text role="title">Club</text></slide></deck>'
+)
+
+
+# contract-test: direct surface=rest_api assertions=slides.templates.library
+@pytest.mark.anyio
+async def test_template_fence_creates_a_template_embed() -> None:
+    from backend.core.api.app.services.slides_embed_service import SlidesEmbedMixin
+
+    host = _DeckServiceHost()
+    deck = normalise_slides_markup(TEMPLATE_FENCE)
+    result = await SlidesEmbedMixin.create_deck_embed(
+        host, chat_id="chat-1", message_id="message-1", user_id="user-1",
+        user_id_hash="hash-1", user_vault_key_id="vault-1", deck=deck,
+    )
+    assert result is not None and '"type": "template"' in result["embed_reference"]
+    for event in host.sent:
+        assert (event["embed_type"], event["app_id"], event["skill_id"]) == ("template", "slides", "template")
+    assert host.cache[result["embed_id"]]["type"] == "template"
+
+
+# contract-test: direct surface=rest_api assertions=slides.templates.library
+@pytest.mark.anyio
+async def test_diff_edit_on_a_template_embed_updates_it_like_a_deck() -> None:
+    from toon_format import encode
+
+    original = normalise_slides_markup(TEMPLATE_FENCE).markup
+    lines = original.splitlines()
+    index = next(i for i, line in enumerate(lines) if "Club</text>" in line)
+    patch = (
+        f"@@ -{index},3 +{index},3 @@\n"
+        f"{' ' + lines[index - 1]}\n"
+        f"-{lines[index]}\n"
+        f"+{lines[index].replace('Club', 'Club Green')}\n"
+        f"{' ' + lines[index + 1]}\n"
+    )
+    cache = _FakeCacheService({"deck-1": {
+        "embed_id": "deck-1", "type": "template", "status": "finished",
+        "version_number": 1, "encrypted_content": "encrypted",
+    }})
+    service = _DeckEmbedService()
+    result = await _apply_diff_block_to_existing_embed(
+        diff_content=patch, diff_embed_ref="q3-results-AbC", request_data=_request(),
+        cache_service=cache, directus_service=_FakeDirectusService(),
+        encryption_service=_FakeEncryptionService(encode({
+            "type": "template", "slides_markup": original, "title": "Club Green",
+            "slide_count": 1, "aspect": "16:9",
+        })),
+        embed_service=service, user_vault_key_id="vault-1", log_prefix="[test]",
+    )
+    assert service.updated is not None, result
+    assert "Club Green</text>" in service.updated.markup and service.updated.kind == "template"

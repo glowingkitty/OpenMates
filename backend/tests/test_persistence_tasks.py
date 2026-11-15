@@ -645,6 +645,72 @@ async def test_created_ai_response_acknowledges_legacy_persistence(monkeypatch) 
     )
 
 
+async def _persist_created_response_with_ack(monkeypatch, ack_result: dict) -> AsyncMock:
+    acknowledge = AsyncMock(return_value=ack_result)
+
+    class FakeDirectusService:
+        def __init__(self) -> None:
+            self.chat = SimpleNamespace(
+                get_message_by_id=AsyncMock(return_value=None),
+                create_message_in_directus=AsyncMock(return_value={"id": "message-123"}),
+            )
+            self.get_items = canonical_assistant_lookup(make_client_ciphertext())
+
+        async def ensure_auth_token(self) -> None:
+            return None
+
+    class FakeCacheService:
+        async def append_sync_message_to_history(self, **_kwargs) -> None:
+            return None
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(persistence_tasks, "DirectusService", FakeDirectusService)
+    monkeypatch.setattr(persistence_tasks, "CacheService", FakeCacheService)
+    monkeypatch.setattr(
+        chat_recovery_service,
+        "ChatRecoveryService",
+        lambda _directus: SimpleNamespace(execute=acknowledge),
+    )
+    await persistence_tasks._async_persist_ai_response_to_directus(
+        user_id="user-123",
+        user_id_hash="user-hash",
+        message_data={
+            "message_id": "message-123",
+            "chat_id": "chat-123",
+            "role": "assistant",
+            "encrypted_content": make_client_ciphertext(),
+        },
+        task_id="task-123",
+    )
+    return acknowledge
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+async def test_unclaimed_continuation_response_is_persisted_without_receipt(monkeypatch) -> None:
+    """A focus-mode continuation has no legacy claim: the extension finds nothing to
+    acknowledge, and the exactly verified stored row is accepted (no retry loop)."""
+    acknowledge = await _persist_created_response_with_ack(
+        monkeypatch, {"acknowledged": False, "idempotent": True, "state": None},
+    )
+    acknowledge.assert_awaited_once_with(
+        "acknowledge_legacy_persistence",
+        expected_legacy_ack(make_client_ciphertext()),
+    )
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+async def test_pending_legacy_receipt_still_fails_persistence(monkeypatch) -> None:
+    with pytest.raises(RuntimeError, match="output receipt was not verified"):
+        await _persist_created_response_with_ack(
+            monkeypatch,
+            {"acknowledged": False, "idempotent": True, "state": "PREPARED", "output_receipt_required": True},
+        )
+
+
 @pytest.mark.anyio
 # contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
 async def test_duplicate_ai_response_acknowledges_legacy_persistence(monkeypatch) -> None:

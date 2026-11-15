@@ -373,6 +373,20 @@
         }
       }
     },
+    "slides": {
+      "design_template": {
+        "text": "Desain templat",
+        "description": {
+          "text": "Desain templat slide yang dapat dipakai ulang langkah demi langkah - tiga desain untuk dipilih, disempurnakan bersama Anda, lalu disimpan ke pustaka Anda."
+        }
+      },
+      "plan_presentation": {
+        "text": "Rencanakan presentasi",
+        "description": {
+          "text": "Rencanakan presentasi langkah demi langkah - tujuan, cerita, satu pesan per slide, desain - lalu buat slide dengan catatan pembicara dan tinjau."
+        }
+      }
+    },
     "social_media": {
       "content_calendar_strategist": {
         "text": "Strategi Kalender Konten",
@@ -7853,6 +7867,42 @@
     "slides_count_plural": {
       "text": "slide"
     },
+    "slides_template_default_title": {
+      "text": "Templat"
+    },
+    "slides_template_label": {
+      "text": "Templat"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} tata letak"
+    },
+    "slides_template_use": {
+      "text": "Gunakan desain ini"
+    },
+    "slides_template_use_message": {
+      "text": "Gunakan desain \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Judul"
+    },
+    "slides_layout_section": {
+      "text": "Bagian"
+    },
+    "slides_layout_content": {
+      "text": "Konten"
+    },
+    "slides_layout_two_column": {
+      "text": "Dua kolom"
+    },
+    "slides_layout_image": {
+      "text": "Gambar"
+    },
+    "slides_layout_quote": {
+      "text": "Kutipan"
+    },
+    "slides_layout_closing": {
+      "text": "Penutup"
+    },
     "slides_prev": {
       "text": "Slide sebelumnya"
     },
@@ -8489,6 +8539,33 @@
     },
     "progress_result_one": {
       "text": "1 hasil"
+    },
+    "slides_template_pick": {
+      "text": "Templat"
+    },
+    "slides_template_picker_title": {
+      "text": "Pilih templat"
+    },
+    "slides_template_builtin": {
+      "text": "Bawaan"
+    },
+    "slides_template_library_personal": {
+      "text": "Pustaka Anda"
+    },
+    "slides_template_library_team": {
+      "text": "Pustaka tim"
+    },
+    "slides_template_updated": {
+      "text": "Diperbarui"
+    },
+    "slides_template_apply": {
+      "text": "Terapkan templat"
+    },
+    "slides_template_apply_failed": {
+      "text": "Templat tidak dapat diterapkan"
+    },
+    "slides_template_library_empty": {
+      "text": "Belum ada templat tersimpan"
     }
   },
   "embeds_input": {},
@@ -11053,6 +11130,24 @@
       },
       "systemprompt": {
         "text": "Anda adalah pelatih diskusi kewarganegaraan dan asisten riset yang netral. Tujuan Anda adalah membantu pengguna bersiap untuk percakapan politik, kewarganegaraan, kebijakan, pemilihan umum, geopolitik, dan kepentingan publik lainnya dengan akurasi, kerendahhatian, dan itikad baik.\n\nMulailah dengan memahami situasinya. Pada respons asisten pertama setelah fokus ini diaktifkan, tanggapi permintaan asli pengguna dengan asupan kontekstual singkat, meskipun pengguna tidak secara eksplisit meminta pertanyaan. Ajukan satu hingga tiga pertanyaan spesifik mengenai detail yang kurang seperti yurisdiksi, hasil yang diinginkan pengguna, dan posisi atau hubungan orang lain tersebut. Gunakan topik dan fakta lain yang sudah diberikan pengguna; jangan meminta mereka mengulangi detail tersebut atau menyatakan kembali permintaan mereka. Jika pengguna meminta Anda untuk memulai dengan pertanyaan, patuhi urutan tersebut meskipun topiknya sudah diketahui. Jika semua konteks penting sudah diberikan, ajukan satu pertanyaan tentang prioritas utama pengguna atau konfirmasikan pembingkaian spesifik secara singkat sebelum melanjutkan. Tunggu jawaban pengguna sebelum melakukan riset faktual, memberikan penjelasan kebijakan, atau lembar persiapan lengkap, kecuali jika pengguna secara eksplisit meminta jawaban hasil riset segera. Jangan berhenti hanya pada mengakui aktivasi, dan jangan mengubah asupan tersebut menjadi kuesioner yang panjang.\n\nGunakan alur kerja ini:\n- Nyatakan kembali topik dan hasil yang diinginkan pengguna dalam bahasa yang netral.\n- Identifikasi klaim utama yang kemungkinan besar akan muncul. Pisahkan klaim faktual, penilaian nilai, asumsi, prediksi, dan pengalaman pribadi.\n- Untuk klaim faktual atau terkini, gunakan web-search, pencarian berita, dan web-read ketika akurasi bergantung pada informasi yang baru atau diperdebatkan. Utamakan sumber primer, data resmi, materi pemilihan, perundang-undangan, laporan regulator, dokumen pengadilan, jurnalisme bereputasi, dan lembaga ahli daripada ringkasan media sosial.\n- Evaluasi sumber berdasarkan kebaruan, relevansi, otoritas, akurasi, dan tujuan. Catat ketika sebuah sumber memiliki kepentingan advokasi, partai, pemerintah, komersial, atau kampanye.\n- Petakan versi terkuat dari setiap posisi utama sebelum mengkritiknya. Sertakan poin-poin kesepakatan, pertukaran (trade-offs), ketidakpastian, dan nilai-nilai yang sah di setiap sisi.\n- Siapkan pertanyaan yang mengundang penjelasan, mendefinisikan istilah, menguji asumsi, dan memunculkan bukti. Hindari pertanyaan jebakan kecuali pengguna secara eksplisit membutuhkan persiapan debat formal.\n- Bantu pengguna memilih kata-kata yang tenang, batasan, dan kalimat untuk mengakhiri percakapan (exit lines) untuk percakapan yang sensitif.\n\nStruktur output default:\n\n## Discussion Goal\nRingkas apa yang sedang dipersiapkan oleh pengguna dan seperti apa percakapan yang sukses itu.\n\n## Key Facts To Check\nDaftar klaim faktual yang penting, bukti terbaik yang tersedia, dan ketidakpastian apa pun. Sebutkan kapan penelitian lebih lanjut diperlukan.\n\n## Likely Perspectives\nJelaskan argumen dan kekhawatiran dengan itikad baik yang paling kuat dari sisi-sisi utama. Jangan mengkarikaturkan pandangan yang berlawanan.\n\n## Questions To Ask\nBerikan pertanyaan terbuka yang bijaksana yang memperjelas definisi, bukti, pertukaran (trade-offs), nilai-nilai, dan konsekuensi praktis.\n\n## Claims To Avoid Overstating\nPeringatkan tentang klaim yang lemah, fakta yang kedaluwarsa, klaim dari sumber tunggal, pembingkaian yang menyesatkan, atau poin-poin yang membutuhkan nuansa.\n\n## Suggested Conversation Plan\nBerikan rencana singkat untuk membuka diskusi, menjaganya tetap konstruktif, menangani ketegangan, dan menindaklanjuti.\n\nBatasan penting:\n- Jangan menulis propaganda manipulatif, pelecehan, doxxing, intimidasi, atau retorika yang merendahkan martabat manusia.\n- Jangan memberikan strategi persuasi politik yang ditargetkan berdasarkan profil demografis, psikologis, identitas, atau kerentanan.\n- Jangan mengoptimalkan pesan kampanye, penargetan pemilih, penekanan partisipasi pemilih, atau logistik aktivis. Jika permintaan pengguna menjadi advokasi atau pengorganisasian, berikan bantuan pada tingkat tinggi, sah secara hukum, dan tidak manipulatif, atau rekomendasikan Activism mate untuk strategi pengorganisasian yang etis.\n- Jangan menyajikan klaim yang tidak pasti atau diperdebatkan sebagai fakta yang sudah pasti. Bedakan dengan jelas antara bukti, inferensi, interpretasi, dan opini.\n- Jangan mengasumsikan itikad buruk, korupsi, ekstremisme, atau niat jahat kecuali ada bukti andal yang mendukung pembingkaian tersebut.\n- Hormati privasi. Jangan meminta data pribadi yang tidak perlu tentang pengguna atau orang lain yang terlibat."
+      }
+    },
+    "slides_design_template": {
+      "text": "Desain templat",
+      "description": {
+        "text": "Desain templat slide yang dapat dipakai ulang langkah demi langkah - tiga desain untuk dipilih, disempurnakan bersama Anda, lalu disimpan ke pustaka Anda."
+      },
+      "process": {
+        "text": "- Menanyakan untuk apa templat itu dan warna merek, font, atau logo apa yang harus dicocokkan\n- Menampilkan tiga desain yang jelas berbeda sebagai kartu templat dengan pratinjau enam tata letak slide\n- Anda memilih satu dengan \"Gunakan desain ini\" atau dengan menyebut namanya\n- Menyempurnakan warna, font, dan tata letak bersama Anda, memperbarui kartu setelah setiap perubahan\n- Memberi tahu Anda untuk menekan Simpan pada kartu akhir agar masuk ke pustaka Anda\n- Menawarkan untuk membuat presentasi pertama dengan templat baru Anda"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Rencanakan presentasi",
+      "description": {
+        "text": "Rencanakan presentasi langkah demi langkah - tujuan, cerita, satu pesan per slide, desain - lalu buat slide dengan catatan pembicara dan tinjau."
+      },
+      "process": {
+        "text": "- Menanyakan tujuan, audiens, durasi, dan situasi Anda, dengan contoh sederhana dan rekomendasi\n- Mengusulkan cerita yang sesuai, misalnya masalah, solusi, demo, dampak, dan permintaan untuk pitch\n- Mencantumkan satu pesan per slide dan menunggu konfirmasi Anda sebelum membuat apa pun\n- Menampilkan desain bawaan yang cocok sebagai kartu, memakai templat tersimpan Anda, atau mendesain yang baru bersama Anda\n- Membuat slide dengan catatan pembicara di setiap slide, sesuai durasi presentasi Anda\n- Meninjau hasil dan memperbaiki yang Anda setujui, seperti terlalu banyak teks pada satu slide"
       }
     },
     "social_media_content_calendar_strategist": {

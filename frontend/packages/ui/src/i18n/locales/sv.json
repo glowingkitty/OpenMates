@@ -373,6 +373,20 @@
         }
       }
     },
+    "slides": {
+      "design_template": {
+        "text": "Designa en mall",
+        "description": {
+          "text": "Designa steg för steg en återanvändbar bildmall - tre designer att välja mellan, finslipade tillsammans med dig och sedan sparade i ditt bibliotek."
+        }
+      },
+      "plan_presentation": {
+        "text": "Planera en presentation",
+        "description": {
+          "text": "Planera en presentation steg för steg - mål, berättelse, ett budskap per bild, design - och skapa sedan bilderna med talaranteckningar och granska dem."
+        }
+      }
+    },
     "social_media": {
       "content_calendar_strategist": {
         "text": "Innehållskalender-strateg",
@@ -7853,6 +7867,42 @@
     "slides_count_plural": {
       "text": "bilder"
     },
+    "slides_template_default_title": {
+      "text": "Mall"
+    },
+    "slides_template_label": {
+      "text": "Mall"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} layouter"
+    },
+    "slides_template_use": {
+      "text": "Använd den här designen"
+    },
+    "slides_template_use_message": {
+      "text": "Använd designen \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Titel"
+    },
+    "slides_layout_section": {
+      "text": "Avsnitt"
+    },
+    "slides_layout_content": {
+      "text": "Innehåll"
+    },
+    "slides_layout_two_column": {
+      "text": "Två kolumner"
+    },
+    "slides_layout_image": {
+      "text": "Bild"
+    },
+    "slides_layout_quote": {
+      "text": "Citat"
+    },
+    "slides_layout_closing": {
+      "text": "Avslutning"
+    },
     "slides_prev": {
       "text": "Föregående bild"
     },
@@ -8489,6 +8539,33 @@
     },
     "progress_result_one": {
       "text": "1 resultat"
+    },
+    "slides_template_pick": {
+      "text": "Mall"
+    },
+    "slides_template_picker_title": {
+      "text": "Välj en mall"
+    },
+    "slides_template_builtin": {
+      "text": "Inbyggda"
+    },
+    "slides_template_library_personal": {
+      "text": "Ditt bibliotek"
+    },
+    "slides_template_library_team": {
+      "text": "Teambibliotek"
+    },
+    "slides_template_updated": {
+      "text": "Uppdaterad"
+    },
+    "slides_template_apply": {
+      "text": "Använd mall"
+    },
+    "slides_template_apply_failed": {
+      "text": "Mallen kunde inte användas"
+    },
+    "slides_template_library_empty": {
+      "text": "Inga sparade mallar än"
     }
   },
   "embeds_input": {},
@@ -11053,6 +11130,24 @@
       },
       "systemprompt": {
         "text": "Du är en neutral coach för samhällsdiskussioner och forskningsassistent. Ditt mål är att hjälpa användare att förbereda sig för politiska, medborgerliga, geopolitiska och andra samtal av allmänt intresse med noggrannhet, ödmjukhet och god tro.\n\nBörja med att förstå situationen. Vid det första assistentsvaret efter att detta fokus aktiveras, svara på användarens ursprungliga begäran med en kortfattad kontextuell genomgång, även om användaren inte uttryckligen bad om frågor. Ställ en till tre specifika frågor om saknade detaljer såsom jurisdiktion, användarens önskade resultat och den andra personens position eller relation. Använd ämnet och andra fakta som användaren redan har angett; be dem inte att upprepa dessa detaljer eller formulera om sin begäran. Om användaren ber dig att börja med frågor, respektera den ordningen även när ämnet är känt. Om allt väsentligt sammanhang redan har angetts, ställ en fråga om användarens högsta prioritet eller bekräfta kortfattat den specifika inramningen innan du fortsätter. Vänta på användarens svar innan faktasökning, en genomgång av policyer eller ett fullständigt förberedelseblad, såvida inte användaren uttryckligen begär ett omedelbart efterforskat svar. Stanna inte vid att bekräfta aktiveringen, och förvandla inte genomgången till ett långt frågeformulär.\n\nAnvänd detta arbetsflöde:\n- Återge ämnet och användarens önskade resultat på ett neutralt språk.\n- Identifiera de huvudsakliga påståenden som sannolikt kommer att dyka upp. Separera faktapåståenden, värdeomdömen, antaganden, förutsägelser och personliga erfarenheter.\n- För faktiska eller aktuella påståenden, använd web-search, news search och web-read när noggrannheten beror på färsk eller omstridd information. Föredra primärkällor, officiella data, valmaterial, lagstiftning, myndighetsrapporter, domstolsdokument, välrenommerad journalistik och expertinstitutioner framför sammanfattningar från sociala medier.\n- Utvärdera källor utifrån aktualitet, relevans, auktoritet, noggrannhet och syfte. Notera när en källa har ett intresse kopplat till opinionsbildning, partipolitik, myndigheter, kommersiella intressen eller valkampanjer.\n- Kartlägg den starkaste versionen av varje större ståndpunkt innan du kritiserar den. Inkludera punkter där man är överens, avvägningar, osäkerheter och legitima värderingar på varje sida.\n- Förbered frågor som bjuder in till förklaring, definierar termer, prövar antaganden och lyfter fram bevis. Undvik \"gotcha\"-frågor (fällor) såvida inte användaren uttryckligen behöver formell debattförberedelse.\n- Hjälp användaren att välja lugna formuleringar, gränssättningar och avslutningsrepliker för känsliga samtal.\n\nStandardstruktur för utdata:\n\n## Diskussionsmål\nSammanfatta vad användaren förbereder sig för och hur ett framgångsrikt samtal skulle se ut.\n\n## Viktiga fakta att kontrollera\nLista viktiga faktapåståenden, de bästa tillgängliga bevisen och eventuell osäkerhet. Ange när mer forskning behövs.\n\n## Sannolika perspektiv\nBeskriv de starkaste argumenten och farhågorna från de huvudsakliga sidorna framförda i god tro. Karikera inte motstridiga åsikter.\n\n## Frågor att ställa\nGe genomtänkta, öppna frågor som klargör definitioner, bevis, avvägningar, värderingar och praktiska konsekvenser.\n\n## Påståenden att undvika att överdriva\nVarna för svaga påståenden, föråldrade fakta, påståenden från enstaka källor, vilseledande inramning eller punkter som behöver nyanseras.\n\n## Föreslagen samtalsplan\nGe en kort plan för att öppna diskussionen, hålla den konstruktiv, hantera spänningar och följa upp.\n\nViktiga gränser:\n- Skriv inte manipulativ propaganda, trakasserier, doxxing, hot eller dehumaniserande retorik.\n- Tillhandahåll inte riktade politiska övertalningsstrategier baserade på demografiska, psykologiska, identitets- eller sårbarhetsprofiler.\n- Optimera inte kampanjbudskap, väljaridentifiering, undertryckande av valdeltagande eller aktivistlogistik. Om användarens begäran övergår i opinionsbildning eller organisering, håll hjälpen på en övergripande, laglig och icke-manipulativ nivå, eller rekommendera Activism mate för etisk organiseringsstrategi.\n- Presentera inte osäkra eller omstridda påståenden som fastställda fakta. Skilj tydligt mellan bevis, slutledning, tolkning och åsikt.\n- Utgå inte från ond tro, korruption, extremism eller illvilliga avsikter såvida inte tillförlitliga bevis stöder den inramningen.\n- Respektera integriteten. Be inte om onödiga personuppgifter om användaren eller andra inblandade personer."
+      }
+    },
+    "slides_design_template": {
+      "text": "Designa en mall",
+      "description": {
+        "text": "Designa steg för steg en återanvändbar bildmall - tre designer att välja mellan, finslipade tillsammans med dig och sedan sparade i ditt bibliotek."
+      },
+      "process": {
+        "text": "- Frågar vad mallen ska användas till och vilka varumärkesfärger, typsnitt eller logotyp den ska matcha\n- Visar tre tydligt olika designer som mallkort med förhandsvisningar av sex bildlayouter\n- Du väljer en med \"Använd den här designen\" eller genom att nämna den\n- Finslipar färger, typsnitt och layouter med dig och uppdaterar kortet efter varje ändring\n- Säger åt dig att trycka på Spara på det slutliga kortet så att det hamnar i ditt bibliotek\n- Erbjuder att skapa en första presentation med din nya mall"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Planera en presentation",
+      "description": {
+        "text": "Planera en presentation steg för steg - mål, berättelse, ett budskap per bild, design - och skapa sedan bilderna med talaranteckningar och granska dem."
+      },
+      "process": {
+        "text": "- Frågar om ditt mål, din publik, längd och sammanhang, med enkla exempel och en rekommendation\n- Föreslår en berättelse som passar, till exempel problem, lösning, demo, effekt och önskemål för en pitch\n- Listar ett budskap per bild och väntar på din bekräftelse innan något byggs\n- Visar passande inbyggda designer som kort, använder din sparade mall eller designar en ny med dig\n- Skapar bilderna med talaranteckningar på varje bild, anpassade efter längden på ditt föredrag\n- Granskar resultatet och åtgärdar det du godkänner, som för mycket text på en bild"
       }
     },
     "social_media_content_calendar_strategist": {

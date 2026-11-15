@@ -162,7 +162,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Access, memories and parity | **FAIL** 1/4 | **FAIL** 1/4 |  | partial 1/4 | **FAIL** 0/1 | partial 2/4 | not run 0/4 | not run 0/4 | | | |
 | [Reminder](#reminder) | **FAIL** 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
 | [Shopping](#shopping) | partial 1/4 | impl |  | impl | impl | **live** 3/3 | impl | impl | on | on | v0.5.0-alpha |
-| [Slides](#slides) | partial 6/17 | tested 1/1 |  | — | wip | partial 5/17 | impl | — | on | on | untagged-main |
+| [Slides](#slides) | partial 7/20 | tested 1/1 |  | — | wip | partial 7/20 | impl | — | on | on | untagged-main |
 | [Social Media](#social-media) | impl | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
 | [Study](#study) | impl | wip |  | — | impl | — | impl | wip | on | on | v0.5.0-alpha |
 | [Tasks](#tasks) | **FAIL** 9/29 | tested 8/8 |  | partial 2/29 | **FAIL** 0/1 | partial 6/29 | not run 0/29 | not run 0/29 | on | off | unreleased |
@@ -1567,7 +1567,7 @@ Shared lifecycle, full system instruction application, system history, controls,
 | Apple | partial 8/24 | 8 pass · 0 fail · 1 not run · 15 no test | [FocusPhaseNativeUITests.swift](../../apple/OpenMatesUITests/FocusPhaseNativeUITests.swift)<br>[FocusPhaseRealAccountUITests.swift](../../apple/OpenMatesUITests/FocusPhaseRealAccountUITests.swift)<br>[ProgressiveMessagePreviewUITests.swift](../../apple/OpenMatesUITests/ProgressiveMessagePreviewUITests.swift)<br>4 unit test file(s), e.g. [FocusPhaseTests.swift](../../apple/OpenMatesTests/FocusPhaseTests.swift), [ProjectsWorkspaceTests.swift](../../apple/OpenMatesTests/ProjectsWorkspaceTests.swift) |
 | CLI | partial 3/24 | 3 pass · 0 fail · 9 not run · 12 no test | 12 unit test file(s), e.g. [cliJevContext.test.ts](../../frontend/packages/openmates-cli/tests/cliJevContext.test.ts), [focus-phases.test.ts](../../frontend/packages/openmates-cli/tests/focus-phases.test.ts) |
 | TUI | wip | — | — |
-| REST API | partial 13/24 | 13 pass · 0 fail · 4 not run · 7 no test | [jev-project-context-api.spec.ts](../../frontend/apps/web_app/tests/jev-project-context-api.spec.ts)<br>28 unit test file(s), e.g. [test_project_authoring.py](../../backend/tests/test_project_authoring.py), [test_project_write_authorization.py](../../backend/tests/test_project_write_authorization.py) |
+| REST API | partial 13/24 | 13 pass · 0 fail · 4 not run · 7 no test | [jev-project-context-api.spec.ts](../../frontend/apps/web_app/tests/jev-project-context-api.spec.ts)<br>29 unit test file(s), e.g. [test_project_authoring.py](../../backend/tests/test_project_authoring.py), [test_project_write_authorization.py](../../backend/tests/test_project_write_authorization.py) |
 | npm SDK | impl | 0 pass · 0 fail · 0 not run · 24 no test | — |
 | PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 24 no test | — |
 
@@ -2680,22 +2680,23 @@ Signed-out web and Apple main-app visitors use the ordinary new-chat welcome wit
 ### Slides
 <a id="slides"></a>
 
-Create, edit and present slide decks.
+Create, edit and present slide decks; templates with built-in designs and an account or Team library; Design a template and Plan a presentation focus modes.
 
-- Specifications: [feature.slides](../../specifications/features/slides/specification.yml) (draft) · 17 assertion(s)
+- Specifications: [feature.slides](../../specifications/features/slides/specification.yml) (draft) · 20 assertion(s)
 - Apps: `slides`
 - Flags: `app:slides` · dev on · prod on · release untagged-main
-- Check intent: CLI: marked not_planned, but 17 required assertion(s) apply to cli
+- Notes: Templates and both focus modes are web only; Apple renders template themes only after its own slides lane.
+- Check intent: CLI: marked not_planned, but 20 required assertion(s) apply to cli
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 6/17 | 6 pass · 0 fail · 0 not run · 11 no test | [slides-deck-embed.spec.ts](../../frontend/apps/web_app/tests/components/slides-deck-embed.spec.ts)<br>[slides-editor.spec.ts](../../frontend/apps/web_app/tests/components/slides-editor.spec.ts)<br>[slides-presenter.spec.ts](../../frontend/apps/web_app/tests/components/slides-presenter.spec.ts)<br>[slides-manual-edit.spec.ts](../../frontend/apps/web_app/tests/slides-manual-edit.spec.ts)<br>6 unit test file(s), e.g. [slidesMarkup.test.ts](../../frontend/packages/ui/src/components/embeds/slides/slidesMarkup.test.ts), [slidesDeckVersion.test.ts](../../frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts) |
+| Web | partial 7/20 | 7 pass · 0 fail · 4 not run · 9 no test | [slides-deck-embed.spec.ts](../../frontend/apps/web_app/tests/components/slides-deck-embed.spec.ts)<br>[slides-editor.spec.ts](../../frontend/apps/web_app/tests/components/slides-editor.spec.ts)<br>[slides-presenter.spec.ts](../../frontend/apps/web_app/tests/components/slides-presenter.spec.ts)<br>[slides-template-embed.spec.ts](../../frontend/apps/web_app/tests/components/slides-template-embed.spec.ts)<br>[slides-focus-modes-real.spec.ts](../../frontend/apps/web_app/tests/slides-focus-modes-real.spec.ts)<br>[slides-focus-presentation-planner.spec.ts](../../frontend/apps/web_app/tests/slides-focus-presentation-planner.spec.ts)<br>[slides-focus-template-designer.spec.ts](../../frontend/apps/web_app/tests/slides-focus-template-designer.spec.ts)<br>[slides-manual-edit.spec.ts](../../frontend/apps/web_app/tests/slides-manual-edit.spec.ts)<br>9 unit test file(s), e.g. [slidesMarkup.test.ts](../../frontend/packages/ui/src/components/embeds/slides/slidesMarkup.test.ts), [slidesDeckVersion.test.ts](../../frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts) |
 | Apple | tested 1/1 | 1 pass · 0 fail · 0 not run · 0 no test | 1 unit test file(s), e.g. [SlidesDeckRendererTests.swift](../../apple/OpenMatesTests/SlidesDeckRendererTests.swift) |
-| CLI | — | 0 pass · 0 fail · 0 not run · 17 no test | — |
+| CLI | — | 0 pass · 0 fail · 0 not run · 20 no test | — |
 | TUI | wip | — | — |
-| REST API | partial 5/17 | 5 pass · 0 fail · 1 not run · 11 no test | 4 unit test file(s), e.g. [test_slides_markup.py](../../backend/tests/test_slides_markup.py), [test_slides_markup_core_fixed_points.py](../../backend/tests/test_slides_markup_core_fixed_points.py) |
+| REST API | partial 7/20 | 7 pass · 0 fail · 3 not run · 10 no test | 5 unit test file(s), e.g. [test_slides_markup.py](../../backend/tests/test_slides_markup.py), [test_slides_stream_consumer.py](../../backend/tests/test_slides_stream_consumer.py) |
 | npm SDK | impl | — | — |
 | PyPI SDK | — | — | — |
 

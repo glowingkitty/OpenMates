@@ -204,3 +204,13 @@ fn deck_history_source_is_slides_markup() {
     let got = run(recovery::history_source_json, &input);
     assert_eq!(got, json!({"kind": "source", "source": "# One"}));
 }
+
+#[test]
+fn template_history_source_is_slides_markup() {
+    let input = json!({
+        "type": "template",
+        "decoded": {"type": "template", "slides_markup": "# Look"}
+    });
+    let got = run(recovery::history_source_json, &input);
+    assert_eq!(got, json!({"kind": "source", "source": "# Look"}));
+}

@@ -1,4 +1,4 @@
-"""Deck embed (type="deck") creation and update for ```slides fences.
+"""Deck and template embed (type="deck" / "template") creation and update for ```slides fences.
 
 Mixed into EmbedService so the large embed_service.py only gains the base-class
 reference. Content is always the normalised markup produced by
@@ -20,14 +20,20 @@ from backend.shared.python_utils.slides_markup import NormalisedDeck
 logger = logging.getLogger(__name__)
 
 
+def deck_embed_type(deck: NormalisedDeck) -> str:
+    """Embed type of a normalised deck: ``template`` for kind="template", else ``deck``."""
+    return "template" if deck.kind == "template" else "deck"
+
+
 def deck_embed_content(
     deck: NormalisedDeck, embed_ref: Optional[str], status: str, version_number: int = 1
 ) -> Dict[str, Any]:
     """Stored/streamed TOON payload for a deck embed."""
+    embed_type = deck_embed_type(deck)
     return {
-        "type": "deck",
+        "type": embed_type,
         "app_id": "slides",
-        "skill_id": "deck",
+        "skill_id": embed_type,
         "slides_markup": deck.markup,
         "title": deck.title,
         "slide_count": deck.slide_count,
@@ -57,8 +63,9 @@ class SlidesEmbedMixin:
 
         Returns {"embed_id", "embed_reference"} or None when creation failed.
         """
+        embed_type = deck_embed_type(deck)
         embed_id = str(uuid.uuid4())
-        embed_ref = self._generate_direct_embed_ref("deck", embed_id, {"title": deck.title})
+        embed_ref = self._generate_direct_embed_ref(embed_type, embed_id, {"title": deck.title})
         placeholder_toon = encode(deck_embed_content(deck, embed_ref, "processing"))
         encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
             placeholder_toon, user_vault_key_id
@@ -66,7 +73,7 @@ class SlidesEmbedMixin:
         now = int(datetime.now().timestamp())
         embed_data = {
             "embed_id": embed_id,
-            "type": "deck",
+            "type": embed_type,
             "chat_id": chat_id,
             "message_id": message_id,
             "hashed_chat_id": hashlib.sha256(chat_id.encode()).hexdigest(),
@@ -84,11 +91,11 @@ class SlidesEmbedMixin:
         }
         await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
         await self.send_embed_data_to_client(
-            embed_id=embed_id, embed_type="deck", content_toon=placeholder_toon,
+            embed_id=embed_id, embed_type=embed_type, content_toon=placeholder_toon,
             chat_id=chat_id, message_id=message_id, user_id=user_id,
             user_id_hash=user_id_hash, status="processing", task_id=task_id,
             is_private=False, is_shared=False, version_number=1,
-            created_at=now, updated_at=now, app_id="slides", skill_id="deck",
+            created_at=now, updated_at=now, app_id="slides", skill_id=embed_type,
             log_prefix=log_prefix,
         )
         updated = await self.update_deck_embed_content(
@@ -100,7 +107,7 @@ class SlidesEmbedMixin:
             return None
         return {
             "embed_id": embed_id,
-            "embed_reference": '{"type": "deck", "embed_id": "%s"}' % embed_id,
+            "embed_reference": '{"type": "%s", "embed_id": "%s"}' % (embed_type, embed_id),
         }
 
     async def update_deck_embed_content(
@@ -118,6 +125,7 @@ class SlidesEmbedMixin:
         log_prefix: str = "",
     ) -> bool:
         """Store new normalised deck content and notify clients."""
+        embed_type = deck_embed_type(deck)
         cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
         if not cached_embed:
             logger.warning(f"{log_prefix} Deck embed {embed_id} not found in cache, cannot update")
@@ -126,7 +134,7 @@ class SlidesEmbedMixin:
         existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
         if existing_toon:
             existing_ref = (decode(existing_toon) or {}).get("embed_ref")
-        embed_ref = existing_ref or self._generate_direct_embed_ref("deck", embed_id, {"title": deck.title})
+        embed_ref = existing_ref or self._generate_direct_embed_ref(embed_type, embed_id, {"title": deck.title})
 
         # Same version contract as the other diff-editable direct embeds: the head
         # always carries a version number and content hash, and version 1 is
@@ -147,7 +155,7 @@ class SlidesEmbedMixin:
         updated_embed_data = {
             **cached_embed,
             "encrypted_content": encrypted_content,
-            "type": "deck",
+            "type": embed_type,
             "status": status,
             "version_number": next_version,
             "updated_at": int(datetime.now().timestamp()),
@@ -156,7 +164,7 @@ class SlidesEmbedMixin:
             updated_embed_data["content_hash"] = content_hash
 
         await self.send_embed_data_to_client(
-            embed_id=embed_id, embed_type="deck", content_toon=updated_toon,
+            embed_id=embed_id, embed_type=embed_type, content_toon=updated_toon,
             chat_id=chat_id, message_id=cached_embed.get("message_id", ""),
             user_id=user_id, user_id_hash=user_id_hash, status=status,
             task_id=cached_embed.get("hashed_task_id"),
@@ -164,7 +172,7 @@ class SlidesEmbedMixin:
             is_shared=cached_embed.get("is_shared", False),
             version_number=next_version, content_hash=content_hash,
             version_history_rows=version_history_rows,
-            app_id="slides", skill_id="deck",
+            app_id="slides", skill_id=embed_type,
             created_at=cached_embed.get("created_at"),
             updated_at=updated_embed_data["updated_at"], log_prefix=log_prefix,
             check_cache_status=False,

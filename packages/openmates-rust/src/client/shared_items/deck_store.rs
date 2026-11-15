@@ -8,6 +8,7 @@
 use super::deck_error::DeckError;
 use super::deck_inline::{INLINE_TAGS, InlineNode, normalise_nodes, parse_inline};
 use super::deck_markup::{DeckModel, ElementContent, ElementModel, SlideModel, TodoItem};
+use super::deck_theme::{DeckKind, DeckTheme, THEME_ATTRIBUTES, clean_theme_value};
 use super::deck_values::{
     DEFAULT_TEMPLATE, DeckAspect, ElementKind, clamp_box, clean_attribute, clean_item_label,
     clean_layout, clean_note_text, clean_notes, clean_title, clean_transition, is_valid_template,
@@ -126,6 +127,10 @@ pub(crate) fn write_model(
     roots.meta.insert(txn, "title", model.title.clone());
     roots.meta.insert(txn, "aspect", model.aspect.as_str());
     roots.meta.insert(txn, "template", model.template.clone());
+    if model.kind == DeckKind::Template {
+        roots.meta.insert(txn, "kind", "template");
+    }
+    write_theme(txn, &roots.meta, model.theme.as_ref());
     for slide in &model.slides {
         let index = roots.order.len(txn);
         insert_slide(txn, roots, index, slide)?;
@@ -258,6 +263,32 @@ pub(crate) fn set_optional(txn: &mut TransactionMut, map: &MapRef, key: &str, va
     }
 }
 
+/// Meta key of one theme attribute.
+fn theme_key(attribute: &str) -> String {
+    format!("theme_{attribute}")
+}
+
+/// Replaces the stored theme: every set value is written, every other theme key removed.
+pub(crate) fn write_theme(txn: &mut TransactionMut, meta: &MapRef, theme: Option<&DeckTheme>) {
+    let entries = theme.map(DeckTheme::entries).unwrap_or_default();
+    for attribute in THEME_ATTRIBUTES {
+        let value = entries
+            .iter()
+            .find(|(name, _)| *name == attribute)
+            .map(|(_, value)| *value);
+        set_optional(txn, meta, &theme_key(attribute), value);
+    }
+}
+
+fn read_theme<T: ReadTxn>(txn: &T, meta: &MapRef) -> Option<DeckTheme> {
+    let pairs = THEME_ATTRIBUTES.iter().filter_map(|attribute| {
+        let raw = get_string(meta, txn, &theme_key(attribute))?;
+        clean_theme_value(attribute, &raw).map(|value| (*attribute, value))
+    });
+    let theme = DeckTheme::from_entries(pairs);
+    (!theme.entries().is_empty()).then_some(theme)
+}
+
 // ------------------------------------------------------------------ reading
 
 /// Reads the whole deck. Every value passes the same cleaners as markup input, ids are
@@ -302,10 +333,16 @@ pub(crate) fn read_model<T: ReadTxn>(txn: &T, roots: &DeckRoots) -> DeckModel {
             elements,
         });
     }
+    let kind = match get_string(&roots.meta, txn, "kind").as_deref() {
+        Some("template") => DeckKind::Template,
+        _ => DeckKind::Deck,
+    };
     DeckModel {
         title,
         aspect,
         template,
+        kind,
+        theme: read_theme(txn, &roots.meta),
         slides,
     }
 }

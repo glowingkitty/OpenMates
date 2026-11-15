@@ -1,0 +1,222 @@
+slides_plan_presentation:
+  context: Focus mode name
+  en: Plan a presentation
+  de: "Präsentation planen"
+  zh: "规划演示文稿"
+  es: "Planificar una presentación"
+  fr: "Planifier une présentation"
+  pt: "Planejar uma apresentação"
+  ru: "Спланировать презентацию"
+  ja: "プレゼンを計画"
+  ko: "프레젠테이션 계획"
+  it: "Pianifica una presentazione"
+  tr: "Sunum planla"
+  vi: "Lên kế hoạch bài thuyết trình"
+  id: "Rencanakan presentasi"
+  pl: "Zaplanuj prezentację"
+  nl: "Presentatie plannen"
+  ar: "تخطيط عرض تقديمي"
+  hi: "प्रस्तुति की योजना बनाएँ"
+  th: "วางแผนงานนำเสนอ"
+  cs: "Naplánovat prezentaci"
+  sv: "Planera en presentation"
+  he: "תכנון מצגת"
+  verified_by_human: []
+description:
+  context: Focus mode description
+  en: Plan a presentation step by step - goal, story, one message per slide, design - then create the
+    slides with speaker notes and review them.
+  de: "Plane eine Präsentation Schritt für Schritt - Ziel, Geschichte, eine Botschaft pro Folie, Design - dann entstehen die Folien mit Sprechernotizen und werden geprüft."
+  zh: "一步步规划演示文稿 - 目标、故事、每页一个信息、设计 - 然后创建带演讲者备注的幻灯片并进行审阅。"
+  es: "Planifica una presentación paso a paso: objetivo, historia, un mensaje por diapositiva, diseño; luego crea las diapositivas con notas del orador y revísalas."
+  fr: "Planifiez une présentation pas à pas : objectif, histoire, un message par diapositive, design, puis créez les diapositives avec notes de l'orateur et relisez-les."
+  pt: "Planeje uma apresentação passo a passo - objetivo, história, uma mensagem por slide, design - depois crie os slides com notas do apresentador e revise-os."
+  ru: "Спланируйте презентацию шаг за шагом - цель, история, одна мысль на слайд, дизайн - затем создайте слайды с заметками докладчика и проверьте их."
+  ja: "プレゼンを段階的に計画 - 目的、ストーリー、1スライド1メッセージ、デザイン - その後、スピーカーノート付きのスライドを作成して見直します。"
+  ko: "프레젠테이션을 단계별로 계획하세요 - 목표, 스토리, 슬라이드당 하나의 메시지, 디자인 - 그런 다음 발표자 노트가 있는 슬라이드를 만들고 검토합니다."
+  it: "Pianifica una presentazione passo dopo passo: obiettivo, storia, un messaggio per slide, design; poi crea le slide con le note del relatore e rivedile."
+  tr: "Bir sunumu adım adım planlayın - hedef, hikâye, slayt başına bir mesaj, tasarım - sonra konuşmacı notlu slaytları oluşturup gözden geçirin."
+  vi: "Lên kế hoạch bài thuyết trình từng bước - mục tiêu, câu chuyện, mỗi trang một thông điệp, thiết kế - rồi tạo các trang chiếu có ghi chú người thuyết trình và xem lại."
+  id: "Rencanakan presentasi langkah demi langkah - tujuan, cerita, satu pesan per slide, desain - lalu buat slide dengan catatan pembicara dan tinjau."
+  pl: "Zaplanuj prezentację krok po kroku - cel, historia, jedna myśl na slajd, projekt - a potem utwórz slajdy z notatkami prelegenta i przejrzyj je."
+  nl: "Plan een presentatie stap voor stap - doel, verhaal, één boodschap per dia, ontwerp - en maak daarna de dia's met sprekersnotities en controleer ze."
+  ar: "خطّط لعرض تقديمي خطوة بخطوة - الهدف، القصة، رسالة واحدة لكل شريحة، التصميم - ثم أنشئ الشرائح مع ملاحظات المتحدث وراجعها."
+  hi: "चरण-दर-चरण प्रस्तुति की योजना बनाएँ - लक्ष्य, कहानी, हर स्लाइड पर एक संदेश, डिज़ाइन - फिर वक्ता नोट्स के साथ स्लाइड बनाएँ और उनकी समीक्षा करें।"
+  th: "วางแผนงานนำเสนอทีละขั้นตอน - เป้าหมาย เรื่องราว หนึ่งสารต่อสไลด์ ดีไซน์ - แล้วสร้างสไลด์พร้อมโน้ตผู้บรรยายและตรวจทาน"
+  cs: "Naplánujte prezentaci krok za krokem - cíl, příběh, jedno sdělení na snímek, design - pak vytvořte snímky s poznámkami řečníka a zkontrolujte je."
+  sv: "Planera en presentation steg för steg - mål, berättelse, ett budskap per bild, design - och skapa sedan bilderna med talaranteckningar och granska dem."
+  he: "תכננו מצגת צעד אחר צעד - מטרה, סיפור, מסר אחד לכל שקופית, עיצוב - ואז צרו את השקופיות עם הערות דובר ובדקו אותן."
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: |
+    - Asks about your goal, audience, length and setting, with simple examples and a recommendation
+    - Proposes a story that fits your use case, for example problem, solution, demo, impact and ask for a pitch
+    - Lists one message per slide and waits for your confirmation before building anything
+    - Shows fitting built-in designs as cards, or uses your saved template, or designs a new one with you
+    - Creates the slides with speaker notes on every slide, sized to your talk length
+    - Reviews the result and fixes what you accept, such as too much text on a slide
+  de: |
+    - Fragt nach Ziel, Publikum, Länge und Rahmen, mit einfachen Beispielen und einer Empfehlung
+    - Schlägt eine passende Geschichte vor, für einen Pitch zum Beispiel Problem, Lösung, Demo, Wirkung und Bitte
+    - Listet eine Botschaft pro Folie auf und wartet auf deine Bestätigung, bevor etwas gebaut wird
+    - Zeigt passende eingebaute Designs als Karten, nutzt deine gespeicherte Vorlage oder gestaltet mit dir eine neue
+    - Erstellt die Folien mit Sprechernotizen auf jeder Folie, passend zur Länge deines Vortrags
+    - Prüft das Ergebnis und behebt, was du annimmst, etwa zu viel Text auf einer Folie
+  zh: |
+    - 询问你的目标、受众、时长和场合，附简单示例和建议
+    - 提出适合你用途的故事线，例如路演可用问题、方案、演示、影响和请求
+    - 列出每页一个信息，并在制作前等待你的确认
+    - 以卡片展示合适的内置设计，或使用你保存的模板，或与你一起设计新模板
+    - 创建每页都带演讲者备注的幻灯片，页数与演讲时长相符
+    - 审阅结果并修正你接受的问题，例如某页文字过多
+  es: |
+    - Pregunta por tu objetivo, público, duración y contexto, con ejemplos sencillos y una recomendación
+    - Propone una historia adecuada, por ejemplo problema, solución, demo, impacto y petición para un pitch
+    - Enumera un mensaje por diapositiva y espera tu confirmación antes de crear nada
+    - Muestra diseños integrados adecuados como tarjetas, usa tu plantilla guardada o diseña una nueva contigo
+    - Crea las diapositivas con notas del orador en cada una, ajustadas a la duración de tu charla
+    - Revisa el resultado y corrige lo que aceptes, como demasiado texto en una diapositiva
+  fr: |
+    - Demande votre objectif, votre public, la durée et le contexte, avec des exemples simples et une recommandation
+    - Propose une histoire adaptée, par exemple problème, solution, démo, impact et demande pour un pitch
+    - Liste un message par diapositive et attend votre confirmation avant de construire quoi que ce soit
+    - Montre des designs intégrés adaptés sous forme de cartes, utilise votre modèle enregistré ou en conçoit un nouveau avec vous
+    - Crée les diapositives avec des notes de l'orateur sur chacune, adaptées à la durée de votre exposé
+    - Relit le résultat et corrige ce que vous acceptez, comme trop de texte sur une diapositive
+  pt: |
+    - Pergunta sobre seu objetivo, público, duração e contexto, com exemplos simples e uma recomendação
+    - Propõe uma história adequada, por exemplo problema, solução, demo, impacto e pedido para um pitch
+    - Lista uma mensagem por slide e espera sua confirmação antes de criar qualquer coisa
+    - Mostra designs integrados adequados como cartões, usa seu modelo salvo ou cria um novo com você
+    - Cria os slides com notas do apresentador em cada um, no tamanho certo para a duração da sua fala
+    - Revisa o resultado e corrige o que você aceitar, como texto demais em um slide
+  ru: |
+    - Спрашивает о цели, аудитории, длительности и обстановке, с простыми примерами и рекомендацией
+    - Предлагает подходящую историю, например для питча: проблема, решение, демо, эффект и просьба
+    - Перечисляет одну мысль на слайд и ждёт вашего подтверждения, прежде чем что-то создавать
+    - Показывает подходящие встроенные дизайны как карточки, использует ваш сохранённый шаблон или создаёт новый вместе с вами
+    - Создаёт слайды с заметками докладчика на каждом, по длительности вашего выступления
+    - Проверяет результат и исправляет то, что вы примете, например слишком много текста на слайде
+  ja: |
+    - 目的、聞き手、長さ、場面を、簡単な例とおすすめを添えて尋ねます
+    - 用途に合ったストーリーを提案します。ピッチなら課題、解決策、デモ、効果、お願いなど
+    - 1スライドに1つのメッセージを並べ、作成前にあなたの確認を待ちます
+    - 合う組み込みデザインをカードで示すか、保存済みテンプレートを使うか、新しいものを一緒にデザインします
+    - 発表時間に合わせて、すべてのスライドにスピーカーノートを付けて作成します
+    - 結果を見直し、1枚の文字が多すぎるなど、あなたが受け入れた点を修正します
+  ko: |
+    - 목표, 청중, 길이, 상황을 간단한 예시와 추천과 함께 묻습니다
+    - 용도에 맞는 스토리를 제안합니다. 예를 들어 피치라면 문제, 해결책, 데모, 효과, 요청
+    - 슬라이드당 하나의 메시지를 나열하고 만들기 전에 확인을 기다립니다
+    - 어울리는 기본 디자인을 카드로 보여주거나, 저장된 템플릿을 쓰거나, 함께 새로 디자인합니다
+    - 발표 길이에 맞춰 모든 슬라이드에 발표자 노트를 넣어 만듭니다
+    - 결과를 검토하고 슬라이드의 텍스트가 너무 많은 것처럼 수락한 부분을 고칩니다
+  it: |
+    - Chiede obiettivo, pubblico, durata e contesto, con esempi semplici e un consiglio
+    - Propone una storia adatta, per esempio problema, soluzione, demo, impatto e richiesta per un pitch
+    - Elenca un messaggio per slide e aspetta la tua conferma prima di costruire qualcosa
+    - Mostra design integrati adatti come schede, usa il tuo modello salvato o ne progetta uno nuovo con te
+    - Crea le slide con le note del relatore su ognuna, adatte alla durata del tuo intervento
+    - Rivede il risultato e corregge ciò che accetti, come troppo testo su una slide
+  tr: |
+    - Hedefinizi, dinleyicinizi, süreyi ve ortamı basit örnekler ve bir öneriyle sorar
+    - Kullanımınıza uygun bir hikâye önerir, örneğin bir sunum için sorun, çözüm, demo, etki ve talep
+    - Slayt başına bir mesaj listeler ve bir şey oluşturmadan önce onayınızı bekler
+    - Uygun yerleşik tasarımları kart olarak gösterir, kayıtlı şablonunuzu kullanır veya sizinle yeni bir tane tasarlar
+    - Konuşma sürenize uygun, her slaytta konuşmacı notları olan slaytlar oluşturur
+    - Sonucu gözden geçirir ve bir slaytta fazla metin gibi kabul ettiğiniz noktaları düzeltir
+  vi: |
+    - Hỏi về mục tiêu, khán giả, thời lượng và bối cảnh, kèm ví dụ đơn giản và một đề xuất
+    - Đề xuất câu chuyện phù hợp, ví dụ vấn đề, giải pháp, demo, tác động và lời đề nghị cho một buổi pitch
+    - Liệt kê mỗi trang một thông điệp và chờ bạn xác nhận trước khi tạo bất cứ thứ gì
+    - Hiển thị các thiết kế có sẵn phù hợp dưới dạng thẻ, dùng mẫu bạn đã lưu hoặc cùng bạn thiết kế mẫu mới
+    - Tạo các trang chiếu có ghi chú người thuyết trình trên mỗi trang, vừa với thời lượng bài nói
+    - Xem lại kết quả và sửa những gì bạn đồng ý, chẳng hạn quá nhiều chữ trên một trang
+  id: |
+    - Menanyakan tujuan, audiens, durasi, dan situasi Anda, dengan contoh sederhana dan rekomendasi
+    - Mengusulkan cerita yang sesuai, misalnya masalah, solusi, demo, dampak, dan permintaan untuk pitch
+    - Mencantumkan satu pesan per slide dan menunggu konfirmasi Anda sebelum membuat apa pun
+    - Menampilkan desain bawaan yang cocok sebagai kartu, memakai templat tersimpan Anda, atau mendesain yang baru bersama Anda
+    - Membuat slide dengan catatan pembicara di setiap slide, sesuai durasi presentasi Anda
+    - Meninjau hasil dan memperbaiki yang Anda setujui, seperti terlalu banyak teks pada satu slide
+  pl: |
+    - Pyta o cel, odbiorców, długość i okoliczności, z prostymi przykładami i rekomendacją
+    - Proponuje pasującą historię, na przykład problem, rozwiązanie, demo, efekt i prośba w przypadku pitchu
+    - Wypisuje jedną myśl na slajd i czeka na Twoje potwierdzenie, zanim cokolwiek zbuduje
+    - Pokazuje pasujące wbudowane projekty jako karty, używa Twojego zapisanego szablonu lub projektuje z Tobą nowy
+    - Tworzy slajdy z notatkami prelegenta na każdym, dopasowane do długości wystąpienia
+    - Przegląda wynik i poprawia to, co zaakceptujesz, np. zbyt dużo tekstu na slajdzie
+  nl: |
+    - Vraagt naar je doel, publiek, lengte en setting, met eenvoudige voorbeelden en een aanbeveling
+    - Stelt een passend verhaal voor, bijvoorbeeld probleem, oplossing, demo, impact en vraag voor een pitch
+    - Zet één boodschap per dia op een rij en wacht op je bevestiging voordat er iets wordt gemaakt
+    - Toont passende ingebouwde ontwerpen als kaarten, gebruikt je opgeslagen sjabloon of ontwerpt samen met je een nieuw
+    - Maakt de dia's met sprekersnotities op elke dia, afgestemd op de lengte van je praatje
+    - Controleert het resultaat en verbetert wat je accepteert, zoals te veel tekst op een dia
+  ar: |
+    - يسأل عن هدفك وجمهورك والمدة والسياق، مع أمثلة بسيطة وتوصية
+    - يقترح قصة تناسب استخدامك، مثل المشكلة والحل والعرض التجريبي والأثر والطلب في عرض استثماري
+    - يسرد رسالة واحدة لكل شريحة وينتظر تأكيدك قبل إنشاء أي شيء
+    - يعرض تصاميم مدمجة مناسبة كبطاقات، أو يستخدم قالبك المحفوظ، أو يصمم معك قالبًا جديدًا
+    - ينشئ الشرائح مع ملاحظات المتحدث في كل شريحة، بما يناسب مدة حديثك
+    - يراجع النتيجة ويصلح ما توافق عليه، مثل كثرة النص في شريحة
+  hi: |
+    - आपके लक्ष्य, दर्शक, अवधि और माहौल के बारे में सरल उदाहरणों और सुझाव के साथ पूछता है
+    - आपके उपयोग के अनुरूप कहानी सुझाता है, जैसे पिच के लिए समस्या, समाधान, डेमो, प्रभाव और अनुरोध
+    - हर स्लाइड पर एक संदेश की सूची बनाता है और कुछ भी बनाने से पहले आपकी पुष्टि का इंतज़ार करता है
+    - उपयुक्त बिल्ट-इन डिज़ाइन कार्ड के रूप में दिखाता है, आपका सहेजा टेम्पलेट इस्तेमाल करता है या आपके साथ नया डिज़ाइन करता है
+    - आपकी बात की अवधि के अनुसार हर स्लाइड पर वक्ता नोट्स के साथ स्लाइड बनाता है
+    - परिणाम की समीक्षा करता है और जो आप स्वीकार करें उसे ठीक करता है, जैसे किसी स्लाइड पर बहुत ज़्यादा टेक्स्ट
+  th: |
+    - ถามถึงเป้าหมาย ผู้ฟัง ความยาว และสถานการณ์ พร้อมตัวอย่างง่ายๆ และคำแนะนำ
+    - เสนอเรื่องราวที่เหมาะกับการใช้งาน เช่น ปัญหา ทางออก เดโม ผลลัพธ์ และคำขอสำหรับการพิทช์
+    - ระบุหนึ่งสารต่อสไลด์และรอการยืนยันจากคุณก่อนสร้างสิ่งใด
+    - แสดงดีไซน์ในตัวที่เหมาะสมเป็นการ์ด ใช้เทมเพลตที่คุณบันทึกไว้ หรือออกแบบใหม่ร่วมกับคุณ
+    - สร้างสไลด์พร้อมโน้ตผู้บรรยายในทุกสไลด์ ให้พอดีกับความยาวการพูดของคุณ
+    - ตรวจทานผลลัพธ์และแก้ไขสิ่งที่คุณยอมรับ เช่น ข้อความมากเกินไปในสไลด์
+  cs: |
+    - Zeptá se na cíl, publikum, délku a prostředí, s jednoduchými příklady a doporučením
+    - Navrhne vhodný příběh, například u pitche problém, řešení, demo, dopad a prosbu
+    - Vypíše jedno sdělení na snímek a před tvorbou čeká na vaše potvrzení
+    - Ukáže vhodné vestavěné návrhy jako karty, použije vaši uloženou šablonu nebo s vámi navrhne novou
+    - Vytvoří snímky s poznámkami řečníka na každém, podle délky vašeho vystoupení
+    - Zkontroluje výsledek a opraví, co přijmete, například příliš mnoho textu na snímku
+  sv: |
+    - Frågar om ditt mål, din publik, längd och sammanhang, med enkla exempel och en rekommendation
+    - Föreslår en berättelse som passar, till exempel problem, lösning, demo, effekt och önskemål för en pitch
+    - Listar ett budskap per bild och väntar på din bekräftelse innan något byggs
+    - Visar passande inbyggda designer som kort, använder din sparade mall eller designar en ny med dig
+    - Skapar bilderna med talaranteckningar på varje bild, anpassade efter längden på ditt föredrag
+    - Granskar resultatet och åtgärdar det du godkänner, som för mycket text på en bild
+  he: |
+    - שואל על המטרה, הקהל, האורך והמסגרת, עם דוגמאות פשוטות והמלצה
+    - מציע סיפור שמתאים לשימוש, למשל בעיה, פתרון, הדגמה, השפעה ובקשה בהצגה למשקיעים
+    - מפרט מסר אחד לכל שקופית ומחכה לאישור שלכם לפני שבונה משהו
+    - מציג עיצובים מובנים מתאימים ככרטיסים, משתמש בתבנית השמורה שלכם או מעצב איתכם חדשה
+    - יוצר את השקופיות עם הערות דובר בכל שקופית, בהתאם לאורך ההרצאה
+    - בודק את התוצאה ומתקן את מה שתאשרו, כמו יותר מדי טקסט בשקופית
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: |
+    - I need **slides for my hackathon project** but I don't know how to start
+    - Help me build a **15-minute quarterly update** for my management team
+    - **Teaching deck**, 45 min, year 9 biology, photosynthesis, 12 slides, Friendly classroom, go
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: |
+    You help the user plan and create a whole presentation, for any use case such as a project or hackathon pitch, a business update, sales, teaching, school or a talk. You guide them through six phases: goal and audience, story, outline, template, slides and review.
+
+    Follow only the current phase's instructions. Every turn asks one to three simple questions, each with a recommendation or example, and every phase ends with a short summary the user confirms. Use beginner-friendly language and explain terms briefly. A user who gives everything at once or asks to go fast is not asked what the message already answers; show the outline for confirmation in the first reply.
+
+    Important guidelines:
+    - Never create the deck before the user has confirmed the outline; a change request means showing the updated outline again.
+    - One slide per outline message, speaker notes on every slide, and a slide count that fits the length (about one slide per minute).
+    - Prefer visuals, big numbers and short text over bullet lists; never put paragraphs on slides.
+    - Show built-in templates with `<deck kind="template" template="builtin:<id>"></deck>` fences; never describe a design only in words.
+    - Never claim a template is saved; only the user's Save action saves it.
+    - Images come only from embeds the user already provided.
+    - Change an existing deck only with ```diff:<embed_ref> edits and keep what the user set by hand.
+  verified_by_human: []

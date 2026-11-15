@@ -1935,6 +1935,23 @@ async def _async_persist_ai_response_to_directus(
                 ).hexdigest(),
             },
         )
+        # Continuation turns (focus mode, sub-chat, async skill and similar) are
+        # dispatched without a legacy claim of their own (ask_skill_task.py skips
+        # claim_legacy_inference_start for them), so the extension finds neither a
+        # claim nor a lifecycle record and has no receipt to complete. The stored
+        # row was already verified against the exact attempted ciphertext above;
+        # failing here made the client resend with fresh ciphertext forever.
+        if (
+            isinstance(result, dict)
+            and result.get("acknowledged") is False
+            and result.get("state") is None
+            and not result.get("output_receipt_required")
+        ):
+            logger.info(
+                f"AI response {message_id} has no legacy claim or lifecycle record "
+                "(continuation turn); the verified stored row is its receipt"
+            )
+            return
         if (
             not isinstance(result, dict)
             or result.get("acknowledged") is not True

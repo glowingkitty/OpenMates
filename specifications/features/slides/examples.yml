@@ -72,24 +72,68 @@ animations:
     then: All three elements are visible at once and the next slide appears without a fade.
 
 templates:
-  - id: library-and-project-template
-    given: Alice saved a template "Studio Blue" in her library and saves a copy into the folder "Pitch" of her Project.
-    when: She opens the template library and then the Project folder.
-    then: The library lists "Studio Blue" beside the built-in templates, and the folder lists it like a deck with a template mark.
+  - id: saved-template-in-library
+    given: Alice pressed Save on her template card "Studio Blue".
+    when: She opens the Template action of one of her decks.
+    then: The picker lists "Studio Blue" under her library beside the built-in templates, with a preview of its title slide.
+  - id: team-library-stays-separate
+    given: Bob saved "Sports Club" while working in his Team and "Private Notes" in his Personal account.
+    when: He opens the template picker of a deck, first in the Team and then in his Personal account.
+    then: The Team picker shows "Sports Club" and the built-in templates but not "Private Notes"; the Personal picker shows the reverse.
+  - id: built-ins-without-saving
+    given: Carol has a new account and never saved a template.
+    when: She opens the template picker of a deck.
+    then: Plain, Bold pitch, Clean business, Friendly classroom and Calm talk are listed, each with a preview of its title slide.
   - id: template-change-does-not-touch-old-decks
     given: Three decks were made with "Studio Blue", and Alice changes its heading font.
     when: She opens one of the three decks.
-    then: The deck still has the old heading font and offers to apply the updated template; after she applies it, only that deck changes.
+    then: The deck still has the old heading font and its template picker marks "Studio Blue" as updated; after she applies it, only that deck changes.
 
-template_focus:
-  - id: first-request-builds-a-template
-    given: Bob has no template and asks "Create slides about our new bike rental service".
-    when: The assistant processes the request.
-    then: The template-creation focus mode is offered with the usual countdown; once active, the assistant shows three different designs as selectable previews, Bob picks one and asks for a warmer accent colour, the template is saved, and the bike rental deck is then created with it.
-  - id: user-declines
-    given: Carol has no template, asks for a quick three-slide deck and cancels the focus mode offer.
+apply_template:
+  - id: apply-keeps-content
+    given: Bob's eight-slide deck uses Plain, and he moved the logo on slide 2 by hand.
+    when: He opens Template in the deck fullscreen and applies "Bold pitch".
+    then: All slides use the Bold pitch colours and fonts, the text, logo position and speaker notes are unchanged, and the timeline shows one new version that he can go back from.
+  - id: shared-deck-keeps-look
+    given: Alice applied her library template "Studio Blue" to a deck and shared it.
+    when: Dave, who has no access to her library, opens the share link.
+    then: The deck shows the Studio Blue colours and fonts.
+
+template_designer:
+  - id: three-designs-then-refine
+    given: Emma runs a youth sports club and has no template; she asks "Design a slide template for our club, our colours are green and white".
+    when: The Template designer focus mode is active and she answers the purpose questions.
+    then: The assistant shows three clearly different green-and-white designs as template cards with slide previews; Emma presses Use this design on the second card, asks for a rounder, friendlier heading font, sees an updated preview of all six layouts, confirms, and presses Save on the final template card.
+  - id: deck-after-save
+    given: Emma just saved "Club Green" to her library in the designer.
+    when: She accepts the offer to make a first deck with it about the summer camp.
+    then: A deck about the summer camp is created that uses the Club Green colours, fonts and layouts.
+  - id: team-save
+    given: Frank works in his company Team and finishes a template in the designer.
+    when: He presses Save on the template card.
+    then: The template is in the Team library, not in his Personal one.
+
+presentation_planner:
+  - id: beginner-project-pitch
+    given: Mia, sixteen, has to present her hackathon project, a plant-watering sensor, in five minutes tomorrow and has never made slides.
+    when: She writes "I need slides for my hackathon project but I don't know how to start" and the Plan a presentation focus mode is active.
+    then: The assistant asks at most three simple questions per turn with examples, proposes a problem, solution, demo, impact and ask story for a five-minute pitch, lists six slides with one message each, waits for her confirmation, lets her pick a built-in design from template cards, creates six slides with speaker notes, and reviews them with concrete fixes such as shortening a slide with too much text.
+  - id: business-update-arc
+    given: Noah needs a fifteen-minute quarterly update for his management team.
+    when: He describes the goal in the planner.
+    then: The story phase proposes situation, key numbers, what it means, recommendation and next steps, and explains why this order suits a decision-making audience.
+  - id: expert-fast-path
+    given: Olivia writes "Teaching deck, 45 min, year 9 biology, photosynthesis, 12 slides, Friendly classroom, go".
+    when: The planner starts.
+    then: It asks no questions that the message already answers, shows a twelve-slide outline for confirmation in its first reply, and after "yes" creates the deck in Friendly classroom with speaker notes.
+  - id: outline-needs-confirmation
+    given: The planner showed Mia's six-slide outline.
+    when: Mia replies "can the demo come before the solution?"
+    then: The outline is shown again with the demo moved, and no deck is created until she confirms.
+  - id: quick-request-without-focus
+    given: Carol cancels the focus mode offer for "make me three slides about our office move".
     when: The assistant continues.
-    then: It creates the three slides in a built-in template without asking design questions.
+    then: It creates the three slides in a built-in template without design or planning questions.
 
 assistant:
   - id: targeted-change
@@ -97,9 +141,9 @@ assistant:
     when: She asks "Shorten the text on slide 5 and add a closing slide".
     then: Slide 5 has shorter text, a thirteenth slide is added, the logo on slide 2 stays at the bottom right, and the timeline shows one new version.
   - id: uses-template-layouts
-    given: Bob's Project has a pinned default template with the layouts title, section, two-column and quote.
-    when: He asks for a deck about a customer interview.
-    then: The deck uses that template, including a quote layout for the customer's statement.
+    given: Bob saved a template "Interview" with the layouts title, section, content, image, quote and closing.
+    when: He references it and asks for a deck about a customer interview.
+    then: The deck uses that template's colours and fonts, including a quote layout for the customer's statement.
 
 editor:
   - id: text-and-drag

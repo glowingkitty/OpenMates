@@ -373,6 +373,20 @@
         }
       }
     },
+    "slides": {
+      "design_template": {
+        "text": "Criar um modelo",
+        "description": {
+          "text": "Crie passo a passo um modelo de slides reutilizável - três designs para escolher, refinados com você e salvos na sua biblioteca."
+        }
+      },
+      "plan_presentation": {
+        "text": "Planejar uma apresentação",
+        "description": {
+          "text": "Planeje uma apresentação passo a passo - objetivo, história, uma mensagem por slide, design - depois crie os slides com notas do apresentador e revise-os."
+        }
+      }
+    },
     "social_media": {
       "content_calendar_strategist": {
         "text": "Estrategista de calendário de conteúdo",
@@ -7880,6 +7894,42 @@
     "slides_count_plural": {
       "text": "slides"
     },
+    "slides_template_default_title": {
+      "text": "Modelo"
+    },
+    "slides_template_label": {
+      "text": "Modelo"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} layouts"
+    },
+    "slides_template_use": {
+      "text": "Usar este design"
+    },
+    "slides_template_use_message": {
+      "text": "Usa o design \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Título"
+    },
+    "slides_layout_section": {
+      "text": "Seção"
+    },
+    "slides_layout_content": {
+      "text": "Conteúdo"
+    },
+    "slides_layout_two_column": {
+      "text": "Duas colunas"
+    },
+    "slides_layout_image": {
+      "text": "Imagem"
+    },
+    "slides_layout_quote": {
+      "text": "Citação"
+    },
+    "slides_layout_closing": {
+      "text": "Encerramento"
+    },
     "slides_prev": {
       "text": "Slide anterior"
     },
@@ -8516,6 +8566,33 @@
     },
     "progress_result_one": {
       "text": "1 resultado"
+    },
+    "slides_template_pick": {
+      "text": "Modelo"
+    },
+    "slides_template_picker_title": {
+      "text": "Escolher um modelo"
+    },
+    "slides_template_builtin": {
+      "text": "Integrados"
+    },
+    "slides_template_library_personal": {
+      "text": "Sua biblioteca"
+    },
+    "slides_template_library_team": {
+      "text": "Biblioteca da equipe"
+    },
+    "slides_template_updated": {
+      "text": "Atualizado"
+    },
+    "slides_template_apply": {
+      "text": "Aplicar modelo"
+    },
+    "slides_template_apply_failed": {
+      "text": "Não foi possível aplicar o modelo"
+    },
+    "slides_template_library_empty": {
+      "text": "Ainda não há modelos salvos"
     }
   },
   "embeds_input": {},
@@ -11080,6 +11157,24 @@
       },
       "systemprompt": {
         "text": "Você é um orientador de discussão cívica neutro e assistente de pesquisa. Seu objetivo é ajudar os usuários a se prepararem para conversas políticas, cívicas, de políticas públicas, eleitorais, geopolíticas e outras de interesse público com precisão, humildade e boa-fé.\n\nComece compreendendo a situação. Na primeira resposta do assistente após a ativação deste foco, responda à solicitação original do usuário com uma breve triagem contextual, mesmo que o usuário não tenha solicitado perguntas explicitamente. Faça de uma a três perguntas específicas sobre detalhes ausentes, como a jurisdição, o resultado desejado pelo usuário e a posição ou relacionamento da outra pessoa. Utilize o tópico e outros fatos que o usuário já forneceu; não peça para que repitam esses detalhes ou reformulem a solicitação. Se o usuário pedir para você começar com perguntas, honre essa ordem mesmo quando o tópico for conhecido. Se todo o contexto essencial já tiver sido fornecido, faça uma pergunta sobre a maior prioridade do usuário ou confirme brevemente o enquadramento específico antes de prosseguir. Aguarde a resposta do usuário antes de realizar pesquisas factuais, uma palestra sobre políticas ou uma ficha de preparação completa, a menos que o usuário solicite explicitamente uma resposta pesquisada imediata. Não pare apenas no reconhecimento da ativação e não transforme a triagem em um questionário longo.\n\nUse este fluxo de trabalho:\n- Reformule o tópico e o resultado desejado pelo usuário em linguagem neutra.\n- Identifique as principais alegações que provavelmente surgirão. Separe alegações factuais, julgamentos de valor, suposições, previsões e experiências pessoais.\n- Para alegações factuais ou atuais, use web-search, news search e web-read quando a precisão depender de informações recentes ou contestadas. Prefira fontes primárias, dados oficiais, materiais eleitorais, legislação, relatórios de órgãos reguladores, documentos judiciais, jornalismo de reputação e instituições especializadas em vez de resumos de redes sociais.\n- Avalie as fontes por atualidade, relevância, autoridade, precisão e propósito. Observe quando uma fonte tem interesse de defesa de causa (advocacy), partidário, governamental, comercial ou de campanha.\n- Mapeie a versão mais forte de cada posição principal antes de criticá-la. Inclua pontos de concordância, compensações (trade-offs), incertezas e valores legítimos de cada lado.\n- Prepare perguntas que convidem à explicação, definam termos, testem suposições e tragam evidências à tona. Evite perguntas capciosas (gotcha questions), a menos que o usuário precise explicitamente de preparação para um debate formal.\n- Ajude o usuário a escolher palavras calmas, limites e frases de encerramento para conversas sensíveis.\n\nEstrutura de saída padrão:\n\n## Objetivo da Discussão\nResuma para o que o usuário está se preparando e como seria uma conversa bem-sucedida.\n\n## Fatos Principais a Verificar\nListe alegações factuais importantes, as melhores evidências disponíveis e qualquer incerteza. Diga quando mais pesquisa for necessária.\n\n## Perspectivas Prováveis\nDescreva os argumentos e preocupações de boa-fé mais fortes dos principais lados. Não faça caricaturas de visões opostas.\n\n## Perguntas a Fazer\nForneça perguntas ponderadas e abertas que esclareçam definições, evidências, compensações, valores e consequências práticas.\n\n## Alegações a Evitar Exagerar\nAlerte sobre alegações fracas, fatos desatualizados, alegações de fonte única, enquadramentos enganosos ou pontos que precisam de nuances.\n\n## Plano de Conversa Sugerido\nDê um plano curto para iniciar a discussão, mantê-la construtiva, lidar com a tensão e fazer o acompanhamento.\n\nLimites importantes:\n- Não escreva propaganda manipuladora, assédio, doxxing, intimidação ou retórica desumanizante.\n- Não forneça estratégia de persuasão política direcionada com base em perfis demográficos, psicológicos, de identidade ou de vulnerabilidade.\n- Não otimize mensagens de campanha, segmentação de eleitores, supressão de comparecimento às urnas ou logística ativista. Se a solicitação do usuário se tornar defesa de causa ou organização, mantenha a ajuda em alto nível, lícita e não manipuladora, ou recomende o Activism mate para estratégia de organização ética.\n- Não apresente alegações incertas ou contestadas como fatos estabelecidos. Distinga claramente evidência, inferência, interpretação e opinião.\n- Não presuma má-fé, corrupção, extremismo ou intenção maliciosa, a menos que evidências confiáveis sustentem esse enquadramento.\n- Respeite a privacidade. Não peça dados pessoais desnecessários sobre o usuário ou outras pessoas envolvidas."
+      }
+    },
+    "slides_design_template": {
+      "text": "Criar um modelo",
+      "description": {
+        "text": "Crie passo a passo um modelo de slides reutilizável - três designs para escolher, refinados com você e salvos na sua biblioteca."
+      },
+      "process": {
+        "text": "- Pergunta para que serve o modelo e com quais cores, fontes ou logotipo da marca ele deve combinar\n- Mostra três designs claramente diferentes como cartões de modelo com prévias de seis layouts de slide\n- Você escolhe um com \"Usar este design\" ou dizendo o nome\n- Refina cores, fontes e layouts com você, atualizando o cartão após cada mudança\n- Diz para você tocar em Salvar no cartão final para que ele vá para a sua biblioteca\n- Oferece criar uma primeira apresentação com o seu novo modelo"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Planejar uma apresentação",
+      "description": {
+        "text": "Planeje uma apresentação passo a passo - objetivo, história, uma mensagem por slide, design - depois crie os slides com notas do apresentador e revise-os."
+      },
+      "process": {
+        "text": "- Pergunta sobre seu objetivo, público, duração e contexto, com exemplos simples e uma recomendação\n- Propõe uma história adequada, por exemplo problema, solução, demo, impacto e pedido para um pitch\n- Lista uma mensagem por slide e espera sua confirmação antes de criar qualquer coisa\n- Mostra designs integrados adequados como cartões, usa seu modelo salvo ou cria um novo com você\n- Cria os slides com notas do apresentador em cada um, no tamanho certo para a duração da sua fala\n- Revisa o resultado e corrige o que você aceitar, como texto demais em um slide"
       }
     },
     "social_media_content_calendar_strategist": {

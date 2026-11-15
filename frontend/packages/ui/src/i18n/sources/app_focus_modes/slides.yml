@@ -1,0 +1,98 @@
+design_template:
+  context: Focus mode name
+  en: Design a template
+  de: "Vorlage gestalten"
+  zh: "设计模板"
+  es: "Diseñar una plantilla"
+  fr: "Concevoir un modèle"
+  pt: "Criar um modelo"
+  ru: "Создать шаблон"
+  ja: "テンプレートをデザイン"
+  ko: "템플릿 디자인"
+  it: "Progetta un modello"
+  tr: "Şablon tasarla"
+  vi: "Thiết kế mẫu"
+  id: "Desain templat"
+  pl: "Zaprojektuj szablon"
+  nl: "Sjabloon ontwerpen"
+  ar: "تصميم قالب"
+  hi: "टेम्पलेट डिज़ाइन करें"
+  th: "ออกแบบเทมเพลต"
+  cs: "Navrhnout šablonu"
+  sv: "Designa en mall"
+  he: "עיצוב תבנית"
+  verified_by_human: []
+design_template.description:
+  context: Focus mode description
+  en: Design a reusable slide template step by step - three designs to choose from, refined with you,
+    then saved to your library.
+  de: "Gestalte Schritt für Schritt eine wiederverwendbare Folienvorlage - drei Designs zur Auswahl, gemeinsam verfeinert, dann in deiner Bibliothek gespeichert."
+  zh: "一步步设计可重复使用的幻灯片模板 - 三种设计可选，与你一起完善，然后保存到你的资料库。"
+  es: "Diseña paso a paso una plantilla de diapositivas reutilizable: tres diseños para elegir, refinados contigo y guardados en tu biblioteca."
+  fr: "Concevez pas à pas un modèle de diapositives réutilisable : trois designs au choix, affinés avec vous, puis enregistrés dans votre bibliothèque."
+  pt: "Crie passo a passo um modelo de slides reutilizável - três designs para escolher, refinados com você e salvos na sua biblioteca."
+  ru: "Шаг за шагом создайте многоразовый шаблон слайдов - три дизайна на выбор, доработка вместе с вами, затем сохранение в вашу библиотеку."
+  ja: "再利用できるスライドテンプレートを段階的にデザイン - 3つのデザインから選び、一緒に仕上げて、ライブラリに保存します。"
+  ko: "재사용 가능한 슬라이드 템플릿을 단계별로 디자인하세요 - 세 가지 디자인 중 선택하고 함께 다듬은 뒤 라이브러리에 저장합니다."
+  it: "Progetta passo dopo passo un modello di slide riutilizzabile: tre design tra cui scegliere, rifiniti con te e salvati nella tua libreria."
+  tr: "Yeniden kullanılabilir bir slayt şablonunu adım adım tasarlayın - seçebileceğiniz üç tasarım, sizinle birlikte iyileştirilir ve kitaplığınıza kaydedilir."
+  vi: "Thiết kế từng bước một mẫu trang chiếu có thể dùng lại - ba thiết kế để chọn, cùng bạn tinh chỉnh, rồi lưu vào thư viện của bạn."
+  id: "Desain templat slide yang dapat dipakai ulang langkah demi langkah - tiga desain untuk dipilih, disempurnakan bersama Anda, lalu disimpan ke pustaka Anda."
+  pl: "Zaprojektuj krok po kroku szablon slajdów wielokrotnego użytku - trzy projekty do wyboru, dopracowane razem z Tobą i zapisane w Twojej bibliotece."
+  nl: "Ontwerp stap voor stap een herbruikbaar diasjabloon - drie ontwerpen om uit te kiezen, samen verfijnd en daarna opgeslagen in je bibliotheek."
+  ar: "صمّم خطوة بخطوة قالب شرائح قابلاً لإعادة الاستخدام - ثلاثة تصاميم للاختيار، يُحسَّن معك، ثم يُحفظ في مكتبتك."
+  hi: "चरण-दर-चरण एक दोबारा उपयोग होने वाला स्लाइड टेम्पलेट डिज़ाइन करें - चुनने के लिए तीन डिज़ाइन, आपके साथ निखारे गए, फिर आपकी लाइब्रेरी में सहेजे गए।"
+  th: "ออกแบบเทมเพลตสไลด์ที่ใช้ซ้ำได้ทีละขั้นตอน - มีสามดีไซน์ให้เลือก ปรับแต่งร่วมกับคุณ แล้วบันทึกลงคลังของคุณ"
+  cs: "Navrhněte krok za krokem opakovaně použitelnou šablonu snímků - tři návrhy na výběr, doladěné s vámi a uložené do vaší knihovny."
+  sv: "Designa steg för steg en återanvändbar bildmall - tre designer att välja mellan, finslipade tillsammans med dig och sedan sparade i ditt bibliotek."
+  he: "עצבו צעד אחר צעד תבנית שקופיות לשימוש חוזר - שלושה עיצובים לבחירה, משופרים יחד איתכם ונשמרים בספרייה שלכם."
+  verified_by_human: []
+plan_presentation:
+  context: Focus mode name
+  en: Plan a presentation
+  de: "Präsentation planen"
+  zh: "规划演示文稿"
+  es: "Planificar una presentación"
+  fr: "Planifier une présentation"
+  pt: "Planejar uma apresentação"
+  ru: "Спланировать презентацию"
+  ja: "プレゼンを計画"
+  ko: "프레젠테이션 계획"
+  it: "Pianifica una presentazione"
+  tr: "Sunum planla"
+  vi: "Lên kế hoạch bài thuyết trình"
+  id: "Rencanakan presentasi"
+  pl: "Zaplanuj prezentację"
+  nl: "Presentatie plannen"
+  ar: "تخطيط عرض تقديمي"
+  hi: "प्रस्तुति की योजना बनाएँ"
+  th: "วางแผนงานนำเสนอ"
+  cs: "Naplánovat prezentaci"
+  sv: "Planera en presentation"
+  he: "תכנון מצגת"
+  verified_by_human: []
+plan_presentation.description:
+  context: Focus mode description
+  en: Plan a presentation step by step - goal, story, one message per slide, design - then create the
+    slides with speaker notes and review them.
+  de: "Plane eine Präsentation Schritt für Schritt - Ziel, Geschichte, eine Botschaft pro Folie, Design - dann entstehen die Folien mit Sprechernotizen und werden geprüft."
+  zh: "一步步规划演示文稿 - 目标、故事、每页一个信息、设计 - 然后创建带演讲者备注的幻灯片并进行审阅。"
+  es: "Planifica una presentación paso a paso: objetivo, historia, un mensaje por diapositiva, diseño; luego crea las diapositivas con notas del orador y revísalas."
+  fr: "Planifiez une présentation pas à pas : objectif, histoire, un message par diapositive, design, puis créez les diapositives avec notes de l'orateur et relisez-les."
+  pt: "Planeje uma apresentação passo a passo - objetivo, história, uma mensagem por slide, design - depois crie os slides com notas do apresentador e revise-os."
+  ru: "Спланируйте презентацию шаг за шагом - цель, история, одна мысль на слайд, дизайн - затем создайте слайды с заметками докладчика и проверьте их."
+  ja: "プレゼンを段階的に計画 - 目的、ストーリー、1スライド1メッセージ、デザイン - その後、スピーカーノート付きのスライドを作成して見直します。"
+  ko: "프레젠테이션을 단계별로 계획하세요 - 목표, 스토리, 슬라이드당 하나의 메시지, 디자인 - 그런 다음 발표자 노트가 있는 슬라이드를 만들고 검토합니다."
+  it: "Pianifica una presentazione passo dopo passo: obiettivo, storia, un messaggio per slide, design; poi crea le slide con le note del relatore e rivedile."
+  tr: "Bir sunumu adım adım planlayın - hedef, hikâye, slayt başına bir mesaj, tasarım - sonra konuşmacı notlu slaytları oluşturup gözden geçirin."
+  vi: "Lên kế hoạch bài thuyết trình từng bước - mục tiêu, câu chuyện, mỗi trang một thông điệp, thiết kế - rồi tạo các trang chiếu có ghi chú người thuyết trình và xem lại."
+  id: "Rencanakan presentasi langkah demi langkah - tujuan, cerita, satu pesan per slide, desain - lalu buat slide dengan catatan pembicara dan tinjau."
+  pl: "Zaplanuj prezentację krok po kroku - cel, historia, jedna myśl na slajd, projekt - a potem utwórz slajdy z notatkami prelegenta i przejrzyj je."
+  nl: "Plan een presentatie stap voor stap - doel, verhaal, één boodschap per dia, ontwerp - en maak daarna de dia's met sprekersnotities en controleer ze."
+  ar: "خطّط لعرض تقديمي خطوة بخطوة - الهدف، القصة، رسالة واحدة لكل شريحة، التصميم - ثم أنشئ الشرائح مع ملاحظات المتحدث وراجعها."
+  hi: "चरण-दर-चरण प्रस्तुति की योजना बनाएँ - लक्ष्य, कहानी, हर स्लाइड पर एक संदेश, डिज़ाइन - फिर वक्ता नोट्स के साथ स्लाइड बनाएँ और उनकी समीक्षा करें।"
+  th: "วางแผนงานนำเสนอทีละขั้นตอน - เป้าหมาย เรื่องราว หนึ่งสารต่อสไลด์ ดีไซน์ - แล้วสร้างสไลด์พร้อมโน้ตผู้บรรยายและตรวจทาน"
+  cs: "Naplánujte prezentaci krok za krokem - cíl, příběh, jedno sdělení na snímek, design - pak vytvořte snímky s poznámkami řečníka a zkontrolujte je."
+  sv: "Planera en presentation steg för steg - mål, berättelse, ett budskap per bild, design - och skapa sedan bilderna med talaranteckningar och granska dem."
+  he: "תכננו מצגת צעד אחר צעד - מטרה, סיפור, מסר אחד לכל שקופית, עיצוב - ואז צרו את השקופיות עם הערות דובר ובדקו אותן."
+  verified_by_human: []

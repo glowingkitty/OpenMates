@@ -2250,7 +2250,8 @@
       (selectedAppId === 'events' && selectedSkillId === 'event') ||
       (selectedAppId === 'home' && selectedSkillId === 'listing') ||
       (selectedAppId === 'travel' && (selectedSkillId === 'connection' || selectedSkillId === 'search_stays' || selectedSkillId === 'stay')) ||
-      (selectedAppId === 'health' && selectedSkillId === 'appointment')
+      (selectedAppId === 'health' && selectedSkillId === 'appointment') ||
+      (selectedAppId === 'slides' && selectedSkillId === 'template')
     );
   }
 

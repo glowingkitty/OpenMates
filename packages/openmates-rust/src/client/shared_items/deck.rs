@@ -9,6 +9,7 @@ use super::deck_error::DeckError;
 use super::deck_markup::{DeckModel, SlideModel, parse_deck_markup, serialise_deck_markup};
 use super::deck_operations::{DeckOperation, DeckOutcome};
 use super::deck_store::{DeckRoots, read_model, roots, write_model};
+use super::deck_theme::{DeckKind, DeckTheme};
 use super::deck_values::{CANVAS_WIDTH, DeckAspect};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -34,6 +35,10 @@ pub struct DeckView {
     pub aspect: DeckAspect,
     /// Template reference.
     pub template: String,
+    /// `deck` or `template`.
+    pub kind: DeckKind,
+    /// Fonts and colours; `None` renders with Plain.
+    pub theme: Option<DeckTheme>,
     /// Canvas width (always 1920).
     pub canvas_width: u32,
     /// Canvas height for the aspect.
@@ -122,6 +127,8 @@ impl DeckDocument {
             title: model.title,
             aspect: model.aspect,
             template: model.template,
+            kind: model.kind,
+            theme: model.theme,
             slides: model.slides,
             can_undo: self.undo.can_undo(),
             can_redo: self.undo.can_redo(),

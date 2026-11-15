@@ -13,6 +13,7 @@ mod deck_inline;
 pub mod deck_markup;
 pub mod deck_operations;
 mod deck_store;
+pub mod deck_theme;
 pub mod deck_values;
 
 pub use deck::{DeckDocument, DeckView};
@@ -23,6 +24,7 @@ pub use deck_markup::{
     serialise_deck_markup,
 };
 pub use deck_operations::{DeckOperation, DeckOutcome, ElementSpec, TextStyle};
+pub use deck_theme::{DeckKind, DeckTheme};
 pub use deck_values::{DeckAspect, ElementKind};
 
 #[cfg(test)]
@@ -33,3 +35,5 @@ mod deck_handles_tests;
 mod deck_markup_tests;
 #[cfg(test)]
 mod deck_operations_tests;
+#[cfg(test)]
+mod deck_theme_tests;

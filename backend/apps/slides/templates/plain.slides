@@ -1,0 +1,27 @@
+<deck title="Plain" aspect="16:9" template="builtin:plain" kind="template">
+  <slide id="s1" layout="title">
+    <text id="e1" x="160" y="380" w="1600" h="200" role="title" size="110" color="foreground" align="left" weight="bold">Presentation title</text>
+    <text id="e2" x="160" y="610" w="1600" h="80" role="subtitle" size="44" color="muted" align="left">A short line about what this is</text>
+  </slide>
+  <slide id="s2" layout="section">
+    <shape id="e3" x="160" y="420" w="120" h="12" kind="rect" fill="accent"/>
+    <text id="e4" x="160" y="460" w="1600" h="160" role="title" size="100" color="foreground" align="left" weight="bold">Section title</text>
+  </slide>
+  <slide id="s3" layout="content">
+    <text id="e5" x="160" y="120" w="1600" h="140" role="title" size="72" color="foreground" align="left" weight="bold">Slide title</text>
+    <text id="e6" x="160" y="300" w="1600" h="640" role="body" size="44" color="foreground" align="left"><ul><li>First point</li><li>Second point</li><li>Third point</li></ul></text>
+  </slide>
+  <slide id="s4" layout="image">
+    <text id="e7" x="160" y="120" w="1600" h="140" role="title" size="72" color="foreground" align="left" weight="bold">Image slide</text>
+    <shape id="e8" x="160" y="290" w="1600" h="600" kind="rect" fill="surface"/>
+    <text id="e9" x="160" y="920" w="1600" h="60" role="caption" size="32" color="muted" align="left">Caption for the image</text>
+  </slide>
+  <slide id="s5" layout="quote">
+    <text id="e10" x="260" y="330" w="1400" h="300" role="quote" size="72" color="foreground" align="center">A memorable sentence worth repeating</text>
+    <text id="e11" x="260" y="680" w="1400" h="60" role="caption" size="34" color="muted" align="center">Name of the source</text>
+  </slide>
+  <slide id="s6" layout="closing">
+    <text id="e12" x="160" y="400" w="1600" h="180" role="title" size="110" color="foreground" align="center" weight="bold">Thank you</text>
+    <text id="e13" x="160" y="620" w="1600" h="80" role="subtitle" size="44" color="muted" align="center">Questions and contact details</text>
+  </slide>
+</deck>

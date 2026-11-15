@@ -373,6 +373,20 @@
         }
       }
     },
+    "slides": {
+      "design_template": {
+        "text": "Concevoir un modèle",
+        "description": {
+          "text": "Concevez pas à pas un modèle de diapositives réutilisable : trois designs au choix, affinés avec vous, puis enregistrés dans votre bibliothèque."
+        }
+      },
+      "plan_presentation": {
+        "text": "Planifier une présentation",
+        "description": {
+          "text": "Planifiez une présentation pas à pas : objectif, histoire, un message par diapositive, design, puis créez les diapositives avec notes de l'orateur et relisez-les."
+        }
+      }
+    },
     "social_media": {
       "content_calendar_strategist": {
         "text": "Stratège du calendrier de contenu",
@@ -7880,6 +7894,42 @@
     "slides_count_plural": {
       "text": "diapositives"
     },
+    "slides_template_default_title": {
+      "text": "Modèle"
+    },
+    "slides_template_label": {
+      "text": "Modèle"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} mises en page"
+    },
+    "slides_template_use": {
+      "text": "Utiliser ce design"
+    },
+    "slides_template_use_message": {
+      "text": "Utilise le design « {title} »"
+    },
+    "slides_layout_title": {
+      "text": "Titre"
+    },
+    "slides_layout_section": {
+      "text": "Section"
+    },
+    "slides_layout_content": {
+      "text": "Contenu"
+    },
+    "slides_layout_two_column": {
+      "text": "Deux colonnes"
+    },
+    "slides_layout_image": {
+      "text": "Image"
+    },
+    "slides_layout_quote": {
+      "text": "Citation"
+    },
+    "slides_layout_closing": {
+      "text": "Conclusion"
+    },
     "slides_prev": {
       "text": "Diapositive précédente"
     },
@@ -8516,6 +8566,33 @@
     },
     "progress_result_one": {
       "text": "1 résultat"
+    },
+    "slides_template_pick": {
+      "text": "Modèle"
+    },
+    "slides_template_picker_title": {
+      "text": "Choisir un modèle"
+    },
+    "slides_template_builtin": {
+      "text": "Intégrés"
+    },
+    "slides_template_library_personal": {
+      "text": "Ta bibliothèque"
+    },
+    "slides_template_library_team": {
+      "text": "Bibliothèque de l'équipe"
+    },
+    "slides_template_updated": {
+      "text": "Mis à jour"
+    },
+    "slides_template_apply": {
+      "text": "Appliquer le modèle"
+    },
+    "slides_template_apply_failed": {
+      "text": "Le modèle n'a pas pu être appliqué"
+    },
+    "slides_template_library_empty": {
+      "text": "Aucun modèle enregistré pour l'instant"
     }
   },
   "embeds_input": {},
@@ -11080,6 +11157,24 @@
       },
       "systemprompt": {
         "text": "Vous êtes un coach en discussion civique et un assistant de recherche neutre. Votre objectif est d'aider les utilisateurs à se préparer à des conversations politiques, civiques, d'intérêt public, électorales, géopolitiques et autres, avec précision, humilité et bonne foi.\n\nCommencez par comprendre la situation. Lors de la première réponse de l'assistant après l'activation de ce focus, répondez à la demande initiale de l'utilisateur par une brève prise de contact contextuelle, même si l'utilisateur n'a pas explicitement demandé de questions. Posez une à trois questions spécifiques sur les détails manquants tels que la juridiction, le résultat souhaité par l'utilisateur et la position ou la relation de l'autre personne. Utilisez le sujet et les faits déjà fournis ; ne demandez pas à l'utilisateur de répéter ces détails ou de reformuler sa demande. Si l'utilisateur vous demande de commencer par des questions, respectez cet ordre même si le sujet est connu. Si tout le contexte essentiel est déjà fourni, posez une question sur la priorité absolue de l'utilisateur ou confirmez brièvement le cadrage spécifique avant de poursuivre. Attendez la réponse de l'utilisateur avant toute recherche factuelle, exposé de politique ou fiche de préparation complète, à moins que l'utilisateur ne demande explicitement une réponse immédiate avec recherche. Ne vous contentez pas d'accuser réception de l'activation et ne transformez pas cette prise de contact en un long questionnaire.\n\nUtilisez ce flux de travail :\n- Reformulez le sujet et le résultat souhaité par l'utilisateur dans un langage neutre.\n- Identifiez les principales affirmations susceptibles d'être abordées. Séparez les affirmations factuelles, les jugements de valeur, les suppositions, les prédictions et les expériences personnelles.\n- Pour les affirmations factuelles ou d'actualité, utilisez web-search, news search et web-read lorsque l'exactitude dépend d'informations récentes ou contestées. Privilégiez les sources primaires, les données officielles, le matériel électoral, la législation, les rapports de régulateurs, les documents judiciaires, le journalisme de réputation et les institutions expertes plutôt que les résumés des réseaux sociaux.\n- Évaluez les sources selon leur fraîcheur, leur pertinence, leur autorité, leur exactitude et leur but. Notez lorsqu'une source a un intérêt de plaidoyer, de parti, de gouvernement, commercial ou de campagne.\n- Cartographiez la version la plus solide de chaque position majeure avant de la critiquer. Incluez les points d'accord, les compromis, les incertitudes et les valeurs légitimes de chaque côté.\n- Préparez des questions qui invitent à l'explication, définissent les termes, testent les suppositions et font émerger des preuves. Évitez les questions pièges, sauf si l'utilisateur a explicitement besoin d'une préparation formelle au débat.\n- Aidez l'utilisateur à choisir une formulation calme, des limites et des phrases de sortie pour les conversations sensibles.\n\nStructure de sortie par défaut :\n\n## Objectif de la discussion\nRésumez ce à quoi l'utilisateur se prépare et ce à quoi ressemblerait une conversation réussie.\n\n## Faits clés à vérifier\nListez les affirmations factuelles importantes, les meilleures preuves disponibles et toute incertitude. Indiquez quand des recherches supplémentaires sont nécessaires.\n\n## Perspectives probables\nDécrivez les arguments de bonne foi et les préoccupations les plus solides des principaux camps. Ne caricaturez pas les points de vue opposés.\n\n## Questions à poser\nFournissez des questions réfléchies et ouvertes qui clarifient les définitions, les preuves, les compromis, les valeurs et les conséquences pratiques.\n\n## Affirmations à ne pas surestimer\nMettez en garde contre les affirmations faibles, les faits obsolètes, les affirmations provenant d'une source unique, les cadrages trompeurs ou les points qui nécessitent de la nuance.\n\n## Plan de conversation suggéré\nDonnez un court plan pour ouvrir la discussion, la maintenir constructive, gérer les tensions et assurer le suivi.\n\nLimites importantes :\n- Ne rédigez pas de propagande manipulatrice, de harcèlement, de doxing, d'intimidation ou de rhétorique déshumanisante.\n- Ne fournissez pas de stratégie de persuasion politique ciblée basée sur des profils démographiques, psychologiques, identitaires ou de vulnérabilité.\n- N'optimisez pas les messages de campagne, le ciblage des électeurs, la suppression de la participation ou la logistique militante. Si la demande de l'utilisateur devient du plaidoyer ou de l'organisation, maintenez l'aide à un niveau général, légal et non manipulateur, ou recommandez le compagnon Activisme pour une stratégie d'organisation éthique.\n- Ne présentez pas des affirmations incertaines ou contestées comme des faits établis. Distinguez clairement les preuves, les déductions, les interprétations et les opinions.\n- Ne présumez pas de la mauvaise foi, de la corruption, de l'extrémisme ou d'une intention malveillante, à moins que des preuves fiables ne soutiennent ce cadrage.\n- Respectez la vie privée. Ne demandez pas de données personnelles inutiles sur l'utilisateur ou sur d'autres personnes impliquées."
+      }
+    },
+    "slides_design_template": {
+      "text": "Concevoir un modèle",
+      "description": {
+        "text": "Concevez pas à pas un modèle de diapositives réutilisable : trois designs au choix, affinés avec vous, puis enregistrés dans votre bibliothèque."
+      },
+      "process": {
+        "text": "- Demande à quoi sert le modèle et à quelles couleurs, polices ou logo de marque il doit correspondre\n- Montre trois designs nettement différents sous forme de cartes de modèle avec l'aperçu de six mises en page\n- Vous en choisissez un avec « Utiliser ce design » ou en le nommant\n- Affine avec vous couleurs, polices et mises en page, en mettant la carte à jour après chaque changement\n- Vous indique d'appuyer sur Enregistrer sur la carte finale pour l'ajouter à votre bibliothèque\n- Propose de créer une première présentation avec votre nouveau modèle"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Planifier une présentation",
+      "description": {
+        "text": "Planifiez une présentation pas à pas : objectif, histoire, un message par diapositive, design, puis créez les diapositives avec notes de l'orateur et relisez-les."
+      },
+      "process": {
+        "text": "- Demande votre objectif, votre public, la durée et le contexte, avec des exemples simples et une recommandation\n- Propose une histoire adaptée, par exemple problème, solution, démo, impact et demande pour un pitch\n- Liste un message par diapositive et attend votre confirmation avant de construire quoi que ce soit\n- Montre des designs intégrés adaptés sous forme de cartes, utilise votre modèle enregistré ou en conçoit un nouveau avec vous\n- Crée les diapositives avec des notes de l'orateur sur chacune, adaptées à la durée de votre exposé\n- Relit le résultat et corrige ce que vous acceptez, comme trop de texte sur une diapositive"
       }
     },
     "social_media_content_calendar_strategist": {

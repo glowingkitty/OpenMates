@@ -578,6 +578,13 @@ def _generated_capacity_fixture(category: str, kwargs: dict[str, Any]) -> dict[s
         if response is not None:
             record_cache_hit()
         return response
+    if get_mock_group() == "slides_focus":
+        from backend.apps.ai.testing.slides_focus_fixture import llm_fixture as slides_focus_llm_fixture
+
+        response = slides_focus_llm_fixture(category, kwargs)
+        if response is not None:
+            record_cache_hit()
+        return response
     if get_mock_group() == "diagram_html_web":
         from backend.apps.ai.testing.diagram_html_fixture import llm_fixture
 

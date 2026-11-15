@@ -101,7 +101,7 @@
     <div class="deck-details" data-testid="slides-deck-preview">
       {#if deck && firstSlide}
         <div class="first-slide" style:aspect-ratio="{deck.width} / {deck.height}" style:--deck-ratio={deck.width / deck.height}>
-          <SlideCanvas slide={firstSlide} width={deck.width} height={deck.height} template={deck.template} />
+          <SlideCanvas slide={firstSlide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
         </div>
       {:else}
         <div class="deck-empty" data-skill-icon="slides"></div>
@@ -121,6 +121,12 @@
     container-type: size;
     background: var(--color-grey-20);
     overflow: hidden;
+  }
+
+  /* Size containers have no height of their own: an intrinsic-height card (assistant
+     results, e.g. the large carousel of EmbedPreviewLarge) would collapse to its header. */
+  :global(.intrinsic-preview) .deck-details {
+    height: 280px;
   }
 
   /* Largest slide that fits the card area at the deck aspect ratio. */

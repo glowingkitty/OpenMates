@@ -76,7 +76,7 @@ import { renderDesignEmbroidery, renderDesignIconResult, renderDesignIconSearch 
 import { renderNutritionSearch, renderNutritionRecipe } from '../components/embeds/nutrition/nutritionEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
-import { renderSlidesDeck } from '../components/embeds/slides/slidesEmbedText';
+import { renderSlidesDeck, renderSlidesTemplate } from '../components/embeds/slides/slidesEmbedText';
 import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
 import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from '../components/embeds/weather/weatherEmbedText';
 import { renderCompanyFinancialResult, renderCompanyFinancials, renderTrademarkSearch } from '../components/embeds/business/businessEmbedText';
@@ -321,6 +321,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'file-file': renderFile,
 	'docs-doc': renderDoc,
 	'slides-deck': renderSlidesDeck,
+	'slides-template': renderSlidesTemplate,
 	'sheets-sheet': renderSheet,
 	'pdf': renderPdf,
 	'image': renderImage,

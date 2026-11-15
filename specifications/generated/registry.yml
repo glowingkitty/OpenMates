@@ -965,7 +965,7 @@ specifications:
     version: 1
     status: draft
     path: features/slides
-    fingerprint: 8405dbfd5d620ddcf3b86cf0a7bdc9a508f9d0e56882718071f249ab7703eac7
+    fingerprint: a5f8ad48d41217915bda69b8d45692dab74ef7502eab0dc05eccdd6f272daf97
     required_applies_to:
     - rest_api
     - cli
@@ -12885,21 +12885,51 @@ assertions:
     - cli
     - sdks.rust
     - gui.web
-  slides.templates.library-and-project:
+  slides.templates.library:
     specification: feature.slides@1
     specification_id: feature.slides
     type: behavior
-    fingerprint: 1d4f9f1601487d3954b09f1b020dacf64c05845c41f9b803bf09bb2e5fed4d61
+    fingerprint: e952ba1d90cfe14217a5a0c2c8970e0d9204128dcb2d66da884be749548e8dce
     required_applies_to:
     - rest_api
     - cli
     - sdks.rust
     - gui.web
-  slides.templates.first-deck-focus-mode:
+  slides.templates.built-in-set:
     specification: feature.slides@1
     specification_id: feature.slides
     type: behavior
-    fingerprint: d1474231d300e19dd592f2e9685a12628ba79afdab6d2407d38a157db9bda13c
+    fingerprint: af4a15f6cb1f11c635e34f92678f23528cd8d6f938f3012447fec19802f850dc
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.templates.apply-to-deck:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: 0477f6fc5f713dbebcf879f09dfcc07523b983060d43118a19b2309bd3288812
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.focus.template-designer:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: 4c59f9a7002392c1c3ecfc493dd1c34267b837879069aa79f7c51cc4c79d3f28
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.focus.presentation-planner:
+    specification: feature.slides@1
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: e2696ddc4ed83ffe3cf66042956edc03499af3e391755081849d0fa6921b4843
     required_applies_to:
     - rest_api
     - cli
@@ -12909,7 +12939,7 @@ assertions:
     specification: feature.slides@1
     specification_id: feature.slides
     type: behavior
-    fingerprint: ed90a0ad7a4a603e5f78fde6c1ca0a6e137aab764fbffda1c3a33dfd5fe90277
+    fingerprint: b008b23436142632264270606d87ac798348cdc4742b128ea392882b6ff43b42
     required_applies_to:
     - rest_api
     - cli

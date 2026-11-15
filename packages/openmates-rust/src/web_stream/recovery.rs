@@ -235,7 +235,7 @@ pub fn history_source_json(input: &str) -> Result<String, String> {
         "code" | "pcb_schematic" => "code",
         "sheet" => "table",
         "mermaid" => "diagram_code",
-        "deck" => "slides_markup",
+        "deck" | "template" => "slides_markup",
         _ => return error("format"),
     };
     match string_field(decoded, key) {

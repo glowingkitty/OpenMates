@@ -1106,6 +1106,7 @@ export class GroupHandlerRegistry {
       "id", "type", "status", "contentRef", "title", "primary_event", "context_events", "source_json", "model", "validation",
     ]));
     this.register(new BaseGroupHandler("slides-deck", ["id", "type", "status", "contentRef", "title"]));
+    this.register(new BaseGroupHandler("slides-template", ["id", "type", "status", "contentRef", "title"]));
     this.register(new BaseGroupHandler("tv-movie", ["id", "type", "status", "contentRef", "title"]));
     this.register(new BaseGroupHandler("tv-series", ["id", "type", "status", "contentRef", "title"]));
     this.register(new BaseGroupHandler("code-test-result", ["id", "type", "status", "contentRef", "title"]));

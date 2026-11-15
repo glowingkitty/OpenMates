@@ -252,6 +252,18 @@ class JevDecisionClient:
                 raise DecisionProviderUnavailable("Mercury routing replay has no decision fixture for this request")
             record_cache_hit()
             return fixture
+        from backend.apps.ai.testing.slides_focus_fixture import active as slides_focus_fixture_active
+
+        if slides_focus_fixture_active():
+            from backend.apps.ai.testing.slides_focus_fixture import jev_response as slides_focus_jev_response
+            from backend.shared.testing.mock_context import record_blocked_provider_call, record_cache_hit
+
+            fixture = slides_focus_jev_response(state, questions, self._model)
+            if fixture is None:
+                record_blocked_provider_call()
+                raise DecisionProviderUnavailable("Slides focus replay has no decision fixture for this request")
+            record_cache_hit()
+            return fixture
         from backend.apps.ai.testing.diagram_html_fixture import active as diagram_fixture_active
 
         if diagram_fixture_active():

@@ -25,6 +25,9 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import type SlidesEditorComponent from './SlidesEditor.svelte';
   import { saveEditedDeck, type EditedDeck } from './slidesDeckVersion';
+  import SlidesTemplatePicker from './SlidesTemplatePicker.svelte';
+  import { applyTemplateToMarkup } from './slidesTemplateApply';
+  import type { TemplateOption } from './slidesTemplatePicker';
 
   interface Props {
     data: EmbedFullscreenRawData;
@@ -187,6 +190,14 @@
     selectedMarkup = null;
   }
 
+  /** Template picker: needs the core (set_theme) and a stored deck, like editing. */
+  let pickingTemplate = $state(false);
+
+  /** Applies the template to the head deck and saves the result as the next version. */
+  async function applyTemplate(option: TemplateOption): Promise<void> {
+    await saveEdit(await applyTemplateToMarkup(headMarkup, option));
+  }
+
   function stopEditing() {
     editing = false;
   }
@@ -309,7 +320,7 @@
               slide={current}
               width={deck.width}
               height={deck.height}
-              template={deck.template}
+              template={deck.template} theme={deck.theme}
               {step}
               interactive={true}
               animated={true}
@@ -339,6 +350,15 @@
         </div>
 
         <div class="present-actions">
+          {#if canEdit}
+            <button
+              type="button"
+              class="present-button"
+              data-testid="slides-deck-template-action"
+              aria-expanded={pickingTemplate}
+              onclick={() => (pickingTemplate = !pickingTemplate)}
+            >{$text('embeds.slides_template_pick')}</button>
+          {/if}
           <button type="button" class="present-button primary" data-testid="slides-present" onclick={startPresenting}>
             {$text('embeds.slides_present')}
           </button>
@@ -346,6 +366,17 @@
             {$text('embeds.slides_presenter_view')}
           </button>
         </div>
+        {#if pickingTemplate && canEdit}
+          <SlidesTemplatePicker
+            deckTemplate={deck.template}
+            deckTheme={deck.theme}
+            {chatId}
+            {teamId}
+            disabled={streaming || editing}
+            onApply={applyTemplate}
+            onClose={() => (pickingTemplate = false)}
+          />
+        {/if}
         {#if popupBlocked}
           <p class="popup-blocked" role="status" data-testid="slides-popup-blocked">{$text('embeds.slides_popup_blocked')}</p>
         {/if}
@@ -362,7 +393,7 @@
               aria-current={position === index ? 'true' : undefined}
               onclick={() => select(position)}
             >
-              <SlideCanvas {slide} width={deck.width} height={deck.height} template={deck.template} />
+              <SlideCanvas {slide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
             </button>
           {/each}
         </div>

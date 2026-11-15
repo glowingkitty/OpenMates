@@ -111,7 +111,7 @@
               slide={current}
               width={deck.width}
               height={deck.height}
-              template={deck.template}
+              template={deck.template} theme={deck.theme}
               step={position.step}
               interactive={true}
               animated={true}
@@ -149,7 +149,7 @@
             aria-current={i === position.index ? 'true' : undefined}
             onclick={() => onGoto(i)}
           >
-            <SlideCanvas slide={slide} width={deck.width} height={deck.height} template={deck.template} />
+            <SlideCanvas slide={slide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
           </button>
         {/each}
       </div>
@@ -164,7 +164,7 @@
               slide={upcoming.slide}
               width={deck.width}
               height={deck.height}
-              template={deck.template}
+              template={deck.template} theme={deck.theme}
               step={upcoming.step}
             />
           {/key}

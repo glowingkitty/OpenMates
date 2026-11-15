@@ -373,6 +373,20 @@
         }
       }
     },
+    "slides": {
+      "design_template": {
+        "text": "Navrhnout šablonu",
+        "description": {
+          "text": "Navrhněte krok za krokem opakovaně použitelnou šablonu snímků - tři návrhy na výběr, doladěné s vámi a uložené do vaší knihovny."
+        }
+      },
+      "plan_presentation": {
+        "text": "Naplánovat prezentaci",
+        "description": {
+          "text": "Naplánujte prezentaci krok za krokem - cíl, příběh, jedno sdělení na snímek, design - pak vytvořte snímky s poznámkami řečníka a zkontrolujte je."
+        }
+      }
+    },
     "social_media": {
       "content_calendar_strategist": {
         "text": "Stratég obsahu kalendáře",
@@ -7853,6 +7867,42 @@
     "slides_count_plural": {
       "text": "snímků"
     },
+    "slides_template_default_title": {
+      "text": "Šablona"
+    },
+    "slides_template_label": {
+      "text": "Šablona"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} rozvržení"
+    },
+    "slides_template_use": {
+      "text": "Použít tento návrh"
+    },
+    "slides_template_use_message": {
+      "text": "Použij návrh \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Název"
+    },
+    "slides_layout_section": {
+      "text": "Sekce"
+    },
+    "slides_layout_content": {
+      "text": "Obsah"
+    },
+    "slides_layout_two_column": {
+      "text": "Dva sloupce"
+    },
+    "slides_layout_image": {
+      "text": "Obrázek"
+    },
+    "slides_layout_quote": {
+      "text": "Citát"
+    },
+    "slides_layout_closing": {
+      "text": "Závěr"
+    },
     "slides_prev": {
       "text": "Předchozí snímek"
     },
@@ -8489,6 +8539,33 @@
     },
     "progress_result_one": {
       "text": "1 výsledek"
+    },
+    "slides_template_pick": {
+      "text": "Šablona"
+    },
+    "slides_template_picker_title": {
+      "text": "Vyberte šablonu"
+    },
+    "slides_template_builtin": {
+      "text": "Vestavěné"
+    },
+    "slides_template_library_personal": {
+      "text": "Vaše knihovna"
+    },
+    "slides_template_library_team": {
+      "text": "Knihovna týmu"
+    },
+    "slides_template_updated": {
+      "text": "Aktualizováno"
+    },
+    "slides_template_apply": {
+      "text": "Použít šablonu"
+    },
+    "slides_template_apply_failed": {
+      "text": "Šablonu se nepodařilo použít"
+    },
+    "slides_template_library_empty": {
+      "text": "Zatím žádné uložené šablony"
     }
   },
   "embeds_input": {},
@@ -11053,6 +11130,24 @@
       },
       "systemprompt": {
         "text": "Jste neutrální kouč pro občanskou diskusi a výzkumný asistent. Vaším cílem je pomoci uživatelům připravit se na politické, občanské, celospolečenské, volební, geopolitické a další rozhovory ve veřejném zájmu s přesností, pokorou a v dobré víře.\n\nZačněte pochopením situace. V první odpovědi asistenta po aktivaci tohoto zaměření reagujte na původní požadavek uživatele stručným kontextuálním úvodem, i když uživatel výslovně o otázky nepožádal. Položte jednu až tři konkrétní otázky na chybějící podrobnosti, jako je jurisdikce, uživatelem požadovaný výsledek a postavení nebo vztah druhé osoby. Využijte téma a další fakta, která uživatel již uvedl; nežádejte ho o opakování těchto podrobností ani o znovuzformulování požadavku. Pokud vás uživatel požádá, abyste začali otázkami, dodržte toto pořadí, i když je téma známé. Pokud již byl poskytnut veškerý podstatný kontext, položte před dalším postupem jednu otázku ohledně hlavní priority uživatele nebo stručně potvrďte konkrétní rámec. Počkejte na odpověď uživatele, než přistoupíte k faktickému výzkumu, výkladu zásad nebo kompletnímu přípravnému listu, pokud uživatel výslovně nepožádá o okamžitou rešerši. Neomezujte se pouze na potvrzení aktivace a nedělejte z úvodního zjišťování dlouhý dotazník.\n\nPoužívejte tento pracovní postup:\n- Přeformulujte téma a uživatelem požadovaný výsledek neutrálním jazykem.\n- Identifikujte hlavní tvrzení, která se pravděpodobně objeví. Oddělte faktická tvrzení, hodnotové soudy, předpoklady, předpovědi a osobní zkušenosti.\n- U faktických nebo aktuálních tvrzení použijte web-search, vyhledávání zpráv a web-read, pokud přesnost závisí na čerstvých nebo sporných informacích. Upřednostňujte primární zdroje, oficiální data, volební materiály, legislativu, zprávy regulačních orgánů, soudní dokumenty, seriózní žurnalistiku a odborné instituce před shrnutími ze sociálních sítí.\n- Vyhodnocujte zdroje podle aktuálnosti, relevance, autority, přesnosti a účelu. Uveďte, kdy má zdroj advokační, stranický, vládní, komerční nebo kampaňový zájem.\n- Zmapujte nejsilnější verzi každého hlavního postoje, než jej začnete kritizovat. Zahrňte body shody, kompromisy, nejistoty a legitimní hodnoty na každé straně.\n- Připravte otázky, které vybízejí k vysvětlení, definují pojmy, testují předpoklady a vynášejí na povrch důkazy. Vyhněte se záludným otázkám (chytákům), pokud uživatel výslovně nepotřebuje formální přípravu na debatu.\n- Pomozte uživateli zvolit klidné formulace, hranice a únikové věty pro citlivé rozhovory.\n\nVýchozí struktura výstupu:\n\n## Cíl diskuse\nShrňte, na co se uživatel připravuje a jak by vypadala úspěšná konverzace.\n\n## Klíčová fakta k ověření\nUveďte důležitá faktická tvrzení, nejlepší dostupné důkazy a případné nejistoty. Uveďte, kdy je zapotřebí další výzkum.\n\n## Pravděpodobné perspektivy\nPopište nejsilnější argumenty a obavy hlavních stran vedené v dobré víře. Nekarizujte opačné názory.\n\n## Otázky, které lze položit\nPoskytněte promyšlené, otevřené otázky, které objasňují definice, důkazy, kompromisy, hodnoty a praktické důsledky.\n\n## Tvrzení, u nichž se vyvarovat přehánění\nVarujte před slabými tvrzeními, zastaralými fakty, tvrzeními z jediného zdroje, zavádějícím rámováním nebo body, které vyžadují nuanci.\n\n## Navrhovaný plán konverzace\nUveďte krátký plán pro zahájení diskuse, udržení její konstruktivnosti, zvládání napětí a následné kroky.\n\nDůležité hranice:\n- Nepište manipulativní propagandu, obtěžování, doxxing, zastrašování ani dehumanizující rétoriku.\n- Neposkytujte cílenou strategii politického přesvědčování založenou na demografických, psychologických, identitních profilech nebo profilech zranitelnosti.\n- Neoptimalizujte kampaňová sdělení, cílení na voliče, potlačování volební účasti nebo aktivistickou logistiku. Pokud se požadavek uživatele změní v advokacii nebo organizování, udržujte pomoc na obecné úrovni, zákonnou a nemanipulativní, nebo doporučte asistenta Activism mate pro etickou strategii organizování.\n- Neprezentujte nejistá nebo sporná tvrzení jako hotová fakta. Jasně rozlišujte důkazy, vyvození, interpretaci a názor.\n- Nepředpokládejte zlou vůli, korupci, extremismus nebo zlý úmysl, pokud toto rámování nepodporují spolehlivé důkazy.\n- Respektujte soukromí. Nežádejte o nepotřebné osobní údaje o uživateli nebo jiných zúčastněných osobách."
+      }
+    },
+    "slides_design_template": {
+      "text": "Navrhnout šablonu",
+      "description": {
+        "text": "Navrhněte krok za krokem opakovaně použitelnou šablonu snímků - tři návrhy na výběr, doladěné s vámi a uložené do vaší knihovny."
+      },
+      "process": {
+        "text": "- Zeptá se, k čemu šablona slouží a k jakým barvám značky, písmům nebo logu má ladit\n- Ukáže tři zřetelně odlišné návrhy jako karty šablon s náhledy šesti rozvržení snímků\n- Jeden vyberete tlačítkem „Použít tento návrh“ nebo jeho názvem\n- Doladí s vámi barvy, písma a rozvržení a po každé změně kartu aktualizuje\n- Řekne vám, ať na finální kartě stisknete Uložit, aby se dostala do vaší knihovny\n- Nabídne vytvoření první prezentace s vaší novou šablonou"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Naplánovat prezentaci",
+      "description": {
+        "text": "Naplánujte prezentaci krok za krokem - cíl, příběh, jedno sdělení na snímek, design - pak vytvořte snímky s poznámkami řečníka a zkontrolujte je."
+      },
+      "process": {
+        "text": "- Zeptá se na cíl, publikum, délku a prostředí, s jednoduchými příklady a doporučením\n- Navrhne vhodný příběh, například u pitche problém, řešení, demo, dopad a prosbu\n- Vypíše jedno sdělení na snímek a před tvorbou čeká na vaše potvrzení\n- Ukáže vhodné vestavěné návrhy jako karty, použije vaši uloženou šablonu nebo s vámi navrhne novou\n- Vytvoří snímky s poznámkami řečníka na každém, podle délky vašeho vystoupení\n- Zkontroluje výsledek a opraví, co přijmete, například příliš mnoho textu na snímku"
       }
     },
     "social_media_content_calendar_strategist": {
