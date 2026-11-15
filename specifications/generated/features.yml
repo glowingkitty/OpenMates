@@ -610,10 +610,10 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 3
+        passing: 4
         failing: 9
         not_run: 0
-        missing: 4
+        missing: 3
         counted: 16
       failing_tests:
       - frontend/apps/web_app/tests/apps-workspace.spec.ts › Health public-insurance search sends native filters and retains
@@ -650,6 +650,7 @@ features:
         and on crash; the respawned realm serves new ports
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts
       - frontend/apps/web_app/tests/app-embeds-workspace.spec.ts
       - frontend/apps/web_app/tests/apps-workspace.spec.ts
       - frontend/apps/web_app/tests/components/app-embeds-fullscreen.spec.ts

@@ -11311,69 +11311,25 @@ async def handle_main_processing(
                 ):
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService as _AnonymousEmbedSvc
+                        from backend.apps.ai.processing.anonymous_skill_embeds import build_anonymous_skill_embeds
 
-                        child_type = await _AnonymousEmbedSvc.get_child_embed_type(
+                        # None for non-composite skills (e.g. math.calculate): they get one
+                        # embed with inline results, like the authenticated embed path.
+                        child_type = await _AnonymousEmbedSvc.get_composite_child_embed_type(
                             app_id,
                             skill_id,
                             cache_service=cache_service,
                         )
-                        parent_embed_id = str(uuid.uuid4())
-                        child_embed_ids = [str(uuid.uuid4()) for _ in results_with_refs]
-                        now = int(time.time())
-                        parent_content = {
-                            "app_id": app_id,
-                            "skill_id": skill_id,
-                            "result_count": len(results_with_refs),
-                            "embed_ids": child_embed_ids,
-                            "status": "finished",
-                            **{key: value for key, value in preview_data.items() if key != "results_toon"},
-                            **_AnonymousEmbedSvc._build_parent_preview_metadata(app_id, skill_id, results_with_refs),
-                        }
-                        parent_content["embed_ref"] = _AnonymousEmbedSvc._generate_direct_embed_ref(
-                            f"{app_id}-{skill_id}", parent_embed_id,
+                        anonymous_embeds = build_anonymous_skill_embeds(
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            results=results_with_refs,
+                            preview_data=preview_data,
+                            child_type=child_type,
+                            flatten=_flatten_for_toon_tabular,
                         )
-                        parent_content = _AnonymousEmbedSvc._sanitize_final_app_skill_content(
-                            app_id,
-                            skill_id,
-                            parent_content,
-                        )
-                        anonymous_embed_payloads.append({
-                            "embed_id": parent_embed_id,
-                            "embed_ref": parent_content["embed_ref"],
-                            "type": "app_skill_use",
-                            "content": encode(_flatten_for_toon_tabular(parent_content)),
-                            "status": "finished",
-                            "embed_ids": child_embed_ids,
-                            "app_id": app_id,
-                            "skill_id": skill_id,
-                            "created_at": now,
-                            "updated_at": now,
-                        })
-                        for child_embed_id, result in zip(child_embed_ids, results_with_refs):
-                            child_content = {
-                                **_flatten_for_toon_tabular(result),
-                                "type": child_type,
-                                "app_id": app_id,
-                                "skill_id": child_type,
-                                "status": "finished",
-                            }
-                            anonymous_embed_payloads.append({
-                                "embed_id": child_embed_id,
-                                "type": child_type,
-                                "content": encode(child_content),
-                                "status": "finished",
-                                "parent_embed_id": parent_embed_id,
-                                "app_id": app_id,
-                                "skill_id": child_type,
-                                "created_at": now,
-                                "updated_at": now,
-                            })
-                        anonymous_embed_reference = json.dumps({
-                            "type": "app_skill_use",
-                            "embed_id": parent_embed_id,
-                            "app_id": app_id,
-                            "skill_id": skill_id,
-                        })
+                        anonymous_embed_payloads = anonymous_embeds.payloads
+                        anonymous_embed_reference = anonymous_embeds.reference
                         yield f"```json\n{anonymous_embed_reference}\n```\n\n"
                     except Exception as anonymous_embed_error:
                         logger.error(

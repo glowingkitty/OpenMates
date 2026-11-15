@@ -104,6 +104,47 @@ async function mockAnonymousEmbedStream(page: any, failAfterTool = false): Promi
 	}, failAfterTool);
 }
 
+// Shape built by backend/apps/ai/processing/anonymous_skill_embeds.py for a
+// non-composite skill: one app_skill_use embed with inline results, no children.
+const MATH_EMBED_ID = 'anonymous-math-calculation';
+const MATH_EMBED_CONTENT =
+	'app_id: math\nskill_id: calculate\nresult_count: 1\nresults[1]{expression,result,result_type,embed_ref}:\n' +
+	'  12*7,"84",integer,calc-84\nstatus: finished\nembed_ref: math-calculate-anon';
+
+async function mockAnonymousMathStream(page: any): Promise<void> {
+	await page.addInitScript((fixture: { embedId: string; content: string }) => {
+		const originalFetch = window.fetch.bind(window);
+		window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+			if (!url.includes('/v1/anonymous/chat/stream')) return originalFetch(input, init);
+			const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, string>;
+			const encoder = new TextEncoder();
+			const taskId = `anonymous-task-${body.client_message_id}`;
+			const assistantId = 'anonymous-math-assistant';
+			const stream = new ReadableStream<Uint8Array>({
+				start(controller) {
+					const emit = (payload: Record<string, unknown>) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+					emit({ type: 'ai_task_initiated', chat_id: body.client_chat_id, user_message_id: body.client_message_id, ai_task_id: taskId, status: 'processing_started' });
+					emit({ type: 'ai_typing_started', chat_id: body.client_chat_id, message_id: assistantId,
+						user_message_id: body.client_message_id, task_id: taskId, category: 'general_knowledge',
+						model_name: 'test-model', provider_name: 'Test Provider', server_region: 'EU' });
+					emit({ type: 'send_embed_data', payload: {
+						embed_id: fixture.embedId, type: 'app_skill_use', app_id: 'math', skill_id: 'calculate',
+						content: fixture.content, status: 'finished', embed_ids: null
+					} });
+					const reference = JSON.stringify({ type: 'app_skill_use', embed_id: fixture.embedId, app_id: 'math', skill_id: 'calculate' });
+					emit({ type: 'ai_message_chunk', chat_id: body.client_chat_id, message_id: assistantId,
+						user_message_id: body.client_message_id, task_id: taskId, sequence: 1, is_final_chunk: true,
+						full_content_so_far: `\`\`\`json\n${reference}\n\`\`\`\n\n12 times 7 is 84.`, model_name: 'test-model' });
+					emit({ type: 'ai_task_ended', chatId: body.client_chat_id, taskId, status: 'completed' });
+					controller.close();
+				}
+			});
+			return new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+		};
+	}, { embedId: MATH_EMBED_ID, content: MATH_EMBED_CONTENT });
+}
+
 async function mockGermanCodeStream(page: any, requests: Array<Record<string, unknown>>): Promise<void> {
 	await page.exposeFunction('recordGermanAnonymousRequest', (body: Record<string, unknown>) => {
 		requests.push(body);
@@ -330,6 +371,43 @@ test.describe('Anonymous child embeds', () => {
 
 		const freshTab = await page.context().newPage();
 		await assertGuestTabCannotOpenChat(freshTab, chatId);
+	});
+
+	// contract-test: direct surface=gui.web assertions=apps.anonymous.local-results-and-promotion,billing.anonymous.local-only-content
+	test('shows a single-result skill embed without children in an anonymous chat', async ({ page }: { page: any }) => {
+		test.setTimeout(90_000);
+		await mockAnonymousAccess(page);
+		await mockAnonymousMathStream(page);
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+		await expect(editor).toBeVisible({ timeout: 10_000 });
+		await editor.click();
+		await editor.pressSequentially('What is 12 times 7?');
+		await page.locator('[data-action="send-message"]').click();
+
+		const answer = page.getByTestId('message-assistant').last();
+		await expect(answer).toHaveAttribute('data-streaming', 'false', { timeout: 30_000 });
+		await expect(answer).toContainText('12 times 7 is 84.');
+		// Completed app use collapses into the activity group; open it to see the embed.
+		const toggle = answer.getByTestId('assistant-activity-toggle');
+		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		await toggle.click();
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+		const mathEmbed = answer.locator(`[data-testid="embed-preview"][data-app-id="math"][data-status="finished"][data-embed-id="${MATH_EMBED_ID}"]`);
+		await expect(mathEmbed).toBeVisible({ timeout: 15_000 });
+		await expect(mathEmbed).toContainText('12*7');
+		await expect(mathEmbed).toContainText('= 84');
+		await page.screenshot({ path: test.info().outputPath('anonymous-math-embed.png'), fullPage: false });
+
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		const reloadedAnswer = page.getByTestId('message-assistant').last();
+		await expect(reloadedAnswer).toContainText('12 times 7 is 84.', { timeout: 15_000 });
+		const reloadedToggle = reloadedAnswer.getByTestId('assistant-activity-toggle');
+		if ((await reloadedToggle.getAttribute('aria-expanded')) !== 'true') await reloadedToggle.click();
+		const reloaded = reloadedAnswer
+			.locator(`[data-testid="embed-preview"][data-app-id="math"][data-embed-id="${MATH_EMBED_ID}"]`);
+		await expect(reloaded).toBeVisible({ timeout: 15_000 });
+		await expect(reloaded).toContainText('= 84');
 	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.static-public-link
