@@ -4883,6 +4883,7 @@ features:
       - frontend/apps/web_app/tests/components/focus-mode-instructions.spec.ts
       - frontend/apps/web_app/tests/components/focus-phases.spec.ts
       - frontend/apps/web_app/tests/components/project-focus-specialist.spec.ts
+      - frontend/apps/web_app/tests/components/read-only-message-project-mention.spec.ts
       - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
       - frontend/apps/web_app/tests/focus-mode-mention.spec.ts
       - frontend/apps/web_app/tests/focus-mode-settings.spec.ts

@@ -1457,6 +1457,14 @@
         color: transparent !important;
     }
 
+    /* A Project mention link carries its access chip ("Read", "Read & Write"). The link rule above
+       makes text transparent and clips the gradient to the glyphs, so the chip's opaque background
+       would hide its own label and leave an empty pill. The chip paints its label itself. */
+    :global(.read-only-message a.generic-mention .project-access-chip) {
+        -webkit-text-fill-color: var(--color-font-secondary) !important;
+        color: var(--color-font-secondary) !important;
+    }
+
     /* Brighter link gradient for dark mode readability */
     :global([data-theme="dark"] .read-only-message .ProseMirror .markdown-link),
     :global([data-theme="dark"] .read-only-message .ProseMirror .markdown-paragraph a),

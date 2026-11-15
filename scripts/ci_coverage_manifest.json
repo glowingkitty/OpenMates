@@ -320,6 +320,7 @@
         "components/shared-auxiliary-load-button.spec.ts",
         "components/read-only-message-parsed-doc.spec.ts",
         "components/read-only-message-pii-labels.spec.ts",
+        "components/read-only-message-project-mention.spec.ts",
         "components/voice-call-speech-rendering.spec.ts",
         "components/svg-image-embed.spec.ts",
         "components/chat-header-image-lifecycle.spec.ts",
