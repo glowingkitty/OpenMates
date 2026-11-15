@@ -2742,10 +2742,14 @@ def main():
             output = result.stdout
             # 150 lines cover only the last seconds of a spec. API and CMS keep
             # a longer bounded tail so a stall early in the run stays visible.
+            # HTTP client request lines dominate the API log; without them the
+            # same bound covers the whole spec instead of its last minute.
             for service in ("api", "cms"):
                 if service in profile["services"]:
-                    longer = compose("logs", "--no-color", "--tail", "6000", service, capture=True)
-                    output += f"\n==== {service} (last 6000 lines) ====\n" + longer.stdout
+                    longer = compose("logs", "--no-color", service, capture=True)
+                    kept = [line for line in longer.stdout.splitlines()
+                            if '"name": "httpx"' not in line][-6000:]
+                    output += f"\n==== {service} (last 6000 lines, httpx omitted) ====\n" + "\n".join(kept)
             containers = compose("ps", "-aq", capture=True).stdout.split()
             for container in containers:
                 state = subprocess.check_output(
