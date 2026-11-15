@@ -19,10 +19,14 @@ permissions:
 
 jobs:
   browser-startup:
+    # Vercel names the web app's production environment
+    # "Production – open-mates-webapp" (since late Oct 2026); plain "Production"
+    # is the older name. Matching only the old name skipped every prod check.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.deployment_status.state == 'success' &&
-       github.event.deployment.environment == 'Production' &&
+       (github.event.deployment.environment == 'Production' ||
+        github.event.deployment.environment == 'Production – open-mates-webapp') &&
        (startsWith(github.event.deployment_status.environment_url, 'https://open-mates-webapp-') ||
         github.event.deployment_status.environment_url == 'https://app.openmates.org'))
     runs-on: ubuntu-24.04
