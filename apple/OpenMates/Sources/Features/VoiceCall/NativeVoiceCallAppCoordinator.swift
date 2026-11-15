@@ -101,9 +101,9 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
     }
     var isActive: Bool { starting || state.status == .connecting || state.status == .live }
     var boundChatID: String? { state.scope?.chatID }
-    /// Web `voiceCallActivityActive`: only a known idle input (not listening, not
-    /// processing) dims the active-duration counter. Policy lives in the snapshot.
-    var activityActive: Bool { !state.inputIdle || state.inputListening || state.processing }
+    /// Web `voiceCallActivityActive`: only server-confirmed idle (input and
+    /// processing) dims the counter. Policy lives in the core call clock.
+    var activityActive: Bool { !state.activityDimmed }
     var formattedDuration: String {
         let seconds = Int(max(0, min(state.activeSeconds, 99 * 3600)))
         return String(format: "%02d:%02d", seconds / 60, seconds % 60)

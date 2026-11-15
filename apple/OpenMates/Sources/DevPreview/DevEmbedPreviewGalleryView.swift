@@ -556,24 +556,26 @@ struct DevEmbedPreviewGalleryView: View {
             } else if let request = canonicalRequest {
                 canonicalSurface(request)
             } else {
-                VStack(spacing: 0) {
-                    header
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: .spacing12) {
-                            // Only the first skill with children gets the route harness, so its
-                            // identifiers stay unique and sit where that skill is reached by scrolling.
-                            let skills = DevEmbedPreviewFixtures.skills(for: selectedApp)
-                            let routeSkillID = skills.first(where: { !$0.childEmbeds.isEmpty })?.id
-                            ForEach(skills) { skill in
-                                DevEmbedPreviewSkillSection(skill: skill, showsRouteHarness: skill.id == routeSkillID) {
-                                    open($0, quote: $1)
+                ScrollViewReader { proxy in
+                    VStack(spacing: 0) {
+                        header
+                        if switchesAppsInPlace { appSwitcher(proxy) }
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: .spacing12) {
+                                // Only the first skill with children gets the route harness, so its
+                                // identifiers stay unique and sit where that skill is reached by scrolling.
+                                ForEach(gallerySkills) { skill in
+                                    DevEmbedPreviewSkillSection(skill: skill, showsRouteHarness: skill.id == routeSkillID) {
+                                        open($0, quote: $1)
+                                    }
                                 }
                             }
+                            .padding(.horizontal, .spacing8)
+                            .padding(.vertical, .spacing8)
                         }
-                        .padding(.horizontal, .spacing8)
-                        .padding(.vertical, .spacing8)
+                        .background(Color.grey0)
+                        .id(selectedApp)
                     }
-                    .background(Color.grey0)
                 }
                 .accessibilityIdentifier("dev-embed-preview-gallery")
             }
@@ -723,6 +725,53 @@ struct DevEmbedPreviewGalleryView: View {
     private func open(_ skill: DevEmbedPreviewSkill, quote: String? = nil) {
         openedQuote = quote
         openedSkill = skill
+    }
+
+    /// UI tests launch with `--dev-preview-app all` so one app launch can visit every app.
+    private var switchesAppsInPlace: Bool {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "--dev-preview-app"), index + 1 < arguments.count else { return false }
+        return arguments[index + 1] == "all"
+    }
+
+    private var gallerySkills: [DevEmbedPreviewSkill] { DevEmbedPreviewFixtures.skills(for: selectedApp) }
+    private var routeSkillID: DevEmbedPreviewSkill.ID? { gallerySkills.first(where: { !$0.childEmbeds.isEmpty })?.id }
+
+    private func appSwitcher(_ proxy: ScrollViewProxy) -> some View {
+        // Wrapping grid, not a horizontal scroll: every switch button stays on screen so
+        // UI tests can tap it directly (off-screen buttons have no hit point on CI).
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: .spacing2)], spacing: .spacing1) {
+                if let routeSkillID {
+                    // Swipe flicks skip past the harness in the shorter in-place viewport, so
+                    // tests jump to it: first to its lazy section, then to the harness inside.
+                    Button("route") {
+                        proxy.scrollTo(routeSkillID, anchor: .top)
+                        DispatchQueue.main.async { proxy.scrollTo(DevEmbedRouteHarnessAnchor.id, anchor: .top) }
+                    }
+                    .buttonStyle(.plain)
+                    .font(.omMicro)
+                    .foregroundStyle(Color.fontTertiary)
+                    .padding(.horizontal, .spacing4)
+                    .padding(.vertical, .spacing2)
+                    .accessibilityIdentifier("dev-embed-jump-route-harness")
+                }
+                ForEach(DevEmbedPreviewApp.allCases) { previewApp in
+                    Button(previewApp.rawValue) {
+                        openedSkill = nil
+                        openedQuote = nil
+                        selectedApp = previewApp
+                    }
+                    .buttonStyle(.plain)
+                    .font(.omMicro)
+                    .foregroundStyle(previewApp == selectedApp ? Color.fontPrimary : Color.fontTertiary)
+                    .padding(.horizontal, .spacing4)
+                    .padding(.vertical, .spacing2)
+                    .accessibilityIdentifier("dev-embed-app-switch-\(previewApp.rawValue)")
+                }
+        }
+        .padding(.horizontal, .spacing8)
+        .background(Color.grey0)
+        .accessibilityIdentifier("dev-embed-app-switcher")
     }
 
     private var header: some View {
@@ -899,6 +948,7 @@ private struct DevEmbedPreviewSkillSection: View {
                 DevEmbedDisplayBlock(title: "FULLSCREEN ROUTE HARNESS", flush: true) {
                     DevEmbedFullscreenRouteHarness(skill: skill)
                 }
+                .id(DevEmbedRouteHarnessAnchor.id)
             }
         }
         .frame(maxWidth: 930, alignment: .leading)
@@ -908,6 +958,11 @@ private struct DevEmbedPreviewSkillSection: View {
     private func open(_ skill: DevEmbedPreviewSkill, quote: String? = nil) {
         onOpen(skill, quote)
     }
+}
+
+/// Scroll target for the in-place gallery's route-harness jump.
+private enum DevEmbedRouteHarnessAnchor {
+    static let id = "dev-embed-route-harness-anchor"
 }
 
 /// The showcase groups compare data variants of one renderer, not parent/child records.

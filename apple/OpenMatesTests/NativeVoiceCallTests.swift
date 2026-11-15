@@ -589,6 +589,50 @@ final class NativeVoiceCallTests: XCTestCase {
         XCTAssertEqual(newer.activeOffsetMilliseconds, 0)
     }
 
+    // contract-test: direct surface=gui.apple assertions=video-call.chat.activity-status
+    func testCallClockCountsBeforeFirstActivityAndIgnoresAssistantPlayback() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let time = VoiceCallTestClock(100)
+        let live = expectation(description: "Ready")
+        live.assertForOverFulfill = false
+        let controller = makeController(transport: transport, audio: audio, now: { time.now }, event: { event in
+            if case .state(let state) = event, state.status == .live { live.fulfill() }
+        })
+        try await controller.start(scope: scope); try await transport.push(ready())
+        await fulfillment(of: [live], timeout: 2)
+        time.set(103)
+        var state = await controller.snapshot()
+        XCTAssertEqual(state.activeSeconds, 3, "Unknown activity counts like web before the first report")
+        XCTAssertFalse(state.activityDimmed)
+        try await transport.push(["type": .string("billing_activity"), "call_id": .string("fixture-call"),
+            "input_listening": .bool(false), "processing": .bool(false)])
+        state = try await waitForSnapshot(controller) { $0.activityDimmed }
+        time.set(110)
+        await controller.updateAssistantState(speaking: true, messageID: "fixture-message", text: "Hello")
+        time.set(115)
+        state = await controller.snapshot()
+        XCTAssertEqual(state.activeSeconds, 3, "Assistant playback alone does not advance the clock")
+        XCTAssertTrue(state.activityDimmed, "Playback does not undim a server-confirmed idle call")
+        try await transport.push(["type": .string("billing_activity"), "call_id": .string("fixture-call"),
+            "input_listening": .bool(true), "processing": .bool(false)])
+        state = try await waitForSnapshot(controller) { !$0.activityDimmed }
+        time.set(117)
+        state = await controller.snapshot()
+        XCTAssertEqual(state.activeSeconds, 5)
+        await controller.hangup()
+    }
+
+    private func waitForSnapshot(_ controller: NativeVoiceCallController,
+                                 _ condition: (NativeVoiceCallSnapshot) -> Bool) async throws -> NativeVoiceCallSnapshot {
+        for _ in 0..<100 {
+            let state = await controller.snapshot()
+            if condition(state) { return state }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTFail("Snapshot condition not reached")
+        return await controller.snapshot()
+    }
+
     private func ready() -> NativeVoiceCallFrame {
         ["type": .string("ready"), "call_id": .string("fixture-call"),
          "provider": .string("mistral"), "model": .string("voxtral-mini-transcribe-realtime-3-0"), "mate_category": .string("general"),
@@ -641,6 +685,7 @@ final class NativeVoiceCallTests: XCTestCase {
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         submit: @escaping @Sendable (NativeVoiceCallScope, NativeVoiceCallTranscript) async throws -> Void = { _, _ in },
         interrupt: @escaping @Sendable (NativeVoiceCallScope, String?, String?) async throws -> Void = { _, _, _ in },
+        now: @escaping @Sendable () -> Date = { Date(timeIntervalSince1970: 100) },
         event: @escaping NativeVoiceCallController.Handler = { _ in }
     ) -> NativeVoiceCallController {
         NativeVoiceCallController(environment: .init(isCurrent: { _ in true }, ensureConsent: { _ in try await consent() },
@@ -648,7 +693,7 @@ final class NativeVoiceCallTests: XCTestCase {
                 webOrigin: "https://example.invalid", sessionID: "fixture-session", webSocketToken: "fixture-token", nativeHeaders: [:]) },
             context: { _ in try .init(messages: [], mateCategory: "general", canonicalRangeComplete: true) },
             submitTurn: submit, interruptAssistant: interrupt,
-            now: { Date(timeIntervalSince1970: 100) }, sleep: sleep),
+            now: now, sleep: sleep),
             audio: audio, persistence: persistence, transportFactory: { transport }, eventHandler: event)
     }
 }
@@ -744,4 +789,13 @@ private actor VoiceCallDeadlineFixture {
 private actor VoiceCallSubmittedFixture {
     private(set) var values: [NativeVoiceCallTranscript] = []
     func append(_ value: NativeVoiceCallTranscript) { values.append(value) }
+}
+
+/// Settable wall clock for the core call-clock tests.
+private final class VoiceCallTestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var seconds: TimeInterval
+    init(_ seconds: TimeInterval) { self.seconds = seconds }
+    var now: Date { lock.lock(); defer { lock.unlock() }; return Date(timeIntervalSince1970: seconds) }
+    func set(_ value: TimeInterval) { lock.lock(); seconds = value; lock.unlock() }
 }

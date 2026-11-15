@@ -5748,6 +5748,207 @@ public func FfiConverterTypeViewModelCore_lower(_ value: ViewModelCore) -> UInt6
 
 
 
+
+
+/**
+ * Call clock owned by one live call. Time is passed in as `now_ms`.
+ */
+public protocol VoiceCallActivityClockHandleProtocol: AnyObject, Sendable {
+    
+    /**
+     * Applies already-decoded server activity flags.
+     */
+    func applyActivity(nowMs: Double, inputListening: Bool, processing: Bool) 
+    
+    /**
+     * Applies a raw server frame for `call_id`. Returns false (and changes
+     * nothing) when the frame is not a well-formed `billing_activity` frame
+     * of this call.
+     */
+    func applyFrameJson(callId: String, nowMs: Double, json: String)  -> Bool
+    
+    /**
+     * Marks the call ended (both flags idle).
+     */
+    func finish(nowMs: Double) 
+    
+    /**
+     * Accounts time up to `now_ms` and returns the reading.
+     */
+    func tick(nowMs: Double)  -> VoiceCallClockRecord
+    
+}
+/**
+ * Call clock owned by one live call. Time is passed in as `now_ms`.
+ */
+open class VoiceCallActivityClockHandle: VoiceCallActivityClockHandleProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_openmates_apple_bindings_fn_clone_voicecallactivityclockhandle(self.handle, $0) }
+    }
+    /**
+     * New clock: activity unknown, nothing accumulated.
+     */
+public convenience init() {
+    let handle =
+        try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_constructor_voicecallactivityclockhandle_new(uniffiCallStatus
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_openmates_apple_bindings_fn_free_voicecallactivityclockhandle(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Applies already-decoded server activity flags.
+     */
+open func applyActivity(nowMs: Double, inputListening: Bool, processing: Bool)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_voicecallactivityclockhandle_apply_activity(
+            self.uniffiCloneHandle(),
+        FfiConverterDouble.lower(nowMs),
+        FfiConverterBool.lower(inputListening),
+        FfiConverterBool.lower(processing),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Applies a raw server frame for `call_id`. Returns false (and changes
+     * nothing) when the frame is not a well-formed `billing_activity` frame
+     * of this call.
+     */
+open func applyFrameJson(callId: String, nowMs: Double, json: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_voicecallactivityclockhandle_apply_frame_json(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(callId),
+        FfiConverterDouble.lower(nowMs),
+        FfiConverterString.lower(json),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Marks the call ended (both flags idle).
+     */
+open func finish(nowMs: Double)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_voicecallactivityclockhandle_finish(
+            self.uniffiCloneHandle(),
+        FfiConverterDouble.lower(nowMs),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Accounts time up to `now_ms` and returns the reading.
+     */
+open func tick(nowMs: Double) -> VoiceCallClockRecord  {
+    return try!  FfiConverterTypeVoiceCallClockRecord_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_voicecallactivityclockhandle_tick(
+            self.uniffiCloneHandle(),
+        FfiConverterDouble.lower(nowMs),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallActivityClockHandle: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = VoiceCallActivityClockHandle
+
+    public static func lift(_ handle: UInt64) throws -> VoiceCallActivityClockHandle {
+        return VoiceCallActivityClockHandle(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: VoiceCallActivityClockHandle) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallActivityClockHandle {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: VoiceCallActivityClockHandle, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallActivityClockHandle_lift(_ handle: UInt64) throws -> VoiceCallActivityClockHandle {
+    return try FfiConverterTypeVoiceCallActivityClockHandle.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallActivityClockHandle_lower(_ value: VoiceCallActivityClockHandle) -> UInt64 {
+    return FfiConverterTypeVoiceCallActivityClockHandle.lower(value)
+}
+
+
+
+
 /**
  * The fields a Swift-completed login holds. All of them are secret or
  * account-identifying; the core zeroizes them after use.
@@ -16246,6 +16447,194 @@ public func FfiConverterTypeVideoTrackRecord_lower(_ value: VideoTrackRecord) ->
 
 
 /**
+ * One reading of the call clock.
+ */
+public struct VoiceCallClockRecord: Equatable, Hashable {
+    /**
+     * Whole seconds of server-confirmed (or not yet known) active time.
+     */
+    public var activeElapsedSeconds: UInt64
+    /**
+     * True only after the server confirmed input and processing idle.
+     */
+    public var dimmed: Bool
+    /**
+     * Whether a server `billing_activity` frame has arrived yet.
+     */
+    public var activityKnown: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Whole seconds of server-confirmed (or not yet known) active time.
+         */activeElapsedSeconds: UInt64, 
+        /**
+         * True only after the server confirmed input and processing idle.
+         */dimmed: Bool, 
+        /**
+         * Whether a server `billing_activity` frame has arrived yet.
+         */activityKnown: Bool) {
+        self.activeElapsedSeconds = activeElapsedSeconds
+        self.dimmed = dimmed
+        self.activityKnown = activityKnown
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VoiceCallClockRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallClockRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallClockRecord {
+        return
+            try VoiceCallClockRecord(
+                activeElapsedSeconds: FfiConverterUInt64.read(from: &buf), 
+                dimmed: FfiConverterBool.read(from: &buf), 
+                activityKnown: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VoiceCallClockRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.activeElapsedSeconds, into: &buf)
+        FfiConverterBool.write(value.dimmed, into: &buf)
+        FfiConverterBool.write(value.activityKnown, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallClockRecord_lift(_ buf: RustBuffer) throws -> VoiceCallClockRecord {
+    return try FfiConverterTypeVoiceCallClockRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallClockRecord_lower(_ value: VoiceCallClockRecord) -> RustBuffer {
+    return FfiConverterTypeVoiceCallClockRecord.lower(value)
+}
+
+
+/**
+ * A call notice ready to render or to write as a system message.
+ */
+public struct VoiceCallNoticeRecord: Equatable, Hashable {
+    /**
+     * Started or ended.
+     */
+    public var action: VoiceCallNoticeAction
+    /**
+     * Call id.
+     */
+    public var callId: String
+    /**
+     * Unix seconds.
+     */
+    public var createdAt: Int64
+    /**
+     * Floored active seconds.
+     */
+    public var activeElapsedSeconds: UInt64?
+    /**
+     * Deterministic message id (same as web).
+     */
+    public var messageId: String
+    /**
+     * System-message content JSON exactly as the web writes it.
+     */
+    public var contentJson: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Started or ended.
+         */action: VoiceCallNoticeAction, 
+        /**
+         * Call id.
+         */callId: String, 
+        /**
+         * Unix seconds.
+         */createdAt: Int64, 
+        /**
+         * Floored active seconds.
+         */activeElapsedSeconds: UInt64?, 
+        /**
+         * Deterministic message id (same as web).
+         */messageId: String, 
+        /**
+         * System-message content JSON exactly as the web writes it.
+         */contentJson: String) {
+        self.action = action
+        self.callId = callId
+        self.createdAt = createdAt
+        self.activeElapsedSeconds = activeElapsedSeconds
+        self.messageId = messageId
+        self.contentJson = contentJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VoiceCallNoticeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallNoticeRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallNoticeRecord {
+        return
+            try VoiceCallNoticeRecord(
+                action: FfiConverterTypeVoiceCallNoticeAction.read(from: &buf), 
+                callId: FfiConverterString.read(from: &buf), 
+                createdAt: FfiConverterInt64.read(from: &buf), 
+                activeElapsedSeconds: FfiConverterOptionUInt64.read(from: &buf), 
+                messageId: FfiConverterString.read(from: &buf), 
+                contentJson: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VoiceCallNoticeRecord, into buf: inout [UInt8]) {
+        FfiConverterTypeVoiceCallNoticeAction.write(value.action, into: &buf)
+        FfiConverterString.write(value.callId, into: &buf)
+        FfiConverterInt64.write(value.createdAt, into: &buf)
+        FfiConverterOptionUInt64.write(value.activeElapsedSeconds, into: &buf)
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterString.write(value.contentJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallNoticeRecord_lift(_ buf: RustBuffer) throws -> VoiceCallNoticeRecord {
+    return try FfiConverterTypeVoiceCallNoticeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallNoticeRecord_lower(_ value: VoiceCallNoticeRecord) -> RustBuffer {
+    return FfiConverterTypeVoiceCallNoticeRecord.lower(value)
+}
+
+
+/**
  * Marks a turn as the user's utterance of a live voice call.
  */
 public struct VoiceCallTurnRecord: Equatable, Hashable {
@@ -22769,6 +23158,81 @@ public func FfiConverterTypeViewEventRecord_lower(_ value: ViewEventRecord) -> R
 }
 
 
+
+/**
+ * Start or end of a call.
+ */
+
+public enum VoiceCallNoticeAction: Equatable, Hashable {
+    
+    /**
+     * The call started.
+     */
+    case started
+    /**
+     * The call ended.
+     */
+    case ended
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension VoiceCallNoticeAction: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallNoticeAction: FfiConverterRustBuffer {
+    typealias SwiftType = VoiceCallNoticeAction
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallNoticeAction {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .started
+        
+        case 2: return .ended
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VoiceCallNoticeAction, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .started:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .ended:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallNoticeAction_lift(_ buf: RustBuffer) throws -> VoiceCallNoticeAction {
+    return try FfiConverterTypeVoiceCallNoticeAction.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallNoticeAction_lower(_ value: VoiceCallNoticeAction) -> RustBuffer {
+    return FfiConverterTypeVoiceCallNoticeAction.lower(value)
+}
+
+
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
@@ -23220,6 +23684,30 @@ fileprivate struct FfiConverterOptionTypeVideoTimelineRecord: FfiConverterRustBu
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeVideoTimelineRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeVoiceCallNoticeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = VoiceCallNoticeRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeVoiceCallNoticeRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeVoiceCallNoticeRecord.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -25437,6 +25925,36 @@ public func videoTimeline(contentJson: String, loadedSeconds: Double, clipLabel:
     )
 })
 }
+/**
+ * Builds the start/end notice the shell writes when a call starts or ends.
+ *
+ * # Errors
+ * `CoreError::Invalid` for an invalid call id, creation time or elapsed time.
+ */
+public func buildVoiceCallNotice(action: VoiceCallNoticeAction, callId: String, createdAt: Int64, activeElapsedSeconds: Double)throws  -> VoiceCallNoticeRecord  {
+    return try  FfiConverterTypeVoiceCallNoticeRecord_lift(try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_build_voice_call_notice(
+        FfiConverterTypeVoiceCallNoticeAction_lower(action),
+        FfiConverterString.lower(callId),
+        FfiConverterInt64.lower(createdAt),
+        FfiConverterDouble.lower(activeElapsedSeconds),uniffiCallStatus
+    )
+})
+}
+/**
+ * Parses a transcript message into a call notice; `None` for any message
+ * the web would not render as a call notice.
+ */
+public func voiceCallNoticeFromMessage(role: String, content: String) -> VoiceCallNoticeRecord?  {
+    return try!  FfiConverterOptionTypeVoiceCallNoticeRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_voice_call_notice_from_message(
+        FfiConverterString.lower(role),
+        FfiConverterString.lower(content),uniffiCallStatus
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -25574,6 +26092,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_func_video_timeline() != 8967) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_build_voice_call_notice() != 17192) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_voice_call_notice_from_message() != 43754) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_corecancellation_cancel() != 32025) {
@@ -25894,6 +26418,18 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_remove_chat() != 40529) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_voicecallactivityclockhandle_apply_activity() != 57860) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_voicecallactivityclockhandle_apply_frame_json() != 23223) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_voicecallactivityclockhandle_finish() != 17260) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_voicecallactivityclockhandle_tick() != 40439) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_constructor_corecancellation_new() != 2322) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -25907,6 +26443,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_constructor_corechatsearchindex_new() != 11853) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_constructor_voicecallactivityclockhandle_new() != 43106) {
         return InitializationResult.apiChecksumMismatch
     }
 

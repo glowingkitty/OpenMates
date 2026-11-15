@@ -43,7 +43,8 @@ actor NativeVoiceCallController {
     private var mateName: String?
     private var terminalInProgress = false
     private var startInProgress = false
-    private var activityUpdatedAt: Date?
+    /// Shared core call clock (web voiceCall.ts billing_activity accounting).
+    private var clock = VoiceCallActivityClockHandle()
     private var submittedTurns = Set<String>()
     private var orchestrationTurns = NativeVoiceCallOrchestrationTurns()
     private var pendingTyped: [String: (text: String, createdAt: Int)] = [:]
@@ -96,7 +97,7 @@ actor NativeVoiceCallController {
         startup.removeAll(); startupBytes = 0; startupSpentBytes = 0
         pausedInputs.removeAll(); pausedBytes = 0; checkpointID = nil
         submittedTurns.removeAll(); orchestrationTurns.removeAll(); pendingTyped.removeAll(); issuedArtifacts.removeAll(); streamOpen = false; drainingStartup = false
-        modelName = nil; mateName = nil; activityUpdatedAt = nil
+        modelName = nil; mateName = nil; clock = VoiceCallActivityClockHandle()
         assistantTaskID = nil; assistantMessageID = nil; assistantActive = false; providerProcessing = false
         await publish()
         do {
@@ -376,6 +377,7 @@ actor NativeVoiceCallController {
             else { throw NativeVoiceCallError.invalidResponse }
             deadline?.cancel(); deadline = nil
             state.callID = callID; state.status = .live
+            updateActivity() // the clock starts when the call is live
             state.cameraAvailable = frame["camera_available"]?.bool == true
             modelName = frame["model"]?.string; mateName = frame["mate_name"]?.string
             drainingStartup = true
@@ -511,11 +513,11 @@ actor NativeVoiceCallController {
         case "billing_activity":
             guard state.status == .live, frame["call_id"]?.string == state.callID,
                   frame["input_listening"]?.bool != nil, frame["processing"]?.bool != nil else { return }
-            updateActivity()
             state.inputListening = frame["input_listening"]?.bool ?? false
             providerProcessing = frame["processing"]?.bool ?? false
             state.processing = providerProcessing || assistantActive
-            activityUpdatedAt = environment.now()
+            clock.applyActivity(nowMs: nowMs, inputListening: state.inputListening, processing: providerProcessing)
+            updateActivity()
             await publish()
         case "usage": await event(.usage(frame))
         case "voice_compression_started": break
@@ -546,12 +548,13 @@ actor NativeVoiceCallController {
         catch { await fail((error as? NativeVoiceCallError) ?? .connectionLost, token: token) }
     }
 
+    private var nowMs: Double { environment.now().timeIntervalSince1970 * 1000 }
+    /// Reads the core clock: it counts while activity is unknown or the server
+    /// reports listening/processing; assistant playback is not an input.
     private func updateActivity() {
-        let now = environment.now()
-        if let previous = activityUpdatedAt, state.inputListening || state.processing {
-            state.activeSeconds += max(0, now.timeIntervalSince(previous))
-        }
-        activityUpdatedAt = now
+        let reading = clock.tick(nowMs: nowMs)
+        state.activeSeconds = TimeInterval(reading.activeElapsedSeconds)
+        state.activityDimmed = reading.dimmed
     }
     func hangup() async {
         guard state.status == .connecting || state.status == .live else { return }

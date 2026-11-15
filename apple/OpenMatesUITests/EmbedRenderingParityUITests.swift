@@ -1178,12 +1178,9 @@ final class EmbedRenderingParityUITests: XCTestCase {
 
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
     func testAllEmbedPreviewAppsRenderProductChrome() throws {
+        let app = launchAllAppsGallery()
         for appSlug in appSlugs {
-            let app = XCUIApplication()
-            app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", appSlug]
-            app.launchEnvironment["DEV_PREVIEW"] = "embeds"
-            app.launchEnvironment["DEV_PREVIEW_APP"] = appSlug
-            app.launch()
+            switchGalleryApp(app, to: appSlug)
 
             let gallery = app.descendants(matching: .any)["dev-embed-preview-gallery"]
             XCTAssertTrue(gallery.waitForExistence(timeout: 8), "\(appSlug) gallery did not load")
@@ -1195,8 +1192,27 @@ final class EmbedRenderingParityUITests: XCTestCase {
             XCTAssertFalse(app.tables.firstMatch.exists, "Embed product UI must not render default List/table chrome")
 
             attachScreenshot(name: "Embed gallery \(appSlug)")
-            app.terminate()
         }
+    }
+
+    /// One launch for a whole app loop: the simulator on CI is too slow to relaunch per app.
+    private func launchAllAppsGallery() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "all"]
+        app.launchEnvironment["DEV_PREVIEW"] = "embeds"
+        app.launchEnvironment["DEV_PREVIEW_APP"] = "all"
+        app.launch()
+        return app
+    }
+
+    private func switchGalleryApp(_ app: XCUIApplication, to slug: String) {
+        let button = app.buttons["dev-embed-app-switch-\(slug)"]
+        XCTAssertTrue(button.waitForExistence(timeout: 8), "\(slug) app switcher button missing")
+        // The switcher is a wrapping grid above the gallery scroll view, so every
+        // button has an on-screen frame; no swiping is needed.
+        XCTAssertTrue(app.windows.firstMatch.frame.intersects(button.frame),
+            "\(slug) app switcher button must be on screen")
+        button.tap()
     }
 
     // contract-test: direct surface=gui.apple assertions=code-run.surface-parity
@@ -1635,12 +1651,9 @@ final class EmbedRenderingParityUITests: XCTestCase {
             ("models3d", ["models3d-search-preview", "models3d-result-card", "models3d-generate-preview"], "models3d-result-fullscreen")
         ]
 
+        let app = launchAllAppsGallery()
         for testCase in cases {
-            let app = XCUIApplication()
-            app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", testCase.appSlug]
-            app.launchEnvironment["DEV_PREVIEW"] = "embeds"
-            app.launchEnvironment["DEV_PREVIEW_APP"] = testCase.appSlug
-            app.launch()
+            switchGalleryApp(app, to: testCase.appSlug)
 
             let gallery = app.descendants(matching: .any)["dev-embed-preview-gallery"]
             XCTAssertTrue(gallery.waitForExistence(timeout: 8), "\(testCase.appSlug) gallery did not load")
@@ -1655,6 +1668,12 @@ final class EmbedRenderingParityUITests: XCTestCase {
             // fullscreen, so scroll to its own leaf control instead of the container.
             let routeHarness = app.descendants(matching: .any)["dev-embed-fullscreen-route-harness"]
             let firstChildButton = app.buttons["dev-embed-route-open-first-child"]
+            // Swipe flicks can skip the harness in the in-place gallery's shorter viewport;
+            // the gallery's jump control scrolls to it deterministically.
+            let jump = app.buttons["dev-embed-jump-route-harness"]
+            XCTAssertTrue(jump.waitForExistence(timeout: 5), "\(testCase.appSlug) route harness jump missing")
+            jump.tap()
+            _ = firstChildButton.waitForExistence(timeout: 3)
             scrollUntilHittableInEitherDirection(app: app, element: firstChildButton)
             XCTAssertTrue(routeHarness.exists, "\(testCase.appSlug) fullscreen route harness did not render")
             XCTAssertTrue(firstChildButton.isHittable, "\(testCase.appSlug) has no visible parent-to-child fullscreen route")
@@ -1666,7 +1685,6 @@ final class EmbedRenderingParityUITests: XCTestCase {
             )
             XCTAssertFalse(app.tables.firstMatch.exists, "\(testCase.appSlug) embed product UI must not render default List/table chrome")
             attachScreenshot(name: "Embed specific chrome \(testCase.appSlug)")
-            app.terminate()
         }
     }
 

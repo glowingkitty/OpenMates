@@ -9,9 +9,9 @@ summary:
   enabled_on_dev: 113
   status_by_surface:
     web:
-      live: 3
-      partial: 18
-      failing: 57
+      live: 4
+      partial: 19
+      failing: 55
       not_run: 9
       implemented: 19
       not_planned: 19
@@ -29,8 +29,8 @@ summary:
       failing: 1
       not_run: 2
     cli:
-      partial: 15
-      failing: 9
+      partial: 16
+      failing: 8
       not_run: 27
       implemented: 41
       in_progress: 2
@@ -44,10 +44,10 @@ summary:
       not_planned: 42
     rest_api:
       live: 6
-      tested: 1
-      partial: 34
-      failing: 14
-      not_run: 24
+      tested: 2
+      partial: 32
+      failing: 16
+      not_run: 23
       implemented: 17
       planned: 2
       not_planned: 27
@@ -218,8 +218,8 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 1
-        failing: 9
+        passing: 2
+        failing: 8
         not_run: 4
         missing: 9
         counted: 23
@@ -243,8 +243,6 @@ features:
         without retry errors
       - frontend/apps/web_app/tests/provider-temporary-pricing.spec.ts › key-free public catalog filters unavailable models
         and generated details show Mistral promotion
-      - frontend/apps/web_app/tests/voice-call.spec.ts › keeps continuous playback progress conservative on interruption while
-        retaining the complete rich answer
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/ai-model-settings.spec.ts
@@ -340,14 +338,15 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 15
-        failing: 2
+        passing: 13
+        failing: 4
         not_run: 2
         missing: 4
         counted: 23
       failing_tests:
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_proven_first_turn_fact_omits_interactive_protocol_in_provider_prompt
       - backend/tests/test_openai_compatible_api_contract.py › test_public_current_promotions_use_real_provider_yaml_and_live_config_resolver
+      - backend/tests/test_preprocessor_jev.py › test_jev_stage_one_routes_real_selector_and_thinking_profile
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/auth-session-rotation.spec.ts
@@ -932,18 +931,15 @@ features:
   assertions: 15
   surfaces:
     web:
-      status: failing
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 5
-        failing: 8
+        passing: 13
+        failing: 0
         not_run: 0
         missing: 2
         counted: 15
-      failing_tests:
-      - frontend/apps/web_app/tests/authored-results-flow.spec.ts › saved authored web records survive cold cache recovery
-        and individual/group sharing
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/authored-results-flow.spec.ts
@@ -1092,18 +1088,14 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 8
-        failing: 6
+        passing: 11
+        failing: 3
         not_run: 7
         missing: 9
         counted: 30
       failing_tests:
       - frontend/apps/web_app/tests/component-message-input.spec.ts › moves from minimized to expanded interactive states
       - frontend/apps/web_app/tests/example-chat-speech.spec.ts › plays reviewed immutable fixtures while logged out
-      - frontend/apps/web_app/tests/voice-call.spec.ts › keeps call audio ephemeral, caches later manual Speak once, and removes
-        its audio access when the chat is deleted
-      - frontend/apps/web_app/tests/voice-call.spec.ts › keeps continuous playback progress conservative on interruption while
-        retaining the complete rich answer
       - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts › voice-first chat preflights before persisting its
         speech preference
       key_tests: []
@@ -1394,9 +1386,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 1
+        passing: 4
         failing: 0
-        not_run: 24
+        not_run: 21
         missing: 1
         counted: 26
       key_tests: []
@@ -2301,18 +2293,15 @@ features:
       - ipados
       - macos
     cli:
-      status: failing
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
-        failing: 1
+        passing: 1
+        failing: 0
         not_run: 1
         missing: 3
         counted: 5
-      failing_tests:
-      - frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts › server queues one encrypted turn, fences revisions
-        and shares its state across connections
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts
@@ -2956,8 +2945,8 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 11
-        failing: 12
+        passing: 10
+        failing: 13
         not_run: 4
         missing: 2
         counted: 29
@@ -3028,6 +3017,10 @@ features:
         replies and retains its chat across navigation and reload
       - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts › voice-first chat preflights before persisting its
         speech preference
+      - frontend/apps/web_app/tests/web-rust-core-chat.spec.ts › opens a saved chat in the normal chat UI from Rust-decrypted
+        history
+      - frontend/apps/web_app/tests/web-rust-core-sync.spec.ts › phased sync decisions run on the shared Rust sync unit and
+        existing chats still sync and decrypt
       - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts › acknowledges equivalent historical
         duplicate wrappers without rewriting encrypted records
       - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts › preserves encrypted data and
@@ -3308,15 +3301,17 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: partial
+      status: failing
       source: tests
       intent: implemented
       assertions:
         passing: 11
-        failing: 0
-        not_run: 4
+        failing: 1
+        not_run: 3
         missing: 0
         counted: 15
+      failing_tests:
+      - backend/tests/test_native_chats_api.py › test_list_chats_returns_bounded_encrypted_metadata
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts
@@ -3474,8 +3469,8 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 2
-          failing: 2
+          passing: 1
+          failing: 3
           not_run: 0
           missing: 0
           counted: 4
@@ -3492,6 +3487,8 @@ features:
           after reload
         - frontend/apps/web_app/tests/components/svg-image-embed.spec.ts › SVG code cards render as image cards and open the
           image viewer
+        - frontend/apps/web_app/tests/web-rust-core-chat.spec.ts › opens a saved chat in the normal chat UI from Rust-decrypted
+          history
       apple:
         status: failing
         source: tests
@@ -3950,13 +3947,13 @@ features:
           missing: 0
           counted: 0
       rest_api:
-        status: not_run
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 1
           failing: 0
-          not_run: 1
+          not_run: 0
           missing: 0
           counted: 1
       sdk_npm:
@@ -4205,6 +4202,10 @@ features:
           demand
         - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts › voice-first chat preflights before persisting
           its speech preference
+        - frontend/apps/web_app/tests/web-rust-core-chat.spec.ts › opens a saved chat in the normal chat UI from Rust-decrypted
+          history
+        - frontend/apps/web_app/tests/web-rust-core-sync.spec.ts › phased sync decisions run on the shared Rust sync unit
+          and existing chats still sync and decrypt
         - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts › acknowledges equivalent historical
           duplicate wrappers without rewriting encrypted records
         - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts › preserves encrypted data and
@@ -4265,15 +4266,17 @@ features:
         - frontend/apps/web_app/tests/cli-tui-startup.spec.ts › cold TUI loads a saved chat and canonical child reads return
           only authorized parent wrappers
       rest_api:
-        status: live
+        status: failing
         source: tests
         intent: unverified
         assertions:
-          passing: 1
-          failing: 0
+          passing: 0
+          failing: 1
           not_run: 0
           missing: 0
           counted: 1
+        failing_tests:
+        - backend/tests/test_native_chats_api.py › test_list_chats_returns_bounded_encrypted_metadata
       sdk_npm:
         status: not_run
         source: tests
@@ -4862,9 +4865,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 9
+        passing: 11
         failing: 1
-        not_run: 6
+        not_run: 4
         missing: 10
         counted: 26
       failing_tests:
@@ -4949,15 +4952,18 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: partial
+      status: failing
       source: tests
       intent: implemented
       assertions:
         passing: 14
-        failing: 0
-        not_run: 4
+        failing: 2
+        not_run: 2
         missing: 8
         counted: 26
+      failing_tests:
+      - backend/tests/test_delegated_primary_read.py › test_observed_search_only_catalog_adds_real_read_only_for_authorized_synthesis
+      - backend/tests/test_focus_phases.py › test_private_active_focus_main_path_does_not_log_or_raise_validation_input
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/jev-project-context-api.spec.ts
@@ -6300,8 +6306,8 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 8
-        failing: 11
+        passing: 7
+        failing: 12
         not_run: 4
         missing: 1
         counted: 24
@@ -6335,6 +6341,8 @@ features:
         keeps its transcript fully visible
       - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts › guest new chat restores its welcome and preserves
         a draft at 1280x${height}
+      - frontend/apps/web_app/tests/draft-clear-cleanup.spec.ts › Clearing unsent drafts twice completes chat cleanup without
+        errors or resurrection
       - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts › authenticated account loads its chat model selector
         without retry errors
       - frontend/apps/web_app/tests/teams-image-upload.spec.ts › keeps a pending Team image local, then shares the encrypted
@@ -6806,8 +6814,8 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 3
-          failing: 2
+          passing: 1
+          failing: 4
           not_run: 0
           missing: 0
           counted: 5
@@ -6816,6 +6824,8 @@ features:
           and preserves newer text after failed transport
         - frontend/apps/web_app/tests/components/settings-teams-storage.spec.ts › failed persistence keeps the code draft
           and prevents transient-reference send
+        - frontend/apps/web_app/tests/draft-clear-cleanup.spec.ts › Clearing unsent drafts twice completes chat cleanup without
+          errors or resurrection
         - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts › stop during new chat creation restores the sent message
           as a draft
       apple:
@@ -7005,6 +7015,8 @@ features:
           and preserves newer text after failed transport
         - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts › guest new chat restores its welcome and preserves
           a draft at 1280x${height}
+        - frontend/apps/web_app/tests/draft-clear-cleanup.spec.ts › Clearing unsent drafts twice completes chat cleanup without
+          errors or resurrection
         - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts › authenticated account loads its chat model
           selector without retry errors
         - frontend/apps/web_app/tests/teams-image-upload.spec.ts › keeps a pending Team image local, then shares the encrypted
@@ -9669,9 +9681,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 8
+        passing: 9
         failing: 0
-        not_run: 10
+        not_run: 9
         missing: 3
         counted: 21
       key_tests: []
@@ -9886,8 +9898,8 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 15
-        failing: 18
+        passing: 22
+        failing: 11
         not_run: 5
         missing: 11
         counted: 49
@@ -9904,22 +9916,6 @@ features:
         actions while saving
       - frontend/apps/web_app/tests/components/voice-call-privacy.spec.ts › uses the shared global notification and cancels
         without saving
-      - frontend/apps/web_app/tests/voice-call.spec.ts › attaches the exact encrypted camera source to the ordinary user request
-        on ${viewport.name}
-      - frontend/apps/web_app/tests/voice-call.spec.ts › keeps call audio ephemeral, caches later manual Speak once, and removes
-        its audio access when the chat is deleted
-      - frontend/apps/web_app/tests/voice-call.spec.ts › keeps continuous playback progress conservative on interruption while
-        retaining the complete rich answer
-      - frontend/apps/web_app/tests/voice-call.spec.ts › keeps lifecycle-only calls neutral in another tab and removes their
-        empty chat after hangup
-      - frontend/apps/web_app/tests/voice-call.spec.ts › registers an unsent personal Project chat before opening its voice
-        call
-      - frontend/apps/web_app/tests/voice-call.spec.ts › removes and closes an empty call chat after the call is interrupted
-        by a reload
-      - frontend/apps/web_app/tests/voice-call.spec.ts › resumes the same call on a new connection after the page was in the
-        background
-      - frontend/apps/web_app/tests/voice-call.spec.ts › speaks one localized waiting confirmation for a slow German turn
-        without creating a second assistant message
       - frontend/apps/web_app/tests/voice-call.spec.ts › uses one canonical turn for voice and typed input, preserves rich
         replies and retains its chat across navigation and reload
       key_tests: []
@@ -9957,21 +9953,22 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 26
+        passing: 28
         failing: 0
-        not_run: 1
-        missing: 14
+        not_run: 0
+        missing: 13
         counted: 41
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift
+      - apple/OpenMatesUITests/VoiceCallEventNoticePreviewUITests.swift
       key_unit_tests:
       - apple/OpenMatesTests/NativeVoiceCallTests.swift
       - apple/OpenMatesTests/NativeVoiceCallAppCoordinatorTests.swift
       - apple/OpenMatesTests/NativeVoiceCallAdmissionTests.swift
       - apple/OpenMatesTests/NativeVoiceCallArtifactAssociationTests.swift
       - apple/OpenMatesTests/NativeVoiceCallCanonicalAdmissionTests.swift
-      unit_test_files: 16
+      unit_test_files: 17
       platforms:
       - ios
       - ipados
@@ -15636,8 +15633,6 @@ features:
         only after an explicit action
       - frontend/apps/web_app/tests/projects-remote-sources.spec.ts › offers a deliberate re-login when the browser device
         binding is unavailable
-      - frontend/apps/web_app/tests/voice-call.spec.ts › registers an unsent personal Project chat before opening its voice
-        call
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
@@ -15761,9 +15756,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 19
+        passing: 26
         failing: 0
-        not_run: 14
+        not_run: 7
         missing: 25
         counted: 58
       key_tests: []
@@ -15838,8 +15833,6 @@ features:
           limit and cannot be imported
         - frontend/apps/web_app/tests/projects-remote-sources.spec.ts › browses nested connected files transiently and imports
           only after an explicit action
-        - frontend/apps/web_app/tests/voice-call.spec.ts › registers an unsent personal Project chat before opening its voice
-          call
       apple:
         status: partial
         source: tests
@@ -15875,9 +15868,9 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 2
+          passing: 4
           failing: 0
-          not_run: 3
+          not_run: 1
           missing: 2
           counted: 7
       sdk_npm:
@@ -16217,13 +16210,13 @@ features:
           missing: 0
           counted: 0
       rest_api:
-        status: not_run
+        status: tested
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 3
           failing: 0
-          not_run: 3
+          not_run: 0
           missing: 0
           counted: 3
       sdk_npm:
@@ -16387,9 +16380,9 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 2
+          passing: 4
           failing: 0
-          not_run: 3
+          not_run: 1
           missing: 2
           counted: 7
       sdk_npm:
@@ -17656,18 +17649,15 @@ features:
   assertions: 4
   surfaces:
     web:
-      status: failing
+      status: live
       source: tests
       intent: implemented
       assertions:
-        passing: 3
-        failing: 1
+        passing: 4
+        failing: 0
         not_run: 0
         missing: 0
         counted: 4
-      failing_tests:
-      - frontend/apps/web_app/tests/authored-results-flow.spec.ts › saved authored web records survive cold cache recovery
-        and individual/group sharing
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/authored-results-flow.spec.ts
@@ -19697,13 +19687,13 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_run
+      status: tested
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 1
         failing: 0
-        not_run: 1
+        not_run: 0
         missing: 0
         counted: 1
       key_tests: []
@@ -20030,12 +20020,13 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 16
-        failing: 3
+        passing: 15
+        failing: 4
         not_run: 6
         missing: 2
         counted: 27
       failing_tests:
+      - backend/tests/test_delegated_primary_read.py › test_observed_search_only_catalog_adds_real_read_only_for_authorized_synthesis
       - backend/tests/test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned
       - frontend/apps/web_app/tests/development-service-health.spec.ts › catalog retains unpriced providers and search skills
         load their request schemas
@@ -21966,8 +21957,8 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 6
-        failing: 2
+        passing: 5
+        failing: 3
         not_run: 0
         missing: 0
         counted: 8
@@ -21976,6 +21967,8 @@ features:
         preserves newer text after failed transport
       - frontend/apps/web_app/tests/components/settings-teams-storage.spec.ts › failed persistence keeps the code draft and
         prevents transient-reference send
+      - frontend/apps/web_app/tests/draft-clear-cleanup.spec.ts › Clearing unsent drafts twice completes chat cleanup without
+        errors or resurrection
       - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts › stop during new chat creation restores the sent message
         as a draft
       key_tests: []
@@ -22633,9 +22626,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 7
+        passing: 8
         failing: 6
-        not_run: 12
+        not_run: 11
         missing: 4
         counted: 29
       failing_tests:
@@ -24102,8 +24095,12 @@ features:
         counted: 15
       failing_tests:
       - frontend/apps/web_app/tests/api-keys-flow.spec.ts › creates an API key, verifies format, and deletes it
+      - frontend/apps/web_app/tests/web-rust-core-chat.spec.ts › opens a saved chat in the normal chat UI from Rust-decrypted
+        history
       - frontend/apps/web_app/tests/web-rust-core-chatstate.spec.ts › chat list ordering and grouping run on the shared Rust
         chatState unit and the sidebar renders the same chats
+      - frontend/apps/web_app/tests/web-rust-core-sync.spec.ts › phased sync decisions run on the shared Rust sync unit and
+        existing chats still sync and decrypt
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts

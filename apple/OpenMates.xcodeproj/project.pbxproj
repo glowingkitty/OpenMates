@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02579462C21865A97612EFF6 /* VoiceCallEventNoticeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F76ACB65785B1EF714B8BA /* VoiceCallEventNoticeTests.swift */; };
+		653B8DC774018458820D9927 /* AppStrings+VoiceCallEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7375DFC86BA3286B32072E57 /* AppStrings+VoiceCallEvents.swift */; };
+		B213191118DDA065FFDF8053 /* AppStrings+VoiceCallEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7375DFC86BA3286B32072E57 /* AppStrings+VoiceCallEvents.swift */; };
+		6F8A021A2A4E7E67E0269102 /* VoiceCallEventNoticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E346874DF48B79BDDCE06DB /* VoiceCallEventNoticeView.swift */; };
+		A33D0C23021B275897ECCA14 /* VoiceCallEventNoticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E346874DF48B79BDDCE06DB /* VoiceCallEventNoticeView.swift */; };
 		EE31F750D233FA3B6ADFB895 /* SampleHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E692BDFD4FB26277C737AA9 /* SampleHandler.swift */; };
 		A81FB877962B52B6F9D45135 /* NativeVoiceCallScreenShareShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586888D449BA80B5B48A8513 /* NativeVoiceCallScreenShareShared.swift */; };
 		0DDFC33EC89009C2036CFB0A /* ReplayKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5D310F7FE7B5A2C9101B4743 /* ReplayKit.framework */; };
@@ -709,6 +714,7 @@
 		52A724B276D0E9A1539D82EB /* AppleComposerRendererRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E367DCE83237A6D343E5C5B /* AppleComposerRendererRegistry.swift */; };
 		531A43B6B7DF5AE1FEE56BBD /* SpacingTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81C8401A5417F302C6EA7F40 /* SpacingTokens.generated.swift */; };
 		53211537A41D069BF72B9FB2 /* AssistantActivityPreviewUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 643EDA7DC11085C37905E080 /* AssistantActivityPreviewUITests.swift */; };
+		D66A41DCFDD6A246E3ADDE56 /* VoiceCallEventNoticePreviewUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D39FDA75A0B604AD7EF8E1E /* VoiceCallEventNoticePreviewUITests.swift */; };
 		5332D2BD0F527B3F075FA9D7 /* DevHostingEmbedFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D4B38D9FCA6C968EDC115D /* DevHostingEmbedFixtures.swift */; };
 		53359BBCDDB7D473EBF51D36 /* PublicAssistantSpeechMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = 127906DE0D5C8AD3B74E23B3 /* PublicAssistantSpeechMedia.swift */; };
 		53B4C669B9F535DC4213D98A /* TasksWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE1A90B090A027C91316BBFC /* TasksWidget.swift */; };
@@ -2027,6 +2033,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B0F76ACB65785B1EF714B8BA /* VoiceCallEventNoticeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCallEventNoticeTests.swift; sourceTree = "<group>"; };
+		7375DFC86BA3286B32072E57 /* AppStrings+VoiceCallEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppStrings+VoiceCallEvents.swift"; sourceTree = "<group>"; };
+		9E346874DF48B79BDDCE06DB /* VoiceCallEventNoticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCallEventNoticeView.swift; sourceTree = "<group>"; };
 		A87D6E6D5F4420B4E9396B8E /* OpenMatesBroadcastExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OpenMatesBroadcastExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		22B01808FBB2D8CCF260F712 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		EE1AB2ED0D9C1913FCDF9372 /* OpenMatesBroadcastExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenMatesBroadcastExtension.entitlements; sourceTree = "<group>"; };
@@ -2412,6 +2421,7 @@
 		634FA7B40167F343AC652F36 /* UserPlansService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPlansService.swift; sourceTree = "<group>"; };
 		6359544CCAA460015B66AA37 /* NativeModelCatalogRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeModelCatalogRuntime.swift; sourceTree = "<group>"; };
 		643EDA7DC11085C37905E080 /* AssistantActivityPreviewUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantActivityPreviewUITests.swift; sourceTree = "<group>"; };
+		2D39FDA75A0B604AD7EF8E1E /* VoiceCallEventNoticePreviewUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCallEventNoticePreviewUITests.swift; sourceTree = "<group>"; };
 		6466612533D327FB90251DCF /* WatchPublicExampleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPublicExampleStore.swift; sourceTree = "<group>"; };
 		64855A6D76420045F5C99A99 /* LocalModelLabController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelLabController.swift; sourceTree = "<group>"; };
 		649F06774727FF8F3BCDDF64 /* ChatListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListRow.swift; sourceTree = "<group>"; };
@@ -3415,6 +3425,7 @@
 				F61AAF625CF79DACD54EC594 /* AppSkillInputPreviewUITests.swift */,
 				4F495D8BF85E58380C2D2E25 /* AppsWorkspaceParityUITests.swift */,
 				643EDA7DC11085C37905E080 /* AssistantActivityPreviewUITests.swift */,
+				2D39FDA75A0B604AD7EF8E1E /* VoiceCallEventNoticePreviewUITests.swift */,
 				4537D337E9056FA1798EE359 /* AssistantBatchActivityPreviewUITests.swift */,
 				7A5BA0C0DE5EEC4A00000002 /* AssistantSpeechBarParityUITests.swift */,
 				91CC5244469EF6565CE9F8FB /* AssistantSpeechPlayerParityUITests.swift */,
@@ -3604,6 +3615,7 @@
 			children = (
 				5EEE1B3A322872D7F33945C4 /* AccountDeletionCleanupTests.swift */,
 				E0082F4A63002A2723AC2D77 /* ActiveChatsPolicyTests.swift */,
+				B0F76ACB65785B1EF714B8BA /* VoiceCallEventNoticeTests.swift */,
 				A3E908ED287B976D3201FAFA /* ActiveChatsWidgetTests.swift */,
 				61A0E6F455F37D8823F651CB /* AnonymousChatStreamingParityTests.swift */,
 				E7295734FE3671169AAD9D43 /* APIClientUploadTransportTests.swift */,
@@ -4537,6 +4549,7 @@
 			children = (
 				607F21F81D207D06EE2F1CE0 /* AppStrings.swift */,
 				47EE234C96C0A46F178143BD /* AppStrings+QueuedFollowup.swift */,
+				7375DFC86BA3286B32072E57 /* AppStrings+VoiceCallEvents.swift */,
 				7A1C0D5E3B9F4A6280C1D4E7 /* AppStrings+AssistantSpeechBar.swift */,
 				542252819DB72683C9902240 /* AppStrings+VideoTimeline.swift */,
 				C554443E0651962EE69B74F1 /* AppStrings+RecordingTranscription.swift */,
@@ -4655,6 +4668,7 @@
 				41E019B11E74836197058244 /* ExampleChatsView.swift */,
 				CEB56BB8CA933CEC26CCA7E2 /* FocusModeView.swift */,
 				C5B540D7BA22FF99E04DE59F /* FocusPhaseNoticeView.swift */,
+				9E346874DF48B79BDDCE06DB /* VoiceCallEventNoticeView.swift */,
 				0C0EC0DE1A2B3C4D5E6F7A10 /* EmbedUpdatedNoticeView.swift */,
 				0C0EC0DE1A2B3C4D5E6F7C01 /* CoreConsentRequestOverlay.swift */,
 				E76E863A52EBF1C2CEE7D70A /* FollowUpSuggestions.swift */,
@@ -5869,6 +5883,7 @@
 				27550AFEBA4EF276941F7D1B /* AppSkillUseRenderer.swift in Sources */,
 				FA4CE49AA549CF3B3AB6F3D7 /* AppStrings+NativeVoiceCall.swift in Sources */,
 				5ABD6F4F91291A25778E0BED /* AppStrings+QueuedFollowup.swift in Sources */,
+				B213191118DDA065FFDF8053 /* AppStrings+VoiceCallEvents.swift in Sources */,
 				7A1C0D5E3B9F4A6280C1D4E8 /* AppStrings+AssistantSpeechBar.swift in Sources */,
 				23452B148398B4433521E5A8 /* AppStrings+RecordingTranscription.swift in Sources */,
 				16EBC2F21361C74E4DAE573E /* AppStrings+RemotionVideo.swift in Sources */,
@@ -6080,6 +6095,7 @@
 				2D69227733F3D9C2BE2DB02B /* FocusModeView.swift in Sources */,
 				BD14454788A3FA93B1681C6A /* FocusPhaseModels.swift in Sources */,
 				04FB9BB03D44C66490481B1E /* FocusPhaseNoticeView.swift in Sources */,
+				A33D0C23021B275897ECCA14 /* VoiceCallEventNoticeView.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6F7A11 /* EmbedUpdatedNoticeView.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6F7C02 /* CoreConsentRequestOverlay.swift in Sources */,
 				3799CA81C40779C746D6B4D3 /* FollowUpSuggestions.swift in Sources */,
@@ -6490,6 +6506,7 @@
 				EDEE4CB1E2FBAF921517B620 /* AppSkillInputPreviewUITests.swift in Sources */,
 				10F2460FDBACEDBF1BF211C3 /* AppsWorkspaceParityUITests.swift in Sources */,
 				53211537A41D069BF72B9FB2 /* AssistantActivityPreviewUITests.swift in Sources */,
+				D66A41DCFDD6A246E3ADDE56 /* VoiceCallEventNoticePreviewUITests.swift in Sources */,
 				138BCD011AB5324AAF423039 /* AssistantBatchActivityPreviewUITests.swift in Sources */,
 				7A5BA0C0DE5EEC4A00000001 /* AssistantSpeechBarParityUITests.swift in Sources */,
 				8482F7E010E253E4A2D0BA60 /* AssistantSpeechPlayerParityUITests.swift in Sources */,
@@ -6737,6 +6754,7 @@
 				B78663335B6655D98AF7E2F2 /* AppSkillUseRenderer.swift in Sources */,
 				9232E77931E9BF5CE08B09D2 /* AppStrings+NativeVoiceCall.swift in Sources */,
 				BC0F90B6C5970B3AD665BCB3 /* AppStrings+QueuedFollowup.swift in Sources */,
+				653B8DC774018458820D9927 /* AppStrings+VoiceCallEvents.swift in Sources */,
 				7A1C0D5E3B9F4A6280C1D4E9 /* AppStrings+AssistantSpeechBar.swift in Sources */,
 				A634CC33E04480D3450DC56B /* AppStrings+RecordingTranscription.swift in Sources */,
 				2476F4AF14700A88A695895C /* AppStrings+RemotionVideo.swift in Sources */,
@@ -6948,6 +6966,7 @@
 				69EFBB3B1D25DFFBBEC984FC /* FocusModeView.swift in Sources */,
 				E0C23C8650350CD995C561C8 /* FocusPhaseModels.swift in Sources */,
 				39CD45E864394C77C06463EE /* FocusPhaseNoticeView.swift in Sources */,
+				6F8A021A2A4E7E67E0269102 /* VoiceCallEventNoticeView.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6F7A12 /* EmbedUpdatedNoticeView.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6F7C03 /* CoreConsentRequestOverlay.swift in Sources */,
 				A127CA2EA72A4841BCB5DB5C /* FollowUpSuggestions.swift in Sources */,
@@ -7462,6 +7481,7 @@
 				00E477F1420217AE025FAC87 /* APIResponseDecodingDiagnosticsTests.swift in Sources */,
 				8447880A2B86AD829E81EE9C /* AccountDeletionCleanupTests.swift in Sources */,
 				B87E1340E7FA4C6D69B79A02 /* ActiveChatsPolicyTests.swift in Sources */,
+				02579462C21865A97612EFF6 /* VoiceCallEventNoticeTests.swift in Sources */,
 				4F12505DDDC1E8BEDC26BD7A /* ActiveChatsWidgetTests.swift in Sources */,
 				72F1E8C38238CD8F0D4989A6 /* AnonymousChatStreamingParityTests.swift in Sources */,
 				BE91E6965BE593A92CE794A0 /* AppDeepLinkRoutingTests.swift in Sources */,

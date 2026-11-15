@@ -297,6 +297,9 @@ struct NativeVoiceCallSnapshot: Equatable, Sendable {
     var inputListening = false
     var processing = false
     var activeSeconds: TimeInterval = 0
+    /// Core call clock: true only after the server confirmed input and
+    /// processing idle. Unknown activity and local playback never dim.
+    var activityDimmed = false
     var error: NativeVoiceCallError?
     var liveTranscript: NativeVoiceCallLiveTranscript?
     var cameraAvailable = false

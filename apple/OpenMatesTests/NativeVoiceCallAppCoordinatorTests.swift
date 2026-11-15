@@ -220,13 +220,11 @@ final class NativeVoiceCallAppCoordinatorTests: XCTestCase {
         await coordinator.start(.existing(chatID: driver.scope.chatID))
         XCTAssertTrue(coordinator.activityActive, "unknown activity never reads as idle")
         driver.state.inputIdle = true; await driver.emit(.state(driver.state))
-        XCTAssertFalse(coordinator.activityActive)
-        driver.state.processing = true; await driver.emit(.state(driver.state))
+        XCTAssertTrue(coordinator.activityActive, "a local idle detector alone never dims the counter")
+        driver.state.activityDimmed = true; await driver.emit(.state(driver.state))
+        XCTAssertFalse(coordinator.activityActive, "server-confirmed idle dims")
+        driver.state.activityDimmed = false; driver.state.inputListening = true; await driver.emit(.state(driver.state))
         XCTAssertTrue(coordinator.activityActive)
-        driver.state.processing = false; driver.state.inputListening = true; await driver.emit(.state(driver.state))
-        XCTAssertTrue(coordinator.activityActive)
-        driver.state.inputListening = false; await driver.emit(.state(driver.state))
-        XCTAssertFalse(coordinator.activityActive)
     }
 }
 

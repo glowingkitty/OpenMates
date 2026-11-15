@@ -5573,6 +5573,7 @@ struct ChatMessageRenderPresentation {
     let progressiveContent: String
     let stableRenderDocument: ChatHistoryRenderDocument?
     let agentContextEvent: AgentContextEvent?
+    let voiceCallNotice: VoiceCallEventNoticeModel?
     let topLevelAppSkillEmbeds: [EmbedRecord]
     let hiddenInlineEmbedIds: Set<String>
 
@@ -5605,6 +5606,7 @@ struct ChatMessageRenderPresentation {
             stableRenderDocument = nil
         }
         agentContextEvent = message.role == .system ? AgentContextEvent.parse(displayContent) : nil
+        voiceCallNotice = message.role == .system ? VoiceCallEventNoticeModel.systemMessage(displayContent) : nil
         topLevelAppSkillEmbeds = message.role == .assistant
             ? parentResolver(embeds, allEmbedRecords, displayContent) : []
         hiddenInlineEmbedIds = Set(topLevelAppSkillEmbeds.map(\.id))
@@ -6108,6 +6110,8 @@ struct MessageBubble: View {
                         try await NativeProjectAuthoringClient.shared.start(recommendation, messages: store.messages(for: chatId))
                     }
                 })
+            } else if let notice = presentation.voiceCallNotice {
+                VoiceCallEventNoticeView(model: notice)
             } else if let event = FocusPhaseEvent.parse(presentation.displayContent) {
                 FocusPhaseNoticeView(event: event)
             } else if FocusPhaseEvent.isTypedPayload(presentation.displayContent) {

@@ -223,6 +223,8 @@ mod task_jobs;
 mod team;
 // View-model row and message metadata projection (plan apple-client-core-migration a4).
 mod view_projection;
+pub mod voice_call_activity;
+pub mod voice_call_lifecycle;
 mod toon;
 pub(crate) mod transport;
 #[cfg(not(target_arch = "wasm32"))] pub mod upload;

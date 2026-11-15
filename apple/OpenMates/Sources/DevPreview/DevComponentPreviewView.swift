@@ -647,6 +647,12 @@ private struct DevComponentPreviewCanvas: View {
                 DevAssistantActivityFixture(variant: configuration.variant)
             } else if configuration.variant == "project-focus-commit" {
                 DevProjectFocusCommitFixture()
+            } else if configuration.variant.hasPrefix("voice-call-") {
+                // Same fixed instants as the web /dev/preview fixture (12:31 / 12:33 UTC).
+                let ended = configuration.variant == "voice-call-ended"
+                VoiceCallEventNoticeView(model: .init(action: ended ? .ended : .started,
+                    createdAt: Date(timeIntervalSince1970: ended ? 1_792_067_580 : 1_792_067_460),
+                    activeElapsedSeconds: ended ? 120 : 0)).padding(.spacing5)
             } else if configuration.variant.hasPrefix("agent-context-") {
                 AgentContextNoticeView(event: DevAgentContextFixture.event(configuration.variant), onAuthoring: { recommendation in
                     lastAction = "authoring-click-" + recommendation.id

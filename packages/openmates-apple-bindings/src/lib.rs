@@ -74,6 +74,7 @@ mod view_vault;
 mod view_session;
 mod view_slides;
 mod view_upload;
+mod view_voice_call;
 
 pub use crate::core::{
     CoreCancellation, CoreConfig, CoreListener, CredentialSnapshotRecord, OpenMatesCore,
