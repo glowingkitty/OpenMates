@@ -30,6 +30,9 @@ feature_overrides:
     - "app:projects"
     - "app:tasks"
     - "app:plans"
+    # Guided Write specification drafts Specifications/Checks and hands off a Plan
+    # with Tasks, so it stays off while those surfaces are disabled here.
+    - "focus:code:write_specification"
     # Placeholder app folders without implemented runtime behavior yet
     - "app:life_coaching"
     - "app:plants"

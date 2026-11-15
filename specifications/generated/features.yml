@@ -4890,6 +4890,7 @@ features:
       - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
       - frontend/apps/web_app/tests/focus-mode-mention.spec.ts
       - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+      - frontend/apps/web_app/tests/spec-authoring-focus-web-real.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
       - frontend/packages/ui/src/services/__tests__/projectAuthoringClientService.test.ts

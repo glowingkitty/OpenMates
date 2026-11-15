@@ -12079,6 +12079,22 @@
             }
           }
         },
+        "status_page": {
+          "heading": {
+            "text": "Halaman status (hanya saat kamu membukanya)"
+          },
+          "description": {
+            "text": "Penyedia ini hanya digunakan saat kamu membuka halaman status publik di status.openmates.org. Penyedia ini tidak digunakan untuk akunmu atau bagian OpenMates lainnya."
+          },
+          "netcup": {
+            "heading": {
+              "text": "netcup (hosting halaman status)"
+            },
+            "description": {
+              "text": "Halaman status publik status.openmates.org (satu halaman statis ditambah satu berkas JSON status) di-hosting oleh netcup GmbH di server di Nuremberg, Jerman. Saat kamu membuka halaman, browsermu terhubung ke server netcup, sehingga netcup memproses alamat IP dan metadata koneksi TLS-mu. Kami tidak menyimpan log akses dan tidak menggunakan cookie atau pelacak di halaman ini. Server yang sama juga mengirim permintaan uji otomatis ke OpenMates, tanpa data pengguna."
+            }
+          }
+        },
         "ai_models": {
           "heading": {
             "text": "Penyedia model AI (hanya saat kamu menggunakan model yang diarahkan melalui mereka)"

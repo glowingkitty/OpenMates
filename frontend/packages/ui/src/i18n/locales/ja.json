@@ -12079,6 +12079,22 @@
             }
           }
         },
+        "status_page": {
+          "heading": {
+            "text": "ステータスページ（開いた場合のみ）"
+          },
+          "description": {
+            "text": "このプロバイダーは、status.openmates.org の公開ステータスページを開いた場合にのみ使用されます。アカウントやOpenMatesの他の部分には使用されません。"
+          },
+          "netcup": {
+            "heading": {
+              "text": "netcup（ステータスページのホスティング）"
+            },
+            "description": {
+              "text": "公開ステータスページ status.openmates.org（静的ページとステータスJSONファイル）は、ドイツ・ニュルンベルクのサーバー上で netcup GmbH によってホストされています。ページを開くと、ブラウザは netcup のサーバーに接続するため、netcup があなたのIPアドレスとTLS接続メタデータを処理します。アクセスログは保存せず、このページではCookieやトラッカーを使用しません。同じサーバーはOpenMatesへ自動テストリクエストも送信しますが、ユーザーデータは含まれません。"
+            }
+          }
+        },
         "ai_models": {
           "heading": {
             "text": "AIモデルプロバイダー（経由するモデルを使用する場合のみ）"

@@ -12079,6 +12079,22 @@
             }
           }
         },
+        "status_page": {
+          "heading": {
+            "text": "Statussida (endast när du öppnar den)"
+          },
+          "description": {
+            "text": "Den här leverantören används bara när du öppnar den publika statussidan på status.openmates.org. Den används inte för ditt konto eller någon annan del av OpenMates."
+          },
+          "netcup": {
+            "heading": {
+              "text": "netcup (värd för statussidan)"
+            },
+            "description": {
+              "text": "Den publika statussidan status.openmates.org (en statisk sida plus en JSON-fil med status) drivs av netcup GmbH på en server i Nürnberg, Tyskland. När du öppnar sidan ansluter din webbläsare till netcups server, så netcup behandlar din IP-adress och metadata för TLS-anslutningen. Vi sparar inga åtkomstloggar och använder inga cookies eller spårare på sidan. Samma server skickar också automatiska testförfrågningar till OpenMates som inte innehåller några användardata."
+            }
+          }
+        },
         "ai_models": {
           "heading": {
             "text": "Leverantörer av AI-modeller (endast när du använder en modell som går via dem)"

@@ -198,6 +198,8 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
     parser.add_argument("--allow-paid-dev-inference", action="store_true")
     parser.add_argument("--personal-only", action="store_true",
                         help="Wait for the personal account instead of using a throwaway account when it is busy")
+    parser.add_argument("--throwaway-account", action="store_true",
+                        help="Skip the personal account (e.g. no credits left) and use a throwaway dev account")
     parser.add_argument("--timeout-seconds", type=int, default=1500, help="Whole Playwright run")
     parser.add_argument("--lease-timeout-seconds", type=int, default=1800, help="Wait for the account lease")
     if grep_option:
@@ -250,7 +252,7 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
         acquiring = True
         real_account = dev_test_account.acquire_real_test_account(
             "embroidery-web", args.session, spec_name(spec), stack_timeout=args.lease_timeout_seconds,
-            allow_throwaway=not args.personal_only)
+            allow_throwaway=not args.personal_only, prefer_throwaway=args.throwaway_account)
         acquiring = False
         leases = real_account.leases
         receipt["account_role"] = "personal_dev_test" if real_account.kind == "personal" else "throwaway_dev_test"

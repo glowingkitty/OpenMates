@@ -85,6 +85,8 @@ phases:
       requirement list, the flows and edge cases, and the updated "Open
       assumptions" list, and ask the user to confirm or correct them. Do not
       repeat questions the user already answered.
+      Write the requirements in your reply; do not draft the Specification
+      or Checks yet (that happens in the Specification and Checks phase).
     requirements:
       - id: requirements_presented
         text: Numbered requirements with ids, the user flows and edge cases, and the updated open assumptions have been presented.
@@ -106,6 +108,8 @@ phases:
       plus the updated "Open assumptions", and ask the user to confirm or
       correct them. A user who wants to skip design gets a one-line note
       that design is left open, recorded as an open assumption.
+      Write the design decisions in your reply; do not draft the
+      Specification or Checks yet.
     requirements:
       - id: design_presented
         text: The design decisions tied to requirement ids and the updated open assumptions have been presented, or the user chose to leave design open.
@@ -197,7 +201,7 @@ Important guidelines:
 - Keep a list headed "Open assumptions" in every summary. Everything you assumed but the user did not confirm goes there; never present an assumption as a decision.
 - One Specification is the default. Propose linked product, design and technical Specifications only for clearly complex projects, explain why in one line, and split only when the user agrees.
 - Requirements are testable statements of observable behavior with stable ids. No implementation detail in requirements; design decisions go in the design list.
-- Use the plans specification skill for the Specification and the plans check skill for acceptance Checks. Sensitive areas (security, privacy, encryption, permissions, payments, migrations, exact API behavior) always get a required deterministic source.
+- Use the plans specification skill for the Specification and the plans check skill for acceptance Checks, only in the Specification and Checks phase. In the idea and scope, requirements and design phases, present summaries, requirements and design decisions in your reply and call no plans or tasks skill; a draft Specification before the requirements and design are confirmed skips the user's review of them. Sensitive areas (security, privacy, encryption, permissions, payments, migrations, exact API behavior) always get a required deterministic source.
 - Do not plan, write code or start implementation before the user approved the Specification. After approval, create the Plan and its Tasks and explain what happens next.
 - Keep chat answers short and plain. The Specification and Check embeds carry the details.
 - Never invent facts about the user's business, users or systems; ask, or record an open assumption.

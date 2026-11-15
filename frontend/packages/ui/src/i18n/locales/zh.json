@@ -12079,6 +12079,22 @@
             }
           }
         },
+        "status_page": {
+          "heading": {
+            "text": "状态页面（仅在你打开时）"
+          },
+          "description": {
+            "text": "仅当你打开 status.openmates.org 上的公开状态页面时才会使用此服务商。它不用于你的账号或 OpenMates 的任何其他部分。"
+          },
+          "netcup": {
+            "heading": {
+              "text": "netcup（状态页面托管）"
+            },
+            "description": {
+              "text": "公开状态页面 status.openmates.org（一个静态页面加一个状态 JSON 文件）由 netcup GmbH 托管在德国纽伦堡的服务器上。当你打开该页面时，你的浏览器会连接到 netcup 的服务器，因此 netcup 会处理你的 IP 地址和 TLS 连接元数据。我们不保存访问日志，并且此页面不使用 Cookie 或跟踪器。该服务器还会向 OpenMates 发送自动化测试请求，这些请求不包含任何用户数据。"
+            }
+          }
+        },
         "ai_models": {
           "heading": {
             "text": "AI 模型服务商（仅在使用通过其路由的模型时使用）"

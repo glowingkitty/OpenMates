@@ -12079,6 +12079,22 @@
             }
           }
         },
+        "status_page": {
+          "heading": {
+            "text": "Durum sayfası (yalnızca açtığında)"
+          },
+          "description": {
+            "text": "Bu sağlayıcı yalnızca status.openmates.org adresindeki herkese açık durum sayfasını açtığında kullanılır. Hesabın için veya OpenMates'in başka bir bölümü için kullanılmaz."
+          },
+          "netcup": {
+            "heading": {
+              "text": "netcup (durum sayfası barındırma)"
+            },
+            "description": {
+              "text": "Herkese açık durum sayfası status.openmates.org (statik bir sayfa ve bir durum JSON dosyası), Almanya'nın Nürnberg kentindeki bir sunucuda netcup GmbH tarafından barındırılır. Sayfayı açtığında tarayıcın netcup'un sunucusuna bağlanır; bu nedenle netcup IP adresini ve TLS bağlantı meta verilerini işler. Erişim günlüğü tutmayız ve bu sayfada çerez veya izleyici kullanmayız. Aynı sunucu ayrıca OpenMates'e kullanıcı verisi içermeyen otomatik test istekleri gönderir."
+            }
+          }
+        },
         "ai_models": {
           "heading": {
             "text": "Yapay zeka model sağlayıcıları (yalnızca onlar üzerinden yönlendirilen bir modeli kullandığında)"

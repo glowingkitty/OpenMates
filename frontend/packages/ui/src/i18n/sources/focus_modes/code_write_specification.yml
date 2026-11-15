@@ -712,7 +712,10 @@ systemprompt:
     in requirements; design decisions go in the design list.
 
     - Use the plans specification skill for the Specification and the plans check skill for acceptance
-    Checks. Sensitive areas (security, privacy, encryption, permissions, payments, migrations, exact API
+    Checks, only in the Specification and Checks phase. In the idea and scope, requirements and design
+    phases, present summaries, requirements and design decisions in your reply and call no plans or tasks
+    skill; a draft Specification before the requirements and design are confirmed skips the user''s review
+    of them. Sensitive areas (security, privacy, encryption, permissions, payments, migrations, exact API
     behavior) always get a required deterministic source.
 
     - Do not plan, write code or start implementation before the user approved the Specification. After

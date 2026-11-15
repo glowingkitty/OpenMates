@@ -107,7 +107,12 @@ def plain(text: str, limit: int) -> str:
     text = re.sub(r"```json\s*\{[^`]*?\"embed_id\"[^`]*?\}\s*```", "[embed]", text)
     # Mentions in quoted text are parsed again by the CLI ("Unknown mention @ai-model:...").
     text = re.sub(r"@(?:ai-model|focus):\S+\s*", "", text.replace(MODEL, "")).strip()
-    return text if len(text) <= limit else text[:limit] + " [...]"
+    # Keep the end too: phase summaries close with "Open assumptions" and the confirmation question,
+    # which a head-only cut hid from the judge (run 11 failed two criteria on text it never saw).
+    if len(text) <= limit:
+        return text
+    head = limit * 3 // 5
+    return text[:head] + " [...] " + text[-(limit - head):]
 
 
 def persona_reply(cli: str, history: list[tuple[str, str]], out: Path, turn: int) -> str:
@@ -215,7 +220,7 @@ def judge(cli: str, messages: list[dict], embeds: list[dict], out: Path) -> dict
             tags = [f"{e.get('kind')}: {e.get('title') or ''}" for e in embeds if e["message"] == index]
             created = len(created_tasks(message))
             tags += [f"{created} Tasks created"] if created else []
-            lines.append(f"[{index}] {message['role'].upper()}: {plain(message['content'], 1200)}"
+            lines.append(f"[{index}] {message['role'].upper()}: {plain(message['content'], 2400)}"
                          + (f"\n    (embeds created: {'; '.join(tags)})" if tags else ""))
     rubric = "\n".join(f"- {key}: {text}" for key, text in RUBRIC.items())
     prompt = (f"{MODEL} You are a strict reviewer of a product assistant's conversation. Judge ONLY from the "

@@ -12079,6 +12079,22 @@
             }
           }
         },
+        "status_page": {
+          "heading": {
+            "text": "Statuspagina (alleen wanneer je die opent)"
+          },
+          "description": {
+            "text": "Deze aanbieder wordt alleen gebruikt wanneer je de openbare statuspagina op status.openmates.org opent. Hij wordt niet gebruikt voor je account of andere delen van OpenMates."
+          },
+          "netcup": {
+            "heading": {
+              "text": "netcup (hosting van de statuspagina)"
+            },
+            "description": {
+              "text": "De openbare statuspagina status.openmates.org (een statische pagina plus een status-JSON-bestand) wordt door netcup GmbH gehost op een server in Neurenberg, Duitsland. Wanneer je de pagina opent, maakt je browser verbinding met de server van netcup, waardoor netcup je IP-adres en TLS-verbindingsmetadata verwerkt. We bewaren geen toegangslogboeken en gebruiken op deze pagina geen cookies of trackers. Dezelfde server stuurt ook geautomatiseerde testverzoeken naar OpenMates, zonder gebruikersgegevens."
+            }
+          }
+        },
         "ai_models": {
           "heading": {
             "text": "AI-modelproviders (alleen wanneer je een model gebruikt dat via hen loopt)"

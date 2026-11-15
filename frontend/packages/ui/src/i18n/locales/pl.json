@@ -12079,6 +12079,22 @@
             }
           }
         },
+        "status_page": {
+          "heading": {
+            "text": "Strona statusu (tylko gdy ją otwierasz)"
+          },
+          "description": {
+            "text": "Ten dostawca jest używany tylko wtedy, gdy otwierasz publiczną stronę statusu pod adresem status.openmates.org. Nie jest używany dla Twojego konta ani żadnej innej części OpenMates."
+          },
+          "netcup": {
+            "heading": {
+              "text": "netcup (hosting strony statusu)"
+            },
+            "description": {
+              "text": "Publiczna strona statusu status.openmates.org (strona statyczna i plik JSON ze statusem) jest hostowana przez netcup GmbH na serwerze w Norymberdze w Niemczech. Gdy otwierasz stronę, Twoja przeglądarka łączy się z serwerem netcup, więc netcup przetwarza Twój adres IP i metadane połączenia TLS. Nie prowadzimy logów dostępu i nie używamy na tej stronie plików cookie ani trackerów. Ten sam serwer wysyła też do OpenMates automatyczne żądania testowe, które nie zawierają danych użytkowników."
+            }
+          }
+        },
         "ai_models": {
           "heading": {
             "text": "Dostawcy modeli AI (tylko gdy używasz modelu, który przez nich przechodzi)"
