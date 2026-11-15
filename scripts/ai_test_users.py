@@ -273,6 +273,52 @@ def similar(a: str, b: str) -> float:
     return len(ta & tb) / len(ta | tb) if ta and tb else 0.0
 
 
+def id_set(text: str | None) -> set[str]:
+    return {e.strip() for e in (text or "").split(",") if e.strip()}
+
+
+def merge_groups(text: str | None) -> list[list[str]]:
+    """`a#1+b#2,c#1+d#3`: reviewer-confirmed groups of findings that are one defect."""
+    return [[i.strip() for i in group.split("+") if i.strip()] for group in (text or "").split(",") if "+" in group]
+
+
+def is_slow(finding: dict) -> bool:
+    return str(finding.get("category", "")).lower().startswith("slow")
+
+
+def slow_title(cluster: list[dict]) -> str:
+    seconds = [float(v) for f in cluster for v in re.findall(r"(\d+(?:\.\d+)?)\s?s\b", str(f.get("evidence", "")))]
+    seconds = [v for v in seconds if v >= 20] or [0.0]
+    sessions = len({f["persona"]["persona"] for f in cluster})
+    return f"Slow chat replies on dev: {sessions} test users waited {min(seconds):.0f}-{max(seconds):.0f} s for answers"
+
+
+def cluster_findings(findings: list[dict], groups: list[list[str]]) -> list[list[dict]]:
+    """One cluster per defect: reviewer groups first, all slow replies together, then similar titles."""
+    by_id = {f["id"]: f for f in findings}
+    clusters: list[list[dict]] = []
+    placed: set[str] = set()
+    for group in groups:
+        members = [by_id[i] for i in group if i in by_id and i not in placed]
+        if members:
+            clusters.append(members)
+            placed.update(f["id"] for f in members)
+    slow = [f for f in findings if is_slow(f) and f["id"] not in placed]
+    if slow:
+        clusters.append([{**f, "auto_slow": True} for f in slow])
+        placed.update(f["id"] for f in slow)
+    for finding in findings:
+        if finding["id"] in placed:
+            continue
+        for cluster in clusters:
+            if similar(finding["title"], cluster[0]["title"]) >= 0.45:
+                cluster.append(finding)
+                break
+        else:
+            clusters.append([finding])
+    return clusters
+
+
 def open_tasks() -> list[dict]:
     result = subprocess.run(["openmates", "tasks", "list", "--json"], capture_output=True, text=True, timeout=120,
                             check=False)
@@ -281,18 +327,27 @@ def open_tasks() -> list[dict]:
     return [t for t in rows if isinstance(t, dict) and str(t.get("status", "")).lower() not in ("done", "skipped")]
 
 
+UPLOADED: dict[Path, str] = {}
+
+
 def upload(path: Path, alt: str) -> str:
+    if path in UPLOADED:
+        return UPLOADED[path]
     result = subprocess.run(
         [sys.executable, str(ROOT / "scripts/response_media.py"), str(path), "--alt", alt, "--output", "url"],
         capture_output=True, text=True, timeout=600, check=False,
     )
-    return result.stdout.strip().splitlines()[-1] if result.returncode == 0 and result.stdout.strip() else ""
+    url = result.stdout.strip().splitlines()[-1] if result.returncode == 0 and result.stdout.strip() else ""
+    if url:
+        UPLOADED[path] = url
+    return url
 
 
 def command_tasks(args: argparse.Namespace) -> int:
     run_dir = Path(args.run)
     summary = json.loads((run_dir / "run.json").read_text())
-    excluded = {e.strip() for e in (args.exclude or "").split(",") if e.strip()}
+    excluded = id_set(args.exclude)
+    included = id_set(args.include)
     findings = []
     for persona in summary["personas"]:
         result_file = run_dir / persona["persona"] / "result.json"
@@ -300,16 +355,9 @@ def command_tasks(args: argparse.Namespace) -> int:
             continue
         for index, finding in enumerate(json.loads(result_file.read_text()).get("findings", []), 1):
             finding_id = f"{persona['persona']}#{index}"
-            if finding.get("kept") and finding_id not in excluded:
+            if (finding.get("kept") or finding_id in included) and finding_id not in excluded:
                 findings.append({**finding, "id": finding_id, "persona": persona})
-    clusters: list[list[dict]] = []
-    for finding in findings:
-        for cluster in clusters:
-            if similar(finding["title"], cluster[0]["title"]) >= 0.45:
-                cluster.append(finding)
-                break
-        else:
-            clusters.append([finding])
+    clusters = cluster_findings(findings, merge_groups(args.merge))
     existing = open_tasks()
     plan = []
     for cluster in clusters:
@@ -321,13 +369,14 @@ def command_tasks(args: argparse.Namespace) -> int:
     for item in plan:
         cluster, duplicate = item["cluster"], item["duplicate"]
         head = cluster[0]
+        title = slow_title(cluster) if len(cluster) > 1 and all(f.get("auto_slow") for f in cluster) else head["title"]
         ids = ", ".join(f["id"] for f in cluster)
         if duplicate:
             log(f"skip (covered by {duplicate.get('short_id') or duplicate.get('id')}): {head['title']} [{ids}]")
             created.append({"findings": ids, "duplicate_of": duplicate.get("short_id") or duplicate.get("id")})
             continue
         if args.dry_run:
-            log(f"would create: {head['title']} [{ids}]")
+            log(f"would create: {title} [{ids}]")
             continue
         lines = [
             f"Found by the AI test-user trial (run {summary['run_id']}, dev web app). Not fixed by the run.",
@@ -351,14 +400,14 @@ def command_tasks(args: argparse.Namespace) -> int:
         lines.append(f"Transcript: {run_dir / cluster[0]['persona']['persona'] / 'transcript.json'} (dev server)")
         priority = {"high": "high", "medium": "medium", "low": "low"}.get(str(head.get("severity")), "medium")
         result = subprocess.run(
-            ["openmates", "tasks", "create", "--title", head["title"][:150], "--description", "\n".join(lines),
+            ["openmates", "tasks", "create", "--title", title[:150], "--description", "\n".join(lines),
              "--label", TASK_LABEL, "--priority", priority, "--project", TASK_PROJECT, "--assign", "unassigned",
              "--json"],
             capture_output=True, text=True, timeout=120, check=False,
         )
         task = json.loads(result.stdout).get("task", {}) if result.returncode == 0 else {}
-        log(f"created {task.get('short_id') or task.get('id') or 'FAILED'}: {head['title']} [{ids}]")
-        created.append({"findings": ids, "task": task.get("short_id") or task.get("id"), "title": head["title"],
+        log(f"created {task.get('short_id') or task.get('id') or 'FAILED'}: {title} [{ids}]")
+        created.append({"findings": ids, "task": task.get("short_id") or task.get("id"), "title": title,
                         "error": result.stderr[-300:] if result.returncode else None})
     if not args.dry_run:
         (run_dir / "tasks.json").write_text(json.dumps(created, indent=1, ensure_ascii=False))
@@ -381,7 +430,9 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--keep-accounts", action="store_true")
     tasks = sub.add_parser("tasks")
     tasks.add_argument("--run", required=True)
-    tasks.add_argument("--exclude", default="")
+    tasks.add_argument("--exclude", default="", help="finding ids a reviewer rejected (persona#n,...)")
+    tasks.add_argument("--include", default="", help="finding ids Jev dropped that a reviewer confirmed")
+    tasks.add_argument("--merge", default="", help="reviewer groups of one defect: a#1+b#2,c#1+d#3")
     tasks.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     return command_run(args) if args.command == "run" else command_tasks(args)

@@ -44,3 +44,19 @@ def test_similar_titles_merge_but_different_ones_do_not():
     c = "Weather card shows raw ISO date string"
     assert ai_test_users.similar(a, b) >= 0.45
     assert ai_test_users.similar(a, c) < 0.2
+
+
+def test_slow_replies_and_reviewer_groups_become_one_task_each():
+    def finding(fid, title, category="broken_ui", evidence=""):
+        return {"id": fid, "title": title, "category": category, "evidence": evidence, "persona": {"persona": fid}}
+
+    findings = [
+        finding("a#1", "Reply took 70 s", "slow responses", "waited 72.4s for the reply"),
+        finding("b#1", "Header overlaps message on phone"),
+        finding("c#1", "Pinned top bar covers user bubble"),
+        finding("d#1", "Follow-up latency", "slow", "waited 111.1s"),
+        finding("e#1", "Raw i18n key in settings"),
+    ]
+    clusters = ai_test_users.cluster_findings(findings, ai_test_users.merge_groups("b#1+c#1"))
+    assert [[f["id"] for f in c] for c in clusters] == [["b#1", "c#1"], ["a#1", "d#1"], ["e#1"]]
+    assert ai_test_users.slow_title(clusters[1]) == "Slow chat replies on dev: 2 test users waited 72-111 s for answers"
