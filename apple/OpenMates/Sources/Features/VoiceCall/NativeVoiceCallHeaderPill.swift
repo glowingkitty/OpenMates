@@ -73,20 +73,14 @@ struct NativeVoiceCallHeaderPill: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var dimmed = false
-    /// Web `voiceCallActivityActive`: unknown or listening/processing input is active;
-    /// only a known idle input dims the timer.
-    private var activityActive: Bool {
-        let state = coordinator.state
-        return !state.inputIdle || state.inputListening || state.processing
-    }
     var body: some View {
         Button(action: onReturn) {
             HStack(spacing: .spacing2) {
                 Icon("audiocall", size: 14).accessibilityHidden(true)
                 Text(coordinator.formattedDuration)
                     .font(.omSmall.weight(.bold)).monospacedDigit()
-                    .opacity(activityActive ? 1 : 0.48)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: activityActive)
+                    .opacity(coordinator.activityActive ? 1 : 0.48)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: coordinator.activityActive)
                     .accessibilityIdentifier("voice-call-pill-timer")
             }
             .font(.omSmall)

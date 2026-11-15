@@ -78,6 +78,7 @@ extension NativeVoiceCallAppCoordinator {
 
 struct NativeVoiceCallBar: View {
     @ObservedObject var coordinator: NativeVoiceCallAppCoordinator
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let returnToChat: (String) -> Void
     /// Fixed state (header scrolled out of view): adds More before Video and Close chat after Hang up.
     var pinned = false
@@ -119,6 +120,8 @@ struct NativeVoiceCallBar: View {
                 } label: {
                     Text(coordinator.formattedDuration).font(.omH4.weight(.bold)).monospacedDigit()
                         .lineLimit(1).fixedSize().frame(minHeight: 44)
+                        .opacity(coordinator.activityActive ? 1 : 0.48)
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: coordinator.activityActive)
                 }
                 .buttonStyle(.plain).accessibilityLabel(AppStrings.nativeCall("return_to_chat"))
                 .accessibilityIdentifier("voice-call-return")

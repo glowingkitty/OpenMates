@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "内容"
       },
+      "player_label": {
+        "text": "语音回复播放器"
+      },
+      "pause": {
+        "text": "暂停语音回复"
+      },
+      "play": {
+        "text": "播放语音回复"
+      },
+      "previous_chapter": {
+        "text": "上一章：{chapter}"
+      },
+      "next_chapter": {
+        "text": "下一章：{chapter}"
+      },
       "speak_response": {
         "text": "朗读回复"
       },

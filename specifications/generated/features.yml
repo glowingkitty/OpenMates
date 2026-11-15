@@ -10,8 +10,8 @@ summary:
   status_by_surface:
     web:
       live: 3
-      partial: 17
-      failing: 58
+      partial: 18
+      failing: 57
       not_run: 9
       implemented: 19
       not_planned: 19
@@ -30,8 +30,8 @@ summary:
       not_run: 2
     cli:
       partial: 15
-      failing: 8
-      not_run: 28
+      failing: 9
+      not_run: 27
       implemented: 41
       in_progress: 2
       not_planned: 31
@@ -43,11 +43,11 @@ summary:
       in_progress: 10
       not_planned: 42
     rest_api:
-      live: 5
+      live: 6
       tested: 1
-      partial: 32
-      failing: 15
-      not_run: 26
+      partial: 34
+      failing: 14
+      not_run: 24
       implemented: 17
       planned: 2
       not_planned: 27
@@ -340,14 +340,12 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 12
-        failing: 4
-        not_run: 3
+        passing: 15
+        failing: 2
+        not_run: 2
         missing: 4
         counted: 23
       failing_tests:
-      - backend/tests/test_llm_utils_stream_fallback.py › test_main_reasoning_recommendation_is_resolved_per_actual_server
-      - backend/tests/test_llm_utils_stream_fallback.py › test_main_stream_forwards_profile_only_to_matching_native_google_server
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_proven_first_turn_fact_omits_interactive_protocol_in_provider_prompt
       - backend/tests/test_openai_compatible_api_contract.py › test_public_current_promotions_use_real_provider_yaml_and_live_config_resolver
       key_tests: []
@@ -1023,13 +1021,13 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_run
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 3
         failing: 0
-        not_run: 11
+        not_run: 8
         missing: 4
         counted: 15
       key_tests: []
@@ -1129,13 +1127,14 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 1
+        passing: 4
         failing: 0
         not_run: 0
-        missing: 29
+        missing: 26
         counted: 30
       key_tests: []
       e2e_tests:
+      - apple/OpenMatesUITests/AssistantSpeechBarParityUITests.swift
       - apple/OpenMatesUITests/AssistantSpeechPlayerParityUITests.swift
       - apple/OpenMatesUITests/PublicAssistantSpeechParityUITests.swift
       key_unit_tests:
@@ -1595,8 +1594,8 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 5
-        failing: 9
+        passing: 7
+        failing: 7
         not_run: 19
         missing: 1
         counted: 34
@@ -1604,7 +1603,6 @@ features:
       - backend/tests/test_anonymous_skill_access.py › test_anonymous_direct_skill_uses_shared_cap_without_content_rows
       - backend/tests/test_anonymous_skill_access.py › test_every_app_skill_has_reviewed_anonymous_classification
       - backend/tests/test_anonymous_skill_access.py › test_ip_status_and_execution_rate_buckets_are_independent
-      - backend/tests/test_llm_utils_stream_fallback.py › test_stream_fallback_freezes_actual_host_tariff_before_each_dispatch
       - backend/tests/test_openai_compatible_api_contract.py › test_public_current_promotions_use_real_provider_yaml_and_live_config_resolver
       - frontend/apps/web_app/tests/billing-reservation-summary.spec.ts › completed media helpers debit the real ledger once
         per output including speech
@@ -2197,13 +2195,13 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_run
+      status: live
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 1
         failing: 0
-        not_run: 1
+        not_run: 0
         missing: 0
         counted: 1
       key_tests: []
@@ -2257,18 +2255,15 @@ features:
   assertions: 5
   surfaces:
     web:
-      status: failing
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
-        failing: 4
+        passing: 4
+        failing: 0
         not_run: 1
         missing: 0
         counted: 5
-      failing_tests:
-      - frontend/apps/web_app/tests/chat-queued-followups.spec.ts › keeps one queued row through cancel, unchanged Send, changed
-        Send, and steer fallback
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-queued-followups.spec.ts
@@ -2344,9 +2339,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 2
+        passing: 4
         failing: 0
-        not_run: 2
+        not_run: 0
         missing: 1
         counted: 5
       key_tests: []
@@ -3312,19 +3307,15 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: failing
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 8
-        failing: 2
-        not_run: 5
+        passing: 11
+        failing: 0
+        not_run: 4
         missing: 0
         counted: 15
-      failing_tests:
-      - backend/tests/test_base_app_dispatch_context.py › test_recovery_rejection_keeps_its_status_through_skill_dispatch
-      - backend/tests/test_message_received_active_chat.py › test_atomic_first_personal_plain_history_reuses_saved_row
-      - backend/tests/test_message_received_active_chat.py › test_legacy_dispatch_retry_reconciles_but_genuine_failures_still_alert
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts
@@ -3439,19 +3430,15 @@ features:
           missing: 0
           counted: 0
       rest_api:
-        status: failing
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 0
-          failing: 1
-          not_run: 1
+          passing: 2
+          failing: 0
+          not_run: 0
           missing: 0
           counted: 2
-        failing_tests:
-        - backend/tests/test_base_app_dispatch_context.py › test_recovery_rejection_keeps_its_status_through_skill_dispatch
-        - backend/tests/test_message_received_active_chat.py › test_atomic_first_personal_plain_history_reuses_saved_row
-        - backend/tests/test_message_received_active_chat.py › test_legacy_dispatch_retry_reconciles_but_genuine_failures_still_alert
       sdk_npm:
         status: unverified
         source: intent
@@ -4277,17 +4264,15 @@ features:
         - frontend/apps/web_app/tests/cli-tui-startup.spec.ts › cold TUI loads a saved chat and canonical child reads return
           only authorized parent wrappers
       rest_api:
-        status: failing
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 0
-          failing: 1
+          passing: 1
+          failing: 0
           not_run: 0
           missing: 0
           counted: 1
-        failing_tests:
-        - backend/tests/test_message_received_active_chat.py › test_atomic_first_personal_plain_history_reuses_saved_row
       sdk_npm:
         status: not_run
         source: tests
@@ -6437,7 +6422,7 @@ features:
         counted: 24
       failing_tests:
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
-      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomeMicrophoneYieldsTrailingPositionToSendAcrossDraftTransitions
+      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomeComposerExpandsAndCollapsesAcrossRotation
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedFollowUpClosesComposerAndDismissesKeyboard
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedSendClosesExpandedComposerAndDismissesKeyboard
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
@@ -6819,8 +6804,8 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 2
-          failing: 3
+          passing: 3
+          failing: 2
           not_run: 0
           missing: 0
           counted: 5
@@ -6829,8 +6814,6 @@ features:
           and preserves newer text after failed transport
         - frontend/apps/web_app/tests/components/settings-teams-storage.spec.ts › failed persistence keeps the code draft
           and prevents transient-reference send
-        - frontend/apps/web_app/tests/offline-draft-replay.spec.ts › Offline encrypted draft edits replay in durable order
-          and survive reload
         - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts › stop during new chat creation restores the sent message
           as a draft
       apple:
@@ -7138,7 +7121,7 @@ features:
           counted: 3
         failing_tests:
         - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
-        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomeMicrophoneYieldsTrailingPositionToSendAcrossDraftTransitions
+        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomeComposerExpandsAndCollapsesAcrossRotation
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedFollowUpClosesComposerAndDismissesKeyboard
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedSendClosesExpandedComposerAndDismissesKeyboard
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft
@@ -9638,15 +9621,17 @@ features:
       - ipados
       - macos
     cli:
-      status: partial
+      status: failing
       source: tests
       intent: implemented
       assertions:
         passing: 1
-        failing: 0
-        not_run: 14
+        failing: 1
+        not_run: 13
         missing: 6
         counted: 21
+      failing_tests:
+      - backend/tests/test_message_received_embed_bundle.py › test_bundle_gate_precedes_preflight_broadcast_cache_and_confirmation
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-team-artifacts-parity.spec.ts
@@ -9970,21 +9955,21 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 24
+        passing: 26
         failing: 0
-        not_run: 0
-        missing: 17
+        not_run: 1
+        missing: 14
         counted: 41
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift
       key_unit_tests:
       - apple/OpenMatesTests/NativeVoiceCallTests.swift
+      - apple/OpenMatesTests/NativeVoiceCallAppCoordinatorTests.swift
       - apple/OpenMatesTests/NativeVoiceCallAdmissionTests.swift
       - apple/OpenMatesTests/NativeVoiceCallArtifactAssociationTests.swift
       - apple/OpenMatesTests/NativeVoiceCallCanonicalAdmissionTests.swift
-      - apple/OpenMatesTests/AssistantSpeechPlaybackParityTests.swift
-      unit_test_files: 14
+      unit_test_files: 16
       platforms:
       - ios
       - ipados
@@ -15724,9 +15709,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 18
+        passing: 19
         failing: 0
-        not_run: 19
+        not_run: 18
         missing: 21
         counted: 58
       key_tests: []
@@ -16132,9 +16117,9 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 2
+          passing: 3
           failing: 0
-          not_run: 2
+          not_run: 1
           missing: 0
           counted: 4
       tui:
@@ -21978,8 +21963,8 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 5
-        failing: 3
+        passing: 6
+        failing: 2
         not_run: 0
         missing: 0
         counted: 8
@@ -21988,8 +21973,6 @@ features:
         preserves newer text after failed transport
       - frontend/apps/web_app/tests/components/settings-teams-storage.spec.ts › failed persistence keeps the code draft and
         prevents transient-reference send
-      - frontend/apps/web_app/tests/offline-draft-replay.spec.ts › Offline encrypted draft edits replay in durable order and
-        survive reload
       - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts › stop during new chat creation restores the sent message
         as a draft
       key_tests: []
@@ -23172,13 +23155,13 @@ features:
       - ipados
       - macos
     cli:
-      status: not_run
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 3
         failing: 0
-        not_run: 9
+        not_run: 6
         missing: 1
         counted: 10
       key_tests: []
@@ -23336,13 +23319,12 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 1
-        failing: 2
+        passing: 2
+        failing: 1
         not_run: 5
         missing: 8
         counted: 16
       failing_tests:
-      - backend/tests/test_message_received_active_chat.py › test_legacy_dispatch_retry_reconciles_but_genuine_failures_still_alert
       - frontend/apps/web_app/tests/development-service-health.spec.ts › catalog retains unpriced providers and search skills
         load their request schemas
       key_tests: []

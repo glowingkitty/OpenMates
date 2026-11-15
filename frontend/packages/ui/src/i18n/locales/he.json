@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "תוכן"
       },
+      "player_label": {
+        "text": "נגן תשובה קולית"
+      },
+      "pause": {
+        "text": "השהיית התשובה הקולית"
+      },
+      "play": {
+        "text": "הפעלת התשובה הקולית"
+      },
+      "previous_chapter": {
+        "text": "הפרק הקודם: {chapter}"
+      },
+      "next_chapter": {
+        "text": "הפרק הבא: {chapter}"
+      },
       "speak_response": {
         "text": "הקראת התשובה"
       },

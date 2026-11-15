@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "सामग्री"
       },
+      "player_label": {
+        "text": "वॉइस जवाब प्लेयर"
+      },
+      "pause": {
+        "text": "वॉइस जवाब रोकें"
+      },
+      "play": {
+        "text": "वॉइस जवाब चलाएँ"
+      },
+      "previous_chapter": {
+        "text": "पिछला अध्याय: {chapter}"
+      },
+      "next_chapter": {
+        "text": "अगला अध्याय: {chapter}"
+      },
       "speak_response": {
         "text": "जवाब पढ़ें"
       },

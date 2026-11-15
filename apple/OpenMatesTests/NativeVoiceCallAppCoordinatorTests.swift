@@ -1,6 +1,7 @@
 // Specification: specifications/features/video-call/specification.yml
 // Assertions: video-call.chat.typed-input, video-call.chat.fixed-binding,
-// video-call.privacy.first-call-warning, video-call.lifecycle.recovery-and-billing
+// video-call.privacy.first-call-warning, video-call.lifecycle.recovery-and-billing,
+// video-call.audio.confirmation-sounds, video-call.chat.activity-status
 import XCTest
 import Combine
 @testable import OpenMates
@@ -14,6 +15,33 @@ final class NativeVoiceCallAppCoordinatorTests: XCTestCase {
                       restore: @escaping @MainActor (NativeVoiceCallDraftTicket) -> Bool = { _ in true }) -> NativeVoiceCallAppCoordinator {
         .init(driver: driver, accepted: accepted, restore: restore,
               artifacts: { _, _, _ in .unsupported }, usage: { _, _, _ in })
+    }
+    // contract-test: direct surface=gui.apple assertions=video-call.audio.confirmation-sounds
+    func testConfirmationCuesSoundOncePerRealTransition() async throws {
+        let driver = AppCallDriver(); let player = RecordingCuePlayer()
+        let coordinator = NativeVoiceCallAppCoordinator(
+            driver: driver, accepted: { _, _ in }, restore: { _ in true },
+            artifacts: { _, _, _ in .unsupported }, usage: { _, _, _ in }, cuePlayer: player)
+        await coordinator.start(.existing(chatID: driver.scope.chatID))
+        await driver.emit(.state(driver.state)) // repeated readiness callback
+        await coordinator.setMuted(true)
+        await coordinator.setMuted(true) // repeated mute
+        var idle = driver.state; idle.inputIdle = true
+        await driver.emit(.state(idle)) // automatic silence idle never sounds
+        await coordinator.setMuted(false)
+        await coordinator.hangup()
+        XCTAssertEqual(player.cues, [.connected, .muted, .unmuted, .ended])
+        var plan = NativeVoiceCallCuePlan()
+        var ended = driver.state; ended.status = .ended
+        XCTAssertEqual(plan.cue(for: ended), nil)
+        var live = driver.state; live.status = .live
+        XCTAssertEqual(plan.cue(for: live), .connected)
+        XCTAssertEqual(plan.cue(for: ended), .ended)
+        XCTAssertEqual(plan.cue(for: ended), nil)
+        var failed = driver.state; failed.status = .failed
+        XCTAssertEqual(plan.cue(for: failed), nil)
+        XCTAssertNotEqual(NativeVoiceCallCuePlayer.notes[.connected]?.map(\.frequency),
+                          NativeVoiceCallCuePlayer.notes[.muted]?.map(\.frequency))
     }
     // contract-test: supporting surface=gui.apple assertions=video-call.chat.typed-input,video-call.chat.fixed-binding,video-call.privacy.first-call-warning,video-call.lifecycle.recovery-and-billing
     func testWireSubmissionDoesNotClearDraft() async throws {
@@ -175,6 +203,31 @@ final class NativeVoiceCallAppCoordinatorTests: XCTestCase {
         XCTAssertTrue(coordinator.meterLevels.allSatisfy { $0 == 0 })
         await driver.hangup(); XCTAssertTrue(coordinator.meterLevels.isEmpty)
     }
+    // contract-test: direct surface=gui.apple assertions=video-call.chat.activity-status
+    func testAdapterLevelsReachMeterLevelsOnlyWhileLive() async {
+        let driver = AppCallDriver(); let coordinator = make(driver)
+        driver.meterSink?([0.5])
+        XCTAssertTrue(coordinator.meterLevels.isEmpty, "no call, no bars")
+        await coordinator.start(.existing(chatID: driver.scope.chatID))
+        driver.meterSink?([0, 0.5, 0.9])
+        XCTAssertEqual(coordinator.meterLevels, [0, 0.5, 0.9])
+        await driver.hangup(); driver.meterSink?([0.7])
+        XCTAssertTrue(coordinator.meterLevels.isEmpty)
+    }
+    // contract-test: direct surface=gui.apple assertions=video-call.chat.activity-status
+    func testCounterDimsOnlyForKnownIdleAndRestoresWhenActive() async {
+        let driver = AppCallDriver(); let coordinator = make(driver)
+        await coordinator.start(.existing(chatID: driver.scope.chatID))
+        XCTAssertTrue(coordinator.activityActive, "unknown activity never reads as idle")
+        driver.state.inputIdle = true; await driver.emit(.state(driver.state))
+        XCTAssertFalse(coordinator.activityActive)
+        driver.state.processing = true; await driver.emit(.state(driver.state))
+        XCTAssertTrue(coordinator.activityActive)
+        driver.state.processing = false; driver.state.inputListening = true; await driver.emit(.state(driver.state))
+        XCTAssertTrue(coordinator.activityActive)
+        driver.state.inputListening = false; await driver.emit(.state(driver.state))
+        XCTAssertFalse(coordinator.activityActive)
+    }
 }
 
 @MainActor
@@ -193,6 +246,8 @@ private final class AppCallDriver: NativeVoiceCallAppDriving {
     private var reachedConsent = false
     func bind(consent: @escaping @MainActor @Sendable () async -> Bool,
               event: @escaping @MainActor @Sendable (NativeVoiceCallEvent) async -> Void) { self.consent = consent; self.event = event }
+    var meterSink: (@MainActor @Sendable ([Float]) -> Void)?
+    func bindMeter(_ sink: @escaping @MainActor @Sendable ([Float]) -> Void) { meterSink = sink }
     func waitForConsent() async {
         if reachedConsent { return }
         await withCheckedContinuation { consentWaiting = $0 }
@@ -218,4 +273,10 @@ private final class AppCallDriver: NativeVoiceCallAppDriving {
         .init(callID: callID, messageID: messageID, role: .user, text: text, final: final, interrupted: false,
               userMessageID: messageID, createdAt: 1, modelName: nil, mateCategory: nil, mateName: nil)
     }
+}
+
+@MainActor
+private final class RecordingCuePlayer: NativeVoiceCallCuePlaying {
+    var cues: [NativeVoiceCallCue] = []
+    func play(_ cue: NativeVoiceCallCue) { cues.append(cue) }
 }

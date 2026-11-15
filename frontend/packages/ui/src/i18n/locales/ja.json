@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "コンテンツ"
       },
+      "player_label": {
+        "text": "音声応答プレーヤー"
+      },
+      "pause": {
+        "text": "音声応答を一時停止"
+      },
+      "play": {
+        "text": "音声応答を再生"
+      },
+      "previous_chapter": {
+        "text": "前の章：{chapter}"
+      },
+      "next_chapter": {
+        "text": "次の章：{chapter}"
+      },
       "speak_response": {
         "text": "回答を読み上げる"
       },

@@ -3602,6 +3602,21 @@
       "structured": {
         "text": "Inhalt"
       },
+      "player_label": {
+        "text": "Sprachantwort-Player"
+      },
+      "pause": {
+        "text": "Sprachantwort pausieren"
+      },
+      "play": {
+        "text": "Sprachantwort abspielen"
+      },
+      "previous_chapter": {
+        "text": "Vorheriges Kapitel: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Nächstes Kapitel: {chapter}"
+      },
       "speak_response": {
         "text": "Antwort vorlesen"
       },

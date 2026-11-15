@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "Inhoud"
       },
+      "player_label": {
+        "text": "Spraakantwoordspeler"
+      },
+      "pause": {
+        "text": "Spraakantwoord pauzeren"
+      },
+      "play": {
+        "text": "Spraakantwoord afspelen"
+      },
+      "previous_chapter": {
+        "text": "Vorig hoofdstuk: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Volgend hoofdstuk: {chapter}"
+      },
       "speak_response": {
         "text": "Antwoord voorlezen"
       },

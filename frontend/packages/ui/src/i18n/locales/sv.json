@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "Innehåll"
       },
+      "player_label": {
+        "text": "Spelare för röstsvar"
+      },
+      "pause": {
+        "text": "Pausa röstsvaret"
+      },
+      "play": {
+        "text": "Spela upp röstsvaret"
+      },
+      "previous_chapter": {
+        "text": "Föregående kapitel: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Nästa kapitel: {chapter}"
+      },
       "speak_response": {
         "text": "Läs upp svaret"
       },

@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "Obsah"
       },
+      "player_label": {
+        "text": "Přehrávač hlasové odpovědi"
+      },
+      "pause": {
+        "text": "Pozastavit hlasovou odpověď"
+      },
+      "play": {
+        "text": "Přehrát hlasovou odpověď"
+      },
+      "previous_chapter": {
+        "text": "Předchozí kapitola: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Další kapitola: {chapter}"
+      },
       "speak_response": {
         "text": "Přečíst odpověď"
       },

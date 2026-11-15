@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "เนื้อหา"
       },
+      "player_label": {
+        "text": "เครื่องเล่นคำตอบด้วยเสียง"
+      },
+      "pause": {
+        "text": "หยุดคำตอบด้วยเสียงชั่วคราว"
+      },
+      "play": {
+        "text": "เล่นคำตอบด้วยเสียง"
+      },
+      "previous_chapter": {
+        "text": "บทก่อนหน้า: {chapter}"
+      },
+      "next_chapter": {
+        "text": "บทถัดไป: {chapter}"
+      },
       "speak_response": {
         "text": "อ่านคำตอบ"
       },

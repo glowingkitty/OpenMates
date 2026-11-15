@@ -3637,6 +3637,21 @@
       "structured": {
         "text": "Content"
       },
+      "player_label": {
+        "text": "Voice response player"
+      },
+      "pause": {
+        "text": "Pause voice response"
+      },
+      "play": {
+        "text": "Play voice response"
+      },
+      "previous_chapter": {
+        "text": "Previous chapter: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Next chapter: {chapter}"
+      },
       "speak_response": {
         "text": "Speak response"
       },
@@ -18401,6 +18416,96 @@
     },
     "create_file_failed": {
       "text": "Could not create the file. Please try again."
+    },
+    "timeline_tab": {
+      "text": "Timeline"
+    },
+    "timeline_author_user": {
+      "text": "You"
+    },
+    "timeline_author_assistant": {
+      "text": "Assistant"
+    },
+    "timeline_removed_file": {
+      "text": "Removed file"
+    },
+    "timeline_action_created": {
+      "text": "Created"
+    },
+    "timeline_action_updated": {
+      "text": "Updated"
+    },
+    "timeline_action_edited": {
+      "text": "Edited"
+    },
+    "timeline_action_restored": {
+      "text": "Restored"
+    },
+    "timeline_action_renamed": {
+      "text": "Renamed"
+    },
+    "timeline_action_deleted": {
+      "text": "Deleted"
+    },
+    "timeline_action_adopted": {
+      "text": "Adopted"
+    },
+    "timeline_files_count": {
+      "text": "{count} files"
+    },
+    "timeline_files_count_singular": {
+      "text": "{count} file"
+    },
+    "timeline_restored_from": {
+      "text": "Restored from {id}"
+    },
+    "timeline_restored_from_version": {
+      "text": "Restored from v{version}"
+    },
+    "timeline_restore_button": {
+      "text": "Restore"
+    },
+    "timeline_restore_prompt": {
+      "text": "Restore all files to this commit? This creates new versions; later history is kept."
+    },
+    "timeline_restore_confirm": {
+      "text": "Confirm"
+    },
+    "timeline_restore_cancel": {
+      "text": "Cancel"
+    },
+    "timeline_restore_busy": {
+      "text": "Restoring..."
+    },
+    "timeline_restore_done": {
+      "text": "Restored. New versions were created."
+    },
+    "timeline_restore_failed": {
+      "text": "Could not restore this commit. Please try again."
+    },
+    "timeline_empty": {
+      "text": "No changes yet"
+    },
+    "timeline_error": {
+      "text": "Could not load the timeline."
+    },
+    "timeline_loading": {
+      "text": "Loading history..."
+    },
+    "timeline_load_more": {
+      "text": "Load more"
+    },
+    "timeline_change_added": {
+      "text": "Added"
+    },
+    "timeline_change_modified": {
+      "text": "Modified"
+    },
+    "timeline_change_deleted": {
+      "text": "Deleted"
+    },
+    "timeline_change_unchanged": {
+      "text": "Unchanged"
     }
   },
   "recommendations": {

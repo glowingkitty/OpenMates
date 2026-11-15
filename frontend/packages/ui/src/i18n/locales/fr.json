@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "Contenu"
       },
+      "player_label": {
+        "text": "Lecteur de réponse vocale"
+      },
+      "pause": {
+        "text": "Mettre la réponse vocale en pause"
+      },
+      "play": {
+        "text": "Lire la réponse vocale"
+      },
+      "previous_chapter": {
+        "text": "Chapitre précédent : {chapter}"
+      },
+      "next_chapter": {
+        "text": "Chapitre suivant : {chapter}"
+      },
       "speak_response": {
         "text": "Lire la réponse"
       },

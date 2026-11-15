@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "İçerik"
       },
+      "player_label": {
+        "text": "Sesli yanıt oynatıcısı"
+      },
+      "pause": {
+        "text": "Sesli yanıtı duraklat"
+      },
+      "play": {
+        "text": "Sesli yanıtı oynat"
+      },
+      "previous_chapter": {
+        "text": "Önceki bölüm: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Sonraki bölüm: {chapter}"
+      },
       "speak_response": {
         "text": "Yanıtı seslendir"
       },

@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "콘텐츠"
       },
+      "player_label": {
+        "text": "음성 응답 플레이어"
+      },
+      "pause": {
+        "text": "음성 응답 일시정지"
+      },
+      "play": {
+        "text": "음성 응답 재생"
+      },
+      "previous_chapter": {
+        "text": "이전 챕터: {chapter}"
+      },
+      "next_chapter": {
+        "text": "다음 챕터: {chapter}"
+      },
       "speak_response": {
         "text": "응답 읽기"
       },

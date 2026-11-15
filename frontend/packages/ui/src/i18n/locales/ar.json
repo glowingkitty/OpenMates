@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "المحتوى"
       },
+      "player_label": {
+        "text": "مشغل الرد الصوتي"
+      },
+      "pause": {
+        "text": "إيقاف الرد الصوتي مؤقتًا"
+      },
+      "play": {
+        "text": "تشغيل الرد الصوتي"
+      },
+      "previous_chapter": {
+        "text": "الفصل السابق: {chapter}"
+      },
+      "next_chapter": {
+        "text": "الفصل التالي: {chapter}"
+      },
       "speak_response": {
         "text": "قراءة الرد"
       },

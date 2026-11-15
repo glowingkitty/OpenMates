@@ -28,9 +28,12 @@ protocol NativeVoiceCallAppDriving: AnyObject {
     func invalidate() async
     func snapshot() async -> NativeVoiceCallSnapshot
     func respondToTool(_ frame: NativeVoiceCallFrame) async throws
+    /// Real audio level bars (mic while live and unmuted, assistant playback); default: none.
+    func bindMeter(_ sink: @escaping @MainActor @Sendable ([Float]) -> Void)
 }
 
 extension NativeVoiceCallAppDriving {
+    func bindMeter(_ sink: @escaping @MainActor @Sendable ([Float]) -> Void) {}
     func sendCameraState(_ enabled: Bool) async {}
     func sendCameraFrame(_ frame: NativeVoiceCallCameraFrame) async {}
 }
@@ -66,6 +69,7 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
               event: @escaping @MainActor @Sendable (NativeVoiceCallEvent) async -> Void) {
         self.consent = consent; downstream = event
     }
+    func bindMeter(_ sink: @escaping @MainActor @Sendable ([Float]) -> Void) { audio.levelSink = sink }
     private func check(_ scope: NativeVoiceCallScope) throws {
         guard !Task.isCancelled, let binding, binding.scope == scope,
               auth.state == .authenticated, auth.currentUser?.id == scope.accountID,

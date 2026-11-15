@@ -312,15 +312,11 @@ private struct NativeVoiceCallRootOverlayContent: View {
                     stripHostedInChat: coordinator.boundChatID.map {
                         presentation.stripHostedChatID == $0 || presentation.headerPillChatID == $0
                     } ?? false)
-                if presentation.toolWorking || presentation.creditsCharged != nil {
+                if presentation.toolWorking {
                     VStack {
                         Spacer()
                         HStack(spacing: .spacing4) {
                             if presentation.toolWorking { Text(AppStrings.nativeCall("working")) }
-                            if let credits = presentation.creditsCharged {
-                                Text(credits, format: .number.precision(.fractionLength(0...3)))
-                                Text(AppStrings.nativeCall("credits"))
-                            }
                         }.font(.omSmall).padding(.spacing4).background(Color.grey10)
                             .clipShape(RoundedRectangle(cornerRadius: .radius4))
                             .padding(.bottom, 84)

@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "Содержимое"
       },
+      "player_label": {
+        "text": "Плеер голосового ответа"
+      },
+      "pause": {
+        "text": "Приостановить голосовой ответ"
+      },
+      "play": {
+        "text": "Воспроизвести голосовой ответ"
+      },
+      "previous_chapter": {
+        "text": "Предыдущая глава: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Следующая глава: {chapter}"
+      },
       "speak_response": {
         "text": "Озвучить ответ"
       },

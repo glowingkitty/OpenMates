@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "Nội dung"
       },
+      "player_label": {
+        "text": "Trình phát phản hồi bằng giọng nói"
+      },
+      "pause": {
+        "text": "Tạm dừng phản hồi bằng giọng nói"
+      },
+      "play": {
+        "text": "Phát phản hồi bằng giọng nói"
+      },
+      "previous_chapter": {
+        "text": "Chương trước: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Chương tiếp theo: {chapter}"
+      },
       "speak_response": {
         "text": "Đọc câu trả lời"
       },

@@ -2920,6 +2920,21 @@
       "structured": {
         "text": "Konten"
       },
+      "player_label": {
+        "text": "Pemutar respons suara"
+      },
+      "pause": {
+        "text": "Jeda respons suara"
+      },
+      "play": {
+        "text": "Putar respons suara"
+      },
+      "previous_chapter": {
+        "text": "Bab sebelumnya: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Bab berikutnya: {chapter}"
+      },
       "speak_response": {
         "text": "Bacakan respons"
       },

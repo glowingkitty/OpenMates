@@ -341,6 +341,13 @@ enum ChatAssistantIdentityPolicy {
               !["assistant", "ai"].contains(name.lowercased()) else { return nil }
         return name
     }
+
+    /// Web: ChatMessage.isOpenMatesIdentity. A category naming no Mate (missing, retired,
+    /// unknown) is shown with the OpenMates name and favicon.
+    static func usesOpenMatesIdentity(category: String?) -> Bool {
+        guard let category, category != "openmates_official" else { return true }
+        return !CategoryMapping.isKnownCategory(category)
+    }
 }
 
 /// Mirrors the web processing-text gradient sweep while preserving a static
@@ -5872,7 +5879,7 @@ struct MessageBubble: View {
 
     private var assistantAvatar: some View {
         Group {
-            if isOpenMatesOfficial {
+            if isOpenMatesOfficial || (importedProvider == nil && ChatAssistantIdentityPolicy.usesOpenMatesIdentity(category: assistantCategory)) {
                 // Web: .mate-profile.openmates_official — favicon as background-image,
                 // background-size:contain, border-radius:50%, no AI badge.
                 // Use the PNG brand asset because Xcode distorts this colorful SVG.

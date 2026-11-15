@@ -3,8 +3,10 @@
 // Assertions: video-call.chat.typed-input, video-call.chat.fixed-binding,
 // video-call.lifecycle.recovery-and-billing, video-call.privacy.first-call-warning,
 // video-call.chat.skill-integration, video-call.privacy, video-call.video.input-and-output,
-// video-call.video.apple-screen-share, video-call.apple.live-activity
+// video-call.video.apple-screen-share, video-call.apple.live-activity,
+// video-call.audio.confirmation-sounds, video-call.chat.activity-status
 #if !os(watchOS)
+import AVFoundation
 import Combine
 import Foundation
 
@@ -41,6 +43,8 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
     /// meter; the controls then render a static activity glyph, not fake speech.
     @Published private(set) var meterLevels: [Float] = []
     private let driver: any NativeVoiceCallAppDriving
+    private let cuePlayer: any NativeVoiceCallCuePlaying
+    private var cuePlan = NativeVoiceCallCuePlan()
     private let accepted: @MainActor (NativeVoiceCallDraftTicket, String) -> Void
     private let restore: @MainActor (NativeVoiceCallDraftTicket) -> Bool
     private let artifacts: @MainActor @Sendable (NativeVoiceCallScope, String, NativeVoiceCallFrame) async throws -> NativeVoiceCallArtifactDisposition
@@ -69,7 +73,9 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
          accepted: @escaping @MainActor (NativeVoiceCallDraftTicket, String) -> Void,
          restore: @escaping @MainActor (NativeVoiceCallDraftTicket) -> Bool,
          artifacts: @escaping @MainActor @Sendable (NativeVoiceCallScope, String, NativeVoiceCallFrame) async throws -> NativeVoiceCallArtifactDisposition,
-         usage: @escaping @MainActor @Sendable (NativeVoiceCallScope, String, NativeVoiceCallFrame) async -> Void) {
+         usage: @escaping @MainActor @Sendable (NativeVoiceCallScope, String, NativeVoiceCallFrame) async -> Void,
+         cuePlayer: any NativeVoiceCallCuePlaying = NativeVoiceCallCuePlayer()) {
+        self.cuePlayer = cuePlayer
         camera = NativeVoiceCallCameraModel(
             sendState: { [weak driver] enabled in await driver?.sendCameraState(enabled) },
             sendFrame: { [weak driver] frame in await driver?.sendCameraFrame(frame) })
@@ -77,6 +83,10 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
         self.artifacts = artifacts; self.usage = usage
         driver.bind(consent: { [weak self] in await self?.requestConsent() ?? false },
                     event: { [weak self] event in await self?.receive(event) })
+        driver.bindMeter { [weak self] levels in
+            guard let self, let scope = self.state.scope, let callID = self.state.callID else { return }
+            self.updateMeter(levels, scope: scope, callID: callID)
+        }
         #if os(iOS)
         NativeVoiceCallLiveActivityHangUp.shared.handler = { [weak self] callID in
             guard let self, self.state.callID == callID else { return }
@@ -91,6 +101,9 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
     }
     var isActive: Bool { starting || state.status == .connecting || state.status == .live }
     var boundChatID: String? { state.scope?.chatID }
+    /// Web `voiceCallActivityActive`: only a known idle input (not listening, not
+    /// processing) dims the active-duration counter. Policy lives in the snapshot.
+    var activityActive: Bool { !state.inputIdle || state.inputListening || state.processing }
     var formattedDuration: String {
         let seconds = Int(max(0, min(state.activeSeconds, 99 * 3600)))
         return String(format: "%02d:%02d", seconds / 60, seconds % 60)
@@ -191,6 +204,7 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
     private func receive(_ event: NativeVoiceCallEvent) async {
         switch event {
         case .state(let snapshot):
+            if let cue = cuePlan.cue(for: snapshot) { cuePlayer.play(cue) }
             state = snapshot
             tools.update(snapshot)
             if snapshot.status == .live { startTicker() }
@@ -279,6 +293,86 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
                 state = snapshot
             }
         }
+    }
+}
+
+/// Confirmation cues (web `voiceCallCues.ts`): one per real transition. Manual mute is
+/// the only `muted` source; automatic idle uses `inputIdle`, which never sounds.
+enum NativeVoiceCallCue: Sendable { case connected, muted, unmuted, ended }
+
+struct NativeVoiceCallCuePlan {
+    private var liveCallID: String?
+    private var muted = false
+    /// Failed or never-connected attempts return nil and invent no sound.
+    mutating func cue(for snapshot: NativeVoiceCallSnapshot) -> NativeVoiceCallCue? {
+        switch snapshot.status {
+        case .live:
+            guard let id = snapshot.callID else { return nil }
+            if liveCallID != id { liveCallID = id; muted = snapshot.muted; return .connected }
+            guard snapshot.muted != muted else { return nil }
+            muted = snapshot.muted
+            return muted ? .muted : .unmuted
+        case .ended:
+            defer { liveCallID = nil; muted = false }
+            return liveCallID == nil ? nil : .ended
+        case .failed, .idle:
+            liveCallID = nil; muted = false
+            return nil
+        case .connecting:
+            return nil
+        }
+    }
+}
+
+@MainActor
+protocol NativeVoiceCallCuePlaying: AnyObject { func play(_ cue: NativeVoiceCallCue) }
+
+/// Same notes and 0.035 peak as web. Sine tones render into one local buffer on a
+/// short-lived engine that shares the call's audio session (never configures it)
+/// and is torn down when the cue ends; it never touches call PCM or playback.
+@MainActor
+final class NativeVoiceCallCuePlayer: NativeVoiceCallCuePlaying {
+    static let notes: [NativeVoiceCallCue: [(frequency: Double, offset: Double, duration: Double)]] = [
+        .connected: [(523.25, 0, 0.07), (783.99, 0.09, 0.09)],
+        .muted: [(440, 0, 0.06), (329.63, 0.09, 0.06)],
+        .unmuted: [(659.25, 0, 0.06), (880, 0.09, 0.06)],
+        .ended: [(392, 0, 0.055), (293.66, 0.075, 0.055), (196, 0.15, 0.075)]]
+    private var engine: AVAudioEngine?
+    private var node: AVAudioPlayerNode?
+    private var generation = 0
+
+    func play(_ cue: NativeVoiceCallCue) {
+        stop()
+        generation += 1
+        let token = generation
+        let rate = 44_100.0
+        let notes = Self.notes[cue] ?? []
+        let total = (notes.map { $0.offset + $0.duration }.max() ?? 0) + 0.02
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: rate, channels: 1),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(total * rate)),
+              let samples = buffer.floatChannelData?[0] else { return }
+        buffer.frameLength = buffer.frameCapacity
+        for i in 0..<Int(buffer.frameLength) { samples[i] = 0 }
+        for note in notes {
+            let start = Int(note.offset * rate), count = Int(note.duration * rate)
+            let ramp = Int(0.012 * rate)
+            for i in 0..<count where start + i < Int(buffer.frameLength) {
+                let edge = min(1, Double(min(i, count - i)) / Double(max(1, ramp)))
+                samples[start + i] = Float(0.035 * edge * sin(2 * .pi * note.frequency * Double(i) / rate))
+            }
+        }
+        let engine = AVAudioEngine(), node = AVAudioPlayerNode()
+        engine.attach(node)
+        engine.connect(node, to: engine.mainMixerNode, format: format)
+        do { try engine.start() } catch { return } // Blocked local audio never blocks the call.
+        self.engine = engine; self.node = node
+        node.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+            Task { @MainActor in if self?.generation == token { self?.stop() } }
+        }
+        node.play()
+    }
+    private func stop() {
+        node?.stop(); engine?.stop(); node = nil; engine = nil
     }
 }
 #endif
