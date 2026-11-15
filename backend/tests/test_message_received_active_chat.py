@@ -31,6 +31,23 @@ sys.modules.setdefault(
 
 
 @pytest.fixture(autouse=True)
+def stub_chat_orchestration_hooks(monkeypatch):
+    """Treat every turn as a user-typed message in an ordinary chat.
+
+    Chat orchestration (origin, streak, spawned-chat classification) needs a
+    live Redis client and is covered by its own tests; these dispatch tests
+    use cache fakes without one.
+    """
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+    from backend.shared.python_utils import chat_orchestration_interpretation, chat_orchestration_safety
+
+    monkeypatch.setattr(chat_orchestration_safety, "record_message_origin",
+                        AsyncMock(return_value={"origin": "user"}))
+    monkeypatch.setattr(chat_orchestration_interpretation, "reset_streak", AsyncMock())
+    monkeypatch.setattr(message_received_handler, "classify_chat_message", AsyncMock(return_value=None))
+
+
+@pytest.fixture(autouse=True)
 def stub_async_skill_turn_fence(monkeypatch):
     """Keep turn-fencing tests isolated from worker/Celery imports."""
     tasks_module = ModuleType("backend.apps.ai.tasks")
@@ -44,6 +61,7 @@ def stub_async_skill_turn_fence(monkeypatch):
 class FakeManager:
     def __init__(self):
         self.calls = []
+        self.messages = []
         self.broadcasts = []
 
     def get_volatile_session_nonce(self, user_id, device_fingerprint_hash):
@@ -54,6 +72,7 @@ class FakeManager:
 
     async def send_personal_message(self, message, user_id, device_fingerprint_hash):
         self.calls.append(("send_personal_message", message.get("type"), user_id, device_fingerprint_hash))
+        self.messages.append(message)
 
     async def broadcast_to_user(self, message, user_id, exclude_device_hash=None):
         self.broadcasts.append(message)
@@ -414,6 +433,12 @@ def test_legacy_dispatch_retry_reconciles_but_genuine_failures_still_alert(monke
         context.reconcile.assert_not_awaited()
         context.alert.assert_awaited_once_with("chat-123:msg-123", stage="dispatch")
         assert any(call[1] == "error" for call in context.manager.calls)
+        error = next(message["payload"] for message in context.manager.messages if message["type"] == "error")
+        # An immutable-binding rejection can never succeed on retry; a broker failure can.
+        if outcome == "mismatch":
+            assert (error["code"], error["retryable"]) == ("inference_temporarily_paused", False)
+        else:
+            assert (error["code"], error["retryable"]) == ("ai_dispatch_failed", True)
 
 
 @pytest.mark.asyncio
