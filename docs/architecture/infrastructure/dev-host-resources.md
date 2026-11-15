@@ -133,7 +133,13 @@ on 2026-11-15 were such leftovers of CI result downloads).
 Pushes that reach the user through `scripts/agent_question.py` (and
 `scripts/e2b_credits.py`, which calls its `record_push`) are appended to
 `logs/agent-questions/pushes.jsonl` (time, chat id and title, text, what it asks),
-so the connector can match a push to its chat.
+so the connector can match a push to its chat. Push text is scrubbed before
+sending (`agent_question.scrub`): webhook URLs, emails, private keys, JWTs,
+bearer and prefixed API tokens, `NAME=value` values and other long random tokens
+become `[removed]`. Task and chat UUIDs, 40/64-char hex hashes, ENV/snake/kebab
+names and presigned links to our own `openmates-*` buckets on the object storage
+stay intact. Pushes longer than one Discord message go out as up to four parts,
+split between words so links are never cut.
 
 ## 3. Host-resources tick (`scripts/host_resources.py`, every minute)
 

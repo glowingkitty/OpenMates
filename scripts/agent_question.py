@@ -26,6 +26,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Callable
+from urllib.parse import urlparse
 
 import discord_webhook
 from pending_work_gate import canonical_root
@@ -35,14 +36,29 @@ WEBHOOK_KEYS = ("DISCORD_WEBHOOK_AGENT_QUESTIONS", "DISCORD_WEBHOOK_DAILY_MEETIN
 RATE_LIMIT_SECONDS = 20 * 60
 PUSH_LOG = Path("logs") / "agent-questions" / "pushes.jsonl"
 RETRY_DELAYS = (2.0, 5.0)
-MAX_CHARS = 1800
+MAX_CHARS = 1900  # per Discord message (limit 2000); longer pushes go out as several parts
+MAX_PARTS = 4
+# Presigned links to our own buckets on our object storage are meant to be opened and are kept
+# whole (bucket name, key path and X-Amz-* query values). Every other URL goes through the filters.
+OWN_STORAGE_HOST_SUFFIX = ".your-objectstorage.com"
+OWN_BUCKET_PREFIXES = ("openmates-", "dev-openmates-")
+_URL = re.compile(r"https?://[^\s<>\"')\]]+")
+_PROTECTED = re.compile("\x00(\\d+)\x00")
 SECRET_PATTERNS = (
-    re.compile(r"https?://discord(?:app)?\.com/api/webhooks/\S+"),
+    re.compile(r"https?://(?:canary\.|ptb\.)?discord(?:app)?\.com/api/webhooks/\S+"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)", re.S),
     re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+"),
-    re.compile(r"\b(?:sk|pk|ghp|gho|xox[abp])[-_][A-Za-z0-9_-]{16,}"),
-    re.compile(r"\b[A-Z][A-Z0-9_]{3,}=\S+"),
-    re.compile(r"\b[A-Za-z0-9_-]{32,}\b"),
+    re.compile(r"\beyJ[\w-]{5,}\.[\w-]{5,}\.[\w-]{5,}"),
+    re.compile(r"(?i)\bbearer\s+[\w.~+/=-]{12,}"),
+    re.compile(r"\b(?:sk|pk|rk|ghp|gho|ghu|ghs|ghr|github_pat|glpat|xox[abprs])[-_][A-Za-z0-9_-]{16,}"),
+    re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b|\bAIza[0-9A-Za-z_-]{30,}"),
 )
+# NAME=value: the name stays readable, the value is removed.
+_ASSIGNMENT = re.compile(r"\b([A-Z][A-Z0-9_]{3,})=(?!\[removed\])[^\s\x00]+")
+_LONG_TOKEN = re.compile(r"(?<![\w-])[A-Za-z0-9_-]{32,}(?![\w-])")
+_UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+_GIT_OR_SHA256 = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
+_WORDS = re.compile(r"(?:[a-z0-9]{1,20}(?:[_-]+[a-z0-9]{1,20})+|[A-Z0-9]{1,20}(?:[_-]+[A-Z0-9]{1,20})+)")
 
 
 class QuestionError(RuntimeError):
@@ -70,10 +86,62 @@ def webhook(root: Path) -> str:
     raise QuestionError("no Discord webhook configured (" + ", ".join(WEBHOOK_KEYS) + ")")
 
 
+def own_storage_link(url: str) -> bool:
+    """True for an https link to one of our buckets on our object storage (path or virtual-host style)."""
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or "@" in url or not host.endswith(OWN_STORAGE_HOST_SUFFIX):
+        return False
+    labels = host[: -len(OWN_STORAGE_HOST_SUFFIX)].split(".")
+    bucket = labels[0] if len(labels) == 2 else parsed.path.lstrip("/").split("/", 1)[0]
+    return bucket.startswith(OWN_BUCKET_PREFIXES)
+
+
+def _keep_or_remove_long_token(match: re.Match[str]) -> str:
+    """Ids, digests and word-like names stay; random-looking long tokens (keys, signatures) go."""
+    token = match.group(0)
+    if _UUID.fullmatch(token) or _GIT_OR_SHA256.fullmatch(token) or _WORDS.fullmatch(token):
+        return token
+    return "[removed]"
+
+
 def scrub(text: str) -> str:
+    """Remove secrets and personal data from push text; keep ids, hashes and our media links readable.
+
+    Removed: Discord webhook URLs, private keys, emails, JWTs, bearer tokens, prefixed API keys, the
+    values of NAME=value assignments and other long random tokens. Kept: Task/chat UUIDs, 40/64-char
+    hex commit hashes and digests, ENV_VAR / snake_case / kebab-case names, and presigned links to
+    our own storage buckets (see own_storage_link)."""
+    kept: list[str] = []
+
+    def protect(match: re.Match[str]) -> str:
+        url = match.group(0)
+        if not own_storage_link(url):
+            return url
+        kept.append(url)
+        return f"\x00{len(kept) - 1}\x00"
+
+    text = _URL.sub(protect, text.replace("\x00", ""))
     for pattern in SECRET_PATTERNS:
         text = pattern.sub("[removed]", text)
+    text = _ASSIGNMENT.sub(lambda m: f"{m.group(1)}=[removed]", text)
+    text = _LONG_TOKEN.sub(_keep_or_remove_long_token, text)
+    text = _PROTECTED.sub(lambda m: kept[int(m.group(1))], text)
     return " ".join(text.split())
+
+
+def split_message(text: str, size: int = MAX_CHARS) -> list[str]:
+    """Split at line or word boundaries into parts of at most ``size`` characters (links stay whole)."""
+    parts: list[str] = []
+    while len(text) > size:
+        cut = max(text.rfind("\n", 0, size + 1), text.rfind(" ", 0, size + 1))
+        if cut <= 0:
+            cut = size
+        parts.append(text[:cut].rstrip())
+        text = text[cut:].lstrip()
+    if text or not parts:
+        parts.append(text)
+    return parts
 
 
 def session_info(root: Path, chat_id: str) -> tuple[str, str]:
@@ -104,7 +172,11 @@ def build_message(question: str, recommendation: str, options: list[str], task_i
     if meta_line:
         lines += ["", scrub(meta_line)]
     text = "\n".join(lines)
-    return text if len(text) <= MAX_CHARS else text[:MAX_CHARS - 3] + "..."
+    limit = MAX_CHARS * MAX_PARTS
+    if len(text) <= limit:
+        return text
+    cut = max(text.rfind("\n", 0, limit - 3), text.rfind(" ", 0, limit - 3))
+    return text[:cut if cut > 0 else limit - 3].rstrip() + "..."
 
 
 def marker_path(root: Path, chat_id: str) -> Path:
@@ -121,14 +193,20 @@ def recently_asked(root: Path, chat_id: str, now: float) -> bool:
 
 def deliver(url: str, message: str, post: Callable[..., dict | None],
             sleep: Callable[[float], None] = time.sleep) -> dict:
-    """Post once, then retry after each RETRY_DELAYS entry; the confirmed result or QuestionError."""
-    for delay in (*RETRY_DELAYS, None):
-        result = post(webhook_url=url, payload={"content": message})
-        if result:
-            return result
-        if delay is not None:
-            sleep(delay)
-    raise QuestionError(f"Discord delivery was not confirmed after {len(RETRY_DELAYS) + 1} attempts")
+    """Post each part of the message (split_message), retrying each after the RETRY_DELAYS entries.
+
+    Returns the last confirmed result; raises QuestionError when a part stays unconfirmed."""
+    result: dict | None = None
+    for part in split_message(message):
+        for delay in (*RETRY_DELAYS, None):
+            result = post(webhook_url=url, payload={"content": part})
+            if result:
+                break
+            if delay is not None:
+                sleep(delay)
+        else:
+            raise QuestionError(f"Discord delivery was not confirmed after {len(RETRY_DELAYS) + 1} attempts")
+    return result or {}
 
 def record_push(root: Path, message: str, now: float, *, chat_id: str = "", title: str = "", asks: str = "",
                 recommendation: str = "", options: list[str] | None = None, task_id: str = "",
