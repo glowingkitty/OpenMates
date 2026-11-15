@@ -169401,7 +169401,7 @@ assertions:
     direct_tests:
     - &id21519
       path: frontend/apps/web_app/tests/slides-focus-modes-real.spec.ts
-      line: 155
+      line: 163
       name: template designer focus leads a beginner to a refined, saved template
         (real inference)
       surface: gui.web
@@ -169466,7 +169466,7 @@ assertions:
     direct_tests:
     - &id21526
       path: frontend/apps/web_app/tests/slides-focus-modes-real.spec.ts
-      line: 193
+      line: 201
       name: presentation planner focus takes a beginner from idea to a deck with speaker
         notes (real inference)
       surface: gui.web
