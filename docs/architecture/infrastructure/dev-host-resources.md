@@ -139,7 +139,45 @@ idle stop and cap of 20 keep the number of panes bounded, so a failing
 
 State: `logs/host-load-guard/resources.json`; events in `logs/host-load-guard/events.jsonl`.
 
+## 4. Unfinished work in worktrees (`scripts/worktree_wip.py`)
+
+Before the dev-to-main pull request of 2026-11-15 the release-readiness gate
+reported 42 blocking worktrees: 31 were clean and already on dev (the gate
+blocked on anything idle under 96 h), the rest held uncommitted work of chats
+that had ended or been stopped (TASK-9700). Now:
+
+- Snapshots: the Stop hook `.claude/hooks/wip-snapshot.sh` (every turn end) and
+  the `openmates-worktree-wip-sweep` timer (every 30 min) commit each dirty
+  session worktree to `refs/openmates/wip/<session>` in the shared object store,
+  through a temporary index (the worktree, its index and HEAD are untouched;
+  files over 25 MiB are listed, not committed). The ref outlives the worktree
+  and the chat. It is pushed only to a configured private remote
+  (`wip_remote` in `logs/worktree-wip/config.json` or `OPENMATES_WIP_REMOTE`);
+  the public `origin` is refused, because WIP has passed no deploy gate.
+- Lifecycle: before the chat lifecycle stops a chat whose worktree holds files
+  not on dev, it snapshots the worktree and types one finish prompt into the
+  chat's pane; the chat gets 60 min to commit, test and deploy, or to park the
+  work. A chat that cannot be woken (Remote Control worker), does not act or
+  is stopped under memory pressure is stopped with its work snapshotted and is
+  listed in `status.json` (`stopped_with_unfinished_work`; `unfinished_work`
+  and `stalled` while it stays stopped), which `chat_changes` and
+  `chat_housekeeping` show.
+- Parking: work that must wait (an owner answer, another priority) is parked
+  by its chat: `worktree_wip.py park --session <id> --reason "<why>"`. A parked
+  worktree is not woken and does not block the release; the park ends when the
+  worktree changes.
+- Readiness: `sessions.py worktree release-readiness` judges content, not idle
+  time. Clean, integrated or duplicated worktrees and integration-checkout
+  residue older than 2 h pass; unfinished unparked work blocks. The
+  `openmates-worktree-readiness` timer runs it nightly (02:30 UTC) after a
+  sweep, writes `logs/worktree-wip/readiness.json` for the daily meeting
+  ("Unfinished work in worktrees") and resumes up to 3 stopped owner chats with
+  a finish prompt (`claude_dispatch.resume_chat`), once per worktree state.
+  Owners without a transcript on the host are listed for the owner.
+- Rule (`CLAUDE.md`, `AGENTS.md`): done means committed, tested and deployed
+  to dev; a chat never ends its work with uncommitted changes.
+
 ## Setup
 
 `scripts/host-load-guard-setup.sh` and `scripts/claude-idle-chats-setup.sh` install
-the systemd user timers.
+the systemd user timers. `scripts/worktree-wip-setup.sh` installs the WIP sweep and nightly readiness timers.

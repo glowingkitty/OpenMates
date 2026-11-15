@@ -4521,26 +4521,68 @@ def _write_worktree_reconciliation_report(report: dict) -> None:
     _write_worktree_reconciliation_payload(summary)
 
 
+READINESS_NON_BLOCKING_CLASSES = {"integrated", "duplicated", "superseded", "disposable_integration"}
+# An integration checkout is deploy scratch rebuilt from the lane; past this age no deploy uses it.
+READINESS_INTEGRATION_RESIDUE_HOURS = 2
+
+
+def _worktree_wip_module():
+    try:
+        from scripts import worktree_wip
+    except ModuleNotFoundError:
+        import worktree_wip
+    return worktree_wip
+
+
+def _readiness_verdict(item: dict) -> str:
+    """'ok', 'parked' or 'blocking' for one worktree, judged by content, not by idle time."""
+    if item.get("classification") in READINESS_NON_BLOCKING_CLASSES:
+        return "ok"
+    if item.get("reason_code") == "integration_has_changes":
+        idle = float(item.get("idle_hours", 0.0))
+        return "ok" if idle >= READINESS_INTEGRATION_RESIDUE_HOURS else "blocking"
+    path = Path(str(item.get("path") or ""))
+    if item.get("classification") not in {"unique_stale", "recent_active"} or not path.is_dir():
+        return "blocking"
+    wip = _worktree_wip_module()
+    try:
+        if not wip.unfinished_files(path, "origin/dev"):
+            return "ok"  # only landed or generated files differ
+        if wip.parked_entry(str(item.get("session_id") or ""), path):
+            return "parked"  # preserved by its WIP snapshot, reason recorded by the owner
+    except (OSError, RuntimeError):
+        return "blocking"
+    return "blocking"
+
+
 def worktree_release_readiness(*, target_ref: str, excluded_active: set[str]) -> dict:
-    report = reconcile_session_worktrees(target_ref=target_ref, apply_safe=False)
+    """Block a release only on worktrees holding unfinished, unparked work (or broken state).
+
+    Content decides, not idle time: a recently active worktree whose files are all on dev
+    does not block, and unfinished work blocks however recent it is. ``excluded_active``
+    holds sessions the user confirmed may stay out of this release.
+    """
+    report = reconcile_session_worktrees(target_ref=target_ref, apply_safe=False, idle_hours=0)
     blocked_deploys = [
         str(item.get("id") or item.get("session_id") or "")
         for item in _load_sessions().get("deploy_queue", [])
         if item.get("status") == "blocked"
     ]
-    excluded = sorted(
-        str(item.get("session_id")) for item in report["items"]
-        if item.get("classification") == "recent_active" and str(item.get("session_id")) in excluded_active
-    )
-    blocking = sorted(
-        str(item.get("session_id")) for item in report["items"]
-        if not (item.get("classification") == "recent_active" and str(item.get("session_id")) in excluded_active)
-    )
+    excluded, blocking, parked = [], [], []
+    for item in report["items"]:
+        session_id = str(item.get("session_id"))
+        verdict = _readiness_verdict(item)
+        item["readiness"] = verdict
+        if verdict == "parked":
+            parked.append(session_id)
+        elif verdict == "blocking":
+            (excluded if session_id in excluded_active else blocking).append(session_id)
     return {
         **report,
         "ready": not blocking and not blocked_deploys,
-        "excluded_active": excluded,
-        "blocking_worktrees": blocking,
+        "excluded_active": sorted(excluded),
+        "blocking_worktrees": sorted(blocking),
+        "parked_worktrees": sorted(parked),
         "blocked_deploys": blocked_deploys,
     }
 
@@ -13605,8 +13647,17 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             print(f"Ready: {'yes' if report['ready'] else 'no'}")
             if report["excluded_active"]:
                 print("Explicitly excluded recent work: " + ", ".join(report["excluded_active"]))
+            if report["parked_worktrees"]:
+                print("Parked (preserved, owner recorded why it waits): " + ", ".join(report["parked_worktrees"]))
             if report["blocking_worktrees"]:
                 print("Blocking worktrees: " + ", ".join(report["blocking_worktrees"]))
+                for item in report["items"]:
+                    if item.get("readiness") == "blocking":
+                        session = item.get("session") if isinstance(item.get("session"), dict) else {}
+                        print(f"  ! {item.get('session_id')}: {item.get('classification')} "
+                              f"({item.get('reason_code', '')}), chat {str(session.get('agent_task_id') or '?')[:8]}, "
+                              f"{len(item.get('changed_files') or [])} files")
+                print("Owners finish or park their work: python3 scripts/worktree_wip.py list")
             if report["blocked_deploys"]:
                 print("Blocked deploys: " + ", ".join(report["blocked_deploys"]))
             if not report["ready"]:

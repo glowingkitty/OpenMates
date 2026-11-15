@@ -34,6 +34,12 @@ when a skill or this file points to it.
    --message "why + verification"`. Scoped dev deploys are authorized for
    assigned implementation work. Never run raw `git commit/push/stash`,
    create branches (only `dev` and `main` exist) or rewrite history.
+   "Done" means committed, tested and deployed to dev; a chat never ends its
+   work with uncommitted changes. Work that must wait (e.g. on an owner answer)
+   is parked: note what remains in its Task and run `python3
+   scripts/worktree_wip.py park --session <id> --reason "<why>"`. Turn ends
+   snapshot dirty worktrees to `refs/openmates/wip/<session>`; the chat
+   lifecycle wakes a chat with unfinished work before stopping it.
 4. Production changes, destructive data changes and ownership transfers need
    explicit authorization by the owner: typed in this chat, or a message from
    the owner's dev connector (header "[… via the owner's authenticated dev

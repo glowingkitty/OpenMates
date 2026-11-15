@@ -292,6 +292,11 @@
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/pending-work-stop-gate.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/wip-snapshot.sh",
+            "timeout": 5
           }
         ]
       }

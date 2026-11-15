@@ -260,6 +260,46 @@ def launch_claude_chat(
     return _open_chat_tab(title, prompt, model, effort)
 
 
+def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None) -> str:
+    """Reopen a stopped chat in a new tab with `prompt` as its next message; 'ok' or why not.
+
+    Used by scripts/worktree_wip.py to wake the owner of unfinished worktree work. The
+    chat keeps its history (`--resume`) and its model, except Fable, which reopens on the
+    default. It is never queued: with no free slot the caller retries on its next run.
+    """
+    if not UUID_RE.match(chat_id):
+        raise DispatchError(f"not a chat id: {chat_id!r}")
+    projects = (claude_home or Path.home() / ".claude") / "projects"
+    transcripts = sorted(projects.glob(f"*/{chat_id}.jsonl"))
+    if not transcripts:
+        return "no transcript on this host"
+    cwd, model = "", ""
+    with transcripts[0].open(encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            cwd = cwd or str(record.get("cwd") or "")
+            message = record.get("message") if isinstance(record.get("message"), dict) else {}
+            model = str(message.get("model") or model)
+    if not cwd or not Path(cwd).is_dir():
+        return f"its folder is gone ({cwd or 'unknown'})"
+    model = model if model.startswith("claude-") and not is_fable(model) else CLAUDE_MODEL
+    why = admit_new_chat()
+    if why:
+        return f"no free chat slot ({why})"
+    title = f"finish {chat_id[:8]}"
+    ensure_zellij_session()
+    _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", cwd, "--",
+            *_chat_command("--resume", chat_id, "--remote-control", title, "--model", model,
+                           "--effort", CLAUDE_EFFORT, "--permission-mode", "auto", prompt))
+    _record_launch({"kind": "worktree-wip-resume", "title": title, "model": model, "chat": chat_id})
+    subprocess.run([sys.executable, str(REPO_ROOT / "scripts" / "claude_idle_chats.py"), "mark",
+                    "--session", chat_id, "--state", "resumed"], capture_output=True, timeout=60, check=False)
+    return "ok"
+
+
 def _open_chat_tab(title: str, prompt: str, model: str, effort: str) -> str:
     command = _chat_command(
         "--remote-control", title, "--model", model, "--effort", effort, "--permission-mode", "auto", prompt,

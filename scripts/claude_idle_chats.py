@@ -40,6 +40,13 @@ Waking: the reap pass types one wake prompt into a zellij-pane chat whose job
 notifications were refused (once per notification), so finished CI, E2B or heavy_slot
 results are always read. Remote Control workers and stopped chats with such pending
 work go on the `stalled` list in status.json for the connector (chat_changes).
+Unfinished work: before a chat whose session worktree holds files not on dev is stopped
+(idle stop, done or the cap), its worktree is snapshotted (scripts/worktree_wip.py,
+refs/openmates/wip/<session>) and a zellij-pane chat gets one finish prompt and
+FINISH_GRACE_MINUTES to commit, test and deploy or park it. A chat that cannot be woken
+or does not act is stopped with its work snapshotted and listed in status.json
+(`stopped_with_unfinished_work`, and `unfinished_work` / `stalled` while it stays stopped).
+Under memory pressure it is snapshotted and stopped without the grace period.
 The cap keeps a chat active in the last `cap_min_idle_minutes` and suspends chats
 without an open question first; a chat whose last reply asks something is suspended
 only after `cap_question_idle_hours` without an answer (the connector resumes it
@@ -80,6 +87,7 @@ from pathlib import Path
 # sys.path; without this the sibling import fails and the lifecycle (idle stop, cap of 20) stops.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import claude_chat_pending  # noqa: E402  (path set above)
+import worktree_wip  # noqa: E402  (path set above)
 
 DEFAULTS = {
     "idle_stop_minutes": 60.0,
@@ -501,12 +509,15 @@ def queued_launches() -> int:
     return len(list(queue.glob("*.json"))) if queue.is_dir() else 0
 
 
-def write_status(directory: Path, summary: dict, registry: dict[str, dict], stalled: list[dict] | None = None) -> None:
+def write_status(directory: Path, summary: dict, registry: dict[str, dict], stalled: list[dict] | None = None,
+                 unfinished_stops: list[dict] | None = None) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     done = [{"session_id": sid, **entry} for sid, entry in registry.items() if entry["state"] == "done"]
     stalled = stalled or []
+    unfinished = [entry for entry in stalled if entry.get("unfinished_session")]
     tmp = directory / f".status.{os.getpid()}.tmp"
-    tmp.write_text(json.dumps({**summary, "stalled_chats": len(stalled), "done": done, "stalled": stalled},
+    tmp.write_text(json.dumps({**summary, "stalled_chats": len(stalled), "done": done, "stalled": stalled,
+                               "unfinished_work": unfinished, "stopped_with_unfinished_work": unfinished_stops or []},
                               indent=1, sort_keys=True), encoding="utf-8")
     os.replace(tmp, directory / "status.json")
 
@@ -526,8 +537,8 @@ def save_marks(directory: Path, name: str, marks: dict[str, str]) -> None:
     os.replace(tmp, directory / name)
 
 
-def wake(chat: Chat) -> bool:
-    """Type the wake prompt into the chat's pane (input box emptied first); True when sent."""
+def wake(chat: Chat, text: str = "") -> bool:
+    """Type a wake prompt (default: its undelivered results) into the chat's pane; True when sent."""
     pane = f"terminal_{chat.pane_id}"
     for _ in range(30):
         screen = zellij(chat.zellij_session, "dump-screen", "--pane-id", pane)
@@ -539,7 +550,7 @@ def wake(chat: Chat) -> bool:
     else:
         return False
     typed = zellij(chat.zellij_session, "write-chars", "--pane-id", pane,
-                   claude_chat_pending.wake_prompt(chat.undelivered))
+                   text or claude_chat_pending.wake_prompt(chat.undelivered))
     return not typed.returncode and not zellij(chat.zellij_session, "write", "--pane-id", pane, "13").returncode
 
 
@@ -591,6 +602,82 @@ def stalled_chats(live: list[Chat], registry: dict[str, dict], claude_home: Path
     return stalled
 
 
+FINISH_GRACE_MINUTES = 60.0
+
+
+def guard_unfinished(plan: list[tuple[Chat, Decision]], directory: Path, now: float, *, pressure: bool,
+                     dry_run: bool, finder=None) -> tuple[list[tuple[Chat, Decision]], list[dict]]:
+    """Before a chat with unfinished worktree work is stopped: wake it once to finish.
+
+    Every such worktree is snapshotted first (worktree_wip, refs/openmates/wip/<session>).
+    A zellij-pane chat gets one finish prompt per worktree state and FINISH_GRACE_MINUTES
+    to act; it is kept running meanwhile. When it cannot be woken (Remote Control
+    worker, wake failed), the grace is over or the host is short on memory, it is
+    stopped with its work snapshotted and flagged. Parked work is not woken.
+    Returns (chats still to stop, flagged unfinished-work entries).
+    """
+    if not plan:
+        return plan, []
+    wanted = {chat.session_id for chat, _ in plan}
+    rows = [row for row in worktree_wip.session_worktrees() if row["chat_id"] in wanted]
+    by_chat: dict[str, list[dict]] = {}
+    for entry in (finder or worktree_wip.unfinished)(rows=rows):
+        if not entry.get("error") and not entry.get("parked"):
+            by_chat.setdefault(entry["chat_id"], []).append(entry)
+    marks = load_marks(directory, "finish_woken.json")
+    to_stop, flagged = [], []
+    for chat, decision in plan:
+        entries = by_chat.get(chat.session_id)
+        if not entries:
+            to_stop.append((chat, decision))
+            continue
+        if dry_run:
+            print(f"would wake or snapshot {chat.title or chat.name}: unfinished work in "
+                  f"{', '.join(e['session_id'] for e in entries)}")
+            continue
+        trees = [worktree_wip.snapshot(entry, "lifecycle").get("tree", "") for entry in entries]
+        key = f"{chat.session_id}:{'+'.join(trees)}"
+        woken_at = _iso(marks[key]) if key in marks else 0.0
+        if not pressure and woken_at and now - woken_at < FINISH_GRACE_MINUTES * 60:
+            continue  # woken to finish; give it the grace period
+        if not pressure and not woken_at and chat.kind == "pane" and wake(chat, worktree_wip.finish_prompt(entries)):
+            marks[key] = _utc(now)
+            log_event(directory, {"event": "woken_to_finish", "session_id": chat.session_id,
+                                  "title": chat.title or chat.name, "worktrees": [e["session_id"] for e in entries]})
+            continue
+        why = ("host short on memory" if pressure else "no reply within the grace period" if woken_at
+               else "cannot be woken here (no zellij pane)" if chat.kind != "pane" else "wake failed")
+        flagged += [{"session_id": chat.session_id, "title": chat.title or chat.name, "worktree": e["session_id"],
+                     "files": len(e["files"]), "wip_ref": worktree_wip.wip_ref(e["session_id"]), "why": why}
+                    for e in entries]
+        log_event(directory, {"event": "stopping_with_unfinished_work", "session_id": chat.session_id,
+                              "why": why, "worktrees": [e["session_id"] for e in entries]})
+        to_stop.append((chat, Decision(decision.action, f"{decision.reason}; unfinished work snapshotted ({why})")))
+    save_marks(directory, "finish_woken.json", marks)
+    return to_stop, flagged
+
+
+def unfinished_stalled(registry: dict[str, dict], status: dict | None = None) -> list[dict]:
+    """Stopped chats whose worktrees hold unfinished, unparked work (from worktree_wip status.json)."""
+    if status is None:
+        try:
+            status = json.loads((worktree_wip.state_dir() / "status.json").read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return []
+    stalled = []
+    for entry in status.get("unfinished") or []:
+        stopped = registry.get(entry.get("chat_id") or "")
+        if entry.get("parked") or not stopped or stopped.get("state") not in ("stopped", "done"):
+            continue
+        stalled.append(_stalled_entry(
+            entry["chat_id"], stopped.get("title", ""), stopped.get("kind", ""), _iso(stopped.get("last_activity")),
+            f"stopped with unfinished work in session {entry['session_id']} ({entry['files']} files not on dev, "
+            f"WIP snapshot {worktree_wip.wip_ref(entry['session_id'])}): resume it to commit, test and deploy "
+            "(connector send_message); the nightly worktree check resumes it automatically",
+            stopped=True, resume=stopped.get("resume", ""), unfinished_session=entry["session_id"]))
+    return stalled
+
+
 def status_line(summary: dict) -> str:
     return (f"Chats: {summary['running']} running of max {summary['max_running']} "
             f"({summary['working']} working, {summary['idle_running']} idle but kept for an open question "
@@ -623,6 +710,8 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
     remaining = [chat for chat in live if chat.session_id not in chosen]
     for chat in cap_victims(remaining, now, config, own, room):
         plan.append((chat, Decision("stop", f"over the cap of {config['max_running']} running chats")))
+    plan, flagged = guard_unfinished(plan, directory, now, pressure=bool(getattr(args, "pressure", False)),
+                                     dry_run=args.dry_run)
     failed, stopped = 0, set()
     for chat, decision in plan:
         label = f"{chat.title or chat.name} ({chat.session_id[:8]}, pid {chat.pid})"
@@ -642,7 +731,10 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
     if not args.dry_run:
         save_registry(directory, registry)
         stalled = stalled_chats(left, registry, args.claude_home, now, directory, act=True)
-        write_status(directory, counts(left, registry, now, config, own, queued_launches()), registry, stalled)
+        stalled += [entry for entry in unfinished_stalled(registry)
+                    if entry["session_id"] not in {item["session_id"] for item in stalled}]
+        write_status(directory, counts(left, registry, now, config, own, queued_launches()), registry, stalled,
+                     flagged)
     return left, failed
 
 

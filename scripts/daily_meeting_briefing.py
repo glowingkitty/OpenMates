@@ -32,6 +32,7 @@ import daily_meeting_context as context  # noqa: E402 - sibling scripts, path se
 import mac_reminders  # noqa: E402
 import daily_meeting_growth  # noqa: E402
 import claude_idle_chats  # noqa: E402
+import worktree_wip  # noqa: E402
 
 TZ = ZoneInfo("Europe/Berlin")
 PHASE_ANCHOR = date(2026, 11, 2)  # Monday of the first Marketing Week; weeks alternate
@@ -500,6 +501,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     out += _alerts_section(ev.get("alerts") or {})
     out += daily_meeting_growth.render(ev.get("growth"))
     out += _waiting_section(ev.get("waiting_chats") or {})
+    out += ["", "## Unfinished work in worktrees (dev→main readiness)", "", *worktree_wip.briefing_lines()]
     product = ev.get("product") or {}
     if product:
         out += ["", "## About OpenMates", ""]
