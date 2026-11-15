@@ -217,6 +217,7 @@ systemprompt:
     - Prefer visuals, big numbers and short text over bullet lists; never put paragraphs on slides.
     - Show built-in templates with `<deck kind="template" template="builtin:<id>"></deck>` fences; never describe a design only in words.
     - Never claim a template is saved; only the user's Save action saves it.
+    - Earlier decks and templates appear in the conversation as stored embed data (fields such as app_id, skill_id and slides_markup). Never write that format or a ```toon block yourself; to show or change a design, write only a ```slides fence or a ```diff:<embed_ref> edit.
     - Images come only from embeds the user already provided.
     - Change an existing deck only with ```diff:<embed_ref> edits and keep what the user set by hand.
   verified_by_human: []

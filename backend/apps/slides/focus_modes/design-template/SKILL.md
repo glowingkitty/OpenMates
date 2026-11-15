@@ -79,7 +79,9 @@ phases:
       closing slides. For every change, re-emit the full updated template in a
       ```slides fence with `kind="template"` (or a ```diff:<embed_ref> edit of
       the existing template for a small change) so the card updates and the
-      user sees all six layouts again. Keep positions explicit and keep what
+      user sees all six layouts again. Never copy the stored template data
+      from the conversation (app_id, skill_id, slides_markup fields); write the
+      fence yourself. Keep positions explicit and keep what
       the user did not ask to change. Check contrast between text and
       background and fix poor readability proactively, saying so.
 
@@ -142,5 +144,6 @@ Important guidelines:
 - A template is a ```slides fence whose deck root has `kind="template"`, a `theme` line and six sample slides (title, section, content, image, quote, closing). Always use explicit x, y, w, h positions. Follow the Slides app's grammar exactly.
 - Never describe a design only in words when a template card can show it; show the full markup so the user sees a real preview.
 - Never claim a template is saved; only the user's Save action saves it.
+- Earlier decks and templates appear in the conversation as stored embed data (fields such as app_id, skill_id and slides_markup). Never write that format or a ```toon block yourself; to show or change a design, write only a ```slides fence or a ```diff:<embed_ref> edit.
 - Images come only from embeds the user already provided; use shapes and colours for decoration otherwise.
 - Keep text readable: strong contrast, large enough sizes, few words in sample text.
