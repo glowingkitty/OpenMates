@@ -100,6 +100,55 @@ async def test_unified_diff_changes_one_slide_and_deck_is_renormalised() -> None
     assert normalise_slides_markup(markup).markup == markup
 
 
+class _CachingDeckEmbedService(_DeckEmbedService):
+    """Like the real updater: caches the new encrypted content under the new version."""
+
+    def __init__(self, cache) -> None:
+        super().__init__()
+        self.cache = cache
+
+    async def update_deck_embed_content(self, **kwargs):
+        await super().update_deck_embed_content(**kwargs)
+        self.cache.embeds[kwargs["embed_id"]] = {
+            **self.cache.embeds[kwargs["embed_id"]],
+            "encrypted_content": "encrypted-v2", "version_number": kwargs["version_number"],
+        }
+        return True
+
+
+# contract-test: direct surface=rest_api assertions=slides.assistant.create-and-diff-edit
+@pytest.mark.anyio
+async def test_diff_edit_keeps_the_updated_content_in_cache() -> None:
+    from toon_format import encode
+
+    original = normalise_slides_markup(VALID).markup
+    lines = original.splitlines()
+    index = next(i for i, line in enumerate(lines) if 'id="e7"' in line)
+    patch = (
+        f"@@ -{index + 1},1 +{index + 1},1 @@\n"
+        f"-{lines[index]}\n"
+        f"+{lines[index].replace('Second', 'Renamed')}\n"
+    )
+    cache = _FakeCacheService({"deck-1": {
+        "embed_id": "deck-1", "type": "deck", "status": "finished",
+        "version_number": 1, "encrypted_content": "encrypted-v1",
+    }})
+    service = _CachingDeckEmbedService(cache)
+    result = await _apply_diff_block_to_existing_embed(
+        diff_content=patch, diff_embed_ref="q3-results-AbC", request_data=_request(),
+        cache_service=cache, directus_service=_FakeDirectusService(),
+        encryption_service=_FakeEncryptionService(encode({
+            "type": "deck", "slides_markup": original, "title": "Q3 results",
+            "slide_count": 2, "aspect": "16:9",
+        })),
+        embed_service=service, user_vault_key_id="vault-1", log_prefix="[test]",
+    )
+    assert service.updated is not None, result
+    assert "Renamed" in service.updated.markup
+    assert cache.embeds["deck-1"]["version_number"] == 2
+    assert cache.embeds["deck-1"]["encrypted_content"] == "encrypted-v2"
+
+
 class _PassThroughEncryption:
     async def encrypt_with_user_key(self, plaintext: str, _key_id: str):
         return f"encrypted:{len(plaintext)}", "v1"

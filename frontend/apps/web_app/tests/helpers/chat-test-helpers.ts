@@ -1291,13 +1291,9 @@ async function sendMessage(
 			diagnostics: await captureSendDiagnostics()
 		})}`);
 	};
+	// Only this send's own debug trail counts. A visible stop button can belong to the previous
+	// reply still streaming, which made follow-up sends wait 60-90 s before the fallback dispatch.
 	const sendAlreadyInProgress = async () => {
-		const stopButtonVisible = await page
-			.getByTestId('stop-processing-button')
-			.isVisible({ timeout: 500 })
-			.catch(() => false);
-		if (stopButtonVisible) return true;
-
 		const lastSendDebug = await readLastSendDebug();
 		const debug = typeof lastSendDebug === 'object' && lastSendDebug !== null
 			? lastSendDebug as { step?: unknown; timestamp?: unknown }

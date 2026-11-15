@@ -2554,13 +2554,10 @@ async def _apply_diff_block_to_existing_embed(
             log_prefix=log_prefix,
         )
 
-    cached_embed["version_number"] = new_version
-    await cache_service.set_embed_in_cache(
-        embed_id=target_embed_id,
-        embed_data=cached_embed,
-        chat_id=request_data.chat_id,
-    )
-
+    # Each update_*_embed_content above caches the new encrypted content with
+    # new_version. Re-caching the dict read before the patch here would put the
+    # old content back under the new version, so the next diff or a replay from
+    # cache would start from stale content.
     embed_ref_json = json.dumps({
         "type": embed_type,
         "embed_id": target_embed_id
