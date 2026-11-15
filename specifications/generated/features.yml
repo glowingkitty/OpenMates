@@ -10,9 +10,9 @@ summary:
   status_by_surface:
     web:
       live: 3
-      partial: 16
+      partial: 17
       failing: 58
-      not_run: 10
+      not_run: 9
       implemented: 19
       not_planned: 18
     apple:
@@ -8404,20 +8404,21 @@ features:
   assertions: 14
   surfaces:
     web:
-      status: not_run
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 1
         failing: 0
-        not_run: 2
+        not_run: 1
         missing: 12
         counted: 14
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/image-safety-explanations-real.spec.ts
-      key_unit_tests: []
-      unit_test_files: 0
+      key_unit_tests:
+      - backend/tests/test_generated_media_graph.py
+      unit_test_files: 1
     apple:
       status: planned
       source: intent

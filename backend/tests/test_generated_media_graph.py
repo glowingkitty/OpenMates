@@ -110,6 +110,76 @@ async def test_media_batch_seals_successful_children_and_notifies_once_after_par
     }
 
 
+# contract-test: supporting surface=gui.web assertions=safety-strikes.rejection-explained
+@pytest.mark.asyncio
+async def test_refused_media_slot_carries_its_explanation_to_card_and_assistant(monkeypatch):
+    """A safety refusal inside a batch keeps its reason, alternative and no-retry rule."""
+    parent_id = str(uuid.uuid4())
+    sent = []
+    callback = AsyncMock()
+
+    class FakeEmbedService:
+        def __init__(self, *_args):
+            pass
+
+        @staticmethod
+        def _registered_child_embed_id(embed_id, index):
+            return str(uuid.uuid5(uuid.UUID(embed_id), f"embed-child:{index}"))
+
+        async def send_embed_data_to_client(self, **kwargs):
+            sent.append(kwargs)
+            return True
+
+    embed_service_module = ModuleType("backend.core.api.app.services.embed_service")
+    embed_service_module.EmbedService = FakeEmbedService
+    monkeypatch.setitem(sys.modules, embed_service_module.__name__, embed_service_module)
+    continuation_module = ModuleType("backend.apps.ai.tasks.async_skill_continuation")
+    continuation_module.dispatch_async_skill_continuation = callback
+    monkeypatch.setitem(sys.modules, continuation_module.__name__, continuation_module)
+
+    class FakeTask:
+        request = SimpleNamespace(id=str(uuid.uuid4()))
+        _cache_service = object()
+        _directus_service = object()
+        _encryption_service = object()
+
+        async def initialize_core_services(self):
+            pass
+
+        async def cleanup_services(self):
+            pass
+
+    message = "Realistic images of minors aren't created. A clearly stylized version works."
+
+    async def generate_one(_task, _app_id, _skill_id, child_args):
+        return {
+            "embed_id": child_args["embed_id"], "status": "rejected", "error": "safety_rejection",
+            "category": "S5_minor_restricted_edit", "reason": "Realistic images of minors aren't created.",
+            "alternative": "A clearly stylized version works.", "user_facing_message": message,
+            "hard_limit": False, "instructions_to_llm": "Do not retry.", "do_not_retry": True, "strike": 1,
+        }
+
+    result = await run_generated_media_batch(
+        FakeTask(), app_id="images", skill_id="generate",
+        arguments={"embed_id": parent_id, "user_id": "user", "chat_id": "chat", "message_id": "message",
+                   "requests": [{"prompt": "a photo of a teenager"}]},
+        generate_one=generate_one,
+    )
+
+    assert result["status"] == "error"
+    parent_content = sent[-1]["content_toon"]
+    assert "Realistic images of minors" in parent_content
+    assert "output(s) could not be generated" not in parent_content
+    row = callback.await_args.kwargs["completed_results"][0]
+    assert row["status"] == "error"
+    assert row["error"] == message
+    assert row["error_code"] == "safety_rejected"
+    assert row["alternative"] == "A clearly stylized version works."
+    assert row["instructions_to_llm"] == "Do not retry."
+    assert row["do_not_retry"] is True
+    assert "strike" not in row
+
+
 # contract-test: supporting surface=gui.web assertions=app-skills.media.parent-children-and-attribution
 @pytest.mark.asyncio
 async def test_standalone_media_child_never_self_parents():

@@ -18,7 +18,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Web | 3 | 0 | 16 | 58 | 10 | 19 | 0 | 0 | 0 | 18 |
+| Web | 3 | 0 | 17 | 58 | 9 | 19 | 0 | 0 | 0 | 18 |
 | Apple | 0 | 14 | 30 | 10 | 0 | 40 | 6 | 5 | 0 | 19 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
 | CLI | 0 | 0 | 15 | 7 | 29 | 41 | 2 | 0 | 0 | 30 |
@@ -89,7 +89,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Public Example Chats](#public-example-chats) | **FAIL** 4/9 | tested 1/1 |  | not run 0/1 | — | not run 0/2 | — | — | on (no flag) | on (no flag) | v0.8.0-alpha |
 | [Public News, Blog, Press, and Social Publications](#public-publications) | **FAIL** 1/9 | — |  | — | — | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
 | [Queued Chat Follow-ups and Steering](#chat-queued-followups) | **FAIL** 0/5 | **FAIL** 3/5 |  | **FAIL** 0/5 | wip | partial 1/5 | — | — | on (no flag) | on (no flag) | untagged-main |
-| [Safety Strikes, Suspension, Appeal and Policy Account Deletion](#safety-strikes) | not run 0/14 | planned |  | — | — | partial 8/14 | — | — | on (no flag) | on (no flag) | unverified |
+| [Safety Strikes, Suspension, Appeal and Policy Account Deletion](#safety-strikes) | partial 1/14 | planned |  | — | — | partial 8/14 | — | — | on (no flag) | on (no flag) | unverified |
 | [Settings UI](#settings-ui) | **FAIL** 0/9 | partial 6/9 | not run 0/2 | — | impl | not run 0/1 | — | — | on (no flag) | on (no flag) | v0.8.0-alpha |
 | &nbsp;&nbsp;↳ Settings shell and routing | **FAIL** 0/1 | tested 1/1 | ? | — | ? | ? | — | — | | | |
 | &nbsp;&nbsp;↳ Navigation | **FAIL** 0/2 | tested 2/2 | not run 0/1 | — | ? | ? | — | — | | | |
@@ -2533,7 +2533,7 @@ Strikes, warnings, suspension and appeal when safety checks reject image or vide
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | not run 0/14 | 0 pass · 0 fail · 2 not run · 12 no test | [image-safety-explanations-real.spec.ts](../../frontend/apps/web_app/tests/image-safety-explanations-real.spec.ts) |
+| Web | partial 1/14 | 1 pass · 0 fail · 1 not run · 12 no test | [image-safety-explanations-real.spec.ts](../../frontend/apps/web_app/tests/image-safety-explanations-real.spec.ts)<br>1 unit test file(s), e.g. [test_generated_media_graph.py](../../backend/tests/test_generated_media_graph.py) |
 | Apple | planned | 0 pass · 0 fail · 0 not run · 14 no test | — |
 | CLI | — | 0 pass · 0 fail · 0 not run · 14 no test | — |
 | TUI | — | — | — |

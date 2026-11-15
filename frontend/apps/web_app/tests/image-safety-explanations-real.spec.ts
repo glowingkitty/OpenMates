@@ -65,7 +65,11 @@ async function expectRefusal(
 	testInfo: any
 ) {
 	await openImageActivity(answer, testInfo);
-	const card = answer.getByTestId('image-generate-error-text').first();
+	// A request's card is the generated-media group (one refused slot) or, for a
+	// single unbatched call, the image card itself.
+	const card = answer
+		.locator('[data-testid="generated-media-error-text"], [data-testid="image-generate-error-text"]')
+		.first();
 	await expect(card).toBeVisible({ timeout: ANSWER_TIMEOUT_MS });
 	await expect(card).toContainText(expected.reason);
 	await expect(card).toContainText(expected.alternative);
@@ -110,7 +114,9 @@ test.describe('image safety explanations (real dev inference)', () => {
 		await expect(minorStylized.getByTestId('image-generate-preview-image').first()).toBeVisible({
 			timeout: ANSWER_TIMEOUT_MS
 		});
-		await expect(minorStylized.getByTestId('image-generate-error-text')).toHaveCount(0);
+		await expect(
+			minorStylized.locator('[data-testid="generated-media-error-text"], [data-testid="image-generate-error-text"]')
+		).toHaveCount(0);
 		await testInfo.attach('drawn-stylized-minor', { body: await page.screenshot(), contentType: 'image/png' });
 		await screenshot(page, 'drawn-stylized-minor');
 
