@@ -92,6 +92,8 @@ pub(super) struct ProjectCreateState {
     adoptions: Vec<Value>,
     /// Assistant Memory write jobs of this turn (`memory_write_jobs`).
     pub(super) memory_jobs: super::memory_write_jobs::MemoryJobState,
+    /// Assistant remote commands on a machine source of this turn.
+    pub(super) remote_commands: super::remote_command_jobs::RemoteCommandState,
     /// The shell's answer to a machine confirmation card of this turn.
     pub(super) machine_decision: Option<MachineProjectDecision>,
 }
@@ -172,6 +174,7 @@ impl Wipe for ProjectCreateState {
         self.file_jobs.clear();
         self.adoptions.clear();
         self.memory_jobs.clear();
+        super::plaintext::Wipe::wipe(&mut self.remote_commands);
     }
 }
 
@@ -227,6 +230,18 @@ impl Client {
             return self
                 .project_file_job_event(ws, kind, event, chat, &mut state.file_jobs)
                 .await;
+        }
+        #[cfg(all(feature = "workflow-yaml", unix))]
+        if super::remote_command_jobs::is_frame(kind) {
+            // Boxed like Memory jobs: keeps this rare path off every send future's stack.
+            return Box::pin(self.remote_command_event(
+                ws,
+                kind,
+                event,
+                chat,
+                &mut state.remote_commands,
+            ))
+            .await;
         }
         #[cfg(all(feature = "workflow-yaml", unix))]
         if kind == super::project_embed_adoption::TURN_ADOPTION_KIND {

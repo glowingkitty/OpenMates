@@ -15,11 +15,43 @@ use std::collections::{BTreeMap, HashSet};
 /// whose parent never streamed in this turn is kept, so persistence still
 /// reports its missing parent key as before.
 pub(in crate::client) fn drop_unfinished(rows: &mut BTreeMap<String, Value>) {
-    let mut removed: HashSet<String> = rows
+    let removed: HashSet<String> = rows
         .iter()
         .filter(|(_, row)| row.get("status").and_then(Value::as_str) == Some("processing"))
         .map(|(id, _)| id.clone())
         .collect();
+    drop_with_descendants(rows, removed);
+}
+
+/// Remove rows of another turn of this chat, and their descendants: a row
+/// that names no task and belongs to a message other than `message` (the
+/// turn's assistant message). The server re-delivers such rows to every new
+/// socket of the owner until some client stores them, e.g. the outputs a
+/// turn produced after its client went offline. They are that turn's output,
+/// recovered through its own replay, so this turn never persists them under
+/// its receipt. A row naming a task is left in place: persistence still
+/// refuses one that names another task.
+pub(in crate::client) fn drop_other_turns(rows: &mut BTreeMap<String, Value>, message: &str) {
+    let text = |row: &Value, key: &str| {
+        row.get(key)
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_owned()
+    };
+    let removed: HashSet<String> = rows
+        .iter()
+        .filter(|(_, row)| {
+            let owner = text(row, "message_id");
+            text(row, "task_id").is_empty() && !owner.is_empty() && owner != message
+        })
+        .map(|(id, _)| id.clone())
+        .collect();
+    drop_with_descendants(rows, removed);
+}
+
+/// Remove `removed` and every row below one of them (a child is keyed by its
+/// parent, so it cannot be persisted without it).
+fn drop_with_descendants(rows: &mut BTreeMap<String, Value>, mut removed: HashSet<String>) {
     // Chains are short (persistence caps a turn at 100 rows); repeat until no
     // row hangs below a removed parent.
     loop {

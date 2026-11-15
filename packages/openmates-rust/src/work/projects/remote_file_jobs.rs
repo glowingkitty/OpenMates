@@ -123,6 +123,16 @@ impl Projects<'_> {
             }),
         }
     }
+
+    /// The Project key of `project_id` in the current scope, for the origin
+    /// side of a remote command (sealing the approved request, opening the
+    /// host's events). It never leaves the core.
+    ///
+    /// # Errors
+    /// Resolution errors (`NotFound`, `Forbidden`, transport, `Crypto`).
+    pub(crate) async fn project_key_for_command(&mut self, project_id: &str) -> Result<Key> {
+        Ok(self.resolve(project_id).await?.key)
+    }
 }
 
 #[cfg(test)]

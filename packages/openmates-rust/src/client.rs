@@ -205,6 +205,7 @@ pub mod system_event_line;
 pub mod server_region;
 pub mod memory_write_job_bridge;
 mod project_file_jobs;
+mod remote_command_jobs;
 use memory_write_jobs::MEMORY_WRITE_JOBS_CAPABILITY;
 use project_file_jobs::{PROJECT_FILE_JOBS_AVAILABLE, PROJECT_FILE_JOBS_CAPABILITY};
 #[cfg(all(feature = "workflow-yaml", unix))]

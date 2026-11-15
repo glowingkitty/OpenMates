@@ -107,6 +107,14 @@ async fn adopt_turn_embeds<P: SavedTurnClientPhases>(
     }
     Ok(())
 }
+/// True for a remote command frame (review, event, response) of this turn's
+/// chat; only a send that runs Project file jobs declares the capability.
+fn routes_remote_command_frame(options: &SendOptions, kind: &str, frame: &Value, chat: &str) -> bool {
+    options.project_file_jobs
+        && PROJECT_FILE_JOBS_AVAILABLE
+        && crate::client::remote_command_jobs::is_frame(kind)
+        && (text(frame, "chat_id") == chat || text(frame, "chat_id").is_empty())
+}
 /// True for a Memory write job frame of this turn's chat that this send handles,
 /// in the stream and among the trailing frames alike.
 fn routes_memory_job_frame(options: &SendOptions, kind: &str, frame: &Value, chat: &str) -> bool {
@@ -348,6 +356,16 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
                 trace.phase = SendPhase::FrameValidation;
                 for notice in observed.project_create.file_jobs.take_notices() {
+                    phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Status(notice)).await?;
+                }
+            }
+            if routes_remote_command_frame(options, &kind, &p, id) {
+                // code.run on a machine source waits for our approval and completion.
+                observed.project_create.remote_commands.approve = options.approve_project_file_writes;
+                trace.phase = SendPhase::ProjectPhase;
+                phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
+                trace.phase = SendPhase::FrameValidation;
+                for notice in observed.project_create.remote_commands.take_notices() {
                     phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Status(notice)).await?;
                 }
             }

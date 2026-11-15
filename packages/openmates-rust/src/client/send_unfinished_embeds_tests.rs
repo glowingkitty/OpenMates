@@ -1,7 +1,7 @@
 //! A turn persists only finished streamed embeds; processing placeholders and
 //! their descendants are left to the sealed recovery replay.
 
-use super::drop_unfinished;
+use super::{drop_other_turns, drop_unfinished};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
@@ -74,4 +74,32 @@ fn rows_without_status_are_kept() {
     let mut turn = rows(&[("legacy", json!({"content": "type: code"}))]);
     drop_unfinished(&mut turn);
     assert!(turn.contains_key("legacy"));
+}
+
+// contract-test: supporting surface=sdks.rust assertions=chats.surface.semantic-parity
+#[test]
+fn a_late_row_of_another_turn_is_left_out_with_its_children() {
+    let mut turn = rows(&[
+        ("mine", json!({"message_id": "assistant", "task_id": ""})),
+        ("tasked", json!({"message_id": "human", "task_id": "task"})),
+        (
+            "late",
+            json!({"message_id": "earlier-human", "task_id": ""}),
+        ),
+        (
+            "late-child",
+            json!({"message_id": "earlier-human", "task_id": "", "parent_embed_id": "late"}),
+        ),
+        (
+            "other-task",
+            json!({"message_id": "earlier-human", "task_id": "other"}),
+        ),
+        ("unowned", json!({"task_id": ""})),
+    ]);
+    drop_other_turns(&mut turn, "assistant");
+    // A row naming a task, or naming no message, stays for persistence to judge.
+    assert_eq!(
+        turn.keys().collect::<Vec<_>>(),
+        ["mine", "other-task", "tasked", "unowned"]
+    );
 }
