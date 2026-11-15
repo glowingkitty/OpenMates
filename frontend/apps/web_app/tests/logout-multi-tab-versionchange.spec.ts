@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // proof-video: not_required reason=visual_smoke_not_needed (request-count and session-state check; the Playwright video is kept)
 /**
- * Default (TypeScript) logout with two tabs open. Tab B holds open IndexedDB
+ * Logout with two tabs open. Tab B holds open IndexedDB
  * connections; they must close on versionchange so tab A's database deletion is
  * not blocked. Server logout is sent exactly once and tab B ends logged out.
  */
@@ -19,8 +19,6 @@ test('logout with a second tab open sends one server logout and logs out both ta
 	test.slow();
 	test.setTimeout(240000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
-	// Pin the default TypeScript auth path even on Rust-core builds.
-	await context.addInitScript(() => localStorage.setItem('openmates_rust_auth', 'ts'));
 
 	const logoutRequests: string[] = [];
 	const track = (target: any) => target.on('request', (request: any) => {

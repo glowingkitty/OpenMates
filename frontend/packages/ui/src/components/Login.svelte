@@ -1130,7 +1130,7 @@
             // CRITICAL: Check if user is in signup flow based on last_opened
             // This ensures signup state is preserved after login
             // Note: userData is already declared above, so we reuse it
-            if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(userData?.last_opened);
+            await primeSignupLocation(userData?.last_opened);
             const inSignupFlow = userData?.last_opened ? isSignupPath(userData.last_opened) : false;
 
             email = '';
@@ -1719,7 +1719,7 @@
             // Dispatch login success
             // CRITICAL: Check if user is in signup flow based on last_opened
             // This ensures signup state is preserved after login
-            if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(userData?.last_opened);
+            await primeSignupLocation(userData?.last_opened);
             const inSignupFlow = userData?.last_opened ? isSignupPath(userData.last_opened) : false;
 
             email = '';
@@ -2506,7 +2506,7 @@
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
                                                         // (the actual OTP setup step, not the app reminder step)
-                                                        if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(e.detail.user?.last_opened);
+                                                        await primeSignupLocation(e.detail.user?.last_opened);
                                                         const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;
@@ -2572,7 +2572,7 @@
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
                                                         // (the actual OTP setup step, not the app reminder step)
-                                                        if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(e.detail.user?.last_opened);
+                                                        await primeSignupLocation(e.detail.user?.last_opened);
                                                         const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;
@@ -2615,7 +2615,7 @@
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
                                                         // (the actual OTP setup step, not the app reminder step)
-                                                        if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(e.detail.user?.last_opened);
+                                                        await primeSignupLocation(e.detail.user?.last_opened);
                                                         const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;

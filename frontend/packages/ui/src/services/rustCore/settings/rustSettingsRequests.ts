@@ -1,17 +1,15 @@
 /**
- * Flag-on (VITE_OPENMATES_RUST_CORE) decisions of the app settings/memories
- * permission request handler: the page adapter over the shared Rust core Worker
- * `settings` unit. Loaded only through appSettingsRequestDecisions.ts, whose
- * guarded branch default builds drop.
+ * Decisions of the app settings/memories permission request handler: the page
+ * adapter over the shared Rust core Worker `settings` unit (no TypeScript twin).
  *
  * Rust (web_settings.rs) decides dialog categories, the answered
  * guard and the persisted request message; the page passes facts in and keeps
  * IndexedDB, the decrypted entry store and the dialog.
  */
 import type { RequestCategory } from '../../appSettingsRequestPolicy';
-import type { ConfirmOutcome, ResponseCategory, ResponseKeyPlan } from '../../appSettingsResponsePolicy';
-import type { PrivacyEntryPlan } from '../../privacyEntryPolicy';
-import type { SettingsRequestMessageOutcome } from './settingsProtocol';
+import type {
+	ConfirmOutcome, PrivacyEntryPlan, ResponseCategory, ResponseKeyPlan, SettingsRequestMessageOutcome,
+} from './settingsProtocol';
 import { settingsCall } from './settingsClient';
 
 export async function rustPlanRequestCategories(

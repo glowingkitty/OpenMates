@@ -63,7 +63,7 @@ import {
 // Import auth types
 import type { LoginResult, LogoutCallbacks } from "./authTypes";
 import { getSessionId } from "../utils/sessionId";
-import { rustAnnounceLogout, rustAuthEnabled, rustLogoutMayDeleteCookies, rustLogoutServer } from "../services/rustCore/authOperation";
+import { rustAnnounceLogout, rustLogoutMayDeleteCookies, rustLogoutServer } from "../services/rustCore/authOperation";
 import { loginResultForVerdict, resumeDebugSessionRust, rustLoginVerdict } from "../services/rustCore/auth/actionsPush";
 
 // Login session generation counter.
@@ -157,13 +157,11 @@ export function resetLocalLogoutState(): void {
     } catch { /* Storage may be unavailable in a restricted browser context. */ }
   }
   clearProjectFilePrivacyStorage();
-  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
-    // The Worker hidden vault (secret, master-key handle, lockout) belongs to this
-    // account and is dropped even while a lockout is active.
-    void import("../services/rustCore/chatState/rustHiddenChat").then((rust) => rust.rustHiddenRelease()).catch((error) => {
-      console.error("[AuthStore] Failed to release the Rust hidden-chat vault:", error);
-    });
-  }
+  // The Worker hidden vault (secret, master-key handle, lockout) belongs to this
+  // account and is dropped even while a lockout is active.
+  void import("../services/rustCore/chatState/rustHiddenChat").then((rust) => rust.rustHiddenRelease()).catch((error) => {
+    console.error("[AuthStore] Failed to release the Rust hidden-chat vault:", error);
+  });
   chatDB.clearAllChatKeys();
   resetChatNavigationList();
   const isOgImageModeLogout =
@@ -261,12 +259,10 @@ export async function login(
   stayLoggedIn: boolean = false,
   loginMethod?: string, // e.g. "pair" — signals to backend to bypass 2FA for strong auth methods
 ): Promise<LoginResult> {
-  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
-    // A new login may be a different account: never reuse the previous vault.
-    await import("../services/rustCore/chatState/rustHiddenChat").then((rust) => rust.rustHiddenRelease()).catch((error) => {
-      console.error("[AuthStore] Failed to release the Rust hidden-chat vault before login:", error);
-    });
-  }
+  // A new login may be a different account: never reuse the previous vault.
+  await import("../services/rustCore/chatState/rustHiddenChat").then((rust) => rust.rustHiddenRelease()).catch((error) => {
+    console.error("[AuthStore] Failed to release the Rust hidden-chat vault before login:", error);
+  });
   try {
     const requestBody: Record<string, string | boolean> = {
       hashed_email,
@@ -297,12 +293,10 @@ export async function login(
       credentials: "include",
     });
 
-    if (rustAuthEnabled()) {
-      // Flag builds: Rust classifies the reply (429, malformed, 2FA, failure); the
-      // clone leaves the body readable for the success path below.
-      const verdict = await rustLoginVerdict(response.status, await response.clone().text(), !!tfaCode);
-      if (verdict.kind !== "success") return loginResultForVerdict(verdict);
-    }
+    // Rust classifies the reply (429, malformed, 2FA, failure); the clone leaves
+    // the body readable for the success path below.
+    const verdict = await rustLoginVerdict(response.status, await response.clone().text(), !!tfaCode);
+    if (verdict.kind !== "success") return loginResultForVerdict(verdict);
 
     if (response.status === 429) {
       return {
@@ -329,7 +323,7 @@ export async function login(
         // Check if user exists before accessing last_opened
         // A user is in signup flow only if last_opened explicitly indicates signup
         // Do not infer signup from tfa_enabled=false (passkey users may not use OTP)
-        if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") await primeSignupLocation(data.user?.last_opened);
+        await primeSignupLocation(data.user?.last_opened);
         const inSignupFlow = isSignupPath(data.user?.last_opened);
 
         if (inSignupFlow) {
@@ -520,28 +514,10 @@ export async function login(
         // forwarder from starting — a DB error is non-fatal for log forwarding.
         if (data.user?.is_admin || isDevEnvironment()) {
           clientLogForwarder.start();
-        } else if (rustAuthEnabled()) {
-          // Flag builds: Rust decides whether the stored debug session resumes.
+        } else {
+          // Rust decides whether the stored debug session resumes.
           try {
             await resumeDebugSessionRust((id) => clientLogForwarder.startDebugSession(id));
-          } catch {
-            // Non-critical — debug session resume is best-effort
-          }
-        } else {
-          // Non-admin on prod: resume debug log sharing session if one was active
-          try {
-            const debugSession = localStorage.getItem("debug_session");
-            if (debugSession) {
-              const parsed = JSON.parse(debugSession);
-              const expiresAt = parsed.expires_at
-                ? new Date(parsed.expires_at).getTime()
-                : Infinity;
-              if (expiresAt > Date.now() && parsed.debugging_id) {
-                clientLogForwarder.startDebugSession(parsed.debugging_id);
-              } else {
-                localStorage.removeItem("debug_session");
-              }
-            }
           } catch {
             // Non-critical — debug session resume is best-effort
           }
@@ -671,18 +647,16 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         if (typeof localStorage !== "undefined") {
           localStorage.setItem("openmates_needs_cleanup", "true");
         }
-        if (rustAuthEnabled()) {
-          // Flag builds: peer tabs drop their local session now and release
-          // their database connections before this tab deletes the databases.
-          await rustAnnounceLogout({
-            captured: logoutGeneration,
-            current: () => loginSessionGeneration,
-            skipServerLogout: callbacks?.skipServerLogout === true,
-            policyViolation: callbacks?.isPolicyViolation === true,
-          }).catch((error: unknown) =>
-            console.warn("[AuthStore] Cross-tab logout notice failed:", error),
-          );
-        }
+        // Peer tabs drop their local session now and release their database
+        // connections before this tab deletes the databases.
+        await rustAnnounceLogout({
+          captured: logoutGeneration,
+          current: () => loginSessionGeneration,
+          skipServerLogout: callbacks?.skipServerLogout === true,
+          policyViolation: callbacks?.isPolicyViolation === true,
+        }).catch((error: unknown) =>
+          console.warn("[AuthStore] Cross-tab logout notice failed:", error),
+        );
 
         // Mark both databases as deleting before a fast re-login can start sync
         // and advertise stale local chat or embed IDs to the server.
@@ -757,107 +731,36 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
         // Perform server logout - this ensures the backend is notified even if it's slow
         // If the server is unreachable, the request will fail gracefully and not affect the user
-        if (rustAuthEnabled()) {
-          // Rust picks the request (same endpoint, headers and no body) and the
-          // page sends it; peer tabs were told at the start of this cleanup.
-          const rustAbortController = new AbortController();
-          const rustTimeoutId = setTimeout(() => rustAbortController.abort(), 10_000);
-          try {
-            const sent = await rustLogoutServer({
-              captured: logoutGeneration,
-              current: () => loginSessionGeneration,
-              skipServerLogout: callbacks?.skipServerLogout === true,
-              policyViolation: callbacks?.isPolicyViolation === true,
-              signal: rustAbortController.signal,
-            });
-            if (sent.kind === "sent" && !sent.ok) {
-              console.error("Server logout request failed:", sent.status);
-            }
-          } catch (e) {
-            console.error(
-              "[AuthStore] Server logout API call failed (user already logged out locally):",
-              e,
-            );
-            if (callbacks?.onError) await callbacks.onError(e);
-          } finally {
-            clearTimeout(rustTimeoutId);
+        // Rust picks the request (same endpoint, headers and no body) and the
+        // page sends it; peer tabs were told at the start of this cleanup.
+        const rustAbortController = new AbortController();
+        const rustTimeoutId = setTimeout(() => rustAbortController.abort(), 10_000);
+        try {
+          const sent = await rustLogoutServer({
+            captured: logoutGeneration,
+            current: () => loginSessionGeneration,
+            skipServerLogout: callbacks?.skipServerLogout === true,
+            policyViolation: callbacks?.isPolicyViolation === true,
+            signal: rustAbortController.signal,
+          });
+          if (sent.kind === "sent" && !sent.ok) {
+            console.error("Server logout request failed:", sent.status);
           }
-        } else if (!callbacks?.skipServerLogout) {
-          try {
-            const logoutApiUrl = getApiEndpoint(apiEndpoints.auth.logout);
-            // Use AbortController with 10s timeout to prevent the fetch from hanging
-            // indefinitely during device sleep/wake when the network is still recovering.
-            // Without this, the afterServerCleanup callback (which resets forcedLogoutInProgress)
-            // may never run, leaving the app stuck in a permanent "logout in progress" state.
-            const logoutAbortController = new AbortController();
-            const logoutTimeoutId = setTimeout(() => {
-              logoutAbortController.abort();
-              console.warn(
-                "[AuthStore] Server logout request timed out after 10s — aborting",
-              );
-            }, 10_000);
-            try {
-              const response = await fetch(logoutApiUrl, {
-                method: "POST",
-                credentials: "include", // Include cookies with request
-                headers: { "Content-Type": "application/json" },
-                signal: logoutAbortController.signal,
-              });
-              if (!response.ok) {
-                console.error(
-                  "Server logout request failed:",
-                  response.statusText,
-                );
-              }
-            } finally {
-              clearTimeout(logoutTimeoutId);
-            }
-          } catch (e) {
-            console.error(
-              "[AuthStore] Server logout API call or URL resolution failed (user already logged out locally):",
-              e,
-            );
-            if (callbacks?.onError) await callbacks.onError(e);
-          }
-        } else if (callbacks?.isPolicyViolation) {
-          try {
-            const policyLogoutApiUrl = getApiEndpoint(
-              apiEndpoints.auth.policyViolationLogout,
-            );
-            const policyAbortController = new AbortController();
-            const policyTimeoutId = setTimeout(() => {
-              policyAbortController.abort();
-              console.warn(
-                "[AuthStore] Policy violation logout request timed out after 10s — aborting",
-              );
-            }, 10_000);
-            try {
-              await fetch(policyLogoutApiUrl, {
-                method: "POST",
-                credentials: "include", // Include cookies with request
-                headers: { "Content-Type": "application/json" },
-                signal: policyAbortController.signal,
-              });
-            } finally {
-              clearTimeout(policyTimeoutId);
-            }
-          } catch (e) {
-            console.error(
-              "[AuthStore] Policy violation logout API call failed (user already logged out locally):",
-              e,
-            );
-            if (callbacks?.onError) await callbacks.onError(e);
-          }
+        } catch (e) {
+          console.error(
+            "[AuthStore] Server logout API call failed (user already logged out locally):",
+            e,
+          );
+          if (callbacks?.onError) await callbacks.onError(e);
+        } finally {
+          clearTimeout(rustTimeoutId);
         }
+
 
         // RACE CONDITION CHECK (post-fetch): A login may have succeeded while the
         // server logout request was in flight. Skip cookie deletion to keep the
         // new session's cookies intact.
-        if (
-          rustAuthEnabled()
-            ? !(await rustMayDeleteCookies(logoutGeneration))
-            : loginSessionGeneration !== logoutGeneration
-        ) {
+        if (!(await rustMayDeleteCookies(logoutGeneration))) {
           console.warn(
             `[AuthStore] New login detected after server logout fetch (gen ${logoutGeneration} → ${loginSessionGeneration}) — skipping cookie deletion to protect new session`,
           );
@@ -873,11 +776,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         );
         if (callbacks?.onError) await callbacks.onError(serverError);
         // Only delete cookies if no new login happened
-        if (
-          rustAuthEnabled()
-            ? await rustMayDeleteCookies(logoutGeneration)
-            : loginSessionGeneration === logoutGeneration
-        ) {
+        if (await rustMayDeleteCookies(logoutGeneration)) {
           deleteAllCookies();
         }
       }
@@ -916,13 +815,11 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
       invalidateWorkspaceCaches();
       chatMetadataCache.clearAll();
       chatDB.clearAllChatKeys();
-      if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
-        // The Worker hidden vault (secret, master-key handle, lockout) belongs to this
-        // account and is dropped even while a lockout is active.
-        void import("../services/rustCore/chatState/rustHiddenChat").then((rust) => rust.rustHiddenRelease()).catch((error) => {
-          console.error("[AuthStore] Failed to release the Rust hidden-chat vault:", error);
-        });
-      }
+      // The Worker hidden vault (secret, master-key handle, lockout) belongs to this
+      // account and is dropped even while a lockout is active.
+      void import("../services/rustCore/chatState/rustHiddenChat").then((rust) => rust.rustHiddenRelease()).catch((error) => {
+        console.error("[AuthStore] Failed to release the Rust hidden-chat vault:", error);
+      });
       clearAllSharedChatKeys().catch(() => {});
       // CRITICAL: Clear session_id from sessionStorage for security
       // This ensures session_id is removed even if logout fails

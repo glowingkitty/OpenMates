@@ -2,7 +2,8 @@
 // router and installer over a scripted binding (the Rust decisions themselves
 // are proven by web_connected_accounts_tests.rs over the TS vectors) and the
 // flag-on page adapter following those decisions with no TypeScript fallback.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { vi, afterEach, beforeEach, describe, expect, it } from 'vitest';
+vi.unmock('../settings/settingsClient');
 import { createSharedCoreClient, registerSharedRustCore, type SharedWorkerEndpoint } from '../host/sharedCoreRegistry';
 import { createSharedWorkerRouter } from '../host/sharedWorkerProtocol';
 import { UnitRefusal } from '../host/unitPort';

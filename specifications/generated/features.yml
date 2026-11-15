@@ -20030,6 +20030,1585 @@ features:
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0
+  notes: 'Sub-feature cells mirror the per-shell status in docs/migration/rust/capabilities.yml (authoritative): implemented
+    = rust-only or stays-shell, in_progress = rust-default or rust-twin, planned = TypeScript or Swift only. CLI cells stay
+    in_progress until the npm CLI runs the native Rust handler by default (docs/migration/rust/cli.yml).'
+  subfeatures:
+  - id: core-transport
+    name: 'Core: WebSocket/REST connect, auth handshake, reconnect, message routing'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-crypto-keys
+    name: 'Core: key derivation, wrapping, chat/embed keys, AES-GCM, share-link and notification-preview decrypt'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-credential-storage
+    name: 'Core: persisting the credential snapshot in the platform secure store'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-auth-session
+    name: 'Core: login, session validation, pairing (OPAQUE), logout fences'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-sync
+    name: 'Core: phased startup sync, cursor feed, reconnect catch-up, deletion authority'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-local-cache
+    name: 'Core: encrypted local cache model, partitioning, retention, migrations'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-chat-list
+    name: 'Core: ordered chat list view model, pins, unread, hidden chats'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-chat-window
+    name: 'Core: bounded message window, paging, full read'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-send
+    name: 'Core: send preparation, outbox, queued follow-ups, background send'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-streaming
+    name: 'Core: AI stream events, cancellation'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-completion-recovery
+    name: 'Core: completion and metadata recovery after disconnect/relaunch'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-drafts
+    name: 'Core: encrypted drafts, draft-only chats, draft sync'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-search
+    name: 'Core: chat/message search and index policy'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-embeds
+    name: 'Core: embed read, write, versions and patches'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-transfer
+    name: 'Core: uploads, media fetch, pending uploads'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-composer-parse
+    name: 'Core: mentions, message parsing, composer suggestions logic'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-apps-skills
+    name: 'Core: app/skill inventory and invocation'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-settings
+    name: 'Core: app settings and memories requests/policy'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-projects-tasks-teams
+    name: 'Core: projects, tasks, workflows, team workspace context'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-anonymous-public-chats
+    name: 'Core: anonymous chats, public examples, free usage'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: in_progress
+        source: intent
+        intent: in_progress
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: core-watch-runtime
+    name: 'Core: watchOS chat runtime'
+    description: null
+    assertion_ids: []
+    surfaces:
+      web:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      tui:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
 - id: connected-accounts
   name: Connected Accounts
   kind: platform

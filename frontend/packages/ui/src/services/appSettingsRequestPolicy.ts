@@ -1,12 +1,8 @@
 /**
- * Pure decisions of the app settings/memories permission request handler
- * (chatSyncServiceHandlersAppSettings.ts), extracted unchanged so the flag-off
- * build keeps this TypeScript behaviour and the flag-on build asks the shared
- * Rust `settings` unit instead (web_settings.rs). The TS-generated vectors in
- * packages/openmates-rust/src/web_settings_ts_vectors.json pin both sides.
- *
- * No imports: the module must stay dependency-free so the vector generator can
- * load it directly.
+ * Dialog category shape and display helpers of the app settings/memories
+ * permission request. Category planning and the answered guard live in the
+ * shared Rust `settings` unit (rustCore/settings); these helpers only format
+ * the memory dialog rows the shell builds itself.
  */
 
 export interface RequestCategory {
@@ -52,52 +48,4 @@ export function getAppGradient(appId: string): string {
   };
   // Own keys only: ids such as "constructor" must not resolve to Object.prototype members.
   return Object.prototype.hasOwnProperty.call(gradientMap, appId) ? gradientMap[appId] : DEFAULT_GRADIENT;
-}
-
-/**
- * Categories (and their valid keys) of a server request: malformed keys and
- * keys without stored entries are skipped. `entryCounts` maps key -> count.
- */
-export function planRequestCategories(
-  requestedKeys: string[],
-  entryCounts: ReadonlyMap<string, number>,
-): { categories: RequestCategory[]; validKeys: string[] } {
-  const categories: RequestCategory[] = [];
-  const validKeys: string[] = [];
-  for (const key of requestedKeys) {
-    const dashIndex = key.indexOf("-");
-    if (dashIndex === -1) continue;
-    const appId = key.substring(0, dashIndex);
-    const itemType = key.substring(dashIndex + 1);
-    if (!appId || !itemType) continue;
-    const entryCount = entryCounts.get(key) || 0;
-    if (entryCount === 0) continue;
-    validKeys.push(key);
-    categories.push({
-      key,
-      appId,
-      itemType,
-      displayName: formatDisplayName(itemType),
-      entryCount,
-      iconGradient: getAppGradient(appId),
-      selected: true,
-    });
-  }
-  return { categories, validKeys };
-}
-
-/** True when a system message already answers the request of `userMessageId`. */
-export function isRequestAnswered(systemContents: string[], userMessageId: string): boolean {
-  return systemContents.some((content) => {
-    if (!content) return false;
-    try {
-      const parsed = JSON.parse(content);
-      return (
-        parsed.type === "app_settings_memories_response" &&
-        parsed.user_message_id === userMessageId
-      );
-    } catch {
-      return false;
-    }
-  });
 }

@@ -28,7 +28,7 @@ vi.mock('../../authOperation', () => ({ rustAuthFlow: (name: string, args: Recor
 // The adapter loads authOperation lazily, so pushes arrive after a few macrotasks.
 const flush = async () => { for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0)); };
 
-beforeEach(() => { vi.stubEnv('VITE_OPENMATES_RUST_CORE', '1'); vi.resetModules(); rustAuthFlow.mockClear(); });
+beforeEach(() => { vi.resetModules(); rustAuthFlow.mockClear(); });
 afterEach(() => { vi.unstubAllEnvs(); sessionStorage.clear(); });
 
 describe('signup push cache', () => {
@@ -134,15 +134,5 @@ describe('2FA apps push', () => {
 		const list = TFA_REPLY;
 		expect(Array.from(tfaApps)).toEqual(list.map((app) => app.name));
 		expect(tfaAppIcons).toEqual(Object.fromEntries(list.map((app) => [app.name, app.icon])));
-	});
-});
-
-describe('flag-off bundle surface', () => {
-	it('selects the TypeScript path when localStorage pins "ts"', async () => {
-		localStorage.setItem('openmates_rust_auth', 'ts');
-		const { isSignupPath } = await import('../../../../stores/signupState');
-		expect(isSignupPath('#signup/basics')).toBe(true);
-		expect(rustAuthFlow).not.toHaveBeenCalled();
-		localStorage.removeItem('openmates_rust_auth');
 	});
 });

@@ -1,6 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 
+// The pair policy runs in the Rust core; this suite pins the store lifecycle
+// (restricted until cleanup finishes) against a deterministic stand-in.
+vi.mock('../../services/rustCore/auth/flowPush', () => ({
+  authFlowActive: () => true,
+  FAIL_CLOSED_PAIR_STATE: { isPairSession: true, authorizerDeviceName: null, autoLogoutAt: null, autoLogoutWarning: false, remainingSeconds: null },
+  NEUTRAL_PAIR_STATE: { isPairSession: false, authorizerDeviceName: null, autoLogoutAt: null, autoLogoutWarning: false, remainingSeconds: null },
+  pairActivate: async (opts: { authorizerDeviceName?: string | null; autoLogoutMinutes?: number | null; pairExpiresAt?: number | null }, now: number) => ({
+    isPairSession: true, establishedAt: now, authorizerDeviceName: opts.authorizerDeviceName ?? null,
+    autoLogoutMinutes: opts.autoLogoutMinutes ?? null,
+    autoLogoutAt: opts.pairExpiresAt != null ? opts.pairExpiresAt * 1000 : null,
+  }),
+  pairAutoLogoutDue: async (data: { autoLogoutAt: number | null }, now: number) => !!data.autoLogoutAt && now >= data.autoLogoutAt,
+  pushPairView: (data: { authorizerDeviceName: string | null; autoLogoutAt: number | null } | null, _now: number, set: (view: unknown) => void) => {
+    set(data
+      ? { isPairSession: true, authorizerDeviceName: data.authorizerDeviceName, autoLogoutAt: data.autoLogoutAt, autoLogoutWarning: false, remainingSeconds: null }
+      : { isPairSession: false, authorizerDeviceName: null, autoLogoutAt: null, autoLogoutWarning: false, remainingSeconds: null });
+  },
+}));
+
 describe('paired session absolute deadline', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -42,6 +61,7 @@ describe('paired session absolute deadline', () => {
     const callback = vi.fn(() => new Promise<void>(resolve => { finishCleanup = resolve; }));
     store.registerPairLogoutCallback(callback);
     const rehydration = store.rehydratePairSession();
+    await vi.advanceTimersByTimeAsync(0);
     expect(callback).toHaveBeenCalledOnce();
     expect(get(store.pairSessionState).isPairSession).toBe(true);
     finishCleanup();

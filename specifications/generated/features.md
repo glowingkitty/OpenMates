@@ -199,6 +199,27 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Deterministic Daily Security Reporting](#security-reporting) | — | — |  | — | — | — | — | — | on (no flag) | on (no flag) | unverified |
 | [Object Storage Outage Resilience](#storage-resilience) | — | — |  | not run 0/6 | — | not run 0/6 | — | — | on (no flag) | on (no flag) | unverified |
 | [One Rust Client Core, Three Thin Shells](#client-core) | impl | partial 5/12 |  | impl | impl | — | — | — | on (no flag) | on (no flag) | unverified |
+| &nbsp;&nbsp;↳ Core: WebSocket/REST connect, auth handshake, reconnect, message routing | impl | wip |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: key derivation, wrapping, chat/embed keys, AES-GCM, share-link and notification-preview decrypt | wip | wip |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: persisting the credential snapshot in the platform secure store | impl | impl |  | impl | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: login, session validation, pairing (OPAQUE), logout fences | impl | wip |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: phased startup sync, cursor feed, reconnect catch-up, deletion authority | wip | planned |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: encrypted local cache model, partitioning, retention, migrations | impl | wip |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: ordered chat list view model, pins, unread, hidden chats | impl | wip |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: bounded message window, paging, full read | planned | wip |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: send preparation, outbox, queued follow-ups, background send | wip | wip |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: AI stream events, cancellation | planned | wip |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: completion and metadata recovery after disconnect/relaunch | planned | planned |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: encrypted drafts, draft-only chats, draft sync | wip | wip |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: chat/message search and index policy | impl | planned |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: embed read, write, versions and patches | wip | wip |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: uploads, media fetch, pending uploads | impl | planned |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: mentions, message parsing, composer suggestions logic | wip | planned |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: app/skill inventory and invocation | impl | planned |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: app settings and memories requests/policy | impl | wip |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: projects, tasks, workflows, team workspace context | planned | planned |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: anonymous chats, public examples, free usage | planned | planned |  | wip | impl | — | — | — | | | |
+| &nbsp;&nbsp;↳ Core: watchOS chat runtime | — | planned |  | — | — | — | — | — | | | |
 | [OpenMates Server Management](#server-management) | — | — |  | not run 0/10 | wip | not run 0/1 | — | — | on (no flag) | on (no flag) | v0.11.0-alpha |
 | [Regional And Tiered Storage Lifecycle](#storage-lifecycle) | **FAIL** 9/29 | partial 13/29 | tested 5/5 | not run 0/29 | impl | **FAIL** 7/29 | not run 0/29 | wip | on (no flag) | on (no flag) | v0.5.0-alpha |
 | [Session Owner Consistency](#session-owner-consistency) | not run 0/6 | — |  | — | — | not run 0/6 | — | — | on (no flag) | on (no flag) | unverified |
@@ -2167,6 +2188,7 @@ One shared Rust client core for transport, sync, crypto, cache, drafts and send,
 
 - Specifications: [architecture.client-core](../../specifications/architecture/client-core/specification.yml) (draft) · 12 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release unverified
+- Notes: Sub-feature cells mirror the per-shell status in docs/migration/rust/capabilities.yml (authoritative): implemented = rust-only or stays-shell, in_progress = rust-default or rust-twin, planned = TypeScript or Swift only. CLI cells stay in_progress until the npm CLI runs the native Rust handler by default (docs/migration/rust/cli.yml).
 
 <details><summary>Tests per surface</summary>
 

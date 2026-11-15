@@ -2,18 +2,14 @@
 // proof-video: not_required reason=visual_smoke_not_needed (request/cookie parity; the UI is unchanged, the Playwright video is kept)
 /**
  * Web login, session restore and logout through the shared Rust core
- * (VITE_OPENMATES_RUST_CORE=1 build, CI lane web-rust-core-*).
+ * (CI lane web-rust-core-*).
  *
- * One build, two arms on the same account: `localStorage.openmates_rust_auth=ts`
- * selects the deployed TypeScript path, no override selects Rust. For each arm:
  *   1. password + OTP login (the real two-submit 2FA flow),
  *   2. cold reload: session restore,
- * then logout. The /v1/auth/* request sequence (method, path, headers, body
- * field order and non-secret values) and the resulting cookies must be equal.
- * The Rust arm also logs out with two tabs open: the second tab must drop its
- * session with no second server request (cross-tab invalidation).
+ * then logout with two tabs open: the second tab must drop its session with no
+ * second server request (cross-tab invalidation).
  * A JSON attachment records login wall time, time to usable chat, restore time,
- * main-thread CPU and heap per arm.
+ * main-thread CPU and heap, and the /v1/auth/* request shapes.
  */
 export {};
 
@@ -23,7 +19,6 @@ const { createSignupLogger, createStepScreenshotter, getTestAccount, getE2EDebug
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const SELECT_KEY = 'openmates_rust_auth';
 // Values that are not secret and define the request shape; everything else is compared by key only.
 const STATIC_BODY_FIELDS = new Set(['purpose', 'login_method', 'credential_version', 'code_type', 'stay_logged_in']);
 const COMPARED_HEADERS = ['content-type', 'accept', 'origin'];
@@ -182,11 +177,11 @@ function median(values: number[]): number {
 	return Math.round(sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2);
 }
 
-/** Empties the app origin (cookies, storage, IndexedDB) without booting the app, then selects the arm. */
-async function startCleanArm(page: any, context: any, selector: string | null): Promise<void> {
+/** Empties the app origin (cookies, storage, IndexedDB) without booting the app. */
+async function startCleanArm(page: any, context: any): Promise<void> {
 	await context.clearCookies();
 	await page.goto('/robots.txt'); // a static file on the app origin: storage access without starting the app
-	await page.evaluate(async ([key, value]: [string, string | null]) => {
+	await page.evaluate(async () => {
 		localStorage.clear();
 		sessionStorage.clear();
 		const databases = await indexedDB.databases();
@@ -197,8 +192,7 @@ async function startCleanArm(page: any, context: any, selector: string | null): 
 			request.onerror = () => reject(request.error);
 			request.onblocked = () => reject(new Error(`database ${database.name} is still open`));
 		})));
-		if (value !== null) localStorage.setItem(key, value);
-	}, [SELECT_KEY, selector]);
+	});
 }
 
 async function openSettings(page: any): Promise<void> {
@@ -214,7 +208,7 @@ async function logoutViaMenu(page: any): Promise<void> {
 }
 
 // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,sdk.web.before-after-performance
-test('Rust login, restore and logout match the TypeScript requests and cookies', async ({ page, context }: { page: any; context: any }, testInfo: any) => {
+test('Rust login, restore and logout with cross-tab invalidation', async ({ page, context }: { page: any; context: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(300000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -233,18 +227,16 @@ test('Rust login, restore and logout match the TypeScript requests and cookies',
 	await cdp.send('Performance.enable');
 	await cdp.send('HeapProfiler.enable');
 
-	const report: Record<string, unknown> = { note: 'Main-thread CDP metrics; Worker CPU (Argon2 in both arms) is not included. TS arm runs first, so the Rust arm sees a warm HTTP cache for shared bundles.' };
+	const report: Record<string, unknown> = { note: 'Main-thread CDP metrics; Worker CPU (Argon2) is not included.' };
 	const sequences: Record<string, { login: AuthRequestShape[]; restore: AuthRequestShape[]; logout: AuthRequestShape[] }> = {};
 	const cookies: Record<string, string[]> = {};
 
 	let requests: AuthRequestShape[] = [];
 	recordAuthRequests(page, () => requests);
 	const settleAuthNetwork = trackAuthNetwork(page);
-	for (const arm of ['ts', 'rust'] as const) {
-		// Both arms start from the same empty origin: no cookies, storage or databases
-		// left by the previous arm (e.g. its pending logout cleanup marker). The
-		// selector is set before the app boots so start-up already uses this arm's path.
-		await startCleanArm(page, context, arm === 'ts' ? 'ts' : null);
+	for (const arm of ['rust'] as const) {
+		// Start from an empty origin: no cookies, storage or databases.
+		await startCleanArm(page, context);
 		requests = [];
 		const workersBefore = workers.length;
 		await page.goto(getE2EDebugUrl('/'));
@@ -310,8 +302,7 @@ test('Rust login, restore and logout match the TypeScript requests and cookies',
 		// Auth runs on the `auth` unit of the one shared Rust core Worker; the dedicated auth Worker is gone.
 		expect(workers.slice(workersBefore).filter((url) => /auth\.worker/.test(url)), 'no dedicated Rust auth Worker').toEqual([]);
 		const authUnitOpens = await page.evaluate(() => performance.getEntriesByName('openmates:rust:auth-unit-open').length);
-		if (arm === 'rust') expect(authUnitOpens, 'the Rust arm must run auth on the shared Worker auth unit').toBeGreaterThan(0);
-		else expect(authUnitOpens, 'the TypeScript arm must not open the Rust auth unit').toBe(0);
+		expect(authUnitOpens, 'auth must run on the shared Worker auth unit').toBeGreaterThan(0);
 
 		// 3. Logout (Rust arm: with a second tab that must follow).
 		let peer: any = null;
@@ -388,10 +379,5 @@ test('Rust login, restore and logout match the TypeScript requests and cookies',
 	await testInfo.attach('web-rust-core-auth-requests.json', { body: JSON.stringify({ sequences, cookies }, null, 2), contentType: 'application/json' });
 	if (consoleLines.length) console.log(consoleLines.slice(-60).join('\n'));
 
-	// Parity: identical requests (order, method, path, headers, body shape) and cookies.
 	expect(sequences.rust.login.length, 'password + OTP login must reach the server').toBeGreaterThan(0);
-	expect(sequences.rust.login).toEqual(sequences.ts.login);
-	expect(sequences.rust.restore).toEqual(sequences.ts.restore);
-	expect(sequences.rust.logout).toEqual(sequences.ts.logout);
-	expect(cookies.rust).toEqual(cookies.ts);
 });

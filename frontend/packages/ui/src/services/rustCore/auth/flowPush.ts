@@ -9,21 +9,16 @@
  * signup path, no 2FA apps) before the first answer. Async callers can await
  * `primeSignupPath` to make the next synchronous read exact.
  *
- * Flag builds only: callers guard with `import.meta.env.VITE_OPENMATES_RUST_CORE`
- * and `authFlowActive()`. A failed Worker call keeps the last pushed value and
+ * Callers guard with `authFlowActive()`. A failed Worker call keeps the last pushed value and
  * logs; there is no TypeScript recomputation.
  */
 import type { PairSessionData, PairSessionState } from '../../../stores/pairSessionStore';
 
-const RUST_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
-/** localStorage key that selects the TypeScript path inside a flag build (E2E comparison). */
-export const RUST_AUTH_SELECT_KEY = 'openmates_rust_auth';
 const CACHE_LIMIT = 64;
 
 /** True when this page runs the auth policy through the Rust core. */
 export function authFlowActive(): boolean {
-	if (!RUST_BUILD || typeof window === 'undefined') return false;
-	return window.localStorage?.getItem(RUST_AUTH_SELECT_KEY) !== 'ts';
+	return typeof window !== 'undefined';
 }
 
 let operations: Promise<typeof import('../authOperation')> | null = null;

@@ -1448,6 +1448,71 @@ features:
       web: "frontend/packages/ui/src/services/rustCore/*"
       cli: "packages/openmates-tui-native uses Rust openmates-sdk"
       tui: "frontend/packages/openmates-tui-native/src/runtime_core_host.rs, runtime.rs (Rust client core host)"
+    notes: "Sub-feature cells mirror the per-shell status in docs/migration/rust/capabilities.yml (authoritative): implemented = rust-only or stays-shell, in_progress = rust-default or rust-twin, planned = TypeScript or Swift only. CLI cells stay in_progress until the npm CLI runs the native Rust handler by default (docs/migration/rust/cli.yml)."
+    subfeatures:
+      - id: core-transport
+        name: "Core: WebSocket/REST connect, auth handshake, reconnect, message routing"
+        surfaces: {web: implemented, apple: in_progress, tui: implemented, cli: in_progress}
+      - id: core-crypto-keys
+        name: "Core: key derivation, wrapping, chat/embed keys, AES-GCM, share-link and notification-preview decrypt"
+        surfaces: {web: in_progress, apple: in_progress, tui: implemented, cli: in_progress}
+      - id: core-credential-storage
+        name: "Core: persisting the credential snapshot in the platform secure store"
+        surfaces: {web: implemented, apple: implemented, tui: implemented, cli: implemented}
+      - id: core-auth-session
+        name: "Core: login, session validation, pairing (OPAQUE), logout fences"
+        surfaces: {web: implemented, apple: in_progress, tui: implemented, cli: in_progress}
+      - id: core-sync
+        name: "Core: phased startup sync, cursor feed, reconnect catch-up, deletion authority"
+        surfaces: {web: in_progress, apple: planned, tui: implemented, cli: in_progress}
+      - id: core-local-cache
+        name: "Core: encrypted local cache model, partitioning, retention, migrations"
+        surfaces: {web: implemented, apple: in_progress, tui: implemented, cli: in_progress}
+      - id: core-chat-list
+        name: "Core: ordered chat list view model, pins, unread, hidden chats"
+        surfaces: {web: implemented, apple: in_progress, tui: implemented, cli: in_progress}
+      - id: core-chat-window
+        name: "Core: bounded message window, paging, full read"
+        surfaces: {web: planned, apple: in_progress, tui: implemented, cli: in_progress}
+      - id: core-send
+        name: "Core: send preparation, outbox, queued follow-ups, background send"
+        surfaces: {web: in_progress, apple: in_progress, tui: implemented, cli: in_progress}
+      - id: core-streaming
+        name: "Core: AI stream events, cancellation"
+        surfaces: {web: planned, apple: in_progress, tui: implemented, cli: in_progress}
+      - id: core-completion-recovery
+        name: "Core: completion and metadata recovery after disconnect/relaunch"
+        surfaces: {web: planned, apple: planned, tui: implemented, cli: in_progress}
+      - id: core-drafts
+        name: "Core: encrypted drafts, draft-only chats, draft sync"
+        surfaces: {web: in_progress, apple: in_progress, tui: implemented, cli: in_progress}
+      - id: core-search
+        name: "Core: chat/message search and index policy"
+        surfaces: {web: implemented, apple: planned, tui: implemented, cli: in_progress}
+      - id: core-embeds
+        name: "Core: embed read, write, versions and patches"
+        surfaces: {web: in_progress, apple: in_progress, tui: implemented, cli: in_progress}
+      - id: core-transfer
+        name: "Core: uploads, media fetch, pending uploads"
+        surfaces: {web: implemented, apple: planned, tui: implemented, cli: in_progress}
+      - id: core-composer-parse
+        name: "Core: mentions, message parsing, composer suggestions logic"
+        surfaces: {web: in_progress, apple: planned, tui: implemented, cli: in_progress}
+      - id: core-apps-skills
+        name: "Core: app/skill inventory and invocation"
+        surfaces: {web: implemented, apple: planned, tui: implemented, cli: in_progress}
+      - id: core-settings
+        name: "Core: app settings and memories requests/policy"
+        surfaces: {web: implemented, apple: in_progress, tui: implemented, cli: in_progress}
+      - id: core-projects-tasks-teams
+        name: "Core: projects, tasks, workflows, team workspace context"
+        surfaces: {web: planned, apple: planned, tui: implemented, cli: in_progress}
+      - id: core-anonymous-public-chats
+        name: "Core: anonymous chats, public examples, free usage"
+        surfaces: {web: planned, apple: planned, tui: implemented, cli: in_progress}
+      - id: core-watch-runtime
+        name: "Core: watchOS chat runtime"
+        surfaces: {web: not_planned, apple: planned, tui: not_planned, cli: not_planned}
   - id: connected-accounts
     name: "Connected Accounts"
     kind: platform

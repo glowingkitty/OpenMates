@@ -597,7 +597,7 @@
         // Skip basics and confirm_email - we only track steps beyond these initial steps
         // This ensures the signup flow can be restored on page reload only if user has progressed beyond initial steps
         if (newStep !== STEP_BASICS && newStep !== STEP_CONFIRM_EMAIL) {
-            if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupStepLocation(newStep);
+            await primeSignupStepLocation(newStep);
             const signupPath = getPathFromStep(newStep);
             console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${newStep}`);
             
@@ -725,7 +725,7 @@
         // Skip basics and confirm_email - we only track steps beyond these initial steps
         // This ensures the signup flow can be restored on page reload only if user has progressed beyond initial steps
         if (step !== STEP_BASICS && step !== STEP_CONFIRM_EMAIL) {
-            if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupStepLocation(step);
+            await primeSignupStepLocation(step);
             const signupPath = getPathFromStep(step);
             console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${step}`);
             

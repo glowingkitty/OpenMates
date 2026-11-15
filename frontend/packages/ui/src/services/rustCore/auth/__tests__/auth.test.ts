@@ -150,7 +150,7 @@ describe('auth worker client', () => {
 describe('auth operations', () => {
 	function installSynthetic() {
 		const client = createAuthClient(channel(syntheticBinding()).endpoint, (request) => executeAuthRequest(request));
-		setRustAuthClientForTesting(client, true);
+		setRustAuthClientForTesting(client);
 		return client;
 	}
 

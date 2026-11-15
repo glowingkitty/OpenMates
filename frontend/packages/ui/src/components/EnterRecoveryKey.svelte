@@ -7,11 +7,10 @@
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
     import InputWarning from './common/InputWarning.svelte';
-    import { getApiEndpoint, apiEndpoints } from '../config/api';
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
     import { getSessionId } from '../utils/sessionId';
-    import { rustAuthEnabled, rustRecoveryKeyLogin, type RustPasswordLoginOutcome } from '../services/rustCore/authOperation';
+    import { rustRecoveryKeyLogin, type RustPasswordLoginOutcome } from '../services/rustCore/authOperation';
 
     const dispatch = createEventDispatcher();
 
@@ -90,78 +89,27 @@
         errorMessage = null;
 
         try {
-            if (rustAuthEnabled()) {
-                // Rust builds the same request, the page sends it, Rust unwraps the key.
-                const userEmailSalt = cryptoService.getEmailSalt();
-                if (!userEmailSalt) {
-                    console.error('Email salt is required for recovery key login');
-                    errorMessage = 'Email salt not found. Please try logging in with email again.';
-                    return;
-                }
-                const outcome = await rustRecoveryKeyLogin({
-                    email, recoveryKey, sessionId: getSessionId(),
-                    userEmailSalt: cryptoService.uint8ArrayToBase64(userEmailSalt),
-                    emailEncryptionKey: cryptoService.getEmailEncryptionKeyForApi(), stayLoggedIn,
-                });
-                const data = outcome.data as RecoveryKeyLoginResponse;
-                if (outcome.ok && data.success) {
-                    await handleSuccessfulLogin(data, outcome);
-                } else if (data.message === 'login.recovery_key_wrong') {
-                    errorMessage = $text('login.recovery_key_wrong');
-                } else {
-                    errorMessage = data.message || $text('login.recovery_key_wrong');
-                }
-                return;
-            }
-            // Generate hashed email for lookup
-            const hashed_email = await cryptoService.hashEmail(email);
-            
-            // For recovery key login, we need to hash the recovery key with the user's email salt
-            // This must match how it was generated during signup in RecoveryKeyTopContent.svelte
+            // Rust builds the same request, the page sends it, Rust unwraps the key.
             const userEmailSalt = cryptoService.getEmailSalt();
             if (!userEmailSalt) {
                 console.error('Email salt is required for recovery key login');
                 errorMessage = 'Email salt not found. Please try logging in with email again.';
                 return;
             }
-            
-            // Use the same hashKey function as during signup with the recovery key and user's email salt
-            const lookup_hash = await cryptoService.hashKey(recoveryKey, userEmailSalt);
-
-            // Get email encryption key for zero-knowledge email decryption
-            const email_encryption_key = cryptoService.getEmailEncryptionKeyForApi();
-            
-            // Send login request with recovery key and email encryption key
-            const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Origin': window.location.origin
-                },
-                body: JSON.stringify({
-                    hashed_email,
-                    lookup_hash,
-                    email_encryption_key, // Include client-derived key for email decryption
-                    login_method: 'recovery_key', // Explicitly indicate this is a recovery key login
-                    session_id: getSessionId(), // Add sessionId for device fingerprint uniqueness
-                    stay_logged_in: stayLoggedIn // Send stay logged in preference
-                }),
-                credentials: 'include'
+            const outcome = await rustRecoveryKeyLogin({
+                email, recoveryKey, sessionId: getSessionId(),
+                userEmailSalt: cryptoService.uint8ArrayToBase64(userEmailSalt),
+                emailEncryptionKey: cryptoService.getEmailEncryptionKeyForApi(), stayLoggedIn,
             });
-
-            const data: RecoveryKeyLoginResponse = await response.json();
-
-            if (response.ok && data.success) {
-                // Recovery key login successful
-                await handleSuccessfulLogin(data);
+            const data = outcome.data as RecoveryKeyLoginResponse;
+            if (outcome.ok && data.success) {
+                await handleSuccessfulLogin(data, outcome);
+            } else if (data.message === 'login.recovery_key_wrong') {
+                errorMessage = $text('login.recovery_key_wrong');
             } else {
-                if (data.message === 'login.recovery_key_wrong') {
-                    errorMessage = $text('login.recovery_key_wrong');
-                } else {
-                    errorMessage = data.message || $text('login.recovery_key_wrong');
-                }
+                errorMessage = data.message || $text('login.recovery_key_wrong');
             }
+            return;
         } catch (error) {
             console.error('Recovery key login error:', error);
             errorMessage = 'An error occurred during recovery key verification';
@@ -269,7 +217,7 @@
             let inSignupFlow = false;
             try {
                 const { isSignupPath, primeSignupLocation } = await import('../stores/signupState');
-                if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(data.user?.last_opened);
+                await primeSignupLocation(data.user?.last_opened);
                 inSignupFlow = isSignupPath(data.user?.last_opened) || false;
             } catch (signupStateErr) {
                 console.error('[EnterRecoveryKey] Failed to import signupState:', signupStateErr);
