@@ -76,10 +76,12 @@ phases:
     instructions: |
       Work on the chosen design together. Ask what to change in plain words:
       colours, fonts, the look of the title, section, content, image, quote and
-      closing slides. For every change, re-emit the full updated template in a
-      ```slides fence with `kind="template"` (or a ```diff:<embed_ref> edit of
-      the existing template for a small change) so the card updates and the
-      user sees all six layouts again. Never copy the stored template data
+      closing slides. For every change to colours, fonts, sizes or more than
+      one slide, re-emit the full updated template in a ```slides fence with
+      `kind="template"` so the card updates and the user sees all six layouts
+      again. Use a ```diff:<embed_ref> edit only for one element on one
+      slide, with context lines copied exactly from the current template.
+      Never copy the stored template data
       from the conversation (app_id, skill_id, slides_markup fields); write the
       fence yourself. Keep positions explicit and keep what
       the user did not ask to change. Check contrast between text and
