@@ -155,6 +155,48 @@ async def test_upload_endpoint_counts_one_strike_and_third_deletes():
     assert send_task.call_args.kwargs["kwargs"]["refund_invoices"] is True
 
 
+# Regression: a suggestive-only upload score (swimwear, fitness photo) deleted accounts
+# on the 4th rejection in 24 h. It must never count; explicit sexual scores still do.
+# contract-test: direct surface=rest_api assertions=safety-strikes.suggestive-upload-no-strike
+@pytest.mark.asyncio
+async def test_suggestive_only_uploads_never_strike_or_delete():
+    from backend.core.api.app.routes.internal_api import ContentSafetyRejectRequest, content_safety_reject
+
+    cache = make_cache("en")
+    directus = MagicMock(logout_all_sessions=AsyncMock())
+    suggestive = ContentSafetyRejectRequest(user_id="user-1", rejection_reason="suggestive=0.93")
+    with patch("backend.core.api.app.tasks.celery_config.app.send_task") as send_task:
+        for _ in range(5):
+            result = await content_safety_reject(suggestive, directus_service=directus, cache_service=cache)
+            assert result == {"result": "not_counted", "reject_count": 0}
+        assert not any(value for value in cache.redis.data.values())
+        send_task.assert_not_called()
+
+        explicit = ContentSafetyRejectRequest(user_id="user-1", rejection_reason="sexual_display=0.95")
+        counted = await content_safety_reject(explicit, directus_service=directus, cache_service=cache)
+    assert counted["result"] == "tracked" and counted["reject_count"] == 1
+    directus.logout_all_sessions.assert_not_called()
+
+
+# contract-test: direct surface=rest_api assertions=safety-strikes.technical-failure-no-strike
+@pytest.mark.asyncio
+async def test_unavailable_upload_check_never_strikes_or_deletes():
+    from backend.core.api.app.routes.internal_api import ContentSafetyRejectRequest, content_safety_reject
+
+    cache = make_cache("en")
+    directus = MagicMock(logout_all_sessions=AsyncMock())
+    payload = ContentSafetyRejectRequest(
+        user_id="user-1", rejection_reason="safety_service_unavailable", upload_type="profile_image"
+    )
+    with patch("backend.core.api.app.tasks.celery_config.app.send_task") as send_task:
+        for _ in range(4):
+            result = await content_safety_reject(payload, directus_service=directus, cache_service=cache)
+            assert result == {"result": "not_counted", "reject_count": 0}
+    assert not any(value for value in cache.redis.data.values())
+    send_task.assert_not_called()
+    directus.logout_all_sessions.assert_not_called()
+
+
 # contract-test: direct surface=rest_api assertions=safety-strikes.one-strike-per-violation
 @pytest.mark.asyncio
 async def test_generation_then_upload_share_one_counter_without_double_count():

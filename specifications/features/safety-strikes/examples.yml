@@ -17,6 +17,11 @@ strikes:
     given: Alice has one strike.
     when: The same assistant response retries the rejected image request three times.
     then: She still has one strike.
+  - id: swimwear-photos-never-strike
+    assertion_ids: [safety-strikes.suggestive-upload-no-strike]
+    given: Erik has no strikes.
+    when: He uploads five beach photos in one day that the upload check rejects only as suggestive.
+    then: He still has no strikes and his account stays active; an upload rejected for explicit sexual content still counts as one strike.
 
 technical:
   - id: classifier-error-is-not-a-violation

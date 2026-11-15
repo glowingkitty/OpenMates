@@ -77,12 +77,16 @@ assertions:
     depends_on: [examples.strikes, examples.technical]
   - id: safety-strikes.one-strike-per-violation
     type: invariant
-    must: Every rejected request counts as exactly one strike, whatever its category or severity, and one assistant response or upload never counts more than once; no single request suspends or deletes an account.
-    depends_on: [models.StrikeState, examples.strikes]
+    must: Every rejected request that is a policy violation counts as exactly one strike, whatever its category or severity, and one assistant response or upload never counts more than once; no single request suspends or deletes an account.
+    depends_on: [models.StrikeState]
   - id: safety-strikes.technical-failure-no-strike
     type: invariant
     must: When a safety check cannot reach a decision for technical reasons, the request is refused with a "safety check temporarily unavailable, please try again" message in the user's language; no strike is recorded, no violation is logged and no suspension or deletion is started.
     depends_on: [examples.technical]
+  - id: safety-strikes.suggestive-upload-no-strike
+    type: invariant
+    must: An uploaded image rejected only for a suggestive score (no explicit sexual score over its threshold) is not a policy violation; it records no strike and never starts a suspension or deletion, while explicit sexual scores keep counting as one strike.
+    depends_on: [models.StrikeState]
   - id: safety-strikes.warning-localized
     type: behavior
     must: A rejection that records strike 1 or 2 tells the user, in their language, what was rejected, the reason at category level (never the exact trigger, classifier or threshold) and "this is strike N of 3".

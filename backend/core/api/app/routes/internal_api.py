@@ -2822,6 +2822,14 @@ async def cancel_pdf_processing(
 # in Redis and deletes accounts that repeatedly upload policy-violating content.
 # ---------------------------------------------------------------------------
 
+# Upload rejection reasons that are never a policy violation. The upload server
+# reports "suggestive=<score>" only when no explicit sexual score crossed its
+# threshold, so this prefix means a suggestive-only image.
+NON_STRIKE_UPLOAD_REASON_PREFIXES: tuple[str, ...] = ("suggestive=",)
+# Reasons meaning the safety check could not decide; never a user violation.
+TECHNICAL_UPLOAD_REJECTION_REASONS = frozenset({"safety_service_unavailable"})
+
+
 class ContentSafetyRejectRequest(BaseModel):
     """Payload sent by the upload server when SightEngine rejects an image."""
     user_id: str = Field(..., description="ID of the user who uploaded the rejected image")
@@ -2848,13 +2856,27 @@ async def content_safety_reject(
     generation and editing), so an upload is never counted twice. The third strike queues the regular account-deletion
     task, which refunds eligible purchases like a user-requested deletion.
 
-    Returns "tracked" (with ``reject_count``) or "account_deleted".
+    A suggestive-only score (swimwear, underwear, fitness photos) is not a policy
+    violation: it returns "not_counted", records no strike and never deletes an
+    account. Explicit sexual scores still count.
+    A safety check that could not decide ("safety_service_unavailable") is never
+    counted either.
+
+    Returns "tracked" (with ``reject_count``), "not_counted" or "account_deleted".
     Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes).
     """
     log_prefix = f"[ContentSafetyReject] [user:{payload.user_id[:8]}...] [{payload.upload_type}]"
     logger.info(
         f"{log_prefix} Received rejection — reason: {payload.rejection_reason[:80]}"
     )
+
+    if payload.rejection_reason.strip() in TECHNICAL_UPLOAD_REJECTION_REASONS:
+        logger.warning(f"{log_prefix} Safety check unavailable; not counted as a strike")
+        return {"result": "not_counted", "reject_count": 0}
+
+    if payload.rejection_reason.strip().startswith(NON_STRIKE_UPLOAD_REASON_PREFIXES):
+        logger.info(f"{log_prefix} Suggestive-only rejection; not counted as a strike")
+        return {"result": "not_counted", "reject_count": 0}
 
     try:
         from backend.shared.python_utils.image_safety.strike_counter import get_strike_counter

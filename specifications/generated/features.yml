@@ -8401,7 +8401,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 14
+  assertions: 15
   surfaces:
     web:
       status: partial
@@ -8411,8 +8411,8 @@ features:
         passing: 1
         failing: 0
         not_run: 1
-        missing: 12
-        counted: 14
+        missing: 13
+        counted: 15
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/image-safety-explanations-real.spec.ts
@@ -8427,8 +8427,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 14
-        counted: 14
+        missing: 15
+        counted: 15
       key_tests: []
       e2e_tests: []
       key_unit_tests: []
@@ -8445,9 +8445,9 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 14
-        counted: 14
-      conflict: marked not_planned, but 14 required assertion(s) apply to cli
+        missing: 15
+        counted: 15
+      conflict: marked not_planned, but 15 required assertion(s) apply to cli
       key_tests: []
       e2e_tests: []
       key_unit_tests: []
@@ -8471,11 +8471,11 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 8
+        passing: 9
         failing: 0
         not_run: 0
         missing: 6
-        counted: 14
+        counted: 15
       key_tests: []
       e2e_tests: []
       key_unit_tests:
