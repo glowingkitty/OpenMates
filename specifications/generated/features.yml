@@ -956,6 +956,7 @@ features:
       - frontend/apps/web_app/tests/components/results-calendar-sticky-axes.spec.ts
       - frontend/apps/web_app/tests/conference-talk-fullscreen-real.spec.ts
       - frontend/apps/web_app/tests/fosdem-authored-event-example.spec.ts
+      - frontend/apps/web_app/tests/travel-results-real.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/components/embeds/travel/__tests__/travelConnectionPoints.test.ts
       - frontend/packages/ui/src/components/embeds/travel/__tests__/travelStayFacts.test.ts

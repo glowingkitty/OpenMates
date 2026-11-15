@@ -19,7 +19,8 @@
     interactive = true, showNavigation = true, locale,
     labels = { week: 'Week', previous: 'Previous week', next: 'Next week', primary: 'Primary event', context: 'Context event', empty: 'No dated events' },
   }: Props = $props();
-  const CALENDAR_ITEM_MIN_WIDTH = 44;
+  // Room for a station or venue name ("München Hbf") on one line; narrower entries broke words letter by letter.
+  const CALENDAR_ITEM_MIN_WIDTH = 96;
   let selectedWeek = $state<number | null>(null);
   let calendarHeight = $state(160);
   let weeks = $derived(calendarWeeksWithEntries(entries));
@@ -38,7 +39,7 @@
   // Overlapping entries share a day side by side; widen the days (the week scrolls sideways under the
   // pinned hour column) so each entry keeps a readable width instead of shrinking to a sliver.
   let overlapColumns = $derived(Math.max(1, ...timed.map(item => item.columnCount ?? 1)));
-  let dayMinWidth = $derived(Math.max(80, overlapColumns * CALENDAR_ITEM_MIN_WIDTH + 6));
+  let dayMinWidth = $derived(overlapColumns > 1 ? overlapColumns * CALENDAR_ITEM_MIN_WIDTH + 6 : 80);
   let headerHeight = $derived(compact ? 26 : 42);
   let allDayHeight = $derived(compact ? 36 : 64);
   let hourHeight = $derived(compact ? Math.max(3, (calendarHeight - 36 - headerHeight - allDayRows * allDayHeight) / hours) : 46);
@@ -144,11 +145,11 @@
   .calendar-day-header { position: sticky; top: var(--calendar-sticky-top); z-index: 2; display: flex; align-items: center; justify-content: center; gap: .25rem; min-height: 42px; background: var(--color-grey-20); color: var(--color-font-primary); font-size: var(--font-size-small); font-weight: 500; white-space: nowrap; }
   .calendar-day.today .calendar-day-header { background: var(--color-grey-25); }
   .calendar-items { position: relative; min-height: calc(var(--calendar-hour-height) * var(--calendar-timeline-hours)); }
-  .calendar-item { position: absolute; top: calc(var(--calendar-item-top-hours) * var(--calendar-hour-height)); left: calc(100% * var(--calendar-item-column) / var(--calendar-item-columns) + 3px); width: calc(100% / var(--calendar-item-columns) - 6px); min-width: 0; display: block; box-sizing: border-box; height: calc(var(--calendar-item-height-hours) * var(--calendar-hour-height)); min-height: 0; overflow: hidden; border: 0; border-left: 3px solid var(--color-error); border-radius: var(--radius-2); background: color-mix(in srgb, var(--color-error) 16%, var(--color-grey-20)); color: var(--color-font-primary); padding: 4px; text-align: left; font: inherit; box-shadow: none; cursor: pointer; }
+  .calendar-item { position: absolute; top: calc(var(--calendar-item-top-hours) * var(--calendar-hour-height)); left: calc(100% * var(--calendar-item-column) / var(--calendar-item-columns) + 3px); width: calc(100% / var(--calendar-item-columns) - 6px); min-width: 0; display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; box-sizing: border-box; height: calc(var(--calendar-item-height-hours) * var(--calendar-hour-height)); min-height: 0; overflow: hidden; border: 0; border-left: 3px solid var(--color-error); border-radius: var(--radius-2); background: color-mix(in srgb, var(--color-error) 16%, var(--color-grey-20)); color: var(--color-font-primary); padding: 4px; text-align: left; font: inherit; box-shadow: none; cursor: pointer; }
   .calendar-item.highlighted, .calendar-item.hovered { border-color: var(--color-primary-start); }
   .calendar-item:focus-visible, .calendar-week-toolbar button:focus-visible, .calendar-date-only button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
   .calendar-copy { display: flex; flex-direction: column; min-width: 0; max-height: 100%; overflow: hidden; }
-  .calendar-copy strong, .calendar-date-only strong { display: -webkit-box; overflow: hidden; overflow-wrap: anywhere; color: var(--color-font-primary); font-size: var(--font-size-small); font-weight: 500; line-height: 1.25; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; }
+  .calendar-copy strong, .calendar-date-only strong { display: -webkit-box; overflow: hidden; overflow-wrap: break-word; hyphens: auto; color: var(--color-font-primary); font-size: var(--font-size-small); font-weight: 500; line-height: 1.25; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; }
   .calendar-location { display: block; margin-top: 4px; overflow: hidden; color: var(--color-font-tertiary); font-size: var(--font-size-xxs); line-height: 1.25; white-space: nowrap; text-overflow: ellipsis; }
   .calendar-date-only { min-height: calc(var(--calendar-all-day-height) * var(--calendar-all-day-rows, 1)); }
   .calendar-date-only button { display: flex; flex-direction: column; width: calc(100% - 4px); height: calc(var(--calendar-all-day-height) - 8px); margin: 0 2px 8px; padding: .4rem; box-sizing: border-box; border: 0; border-left: 3px solid transparent; border-radius: .5rem; background: var(--color-grey-30); color: var(--color-font-primary); text-align: start; overflow: hidden; cursor: pointer; }

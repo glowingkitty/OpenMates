@@ -30,7 +30,14 @@ for (const [label, width] of Object.entries(WIDTHS)) {
     // Overlapping entries stay readable side by side instead of shrinking to slivers.
     const itemWidths = await view.getByTestId('embeds-results-view-calendar-item')
       .evaluateAll(items => items.map(item => item.getBoundingClientRect().width));
-    expect(Math.min(...itemWidths), 'narrowest calendar entry').toBeGreaterThanOrEqual(36);
+    expect(Math.min(...itemWidths), 'narrowest calendar entry fits a station name').toBeGreaterThanOrEqual(88);
+    // A long entry (an overnight flight) starts with its title, not with empty space: buttons centre
+    // their content by default, which pushed the title out of view.
+    const titleOffsets = await view.getByTestId('embeds-results-view-calendar-item').evaluateAll(items => items.map(item => {
+      const title = item.querySelector('strong');
+      return title ? title.getBoundingClientRect().top - item.getBoundingClientRect().top : 0;
+    }));
+    expect(Math.max(...titleOffsets), 'entry titles sit at the top of their entry').toBeLessThanOrEqual(12);
 
     const toolbar = calendar.getByTestId('embeds-results-view-calendar-toolbar');
     const header = calendar.getByTestId('embeds-results-view-calendar-day-header').first();
