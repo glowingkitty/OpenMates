@@ -162571,7 +162571,7 @@ assertions:
     current_direct_proof: false
   projects.creation.machine-folder:
     specification: feature.projects@2
-    fingerprint: e3d989893651eb9db1c766231be0f643357a131509e17acdee04fa37a10fc146
+    fingerprint: c20faf1b42ea95e27805f00e3719d6e43a6449440b1b140a7ae795f5be2f15bf
     direct_tests: []
     supporting_tests:
     - &id20657

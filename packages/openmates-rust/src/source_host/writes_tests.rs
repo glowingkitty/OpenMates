@@ -135,6 +135,23 @@ async fn create_writes_a_new_file_and_replays_idempotently() {
 }
 
 #[tokio::test]
+async fn create_starts_missing_folders_but_never_through_a_symlink() {
+    let f = fixture();
+    let path = "web-app/src/services/storage.js";
+    run(&f, &create(path, "op-nested", "export {};\n"), &mut allow()).await.expect("creates the folders");
+    assert_eq!(read(&f.root, path), "export {};\n");
+    let outside = tempfile::tempdir().expect("tempdir");
+    std::os::unix::fs::symlink(outside.path(), f.root.join("web-app/linked")).expect("symlink");
+    let error = run(&f, &create("web-app/linked/new/x.txt", "op-ln", "x"), &mut allow()).await.expect_err("symlink");
+    assert_eq!(error.code, "invalid_path");
+    assert!(!outside.path().join("new").exists(), "nothing created outside the root");
+    // An update never creates folders.
+    let base = sha256_hex(b"x");
+    assert!(run(&f, &update("other/dir/x.txt", "op-u", &base, NOTE_PATCH), &mut allow()).await.is_err());
+    assert!(!f.root.join("other").exists());
+}
+
+#[tokio::test]
 async fn create_refuses_existing_targets() {
     let f = fixture();
     let error = run(&f, &create("docs/note.txt", "op-2", "x"), &mut allow()).await.expect_err("exists");
