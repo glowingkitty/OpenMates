@@ -4,13 +4,15 @@
 Commands:
   secret status              Show which status-monitor secrets exist in Vault (never values).
   secret set <name>          Ask for one secret without echo and store it in Vault.
-  netcup-login               Approve a netcup login in the browser; stores the API token in Vault.
-  provision --wipe           Install Debian 13 with our SSH key on the netcup VPS (erases its disk).
+  ssh-key                    Print the deploy SSH public key to paste when creating the UpCloud
+                             server (creates the key on first use).
   publish-config             Put everything the status server needs into Vault: generated tokens,
                              the Discord webhook and alert email from this server's .env.
-  setup [--host <ip>]        Read the status config from Vault and run the setup script on the VPS
-                             (pulls the image, writes status.env from stdin, starts it). Updates
-                             on the VPS itself: `openmates-status-setup` (pull and restart).
+  setup --host <ip> [--image <ref>]
+                             Read the status config from Vault and run the setup script on the VPS
+                             (installs Docker and a firewall on first run, pulls the image, writes
+                             status.env from stdin, starts it). Updates on the VPS itself:
+                             `openmates-status-setup` (pull and restart).
   watch                      Cross-check from the dev server: alert when the status page is
                              unreachable or stale (run every 5 minutes by a systemd user timer,
                              scripts/status-server-watch-setup.sh).
@@ -19,8 +21,10 @@ Secrets live in Vault at kv/data/providers/status_monitor. They are read through
 the dev api container (read-only token) and written like every provider secret:
 SECRET__STATUS_MONITOR__* in the canonical .env, imported by vault-setup. Nothing secret is
 printed, passed on a command line, or written outside the VPS's mode-600 status.env.
-The status server itself runs the published image (deployment/status_server/Dockerfile)
-and nothing else; this script never copies source code to it.
+The status server is one UpCloud Starter server the owner creates by hand (no
+provider API token is stored). It runs the published public image
+(deployment/status_server/Dockerfile) and nothing else; this script never copies
+source code to it.
 Spec: specifications/architecture/external-status-monitoring.
 """
 
@@ -41,7 +45,6 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 sys.path.insert(0, str(SCRIPT_DIR.parent / "deployment/status_server/agent"))
 
-import _status_server_netcup as netcup  # noqa: E402 - sibling helper, path set above
 from status_agent.alerts import CheckResult, CheckSnapshot, OpenAlert, evaluate  # noqa: E402 - agent package, path set above
 from status_agent.notify import Channels, deliver  # noqa: E402 - agent package, path set above
 from status_agent.vault_env import BREVO_PATH, ConfigError, render  # noqa: E402 - agent package, path set above
@@ -54,7 +57,6 @@ VAULT_PATH = "kv/data/providers/status_monitor"
 ENV_PREFIX = "SECRET__STATUS_MONITOR__"
 SECRET_NAMES = {
     "monitor_api_key": "API key of the dedicated production monitoring account",
-    "netcup_refresh_token": "netcup SCP API token (prefer: netcup-login)",
     "probe_token": "shared token marking anonymous monitor probes (auto-generated)",
     "gatus_external_token": "token for pushing probe results into Gatus (auto-generated)",
     "discord_webhook_url": "Discord webhook for alerts (publish-config fills it from .env if unset)",
@@ -65,6 +67,8 @@ WATCH_STATE = Path.home() / ".local/state/openmates/status_server_watch.json"
 SSH_KEY = Path.home() / ".ssh/openmates_status_ed25519"
 SETUP_SCRIPT = SOURCE_DIR / "setup.sh"
 REMOTE_SETUP = "/usr/local/bin/openmates-status-setup"
+REMOTE_SETTINGS = "/opt/openmates-status/settings.env"
+DEFAULT_IMAGE = "ghcr.io/glowingkitty/openmates-status:main"
 DEFAULT_DOMAIN = "status.openmates.org"
 STALE_AFTER_S = 10 * 60
 WATCH_EVERY_S = 5 * 60
@@ -161,21 +165,6 @@ def cmd_secret(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_netcup_login(_: argparse.Namespace) -> int:
-    login = netcup.start_device_login()
-    print("Open this link, sign in to netcup and approve the access:")
-    print(f"  {login.verification_url}")
-    print(f"Code shown there should be: {login.user_code}")
-    print("Waiting for your approval…")
-    token = netcup.wait_for_refresh_token(login)
-    store({"netcup_refresh_token": token})
-    servers = netcup.Client(netcup.access_token(token)).servers()
-    print(f"Stored the netcup API token in Vault. netcup shows {len(servers)} server(s):")
-    for server in servers:
-        print(f"  {server.get('id')}  {server.get('name')}  {server.get('nickname') or ''}")
-    return 0
-
-
 def ensure_ssh_key() -> str:
     if not SSH_KEY.exists():
         SSH_KEY.parent.mkdir(mode=0o700, exist_ok=True)
@@ -184,34 +173,24 @@ def ensure_ssh_key() -> str:
     return SSH_KEY.with_suffix(".pub").read_text(encoding="utf-8").strip()
 
 
-def netcup_client() -> netcup.Client:
-    token = vault("get").get("netcup_refresh_token")
-    if not token:
-        raise SystemExit("No netcup token in Vault yet: run `python3 scripts/status_server.py netcup-login`.")
-    return netcup.Client(netcup.access_token(token))
-
-
-def cmd_provision(args: argparse.Namespace) -> int:
-    client = netcup_client()
-    servers = client.servers()
-    if args.server:
-        servers = [s for s in servers if args.server in (str(s.get("id")), s.get("name"), s.get("nickname"))]
-    if len(servers) != 1:
-        raise SystemExit(f"Expected exactly one netcup server, found {len(servers)}; pass --server <id>.")
-    server = servers[0]
-    ipv4 = client.ipv4_addresses(int(server["id"]))
-    print(f"Server {server['id']} ({server.get('name')}), IPv4 {', '.join(ipv4) or 'none'}.")
-    if not args.wipe:
-        print("Dry run. Re-run with --wipe to install Debian 13 with our SSH key (erases the disk).")
-        return 0
-    user_id = netcup.user_id_from_token(client.token)
-    key_id = client.ensure_ssh_key(user_id, "openmates-status-deploy", ensure_ssh_key())
-    flavour = client.debian_flavour(int(server["id"]))
-    print(f"Installing {flavour['name']} …")
-    client.wait_task(client.install_image(int(server["id"]), int(flavour["id"]), key_id, "status-openmates"))
-    save_config({**load_config(), "host": ipv4[0] if ipv4 else "", "server_id": server["id"]})
-    print("Done. Next: add the DNS record, then run `python3 scripts/status_server.py publish-config` and `setup`.")
+def cmd_ssh_key(_: argparse.Namespace) -> int:
+    print(ensure_ssh_key())
     return 0
+
+
+def image_is_public(image: str) -> bool:
+    """True when anyone can pull ``image`` (ghcr.io/<owner>/<name>:<tag>) without logging in."""
+    repository, _, tag = image.removeprefix("ghcr.io/").rpartition(":")
+    try:
+        with urllib.request.urlopen(f"https://ghcr.io/token?scope=repository:{repository}:pull", timeout=20) as r:
+            token = json.load(r)["token"]
+        request = urllib.request.Request(
+            f"https://ghcr.io/v2/{repository}/manifests/{tag}", method="HEAD",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.oci.image.index.v1+json"})
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return response.status == 200
+    except (OSError, ValueError, KeyError):
+        return False
 
 
 def cmd_publish_config(args: argparse.Namespace) -> int:
@@ -246,24 +225,32 @@ def status_env() -> str:
         raise SystemExit(str(error)) from error
 
 
-def ssh(host: str, command: str, stdin: str | None = None) -> None:
-    subprocess.run(["ssh", "-i", str(SSH_KEY), "-o", "StrictHostKeyChecking=accept-new",
-                    f"root@{host}", command], input=stdin, text=True, check=True, timeout=1800)
+def ssh(target: str, command: str, stdin: str | None = None) -> None:
+    subprocess.run(["ssh", "-i", str(SSH_KEY), "-o", "StrictHostKeyChecking=accept-new", target, command],
+                   input=stdin, text=True, check=True, timeout=1800)
 
 
 def cmd_setup(args: argparse.Namespace) -> int:
     config = load_config()
     host = args.host or config.get("host")
     if not host:
-        raise SystemExit("No host known: pass --host <ip> (or run provision first).")
+        raise SystemExit("No host known: pass --host <server IPv4 from the UpCloud control panel>.")
+    image = args.image or config.get("image") or DEFAULT_IMAGE
+    if not image_is_public(image):
+        raise SystemExit(f"{image} cannot be pulled without login. Use a published tag, e.g. "
+                         "--image ghcr.io/glowingkitty/openmates-status:sha-<dev commit> before the first "
+                         "main release (CI workflow 'Publish Status Image').")
     env_text = status_env()
     ensure_ssh_key()
-    ssh(host, f"umask 022; cat > {REMOTE_SETUP}.new && chmod 755 {REMOTE_SETUP}.new && mv {REMOTE_SETUP}.new {REMOTE_SETUP}",
+    target = f"{args.user}@{host}"
+    ssh(target, f"umask 022; cat > {REMOTE_SETUP}.new && chmod 755 {REMOTE_SETUP}.new && mv {REMOTE_SETUP}.new {REMOTE_SETUP}",
         stdin=SETUP_SCRIPT.read_text(encoding="utf-8"))
-    ssh(host, f"{REMOTE_SETUP} --config-stdin", stdin=env_text)
-    save_config({**config, "host": host, "domain": config.get("domain", DEFAULT_DOMAIN),
-                 "deployed_at": int(time.time())})
-    print(f"Status server set up on {host}. Page: https://{config.get('domain', DEFAULT_DOMAIN)} "
+    ssh(target, f"umask 022; mkdir -p {Path(REMOTE_SETTINGS).parent} && cat > {REMOTE_SETTINGS}",
+        stdin=f"STATUS_IMAGE={image}\n")
+    ssh(target, f"{REMOTE_SETUP} --config-stdin", stdin=env_text)
+    domain = config.get("domain", DEFAULT_DOMAIN)
+    save_config({**config, "host": host, "image": image, "domain": domain, "deployed_at": int(time.time())})
+    print(f"Status server set up on {host} with {image}. Page: https://{domain} "
           "(TLS appears once DNS points there). The dev-server watch is now active.")
     return 0
 
@@ -317,17 +304,15 @@ def main(argv: list[str] | None = None) -> int:
     secret.add_argument("action", choices=["status", "set"])
     secret.add_argument("name", nargs="?")
     secret.set_defaults(func=cmd_secret)
-    sub.add_parser("netcup-login").set_defaults(func=cmd_netcup_login)
-    provision = sub.add_parser("provision")
-    provision.add_argument("--server")
-    provision.add_argument("--wipe", action="store_true")
-    provision.set_defaults(func=cmd_provision)
+    sub.add_parser("ssh-key").set_defaults(func=cmd_ssh_key)
     publish = sub.add_parser("publish-config")
     publish.add_argument("--ai-worker-check", choices=["on", "off"],
                          help="turn the AI-worker liveness check on once production serves the route")
     publish.set_defaults(func=cmd_publish_config)
     setup = sub.add_parser("setup")
-    setup.add_argument("--host")
+    setup.add_argument("--host", help="public IPv4 of the UpCloud server")
+    setup.add_argument("--image", help=f"image to run (default: last used, else {DEFAULT_IMAGE})")
+    setup.add_argument("--user", default="root", help="SSH login user (default: root)")
     setup.set_defaults(func=cmd_setup)
     sub.add_parser("watch").set_defaults(func=cmd_watch)
     args = parser.parse_args(argv)

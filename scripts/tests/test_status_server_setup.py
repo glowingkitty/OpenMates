@@ -25,7 +25,7 @@ PACKAGE = "external-status-monitoring.deploy.one-image-one-command"
 
 STATUS = {"gatus_external_token": "g-token", "discord_webhook_url": "https://discord.example.org/hook",
           "probe_token": "p-token", "monitor_api_key": "m-key", "alert_email_to": "ops@example.org",
-          "netcup_refresh_token": "never-exported", "ai_worker_check": "true"}
+          "unrelated_api_token": "never-exported", "ai_worker_check": "true"}
 
 
 def _env(text: str) -> dict[str, str]:
@@ -39,7 +39,7 @@ def test_env_file_has_only_allowlisted_values() -> None:
     assert env["AI_WORKER_CHECK_ENABLED"] == "true"
     assert env["STATUS_DOMAIN"] == "status.openmates.org"
     assert "never-exported" not in "\n".join(env.values())
-    assert not any("NETCUP" in name for name in env)
+    assert not any("UNRELATED" in name for name in env)
 
 
 # contract-test: direct surface=tooling assertions=external-status-monitoring.deploy.config-from-vault

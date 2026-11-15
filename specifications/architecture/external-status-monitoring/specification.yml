@@ -94,7 +94,7 @@ applies_to:
     role: Public liveness route and monitor-traffic exemption on the existing chat and skill routes.
   cli:
     required: false
-    role: No OpenMates CLI command. The server is operated with its setup script; scripts/status_server.py on the dev server handles Vault config, provisioning and the cross-check.
+    role: No OpenMates CLI command. The server is operated with its setup script; scripts/status_server.py on the dev server handles Vault config, the deploy SSH key, the setup over SSH and the cross-check; the owner creates the UpCloud server by hand.
   sdks:
     required: false
     role: Not an SDK surface.

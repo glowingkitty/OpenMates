@@ -12196,12 +12196,12 @@
           "description": {
             "text": "Ten dostawca jest używany tylko wtedy, gdy otwierasz publiczną stronę statusu pod adresem status.openmates.org. Nie jest używany dla Twojego konta ani żadnej innej części OpenMates."
           },
-          "netcup": {
+          "upcloud": {
             "heading": {
-              "text": "netcup (hosting strony statusu)"
+              "text": "UpCloud (hosting strony statusu)"
             },
             "description": {
-              "text": "Publiczna strona statusu status.openmates.org (strona statyczna i plik JSON ze statusem) jest hostowana przez netcup GmbH na serwerze w Norymberdze w Niemczech. Gdy otwierasz stronę, Twoja przeglądarka łączy się z serwerem netcup, więc netcup przetwarza Twój adres IP i metadane połączenia TLS. Nie prowadzimy logów dostępu i nie używamy na tej stronie plików cookie ani trackerów. Ten sam serwer wysyła też do OpenMates automatyczne żądania testowe, które nie zawierają danych użytkowników."
+              "text": "Publiczna strona statusu status.openmates.org (strona statyczna i plik JSON ze statusem) jest hostowana przez UpCloud Oy na serwerze w Amsterdamie w Holandii. Gdy otwierasz stronę, Twoja przeglądarka łączy się z serwerem UpCloud, więc UpCloud przetwarza Twój adres IP i metadane połączenia TLS. Nie prowadzimy logów dostępu i nie używamy na tej stronie plików cookie ani trackerów. Ten sam serwer wysyła też do OpenMates automatyczne żądania testowe, które nie zawierają danych użytkowników."
             }
           }
         },

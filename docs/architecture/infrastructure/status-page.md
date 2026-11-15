@@ -50,7 +50,7 @@ claims:
 
 # Status Page
 
-> `status.openmates.org` is an external monitor on one small VPS (netcup, Nuremberg). It runs Gatus checks and a small status agent, and publishes a static public page. The web app's own `/status` route (V2 below) is separate.
+> `status.openmates.org` is an external monitor on one small VPS (UpCloud Starter, Amsterdam; a different company and network than production). It runs Gatus checks and a small status agent, and publishes a static public page. The web app's own `/status` route (V2 below) is separate.
 
 ## Why This Exists
 
@@ -63,8 +63,8 @@ All production AI chats were down on 13 Nov 2026 from 16:58 UTC and nobody was a
 Contract: `specifications/architecture/external-status-monitoring`. Runbook: `deployment/status_server/README.md`.
 
 - **Packaging.** Everything below ships as one Docker image, `ghcr.io/glowingkitty/openmates-status` (`Dockerfile`), built and published by `.github/workflows/publish-status-image.yml` on pushes to `dev` and `main`. Inside, `status_agent.supervise` starts Gatus and Caddy and runs the agent; if any part stops, the container exits and Docker restarts it.
-- **Where it runs.** Only on the separate status server, never next to production or on the dev server, so it stays up when production is down.
-- **Config.** The repository and the image hold no secrets, tokens or server addresses. `setup.sh` (installed on the server as `openmates-status-setup`) pulls the image, writes `status.env` (mode 600) from Vault through `status_agent.vault_env`, installs the compose file from the image and restarts. The same command, without new config, is the update: pull and restart. Today the dev server reads Vault and pipes the values in (`scripts/status_server.py setup`), because Vault has no public port.
+- **Where it runs.** Only on the separate status server, never next to production or on the dev server, so it stays up when production is down. The server is an UpCloud Starter plan (1 vCPU, 1 GB, 10 GB, IPv4 included, billed hourly, no minimum term) in Amsterdam on Ubuntu 24.04 LTS, created by the owner in the UpCloud control panel with the deploy SSH key (`status_server.py ssh-key`). No UpCloud API token is stored. The UpCloud firewall stays off (it is stateless); `setup.sh` enables ufw for 22, 80 and 443, and Gatus's port is bound to loopback.
+- **Config.** The repository and the image hold no secrets, tokens or server addresses. `setup.sh` (installed on the server as `openmates-status-setup`) pulls the image, writes `status.env` (mode 600) from Vault through `status_agent.vault_env`, installs the compose file from the image and restarts. The same command, without new config, is the update: pull and restart. Today the dev server reads Vault and pipes the values in over SSH (`scripts/status_server.py setup --host <ip> [--image <ref>]`), because Vault has no public port. Values reach dev Vault as `SECRET__STATUS_MONITOR__*` entries in `.env`, imported by `vault-setup` (`publish-config`), since the api container's Vault token is read-only.
 
 - **Gatus** (`gatus/config.yaml`) runs the free HTTP checks every minute: web app, app shell, API, AI-worker liveness (`GET /v1/health/liveness`), uploads and link previews. Every 5 minutes it reads providers' official Statuspage feeds. It stores the results in SQLite. Its own alerting is off, and its UI is reachable only through an SSH tunnel.
 - **Status agent** (`agent/status_agent/`, stdlib Python) runs the paid probes and pushes them to Gatus external endpoints:

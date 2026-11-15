@@ -396,11 +396,11 @@ provider_groups:
       status.openmates.org. It is not used for your account or any other part
       of OpenMates.
     providers:
-      netcup:
-        privacy_policy: https://www.netcup.com/de/kontakt/datenschutzerklaerung  # verified 2026-11-14 (en URL returns 404)
-        location: EU (Germany)
+      upcloud:
+        privacy_policy: https://upcloud.com/privacy-policy/
+        location: EU (Netherlands; UpCloud Oy is based in Finland)
         used_for:
-          - hosting the public status page (static page plus status JSON) on a server in Nuremberg, Germany
+          - hosting the public status page (static page plus status JSON) on a server in Amsterdam, the Netherlands
           - sending automated test requests to OpenMates (no user data)
         data_shared:
           - IP address and TLS connection metadata of visitors of status.openmates.org

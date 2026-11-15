@@ -4,7 +4,7 @@ The status server keeps no configuration in the repository or the image. At
 setup time this module reads the status monitor secret (plus the Brevo API key
 for email alerts) from Vault and prints ``KEY=value`` lines for docker
 compose's env file. Only allowlisted keys are written; everything else in the
-secret (for example the netcup API token) stays in Vault.
+secret stays in Vault.
 
 Usage (inside the image): ``python -m status_agent.vault_env`` with
 ``VAULT_ADDR`` and ``VAULT_TOKEN`` (or ``VAULT_TOKEN_FILE``) set.

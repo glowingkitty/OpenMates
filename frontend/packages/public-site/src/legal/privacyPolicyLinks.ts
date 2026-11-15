@@ -6,7 +6,7 @@ export const privacyPolicyLinks = {
   ipApi: "https://members.ip-api.com/privacy-policy",
   sightengine: "https://sightengine.com/policies/privacy",
   apiVideo: "https://api.video/privacy-policy/", // verified 2026-04-14
-  netcup: "https://www.netcup.com/de/kontakt/datenschutzerklaerung", // verified 2026-11-14 (en URL returns 404)
+  upcloud: "https://upcloud.com/privacy-policy/",
 
   // Local browser privacy protection — verified 2026-10-28
   desertAntLabs: "https://desertant.com/privacy/",

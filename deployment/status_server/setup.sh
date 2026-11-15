@@ -1,8 +1,8 @@
 #!/bin/sh
 # openmates-status-setup: install, configure and update the status server.
 #
-# Run as root on the separate status server (Debian). Setup and update are the
-# same command:
+# Run as root on the separate status server (Ubuntu 24.04 LTS or Debian 13).
+# Setup and update are the same command:
 #   1. first run: installs Docker, a firewall (22/80/443) and automatic
 #      security updates
 #   2. pulls the status image
@@ -39,7 +39,10 @@ install_system() {
   if ! command -v docker >/dev/null 2>&1; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -q
-    apt-get install -y -q docker.io docker-compose ufw unattended-upgrades
+    # Compose v2 is "docker-compose-v2" on Ubuntu and "docker-compose" on Debian 13.
+    compose_pkg=docker-compose
+    if apt-cache show docker-compose-v2 >/dev/null 2>&1; then compose_pkg=docker-compose-v2; fi
+    apt-get install -y -q docker.io "$compose_pkg" ufw unattended-upgrades
     ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && ufw --force enable
     systemctl enable --now docker unattended-upgrades
   fi
@@ -54,6 +57,8 @@ compose() {
 }
 
 [ "${OPENMATES_STATUS_SKIP_SYSTEM:-0}" = 1 ] || install_system
+{ docker compose version 2>/dev/null || docker-compose version 2>/dev/null; } | grep -q 'version v\{0,1\}2\.' || {
+  echo "Docker Compose v2 is required (Ubuntu 24.04 LTS or Debian 13)" >&2; exit 1; }
 mkdir -p "$STATUS_DIR"
 umask 077
 

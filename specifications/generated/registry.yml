@@ -58,7 +58,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/external-status-monitoring
-    fingerprint: 21152a744ca02e8f83901bc20ac5f913efb81569c97200b7fd763fa8f1612fdd
+    fingerprint: ec3217de61d74dfed68e353e8ec6cb410b63b46cbf90c5ed8d9f29e3426fc764
     required_applies_to:
     - rest_api
   architecture.operational-monitoring:
@@ -1912,14 +1912,14 @@ assertions:
     specification: architecture.external-status-monitoring@1
     specification_id: architecture.external-status-monitoring
     type: privacy
-    fingerprint: 849671415d03cd2ab5b5434765e21f4d344d74a5be33095987fe119e679037c7
+    fingerprint: fb20aa626c86fa22724186c1df97099002db2687d1f3a7c3683e54a524657393
     required_applies_to:
     - rest_api
   external-status-monitoring.deploy.one-image-one-command:
     specification: architecture.external-status-monitoring@1
     specification_id: architecture.external-status-monitoring
     type: behavior
-    fingerprint: 2adb5751149f76e167ba66ff4ed71f139681180ab87697ecd4dfb918c8cbcd60
+    fingerprint: ea7a81136f4934fe7e11983f2d5d8931b438c6ad0416eda00d97a67646c1ef30
     required_applies_to:
     - rest_api
   operational-monitoring.chat-failures.email-trigger:

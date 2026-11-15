@@ -12196,12 +12196,12 @@
           "description": {
             "text": "Tento poskytovatel se používá jen tehdy, když otevřeš veřejnou stavovou stránku na status.openmates.org. Nepoužívá se pro tvůj účet ani pro jinou část OpenMates."
           },
-          "netcup": {
+          "upcloud": {
             "heading": {
-              "text": "netcup (hosting stavové stránky)"
+              "text": "UpCloud (hosting stavové stránky)"
             },
             "description": {
-              "text": "Veřejnou stavovou stránku status.openmates.org (statická stránka a stavový soubor JSON) hostuje společnost netcup GmbH na serveru v Norimberku v Německu. Když stránku otevřeš, tvůj prohlížeč se připojí k serveru netcup, takže netcup zpracovává tvou IP adresu a metadata připojení TLS. Neuchováváme přístupové logy a na této stránce nepoužíváme cookies ani sledovací nástroje. Stejný server také odesílá do OpenMates automatizované testovací požadavky, které neobsahují žádná uživatelská data."
+              "text": "Veřejnou stavovou stránku status.openmates.org (statická stránka a stavový soubor JSON) hostuje společnost UpCloud Oy na serveru v Amsterdamu v Nizozemsku. Když stránku otevřeš, tvůj prohlížeč se připojí k serveru UpCloud, takže UpCloud zpracovává tvou IP adresu a metadata připojení TLS. Neuchováváme přístupové logy a na této stránce nepoužíváme cookies ani sledovací nástroje. Stejný server také odesílá do OpenMates automatizované testovací požadavky, které neobsahují žádná uživatelská data."
             }
           }
         },

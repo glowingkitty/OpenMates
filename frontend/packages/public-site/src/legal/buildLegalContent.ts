@@ -277,7 +277,7 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   lines.push(t("legal.privacy.providers.status_page.description"));
   lines.push("");
-  renderProvider("legal.privacy.providers.status_page.netcup", privacyPolicyLinks.netcup);
+  renderProvider("legal.privacy.providers.status_page.upcloud", privacyPolicyLinks.upcloud);
 
   // Group B — Payments
   lines.push(`### ${t("legal.privacy.providers.payments.heading")}`);

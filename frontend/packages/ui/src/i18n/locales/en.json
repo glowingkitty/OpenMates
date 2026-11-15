@@ -14846,12 +14846,12 @@
           "description": {
             "text": "This provider is only used when you open the public status page at status.openmates.org. It is not used for your account or for any other part of OpenMates."
           },
-          "netcup": {
+          "upcloud": {
             "heading": {
-              "text": "netcup (status page hosting)"
+              "text": "UpCloud (status page hosting)"
             },
             "description": {
-              "text": "The public status page status.openmates.org (a static page plus a status JSON file) is hosted by netcup GmbH on a server in Nuremberg, Germany. When you open the page, your browser connects to netcup's server, so netcup processes your IP address and TLS connection metadata. We keep no access logs and use no cookies or trackers on this page. The same server also sends automated test requests to OpenMates, which contain no user data."
+              "text": "The public status page status.openmates.org (a static page plus a status JSON file) is hosted by UpCloud Oy on a server in Amsterdam, the Netherlands. When you open the page, your browser connects to UpCloud's server, so UpCloud processes your IP address and TLS connection metadata. We keep no access logs and use no cookies or trackers on this page. The same server also sends automated test requests to OpenMates, which contain no user data."
             }
           }
         },

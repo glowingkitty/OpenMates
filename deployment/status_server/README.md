@@ -1,6 +1,6 @@
 # status.openmates.org: external status server
 
-One small VPS outside our own infrastructure (EU, a different company and network than production). It checks production from the outside, publishes the public status page and sends alerts. It runs there only, never next to production, so it stays up when production is down.
+One small VPS outside our own infrastructure: UpCloud Starter (1 vCPU, 1 GB, 10 GB), Amsterdam, Ubuntu 24.04 LTS. A different company and network than production. The owner creates it by hand in the UpCloud control panel; no UpCloud API token is stored. It checks production from the outside, publishes the public status page and sends alerts. It runs there only, never next to production, so it stays up when production is down.
 Design: `docs/architecture/infrastructure/status-page.md`. Contract: `specifications/architecture/external-status-monitoring`.
 
 One image, `ghcr.io/glowingkitty/openmates-status` (`Dockerfile`, published by CI from `dev` and `main`):
@@ -33,14 +33,14 @@ Alerts: 2 failures in a row trigger a "DOWN" message. "STILL DOWN … for X" rem
 
 ```bash
 python3 scripts/status_server.py secret status            # which secrets exist (never values)
-python3 scripts/status_server.py netcup-login             # one browser approval; stores the netcup API token
 python3 scripts/status_server.py secret set monitor_api_key  # monitoring account's API key, hidden input
-python3 scripts/status_server.py provision                # dry run: shows the server and IP
-python3 scripts/status_server.py provision --wipe         # installs Debian 13 with our deploy key (erases disk)
 python3 scripts/status_server.py publish-config           # tokens, Discord webhook, alert email into Vault (via .env + vault-setup)
-python3 scripts/status_server.py setup                    # runs setup.sh on the VPS with the config from Vault
+python3 scripts/status_server.py ssh-key                  # deploy public key to paste when creating the UpCloud server
+python3 scripts/status_server.py setup --host <IPv4> [--image <ref>]  # first setup and config changes
 scripts/status-server-watch-setup.sh                      # dev-server cross-check every 5 minutes
 ```
+
+Creating the server (UpCloud control panel): Deploy server → Starter plan 1 vCPU / 1 GB / 10 GB → location Amsterdam (NL-AMS1) → Ubuntu Server 24.04 LTS → login method SSH key (the output of `ssh-key`) → hostname `status-openmates`. Leave the UpCloud firewall off: it is stateless and would also block the server's own outgoing checks unless every reply is allowed; the setup turns on the server's own firewall (ufw: 22, 80, 443). `--image` defaults to `…:main`; before the first main release pass a published tag such as `…:sha-<dev commit>`. `setup` refuses an image that cannot be pulled without login.
 
 On the VPS (as root):
 
@@ -52,7 +52,6 @@ openmates-status-setup        # update: pull the newest image and restart (keeps
 
 Secrets live in Vault at `kv/data/providers/status_monitor`:
 - `monitor_api_key`
-- `netcup_refresh_token`
 - `probe_token`, auto-generated
 - `gatus_external_token`, auto-generated
 - `discord_webhook_url`, `alert_email_to`, `status_domain`, `ai_worker_check` (written by `publish-config`)

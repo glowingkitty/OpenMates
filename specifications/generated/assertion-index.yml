@@ -12757,7 +12757,7 @@ assertions:
     current_direct_proof: false
   external-status-monitoring.deploy.config-from-vault:
     specification: architecture.external-status-monitoring@1
-    fingerprint: 849671415d03cd2ab5b5434765e21f4d344d74a5be33095987fe119e679037c7
+    fingerprint: fb20aa626c86fa22724186c1df97099002db2687d1f3a7c3683e54a524657393
     direct_tests:
     - &id1633
       path: scripts/tests/test_status_server_setup.py
@@ -12796,7 +12796,7 @@ assertions:
     current_direct_proof: false
   external-status-monitoring.deploy.one-image-one-command:
     specification: architecture.external-status-monitoring@1
-    fingerprint: 2adb5751149f76e167ba66ff4ed71f139681180ab87697ecd4dfb918c8cbcd60
+    fingerprint: ea7a81136f4934fe7e11983f2d5d8931b438c6ad0416eda00d97a67646c1ef30
     direct_tests:
     - &id1637
       path: scripts/tests/test_status_server_setup.py

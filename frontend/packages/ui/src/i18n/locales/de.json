@@ -14664,12 +14664,12 @@
           "description": {
             "text": "Dieser Anbieter wird nur verwendet, wenn du die öffentliche Statusseite unter status.openmates.org öffnest. Er wird nicht für dein Konto oder andere Teile von OpenMates genutzt."
           },
-          "netcup": {
+          "upcloud": {
             "heading": {
-              "text": "netcup (Hosting der Statusseite)"
+              "text": "UpCloud (Hosting der Statusseite)"
             },
             "description": {
-              "text": "Die öffentliche Statusseite status.openmates.org (eine statische Seite plus eine Status-JSON-Datei) wird von der netcup GmbH auf einem Server in Nürnberg, Deutschland, gehostet. Wenn du die Seite öffnest, verbindet sich dein Browser mit dem Server von netcup, sodass netcup deine IP-Adresse und TLS-Verbindungsmetadaten verarbeitet. Wir speichern keine Zugriffsprotokolle und verwenden auf dieser Seite keine Cookies oder Tracker. Derselbe Server sendet außerdem automatisierte Testanfragen an OpenMates, die keine Nutzerdaten enthalten."
+              "text": "Die öffentliche Statusseite status.openmates.org (eine statische Seite plus eine Status-JSON-Datei) wird von der UpCloud Oy auf einem Server in Amsterdam, Niederlande, gehostet. Wenn du die Seite öffnest, verbindet sich dein Browser mit dem Server von UpCloud, sodass UpCloud deine IP-Adresse und TLS-Verbindungsmetadaten verarbeitet. Wir speichern keine Zugriffsprotokolle und verwenden auf dieser Seite keine Cookies oder Tracker. Derselbe Server sendet außerdem automatisierte Testanfragen an OpenMates, die keine Nutzerdaten enthalten."
             }
           }
         },

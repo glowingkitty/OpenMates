@@ -53,8 +53,8 @@ liveness:
 
 deploy:
   - id: setup-writes-config-from-vault
-    given: {vault: {gatus_external_token: set, discord_webhook_url: set, netcup_refresh_token: set}}
-    expect: {status_env: [GATUS_EXTERNAL_TOKEN, DISCORD_WEBHOOK_URL], netcup_token_on_server: false, mode: "600"}
+    given: {vault: {gatus_external_token: set, discord_webhook_url: set, unrelated_api_token: set}}
+    expect: {status_env: [GATUS_EXTERNAL_TOKEN, DISCORD_WEBHOOK_URL], other_secrets_on_server: false, mode: "600"}
   - id: incomplete-config-stops
     given: {vault: {gatus_external_token: set, discord_webhook_url: missing}}
     expect: {server_started: false, message: run_publish_config}

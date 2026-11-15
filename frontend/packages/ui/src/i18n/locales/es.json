@@ -12223,12 +12223,12 @@
           "description": {
             "text": "Este proveedor solo se utiliza cuando abres la página de estado pública en status.openmates.org. No se usa para tu cuenta ni para ninguna otra parte de OpenMates."
           },
-          "netcup": {
+          "upcloud": {
             "heading": {
-              "text": "netcup (alojamiento de la página de estado)"
+              "text": "UpCloud (alojamiento de la página de estado)"
             },
             "description": {
-              "text": "La página de estado pública status.openmates.org (una página estática más un archivo JSON de estado) está alojada por netcup GmbH en un servidor en Núremberg, Alemania. Cuando abres la página, tu navegador se conecta al servidor de netcup, por lo que netcup procesa tu dirección IP y los metadatos de la conexión TLS. No guardamos registros de acceso ni usamos cookies ni rastreadores en esta página. El mismo servidor también envía solicitudes de prueba automatizadas a OpenMates, que no contienen datos de usuario."
+              "text": "La página de estado pública status.openmates.org (una página estática más un archivo JSON de estado) está alojada por UpCloud Oy en un servidor en Ámsterdam, Países Bajos. Cuando abres la página, tu navegador se conecta al servidor de UpCloud, por lo que UpCloud procesa tu dirección IP y los metadatos de la conexión TLS. No guardamos registros de acceso ni usamos cookies ni rastreadores en esta página. El mismo servidor también envía solicitudes de prueba automatizadas a OpenMates, que no contienen datos de usuario."
             }
           }
         },

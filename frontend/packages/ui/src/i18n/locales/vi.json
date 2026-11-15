@@ -12196,12 +12196,12 @@
           "description": {
             "text": "Nhà cung cấp này chỉ được sử dụng khi bạn mở trang trạng thái công khai tại status.openmates.org. Nó không được dùng cho tài khoản của bạn hay bất kỳ phần nào khác của OpenMates."
           },
-          "netcup": {
+          "upcloud": {
             "heading": {
-              "text": "netcup (lưu trữ trang trạng thái)"
+              "text": "UpCloud (lưu trữ trang trạng thái)"
             },
             "description": {
-              "text": "Trang trạng thái công khai status.openmates.org (một trang tĩnh cùng một tệp JSON trạng thái) được netcup GmbH lưu trữ trên máy chủ tại Nuremberg, Đức. Khi bạn mở trang, trình duyệt kết nối tới máy chủ của netcup, nên netcup xử lý địa chỉ IP và siêu dữ liệu kết nối TLS của bạn. Chúng tôi không lưu nhật ký truy cập và không dùng cookie hay trình theo dõi trên trang này. Cùng máy chủ đó cũng gửi các yêu cầu kiểm tra tự động tới OpenMates, không chứa dữ liệu người dùng."
+              "text": "Trang trạng thái công khai status.openmates.org (một trang tĩnh cùng một tệp JSON trạng thái) được UpCloud Oy lưu trữ trên máy chủ tại Amsterdam, Hà Lan. Khi bạn mở trang, trình duyệt kết nối tới máy chủ của UpCloud, nên UpCloud xử lý địa chỉ IP và siêu dữ liệu kết nối TLS của bạn. Chúng tôi không lưu nhật ký truy cập và không dùng cookie hay trình theo dõi trên trang này. Cùng máy chủ đó cũng gửi các yêu cầu kiểm tra tự động tới OpenMates, không chứa dữ liệu người dùng."
             }
           }
         },
