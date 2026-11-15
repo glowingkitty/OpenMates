@@ -399,3 +399,13 @@ def test_running_ci_jobs_without_queue_is_empty_and_broken_db_raises(tmp_path):
     broken.write_text("not a database")
     with pytest.raises(RuntimeError, match="CI queue unreadable"):
         pending.running_ci_jobs(tmp_path)
+
+
+def test_runs_as_isolated_python_like_the_systemd_unit():
+    """The units start `python3 -I -S claude_idle_chats.py`; the sibling import must still resolve."""
+    import subprocess
+
+    script = Path(__file__).resolve().parents[1] / "claude_idle_chats.py"
+    result = subprocess.run(["/usr/bin/python3", "-I", "-S", str(script), "--help"],
+                            capture_output=True, text=True, timeout=60, check=False)
+    assert result.returncode == 0, result.stderr

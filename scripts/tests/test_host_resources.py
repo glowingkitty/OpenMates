@@ -42,7 +42,7 @@ def calls(monkeypatch) -> Calls:
         out = "stopped Idle chat (abc, pid 1): idle 30 min\n" if "reap" in args else "released Held chat (def)\n"
         return type("Result", (), {"returncode": 0, "stdout": out, "stderr": ""})()
 
-    def fake_alert(problem, healed, directory):
+    def fake_alert(problem, healed, directory, after=res.ALERT_AFTER_SECONDS, recommendation=""):
         record.alerts.append(f"{problem} | {healed}")
         return True
 
@@ -50,6 +50,7 @@ def calls(monkeypatch) -> Calls:
     monkeypatch.setattr(res, "alert", fake_alert)
     monkeypatch.setattr(res, "disk_problem", lambda path: None)
     monkeypatch.setattr(res, "_service_active", lambda unit: True)
+    monkeypatch.setattr(res, "zellij_servers", lambda: {})
     return record
 
 
@@ -112,3 +113,44 @@ def test_monitor_hands_over_to_the_resources_guard(tmp_path, monkeypatch):
     monkeypatch.setattr(res, "tick", lambda sample, decision: seen.append(decision.overloaded) or 0)
     assert guard.cmd_monitor() == 0
     assert len(seen) == 1
+
+
+def zellij(rss_gib: float, cpu_ticks: int, pid: int = 42) -> dict:
+    return {"claude": {"pid": pid, "rss_bytes": int(rss_gib * GIB), "cpu_ticks": cpu_ticks}}
+
+
+def test_zellij_server_over_two_gib_or_two_hundred_percent_cpu_is_a_problem():
+    state: dict = {}
+    assert res.zellij_problem(state, NOW, zellij(0.3, 0), clock_ticks=100) is None
+    # 60 s later 6,000 more ticks at 100 ticks/s: 100% CPU, under the limit
+    assert res.zellij_problem(state, NOW + 60, zellij(0.3, 6_000), clock_ticks=100) is None
+    busy = res.zellij_problem(state, NOW + 120, zellij(0.3, 6_000 + 60_000), clock_ticks=100)
+    assert busy is not None and "1000% CPU" in busy and "`claude`" in busy
+    big = res.zellij_problem(state, NOW + 180, zellij(7.0, 66_000), clock_ticks=100)
+    assert big is not None and "7.0 GiB RAM" in big and "CPU" not in big
+    # a restarted server (new pid) has no CPU baseline yet
+    assert res.zellij_problem(state, NOW + 240, zellij(0.1, 999_999, pid=43), clock_ticks=100) is None
+
+
+def test_zellij_over_limit_alerts_once_after_five_minutes(tmp_path, calls, monkeypatch):
+    monkeypatch.setattr(res, "zellij_servers", lambda: zellij(3.0, 0))
+    for minute in range(0, 12):
+        res.tick(sample(8), HEALTHY, tmp_path, tmp_path, now=NOW + minute * 60)
+    assert len(calls.alerts) == 1 and "3.0 GiB RAM" in calls.alerts[0]
+    assert "zellij is only watched" in calls.alerts[0]
+    monkeypatch.setattr(res, "zellij_servers", lambda: zellij(0.4, 0))
+    res.tick(sample(8), HEALTHY, tmp_path, tmp_path, now=NOW + 13 * 60)
+    events = (tmp_path / "events.jsonl").read_text()
+    assert '"event": "zellij_over_limit"' in events and '"kind": "zellij"' in events
+
+
+def test_zellij_servers_reads_session_name_rss_and_cpu_from_proc(tmp_path):
+    pid = tmp_path / "123"
+    pid.mkdir()
+    (pid / "cmdline").write_bytes(b"/usr/local/bin/zellij\0--server\0/run/user/1/zellij/contract_version_1/claude\0")
+    (pid / "stat").write_text("123 (zellij) S 1 2 3 4 5 6 7 8 9 10 700 300 0 0")
+    (pid / "status").write_text("Name:\tzellij\nVmRSS:\t  2048 kB\n")
+    other = tmp_path / "124"
+    other.mkdir()
+    (other / "cmdline").write_bytes(b"/usr/local/bin/zellij\0attach\0claude\0")
+    assert res.zellij_servers(tmp_path) == {"claude": {"pid": 123, "rss_bytes": 2048 * 1024, "cpu_ticks": 1000}}

@@ -38,6 +38,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -136,6 +137,33 @@ def _session_state(listing: str, name: str) -> str:
     return "missing"
 
 
+def zellij_scope_unit(session: str, started: float) -> str:
+    """systemd user scope that owns the zellij server of `session` and every pane in it
+    (unique per start, so a scope still held by a leftover pane never blocks a new server)."""
+    return f"openmates-zellij-{session}-{int(started)}.scope"
+
+
+def _start_zellij_server(session: str) -> None:
+    """Start the session's zellij server in its own systemd user scope.
+
+    The broker (a systemd user service) and the timers call this. A server started
+    as their child stays in their cgroup, and `systemctl --user restart` of that
+    unit then kills the server and every chat pane in it (TASK-2369: two restarts of
+    the dev connector broker took down ~15 chats). A transient scope of its own keeps
+    the server and its panes alive across those restarts.
+    """
+    env = _zellij_env()
+    result = subprocess.run(
+        ["systemd-run", "--user", "--scope", "--collect", f"--unit={zellij_scope_unit(session, time.time())}",
+         f"--description=zellij session {session} (Claude pane chats)",
+         ZELLIJ_BIN, "attach", "--create-background", session],
+        cwd=REPO_ROOT, env=env, capture_output=True, text=True, timeout=60,
+    )
+    if result.returncode != 0:
+        raise DispatchError(f"systemd-run zellij attach exited {result.returncode}: "
+                            f"{(result.stderr or result.stdout)[-500:]}")
+
+
 def ensure_zellij_session() -> None:
     """Make sure the persistent `claude` zellij session exists and hosts the
     `claude remote-control` bridge (for new chats started from the app)."""
@@ -145,7 +173,7 @@ def ensure_zellij_session() -> None:
         return
     if state == "exited":
         _zellij("delete-session", ZELLIJ_SESSION, "--force", check=False)
-    _zellij("attach", "--create-background", ZELLIJ_SESSION)
+    _start_zellij_server(ZELLIJ_SESSION)
     _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", "remote-control",
             "--cwd", str(REPO_ROOT), "--", *_chat_command("remote-control"))
 

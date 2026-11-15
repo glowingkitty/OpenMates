@@ -76,7 +76,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-import claude_chat_pending
+# The systemd units run this as `python3 -I -S`, which does not put the script's folder on
+# sys.path; without this the sibling import fails and the lifecycle (idle stop, cap of 20) stops.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import claude_chat_pending  # noqa: E402  (path set above)
 
 DEFAULTS = {
     "idle_stop_minutes": 60.0,

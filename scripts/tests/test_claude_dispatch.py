@@ -224,7 +224,8 @@ def test_launch_recreates_missing_or_exited_session_with_bridge(monkeypatch):
         calls = _fake_zellij(monkeypatch, listing)
         dispatch.launch_claude_chat("title", "prompt")
         assert any("delete-session" in call for call in calls) is expect_delete
-        assert any(call[1:3] == ["attach", "--create-background"] for call in calls)
+        # the new server starts in its own systemd scope, never as a child of the caller
+        assert any(call[0] == "systemd-run" and call[-3:-1] == ["attach", "--create-background"] for call in calls)
         bridge = next(call for call in calls if "remote-control" in call and "--name" in call
                       and call[call.index("--name") + 1] == "remote-control")
         assert bridge[-1] == "remote-control"
@@ -284,3 +285,32 @@ def test_admission_check_errors_fail_loudly(monkeypatch):
     monkeypatch.setattr(dispatch.subprocess, "run", lambda *a, **k: result)
     with pytest.raises(dispatch.DispatchError, match="admission check failed"):
         REAL_ADMIT()
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_new_zellij_server_starts_in_its_own_systemd_scope(monkeypatch):
+    """A server started by the broker or a timer must not live in their cgroup: restarting that
+    unit would kill the server and every chat pane in it (TASK-2369)."""
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(dispatch.subprocess, "run", fake_run)
+    monkeypatch.setattr(dispatch, "_zellij", lambda *args, check=True: (
+        calls.append(["zellij", *args]) or type("R", (), {"stdout": "", "returncode": 0})()))
+    dispatch.ensure_zellij_session()
+    start = next(cmd for cmd in calls if cmd[0] == "systemd-run")
+    assert start[:4] == ["systemd-run", "--user", "--scope", "--collect"]
+    assert any(arg.startswith("--unit=openmates-zellij-claude-") for arg in start)
+    assert start[-3:] == ["attach", "--create-background", "claude"]
+    assert not any(cmd[:3] == ["zellij", "attach", "--create-background"] for cmd in calls)
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_zellij_scope_start_failure_is_an_error(monkeypatch):
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, **kw: type(
+        "Result", (), {"returncode": 1, "stdout": "", "stderr": "Failed to connect to bus"})())
+    with pytest.raises(dispatch.DispatchError, match="Failed to connect to bus"):
+        dispatch._start_zellij_server("claude")

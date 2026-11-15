@@ -111,6 +111,31 @@ so the connector can match a push to its chat.
 4. A memory or disk problem that lasts 20 min despite self-healing sends one
    "feedback needed" Discord push per incident (`agent_question.py`).
    `resources_recovered` is logged when it ends.
+5. zellij: each zellij server (the `claude` session holds every pane chat) is
+   checked for more than 2 GiB RSS or more than 200% CPU since the previous
+   tick (`zellij_over_limit` event). Over a limit for 5 min sends one push.
+   Nothing is restarted automatically: a restart kills every chat pane in it.
+
+## zellij session
+
+All pane chats and the `remote-control` bridge run as tabs of one headless
+zellij session, so its server's memory is the sum of every pane's scrollback.
+On 2026-11-14 it grew to 8.5 GiB with about 20 chats on the default
+10,000-line scrollback and two bar plugins per tab. The kernel then OOM-killed
+it, and every chat in it went down with it. The same night, two `systemctl --user restart openmates-dev-mcp-broker` runs
+killed it again. The broker had started the server, so the server and every pane
+lived in the broker's cgroup (`KillMode=control-group`). `claude_dispatch.ensure_zellij_session`
+now starts a new server with `systemd-run --user --scope`
+(`openmates-zellij-claude-<epoch>.scope`). Panes are the server's children and
+stay in that scope, so restarting the broker or a timer no longer kills chats.
+The owner's `~/.config/zellij/config.kdl`
+therefore sets `scroll_buffer_size 2000`, `default_layout "compact"` (one bar
+plugin per tab) and `session_serialization false` (nothing resurrects sessions;
+`claude_dispatch.ensure_zellij_session` recreates a missing one). Chat history
+lives in Claude transcripts, not pane scrollback: a killed chat reopens with
+`claude --resume <id> --remote-control <title>` in a new tab. The lifecycle's
+idle stop and cap of 20 keep the number of panes bounded, so a failing
+`openmates-claude-idle-chats.service` is a direct path back to this overload.
 
 State: `logs/host-load-guard/resources.json`; events in `logs/host-load-guard/events.jsonl`.
 
