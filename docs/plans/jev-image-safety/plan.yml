@@ -1,0 +1,25 @@
+schema_version: 2
+profile: concise
+title: Jev Classifies Picture Prompts And Images For The Image Safety Checks
+status: implementing
+id: jev-image-safety
+goal: >
+  The image safety checks ask the Jev decision model first. A text-only picture
+  prompt is decided by Jev when it is confident and by the existing safeguard
+  model otherwise. Reference images and generated images are classified by Jev
+  into the same signals the checks already use. The previous image classifier
+  answers only when Jev fails. Users see the same policy, categories and
+  messages, and a technical failure is never a strike.
+decisions:
+  - A private labelled benchmark (149 prompts, 53 openly licensed images, two repeats) found Jev at least as accurate as the previous checks in every measured category, about 3 times faster and cheaper. The owner received the numbers before any change.
+  - A prompt is blocked when Jev's block probability is at least 0.9 and allowed when it is at most 0.5; anything in between, and any Jev error, goes to the existing safeguard model.
+  - Image signals and hard-block rules are calibrated to the measured probabilities, with conservative cut-offs. Every soft signal still sends the image to the safeguard review together with the vision model findings.
+  - Explicit adult content was not part of the benchmark, so the output stage keeps the vision model and safeguard review unchanged.
+  - Production is unchanged until the owner merges and gives the go; the upload scanner on the upload server is a later step.
+checks:
+  required:
+    - Unit checks for the prompt decision bands, the image signal rules and the fallback to the previous checks on any Jev error.
+    - Real dev run of the image safety explanations proof on the personal dev test account after the scoped deploy and worker rebuild.
+approval_provenance:
+  source: Owner instruction via verified dev-connector messages 5fe3e2e77fadf15e and 46ef79e529a8ca40 (benchmark Jev; switch on dev where it is not weaker; show the numbers before production) and 50eb0951926bfae0.
+  note: No product contract changes; feature.safety-strikes assertions screening-rejects and technical-failure-no-strike already cover the behavior.

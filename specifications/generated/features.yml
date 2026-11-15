@@ -8484,8 +8484,9 @@ features:
       - backend/tests/test_image_safety_pipeline.py
       - backend/tests/test_safety_strikes.py
       - backend/tests/test_image_safety_explanations.py
+      - backend/tests/test_image_safety_jev_signals.py
       - backend/tests/test_safeguard_tool_call_recovery.py
-      unit_test_files: 4
+      unit_test_files: 5
     sdk_npm:
       status: not_planned
       source: intent

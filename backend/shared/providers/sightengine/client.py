@@ -60,6 +60,10 @@ OUTPUT_THRESHOLDS = {
 class SightengineFindings:
     """Structured Sightengine response for the safety pipeline."""
 
+    # Which classifier produced these findings: "sightengine", or "jev" when
+    # the image safety pipeline mapped Jev labels onto the same fields.
+    classifier: str = "sightengine"
+
     # Hard block decision + category for the safeguard prompt
     hard_block: bool = False
     hard_block_reason: Optional[str] = None
@@ -94,6 +98,7 @@ class SightengineFindings:
     def to_audit_dict(self) -> Dict[str, Any]:
         """Compact representation for the safety_audit_log collection."""
         return {
+            "classifier": self.classifier,
             "hard_block": self.hard_block,
             "hard_block_reason": self.hard_block_reason,
             "category_hint": self.category_hint,

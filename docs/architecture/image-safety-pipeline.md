@@ -177,9 +177,24 @@
 - **Benign-edit fast path:** If prompt matches a *regex-free semantic* whitelist classifier (Gemini Flash small call in future, not P0), skip Steps 3+6 reasoning
   - P0: skip fast path, run full pipeline on every request with reference_images
 
-### Step 1 — Input image analysis (parallel: Sightengine + Gemini)
+### Jev first (dev, 2026-11-15)
 
-Run both classifiers concurrently via `asyncio.gather()`. Either can veto.
+Plan: `docs/plans/jev-image-safety/plan.yml`. Code: `backend/shared/python_utils/image_safety/jev_signals.py`.
+
+- **Text-only prompts:** the Jev decision model reads the policy and the prompt. A block probability ≥ 0.9 blocks with Jev's category and ≤ 0.5 allows. Anything in between, and any Jev error or timeout, goes to the safeguard reasoner (Step 2) unchanged.
+- **Images (reference and generated):** the "image classifier" in Step 1 is Jev. It answers seven yes/no labels: nudity, minor, public figure, gore, weapon, injection text, photorealistic. These map onto the same findings fields (`classifier: "jev"` in the audit log). Hard blocks:
+  - injection text ≥ 0.9 → S12;
+  - minor ≥ 0.5 with nudity ≥ 0.3 → S1;
+  - nudity ≥ 0.7 → S3;
+  - photorealistic gore ≥ 0.9 → S4;
+  - photorealistic public figure ≥ 0.8 → S6.
+  Lower values are soft signals that send the image to Step 2 with the VLM findings. When Jev fails, or the image cannot be prepared for it, the Sightengine call below runs as before.
+- **Why:** a labelled benchmark (149 prompts including adversarial and tricky-benign ones; 53 openly licensed images; two repeats) found Jev at least as accurate in every measured category, with no critical misses, about 3× faster and 2–20× cheaper. Explicit adult content was not part of it, so the VLM and Step 2 stay in place.
+- **Sightengine response parsing:** the `gore` model answers `{"prob": …}`, and `weapon` is not among the requested models. Sightengine's gore and weapon scores therefore stay 0 on the fallback path. TASK 5a780ad9 tracks this.
+
+### Step 1 — Input image analysis (parallel: image classifier + Gemini)
+
+Run both classifiers concurrently via `asyncio.gather()`. Either can veto. The image classifier is Jev (see above); the Sightengine call in 1a is its fallback.
 
 #### 1a — Sightengine call
 

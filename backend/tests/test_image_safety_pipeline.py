@@ -898,9 +898,13 @@ class TestPipelineOrchestration:
             )
         )
 
+        # Jev is unsure (None), so the safeguard reasoner decides.
         with patch(
             "backend.shared.python_utils.image_safety.pipeline.get_safeguard_client",
             return_value=mock_safeguard,
+        ), patch(
+            "backend.shared.python_utils.image_safety.pipeline.jev_prompt_verdict",
+            new=AsyncMock(return_value=None),
         ):
             decision = await pipeline.validate_input(
                 prompt="a cat sitting on a rainbow",
@@ -927,9 +931,13 @@ class TestPipelineOrchestration:
             )
         )
 
+        # Jev is unsure (None), so the safeguard reasoner decides.
         with patch(
             "backend.shared.python_utils.image_safety.pipeline.get_safeguard_client",
             return_value=mock_safeguard,
+        ), patch(
+            "backend.shared.python_utils.image_safety.pipeline.jev_prompt_verdict",
+            new=AsyncMock(return_value=None),
         ):
             decision = await pipeline.validate_input(
                 prompt="generate an image of <named politician>",
