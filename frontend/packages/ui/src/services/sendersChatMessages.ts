@@ -45,6 +45,7 @@ import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { promptChatErrorReportConsent } from "./chatErrorReportConsent";
 import type { Chat, Message } from "../types/chat";
 import { get } from "svelte/store";
+import { locale } from "svelte-i18n";
 import { authStore } from "../stores/authStore";
 import { modelRoutingRestrictionsForTurn, type ModelRoutingRestrictions } from "./modelRoutingRestrictions";
 import { initializeServerStatus, serverStatusStore } from "../stores/serverStatusStore";
@@ -2505,6 +2506,7 @@ export async function sendNewMessageImpl(
 		};
 		encrypted_chat_key?: string | null; // CRITICAL: Include key for device sync broadcast
 		is_incognito?: boolean;
+		ui_language?: string;
 		embeds?: EmbedForServer[];
 		message_history?: Message[];
 		encrypted_suggestion_to_delete?: string | null;
@@ -2541,6 +2543,9 @@ export async function sendNewMessageImpl(
 		...(message.preserve_draft === true ? { preserve_draft: true } : {}),
 		chat_id: message.chat_id,
 		parent_id: chat?.parent_id || null,
+		// The interface language the user reads; Automatic mode never rewrites the
+		// account language, so chat titles and summaries follow this instead.
+		ui_language: get(locale) || undefined,
 		broadcast: ((message as unknown) as Record<string, unknown>).broadcast as boolean || false,
 		message: {
 			message_id: message.message_id,

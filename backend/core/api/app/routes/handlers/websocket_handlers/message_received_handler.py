@@ -8,6 +8,7 @@
 from backend.shared.python_utils.chat_failure_notifications import notify_chat_failure
 
 from backend.core.api.app.routes.handlers.websocket_handlers.draft_submission import clear_sent_message_draft
+import re
 import logging
 import asyncio
 import json
@@ -169,6 +170,17 @@ def _prepare_test_mock_marker(
         if signed_marker:
             return signed_marker
     raise ValueError("Invalid or unauthorized dev E2E test marker")
+
+_UI_LANGUAGE_PATTERN = re.compile(r"^([a-z]{2,3})(?:-[A-Za-z0-9]{2,8})?$")
+
+
+def displayed_ui_language(value: Any) -> Optional[str]:
+    """Base language code of the interface the client displays, or None if absent/invalid."""
+    if not isinstance(value, str):
+        return None
+    match = _UI_LANGUAGE_PATTERN.match(value.strip())
+    return match.group(1) if match else None
+
 
 AI_USER_PREFERENCE_FIELDS = [
     "timezone",
@@ -2652,7 +2664,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 logger.debug(f"Including user timezone '{user_timezone}' in AI request for user {user_id}")
             # Include user's system/UI language (ISO 639-1 code, e.g., "en", "de")
             # Used by postprocessor to generate new chat suggestions in the user's interface language
-            user_system_language = user_data_for_prefs.get("language", "en")
+            # The language the client actually displays wins over the stored account
+            # value: Automatic mode and ?lang= never rewrite the account language, so
+            # the profile can say "de" while the user reads an English interface.
+            user_system_language = (
+                displayed_ui_language(payload.get("ui_language"))
+                or user_data_for_prefs.get("language", "en")
+            )
             user_preferences_dict["language"] = user_system_language
             logger.debug(f"Including user system language '{user_system_language}' in AI request for user {user_id}")
             # Include user's default model preferences (cross-device synced via Directus + Redis cache).

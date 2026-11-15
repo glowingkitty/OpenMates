@@ -44,3 +44,9 @@ content:
     when: The visitor loads or switches to German inspirations.
     then: German fallback content is shown without English filler, and previously opened chats remain available.
     assertion_ids: [language-preferences.content-language]
+chat-metadata:
+  - id: automatic-english-over-german-account
+    given: The saved account language is German, and the web app shows English through Automatic browser language.
+    when: The user sends an English request in a new chat.
+    then: The chat title, summary and tags are English.
+    assertion_ids: [language-preferences.chat-metadata-language]

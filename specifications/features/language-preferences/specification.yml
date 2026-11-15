@@ -29,6 +29,10 @@ assertions:
     type: behavior
     must: German legal documents contain translated prose, including storage, audio and retention disclosures. German daily inspirations use German static and fallback copy and never silently fill shortages with English. Language changes refresh mismatched cached or persisted sets while preserving opened-chat associations and personal history.
     depends_on: [examples.content]
+  - id: language-preferences.chat-metadata-language
+    type: behavior
+    must: Generated chat titles, summaries, tags and new-chat suggestions use the interface language the web app is displaying when the message is sent, including Automatic browser language and a URL language that never rewrote the saved account language. The client sends that displayed language with each message; the saved account language applies only when no valid displayed language arrives.
+    depends_on: [examples.chat-metadata]
 applies_to:
   rest_api: {required: true, role: Public default-inspiration locale response semantics.}
   cli: {required: false}
@@ -40,6 +44,6 @@ applies_to:
     implementations: {web: {required: true}, apple: {required: false}}
 examples:
   file: examples.yml
-  required_groups: [resolution, startup, controls, content]
+  required_groups: [resolution, startup, controls, content, chat-metadata]
 approval_source:
   instruction: User explicitly approved the six concrete recommendations in this chat and requested implementation, deployment and video proof. This transcribes that approved scope without claiming a new exact-fingerprint review.

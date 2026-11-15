@@ -381,6 +381,19 @@ select only a service with no upload-app dependencies (such as `admin-sidecar`)
 so the healthy recording upload process remains available. A completion-email
 failure leaves the update degraded even when routing and service health pass.
 
+Chat recovery and early chat titles: on its first start at protocol epoch 0
+the API activates recovery epoch 1 by itself once no legacy turn is running
+(`chat_recovery_auto_cutover.py`; sends pause only for the activation itself).
+After the signed-in chat check above, verify it with the update start time:
+
+```bash
+python3 scripts/verify_prod_early_title.py --since <UPDATE_START_RFC3339>
+```
+
+All four checks (`cutover_state`, `cutover_logged`, `recovery_enqueue`,
+`early_title`) must pass. A failure means the chat header gets its title only
+after post-processing: report it as a release defect; never lower the epoch.
+
 After the server update succeeds, smoke-test the production web app as a guest
 in a signed-out browser context with no prior account session. Keep the same
 guest identity for all turns so the daily per-identity allowance is exercised:

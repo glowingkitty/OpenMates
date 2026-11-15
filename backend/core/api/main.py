@@ -1020,14 +1020,21 @@ async def lifespan(app: FastAPI):
     app.state.connection_manager = websockets.manager
     websockets.manager.storage_archive_dispatch_guard_installed = True
     compatibility_task = asyncio.create_task(runtime_proof_loop(app))
+    # Production servers still at chat-recovery epoch 0 activate epoch 1 once
+    # legacy turns drained; this enables early chat titles and sealed jobs.
+    from backend.core.api.app.services.chat_recovery_auto_cutover import run_auto_cutover
+    recovery_cutover_task = asyncio.create_task(run_auto_cutover(
+        app.state.cache_service, app.state.directus_service, websockets.manager,
+    ))
     try:
         yield  # This is where FastAPI serves requests
     finally:
-        compatibility_task.cancel()
-        try:
-            await compatibility_task
-        except asyncio.CancelledError:
-            pass
+        for startup_task in (compatibility_task, recovery_cutover_task):
+            startup_task.cancel()
+            try:
+                await startup_task
+            except asyncio.CancelledError:
+                pass
     
     # Shutdown logic
     logger.info("Shutting down application...")

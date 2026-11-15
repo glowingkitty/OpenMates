@@ -799,7 +799,7 @@ specifications:
     version: 1
     status: draft
     path: features/language-preferences
-    fingerprint: 7640ce49edc61f6f526bf11444a352269a880c69eeb323db1ecf1e45e8939b83
+    fingerprint: 4fc6c78d96cb1c004b5415d65fa84584de76ca12b7a457868c536cbe7232293c
     required_applies_to:
     - rest_api
     - gui.web
@@ -10345,6 +10345,14 @@ assertions:
     specification_id: feature.language-preferences
     type: behavior
     fingerprint: 8242e8f310a5fd04634676d01ba1e15b97f38d2a10415418e346f9ca0b1aa4b0
+    required_applies_to:
+    - rest_api
+    - gui.web
+  language-preferences.chat-metadata-language:
+    specification: feature.language-preferences@1
+    specification_id: feature.language-preferences
+    type: behavior
+    fingerprint: ddf34c5484d4a30880931a521052452ed3163eba6e0b86bc2faf52a917e2cbe7
     required_applies_to:
     - rest_api
     - gui.web

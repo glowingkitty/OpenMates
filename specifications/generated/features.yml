@@ -3315,9 +3315,9 @@ features:
       assertions:
         passing: 9
         failing: 0
-        not_run: 5
+        not_run: 6
         missing: 0
-        counted: 14
+        counted: 15
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts
@@ -3329,7 +3329,7 @@ features:
       - backend/tests/test_stream_consumer_recovery.py
       - backend/tests/test_agent_context_history_transport.py
       - backend/tests/test_chat_completion_recovery_retention.py
-      unit_test_files: 67
+      unit_test_files: 68
     sdk_npm:
       status: not_run
       source: tests
@@ -3651,15 +3651,15 @@ features:
         - frontend/apps/web_app/tests/cli-tui-startup.spec.ts › cold TUI loads a saved chat and canonical child reads return
           only authorized parent wrappers
       rest_api:
-        status: live
+        status: partial
         source: tests
         intent: unverified
         assertions:
           passing: 3
           failing: 0
-          not_run: 0
+          not_run: 1
           missing: 0
-          counted: 3
+          counted: 4
       sdk_npm:
         status: not_run
         source: tests
@@ -5688,7 +5688,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 4
+  assertions: 5
   surfaces:
     web:
       status: failing
@@ -5698,8 +5698,8 @@ features:
         passing: 2
         failing: 2
         not_run: 0
-        missing: 0
-        counted: 4
+        missing: 1
+        counted: 5
       failing_tests:
       - frontend/apps/web_app/tests/website-language.spec.ts › example deep links open translated chat content despite a different
         saved app language
@@ -5776,9 +5776,9 @@ features:
       assertions:
         passing: 0
         failing: 0
-        not_run: 1
+        not_run: 2
         missing: 3
-        counted: 4
+        counted: 5
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -5786,7 +5786,8 @@ features:
       - backend/tests/test_daily_inspiration_language.py
       - backend/tests/test_daily_inspiration_search_locales.py
       - backend/tests/test_daily_inspiration_static_localization.py
-      unit_test_files: 4
+      - backend/tests/test_message_received_ui_language.py
+      unit_test_files: 5
     sdk_npm:
       status: not_planned
       source: intent
