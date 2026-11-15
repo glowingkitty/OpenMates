@@ -142,9 +142,15 @@ pub(crate) fn run_bounded(
 }
 
 fn kill_group(group: rustix::process::Pid) {
+    signal_group(group, rustix::process::Signal::KILL);
+}
+
+/// Send `signal` to a whole process group. Shared with the streaming runner
+/// (`command_stream.rs`), which escalates from `TERM` to `KILL`.
+pub(super) fn signal_group(group: rustix::process::Pid, signal: rustix::process::Signal) {
     // ESRCH (the group is already gone) is the normal case after an exit;
-    // nothing else can be done about a failed kill here.
-    let _ = rustix::process::kill_process_group(group, rustix::process::Signal::KILL);
+    // nothing else can be done about a failed signal here.
+    let _ = rustix::process::kill_process_group(group, signal);
 }
 
 /// Drain one pipe to EOF, keeping the first `cap` bytes and counting the rest,

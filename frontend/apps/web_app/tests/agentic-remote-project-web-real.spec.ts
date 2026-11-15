@@ -111,6 +111,8 @@ async function insertModelMention(page: Page): Promise<void> {
 async function send(page: Page, prompt: string, prefix = '', kind = 'follow-up'): Promise<void> {
   const editor = page.getByTestId('message-editor');
   await focusMessageEditor(editor);
+  // Type after any existing content such as the Project mention chip of a new Project chat.
+  await page.keyboard.press('End');
   if (prefix) {
     await page.keyboard.insertText(prefix);
     // A raw @focus mention is plain text; close any suggestion list it opened.
@@ -231,7 +233,12 @@ test.describe('Flow 2 from the web app: spec to commit on a connected machine (r
     await page.getByTestId('project-folder-create-menu-button').click();
     await expect(page.getByTestId('project-create-menu')).toBeVisible();
     await page.getByTestId('project-create-chat').click();
-    await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 60_000 });
+    const messageEditor = page.getByTestId('message-editor');
+    await expect(messageEditor).toBeVisible({ timeout: 60_000 });
+    // The inactive composer shows a draft summary; open it to reach the Project mention chip.
+    await page.getByTestId('message-field').click();
+    await expect(messageEditor.locator('[data-type="generic-mention"].mention-project'))
+      .toContainText(PROJECT_NAME, { timeout: 10_000 });
 
     // 1. Specification and Checks; the named focus activates at once over the Project focus.
     await send(page, `${FEATURE} Please help me write the Specification for this, with its Checks.`,

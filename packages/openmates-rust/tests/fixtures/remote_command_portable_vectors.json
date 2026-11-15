@@ -1,0 +1,91 @@
+{
+ "project_key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+ "vectors": [
+  {
+   "request": {
+    "execution_id": "exec-1",
+    "chat_id": "chat-1",
+    "project_id": "project-1",
+    "source_id": "source-1",
+    "policy": {
+     "argv": [
+      "cargo",
+      "test"
+     ],
+     "cwd": ".",
+     "mode": "foreground",
+     "source_access": "read_only",
+     "deadline_ms": 60000,
+     "writable_profiles": [],
+     "network_profile": null,
+     "credential_profiles": []
+    },
+    "approval": {
+     "kind": "one_run"
+    }
+   },
+   "canonical": "{\"protocol_version\":1,\"execution_id\":\"exec-1\",\"chat_id\":\"chat-1\",\"project_id\":\"project-1\",\"source_id\":\"source-1\",\"policy\":{\"argv\":[\"cargo\",\"test\"],\"cwd\":\".\",\"mode\":\"foreground\",\"source_access\":\"read_only\",\"deadline_ms\":60000,\"writable_profiles\":[],\"network_profile\":null,\"credential_profiles\":[]},\"approval\":{\"kind\":\"one_run\"}}",
+   "request_digest": "63AYhhNQ0i3zpGPcoOgLa0YgjroiJS5_JHIebzc7Q24"
+  },
+  {
+   "request": {
+    "execution_id": "exec-1",
+    "chat_id": "chat-1",
+    "project_id": "project-1",
+    "source_id": "source-1",
+    "policy": {
+     "argv": [
+      "echo",
+      "héllo ☃ 😀",
+      "q\"uote\\back\nline\ttab\u0001ctl "
+     ],
+     "cwd": "café/src",
+     "mode": "background",
+     "source_access": "read_only",
+     "deadline_ms": 100,
+     "writable_profiles": [
+      "cache-1"
+     ],
+     "network_profile": "registry",
+     "credential_profiles": [
+      "TOKEN_A"
+     ]
+    },
+    "approval": {
+     "kind": "one_run"
+    }
+   },
+   "canonical": "{\"protocol_version\":1,\"execution_id\":\"exec-1\",\"chat_id\":\"chat-1\",\"project_id\":\"project-1\",\"source_id\":\"source-1\",\"policy\":{\"argv\":[\"echo\",\"héllo ☃ 😀\",\"q\\\"uote\\\\back\\nline\\ttab\\u0001ctl \"],\"cwd\":\"café/src\",\"mode\":\"background\",\"source_access\":\"read_only\",\"deadline_ms\":100,\"writable_profiles\":[\"cache-1\"],\"network_profile\":\"registry\",\"credential_profiles\":[\"TOKEN_A\"]},\"approval\":{\"kind\":\"one_run\"}}",
+   "request_digest": "CjEllV3h_VVUHN-ns_fSMYyVG-rQIRtXFT6FGqMSeVI"
+  },
+  {
+   "request": {
+    "execution_id": "exec-1",
+    "chat_id": "chat-1",
+    "project_id": "project-1",
+    "source_id": "source-1",
+    "policy": {
+     "argv": [
+      "make"
+     ],
+     "cwd": "app",
+     "mode": "foreground",
+     "source_access": "read_write",
+     "deadline_ms": 86400000,
+     "writable_profiles": [
+      "out"
+     ],
+     "network_profile": null,
+     "credential_profiles": []
+    },
+    "approval": {
+     "kind": "preset",
+     "preset_id": "build:main",
+     "definition_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+   },
+   "canonical": "{\"protocol_version\":1,\"execution_id\":\"exec-1\",\"chat_id\":\"chat-1\",\"project_id\":\"project-1\",\"source_id\":\"source-1\",\"policy\":{\"argv\":[\"make\"],\"cwd\":\"app\",\"mode\":\"foreground\",\"source_access\":\"read_write\",\"deadline_ms\":86400000,\"writable_profiles\":[\"out\"],\"network_profile\":null,\"credential_profiles\":[]},\"approval\":{\"kind\":\"preset\",\"preset_id\":\"build:main\",\"definition_digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}",
+   "request_digest": "meci1J8MEFoT27yiyNPy7gCsj5VAicEFt5Qzn5w0LPs"
+  }
+ ]
+}

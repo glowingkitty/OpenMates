@@ -547,7 +547,7 @@ def _pending_focus_authority_root(request_data: Any, task_id: str) -> str:
 
 
 def _forward_agentic_context(request: AskSkillRequest) -> dict:
-    """JSON-safe agentic context for a pending Focus continuation (stored in Redis).
+    """JSON-safe agentic context and client capabilities for a pending Focus continuation (Redis).
 
     `memory_catalog` holds pydantic entries; it is forwarded as the body-free
     metadata snapshot, otherwise storing the pending Focus context fails and the
@@ -558,6 +558,10 @@ def _forward_agentic_context(request: AskSkillRequest) -> dict:
         "project_context_documents", "related_task_candidates",
     )}
     context["memory_catalog"] = memory_catalog_snapshot(request_memory_catalog(request))
+    # Server-derived socket capabilities (Project file jobs, remote commands). The continuation
+    # answers the same turn, so it keeps the tools that turn was allowed; without them a Project
+    # chat lost its file tools whenever a focus mode activated.
+    context["client_capabilities"] = list(getattr(request, "client_capabilities", None) or [])
     from backend.shared.testing.mock_context import signed_focus_continuation_marker
     if marker := signed_focus_continuation_marker(getattr(request, "user_id", None)):
         context["live_mock_marker"] = marker  # isolated CI replay only; see the helper
