@@ -4,7 +4,8 @@ use crate::work::tasks::tests::client;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 pub(in crate::work::projects) const PROJECT: &str = "bbaaccdd-1111-4111-8111-aabbccddeeff";
 
-fn raw() -> Value {
+/// The encrypted record of the fixture Project (`always_ask`).
+pub(in crate::work::projects) fn raw() -> Value {
     encode_create(
         &ProjectCreate {
             project_id: Some(PROJECT.into()),
@@ -18,7 +19,8 @@ fn raw() -> Value {
     )
     .unwrap()
 }
-async fn read_request(socket: &mut tokio::net::TcpStream) -> String {
+/// Read one complete HTTP request (head and body) from the loopback socket.
+pub(in crate::work::projects) async fn read_request(socket: &mut tokio::net::TcpStream) -> String {
     let mut buf = Vec::new();
     loop {
         let mut bytes = [0; 8192];
@@ -46,6 +48,13 @@ async fn read_request(socket: &mut tokio::net::TcpStream) -> String {
 pub(in crate::work::projects) async fn host(
     reply: Value,
 ) -> (String, tokio::task::JoinHandle<Vec<String>>) {
+    host_with_write_mode(reply, "always_ask").await
+}
+/// [`host`] for a Project whose settings carry `write_mode`.
+pub(in crate::work::projects) async fn host_with_write_mode(
+    reply: Value,
+    write_mode: &'static str,
+) -> (String, tokio::task::JoinHandle<Vec<String>>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let api = format!("http://{}", listener.local_addr().unwrap());
     let handle = tokio::spawn(async move {
@@ -64,6 +73,8 @@ pub(in crate::work::projects) async fn host(
                     200,
                     json!({"sources":[{"source_id":"src","status":"connected","source_session_id":"sess","key_epoch":1,"capabilities":["read","run_command"]}]}),
                 )
+            } else if line.starts_with(&format!("GET /v1/projects/{PROJECT}/settings ")) {
+                (200, json!({"settings":{"write_mode":write_mode}}))
             } else if line.starts_with(&format!("GET /v1/projects/{PROJECT} ")) {
                 (200, json!({"project":raw()}))
             } else if line.starts_with(&format!("POST /v1/projects/{PROJECT}/write-approvals ")) {
