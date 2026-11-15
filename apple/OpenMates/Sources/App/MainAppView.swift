@@ -12689,7 +12689,10 @@ private struct WelcomeComposer: View {
                         .foregroundStyle(Color.fontTertiary)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
-                        .alignmentGuide(.top) { $0[.bottom] + .spacing2 }
+                        .padding(.bottom, .spacing2)
+                        // A zero-height anchor on the control's top edge: the
+                        // hint grows upward, clear of the action lane.
+                        .frame(height: 0, alignment: .bottom)
                         .allowsHitTesting(false)
                         .transition(.opacity)
                         .accessibilityIdentifier("press-hold-label")

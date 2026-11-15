@@ -6433,13 +6433,6 @@ features:
         counted: 24
       failing_tests:
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
-      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testChatPreviewComposerUsesSharedIdentifiersAndWidthCap
-      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testFocusedWelcomeComposerScreenshotShowsActionButtons
-      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSavedChatMicrophoneStaysBesideSpeechAndBeforeSendAcrossDraftTransitions
-      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSavedChatPersistentRecordHintKeepsMicrophoneBesideSpeechBeforeTrailingSend
-      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSeededImageAndAudioPreviewsStayLeftAlignedAcrossRotation
-      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomeComposerExpandsAndCollapsesAcrossRotation
-      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomePersistentRecordHintKeepsMicrophoneBeforeTrailingSend
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedFollowUpClosesComposerAndDismissesKeyboard
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedSendClosesExpandedComposerAndDismissesKeyboard
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
@@ -6755,7 +6748,6 @@ features:
           missing: 1
           counted: 2
         failing_tests:
-        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSeededImageAndAudioPreviewsStayLeftAlignedAcrossRotation
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews
       cli:
         status: unverified
@@ -7141,13 +7133,6 @@ features:
           counted: 3
         failing_tests:
         - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
-        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testChatPreviewComposerUsesSharedIdentifiersAndWidthCap
-        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testFocusedWelcomeComposerScreenshotShowsActionButtons
-        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSavedChatMicrophoneStaysBesideSpeechAndBeforeSendAcrossDraftTransitions
-        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSavedChatPersistentRecordHintKeepsMicrophoneBesideSpeechBeforeTrailingSend
-        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testSeededImageAndAudioPreviewsStayLeftAlignedAcrossRotation
-        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomeComposerExpandsAndCollapsesAcrossRotation
-        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomePersistentRecordHintKeepsMicrophoneBeforeTrailingSend
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedFollowUpClosesComposerAndDismissesKeyboard
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedSendClosesExpandedComposerAndDismissesKeyboard
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft
