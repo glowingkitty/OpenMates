@@ -5,7 +5,6 @@
 //! can read it. Contract:
 //! `docs/plans/cloud-project-development/contracts/project-embed-adoption.md`.
 use super::adopt_plan::{self, TurnEmbed};
-use super::job::seal;
 use super::*;
 
 /// Kind of a Project link created by adoption (contract `kind`).

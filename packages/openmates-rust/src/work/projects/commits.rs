@@ -46,6 +46,9 @@ pub struct ProjectCommitCreate {
 pub struct ProjectCommitEntry {
     pub target_id_hash: String,
     pub path: Option<String>,
+    /// Embed id from the encrypted manifest; absent in commits written before
+    /// manifest v2. Lets a restore relink a file unlinked after the commit.
+    pub target_id: Option<String>,
     pub embed_version: u64,
 }
 
@@ -79,6 +82,9 @@ pub struct ProjectCommitRestoreFile {
     pub current_version: Option<u64>,
     /// True when the head already is the committed revision.
     pub unchanged: bool,
+    /// Embed id recorded in the commit's encrypted manifest (manifest v2), used
+    /// to relink a file whose Project link was deleted after the commit.
+    pub committed_target_id: Option<String>,
 }
 
 /// Restore plan: the client writes each changed file as a new revision, then records it.
@@ -132,9 +138,17 @@ fn commit_wire(
         .iter()
         .map(|file| (hash(&file.target_id), file.path.as_str()))
         .collect();
+    let targets: BTreeMap<String, &str> = input
+        .files
+        .iter()
+        .map(|file| (hash(&file.target_id), file.target_id.as_str()))
+        .collect();
     let message = crypto::server_fields::encrypt_text(&input.message, key, &[])?;
+    // Manifest v2: the embed ids travel only inside the Project-key ciphertext,
+    // so the server keeps seeing hashes while a later restore can relink files.
+    let manifest = json!({"paths": paths, "targets": targets});
     let encrypted_paths =
-        crypto::server_fields::encrypt_text(&serde_json::to_string(&paths)?, key, &[])?;
+        crypto::server_fields::encrypt_text(&serde_json::to_string(&manifest)?, key, &[])?;
     let entries: Vec<Value> = input
         .files
         .iter()
@@ -151,12 +165,11 @@ fn commit_wire(
     Ok(body)
 }
 
-fn commit_decode(raw: &Value, key: &[u8; 32]) -> Result<ProjectCommit> {
+pub(super) fn commit_decode(raw: &Value, key: &[u8; 32]) -> Result<ProjectCommit> {
     let message = crypto::decrypt_combined(string(raw, "encrypted_message")?, key)?;
-    let paths: BTreeMap<String, String> = match raw.get("encrypted_paths") {
-        None | Some(Value::Null) => BTreeMap::new(),
-        Some(Value::String(text)) => serde_json::from_str(&crypto::decrypt_combined(text, key)?)
-            .map_err(|_| Error::Crypto)?,
+    let (paths, targets) = match raw.get("encrypted_paths") {
+        None | Some(Value::Null) => (BTreeMap::new(), BTreeMap::new()),
+        Some(Value::String(text)) => manifest_decode(&crypto::decrypt_combined(text, key)?)?,
         _ => return Err(Error::Protocol),
     };
     let mut files = Vec::new();
@@ -165,6 +178,8 @@ fn commit_decode(raw: &Value, key: &[u8; 32]) -> Result<ProjectCommit> {
         files.push(ProjectCommitEntry {
             target_id_hash: target.into(),
             path: paths.get(target).cloned(),
+            // A target id that does not hash to its entry is never trusted.
+            target_id: targets.get(target).filter(|id| hash(id) == target).cloned(),
             embed_version: entry["embed_version"]
                 .as_u64()
                 .filter(|v| *v > 0)
@@ -183,6 +198,27 @@ fn commit_decode(raw: &Value, key: &[u8; 32]) -> Result<ProjectCommit> {
         restored_from_commit_id: raw["restored_from_commit_id"].as_str().map(str::to_owned),
         created_at: raw["created_at"].as_u64().ok_or(Error::Protocol)?,
     })
+}
+
+/// Decode the decrypted path manifest: v2 `{"paths":{..},"targets":{..}}`, or
+/// the legacy flat `{hash: path}` map (whose keys are hashes, never "paths").
+///
+/// # Errors
+/// `Error::Crypto` when the plaintext is not one of those shapes.
+fn manifest_decode(text: &str) -> Result<(BTreeMap<String, String>, BTreeMap<String, String>)> {
+    let value: Value = serde_json::from_str(text).map_err(|_| Error::Crypto)?;
+    if let Some(paths) = value.get("paths").filter(|p| p.is_object()) {
+        let paths = serde_json::from_value(paths.clone()).map_err(|_| Error::Crypto)?;
+        let targets = match value.get("targets") {
+            None | Some(Value::Null) => BTreeMap::new(),
+            Some(t) => serde_json::from_value(t.clone()).map_err(|_| Error::Crypto)?,
+        };
+        return Ok((paths, targets));
+    }
+    Ok((
+        serde_json::from_value(value).map_err(|_| Error::Crypto)?,
+        BTreeMap::new(),
+    ))
 }
 
 /// Hosted-file link rows decoded to (target id, path), in Project order.
@@ -218,7 +254,7 @@ fn hosted_files(items: &Value, key: &[u8; 32]) -> Result<Vec<(String, String)>> 
 }
 
 impl Projects<'_> {
-    fn commit_cookie_only(&self) -> Result<()> {
+    pub(super) fn commit_cookie_only(&self) -> Result<()> {
         if matches!(&self.backend, Backend::ApiKey(_)) {
             return Err(Error::Unavailable {
                 code: "project_commits_unavailable",
@@ -394,6 +430,7 @@ impl Projects<'_> {
                 path: entry.path,
                 restore_version: entry.embed_version,
                 current_version,
+                committed_target_id: entry.target_id,
             });
         }
         Ok(ProjectCommitRestorePlan {

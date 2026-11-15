@@ -55,6 +55,7 @@ fn edit(scope: RevisionScope) -> UserRevisionRequest {
         files: None,
         media_index: None,
         operation_id: Some("op-1".into()),
+        history_text: None,
     }
 }
 
@@ -146,6 +147,40 @@ fn builds_the_chat_scope_body_with_the_cached_head_hash() {
         body["history_rows"],
         json!([{"version_number": 3, "encrypted_snapshot": head_ct, "created_at": NOW_MS / 1000}])
     );
+}
+
+// contract-test: supporting surface=sdks.rust assertions=projects.history.native-commits
+#[test]
+fn hosted_file_revision_records_texts_in_history_rows() {
+    let mut request = edit(RevisionScope::Project {
+        project_id: PROJECT.into(),
+        team_id: None,
+    });
+    request.history_text = Some((
+        Zeroizing::new("const recipes = [];\n".into()),
+        Zeroizing::new("const recipes = [\"pancakes\"];\n".into()),
+    ));
+    let mut prepared = prepare(&request);
+    let open = |row: &Value| {
+        decrypt_text(
+            row["encrypted_snapshot"].as_str().expect("snapshot"),
+            &KEY,
+            None,
+        )
+        .expect("open")
+    };
+    let head_ct = prepared.body["head"]["encrypted_content"]
+        .as_str()
+        .expect("head")
+        .to_owned();
+    let next = &prepared.body["history_rows"][0];
+    assert_eq!(next["version_number"], 3);
+    assert_ne!(next["encrypted_snapshot"], json!(head_ct));
+    assert_eq!(open(next).as_str(), "const recipes = [\"pancakes\"];\n");
+    prepared.include_base();
+    let base = &prepared.body["history_rows"][0];
+    assert_eq!(base["version_number"], 2);
+    assert_eq!(open(base).as_str(), "const recipes = [];\n");
 }
 
 // contract-test: supporting surface=sdks.rust assertions=embed-user-edits.history.one-per-embed

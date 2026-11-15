@@ -70,6 +70,7 @@ from backend.core.api.app.routes import features  # noqa: E402 # Feature availab
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
 from backend.core.api.app.routes import projects  # noqa: E402 # Import projects workspace router
 from backend.core.api.app.routes import project_authoring  # noqa: E402 # Owner-scoped background Project authoring
+from backend.core.api.app.routes import project_timeline  # noqa: E402 # Project timeline read API (first-party)
 from backend.core.api.app.routes import project_commits  # noqa: E402 # Native Project commits (first-party, client-encrypted)
 from backend.core.api.app.routes import project_item_links  # noqa: E402 # Project embed adopt/rename/delete (first-party, client-encrypted)
 from backend.core.api.app.routes import embed_user_revisions  # noqa: E402 # User-made embed versions and pending chat notices (first-party, client-encrypted)
@@ -1470,6 +1471,7 @@ def create_app() -> FastAPI:
     app.include_router(projects.router, include_in_schema=False)  # Projects workspace endpoints - web app only
     app.include_router(project_authoring.router, include_in_schema=False)
     app.include_router(project_commits.router, include_in_schema=False)  # Native Project commits - first-party clients only (client-encrypted)
+    app.include_router(project_timeline.router, include_in_schema=False)  # Project timeline - first-party clients only (hashes, no paths)
     app.include_router(embed_user_revisions.router, include_in_schema=False)  # User embed versions + pending notices - first-party session auth only (client-encrypted)
     app.include_router(project_item_links.router, include_in_schema=False)  # Project embed adopt/rename/delete - first-party clients only (client-encrypted)
     app.include_router(daily_inspirations_api.router, include_in_schema=False)  # User daily inspirations persistence - save/load/mark-opened for authenticated users

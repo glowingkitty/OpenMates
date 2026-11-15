@@ -506,3 +506,123 @@ create_file_failed:
   context: Error shown when creating a new Project document, sheet, deck or code file failed
   en: Could not create the file. Please try again.
   verified_by_human: []
+timeline_tab:
+  context: Project timeline tab label
+  en: "Timeline"
+  verified_by_human: []
+timeline_author_user:
+  context: Timeline entry author when the user made the change
+  en: "You"
+  verified_by_human: []
+timeline_author_assistant:
+  context: Timeline entry author when the assistant made the change
+  en: "Assistant"
+  verified_by_human: []
+timeline_removed_file:
+  context: Timeline label for a file that no longer exists
+  en: "Removed file"
+  verified_by_human: []
+timeline_action_created:
+  context: Timeline action label
+  en: "Created"
+  verified_by_human: []
+timeline_action_updated:
+  context: Timeline action label
+  en: "Updated"
+  verified_by_human: []
+timeline_action_edited:
+  context: Timeline action label
+  en: "Edited"
+  verified_by_human: []
+timeline_action_restored:
+  context: Timeline action label
+  en: "Restored"
+  verified_by_human: []
+timeline_action_renamed:
+  context: Timeline action label
+  en: "Renamed"
+  verified_by_human: []
+timeline_action_deleted:
+  context: Timeline action label
+  en: "Deleted"
+  verified_by_human: []
+timeline_action_adopted:
+  context: Timeline action label for a file taken over into version history
+  en: "Adopted"
+  verified_by_human: []
+timeline_files_count:
+  context: Timeline commit file count
+  en: "{count} files"
+  verified_by_human: []
+timeline_files_count_singular:
+  context: Timeline commit file count when the commit has exactly one file
+  en: "{count} file"
+  verified_by_human: []
+timeline_restored_from:
+  context: Timeline note on a commit created by restoring another commit
+  en: "Restored from {id}"
+  verified_by_human: []
+timeline_restored_from_version:
+  context: Timeline note on a file version created by restoring an older version
+  en: "Restored from v{version}"
+  verified_by_human: []
+timeline_restore_button:
+  context: Button to restore all files to a commit
+  en: "Restore"
+  verified_by_human: []
+timeline_restore_prompt:
+  context: Timeline restore confirmation question
+  en: "Restore all files to this commit? This creates new versions; later history is kept."
+  verified_by_human: []
+timeline_restore_confirm:
+  context: Timeline restore confirm button
+  en: "Confirm"
+  verified_by_human: []
+timeline_restore_cancel:
+  context: Timeline restore cancel button
+  en: "Cancel"
+  verified_by_human: []
+timeline_restore_busy:
+  context: Timeline restore in progress
+  en: "Restoring..."
+  verified_by_human: []
+timeline_restore_done:
+  context: Timeline restore success message
+  en: "Restored. New versions were created."
+  verified_by_human: []
+timeline_restore_failed:
+  context: Timeline restore failure message
+  en: "Could not restore this commit. Please try again."
+  verified_by_human: []
+timeline_empty:
+  context: Timeline empty state
+  en: "No changes yet"
+  verified_by_human: []
+timeline_error:
+  context: Timeline error state prefix
+  en: "Could not load the timeline."
+  verified_by_human: []
+timeline_loading:
+  context: Timeline loading state
+  en: "Loading history..."
+  verified_by_human: []
+timeline_load_more:
+  context: Timeline load more button
+  en: "Load more"
+  verified_by_human: []
+timeline_change_added:
+  context: Timeline commit file change
+  en: "Added"
+  verified_by_human: []
+timeline_change_modified:
+  context: Timeline commit file change
+  en: "Modified"
+  verified_by_human: []
+timeline_change_deleted:
+  context: Timeline commit file change
+  en: "Deleted"
+  verified_by_human: []
+timeline_change_unchanged:
+  context: Timeline commit file change
+  en: "Unchanged"
+  verified_by_human: []

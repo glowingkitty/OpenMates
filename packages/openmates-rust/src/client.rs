@@ -147,6 +147,8 @@ pub use project_task_watch::{
     ProjectTaskWatchPoll, ProjectTaskWatchRead, ProjectTaskWatchReconnect, ProjectTaskWatchStart,
 };
 mod credentials;
+// Work-layer request gate and master-wrapped key unwrap on every shell.
+mod work_authority;
 mod cache_policy;
 mod chat_details_cache;
 pub use cache_policy::CachedContentLoader;
@@ -207,6 +209,11 @@ use memory_write_jobs::MEMORY_WRITE_JOBS_CAPABILITY;
 use project_file_jobs::{PROJECT_FILE_JOBS_AVAILABLE, PROJECT_FILE_JOBS_CAPABILITY};
 #[cfg(all(feature = "workflow-yaml", unix))]
 mod hosted_file_io;
+mod project_commit_restore;
+pub use project_commit_restore::{
+    ProjectCommitFileOutcome, ProjectCommitFileRestore, ProjectCommitUserRestore,
+};
+mod project_embed_source;
 #[cfg(all(feature = "workflow-yaml", unix))]
 mod project_embed_adoption;
 pub(crate) mod project_item_error;

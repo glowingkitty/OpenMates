@@ -75,21 +75,33 @@ pub(crate) use assistant_request_tests::{
 };
 mod commits;
 pub use commits::*;
+mod commit_history;
+mod file_text_content;
+pub(crate) use file_text_content::{
+    content_with_text, decode_content_fields, line_count, version_text,
+};
+mod commit_restore_inputs;
+pub(crate) use commit_history::{ReplayError, replay_rows};
+pub(crate) use commit_restore_inputs::UserRestoreInputs;
+mod timeline;
+pub use timeline::*;
 mod documents;
+mod timeline_presentation;
 pub use documents::{CreatedProjectDocument, ProjectDocumentKind};
+mod adoption;
 mod focus;
+mod hosted_base;
+/// The adoption-relevant record of one turn embed (client turn hook, P11).
+pub(crate) use adoption::TurnEmbed;
+pub use adoption::{AdoptEmbedKind, ProjectEmbedAdoptError};
+pub use hosted_base::{HostedFileError, HostedIdentityKind, HostedResult, hosted_file_identity};
 #[cfg(all(feature = "workflow-yaml", unix))]
 mod hosted;
-/// The adoption-relevant record of one turn embed (client turn hook, P11).
-#[cfg(all(feature = "workflow-yaml", unix))]
-pub(crate) use hosted::TurnEmbed;
 /// Hosted Project file writer (native only: it shares the `source_host` path matcher).
 #[cfg(all(feature = "workflow-yaml", unix))]
 pub use hosted::{
-    AdoptEmbedKind, HostedApproval, HostedFile, HostedFileError, HostedFileJob, HostedFileMutation,
-    HostedFileOperation, HostedIdentityKind, HostedProposal, HostedResult,
-    ProjectCommitRestoreResult, ProjectEmbedAdoptError, apply_exact_patch, content_hash,
-    hosted_file_identity, replacement_patch,
+    HostedApproval, HostedFile, HostedFileJob, HostedFileMutation, HostedFileOperation,
+    HostedProposal, ProjectCommitRestoreResult, apply_exact_patch, content_hash, replacement_patch,
 };
 mod remote_command_stop;
 pub use remote_command_stop::REMOTE_COMMAND_FOCUS_INACTIVE;
@@ -192,11 +204,17 @@ impl<'a> Projects<'a> {
                 return Ok(key);
             }
         }
-        let wrapping = self
-            .backend
-            .wrapping(self.filters.team_id.as_deref())
-            .await?;
-        project_key(raw, &wrapping, self.filters.team_id.as_deref())
+        let team = self.filters.team_id.as_deref();
+        let wrapper = project_key_wrapper(raw, team)?;
+        match team {
+            // Personal wrappers sit under the master key: unwrap through the
+            // backend's master binding (web Worker master is non-extractable).
+            None => self.backend.unwrap_with_master(wrapper).await,
+            Some(team) => {
+                let wrapping = self.backend.wrapping(Some(team)).await?;
+                key_bytes(&crypto::decrypt_bytes(wrapper, &wrapping)?)
+            }
+        }
     }
     pub(super) async fn resolve(&mut self, id: &str) -> Result<ResolvedProject> {
         self.scope()?;
@@ -497,7 +515,9 @@ impl<'a> Projects<'a> {
         decode_settings(&data["settings"], &project.key)
     }
 }
-pub(super) fn project_key(raw: &Value, wrapping: &[u8; 32], team: Option<&str>) -> Result<Key> {
+/// The encrypted Project key this scope may unwrap: the single epoch-1 Team
+/// wrapper of `team`, or the personal (master-wrapped) key of a non-Team row.
+fn project_key_wrapper<'a>(raw: &'a Value, team: Option<&str>) -> Result<&'a str> {
     let encrypted = if let Some(team) = team {
         if raw["hashed_team_id"]
             .as_str()
@@ -530,7 +550,17 @@ pub(super) fn project_key(raw: &Value, wrapping: &[u8; 32], team: Option<&str>) 
         }
         string(raw, "encrypted_project_key")?
     };
-    key_bytes(&crypto::decrypt_bytes(encrypted, wrapping)?)
+    Ok(encrypted)
+}
+/// Project key of `raw` unwrapped with `wrapping` (the master key for a
+/// personal row, the Team key for a Team row); see [`project_key_wrapper`].
+/// Native callers that already hold the wrapping key (Checks) use this; the
+/// web Worker path unwraps through the master binding instead.
+pub(super) fn project_key(raw: &Value, wrapping: &[u8; 32], team: Option<&str>) -> Result<Key> {
+    key_bytes(&crypto::decrypt_bytes(
+        project_key_wrapper(raw, team)?,
+        wrapping,
+    )?)
 }
 fn decode(raw: Value, key: Key) -> Result<ResolvedProject> {
     uuid(string(&raw, "project_id")?)?;

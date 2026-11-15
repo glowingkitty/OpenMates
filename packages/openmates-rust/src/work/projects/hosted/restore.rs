@@ -5,6 +5,7 @@
 //! against the current head, so the write policy, focus gate and stale-base
 //! checks apply as for any update), then records the restore as a new commit
 //! with `restored_from`. History is never rewritten.
+use super::super::commit_history::replay_rows;
 use super::super::commits::{
     ProjectCommit, ProjectCommitAuthor, ProjectCommitCreate, ProjectCommitFile,
     ProjectCommitRestorePlan,
@@ -26,102 +27,7 @@ pub struct ProjectCommitRestoreResult {
     pub commit: ProjectCommit,
 }
 
-/// Replay decrypted history rows to the text of their last version: the first
-/// row must carry a snapshot, later snapshots restart the chain and patches
-/// apply with the stored-version diff rules (`applyVersionPatch`).
-///
-/// # Errors
-/// `Protocol` for a gapped or empty chain, `Crypto` for a row the embed key
-/// does not open, `invalid_patch` for a patch that does not apply.
-pub(crate) fn replay_rows(
-    rows: &[Value],
-    embed_key: &[u8; 32],
-    version: u64,
-) -> HostedResult<Zeroizing<String>> {
-    let mut content: Option<Zeroizing<String>> = None;
-    let mut expected = None;
-    for row in rows {
-        let number = row["version_number"]
-            .as_u64()
-            .filter(|v| *v >= 1)
-            .ok_or(HostedFileError::Core(Error::Protocol))?;
-        if expected.is_some_and(|e| e != number) {
-            return Err(HostedFileError::Core(Error::Protocol));
-        }
-        expected = Some(number + 1);
-        content = Some(
-            match (
-                row["encrypted_snapshot"].as_str().filter(|s| !s.is_empty()),
-                &content,
-            ) {
-                (Some(snapshot), _) => Zeroizing::new(crypto::server_fields::decrypt_text(
-                    snapshot,
-                    embed_key,
-                    &[],
-                )?),
-                (None, Some(previous)) => {
-                    let cipher = row["encrypted_patch"]
-                        .as_str()
-                        .ok_or(HostedFileError::Core(Error::Protocol))?;
-                    let patch = Zeroizing::new(crypto::server_fields::decrypt_text(
-                        cipher,
-                        embed_key,
-                        &[],
-                    )?);
-                    Zeroizing::new(
-                        crate::embed_read::patch::apply_version_patch(previous, &patch)
-                            .map_err(|_| HostedFileError::Refused("invalid_patch"))?,
-                    )
-                }
-                (None, None) => return Err(HostedFileError::Core(Error::Protocol)),
-            },
-        );
-    }
-    if expected != Some(version + 1) {
-        return Err(HostedFileError::Core(Error::Protocol));
-    }
-    content.ok_or(HostedFileError::Core(Error::Protocol))
-}
-
 impl Projects<'_> {
-    /// Encrypted rows that rebuild `version`: the bounded window from the
-    /// nearest snapshot, or the full chain when the server answers that the
-    /// window has no snapshot yet (`409 snapshot_required`).
-    async fn version_rows(
-        &mut self,
-        project_id: &str,
-        embed_id: &str,
-        version: u64,
-    ) -> HostedResult<Vec<Value>> {
-        let base = format!("/v1/embeds/{embed_id}/versions/{version}");
-        let bounded = self.path(
-            &base,
-            &[
-                ("project_id".into(), project_id.into()),
-                ("capability".into(), "bounded-v1".into()),
-            ],
-        );
-        let response = match self
-            .backend
-            .request(Method::GET, &bounded, None, None)
-            .await
-        {
-            Err(Error::Conflict) => {
-                let full = self.path(&base, &[("project_id".into(), project_id.into())]);
-                self.backend.request(Method::GET, &full, None, None).await?
-            }
-            other => other?,
-        };
-        if response["embed_id"] != embed_id || response["version_number"].as_u64() != Some(version)
-        {
-            return Err(HostedFileError::Core(Error::Forbidden));
-        }
-        response["rows"]
-            .as_array()
-            .cloned()
-            .ok_or(HostedFileError::Core(Error::Protocol))
-    }
-
     /// Restore every file of a commit as new revisions written from `chat_id`
     /// (its active focus must be in this Project), then record the restore as
     /// a new commit. Files whose head already equals the committed text are
@@ -173,7 +79,11 @@ impl Projects<'_> {
             let rows = self
                 .version_rows(&project_id, target, file.restore_version)
                 .await?;
-            let restored = replay_rows(&rows, &head.embed_key, file.restore_version)?;
+            // A web edit snapshots the whole code object; compare and write text.
+            let restored = crate::work::version_text(
+                replay_rows(&rows, &head.embed_key, file.restore_version)
+                    .map_err(HostedFileError::from)?,
+            );
             if *current == *restored {
                 continue;
             }

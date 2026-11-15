@@ -16,7 +16,7 @@ summary:
   percent: 47.6
 worker_namespaces_installed_not_progress:
   installed: 17
-  total: 20
+  total: 21
   note: 'Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs.'
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat-recommendations-flow.spec.ts,
   web-rust-core-chat.spec.ts, web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts,
@@ -371,3 +371,17 @@ units:
     embed-user-edits.event.chat-notice, embed-user-edits.event.project-edit-reaches-chat, embed-user-edits.event.collapse]
   spec_gaps: ['The Worker''s Enhance run (one run per image in the Worker realm, frame wake-up, rejoin after a page
       reload) has no assertion.']
+- namespace: projectTimeline
+  status: planned
+  pre_bind: false
+  installer: null
+  what_moved: Planned; no installer yet.
+  typescript_fallback: null
+  unit_tests: []
+  e2e_specs: []
+  vectors: []
+  open_gaps: [No flag-on web-rust-core spec yet for the Project Timeline tab., Commit restore is not served by the
+      unit; the core restore needs the native hosted-file writer (workflow-yaml + unix) which has no wasm32 build.,
+    'Timeline file rows open the file''s folder in the Files tab, not the file viewer.']
+  spec_assertions: []
+  spec_gaps: ['The Timeline tab load, load-more and file-open behavior has no assertion.']

@@ -39,6 +39,8 @@ mod draft_view;
 #[cfg(not(target_arch = "wasm32"))]
 mod project_documents;
 #[cfg(not(target_arch = "wasm32"))]
+mod project_timeline;
+#[cfg(not(target_arch = "wasm32"))]
 mod project_ops;
 #[cfg(not(target_arch = "wasm32"))]
 mod queued_revision;
@@ -91,6 +93,9 @@ pub use chat_actions::{
 /// Create a new empty document, sheet, slide deck or code file in a Project.
 #[cfg(not(target_arch = "wasm32"))]
 pub use project_documents::create_project_document;
+/// Project timeline page and whole-commit restore.
+#[cfg(not(target_arch = "wasm32"))]
+pub use project_timeline::{project_timeline, restore_project_commit};
 /// Undo an assistant-created Project; run or inspect a Project source.
 #[cfg(not(target_arch = "wasm32"))]
 pub use project_ops::{

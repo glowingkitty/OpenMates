@@ -1190,6 +1190,10 @@ features:
         name: "Agentic runs and checks"
         description: "Long turns, test results, checks, workspace chain, remote access"
         assertions: ["projects.agentic.*", "projects.checks.*", "projects.workspace.*", "projects.remote-access.*", "projects.sources.*", "projects.history.*"]
+      - id: project-timeline
+        name: "Project Timeline tab"
+        description: "Newest-first commits and file activity of a Project with restore of files to a commit as new versions (web, Apple, CLI)"
+        assertions: ["projects.history.native-commits", "projects.files.rename-delete"]
       - id: access-and-memories
         name: "Access, memories and parity"
         description: "Explicit context, memories, catalog reuse, parity"

@@ -450,7 +450,9 @@ async fn source_expiry_and_wrong_team_key_epoch_fail_without_source_write() {
     ));
     let mut raw = project(Some(TEAM));
     raw["key_wrappers"][0]["team_key_epoch"] = json!(2);
-    let (api,server)=mock(vec![session(),json!({"project":raw}),json!({"team":{"team_id":TEAM,"encrypted_team_key":crypto::encrypt_bytes(&[7;32],&[7;32]).unwrap()}})]).await;
+    // The epoch is refused from the Project row itself, before the Team
+    // read: no Team key is fetched or unwrapped for an unusable wrapper.
+    let (api, server) = mock(vec![session(), json!({"project": raw})]).await;
     let mut client = client(&api);
     assert!(matches!(
         client
@@ -463,12 +465,12 @@ async fn source_expiry_and_wrong_team_key_epoch_fail_without_source_write() {
             .await,
         Err(Error::Forbidden)
     ));
+    let requests = server.await.unwrap();
     assert!(
-        server
-            .await
-            .unwrap()
+        requests
             .iter()
-            .all(|request| !request.starts_with("POST /v1/projects/"))
+            .all(|request| !request.starts_with("POST /v1/projects/")
+                && !request.starts_with("GET /v1/teams/"))
     );
 }
 

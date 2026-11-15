@@ -1056,6 +1056,7 @@
         "web-read-public-page.spec.ts",
         "cli-claude-session-tasks.spec.ts",
         "cli-native-project-hosted-files.spec.ts",
+        "project-timeline-flow.spec.ts",
         "cli-native-project-application-files.spec.ts",
         "cli-memory-write.spec.ts",
         "cli-native-project-create-request.spec.ts",
@@ -1150,7 +1151,8 @@
         "components/docs-editor.spec.ts",
         "components/test-result-embed.spec.ts",
         "components/application-embed-preview.spec.ts",
-        "components/slides-template-embed.spec.ts"
+        "components/slides-template-embed.spec.ts",
+        "components/project-timeline.spec.ts"
       ]
     },
     "chat_message_timeline": {

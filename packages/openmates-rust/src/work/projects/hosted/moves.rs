@@ -6,7 +6,7 @@
 //! delete removes the link only, so a commit restore can relink the file.
 //! Contract: `docs/plans/cloud-project-development/contracts/project-embed-adoption.md`.
 use super::io::HostedIo;
-use super::job::{HostedContext, assert_direct_path, seal};
+use super::job::{HostedContext, assert_direct_path};
 use super::policy::PathPolicy;
 use super::*;
 

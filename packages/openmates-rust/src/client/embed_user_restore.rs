@@ -78,6 +78,27 @@ impl Client {
         // Both credential kinds: a web session reads through its opaque master.
         self.require_credentials()?;
         self.edit_fetch_embed(embed_id).await?;
+        self.cached_edit_head(embed_id)
+    }
+
+    /// [`Self::embed_user_edit_head`] without the browser master/chat key
+    /// check, for a Project commit restore that opens the key through the
+    /// file's Project wrapper (see [`Self::edit_fetch_embed_row`]).
+    ///
+    /// # Errors
+    /// As [`Self::embed_user_edit_head`].
+    pub(in crate::client) async fn project_file_edit_head(
+        &mut self,
+        embed_id: &str,
+    ) -> RevisionResult<(EmbedHead, Option<String>)> {
+        self.require_credentials()?;
+        self.edit_fetch_embed_row(embed_id).await?;
+        self.cached_edit_head(embed_id)
+    }
+
+    /// The edit head of the freshly cached row of `embed_id` and the id of
+    /// its chat when this device has that chat cached.
+    fn cached_edit_head(&self, embed_id: &str) -> RevisionResult<(EmbedHead, Option<String>)> {
         let row = self.embeds.get(embed_id).ok_or(Error::Protocol)?;
         let now_seconds = i64::try_from(crate::client::now_ms() / 1000).unwrap_or(i64::MAX);
         let head = EmbedHead::from_cached_row(embed_id, row, now_seconds)?;

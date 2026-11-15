@@ -17,6 +17,7 @@ const os = require('os');
 const path = require('path');
 const { deriveApiUrl, CLI_DIST, CLI_LOGIN_SUCCESS, CLI_PIN_PROMPT, cliNativeEnv, cliSpawnArgs, cliStateDir, runCli } = require('./cli-test-helpers');
 const { loginToTestAccount } = require('./chat-test-helpers');
+const { generateTotp, getTestAccount } = require('../signup-flow-helpers');
 
 type CliResult = { code: number | null; stdout: string; stderr: string };
 
@@ -126,6 +127,34 @@ function spawnCliLogin(apiUrl: string, homeDir: string) {
 	};
 }
 
+/**
+ * Approve the open `#pair=` request in the signed-in browser and return the PIN.
+ * The server may ask for a recent verification before it approves a device
+ * (pair step-up, `auth.sensitive-actions.recent-verification`); the browser then
+ * shows the 2FA prompt instead of the PIN, and the test account answers it with
+ * a TOTP code from a time step the login has not used yet.
+ */
+async function approvePairInBrowser(page: any): Promise<string> {
+	const allowButton = page.getByTestId('pair-allow-button');
+	await expect(allowButton).toBeVisible({ timeout: 15_000 });
+	await allowButton.click();
+	const pinDisplay = page.getByTestId('pair-pin-display');
+	const tfaInput = page.getByTestId('tfa-input');
+	await expect(pinDisplay.or(tfaInput)).toBeVisible({ timeout: 15_000 });
+	if (await tfaInput.isVisible()) {
+		const { otpKey } = getTestAccount();
+		expect(otpKey, 'pair step-up needs the test account TOTP key').toBeTruthy();
+		// The login already used the current account-wide TOTP step.
+		const secondsIntoStep = Math.floor(Date.now() / 1000) % 30;
+		await page.waitForTimeout((30 - secondsIntoStep) * 1000 + 1000);
+		await tfaInput.fill(generateTotp(otpKey));
+	}
+	await expect(pinDisplay).toBeVisible({ timeout: 30_000 });
+	const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '').trim();
+	expect(pin).toMatch(/^[A-Z0-9]{6}$/);
+	return pin;
+}
+
 async function loginWorkflowCliViaPair(page: any, apiUrl: string, homeDir: string, label: string): Promise<void> {
 	await loginToTestAccount(page, (message: string) => console.log(`[${label}] ${message}`));
 
@@ -140,13 +169,7 @@ async function loginWorkflowCliViaPair(page: any, apiUrl: string, homeDir: strin
 
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
 	await page.goto(`${baseUrl}/#pair=${token}`);
-	const allowButton = page.getByTestId('pair-allow-button');
-	await expect(allowButton).toBeVisible({ timeout: 15_000 });
-	await allowButton.click();
-	const pinDisplay = page.getByTestId('pair-pin-display');
-	await expect(pinDisplay).toBeVisible({ timeout: 15_000 });
-	const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '').trim();
-	expect(pin).toMatch(/^[A-Z0-9]{6}$/);
+	const pin = await approvePairInBrowser(page);
 	await cli.waitForPinPrompt();
 	cli.sendPin(pin);
 	const { code, output } = await cli.waitForExit();
@@ -271,6 +294,7 @@ function workflowApiUrl(): string {
 }
 
 module.exports = {
+	approvePairInBrowser,
 	clearWorkflowCliSyncCache,
 	createWorkflowCliHome,
 	deleteWorkflowQuietly,

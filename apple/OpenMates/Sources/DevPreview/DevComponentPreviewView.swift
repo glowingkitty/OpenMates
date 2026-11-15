@@ -511,7 +511,8 @@ private struct DevComponentPreviewCanvas: View {
                     previewInitialTab: ["folders", "connectedSource", "localFolderSource",
                         "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource", "offlineCachedSource"]
                         .contains(configuration.variant) ? .files
-                        : configuration.variant == "tasks" ? .tasks : .overview,
+                        : configuration.variant == "tasks" ? .tasks
+                        : configuration.variant == "timeline" ? .timeline : .overview,
                     onOpenChat: { lastAction = "opened-chat-\($0)" },
                     onOpenWorkflow: { lastAction = "opened-workflow-\($0)" },
                     onOpenPlan: { lastAction = "opened-plan-\($0)" },

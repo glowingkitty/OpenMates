@@ -3,6 +3,7 @@ mod ask;
 mod command_protection;
 mod command_settings;
 mod commits;
+mod timeline;
 mod created;
 mod files;
 mod focus;
@@ -69,6 +70,7 @@ pub(super) fn supported(i: &Invocation) -> bool {
             | "projects commits list"
             | "projects commits show"
             | "projects commits restore"
+            | "projects timeline"
             | "projects hosted list"
             | "projects hosted read"
             | "projects hosted create"
@@ -420,6 +422,9 @@ async fn execute_service(
     }
     if i.command_path().starts_with("projects hosted ") {
         return hosted::execute(i, &mut service).await;
+    }
+    if i.command_path() == "projects timeline" {
+        return timeline::execute(i, &mut service).await;
     }
     if i.command_path().starts_with("projects commits ") {
         return commits::execute(i, &mut service).await;

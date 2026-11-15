@@ -49647,6 +49647,57 @@
     {
       "path": [
         "projects",
+        "timeline"
+      ],
+      "summary": "projects timeline",
+      "usages": [
+        "projects timeline <project> [--limit <n>] [--before <cursor>] [--personal|--team <team>] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "at": 2,
+          "synopsis": "<project>"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "before",
+        "help",
+        "json",
+        "limit",
+        "personal",
+        "profile",
+        "team"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/projects/timeline.rs",
+          "line": 1,
+          "symbol": "projects::timeline"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "sdk.projects.timeline",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/projects/timeline.rs"
+      },
+      "gaps": [
+        "Rust-first native Project timeline (no npm CLI counterpart). Core in packages/openmates-rust/src/work/projects/timeline.rs; live backend integration and platform verification pending."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
+    },
+    {
+      "path": [
+        "projects",
         "hosted",
         "list"
       ],
@@ -65401,9 +65452,9 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 768,
+    "command_patterns": 769,
     "flags": 639,
-    "native_handlers_partial": 763,
+    "native_handlers_partial": 764,
     "unsupported": 5,
     "feature_complete": false
   },

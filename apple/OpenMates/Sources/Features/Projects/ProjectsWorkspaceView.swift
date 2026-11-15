@@ -568,6 +568,7 @@ struct ProjectsWorkspaceView: View {
                             case .overview: overviewPanel(project, width: panelWidth)
                             case .files: filesPanel(project, compact: compact)
                             case .tasks: tasksPanel(project)
+                            case .timeline: timelinePanel(project)
                             }
                         }
                         .frame(width: panelWidth)
@@ -765,7 +766,7 @@ struct ProjectsWorkspaceView: View {
                 Button {
                     selectedTab = tab
                 } label: {
-                    Icon(tab == .overview ? "project" : tab == .files ? "files" : "projectmanagement", size: 21)
+                    Icon(tab == .overview ? "project" : tab == .files ? "files" : tab == .timeline ? "time" : "projectmanagement", size: 21)
                         .foregroundStyle(selectedTab == tab ? Color.fontButton : Color.fontSecondary)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44.8)
@@ -777,10 +778,20 @@ struct ProjectsWorkspaceView: View {
                 .accessibilityIdentifier("project-tab-\(tab.rawValue)")
             }
         }
-        .frame(width: 220)
+        .frame(width: 290)
         .background(Color.grey0, in: Capsule())
         .offset(y: 14)
         .zIndex(2)
+    }
+
+    private func timelinePanel(_ project: ProjectWorkspaceProject) -> some View {
+        #if DEBUG
+        let loader: ProjectTimelineLoading = previewInitialTab == .timeline ? ProjectTimelinePreviewLoader() : CoreProjectTimeline()
+        #else
+        let loader: ProjectTimelineLoading = CoreProjectTimeline()
+        #endif
+        return ProjectTimelineView(model: ProjectTimelineModel(loader: loader, projectId: project.id, teamId: project.teamId))
+            .id(project.id)
     }
 
     private func overviewPanel(_ project: ProjectWorkspaceProject, width: CGFloat) -> some View {

@@ -25,6 +25,7 @@ mod view_call_source;
 mod view_chat_actions;
 mod view_consent;
 mod view_project_files;
+mod view_project_timeline;
 mod view_projects;
 mod view_queued_revision;
 #[cfg(test)]
@@ -137,6 +138,10 @@ pub use view_projects::{
     GitLandOutcomeRecord, GitLandResultRecord, GitStatusOutcomeRecord, GitStatusRecord,
     RemoteCommandOutcomeRecord, RemoteCommandRecord, RemoteCommandResultRecord,
     RemoteRefusalRecord,
+};
+pub use view_project_timeline::{
+    ProjectCommitRestoreRecord, ProjectTimelineCommitFileRecord, ProjectTimelineCommitRecord,
+    ProjectTimelineEntryRecord, ProjectTimelinePageRecord,
 };
 pub use view_region::ServerRegionPreferenceRecord;
 /// Per-turn send options and the delivery receipt (`view_send_options`).

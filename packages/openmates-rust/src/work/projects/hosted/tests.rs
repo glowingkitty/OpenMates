@@ -1,7 +1,7 @@
 //! Hosted file writer: TS cross-implementation vectors (identity, digest, patch) and the executor against an in-memory server.
+use super::super::commit_history::replay_rows;
 use super::io::{HostedIo, decode_head};
 use super::job::{self, HostedContext};
-use super::restore::replay_rows;
 use super::*;
 use std::collections::BTreeMap;
 

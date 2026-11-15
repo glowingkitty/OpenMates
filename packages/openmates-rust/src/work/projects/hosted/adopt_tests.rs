@@ -1,6 +1,8 @@
 //! Embed adoption: item id derivation, metadata plaintext per kind, folder choice, error codes and path-derived language.
-use super::adopt::{AdoptionTarget, adoption_body, operation_id, project_item_id, turn_embed_key};
-use super::adopt_plan::{FileRef, TurnEmbed, choose_folder, plan_turn, title_folder};
+use super::super::adoption::{
+    AdoptionTarget, FileRef, TurnEmbed, adoption_body, choose_folder, operation_id, plan_turn,
+    project_item_id, title_folder, turn_embed_key,
+};
 use super::tests::{CHAT, PROJECT, chat_key, project_key};
 use super::*;
 
@@ -273,30 +275,30 @@ fn application_and_test_result_links_are_not_listed_as_files() {
             "item_type": "embed",
             "link_kind": kind,
             "project_item_id": hosted_file_identity(&key, &format!("x/{target}"), HostedIdentityKind::Item).unwrap(),
-            "target_id_encrypted": super::job::seal(target, &key).unwrap(),
-            "encrypted_metadata": super::job::seal(&metadata.to_string(), &key).unwrap(),
+            "target_id_encrypted": super::seal(target, &key).unwrap(),
+            "encrypted_metadata": super::seal(&metadata.to_string(), &key).unwrap(),
         })
     };
     let items = json!([
         link(
             CHILD_A,
-            super::adopt_plan::file_metadata("web-app/index.html", Some((APP, "index.html"))),
+            super::super::adoption::file_metadata("web-app/index.html", Some((APP, "index.html"))),
             Some("file")
         ),
         link(
             APP,
-            super::adopt_plan::application_metadata("web-app", Some("index.html")),
+            super::super::adoption::application_metadata("web-app", Some("index.html")),
             Some("application")
         ),
         // A listing without `link_kind` still recognizes the link by its source.
         link(
             OTHER_APP,
-            super::adopt_plan::application_metadata("other", None),
+            super::super::adoption::application_metadata("other", None),
             None
         ),
         link(
             TEST,
-            super::adopt_plan::test_result_metadata(Some("run-1")),
+            super::super::adoption::test_result_metadata(Some("run-1")),
             Some("test_result")
         ),
     ]);

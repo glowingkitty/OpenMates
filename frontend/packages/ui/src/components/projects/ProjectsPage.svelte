@@ -24,6 +24,7 @@
   import ProjectReadme from './ProjectReadme.svelte';
   import ProjectSpecificationsPanel from './ProjectSpecificationsPanel.svelte';
   import ProjectChecksPanel from './ProjectChecksPanel.svelte';
+  import ProjectTimelinePanel from './ProjectTimelinePanel.svelte';
   import ProjectCreateFileEntries from './ProjectCreateFileEntries.svelte';
   import ProjectWorkspaceHeader from './ProjectWorkspaceHeader.svelte';
   import ProjectRemotePreviewCard from './ProjectRemotePreviewCard.svelte';
@@ -98,7 +99,7 @@
   import { loadProjectReadme, readConnectedProjectImage, releaseProjectReadmeImages, type ProjectReadmeState } from '../../services/projectReadme';
   import { cleanupStaleConnectedProjectDownloads, downloadConnectedProjectFile } from '../../services/projectRemoteDownload';
 
-  type ProjectTab = 'overview' | 'folders' | 'tasks';
+  type ProjectTab = 'overview' | 'folders' | 'timeline' | 'tasks';
   // Keep expensive embed previews bounded even when a folder contains thousands of files.
   const FILES_PAGE_SIZE = 48;
 
@@ -356,11 +357,12 @@
     icon: 'folder',
     source: 'recent',
   })));
-  const projectTabs = [
+  let projectTabs = $derived([
     { id: 'overview', icon: 'project', label: 'Overview' },
     { id: 'folders', icon: 'files', label: 'Files' },
+    { id: 'timeline', icon: 'time', label: $text('projects.timeline_tab') },
     { id: 'tasks', icon: 'projectmanagement', label: 'Tasks' },
-  ];
+  ]);
   let normalizedFolderSearch = $derived(folderSearchQuery.trim().toLocaleLowerCase());
   let visibleBrowserFolders = $derived(sortEntries(
     browserFolders.filter((folder) => !normalizedFolderSearch || (folder.name || 'Untitled folder').toLocaleLowerCase().includes(normalizedFolderSearch)),
@@ -1385,6 +1387,15 @@
     activeStoredFullscreen = detail;
   }
 
+  // Timeline file rows open the file's folder in the Files tab (the file card is shown there).
+  function openTimelineFile(path: string): void {
+    const parent = directParentPath(path);
+    activeRemoteSourceId = null;
+    currentFolderHash = null;
+    currentVirtualPath = parent === '.' ? null : parent;
+    activeTab = 'folders';
+  }
+
   function closeStoredFullscreen(): void {
     activeStoredFullscreen = null;
   }
@@ -2233,7 +2244,7 @@
         <SettingsTabs
           tabs={projectTabs}
           bind:activeTab
-          maxVisibleTabs={3}
+          maxVisibleTabs={4}
           testIdPrefix="project-tab"
         />
       </div>
@@ -2270,6 +2281,8 @@
             <div class="legacy-empty-contract" data-testid="project-empty-items" aria-hidden="true"></div>
           {/if}
         </section>
+      {:else if activeTab === 'timeline'}
+        <section class="project-panel" role="tabpanel" id="tabpanel-timeline" data-testid="project-timeline-panel">{#if selectedProject}<ProjectTimelinePanel projectId={selectedProject.project_id} teamId={selectedProject.teamId ?? null} onOpenFile={openTimelineFile} />{/if}</section>
       {:else if activeTab === 'folders'}
       <section class="project-panel folders-panel" class:viewer-split-open={viewerSplitOpen} role="tabpanel" id="tabpanel-folders" data-testid="project-folders-panel">
         <div class="folder-summary-row">

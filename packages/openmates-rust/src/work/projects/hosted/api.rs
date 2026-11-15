@@ -105,24 +105,6 @@ impl Projects<'_> {
         }))
     }
 
-    /// Cookie-only resolution of one Project plus its decoded settings.
-    pub(super) async fn hosted_project(
-        &mut self,
-        selector: &str,
-    ) -> HostedResult<(String, Key, Value)> {
-        self.hosted_client()?;
-        self.scope()?;
-        let project = self.resolve(selector).await?;
-        let project_id = string(&project.raw, "project_id")?.to_owned();
-        let route = self.path(&format!("/v1/projects/{project_id}/settings"), &[]);
-        let data = self
-            .backend
-            .request(Method::GET, &route, None, None)
-            .await?;
-        let settings = super::super::decode_settings(&data["settings"], &project.key)?;
-        Ok((project_id, project.key, settings))
-    }
-
     async fn hosted_run(
         &mut self,
         selector: &str,

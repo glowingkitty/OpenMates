@@ -704,4 +704,7 @@ pub use initial_sync::{BrowserInitialSyncStoreBootstrap,BrowserInitialSyncStoreD
 
 #[path="browser_embed_user_edit.rs"]
 mod embed_user_edit;
+// Submodule so the timeline exports reach the private core client.
+#[path="browser_project_timeline.rs"]
+mod project_timeline;
 pub use embed_user_edit::BrowserImageEnhanceWaker;

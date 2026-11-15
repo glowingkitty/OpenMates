@@ -127,6 +127,20 @@ units:
     rust_paths:
     - packages/openmates-browser-bindings/src/browser_embed_write.rs
     - packages/openmates-rust/src/client/embed_write_session.rs
+  projectTimeline:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No flag-on web-rust-core spec yet for the Project Timeline tab.
+    - Commit restore is not served by the unit; the core restore needs the native hosted-file writer (workflow-yaml + unix) which has no wasm32 build.
+    - Timeline file rows open the file's folder in the Files tab, not the file viewer.
+    spec_assertions: []
+    spec_gaps:
+    - The Timeline tab load, load-more and file-open behavior has no assertion.
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_project_timeline.rs
+    - packages/openmates-rust/src/work/projects/timeline.rs
+    - packages/openmates-rust/src/work/projects/timeline_presentation.rs
   embedEdit:
     specs: []
     vectors: []

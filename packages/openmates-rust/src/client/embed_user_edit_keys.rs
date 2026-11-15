@@ -103,6 +103,25 @@ impl Client {
     /// `Invalid` for a malformed id; `Forbidden` for a row that is not the
     /// requested embed; transport and key errors.
     pub(in crate::client) async fn edit_fetch_embed(&mut self, embed_id: &str) -> Result<()> {
+        self.edit_fetch_embed_row(embed_id).await?;
+        if !self.edit_uses_browser_master() {
+            return Ok(());
+        }
+        self.edit_embed_key(embed_id).await.map(|_| ())
+    }
+
+    /// [`Self::edit_fetch_embed`] without the browser key check. For a caller
+    /// that opens the key another way: a Project commit restore unwraps it
+    /// through the file's Project wrapper, because a file the CLI created in
+    /// a hosted Project carries no master wrapper and its chat may not be
+    /// cached in this browser (the master/chat check would refuse with
+    /// `cookie_embed_version_key_cache_unavailable`). A native session reads
+    /// through `embed_detail` as before.
+    ///
+    /// # Errors
+    /// As [`Self::edit_fetch_embed`], without the key errors of a browser
+    /// session.
+    pub(in crate::client) async fn edit_fetch_embed_row(&mut self, embed_id: &str) -> Result<()> {
         if !self.edit_uses_browser_master() {
             return self.embed_detail(embed_id).await.map(|_| ());
         }
@@ -154,7 +173,7 @@ impl Client {
             "updated_at": row["updatedAt"]});
         self.embed_keys.extend(wrappers.iter().cloned());
         self.embeds.insert(embed_id.to_owned(), cached);
-        self.edit_embed_key(embed_id).await.map(|_| ())
+        Ok(())
     }
 }
 

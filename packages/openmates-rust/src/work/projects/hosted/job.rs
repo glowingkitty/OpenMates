@@ -87,10 +87,7 @@ fn now_seconds() -> u64 {
     now()
 }
 
-/// JS `content.split("\n").length`.
-fn line_count(content: &str) -> usize {
-    content.matches('\n').count() + 1
-}
+use crate::work::line_count;
 
 fn utf16_prefix(value: &str, units: usize) -> String {
     let mut out = String::new();
@@ -384,10 +381,6 @@ fn content_object(
         }
     }
     Ok(object)
-}
-
-pub(super) fn seal(text: &str, key: &[u8; 32]) -> HostedResult<String> {
-    Ok(crypto::server_fields::encrypt_text(text, key, &[])?)
 }
 
 async fn write<I: HostedIo>(

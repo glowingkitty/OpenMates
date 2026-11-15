@@ -673,26 +673,16 @@ project_uploads:
     project_wrapper: true
     link_after_wrappers: true
 project_document_creation:
-- id: new-deck-in-a-subfolder
-  assertion_ids: [projects.items.create-documents]
-  given: Alice is in the folder "Pitch / Investors" of her Project "Bike rental", which has a pinned template "Studio Blue".
-  when: She opens the Create menu and chooses "New slides".
-  then: An empty deck in the "Studio Blue" template appears in "Pitch / Investors" and opens in the slides editor; no chat was created, and she can later mention the deck in a chat and ask the assistant to fill it.
 - id: new-document-and-sheet-read-only-member
   assertion_ids: [projects.items.create-documents]
   given: Bob may edit the Team Project "Launch", and Carol may only read it.
   when: Bob creates "New document" and "New sheet" in the Project root, and Carol opens the same Project.
   then: Both items appear in the root for Bob and Carol and open in their editors for Bob; Carol's Create menu does not offer new documents, sheets or slides.
-- id: new-code-file-edited-and-saved
-  assertion_ids: [projects.items.create-documents]
-  given: Dana works in her Project "Weather station".
-  when: She chooses "New code file", names it "greet.py", types a function in the code editor and saves.
-  then: The file greet.py appears in the Project files as Python code, the saved code is shown after a reload, and the edit is the file's next version.
 - id: every-create-entry-in-a-nested-folder
   assertion_ids: [projects.items.create-documents]
-  given: Erin opens the folder "Quotes / Caterers" of her Project "Summer party", which she made with "New folder" in the Create menu.
-  when: She creates a new document, sheet, slides deck, code file, workflow and chat from that folder's Create menu.
-  then: The four files are listed in "Caterers" after a reload and not in "Quotes" or the root, the workflow belongs to "Caterers", and the chat starts with that folder as its context.
+  given: Erin opens the folder "Quotes / Caterers" of her Project "Summer party", which she made with "New folder" in the Create menu and which has a pinned slides template "Studio Blue".
+  when: She creates a new document, sheet, slides deck, code file "greet.py" (typing a function and saving it), workflow and chat from that folder's Create menu.
+  then: The four files are listed in "Caterers" after a reload and not in "Quotes" or the root, and no chat was created for them; the deck uses "Studio Blue" and opens in the slides editor, and greet.py shows its saved code after a reload as the file's next version. The workflow belongs to "Caterers", and the chat starts with that folder as its context.
 project_surface_parity:
 - id: same-linked-object
   input:
@@ -760,25 +750,13 @@ project_custom_focus:
   then: No custom-Focus selection call runs merely because the Memory exists.
 project_memories:
 - id: active-project-memory
-  given: Acme has an encrypted Memory saying its audience mostly uses phones.
-  when: An authorized user activates Work on Acme and asks for a homepage.
-  then: Relevant Project Memory loads without a personal-memory request; deactivating Acme prevents future inclusion.
-- id: personal-memory-about-project
-  given: The user saved a private personal memory about Acme outside Project files.
-  when: The user works on Acme.
-  then: Project access does not approve that personal memory; its existing request or explicit mention is required.
-- id: project-memory-same-fields
-  given: Acme's Memories tab is open.
-  when: The user creates a memory with a title, text, when-to-use, an expiry date and Only when mentioned.
-  then: It is stored under .openmates/memories with those fields and stays hidden from model stages until mentioned.
+  given: Acme has an encrypted Memory saying its audience mostly uses phones, and the user also saved a private personal memory about Acme outside Project files.
+  when: An authorized user activates Work on Acme, asks for a homepage, and later deactivates Acme.
+  then: Relevant Project Memory loads without a personal-memory request, while the personal memory still needs its existing request or an explicit mention. After deactivation the Project Memory is no longer included.
 - id: assistant-saves-project-memory
-  given: Acme's Work on focus is active in a chat and the user agrees to save Acme's press style.
-  when: The assistant saves it to the Project.
-  then: A new Memory file appears in Acme's Memories tab, no personal Memory is created, and the reply says it was saved only after the file operation succeeded.
-- id: assistant-project-memory-without-focus
-  given: No Project Focus is active in the chat.
-  when: The assistant tries to save a Memory to a Project.
-  then: The save is refused, nothing is stored, and the assistant offers a personal Memory instead.
+  given: Acme's Work on focus is active in a chat and the user agrees to save Acme's press style; in another chat no Project Focus is active.
+  when: The assistant saves the press style to the Project, and in the other chat tries to save a Memory to Acme.
+  then: A new Memory file with title, text, when-to-use and load mode appears under .openmates/memories in Acme's Memories tab, no personal Memory is created, and the reply says it was saved only after the file operation succeeded. In the chat without Focus the save is refused, nothing is stored, and the assistant offers a personal Memory instead.
 project_assistant_creation:
 - id: recipe-web-app-creates-project
   assertion_ids:
@@ -818,6 +796,37 @@ project_application_files:
   when: Alice changes the page title by hand, saves, and returns to the chat's application embed.
   then: The application's file list opens the same file with Alice's change as the newest version, and the assistant's
     next diff applies on top of it.
+- id: rename-then-delete-file
+  assertion_ids:
+  - projects.files.rename-delete
+  given: Recipe Manager has web-app/src/style.css and web-app/src/theme.css.
+  when: Alice renames style.css to theme.css, then renames it to main.css, and later deletes main.css.
+  then: The first rename is refused with path_conflict. The second keeps the file's embed id and version history under its
+    new path. The delete removes main.css from the folder, and restoring a commit that contained it links it again.
+- id: server-publishes-app-thumbnail
+  assertion_ids:
+  - projects.files.server-owned-fields
+  given: Recipe Manager has an application card and a test result in web-app/.
+  when: The preview service saves a new thumbnail for the application and the test run finishes.
+  then: The application link gets the new thumbnail and the test result its final status, each as a next version without a
+    client revision. A server write that tries to change a file's content in the same Project is refused.
+project_agentic_coding:
+- id: long-coding-turn-stays-online
+  assertion_ids:
+  - projects.agentic.long-turn-stays-online
+  given: Alice asks the CLI to build Recipe Manager, and the assistant writes files, runs tests and fixes failures for 25
+    minutes while the CLI response timeout is 10 minutes.
+  when: Frames for the turn keep arriving, and in a second turn the server sends nothing for 10 minutes.
+  then: The first turn stays online until its final reply. The second turn ends as Offline with the recovery hint.
+- id: failing-and-passing-runs-in-reply
+  assertion_ids:
+  - projects.agentic.test-result-in-reply
+  - projects.agentic.test-run-installs-dependencies
+  given: Recipe Manager's web-app/ has a package.json and a browser test, and no setup command installs packages.
+  when: The assistant runs the test, it fails, the assistant fixes the app and runs it again.
+  then: Each run's step timeline starts with an npm install step in web-app/. The reply shows both test result embeds,
+    the failing one with its error and the passing one with its recording, on web and CLI, also if the model did not link
+    them.
 project_commits:
 - id: commit-after-green-tests
   assertion_ids:

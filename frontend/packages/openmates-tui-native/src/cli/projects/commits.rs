@@ -141,7 +141,8 @@ pub(super) async fn execute(
 }
 
 /// Restore a whole commit: the core writes every changed file as a new
-/// revision from `--chat` and records the restore commit. `--dry-run` only
+/// revision (from `--chat` as the assistant, else as the user) and records the
+/// restore commit. `--dry-run` only
 /// prints the plan. An always-ask Project needs `--yes` as the user's grant.
 async fn restore(i: &Invocation, service: &mut Projects<'_>) -> Result<CliOutput, CliError> {
     check(i, &["chat", "message", "yes", "dry-run"])?;
@@ -176,12 +177,37 @@ async fn restore(i: &Invocation, service: &mut Projects<'_>) -> Result<CliOutput
             text,
         );
     }
-    let chat = input::text(i, "chat")?.ok_or_else(|| {
-        contract(
-            "chat_required",
-            "Provide --chat <chat-id> whose focus is this Project, or --dry-run.",
-        )
-    })?;
+    let Some(chat) = input::text(i, "chat")? else {
+        // No chat: restore as the signed-in user (Project-scope user revisions).
+        let result = service
+            .restore_commit_as_user(
+                selector(i)?,
+                commit_id(i)?,
+                input::text(i, "message")?.map(str::to_owned),
+                None,
+            )
+            .await?;
+        let refused = result
+            .files
+            .iter()
+            .filter(|file| {
+                matches!(
+                    file.outcome,
+                    openmates_sdk::client::ProjectCommitFileOutcome::Refused { .. }
+                )
+            })
+            .count();
+        let text = format!(
+            "Restored {} file(s), {refused} refused; recorded {}",
+            result.files.len() - refused,
+            line(&result.commit)
+        );
+        return output(
+            i,
+            json!({"applied": true, "files": result.files, "commit": present(&result.commit)}),
+            text,
+        );
+    };
     let yes = i.boolean("yes");
     let mut approve = move |_: &openmates_sdk::work::HostedFileMutation| {
         Ok::<bool, openmates_sdk::work::HostedFileError>(yes)

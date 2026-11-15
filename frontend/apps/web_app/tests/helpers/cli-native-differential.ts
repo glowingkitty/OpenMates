@@ -67,6 +67,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const { deriveApiUrl, runCli } = require('./cli-test-helpers');
 const {
+	approvePairInBrowser,
 	createWorkflowCliHome,
 	loginWorkflowCliViaPair,
 	removeWorkflowCliHome,
@@ -243,13 +244,7 @@ async function setupDifferential(page: any, testInfo: TestInfo, groupName: strin
 	try {
 		const token = (await login.waitForOutput(/#pair=([A-Za-z0-9]+)/, 30_000))[1];
 		await page.goto(`${baseUrl}/#pair=${token}`);
-		const allow = page.getByTestId('pair-allow-button');
-		await expect(allow).toBeVisible({ timeout: 15_000 });
-		await allow.click();
-		const pinDisplay = page.getByTestId('pair-pin-display');
-		await expect(pinDisplay).toBeVisible({ timeout: 15_000 });
-		const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '');
-		expect(pin).toMatch(/^[A-Z0-9]{6}$/);
+		const pin = await approvePairInBrowser(page);
 		await login.waitForOutput(/Pairing PIN from the browser:/, 30_000);
 		login.typeText(pin);
 		login.key('Return');

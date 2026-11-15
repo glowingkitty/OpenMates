@@ -69,7 +69,9 @@
 		F6CB9C02F4055DEF9FCAD842 /* ProjectCreateFileEntries.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDA52B6824FFE56234ECC247 /* ProjectCreateFileEntries.swift */; };
 		E0F69297EA7FA996BF6E087F /* ProjectCreateFileEntries.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDA52B6824FFE56234ECC247 /* ProjectCreateFileEntries.swift */; };
 		0A71324F6D232895DA9D07E3 /* CoreProjectFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DDD631706775CC7E71317C7 /* CoreProjectFiles.swift */; };
+		49073925ACFFDF4B3D2F0404 /* CoreProjectTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79709FBC74E569DD90D60415 /* CoreProjectTimeline.swift */; };
 		F8A1C64469A5F7F884569FA5 /* CoreProjectFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DDD631706775CC7E71317C7 /* CoreProjectFiles.swift */; };
+		59AB98FA3DBCA9F7F89C69E0 /* CoreProjectTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79709FBC74E569DD90D60415 /* CoreProjectTimeline.swift */; };
 		5CD018733F61734AAED2982C /* DesignEmbroideryEmbedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C8F16BD78CECFC7D095E4D /* DesignEmbroideryEmbedTests.swift */; };
 		79E406333799974AC023D20D /* ChatRecommendationsContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 296D3E5502C34D93DBB54EE6 /* ChatRecommendationsContainerTests.swift */; };
 		3734458E6C9DA603ABB6DBA6 /* EmbedCardParityFixesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DCDC2426A064F1C81B36025 /* EmbedCardParityFixesTests.swift */; };
@@ -497,6 +499,7 @@
 		364098B0602B18298E2BC526 /* LocalModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7C6F12488EBB80AC594B459 /* LocalModelStore.swift */; };
 		365EF6F15CD915021803A876 /* SettingsTeamsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C0BCD6C1532D7CB63A98AE7 /* SettingsTeamsController.swift */; };
 		366472C99BFBD3EED8E6C1D0 /* ProjectReadmeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E674560F8594921FB86A57 /* ProjectReadmeView.swift */; };
+		64BFCE00092055301BEF08C3 /* ProjectTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 139795ABA73BEFFAE85A2227 /* ProjectTimelineView.swift */; };
 		3667D14DA3D6513C70AAF756 /* catalog.json in Resources */ = {isa = PBXBuildFile; fileRef = C79663BF1B847F616EB0A2CB /* catalog.json */; };
 		3668EA8515FDDAED33A00F9C /* ChatManagementSharingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85A13DD90C140BD67A31F7CB /* ChatManagementSharingParityTests.swift */; };
 		36AEFE4EA7B99C4FA9F0E6A9 /* WatchChatRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE57873D02BD642C646EF779 /* WatchChatRuntime.swift */; };
@@ -695,6 +698,7 @@
 		51D240B035F711EAE019F529 /* EmbedRenderingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED0610A1F4AB6B5EB28B20C /* EmbedRenderingParityUITests.swift */; };
 		BB5A0EEB51F3AF3C25984AA3 /* ChatCardsParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68FC0366C1EDC7D3002289B7 /* ChatCardsParityUITests.swift */; };
 		0C0EC0DE1A2B3C4D5E6FDD01 /* AgenticCodingPreviewUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FDD02 /* AgenticCodingPreviewUITests.swift */; };
+		456B1D5031EB9BF745C5B64D /* ProjectTimelineUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEE75C90F40317B88B31A349 /* ProjectTimelineUITests.swift */; };
 		51D6F43ECA336A723552FA76 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B11ABB7D716D034151DB7B3 /* NotificationService.swift */; };
 		51D987ADFA608E554C87AD76 /* WatchPhoneOpenPayloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5317D124541F183D89A6CE83 /* WatchPhoneOpenPayloadTests.swift */; };
 		B7A2C41E5D9F4A1083E6C5D1 /* NativeHapticsPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A2C41E5D9F4A1083E6C5D2 /* NativeHapticsPolicyTests.swift */; };
@@ -792,6 +796,7 @@
 		60648E65A03DA89373DFBB9D /* OpenMatesSharedEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED01D930F18663BA0D38F028 /* OpenMatesSharedEnvironment.swift */; };
 		60711DF48A5D896D10043246 /* WatchChatRuntimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACC238E7F92C5861DDD0F65 /* WatchChatRuntimeTests.swift */; };
 		6079D6952E579E50E6984862 /* ProjectReadmeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E674560F8594921FB86A57 /* ProjectReadmeView.swift */; };
+		0FE866365988771DE98DCE8D /* ProjectTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 139795ABA73BEFFAE85A2227 /* ProjectTimelineView.swift */; };
 		60A3718F535E9016A4667365 /* PublicImageLoaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6B7AD0E117079E37D0B8604 /* PublicImageLoaderTests.swift */; };
 		60B0BDCD568818D4F321CF78 /* ColorTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = B58AAB241561A1BA1F549B0C /* ColorTokens.generated.swift */; };
 		611EBFA5C106E4070564B3B3 /* KeychainSharingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D5150779AE3DE5CD771FF01 /* KeychainSharingTests.swift */; };
@@ -2180,6 +2185,7 @@
 		2ED0610A1F4AB6B5EB28B20C /* EmbedRenderingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedRenderingParityUITests.swift; sourceTree = "<group>"; };
 		68FC0366C1EDC7D3002289B7 /* ChatCardsParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCardsParityUITests.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6FDD02 /* AgenticCodingPreviewUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgenticCodingPreviewUITests.swift; sourceTree = "<group>"; };
+		EEE75C90F40317B88B31A349 /* ProjectTimelineUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectTimelineUITests.swift; sourceTree = "<group>"; };
 		2F0EA2469B8BC887B5C5FEF6 /* DeviceShakeReportTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceShakeReportTrigger.swift; sourceTree = "<group>"; };
 		2F3466F7C05304D22DDC5BCB /* NativePCBSchematicActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePCBSchematicActionTests.swift; sourceTree = "<group>"; };
 		2F3D88F11AEB65604DF27A3E /* HostingEmbedStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostingEmbedStrings.swift; sourceTree = "<group>"; };
@@ -2642,6 +2648,7 @@
 		A4B50AEA403A75E24E8D7634 /* WorkflowStepTestController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowStepTestController.swift; sourceTree = "<group>"; };
 		A4E28DB090AD6C04C9F23635 /* ProcessingDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingDetailsView.swift; sourceTree = "<group>"; };
 		A5E674560F8594921FB86A57 /* ProjectReadmeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectReadmeView.swift; sourceTree = "<group>"; };
+		139795ABA73BEFFAE85A2227 /* ProjectTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectTimelineView.swift; sourceTree = "<group>"; };
 		A6302F6D59F1F0B082AD7554 /* NativeSignupRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSignupRuntime.swift; sourceTree = "<group>"; };
 		A66AC2FB45F3E6BD325CCED6 /* ProjectHostedFileExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectHostedFileExecutor.swift; sourceTree = "<group>"; };
 		A6F1CDCF7BD24C20B06BC7E3 /* Icon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Icon.swift; sourceTree = "<group>"; };
@@ -2748,6 +2755,7 @@
 		0C0EC0DE1A2B3C4D5E6F7301 /* CoreChatWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreChatWindow.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6F7B01 /* CoreChatActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreChatActions.swift; sourceTree = "<group>"; };
 		3DDD631706775CC7E71317C7 /* CoreProjectFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreProjectFiles.swift; sourceTree = "<group>"; };
+		79709FBC74E569DD90D60415 /* CoreProjectTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreProjectTimeline.swift; sourceTree = "<group>"; };
 		0D0EC0DE1A2B3C4D5E6F7C01 /* CoreDrafts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDrafts.swift; sourceTree = "<group>"; };
 		0E0EC0DE1A2B3C4D5E6F7D01 /* CoreSendMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreSendMapping.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6F7304 /* CoreMessageMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreMessageMapper.swift; sourceTree = "<group>"; };
@@ -3420,6 +3428,7 @@
 				2ED0610A1F4AB6B5EB28B20C /* EmbedRenderingParityUITests.swift */,
 				68FC0366C1EDC7D3002289B7 /* ChatCardsParityUITests.swift */,
 				0C0EC0DE1A2B3C4D5E6FDD02 /* AgenticCodingPreviewUITests.swift */,
+				EEE75C90F40317B88B31A349 /* ProjectTimelineUITests.swift */,
 				B75A5B8D21E5270E31DD14EF /* EmbedResponsiveGeometryUITests.swift */,
 				8FBC6FC6309A686EB25E8CE1 /* EmbedShareSettingsParityUITests.swift */,
 				B43A930E257363CFA545E342 /* FocusPhaseNativeUITests.swift */,
@@ -4482,6 +4491,7 @@
 				0C0EC0DE1A2B3C4D5E6F7301 /* CoreChatWindow.swift */,
 				0C0EC0DE1A2B3C4D5E6F7B01 /* CoreChatActions.swift */,
 				3DDD631706775CC7E71317C7 /* CoreProjectFiles.swift */,
+				79709FBC74E569DD90D60415 /* CoreProjectTimeline.swift */,
 				0D0EC0DE1A2B3C4D5E6F7C01 /* CoreDrafts.swift */,
 				0E0EC0DE1A2B3C4D5E6F7D01 /* CoreSendMapping.swift */,
 				0C0EC0DE1A2B3C4D5E6F7304 /* CoreMessageMapper.swift */,
@@ -4671,6 +4681,7 @@
 				ADD5884508BF26C281DBDBE9 /* ProjectIgnoredReadGrant.swift */,
 				EBE7EE93767C6DFB98313C62 /* ProjectOfflineMetadata.swift */,
 				A5E674560F8594921FB86A57 /* ProjectReadmeView.swift */,
+				139795ABA73BEFFAE85A2227 /* ProjectTimelineView.swift */,
 				41D91FE84CB6D31798AA6221 /* ProjectRemoteBridgeCrypto.swift */,
 				C1452F1AF8F1844B820FFF8A /* ProjectRemoteCommandCoordinator.swift */,
 				349CECC9AAEE70EC448DB930 /* ProjectRemoteFileFullscreenView.swift */,
@@ -5953,6 +5964,7 @@
 				5FB4FF95E5AB233B09B54E75 /* SlidesDeckEmbedRenderer.swift in Sources */,
 				E0F69297EA7FA996BF6E087F /* ProjectCreateFileEntries.swift in Sources */,
 				F8A1C64469A5F7F884569FA5 /* CoreProjectFiles.swift in Sources */,
+				59AB98FA3DBCA9F7F89C69E0 /* CoreProjectTimeline.swift in Sources */,
 				785D28F602301B21B0637811 /* ImageAuthenticityBadge.swift in Sources */,
 				50F835561F144379B64CD178 /* EmbroideryDesignModel.swift in Sources */,
 				098CC415087AE5400557D3E8 /* DesignEmbroideryEmbedRenderer.swift in Sources */,
@@ -6222,6 +6234,7 @@
 				68F680EAD2E9837F971E9608 /* ProjectIgnoredReadGrant.swift in Sources */,
 				B06A4B58C82B087125614FE0 /* ProjectOfflineMetadata.swift in Sources */,
 				6079D6952E579E50E6984862 /* ProjectReadmeView.swift in Sources */,
+				0FE866365988771DE98DCE8D /* ProjectTimelineView.swift in Sources */,
 				11B6EDBFB17715A40C3805F8 /* ProjectReferenceEmbedModel.swift in Sources */,
 				3D4DF4FDFC54CA2F962A8BA9 /* ProjectReferenceEmbedRenderer.swift in Sources */,
 				B85F6067F5F5D8863AC21BD1 /* ProjectRemoteBridgeCrypto.swift in Sources */,
@@ -6483,6 +6496,7 @@
 				51D240B035F711EAE019F529 /* EmbedRenderingParityUITests.swift in Sources */,
 				BB5A0EEB51F3AF3C25984AA3 /* ChatCardsParityUITests.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6FDD01 /* AgenticCodingPreviewUITests.swift in Sources */,
+				456B1D5031EB9BF745C5B64D /* ProjectTimelineUITests.swift in Sources */,
 				A4A0EF76804D4B8B79B17ACC /* EmbedResponsiveGeometryUITests.swift in Sources */,
 				490186B7DFB8AE40A13005AE /* EmbedShareSettingsParityUITests.swift in Sources */,
 				D997993E143DD1207E4FD27B /* FocusPhaseNativeUITests.swift in Sources */,
@@ -6814,6 +6828,7 @@
 				5024C47624B37C667C40C28D /* SlidesDeckEmbedRenderer.swift in Sources */,
 				F6CB9C02F4055DEF9FCAD842 /* ProjectCreateFileEntries.swift in Sources */,
 				0A71324F6D232895DA9D07E3 /* CoreProjectFiles.swift in Sources */,
+				49073925ACFFDF4B3D2F0404 /* CoreProjectTimeline.swift in Sources */,
 				2FE6728C6542762E3430ACD3 /* ImageAuthenticityBadge.swift in Sources */,
 				A4C02EDDA6C82E2C646AA88B /* EmbroideryDesignModel.swift in Sources */,
 				F13F200DC124B7FC2E14DC15 /* DesignEmbroideryEmbedRenderer.swift in Sources */,
@@ -7083,6 +7098,7 @@
 				7C65A54377CA2DBD4C7E2983 /* ProjectIgnoredReadGrant.swift in Sources */,
 				0775145D6094EF487B5F94F8 /* ProjectOfflineMetadata.swift in Sources */,
 				366472C99BFBD3EED8E6C1D0 /* ProjectReadmeView.swift in Sources */,
+				64BFCE00092055301BEF08C3 /* ProjectTimelineView.swift in Sources */,
 				3CCBC3A2AFB1A76C389972FA /* ProjectReferenceEmbedModel.swift in Sources */,
 				CE9DC5DA3E98D5DA0098FCE8 /* ProjectReferenceEmbedRenderer.swift in Sources */,
 				E1C37E5FF74A2727415468DD /* ProjectRemoteBridgeCrypto.swift in Sources */,

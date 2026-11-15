@@ -3125,6 +3125,27 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func createProjectDocument(projectId: String, teamId: String?, kind: String, name: String, folderId: String?, cancellation: CoreCancellation?) async throws  -> CreatedProjectDocumentRecord
     
     /**
+     * One page of the Project timeline, newest first (`limit` 1..=100).
+     * `before` is the previous page's `next_cursor`; `team_id` is the Team of
+     * a Team Project, nil for Personal. Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid`; `Forbidden`; `Offline`;
+     * `Cancelled`.
+     */
+    func projectTimeline(projectId: String, teamId: String?, limit: UInt64?, before: String?, cancellation: CoreCancellation?) async throws  -> ProjectTimelinePageRecord
+    
+    /**
+     * Restore every file of `commit_id` as new versions; later history is
+     * kept. `operation_id` is a UUID that makes a retry idempotent.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` when nothing could be
+     * restored; `Forbidden`; `Offline`; `Cancelled`.
+     */
+    func restoreProjectCommit(projectId: String, teamId: String?, commitId: String, operationId: String, cancellation: CoreCancellation?) async throws  -> ProjectCommitRestoreRecord
+    
+    /**
      * Commit every change of the chat worktree (approved on the device by
      * `operation_id`).
      *
@@ -5128,6 +5149,55 @@ open func createProjectDocument(projectId: String, teamId: String?, kind: String
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeCreatedProjectDocumentRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * One page of the Project timeline, newest first (`limit` 1..=100).
+     * `before` is the previous page's `next_cursor`; `team_id` is the Team of
+     * a Team Project, nil for Personal. Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid`; `Forbidden`; `Offline`;
+     * `Cancelled`.
+     */
+open func projectTimeline(projectId: String, teamId: String?, limit: UInt64?, before: String?, cancellation: CoreCancellation?)async throws  -> ProjectTimelinePageRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_project_timeline(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(projectId),FfiConverterOptionString.lower(teamId),FfiConverterOptionUInt64.lower(limit),FfiConverterOptionString.lower(before),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeProjectTimelinePageRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Restore every file of `commit_id` as new versions; later history is
+     * kept. `operation_id` is a UUID that makes a retry idempotent.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` when nothing could be
+     * restored; `Forbidden`; `Offline`; `Cancelled`.
+     */
+open func restoreProjectCommit(projectId: String, teamId: String?, commitId: String, operationId: String, cancellation: CoreCancellation?)async throws  -> ProjectCommitRestoreRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_restore_project_commit(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(projectId),FfiConverterOptionString.lower(teamId),FfiConverterString.lower(commitId),FfiConverterString.lower(operationId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeProjectCommitRestoreRecord_lift,
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -11507,6 +11577,463 @@ public func FfiConverterTypeProbeRecord_lift(_ buf: RustBuffer) throws -> ProbeR
 #endif
 public func FfiConverterTypeProbeRecord_lower(_ value: ProbeRecord) -> RustBuffer {
     return FfiConverterTypeProbeRecord.lower(value)
+}
+
+
+/**
+ * Result of restoring a commit.
+ */
+public struct ProjectCommitRestoreRecord: Equatable, Hashable {
+    /**
+     * The commit that was restored.
+     */
+    public var sourceCommitId: String
+    /**
+     * The new commit recording the restore.
+     */
+    public var commitId: String
+    /**
+     * Files refused (conflicting path, unknown embed, ...); the rest was restored.
+     */
+    public var refusedCount: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The commit that was restored.
+         */sourceCommitId: String, 
+        /**
+         * The new commit recording the restore.
+         */commitId: String, 
+        /**
+         * Files refused (conflicting path, unknown embed, ...); the rest was restored.
+         */refusedCount: UInt64) {
+        self.sourceCommitId = sourceCommitId
+        self.commitId = commitId
+        self.refusedCount = refusedCount
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectCommitRestoreRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectCommitRestoreRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectCommitRestoreRecord {
+        return
+            try ProjectCommitRestoreRecord(
+                sourceCommitId: FfiConverterString.read(from: &buf), 
+                commitId: FfiConverterString.read(from: &buf), 
+                refusedCount: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectCommitRestoreRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.sourceCommitId, into: &buf)
+        FfiConverterString.write(value.commitId, into: &buf)
+        FfiConverterUInt64.write(value.refusedCount, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCommitRestoreRecord_lift(_ buf: RustBuffer) throws -> ProjectCommitRestoreRecord {
+    return try FfiConverterTypeProjectCommitRestoreRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCommitRestoreRecord_lower(_ value: ProjectCommitRestoreRecord) -> RustBuffer {
+    return FfiConverterTypeProjectCommitRestoreRecord.lower(value)
+}
+
+
+/**
+ * One file of a commit row.
+ */
+public struct ProjectTimelineCommitFileRecord: Equatable, Hashable {
+    /**
+     * Decrypted Project path; nil when the commit carried no path map.
+     */
+    public var path: String?
+    /**
+     * Embed version the commit recorded.
+     */
+    public var version: UInt64
+    /**
+     * `added`, `modified` or `unchanged` against the next older commit of the
+     * page; nil when no older commit is known.
+     */
+    public var change: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Decrypted Project path; nil when the commit carried no path map.
+         */path: String?, 
+        /**
+         * Embed version the commit recorded.
+         */version: UInt64, 
+        /**
+         * `added`, `modified` or `unchanged` against the next older commit of the
+         * page; nil when no older commit is known.
+         */change: String?) {
+        self.path = path
+        self.version = version
+        self.change = change
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectTimelineCommitFileRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectTimelineCommitFileRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectTimelineCommitFileRecord {
+        return
+            try ProjectTimelineCommitFileRecord(
+                path: FfiConverterOptionString.read(from: &buf), 
+                version: FfiConverterUInt64.read(from: &buf), 
+                change: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectTimelineCommitFileRecord, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.path, into: &buf)
+        FfiConverterUInt64.write(value.version, into: &buf)
+        FfiConverterOptionString.write(value.change, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelineCommitFileRecord_lift(_ buf: RustBuffer) throws -> ProjectTimelineCommitFileRecord {
+    return try FfiConverterTypeProjectTimelineCommitFileRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelineCommitFileRecord_lower(_ value: ProjectTimelineCommitFileRecord) -> RustBuffer {
+    return FfiConverterTypeProjectTimelineCommitFileRecord.lower(value)
+}
+
+
+/**
+ * The commit of a commit row.
+ */
+public struct ProjectTimelineCommitRecord: Equatable, Hashable {
+    /**
+     * Commit id.
+     */
+    public var commitId: String
+    /**
+     * Decrypted commit message.
+     */
+    public var message: String
+    /**
+     * Commit the restore came from, if any.
+     */
+    public var restoredFromCommitId: String?
+    /**
+     * Files of the snapshot.
+     */
+    public var files: [ProjectTimelineCommitFileRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Commit id.
+         */commitId: String, 
+        /**
+         * Decrypted commit message.
+         */message: String, 
+        /**
+         * Commit the restore came from, if any.
+         */restoredFromCommitId: String?, 
+        /**
+         * Files of the snapshot.
+         */files: [ProjectTimelineCommitFileRecord]) {
+        self.commitId = commitId
+        self.message = message
+        self.restoredFromCommitId = restoredFromCommitId
+        self.files = files
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectTimelineCommitRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectTimelineCommitRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectTimelineCommitRecord {
+        return
+            try ProjectTimelineCommitRecord(
+                commitId: FfiConverterString.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf), 
+                restoredFromCommitId: FfiConverterOptionString.read(from: &buf), 
+                files: FfiConverterSequenceTypeProjectTimelineCommitFileRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectTimelineCommitRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.commitId, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+        FfiConverterOptionString.write(value.restoredFromCommitId, into: &buf)
+        FfiConverterSequenceTypeProjectTimelineCommitFileRecord.write(value.files, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelineCommitRecord_lift(_ buf: RustBuffer) throws -> ProjectTimelineCommitRecord {
+    return try FfiConverterTypeProjectTimelineCommitRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelineCommitRecord_lower(_ value: ProjectTimelineCommitRecord) -> RustBuffer {
+    return FfiConverterTypeProjectTimelineCommitRecord.lower(value)
+}
+
+
+/**
+ * One timeline row.
+ */
+public struct ProjectTimelineEntryRecord: Equatable, Hashable {
+    /**
+     * `commit`, `file_version` or `file_operation`.
+     */
+    public var kind: String
+    /**
+     * Stable row id.
+     */
+    public var id: String
+    /**
+     * Unix seconds.
+     */
+    public var createdAt: UInt64
+    /**
+     * `user` or `assistant`.
+     */
+    public var author: String
+    /**
+     * File path; nil shows "Removed file".
+     */
+    public var path: String?
+    /**
+     * File version, when the row is a file version.
+     */
+    public var version: UInt64?
+    /**
+     * Server action (`create`, `update`, `restore`, `rename`, ...).
+     */
+    public var action: String?
+    /**
+     * Version a restore row came from.
+     */
+    public var restoredFromVersion: UInt64?
+    /**
+     * Set for `commit` rows.
+     */
+    public var commit: ProjectTimelineCommitRecord?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `commit`, `file_version` or `file_operation`.
+         */kind: String, 
+        /**
+         * Stable row id.
+         */id: String, 
+        /**
+         * Unix seconds.
+         */createdAt: UInt64, 
+        /**
+         * `user` or `assistant`.
+         */author: String, 
+        /**
+         * File path; nil shows "Removed file".
+         */path: String?, 
+        /**
+         * File version, when the row is a file version.
+         */version: UInt64?, 
+        /**
+         * Server action (`create`, `update`, `restore`, `rename`, ...).
+         */action: String?, 
+        /**
+         * Version a restore row came from.
+         */restoredFromVersion: UInt64?, 
+        /**
+         * Set for `commit` rows.
+         */commit: ProjectTimelineCommitRecord?) {
+        self.kind = kind
+        self.id = id
+        self.createdAt = createdAt
+        self.author = author
+        self.path = path
+        self.version = version
+        self.action = action
+        self.restoredFromVersion = restoredFromVersion
+        self.commit = commit
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectTimelineEntryRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectTimelineEntryRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectTimelineEntryRecord {
+        return
+            try ProjectTimelineEntryRecord(
+                kind: FfiConverterString.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf), 
+                createdAt: FfiConverterUInt64.read(from: &buf), 
+                author: FfiConverterString.read(from: &buf), 
+                path: FfiConverterOptionString.read(from: &buf), 
+                version: FfiConverterOptionUInt64.read(from: &buf), 
+                action: FfiConverterOptionString.read(from: &buf), 
+                restoredFromVersion: FfiConverterOptionUInt64.read(from: &buf), 
+                commit: FfiConverterOptionTypeProjectTimelineCommitRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectTimelineEntryRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.kind, into: &buf)
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterUInt64.write(value.createdAt, into: &buf)
+        FfiConverterString.write(value.author, into: &buf)
+        FfiConverterOptionString.write(value.path, into: &buf)
+        FfiConverterOptionUInt64.write(value.version, into: &buf)
+        FfiConverterOptionString.write(value.action, into: &buf)
+        FfiConverterOptionUInt64.write(value.restoredFromVersion, into: &buf)
+        FfiConverterOptionTypeProjectTimelineCommitRecord.write(value.commit, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelineEntryRecord_lift(_ buf: RustBuffer) throws -> ProjectTimelineEntryRecord {
+    return try FfiConverterTypeProjectTimelineEntryRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelineEntryRecord_lower(_ value: ProjectTimelineEntryRecord) -> RustBuffer {
+    return FfiConverterTypeProjectTimelineEntryRecord.lower(value)
+}
+
+
+/**
+ * One page of the timeline, newest first.
+ */
+public struct ProjectTimelinePageRecord: Equatable, Hashable {
+    /**
+     * Rows in the server's order.
+     */
+    public var entries: [ProjectTimelineEntryRecord]
+    /**
+     * Cursor for the next page; nil at the end.
+     */
+    public var nextCursor: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Rows in the server's order.
+         */entries: [ProjectTimelineEntryRecord], 
+        /**
+         * Cursor for the next page; nil at the end.
+         */nextCursor: String?) {
+        self.entries = entries
+        self.nextCursor = nextCursor
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectTimelinePageRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectTimelinePageRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectTimelinePageRecord {
+        return
+            try ProjectTimelinePageRecord(
+                entries: FfiConverterSequenceTypeProjectTimelineEntryRecord.read(from: &buf), 
+                nextCursor: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectTimelinePageRecord, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeProjectTimelineEntryRecord.write(value.entries, into: &buf)
+        FfiConverterOptionString.write(value.nextCursor, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelinePageRecord_lift(_ buf: RustBuffer) throws -> ProjectTimelinePageRecord {
+    return try FfiConverterTypeProjectTimelinePageRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelinePageRecord_lower(_ value: ProjectTimelinePageRecord) -> RustBuffer {
+    return FfiConverterTypeProjectTimelinePageRecord.lower(value)
 }
 
 
@@ -22605,6 +23132,30 @@ fileprivate struct FfiConverterOptionTypeMemoryFieldsRecord: FfiConverterRustBuf
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeProjectTimelineCommitRecord: FfiConverterRustBuffer {
+    typealias SwiftType = ProjectTimelineCommitRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeProjectTimelineCommitRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeProjectTimelineCommitRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeSearchEntryMetaRecord: FfiConverterRustBuffer {
     typealias SwiftType = SearchEntryMetaRecord?
 
@@ -23583,6 +24134,56 @@ fileprivate struct FfiConverterSequenceTypePiiMappingRecord: FfiConverterRustBuf
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypePiiMappingRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectTimelineCommitFileRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectTimelineCommitFileRecord]
+
+    public static func write(_ value: [ProjectTimelineCommitFileRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectTimelineCommitFileRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectTimelineCommitFileRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectTimelineCommitFileRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectTimelineCommitFileRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectTimelineEntryRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectTimelineEntryRecord]
+
+    public static func write(_ value: [ProjectTimelineEntryRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectTimelineEntryRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectTimelineEntryRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectTimelineEntryRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectTimelineEntryRecord.read(from: &buf))
         }
         return seq
     }
@@ -25207,6 +25808,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_create_project_document() != 934) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_project_timeline() != 41623) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_restore_project_commit() != 19112) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_git_commit() != 18370) {

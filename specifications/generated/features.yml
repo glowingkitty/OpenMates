@@ -15617,8 +15617,8 @@ features:
       assertions:
         passing: 18
         failing: 14
-        not_run: 6
-        missing: 20
+        not_run: 7
+        missing: 19
         counted: 58
       failing_tests:
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_mixed_project_and_web_batch_defers_web_until_file_result
@@ -15648,6 +15648,7 @@ features:
       - frontend/apps/web_app/tests/components/project-file-references.spec.ts
       - frontend/apps/web_app/tests/components/project-focus-policy.spec.ts
       - frontend/apps/web_app/tests/components/project-readme-figma.spec.ts
+      - frontend/apps/web_app/tests/components/project-timeline.spec.ts
       - frontend/apps/web_app/tests/components/projects-file-actions.spec.ts
       - frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
       - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
@@ -15655,6 +15656,7 @@ features:
       - frontend/apps/web_app/tests/press-release-project-memory-real.spec.ts
       - frontend/apps/web_app/tests/project-plans-flow.spec.ts
       - frontend/apps/web_app/tests/project-task-sync.spec.ts
+      - frontend/apps/web_app/tests/project-timeline-flow.spec.ts
       - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
       - frontend/apps/web_app/tests/projects-create-edit-files.spec.ts
       - frontend/apps/web_app/tests/projects-flow.spec.ts
@@ -15668,7 +15670,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/projectReadme.test.ts
       - backend/tests/test_project_file_references.py
       - backend/tests/test_project_focus_early_routing.py
-      unit_test_files: 34
+      unit_test_files: 35
     apple:
       status: failing
       source: tests
@@ -15688,6 +15690,7 @@ features:
       - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
       - apple/OpenMatesUITests/ProgressiveMessagePreviewUITests.swift
       - apple/OpenMatesUITests/ProjectREADMEUITests.swift
+      - apple/OpenMatesUITests/ProjectTimelineUITests.swift
       - apple/OpenMatesUITests/ProjectsFilesParityUITests.swift
       - apple/OpenMatesUITests/TooltipHelpParityUITests.swift
       - apple/OpenMatesUITests/WorkspaceContinuationLayoutUITests.swift
@@ -15770,7 +15773,7 @@ features:
       - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
       - backend/tests/test_embed_version_routes.py
       - backend/tests/test_project_embed_adoption.py
-      unit_test_files: 41
+      unit_test_files: 42
     sdk_npm:
       status: not_run
       source: tests
@@ -16425,8 +16428,8 @@ features:
         assertions:
           passing: 2
           failing: 0
-          not_run: 0
-          missing: 6
+          not_run: 1
+          missing: 5
           counted: 8
       apple:
         status: partial
@@ -16488,6 +16491,84 @@ features:
           not_run: 0
           missing: 8
           counted: 8
+  - id: project-timeline
+    name: Project Timeline tab
+    description: Newest-first commits and file activity of a Project with restore of files to a commit as new versions (web,
+      Apple, CLI)
+    assertion_ids:
+    - projects.files.rename-delete
+    - projects.history.native-commits
+    surfaces:
+      web:
+        status: not_run
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 1
+          missing: 1
+          counted: 2
+      apple:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 2
+          counted: 2
+      cli:
+        status: tested
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 2
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 2
+      tui:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: tested
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 2
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 2
+      sdk_npm:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 2
+          counted: 2
+      sdk_pypi:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 2
+          counted: 2
   - id: access-and-memories
     name: Access, memories and parity
     description: Explicit context, memories, catalog reuse, parity

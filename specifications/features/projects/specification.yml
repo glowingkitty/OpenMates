@@ -710,7 +710,6 @@ assertions:
     of them stays chat text.
   depends_on:
   - models.ProjectItemLink
-  - examples.project_application_files
 - id: projects.agentic.long-turn-stays-online
   type: behavior
   must: A coding turn that writes, tests and fixes an application can run longer than the client response timeout. The
@@ -718,7 +717,7 @@ assertions:
     at the latest after one day. A turn whose server stays silent for the whole timeout still ends as Offline with its
     recovery hint.
   depends_on:
-  - examples.project_application_files
+  - examples.project_agentic_coding
 - id: projects.agentic.test-result-in-reply
   type: behavior
   must: Each test run the assistant starts in a coding turn produces a test result embed (status, step timeline and, for
@@ -726,14 +725,14 @@ assertions:
     not link it itself, so every client shows the failing and the passing runs in the chat. This holds as well when
     several runs of one turn resume together.
   depends_on:
-  - examples.project_application_files
+  - examples.project_agentic_coding
 - id: projects.agentic.test-run-installs-dependencies
   type: behavior
   must: A hosted test run of a Node project installs its dependencies before the server or tests start. When the folder
     the server (or, without a server, the test command) runs in has a package.json and no setup command installs
     packages, the run adds one npm install step there, shown in its step timeline.
   depends_on:
-  - examples.project_application_files
+  - examples.project_agentic_coding
 - id: projects.files.adopt-embed
   type: behavior
   must: An existing chat embed the user may write is adopted into a Project they may write as one atomic, idempotent
@@ -744,14 +743,12 @@ assertions:
     the embed, which projects.files.user-edit-direct allows.
   depends_on:
   - models.ProjectItemLink
-  - examples.project_application_files
 - id: projects.files.user-edit-direct
   type: behavior
   must: A member with write access can edit a Project file directly in the Project view without an open chat. The edit is
     the next version of that same embed, and the Project timeline shows who made it.
   depends_on:
   - models.ProjectItemLink
-  - examples.project_application_files
 - id: projects.files.rename-delete
   type: behavior
   must: The user and the assistant can rename a Project file, which changes only the path of its link and keeps the embed
@@ -761,7 +758,6 @@ assertions:
     learning the path.
   depends_on:
   - models.ProjectItemLink
-  - examples.project_application_files
 - id: projects.files.server-owned-fields
   type: invariant
   must: For Project links of kind application and test result the server may still publish its own narrow non-content
@@ -769,7 +765,6 @@ assertions:
     field and no file content ever passes the Project write fence this way, and links of kind file admit no server write.
   depends_on:
   - models.ProjectItemLink
-  - examples.project_application_files
 - id: projects.history.native-commits
   type: behavior
   must: A Project commit is a named snapshot with a message that records the exact revision of every OpenMates-stored

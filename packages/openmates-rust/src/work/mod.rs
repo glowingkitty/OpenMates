@@ -76,7 +76,8 @@ impl Backend<'_> {
     ) -> Result<Value> {
         match self {
             Self::Cookie(client) => {
-                client.require_session()?;
+                // Native session or the web Worker's admitted browser credentials.
+                client.require_work_authority()?;
                 client
                     .request_task_headers(method, path, body, None, None, headers)
                     .await
@@ -139,9 +140,23 @@ impl Backend<'_> {
             Self::ApiKey(client) => client.work_origin(),
         }
     }
+    /// Unwraps a key wrapped under the master key (Project and Team key
+    /// wrappers). The cookie client goes through its master binding, so the
+    /// web Worker's non-extractable master works; API-key clients decrypt with
+    /// their own wrapped master key as before.
+    async fn unwrap_with_master(&mut self, ciphertext: &str) -> Result<Key> {
+        match self {
+            Self::Cookie(client) => client.work_unwrap_with_master(ciphertext).await,
+            Self::ApiKey(client) => {
+                let master = client.master_key().await?;
+                key_bytes(&crypto::decrypt_bytes(ciphertext, &master)?)
+            }
+        }
+    }
     async fn wrapping(&mut self, team: Option<&str>) -> Result<Key> {
-        let master = self.master().await?;
-        let Some(team) = team else { return Ok(master) };
+        let Some(team) = team else {
+            return self.master().await;
+        };
         uuid::Uuid::parse_str(team).map_err(|_| Error::Invalid("Invalid Team ID."))?;
         let value = self
             .request(Method::GET, &format!("/v1/teams/{team}"), None, None)
@@ -150,10 +165,8 @@ impl Backend<'_> {
         if string(row, "team_id")? != team {
             return Err(Error::Forbidden);
         }
-        key_bytes(&crypto::decrypt_bytes(
-            string(row, "encrypted_team_key")?,
-            &master,
-        )?)
+        self.unwrap_with_master(string(row, "encrypted_team_key")?)
+            .await
     }
 }
 pub(crate) fn string<'a>(value: &'a Value, key: &str) -> Result<&'a str> {
