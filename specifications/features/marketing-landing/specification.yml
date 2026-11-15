@@ -148,6 +148,15 @@ assertions:
     providers, export and data ownership.
   depends_on:
   - examples.layout
+- id: marketing-landing.honest-claims
+  type: invariant
+  must: Landing copy and story animations describe only capabilities available to every user on production. Encryption
+    is described as client-side (encrypted on the device before storage), never as end-to-end or as only the user's devices
+    being able to decrypt. Removed capabilities (doctor appointment and apartment search), dev-only features and unverifiable
+    superlatives do not appear, and beta native apps are labelled as TestFlight beta. Personal-data protection is described
+    as replacement before the AI sees it, not anonymization.
+  depends_on:
+  - examples.public_content
 - id: marketing-landing.capability-rail-and-prompts
   type: behavior
   must: The single hero app rail orders Events, Travel, Code, Home, Health, Social Media, Fitness, Mail and Jobs

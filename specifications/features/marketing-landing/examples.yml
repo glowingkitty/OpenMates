@@ -127,6 +127,12 @@ public_content:
   when: Sam visits the website news, blog and privacy/terms pages and scrolls to events.
   then: News and blog retain their published content, legal pages show the full readable documents without a chat
     shell, and events show an honest empty state.
+- id: honest-press-facing-claims
+  given: The privacy, workflow and devices sections are shown in English and German.
+  when: A journalist reads each section after its story completes.
+  then: Privacy copy says chats are encrypted on the device before they are stored, the workflow example uses news
+    and events rather than removed apartment or doctor appointment search, the Apple apps are labelled as TestFlight
+    beta, and no section claims end-to-end encryption, anonymization or being unlike any other software.
 hero:
 - id: one-seamless-capability-rail
   given: Alex opens the hero on a phone, short landscape screen, tall portrait tablet or large desktop and leaves

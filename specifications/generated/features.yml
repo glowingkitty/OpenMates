@@ -4,9 +4,9 @@ schema_version: 2
 source: specifications/features.yml
 results_as_of: '2026-11-15'
 summary:
-  features: 124
-  enabled_on_prod: 108
-  enabled_on_dev: 112
+  features: 125
+  enabled_on_prod: 109
+  enabled_on_dev: 113
   status_by_surface:
     web:
       live: 3
@@ -14,7 +14,7 @@ summary:
       failing: 58
       not_run: 9
       implemented: 19
-      not_planned: 18
+      not_planned: 19
     apple:
       tested: 15
       partial: 30
@@ -22,7 +22,7 @@ summary:
       implemented: 40
       in_progress: 6
       planned: 5
-      not_planned: 19
+      not_planned: 20
     watchos:
       tested: 7
       partial: 3
@@ -34,14 +34,14 @@ summary:
       not_run: 28
       implemented: 41
       in_progress: 2
-      not_planned: 30
+      not_planned: 31
     tui:
       live: 2
       failing: 13
       not_run: 1
       implemented: 57
       in_progress: 10
-      not_planned: 41
+      not_planned: 42
     rest_api:
       live: 5
       tested: 1
@@ -50,18 +50,18 @@ summary:
       not_run: 26
       implemented: 17
       planned: 2
-      not_planned: 26
+      not_planned: 27
     sdk_npm:
       partial: 3
       not_run: 20
       implemented: 50
-      not_planned: 51
+      not_planned: 52
     sdk_pypi:
       partial: 3
       not_run: 18
       implemented: 42
       in_progress: 9
-      not_planned: 52
+      not_planned: 53
 unmapped:
   specifications: []
   apps: []
@@ -6082,7 +6082,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 15
+  assertions: 16
   surfaces:
     web:
       status: failing
@@ -6092,8 +6092,8 @@ features:
         passing: 0
         failing: 15
         not_run: 0
-        missing: 0
-        counted: 15
+        missing: 1
+        counted: 16
       failing_tests:
       - frontend/apps/web_app/tests/components/guest-welcome-preview.spec.ts › bare Chat welcome exposes guest greeting and
         metadata-ordered default examples
@@ -15465,6 +15465,127 @@ features:
         counted: 0
       key_tests: []
       evidence: sdk.py _run_app_skill is private; no generated namespace
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+- id: vscode-extension
+  name: VS Code extension
+  kind: surface
+  description: The open VS Code folder acts as a Project's connected machine; assistant changes are reviewed and landed in
+    the editor.
+  specifications:
+  - id: feature.vscode-extension
+    status: draft
+    path: specifications/features/vscode-extension
+  apps: []
+  product_features: []
+  release: unverified
+  flags:
+    ids: []
+    dev: no_flag
+    prod: no_flag
+  assertions: 4
+  surfaces:
+    web:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    apple:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+      platforms:
+      - ios
+      - ipados
+      - macos
+    cli:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 4
+        counted: 4
+      conflict: marked not_planned, but 4 required assertion(s) apply to cli
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    tui:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    rest_api:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    sdk_npm:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    sdk_pypi:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0

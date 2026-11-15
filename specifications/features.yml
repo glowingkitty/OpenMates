@@ -1140,6 +1140,14 @@ features:
       tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
       sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
       sdk_pypi: "sdk.py _run_app_skill is private; no generated namespace"
+  - id: vscode-extension
+    name: "VS Code extension"
+    kind: surface
+    description: "The open VS Code folder acts as a Project's connected machine; assistant changes are reviewed and landed in the editor."
+    specifications: [feature.vscode-extension]
+    apps: []
+    release: unverified
+    surfaces: {web: not_planned, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: projects
     name: "Projects"
     kind: app

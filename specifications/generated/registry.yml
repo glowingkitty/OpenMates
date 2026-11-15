@@ -834,7 +834,7 @@ specifications:
     version: 12
     status: draft
     path: features/marketing-landing
-    fingerprint: de4eab1391dfd4e072f86b81c4f5297b9e6a2c916a1dfd72a183b158dda17dea
+    fingerprint: a22110dc61eb151c3f14c9daee6d3131f8bc5f5ecc0f3fb48e0abc21dce32166
     required_applies_to:
     - gui.web
   feature.message-input:
@@ -1047,6 +1047,13 @@ specifications:
     required_applies_to:
     - gui.web
     superseded_by: feature.video-call@11
+  feature.vscode-extension:
+    version: 1
+    status: draft
+    path: features/vscode-extension
+    fingerprint: b0265474eccc794e8733e648ced136263e3bdc79ae2d7191375e0b206810f0f7
+    required_applies_to:
+    - cli
   feature.wikipedia-mentions:
     version: 1
     status: draft
@@ -10589,7 +10596,7 @@ assertions:
     specification: feature.marketing-landing@12
     specification_id: feature.marketing-landing
     type: behavior
-    fingerprint: a81fd81194218b78f53bb4f23d028d73c974d36845d38dbe1541279ccba4e273
+    fingerprint: 2d95fc03daf58020ce9644235b0fc9bfa0ad5b07dec5ff170318610970bc14be
     required_applies_to:
     - gui.web
   marketing-landing.hero-app-rail:
@@ -10611,6 +10618,13 @@ assertions:
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 70c783205225a03e9b382fd71a978d7d71333b9f4cc1a34e7a1f36c855cfd07f
+    required_applies_to:
+    - gui.web
+  marketing-landing.honest-claims:
+    specification: feature.marketing-landing@12
+    specification_id: feature.marketing-landing
+    type: invariant
+    fingerprint: c8fca38c524e7c9886384173f04e648294559cd49ef96683d28fb064f2e84a89
     required_applies_to:
     - gui.web
   marketing-landing.capability-rail-and-prompts:
@@ -14237,6 +14251,34 @@ assertions:
     required_applies_to:
     - gui.web
     - gui.apple
+  vscode-extension.pair-login:
+    specification: feature.vscode-extension@1
+    specification_id: feature.vscode-extension
+    type: security
+    fingerprint: ee74ecdd7eb6b025107d9da8937ea4c5d92a171b9161465a4f981cb57d7edd15
+    required_applies_to:
+    - cli
+  vscode-extension.connect-folder:
+    specification: feature.vscode-extension@1
+    specification_id: feature.vscode-extension
+    type: behavior
+    fingerprint: b12f80f29d22783110a3e0e7911fb83bdc098d985f9fa93778274607eefd3790
+    required_applies_to:
+    - cli
+  vscode-extension.review-changes:
+    specification: feature.vscode-extension@1
+    specification_id: feature.vscode-extension
+    type: behavior
+    fingerprint: 245c7ae7559cb486120b142ab06e48f36a1119cc5ca3d55757b68c52b9a1c1c4
+    required_applies_to:
+    - cli
+  vscode-extension.privacy:
+    specification: feature.vscode-extension@1
+    specification_id: feature.vscode-extension
+    type: privacy
+    fingerprint: 741804fbfc431ee95b8291125ba35e590f019e611d83b406471f92f65daa0aa6
+    required_applies_to:
+    - cli
   wikipedia-mentions.syntax.explicit-trigger:
     specification: feature.wikipedia-mentions@1
     specification_id: feature.wikipedia-mentions

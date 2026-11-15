@@ -17,7 +17,7 @@ from backend.apps.business.skills.search_investors import (
     InvestorSearchResponse,
     SearchInvestorsSkill,
 )
-from backend.shared.app_packages import delegate_flat_skill, loader, provider_dispatch
+from backend.shared.app_packages import delegate_flat_skill, loader, overlay, provider_dispatch
 from backend.shared.app_packages.delegate_flat_skill import InstalledProviderFlatSkill
 from backend.shared.app_packages.generic_contract import SKILL_REQUESTS_V1, accepts_generic_contract
 from backend.shared.app_packages.runner_client import RunnerResult
@@ -135,6 +135,24 @@ async def test_flat_delegate_fills_one_investors_list(monkeypatch, tmp_path):
     assert response["result_count"] == 3 and response["success"] is True and response["error"] is None
     assert response["query"] == "climate software" and response["regions"] == ["DE", "AT"]
     assert response["providers"] == [FIRST, SECOND] and response["limitation"]
+
+
+# contract-test: supporting surface=rest_api assertions=investors.request,instance-app-packages.provider-contract
+@pytest.mark.anyio
+async def test_flat_delegate_accepts_the_overlay_provider_selector(monkeypatch, tmp_path):
+    """The overlay adds ``providers`` to the tool schema; the request model forbids extras."""
+    _install(monkeypatch, tmp_path, [_entry(FIRST, "Example provider"), _entry(SECOND, "Other provider")])
+    calls = _fake_runner(monkeypatch, {SECOND: RunnerResult(ok=True, results=[_investor("b1")])})
+    skill = _delegate()
+    definition = skill.app.get_skill_by_id(SKILL)
+    schema = {**definition.tool_schema, "properties": dict(definition.tool_schema["properties"])}
+    overlay.ensure_provider_selector({"tool_schema": schema}, [FIRST, SECOND])
+    assert "providers" in schema["properties"]
+    definition.tool_schema = schema
+    response = await skill.execute(query="angel network", regions=["DE"], providers=[SECOND])
+    assert response["error"] is None and response["success"] is True
+    assert [c["provider"] for c in calls] == [SECOND]
+    assert [i["name"] for i in response["investors"]] == ["b1"]
 
 
 # contract-test: supporting surface=rest_api assertions=investors.request
