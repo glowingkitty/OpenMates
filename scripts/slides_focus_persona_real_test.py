@@ -42,6 +42,8 @@ MAX_TURNS = 14
 REVIEW_TURNS_AFTER_DECK = 2
 SLIDE_OPEN = re.compile(r"<slide[\s>]")
 NOTES = re.compile(r"<notes>\s*\S")
+NOTES_TEXT = re.compile(r"<notes>(.*?)</notes>", re.DOTALL)
+TEMPLATE_DECK = re.compile(r"<deck\b[^>]*\bkind=\\?\"template\\?\"")
 FENCE = re.compile(r"```slides\s*\n(.*?)(?:```|\Z)", re.DOTALL)
 CONFIRM = re.compile(r"\b(yes|yeah|yep|ok|okay|sounds good|looks good|good|fine|perfect|go|do it|make it|"
                      r"create|nice|cool|works|let's)\b", re.IGNORECASE)
@@ -96,20 +98,29 @@ def deck_texts(cli: str, chat_id: str, messages: list[dict], out: Path) -> list[
                 # The CLI does not expose the encrypted active focus; the activation embed proves it.
                 found.append({"message": index, "source": embed_id, "activation": stored.get("focus_id")})
                 continue
+            if stored.get("skill_id") == "template" or (isinstance(embed, dict) and embed.get("type") == "template"):
+                # Template cards carry sample slides without notes; they are design options, not the deck.
+                found.append({"message": index, "source": f"embed:{embed_id[:8]}", "template": True})
+                continue
             body = json.dumps(embed.get("content") if isinstance(embed, dict) else embed, ensure_ascii=False)
             sources.append((f"embed:{embed_id[:8]}", body))
         for source, text in sources:
+            if TEMPLATE_DECK.search(text):
+                found.append({"message": index, "source": source, "template": True})
+                continue
             slides = SLIDE_OPEN.split(text)[1:]
             if slides:
+                notes = [" ".join(n.replace("\\n", " ").split())[:300]
+                         for s in slides for n in NOTES_TEXT.findall(s)[:1]]
                 found.append({"message": index, "source": source, "slides": len(slides),
-                              "with_notes": sum(1 for s in slides if NOTES.search(s))})
+                              "with_notes": sum(1 for s in slides if NOTES.search(s)), "notes": notes})
     return found
 
 
 def deterministic_checks(shown: dict, messages: list[dict], decks: list[dict]) -> dict:
     chat = shown.get("chat") if isinstance(shown.get("chat"), dict) else {}
     assistants = [(i, m) for i, m in enumerate(messages) if m.get("role") == "assistant"]
-    valid = [d for d in decks if not d.get("read_error") and "activation" not in d]
+    valid = [d for d in decks if not d.get("read_error") and "activation" not in d and not d.get("template")]
     deck_at = min((d["message"] for d in valid), default=None)
     best = max(valid, key=lambda d: d["slides"], default=None)
     outline_at = next((i for i, m in assistants if OUTLINE.search(plain(m["content"], 6000))
@@ -156,8 +167,9 @@ def judge(cli: str, messages: list[dict], decks: list[dict], out: Path) -> dict:
     lines = []
     for index, message in enumerate(messages):
         if message.get("role") in {"user", "assistant"} and isinstance(message.get("content"), str):
-            tags = [f"deck {d['slides']} slides, {d['with_notes']} with notes" for d in decks
-                    if d["message"] == index and not d.get("read_error")]
+            tags = [f"deck {d['slides']} slides, {d['with_notes']} with notes"
+                    + "".join(f"\n      slide {n} notes: {text}" for n, text in enumerate(d.get("notes") or [], 1))
+                    for d in decks if d["message"] == index and "slides" in d]
             lines.append(f"[{index}] {message['role'].upper()}: {plain(message['content'], 2500)}"
                          + (f"\n    (created: {'; '.join(tags)})" if tags else ""))
     rubric = "\n".join(f"- {key}: {text}" for key, text in RUBRIC.items())

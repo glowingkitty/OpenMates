@@ -58,8 +58,14 @@ const PLAN_REPLIES = [
 	'Yes, please continue.'
 ];
 
-/** Insert the Gemini 3.8 Flash mention through the dropdown, then send the text after it. */
-async function sendWithGemini(page: any, prompt: string, log: any, screenshot: any, label: string) {
+const assistantCount = (page: any): Promise<number> => page.getByTestId('message-assistant').count();
+
+/**
+ * Insert the Gemini 3.8 Flash mention through the dropdown, then send the text after it.
+ * Returns the assistant message count before the send, for waitForReply.
+ */
+async function sendWithGemini(page: any, prompt: string, log: any, screenshot: any, label: string): Promise<number> {
+	const before = await assistantCount(page);
 	const editor = page.getByTestId('message-field').last().getByTestId('message-editor');
 	await expect(editor).toBeVisible();
 	await focusMessageEditor(editor);
@@ -71,10 +77,17 @@ async function sendWithGemini(page: any, prompt: string, log: any, screenshot: a
 	await page.keyboard.press('Tab');
 	await expect(dropdown).not.toBeVisible({ timeout: 3000 });
 	await sendMessage(page, ` ${prompt}`, log, screenshot, label, { preserveExistingContent: true });
+	return before;
 }
 
-/** Wait until the newest assistant reply is finished (no typing indicator, model label shown). */
-async function waitForReply(page: any, log: any) {
+/**
+ * Wait until the reply to the last send is finished: a new assistant message exists (more than
+ * `before`), no typing indicator, and its model label is shown (rendered only once the response
+ * is no longer active, ChatMessage.svelte). Without the count, the previous reply's label passes
+ * while the new answer is still streaming and the next scripted answer hits a busy composer.
+ */
+async function waitForReply(page: any, log: any, before: number) {
+	await expect.poll(() => assistantCount(page), { timeout: ANSWER_TIMEOUT }).toBeGreaterThan(before);
 	await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: ANSWER_TIMEOUT });
 	const generatedBy = page.getByTestId('message-assistant').last().getByTestId('generated-by');
 	await expect(generatedBy).toBeVisible({ timeout: 120_000 });
@@ -87,15 +100,15 @@ async function waitForReply(page: any, log: any) {
  * Fails clearly when the expected element is still missing after MAX_TURNS replies.
  */
 async function answerUntil(page: any, log: any, screenshot: any, phase: string, replies: string[],
-	done: () => Promise<boolean>) {
+	before: number, done: () => Promise<boolean>) {
 	for (let turn = 0; turn < MAX_TURNS; turn++) {
-		await waitForReply(page, log);
+		await waitForReply(page, log, before);
 		if (await done().catch(() => false)) return;
 		if (turn >= replies.length) break;
 		await screenshot(page, `${phase}-turn-${turn + 1}`);
-		await sendWithGemini(page, replies[turn], log, screenshot, `${phase}-answer-${turn + 1}`);
+		before = await sendWithGemini(page, replies[turn], log, screenshot, `${phase}-answer-${turn + 1}`);
 	}
-	await waitForReply(page, log);
+	await waitForReply(page, log, before);
 	if (await done().catch(() => false)) return;
 	await screenshot(page, `${phase}-not-reached`);
 	throw new Error(`${phase}: expected element not shown after ${MAX_TURNS} scripted turns`);
@@ -117,9 +130,12 @@ function locators(page: any) {
 	return { last, templateCards, decks };
 }
 
-async function pressUseDesign(page: any, overlay: any, chatUrl: string) {
+/** Press "Use this design" (it sends a chat message); returns the assistant count before it. */
+async function pressUseDesign(page: any, overlay: any, chatUrl: string): Promise<number> {
+	const before = await assistantCount(page);
 	await overlay.getByTestId('slides-template-use').click();
 	await closeFullscreen(page, overlay, { returnToChatUrl: chatUrl }).catch(() => undefined);
+	return before;
 }
 
 async function begin(page: any, name: string) {
@@ -140,25 +156,24 @@ test('template designer focus leads a beginner to a refined, saved template (rea
 	const { log, screenshot } = await begin(page, 'slides-focus-real-designer');
 	const { templateCards } = locators(page);
 	try {
-		await sendWithGemini(page, DESIGN_BRIEF, log, screenshot, 'brief');
+		const briefSent = await sendWithGemini(page, DESIGN_BRIEF, log, screenshot, 'brief');
 		// The activated focus shows in the reply's activity summary (assistantActivitySummary.ts).
 		await expect(page.getByTestId('assistant-activity-summary-text').filter({ hasText: "Activated 'Design a template'" }).first())
 			.toBeVisible({ timeout: 60_000 });
 		await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 30_000 });
 		const chatUrl = page.url();
-		await answerUntil(page, log, screenshot, 'designer', DESIGN_REPLIES, async () => (await templateCards().count()) >= 3);
+		await answerUntil(page, log, screenshot, 'designer', DESIGN_REPLIES, briefSent, async () => (await templateCards().count()) >= 3);
 		await screenshot(page, 'designer-three-cards');
 
 		// The designs share one carousel (EmbedPreviewLarge); only the current card is visible.
 		let overlay = await openFullscreen(page, await showCarouselCard(locators(page).last(), templateCards().nth(1)));
 		await expect(overlay.getByTestId('slides-template-use')).toBeVisible({ timeout: 20_000 });
 		await screenshot(page, 'designer-card-open');
-		await pressUseDesign(page, overlay, chatUrl);
-		await waitForReply(page, log);
+		await waitForReply(page, log, await pressUseDesign(page, overlay, chatUrl));
 		await screenshot(page, 'designer-design-chosen');
 
-		await sendWithGemini(page, 'Make the headings bigger and the accent a bit warmer.', log, screenshot, 'refinement');
-		await waitForReply(page, log);
+		const refinementSent = await sendWithGemini(page, 'Make the headings bigger and the accent a bit warmer.', log, screenshot, 'refinement');
+		await waitForReply(page, log, refinementSent);
 		await expect(templateCards().first()).toBeVisible({ timeout: ANSWER_TIMEOUT });
 		await screenshot(page, 'designer-refined-card');
 
@@ -179,7 +194,7 @@ test('presentation planner focus takes a beginner from idea to a deck with speak
 	const { log, screenshot } = await begin(page, 'slides-focus-real-planner');
 	const { last, templateCards, decks } = locators(page);
 	try {
-		await sendWithGemini(page, PLAN_BRIEF, log, screenshot, 'beginner');
+		const beginnerSent = await sendWithGemini(page, PLAN_BRIEF, log, screenshot, 'beginner');
 		// The activated focus shows in the reply's activity summary (assistantActivitySummary.ts).
 		await expect(page.getByTestId('assistant-activity-summary-text').filter({ hasText: "Activated 'Plan a presentation'" }).first())
 			.toBeVisible({ timeout: 60_000 });
@@ -187,14 +202,13 @@ test('presentation planner focus takes a beginner from idea to a deck with speak
 		const chatUrl = page.url();
 
 		let designChosen = false;
-		await answerUntil(page, log, screenshot, 'planner', PLAN_REPLIES, async () => {
+		await answerUntil(page, log, screenshot, 'planner', PLAN_REPLIES, beginnerSent, async () => {
 			if ((await decks().count()) > 0) return true;
 			if ((await templateCards().count()) >= 1 && !designChosen) {
 				designChosen = true;
 				const overlay = await openFullscreen(page, templateCards().first());
 				await screenshot(page, 'planner-design-card');
-				await pressUseDesign(page, overlay, chatUrl);
-				await waitForReply(page, log);
+				await waitForReply(page, log, await pressUseDesign(page, overlay, chatUrl));
 				return (await decks().count()) > 0;
 			}
 			return false;
@@ -217,8 +231,8 @@ test('presentation planner focus takes a beginner from idea to a deck with speak
 		await expect(page.getByTestId('slides-editor')).toHaveCount(0, { timeout: 30_000 });
 		await closeFullscreen(page, overlay, { returnToChatUrl: chatUrl }).catch(() => undefined);
 
-		await sendWithGemini(page, 'Yes, please review it.', log, screenshot, 'review');
-		await waitForReply(page, log);
+		const reviewSent = await sendWithGemini(page, 'Yes, please review it.', log, screenshot, 'review');
+		await waitForReply(page, log, reviewSent);
 		await expect(last()).not.toBeEmpty();
 		await screenshot(page, 'planner-review-reply');
 	} finally {
