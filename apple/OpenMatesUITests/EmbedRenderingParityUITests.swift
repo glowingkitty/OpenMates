@@ -1361,10 +1361,10 @@ final class EmbedRenderingParityUITests: XCTestCase {
         XCTAssertTrue(toggle.waitForExistence(timeout: 8))
         XCTAssertEqual(toggle.value as? String, "false")
         let source = app.descendants(matching: .any)["code-source-panel"].firstMatch
-        XCTAssertTrue(source.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "[HTML_NAME]")).firstMatch.exists)
+        XCTAssertTrue(source.textViews.matching(NSPredicate(format: "label CONTAINS %@", "[HTML_NAME]")).firstMatch.exists)
         toggle.tap()
         XCTAssertEqual(toggle.value as? String, "true")
-        XCTAssertTrue(source.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "OpenMates preview")).firstMatch.exists)
+        XCTAssertTrue(source.textViews.matching(NSPredicate(format: "label CONTAINS %@", "OpenMates preview")).firstMatch.exists)
     }
 
     // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
@@ -1380,18 +1380,18 @@ final class EmbedRenderingParityUITests: XCTestCase {
 
         let source = app.descendants(matching: .any)["code-source-panel"].firstMatch
         XCTAssertTrue(source.waitForExistence(timeout: 8))
-        XCTAssertTrue(source.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Owner A")).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(source.textViews.containing(NSPredicate(format: "label CONTAINS %@", "Owner A")).firstMatch.waitForExistence(timeout: 3))
 
         app.buttons["embed-next"].tap()
         let header = app.descendants(matching: .any)["embed-fullscreen-header"].firstMatch
         XCTAssertTrue(waitForValue(header, containing: "preview-owner-pii-b", timeout: 5),
                       "Next did not select the second embed")
-        XCTAssertTrue(source.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "[COUNTERPARTY_1]")).firstMatch.waitForExistence(timeout: 3))
-        XCTAssertFalse(source.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Owner A")).firstMatch.exists)
+        XCTAssertTrue(source.textViews.containing(NSPredicate(format: "label CONTAINS %@", "[COUNTERPARTY_1]")).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertFalse(source.textViews.containing(NSPredicate(format: "label CONTAINS %@", "Owner A")).firstMatch.exists)
 
         app.buttons["dev-owner-pii-load-b"].tap()
-        XCTAssertTrue(source.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Owner B")).firstMatch.waitForExistence(timeout: 3))
-        XCTAssertFalse(source.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Owner A")).firstMatch.exists)
+        XCTAssertTrue(source.textViews.containing(NSPredicate(format: "label CONTAINS %@", "Owner B")).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertFalse(source.textViews.containing(NSPredicate(format: "label CONTAINS %@", "Owner A")).firstMatch.exists)
     }
 
     // contract-test: supporting surface=gui.apple assertions=code-run.artifacts.chat-bound-versioned
@@ -1556,9 +1556,42 @@ final class EmbedRenderingParityUITests: XCTestCase {
 
         let strip = app.descendants(matching: .any)["web-search-thumbnail-strip"].firstMatch
         XCTAssertTrue(strip.waitForExistence(timeout: 8))
-        scrollUntilHittable(app: app, element: strip)
-        XCTAssertTrue(strip.isHittable)
-        XCTAssertTrue(app.descendants(matching: .any)["web-search-thumbnail"].firstMatch.exists)
+        // The strip and its thumbnails sit inside the preview card button (web: the strip is
+        // part of the clickable card), so taps hit-test to the card and neither is hittable
+        // on its own; prove a rendered, on-screen strip and thumbnail through their frames.
+        let thumbnail = app.descendants(matching: .any)["web-search-thumbnail"].firstMatch
+        XCTAssertTrue(thumbnail.waitForExistence(timeout: 8))
+        let window = app.windows.firstMatch
+        // Scroll toward the strip; scrolling away would let the lazy gallery drop it.
+        // Overflowing thumbnails are clipped on the trailing side by design (web: overflow
+        // hidden), and the strip's accessibility frame spans them, so check the vertical
+        // row position and the leading edge rather than full containment.
+        func stripRowIsOnScreen() -> Bool {
+            let frame = strip.frame, bounds = window.frame
+            return frame.minY >= bounds.minY && frame.maxY <= bounds.maxY && frame.minX >= bounds.minX
+        }
+        let middle = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        for _ in 0..<12 where strip.exists && !stripRowIsOnScreen() {
+            // Short drags so the strip is not overshot; content follows the finger.
+            let step: CGFloat = strip.frame.minY < window.frame.minY + 80 ? 180 : -180
+            middle.press(forDuration: 0.05, thenDragTo: middle.withOffset(CGVector(dx: 0, dy: step)))
+        }
+        XCTAssertTrue(strip.exists, "Thumbnail strip left the gallery while scrolling into view")
+        XCTAssertTrue(stripRowIsOnScreen(), "Thumbnail strip row must render on screen")
+        XCTAssertGreaterThanOrEqual(strip.frame.height, 30, "Thumbnail strip must keep its 30pt row height")
+        // Other gallery cards carry strips too, and cells whose image failed carry no
+        // identifier, so later cells can sit in the clipped overflow. Require at least one
+        // 40x30 thumbnail of an on-screen strip to render inside the window.
+        let strips = app.descendants(matching: .any).matching(identifier: "web-search-thumbnail-strip").allElementsBoundByIndex
+        let thumbnailFrames = strips
+            .filter { $0.frame.minY >= window.frame.minY && $0.frame.maxY <= window.frame.maxY }
+            .flatMap { $0.descendants(matching: .any).matching(identifier: "web-search-thumbnail").allElementsBoundByIndex.map(\.frame) }
+        XCTAssertFalse(thumbnailFrames.isEmpty, "On-screen strip must contain a thumbnail cell")
+        let visibleThumbnail = thumbnailFrames.first { window.frame.intersection($0).width >= 20 }
+        XCTAssertNotNil(visibleThumbnail, "Thumbnail must render inside the window; window \(window.frame), cells \(thumbnailFrames)")
+        if let visibleThumbnail {
+            XCTAssertTrue(visibleThumbnail.width >= 40 && visibleThumbnail.height >= 30, "Thumbnail cell must render at 40x30, got \(visibleThumbnail)")
+        }
         attachScreenshot(name: "Web search thumbnail preview")
     }
 
@@ -1618,12 +1651,13 @@ final class EmbedRenderingParityUITests: XCTestCase {
                 XCTAssertTrue(element.exists, "\(testCase.appSlug) missing specific preview chrome: \(identifier)")
             }
 
+            // The harness is an accessibility container whose centre lands on its inline
+            // fullscreen, so scroll to its own leaf control instead of the container.
             let routeHarness = app.descendants(matching: .any)["dev-embed-fullscreen-route-harness"]
-            scrollUntilHittable(app: app, element: routeHarness)
-            XCTAssertTrue(routeHarness.isHittable, "\(testCase.appSlug) fullscreen route harness did not become visible")
-
             let firstChildButton = app.buttons["dev-embed-route-open-first-child"]
-            XCTAssertTrue(firstChildButton.waitForExistence(timeout: 3), "\(testCase.appSlug) has no parent-to-child fullscreen route")
+            scrollUntilHittableInEitherDirection(app: app, element: firstChildButton)
+            XCTAssertTrue(routeHarness.exists, "\(testCase.appSlug) fullscreen route harness did not render")
+            XCTAssertTrue(firstChildButton.isHittable, "\(testCase.appSlug) has no visible parent-to-child fullscreen route")
             firstChildButton.tap()
 
             XCTAssertTrue(
@@ -1648,7 +1682,7 @@ final class EmbedRenderingParityUITests: XCTestCase {
         XCTAssertTrue(gallery.waitForExistence(timeout: 8), "Web embed gallery did not load")
 
         let routeHarness = app.descendants(matching: .any)["dev-embed-fullscreen-route-harness"]
-        scrollUntilHittable(app: app, element: routeHarness)
+        scrollUntilHittableInEitherDirection(app: app, element: routeHarness)
         XCTAssertTrue(routeHarness.isHittable, "Fullscreen route harness did not become visible")
 
         let routeLabel = app.staticTexts["dev-embed-active-route"]
@@ -1697,7 +1731,7 @@ final class EmbedRenderingParityUITests: XCTestCase {
         app.launch()
 
         let routeHarness = app.descendants(matching: .any)["dev-embed-fullscreen-route-harness"]
-        scrollUntilHittable(app: app, element: routeHarness)
+        scrollUntilHittableInEitherDirection(app: app, element: routeHarness)
         XCTAssertTrue(routeHarness.isHittable, "3D model fullscreen route harness did not become visible")
 
         let routeLabel = app.staticTexts["dev-embed-active-route"]
@@ -1714,17 +1748,18 @@ final class EmbedRenderingParityUITests: XCTestCase {
             "The 3D model child fullscreen route did not open"
         )
 
-        tapFirstHittableButton(app: app, identifier: "embed-minimize")
+        // The gallery shows other inline fullscreens near the harness; close the child's own.
+        tapFirstHittableButton(in: routeHarness, identifier: "embed-minimize")
         XCTAssertTrue(
             waitForLabel(routeLabel, containing: "preview-models3d-search-1", timeout: 5),
             "Closing the 3D model child did not restore its parent"
         )
         XCTAssertTrue(
-            app.buttons.matching(identifier: "embed-minimize").allElementsBoundByIndex.contains(where: { $0.isHittable }),
+            routeHarness.buttons.matching(identifier: "embed-minimize").allElementsBoundByIndex.contains(where: { $0.isHittable }),
             "The restored 3D model parent fullscreen must remain interactive"
         )
 
-        tapFirstHittableButton(app: app, identifier: "embed-minimize")
+        tapFirstHittableButton(in: routeHarness, identifier: "embed-minimize")
         let reset = app.buttons["dev-embed-route-reset"]
         XCTAssertTrue(reset.waitForExistence(timeout: 3))
         XCTAssertTrue(reset.isHittable, "Closing the parent must restore interaction to the underlying surface")
@@ -1830,7 +1865,8 @@ final class EmbedRenderingParityUITests: XCTestCase {
                     waitForLabel(app.staticTexts["video-transcript-fullscreen-metadata"], containing: "words", timeout: 5),
                     "Fullscreen must show the transcript word count above the content."
                 )
-                let transcript = app.staticTexts["video-transcript-fullscreen-text"]
+                // Selectable transcript text (.textSelection) is exposed as a text view.
+                let transcript = app.textViews["video-transcript-fullscreen-text"]
                 XCTAssertTrue(transcript.waitForExistence(timeout: 8), "Grouped skill results must load the actual transcript in fullscreen.")
                 XCTAssertTrue(transcript.label.contains("Grouped transcript fixture proof text"))
                 XCTAssertFalse(app.descendants(matching: .any)["video-transcript-fullscreen-empty"].exists)
@@ -1857,6 +1893,15 @@ final class EmbedRenderingParityUITests: XCTestCase {
     private func scrollUntilHittable(app: XCUIApplication, element: XCUIElement) {
         for _ in 0..<10 where !element.isHittable {
             app.swipeUp()
+        }
+    }
+
+    /// The route harness sits in its skill's section; earlier preview checks may
+    /// already have scrolled past it, so search downward first, then back up.
+    private func scrollUntilHittableInEitherDirection(app: XCUIApplication, element: XCUIElement) {
+        scrollUntilHittable(app: app, element: element)
+        for _ in 0..<14 where !element.isHittable {
+            app.swipeDown()
         }
     }
 
@@ -1907,7 +1952,11 @@ final class EmbedRenderingParityUITests: XCTestCase {
     }
 
     private func tapFirstHittableButton(app: XCUIApplication, identifier: String) {
-        let matches = app.buttons.matching(identifier: identifier).allElementsBoundByIndex
+        tapFirstHittableButton(in: app, identifier: identifier)
+    }
+
+    private func tapFirstHittableButton(in scope: XCUIElement, identifier: String) {
+        let matches = scope.buttons.matching(identifier: identifier).allElementsBoundByIndex
         if let button = matches.first(where: { $0.isHittable }) {
             button.tap()
             return

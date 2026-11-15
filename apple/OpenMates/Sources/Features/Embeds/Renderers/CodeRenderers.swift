@@ -360,13 +360,16 @@ private final class CodeEmbedOwnerOutputs: ObservableObject {
     private var store: CodeRunOutputStore?
     private var observation: AnyCancellable?
 
+    func attach() {
+        guard store == nil else { return }
+        let ownerStore = CodeRunOutputStore.shared
+        store = ownerStore
+        observation = ownerStore.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        objectWillChange.send()
+    }
+
     func hydrate(chatId: String, embedId: String, embed: EmbedRecord?) async {
-        if store == nil {
-            let ownerStore = CodeRunOutputStore.shared
-            store = ownerStore
-            observation = ownerStore.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
-            objectWillChange.send()
-        }
+        attach()
         await store?.hydrate(chatId: chatId, embedId: embedId, embed: embed)
     }
 
@@ -454,7 +457,7 @@ struct CodeEmbedRenderer: View {
             .task(id: embedId) {
                 guard recipientMediaContext == nil, let chatId, !chatId.isEmpty else { return }
                 #if DEBUG
-                if chatId == "dev-embed-preview-chat" { return }
+                if chatId == "dev-embed-preview-chat" { savedOutputs.attach(); return }
                 #endif
                 await savedOutputs.hydrate(chatId: chatId, embedId: embedId, embed: embed)
             }
@@ -504,6 +507,9 @@ struct CodeEmbedRenderer: View {
             .background(Color.grey10)
             .task(id: embedId) {
                 guard recipientMediaContext == nil, let chatId, !chatId.isEmpty else { return }
+                #if DEBUG
+                if chatId == "dev-embed-preview-chat" { savedOutputs.attach(); return }
+                #endif
                 await savedOutputs.hydrate(chatId: chatId, embedId: embedId, embed: embed)
             }
         }

@@ -560,8 +560,14 @@ struct DevEmbedPreviewGalleryView: View {
                     header
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: .spacing12) {
-                            ForEach(DevEmbedPreviewFixtures.skills(for: selectedApp)) { skill in
-                                DevEmbedPreviewSkillSection(skill: skill) { open($0, quote: $1) }
+                            // Only the first skill with children gets the route harness, so its
+                            // identifiers stay unique and sit where that skill is reached by scrolling.
+                            let skills = DevEmbedPreviewFixtures.skills(for: selectedApp)
+                            let routeSkillID = skills.first(where: { !$0.childEmbeds.isEmpty })?.id
+                            ForEach(skills) { skill in
+                                DevEmbedPreviewSkillSection(skill: skill, showsRouteHarness: skill.id == routeSkillID) {
+                                    open($0, quote: $1)
+                                }
                             }
                         }
                         .padding(.horizontal, .spacing8)
@@ -598,10 +604,12 @@ struct DevEmbedPreviewGalleryView: View {
                         ? "dev-embed-preview-chat" : nil)
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("--dev-code-run-output-preview") {
-                CodeRunOutputStore.shared.seedPreviewOutput(
-                    chatId: "dev-embed-preview-chat", embedId: "preview-code-1",
-                    output: "Preparing sandbox\nRendered index.html\nRun complete\n"
-                )
+                for embedId in ["preview-code-1", "preview-code-fullscreen-1"] {
+                    CodeRunOutputStore.shared.seedPreviewOutput(
+                        chatId: "dev-embed-preview-chat", embedId: embedId,
+                        output: "Preparing sandbox\nRendered index.html\nRun complete\n"
+                    )
+                }
             }
         }
     }
@@ -811,8 +819,11 @@ private struct DevEmbedPreviewSkillSection: View {
     @State private var selectedTemplate = "default"
     @State private var fullscreenVariant = "default"
 
-    init(skill: DevEmbedPreviewSkill, onOpen: @escaping (DevEmbedPreviewSkill, String?) -> Void) {
+    private let showsRouteHarness: Bool
+    init(skill: DevEmbedPreviewSkill, showsRouteHarness: Bool = false,
+         onOpen: @escaping (DevEmbedPreviewSkill, String?) -> Void) {
         self.skill = skill
+        self.showsRouteHarness = showsRouteHarness
         self.onOpen = onOpen
         previewVariants = DevEmbedPreviewFixtures.variants(for: skill)
         let fullscreen = DevEmbedPreviewFixtures.fullscreenSkill(forRegistryKey: skill.primaryEmbed.type) ?? skill
@@ -884,7 +895,7 @@ private struct DevEmbedPreviewSkillSection: View {
                     }
                 }
             }
-            if !skill.childEmbeds.isEmpty {
+            if showsRouteHarness {
                 DevEmbedDisplayBlock(title: "FULLSCREEN ROUTE HARNESS", flush: true) {
                     DevEmbedFullscreenRouteHarness(skill: skill)
                 }

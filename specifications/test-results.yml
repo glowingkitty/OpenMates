@@ -4,251 +4,255 @@
 schema_version: 1
 as_of: '2026-11-15'
 tests:
-  "apple/OpenMatesTests/APIClientUploadTransportTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/APIResponseDecodingDiagnosticsTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AccountDeletionCleanupTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ActiveChatsPolicyTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ActiveChatsWidgetTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AnonymousChatStreamingParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AppDeepLinkRoutingTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AppSkillInputPreviewTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AppSkillUseDispatchParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AppleComposerRendererRegistryTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ApplicationTestRunEmbedTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AppsWorkspaceParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AskOpenMatesIntentCoreTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AssistantActivityProjectionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AssistantSpeechPlaybackParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AuthFormTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AuthManagerCoreTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AuthSecurityParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/AuthSessionReauthenticationTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/BackgroundChatSenderParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/BillingUsageDraftAudioRegistryTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/BodyEmbedSlotProjectionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CalledMediaInputRetentionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CalledSkillSearchInputRetentionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatAudioPipelineTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatCompletionRecoveryTests.swift": {result: failed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839', failed: ["testLegacyPreflightAcknowledgementPreservesSendWithoutRecoveryClaim", "testSavedChatCommitsTheExactPreflightInferencePayload"]}
-  "apple/OpenMatesTests/ChatComposerDraftHydrationTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatManagementSharingParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatMessageWindowTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatMetadataRecoveryTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatModelPreferenceServiceTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatRecommendationsContainerTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatRecoveryV2EnvelopeTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatSearchEngineTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatSendPipelineParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatSettingsParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatSidebarDisplayPolicyTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift": {result: failed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839', failed: ["testQueuedSnapshotHydratesAndStartedReceiptRejectsLateQueuedStatus"]}
-  "apple/OpenMatesTests/ChatSyncParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatTranscriptScrollStateTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatViewModelCoreTurnsTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ChatWindowLoadingTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CodeRunOutputSyncTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ComposerAudioPreviewContentTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ComposerPIIDetectionCoordinatorTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ComposerSearchSuggestionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ControlProjectsTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CoreChatActionsTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CoreChatListTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CoreChatWindowTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CoreDraftsTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CoreEmbedVersionsTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CoreProjectCreateTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CoreQueuedRevisionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CoreSendMappingTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CoreSessionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CreativeParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/CryptoFailureTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/DesignEmbroideryEmbedTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/DevPreviewLaunchConfigurationTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/DocumentCanvasTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/EmbedCardParityFixesTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/EmbedDiffEditingParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/EmbedProgressParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/EmbedResponsiveGeometryTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/EmbedShareSettingsParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/EmbedVersionHistoryTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/EmbedWireFormatTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ExternalLinkDeliveryTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/FocusPhaseTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/HostingEmbedModelTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ImageProvisionalTitleTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ImageUploadPrivacyTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ImageViewReferenceTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/InteractiveQuestionsParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/KeychainSharingTests.swift": {result: failed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839', failed: ["testSyntheticItemIsReadableThroughExplicitSharedGroupAndHelper"]}
-  "apple/OpenMatesTests/LiveActivityPolicyTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/LocalModelLabControllerTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/LocalModelStoreTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/LocalNeuralTTSNativeSmokeTests.swift": {result: skipped, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/LocalNeuralTTSTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/LocalPrivacyFilterRuntimeTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/MailDraftTextSelectionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/MailEmbedModelTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/MainAppLayoutParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/MapsEmbedModelTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/MathPlotGeometryParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/MemoriesParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/MemoryDraftDiffTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/MermaidDiagramParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/MessageBodyEmbedLayoutTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/MessageComposerConfigurationTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/MessageCompressionCheckpointTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/MessageTextSelectionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ModelPreferenceInboundTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ModelPreferenceIntegrationTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ModelPreferenceTransportTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeAssistantSpeechTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeComposerControllerTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeComposerDocumentTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeComposerEmbedLifecycleTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeComposerEncryptionCompatibilityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeComposerFailureRecoveryTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeComposerMentionPIITests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeComposerPasteTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeComposerPerformanceTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeComposerSessionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeComposerSubmitTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeEmbedActionTests.swift": {result: failed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839', failed: ["testPNGExportHasRequestedPixelDimensionsAndActualIconPixels", "testSystemEditorEventPreservesAllDayCivilDatesAndTimedOffsetWithoutSaving"]}
-  "apple/OpenMatesTests/NativeEncryptedSyncPerformanceTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeHapticsPolicyTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeMindMapLayoutTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeModelCatalogTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeModelDisabledPreferencesTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativePCBSchematicActionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeSessionTransportTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeSignupPasskeyTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeSignupPasswordPolicyTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeSignupRuntimeTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeSignupStateTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeVoiceCallAdmissionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeVoiceCallAppCoordinatorTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeVoiceCallArtifactAssociationTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeVoiceCallCameraTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeVoiceCallCanonicalAdmissionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeVoiceCallLocalDraftPromotionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeVoiceCallRootAdmissionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeVoiceCallSpeechTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeVoiceCallTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NativeVoiceCallToolContinuationTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NotificationPreviewCryptoTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/NotificationReplyContextTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/OfflineAccountIsolationTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/OpenMatesCoreBridgeTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/PasskeyAssertionLifecycleTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/PasswordV2KDFTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/PendingUploadStoreTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ProgressiveMarkdownRenderTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ProjectApplicationFolderTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ProjectCreateFileEntriesTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ProjectOfflineMetadataTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ProjectReadmeTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ProjectReferenceEmbedModelTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ProjectRemoteCommandCoreMappingTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ProjectWorkspaceReviewRuntimeTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ProjectsWorkspaceTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/PublicAssistantSpeechParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/PublicImageLoaderTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/PushCompletionNoticePolicyTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ReadOnlyEmbedTextSelectionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/RealAccountLoginRecoveryTests.swift": {result: skipped, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/RecipientMediaContextTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/RecordingTranscriptionSelectionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/RemindersPublicContentParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/S3MediaBoundsTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SearchDomainRenderersTests.swift": {result: failed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839', failed: ["testHealthSearchSummaryUsesSpecialityAndCityWithoutInventingQuery"]}
-  "apple/OpenMatesTests/ServerRegionSettingTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SettingsAIProviderParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SettingsBillingParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SettingsFullParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SettingsMemoriesMatesParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SettingsMemoryDocumentsModelTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SettingsModesParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SettingsPrivacyParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SettingsSupportParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SettingsTeamsServiceTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SharedChatRecipientTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/ShortWorkflowShareTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SkillApplicationParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SlidesDeckRendererTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/StorageStatusTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/StreamingClientFanoutTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SubChatActivityProvenanceTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/SubChatProcessingTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/TasksWidgetTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/TasksWorkspaceTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/TeamWorkspaceContextTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/TravelEmbedFormattingTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/URLMessageEmbedPreparationTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/UpcomingMemoryActivityNavigationTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/UpcomingMemoryLiveActivityBridgeTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/VideoEmbedParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/VideoTranscriptPayloadParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/VoiceCallOrchestrationTurnTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/VoiceCallParityAuditTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/VoiceRecorderTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchAuthStoreTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchCanonicalStorageTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchChatRuntimeTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchChatShareServiceTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchEmbedPreviewTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchGuestInferenceTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchGuestWorkspaceTests.swift": {result: failed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839', failed: ["testCatalogSearchAndReadingUseOnlyBundledExamplesAndPreserveMainWrapper"]}
-  "apple/OpenMatesTests/WatchHubDataServiceTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchItemOpenModelTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchLiveSendTests.swift": {result: skipped, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchPairAuthenticationTransactionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchPairCookieCancellationTests.swift": {result: failed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839', failed: ["testHermeticTransportActuallyExercisesAutomaticResponseCookieAcceptance"]}
-  "apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchPhoneOpenPayloadTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchPushLifecycleTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchSocketWireEncodingTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchTaskEditingTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchVoiceCallMemoryPermissionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchVoiceCallRootTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchVoiceCallToolCoordinatorTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchVoiceEvaluationPolicyTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchWhisperLabTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WatchWorkflowDetailTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WebSearchContractParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WebSocketReconnectTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WebSocketWaiterCancellationTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WebSocketWireEncodingTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WelcomeContinuePolicyTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WhistleRuntimeTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WikiArticleModelTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WorkflowGraphEditingTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WorkflowGraphReorderingTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WorkflowMessageTokensTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WorkflowStepTestServiceTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WorkflowTemplateProjectionTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WorkflowWidgetTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WorkflowsParityTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WorkspaceContinuationLayoutTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
-  "apple/OpenMatesTests/WorkspaceSwitcherLayoutTests.swift": {result: passed, date: '2026-11-15', commit: 'a41570995f', job: '6477b8bf0839'}
+  "apple/OpenMatesTests/APIClientUploadTransportTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/APIResponseDecodingDiagnosticsTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AccountDeletionCleanupTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ActiveChatsPolicyTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ActiveChatsWidgetTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AnonymousChatStreamingParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AppDeepLinkRoutingTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AppSkillInputPreviewTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AppSkillUseDispatchParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AppleComposerRendererRegistryTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ApplicationTestRunEmbedTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AppsWorkspaceParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AskOpenMatesIntentCoreTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AssistantActivityProjectionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AssistantSpeechPlaybackParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AuthFormTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AuthManagerCoreTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AuthSecurityParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/AuthSessionReauthenticationTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/BackgroundChatSenderParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/BillingUsageDraftAudioRegistryTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/BodyEmbedSlotProjectionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CalledMediaInputRetentionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CalledSkillSearchInputRetentionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatAudioPipelineTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatCompletionRecoveryTests.swift": {result: failed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757', failed: ["testLegacyPreflightAcknowledgementPreservesSendWithoutRecoveryClaim", "testSavedChatCommitsTheExactPreflightInferencePayload"]}
+  "apple/OpenMatesTests/ChatComposerDraftHydrationTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatManagementSharingParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatMessageWindowTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatMetadataRecoveryTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatModelPreferenceServiceTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatRecommendationsContainerTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatRecoveryV2EnvelopeTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatSearchEngineTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatSendPipelineParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatSettingsParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatSidebarDisplayPolicyTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift": {result: failed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757', failed: ["testQueuedSnapshotHydratesAndStartedReceiptRejectsLateQueuedStatus"]}
+  "apple/OpenMatesTests/ChatSyncParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatTranscriptScrollStateTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatViewModelCoreTurnsTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ChatWindowLoadingTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CodeRunOutputSyncTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ComposerAudioPreviewContentTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ComposerPIIDetectionCoordinatorTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ComposerSearchSuggestionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ControlProjectsTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CoreChatActionsTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CoreChatListTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CoreChatWindowTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CoreDraftsTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CoreEmbedVersionsTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CoreProjectCreateTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CoreQueuedRevisionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CoreSendMappingTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CoreSessionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CreativeParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/CryptoFailureTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/DesignEmbroideryEmbedTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/DevPreviewLaunchConfigurationTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/DocumentCanvasTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/EmbedCardParityFixesTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/EmbedDiffEditingParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/EmbedProgressParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/EmbedResponsiveGeometryTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/EmbedShareSettingsParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/EmbedVersionHistoryTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/EmbedWireFormatTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ExternalLinkDeliveryTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/FocusPhaseTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/HostingEmbedModelTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ImageProvisionalTitleTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ImageUploadPrivacyTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ImageViewReferenceTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/InteractiveQuestionsParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/KeychainSharingTests.swift": {result: failed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757', failed: ["testSyntheticItemIsReadableThroughExplicitSharedGroupAndHelper"]}
+  "apple/OpenMatesTests/LiveActivityPolicyTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/LocalModelLabControllerTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/LocalModelStoreTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/LocalNeuralTTSNativeSmokeTests.swift": {result: skipped, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/LocalNeuralTTSTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/LocalPrivacyFilterRuntimeTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/MailDraftTextSelectionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/MailEmbedModelTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/MainAppLayoutParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/MapsEmbedModelTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/MathPlotGeometryParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/MemoriesParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/MemoryDraftDiffTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/MermaidDiagramParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/MessageBodyEmbedLayoutTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/MessageComposerConfigurationTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/MessageCompressionCheckpointTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/MessageTextSelectionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ModelPreferenceInboundTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ModelPreferenceIntegrationTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ModelPreferenceTransportTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeAssistantSpeechTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeComposerControllerTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeComposerDocumentTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeComposerEmbedLifecycleTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeComposerEncryptionCompatibilityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeComposerFailureRecoveryTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeComposerMentionPIITests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeComposerPasteTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeComposerPerformanceTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeComposerSessionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeComposerSubmitTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeEmbedActionTests.swift": {result: failed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757', failed: ["testPNGExportHasRequestedPixelDimensionsAndActualIconPixels", "testSystemEditorEventPreservesAllDayCivilDatesAndTimedOffsetWithoutSaving"]}
+  "apple/OpenMatesTests/NativeEncryptedSyncPerformanceTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeHapticsPolicyTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeMindMapLayoutTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeModelCatalogTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeModelDisabledPreferencesTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativePCBSchematicActionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeSessionTransportTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeSignupPasskeyTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeSignupPasswordPolicyTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeSignupRuntimeTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeSignupStateTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeVoiceCallAdmissionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeVoiceCallAppCoordinatorTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeVoiceCallArtifactAssociationTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeVoiceCallCameraTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeVoiceCallCanonicalAdmissionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeVoiceCallLocalDraftPromotionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeVoiceCallRootAdmissionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeVoiceCallSpeechTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeVoiceCallTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NativeVoiceCallToolContinuationTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NotificationPreviewCryptoTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/NotificationReplyContextTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/OfflineAccountIsolationTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/OpenMatesCoreBridgeTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/PasskeyAssertionLifecycleTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/PasswordV2KDFTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/PendingUploadStoreTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ProgressiveMarkdownRenderTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ProjectApplicationFolderTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ProjectCreateFileEntriesTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ProjectOfflineMetadataTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ProjectReadmeTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ProjectReferenceEmbedModelTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ProjectRemoteCommandCoreMappingTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ProjectWorkspaceReviewRuntimeTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ProjectsWorkspaceTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/PublicAssistantSpeechParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/PublicImageLoaderTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/PushCompletionNoticePolicyTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ReadOnlyEmbedTextSelectionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/RealAccountLoginRecoveryTests.swift": {result: skipped, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/RecipientMediaContextTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/RecordingTranscriptionSelectionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/RemindersPublicContentParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/S3MediaBoundsTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SearchDomainRenderersTests.swift": {result: failed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757', failed: ["testHealthSearchSummaryUsesSpecialityAndCityWithoutInventingQuery"]}
+  "apple/OpenMatesTests/ServerRegionSettingTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SettingsAIProviderParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SettingsBillingParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SettingsFullParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SettingsMemoriesMatesParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SettingsMemoryDocumentsModelTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SettingsModesParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SettingsPrivacyParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SettingsSupportParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SettingsTeamsServiceTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SharedChatRecipientTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/ShortWorkflowShareTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SkillApplicationParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SlidesDeckRendererTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/StorageStatusTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/StreamingClientFanoutTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SubChatActivityProvenanceTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/SubChatProcessingTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/TasksWidgetTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/TasksWorkspaceTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/TeamWorkspaceContextTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/TravelEmbedFormattingTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/URLMessageEmbedPreparationTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/UpcomingMemoryActivityNavigationTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/UpcomingMemoryLiveActivityBridgeTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/VideoEmbedParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/VideoTranscriptPayloadParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/VoiceCallOrchestrationTurnTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/VoiceCallParityAuditTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/VoiceRecorderTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchAuthStoreTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchCanonicalStorageTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchChatRuntimeTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchChatShareServiceTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchEmbedPreviewTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchGuestInferenceTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchGuestWorkspaceTests.swift": {result: failed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757', failed: ["testCatalogSearchAndReadingUseOnlyBundledExamplesAndPreserveMainWrapper"]}
+  "apple/OpenMatesTests/WatchHubDataServiceTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchItemOpenModelTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchLiveSendTests.swift": {result: skipped, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchPairAuthenticationTransactionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchPairCookieCancellationTests.swift": {result: failed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757', failed: ["testHermeticTransportActuallyExercisesAutomaticResponseCookieAcceptance"]}
+  "apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchPhoneOpenPayloadTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchPushLifecycleTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchSocketWireEncodingTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchTaskEditingTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchVoiceCallMemoryPermissionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchVoiceCallRootTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchVoiceCallToolCoordinatorTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchVoiceEvaluationPolicyTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchWhisperLabTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WatchWorkflowDetailTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WebSearchContractParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WebSocketReconnectTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WebSocketWaiterCancellationTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WebSocketWireEncodingTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WelcomeContinuePolicyTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WhistleRuntimeTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WikiArticleModelTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WorkflowGraphEditingTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WorkflowGraphReorderingTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WorkflowMessageTokensTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WorkflowStepTestServiceTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WorkflowTemplateProjectionTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WorkflowWidgetTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WorkflowsParityTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WorkspaceContinuationLayoutTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
+  "apple/OpenMatesTests/WorkspaceSwitcherLayoutTests.swift": {result: passed, date: '2026-11-15', commit: '81ccbed07c', job: '11c69811e757'}
   "apple/OpenMatesUITests/AssistantActivityPreviewUITests.swift": {result: passed, date: '2026-11-14', commit: '3d9a8ee853', job: '580f95cf3574'}
   "apple/OpenMatesUITests/ChatCardsParityUITests.swift": {result: passed, date: '2026-11-12', commit: '5643f07daa', job: '46965105b574'}
   "apple/OpenMatesUITests/ChatFlowParityUITests.swift": {result: passed, date: '2026-11-12', commit: '41038e00d0', job: '91ffa57e4f2c'}
   "apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift": {result: failed, date: '2026-11-12', commit: '1b547d74f8', job: '48b23e7c0774', failed: ["testStreamingThinkingAndComposerStopMatchWebContract"]}
-  "apple/OpenMatesUITests/ComposerVisualParityUITests.swift": {result: passed, date: '2026-11-15', commit: 'b7ec44b0bd', job: '84886bbfc361'}
+  "apple/OpenMatesUITests/ComposerVisualParityUITests.swift": {result: failed, date: '2026-11-15', commit: '2ca7dc5e76', job: '1e1e282980ec', failed: ["testWelcomeMicrophoneYieldsTrailingPositionToSendAcrossDraftTransitions"]}
   "apple/OpenMatesUITests/DevAuthFormUITests.swift": {result: passed, date: '2026-11-13', commit: 'ac9b2bbf0a', job: 'db0ebc195892'}
   "apple/OpenMatesUITests/DevComponentPreviewUITests.swift": {result: failed, date: '2026-11-14', commit: '09203143eb', job: '06353e37b4be', failed: ["testProjectsWorkspaceLandingOverviewAndFilesAtWebPhoneWidth"]}
-  "apple/OpenMatesUITests/EmbedRenderingParityUITests.swift": {result: failed, date: '2026-11-12', commit: '478c638359', job: 'e04716a656d6', failed: ["testAllEmbedPreviewAppsRenderProductChrome", "testCanonicalRegistryKeysRenderPreviewAndFullscreenWithoutGenericFallback", "testCodeFullscreenUsesSharedPIIRevealControl", "testFullscreenParentChildRouteStackReturnsToParentBeforeClosing", "testGroupedVideoTranscriptRendersPreviewAndFullscreenContent", "testMediaSearchRegistryKeysRenderPreviewAndFullscreen", "testModels3DChildCloseRestoresInteractiveParentSurface", "testOwnerPIIMappingFollowsSelectedEmbedAndFailsClosedDuringNavigation", "testSavedCodeRunOutputAppearsInPreview", "testSavedCodeRunOutputReopensInFullscreenAndCanBeCopied", "testTaskWorkflowAndModelEmbedsUseSpecificNativeChrome", "testTravelConnectionCopyAndCalendarActionsWide", "testVersionedCodeEmbedFullscreenTimelineRendersAndRestores", "testWebSearchPreviewShowsResultThumbnailStrip"]}
+  "apple/OpenMatesUITests/EmbedRenderingParityUITests.swift": {result: passed, date: '2026-11-15', commit: 'dd2017fd3d', job: '9b8e467a8ff4'}
   "apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift": {result: failed, date: '2026-11-15', commit: 'a2a961d9c9', job: 'a679e596ee91', failed: ["testAcceptedFollowUpClosesComposerAndDismissesKeyboard", "testAcceptedSendClosesExpandedComposerAndDismissesKeyboard", "testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay", "testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft", "testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews"]}
   "apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift": {result: passed, date: '2026-11-14', commit: 'e55acde84d', job: '5b6e22f8ee79'}
+  "apple/OpenMatesUITests/ProjectTimelineUITests.swift": {result: passed, date: '2026-11-15', commit: 'c7c4e67262', job: '5638e9f11208'}
   "apple/OpenMatesUITests/SettingsFullParityUITests.swift": {result: passed, date: '2026-11-12', commit: 'ac8f4dbb18', job: '3022de0fa045'}
   "apple/OpenMatesUITests/SettingsMemoriesParityUITests.swift": {result: passed, date: '2026-11-12', commit: '03a7aedaa3', job: 'a08d8193c443'}
   "apple/OpenMatesUITests/SettingsSensitiveActionsParityUITests.swift": {result: passed, date: '2026-11-12', commit: '41038e00d0', job: 'f9a8a9dfd6a2'}
   "apple/OpenMatesUITests/WorkspaceSwitcherUITests.swift": {result: passed, date: '2026-11-15', commit: '358258d7a9', job: 'fac0bd04fcc1'}
   "backend/tests/test_ai_instruction_contracts.py": {result: failed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81', failed: ["test_code_instruction_routes_vector_graphics_to_the_images_generate_skill", "test_price_products_asks_first_and_quotes_only_sheet_numbers"]}
+  "backend/tests/test_ai_model_routing.py": {result: passed, date: '2026-11-15', commit: '2d534bc1c4', job: '78dd150331a3'}
   "backend/tests/test_anonymous_free_usage_budget.py": {result: passed, date: '2026-11-14', commit: 'fbe96f6343', job: '16896e8b7a5b'}
+  "backend/tests/test_anonymous_skill_access.py": {result: failed, date: '2026-11-15', commit: '3572c32db7', job: 'a9f2b03f70db', failed: ["test_anonymous_direct_skill_uses_shared_cap_without_content_rows", "test_every_app_skill_has_reviewed_anonymous_classification", "test_ip_status_and_execution_rate_buckets_are_independent"]}
+  "backend/tests/test_anonymous_skill_embeds.py": {result: passed, date: '2026-11-15', commit: '3572c32db7', job: 'aa16777a85e5'}
   "backend/tests/test_api_key_scopes.py": {result: failed, date: '2026-11-13', commit: 'a15797b68e', job: '844d935ed5db', failed: ["test_approve_api_key_device_invalidates_injected_cache"]}
   "backend/tests/test_app_discovery_visibility.py": {result: passed, date: '2026-11-13', commit: 'd826f9d09c', job: '8f58102e6d40'}
   "backend/tests/test_app_metadata_no_stage.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
@@ -267,9 +271,9 @@ tests:
   "backend/tests/test_assistant_speech_projection.py": {result: passed, date: '2026-11-13', commit: '1646f07162', job: 'eb5cef65a26c'}
   "backend/tests/test_async_recovery_handoff.py": {result: passed, date: '2026-11-13', commit: 'dea115e48a', job: 'f33862ac8bc4'}
   "backend/tests/test_async_skill_continuation.py": {result: passed, date: '2026-11-14', commit: '1e3d835962', job: '7e028863b943'}
-  "backend/tests/test_base_app_dispatch_context.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
+  "backend/tests/test_base_app_dispatch_context.py": {result: failed, date: '2026-11-15', commit: '66cb5c2f29', job: 'fc960758e798', failed: ["test_recovery_rejection_keeps_its_status_through_skill_dispatch"]}
   "backend/tests/test_business_company_ownership.py": {result: passed, date: '2026-11-12', commit: '05dbc77b95', job: '63b326ec5d32'}
-  "backend/tests/test_business_search_investors.py": {result: passed, date: '2026-11-14', commit: '96989b855b', job: 'c172424f8940'}
+  "backend/tests/test_business_search_investors.py": {result: passed, date: '2026-11-15', commit: '28ba90c1df', job: '4505200b84a9'}
   "backend/tests/test_cache_pricing_activation.py": {result: passed, date: '2026-11-12', commit: '9d3e8afdb6', job: 'a0da2b39e6df'}
   "backend/tests/test_calendar_app_contract.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
   "backend/tests/test_calendar_chat_flow_mocked.py": {result: passed, date: '2026-11-14', commit: 'b910574937', job: '9e07d17fe5b9'}
@@ -308,7 +312,11 @@ tests:
   "backend/tests/test_draft_deletion_record.py": {result: passed, date: '2026-11-11', commit: '3882b04e07', job: 'd6ad757e048b'}
   "backend/tests/test_e2b_embroidery.py": {result: passed, date: '2026-11-11', commit: '12deee4a56', job: 'fd78e2e6be13'}
   "backend/tests/test_e2b_image_edit.py": {result: passed, date: '2026-11-10', commit: 'aa69107cdb', job: '5cf4b6f9d3ca'}
-  "backend/tests/test_embed_diff_full_replacement.py": {result: passed, date: '2026-11-10', commit: 'f953102fd7', job: '96810d209429'}
+  "backend/tests/test_embed_diff_escaped_quotes.py": {result: passed, date: '2026-11-15', commit: '551251dca4', job: '0da98bd357ef'}
+  "backend/tests/test_embed_diff_full_replacement.py": {result: passed, date: '2026-11-15', commit: '551251dca4', job: '0da98bd357ef'}
+  "backend/tests/test_embed_diff_periodic_snapshot.py": {result: passed, date: '2026-11-15', commit: '551251dca4', job: '0da98bd357ef'}
+  "backend/tests/test_embed_diff_unique_context.py": {result: passed, date: '2026-11-15', commit: '551251dca4', job: '0da98bd357ef'}
+  "backend/tests/test_embed_diff_version_contract.py": {result: passed, date: '2026-11-15', commit: '551251dca4', job: '0da98bd357ef'}
   "backend/tests/test_embed_service_versioned_updates.py": {result: passed, date: '2026-11-12', commit: '8309d3dfbb', job: 'd6eadfa459d9'}
   "backend/tests/test_embed_update_history.py": {result: passed, date: '2026-11-11', commit: 'ffc8638124', job: 'ba3f7218a82f'}
   "backend/tests/test_embed_user_revisions_routes.py": {result: passed, date: '2026-11-11', commit: 'ffc8638124', job: 'ee2befe399dd'}
@@ -331,6 +339,7 @@ tests:
   "backend/tests/test_focus_mode_routing.py": {result: passed, date: '2026-11-12', commit: '588e5ce859', job: '79bd8b8a2358'}
   "backend/tests/test_focus_pending_memory_catalog.py": {result: passed, date: '2026-11-12', commit: 'a8ad3e0aee', job: 'a8583164594c'}
   "backend/tests/test_focus_phases.py": {result: passed, date: '2026-11-12', commit: '6a12547d4b', job: '20cb1eaa1549'}
+  "backend/tests/test_gemini_cache_billing_and_prompt_order.py": {result: passed, date: '2026-11-15', commit: '2d534bc1c4', job: '78dd150331a3'}
   "backend/tests/test_generated_media_credit_precheck.py": {result: passed, date: '2026-11-13', commit: 'b1c4a6d066', job: '85e45fba4dc1'}
   "backend/tests/test_generated_media_graph.py": {result: passed, date: '2026-11-15', commit: 'bdce2f155f', job: 'ace29dd4dfdf'}
   "backend/tests/test_generated_model_streaming_storage.py": {result: passed, date: '2026-11-10', commit: 'aa69107cdb', job: '32fb4a8df0a1'}
@@ -343,8 +352,8 @@ tests:
   "backend/tests/test_image_generate_default_model.py": {result: passed, date: '2026-11-13', commit: 'b1c4a6d066', job: '85e45fba4dc1'}
   "backend/tests/test_image_generation_mime.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_image_safety_explanations.py": {result: passed, date: '2026-11-15', commit: '4ebad407d9', job: '5007512ddf35'}
-  "backend/tests/test_image_safety_jev_signals.py": {result: passed, date: '2026-11-15', commit: '4ebad407d9', job: 'b39a9f298fce'}
-  "backend/tests/test_image_safety_pipeline.py": {result: passed, date: '2026-11-15', commit: '4ebad407d9', job: '3190ebf7677f'}
+  "backend/tests/test_image_safety_jev_signals.py": {result: passed, date: '2026-11-15', commit: '287a879c83', job: '351a4597c14f'}
+  "backend/tests/test_image_safety_pipeline.py": {result: passed, date: '2026-11-15', commit: '287a879c83', job: '51575b29e046'}
   "backend/tests/test_image_upload_cache_recovery.py": {result: passed, date: '2026-11-11', commit: 'a81b7dff03', job: '48c925f0e422'}
   "backend/tests/test_images_enhance.py": {result: passed, date: '2026-11-11', commit: '665200b6fb', job: 'a96cb3b56fc7'}
   "backend/tests/test_images_generate_reference_images.py": {result: passed, date: '2026-11-12', commit: '8309d3dfbb', job: '6fbccbee3f14'}
@@ -369,7 +378,8 @@ tests:
   "backend/tests/test_memory_suggestions_route.py": {result: passed, date: '2026-11-10', commit: '4a31665db9', job: '6c6207cbc3a2'}
   "backend/tests/test_memory_tools.py": {result: passed, date: '2026-11-10', commit: 'b8cc207ccd', job: '8f7e39989723'}
   "backend/tests/test_memory_write_tool.py": {result: passed, date: '2026-11-13', commit: '3cd7c069ad', job: '578f0fa91b60'}
-  "backend/tests/test_mercury_routing_fixture.py": {result: passed, date: '2026-11-13', commit: '52f4af080c', job: '1f3954f8d839'}
+  "backend/tests/test_mercury_routing_fixture.py": {result: passed, date: '2026-11-15', commit: '2d534bc1c4', job: '78dd150331a3'}
+  "backend/tests/test_message_received_active_chat.py": {result: failed, date: '2026-11-15', commit: '66cb5c2f29', job: '4e00c98cdf04', failed: ["test_atomic_first_personal_plain_history_reuses_saved_row", "test_incognito_send_skips_durable_cutover_lookup", "test_legacy_dispatch_retry_reconciles_but_genuine_failures_still_alert", "test_message_send_forwards_client_embed_ref_index", "test_message_send_marks_origin_connection_active_before_ai_dispatch", "test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task", "test_saved_child_user_message_gets_fresh_ordinary_admission", "test_team_recovery_send_skips_personal_cache_completeness_gate"]}
   "backend/tests/test_message_received_ui_language.py": {result: passed, date: '2026-11-13', commit: '619ab4957f', job: '736c545868b1'}
   "backend/tests/test_mock_replay.py": {result: passed, date: '2026-11-12', commit: '3dd9d11e81', job: '84512b0f6952'}
   "backend/tests/test_models3d_generate_task.py": {result: passed, date: '2026-11-13', commit: 'b1c4a6d066', job: '85e45fba4dc1'}
@@ -378,10 +388,11 @@ tests:
   "backend/tests/test_newsletter_assets.py": {result: failed, date: '2026-11-15', commit: '208e951e9c', job: '7bc865191ab7', failed: ["test_preview_approval_is_exact_and_ci_capture_uses_no_live_transport", "test_sender_stamps_trusted_preview_audience"]}
   "backend/tests/test_newsletter_campaign_send_args.py": {result: passed, date: '2026-11-15', commit: 'b1e991d2c6', job: 'bc9858d8351c'}
   "backend/tests/test_openai_compatible_api_contract.py": {result: failed, date: '2026-11-12', commit: '9d3e8afdb6', job: 'd8bb3ad55784', failed: ["test_public_current_promotions_use_real_provider_yaml_and_live_config_resolver"]}
+  "backend/tests/test_parallel_preprocessing.py": {result: passed, date: '2026-11-15', commit: '2d534bc1c4', job: '78dd150331a3'}
   "backend/tests/test_pdf_ascii_smuggling_sanitization.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_pdf_read_filename_alias.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_pdf_search_read_v2.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
-  "backend/tests/test_persistence_tasks.py": {result: passed, date: '2026-11-15', commit: 'ce278477dc', job: 'f35840da2f18'}
+  "backend/tests/test_persistence_tasks.py": {result: passed, date: '2026-11-15', commit: 'f44cd3673f', job: '9afb19f3b0aa'}
   "backend/tests/test_phase2_stale_draft_probe.py": {result: passed, date: '2026-11-11', commit: '3882b04e07', job: 'd6ad757e048b'}
   "backend/tests/test_plan_focus_routing.py": {result: passed, date: '2026-11-14', commit: '0d417677bf', job: '880ab6d98a62'}
   "backend/tests/test_plans_spec_check_skills.py": {result: passed, date: '2026-11-14', commit: '749d16a839', job: '31725927d1ff'}
@@ -397,10 +408,11 @@ tests:
   "backend/tests/test_project_embed_adoption.py": {result: passed, date: '2026-11-12', commit: '0bc26eaf5b', job: '0fdd5c902eb3'}
   "backend/tests/test_project_file_operations.py": {result: passed, date: '2026-11-12', commit: '6a12547d4b', job: '30f964cb5296'}
   "backend/tests/test_project_file_tools.py": {result: passed, date: '2026-11-11', commit: '84a04e047b', job: 'd46a8ceb6846'}
-  "backend/tests/test_project_focus_early_routing.py": {result: passed, date: '2026-11-12', commit: '588e5ce859', job: '79bd8b8a2358'}
+  "backend/tests/test_project_focus_early_routing.py": {result: passed, date: '2026-11-15', commit: '2d534bc1c4', job: '78dd150331a3'}
   "backend/tests/test_project_memory_ask_first.py": {result: passed, date: '2026-11-13', commit: '53af4296a7', job: '8405d817ad47'}
   "backend/tests/test_project_remote_access_bridge.py": {result: passed, date: '2026-11-12', commit: 'bf26319cac', job: 'aeaa18e2872f'}
   "backend/tests/test_project_remote_source_creation.py": {result: passed, date: '2026-11-12', commit: 'bf26319cac', job: 'aeaa18e2872f'}
+  "backend/tests/test_project_timeline.py": {result: passed, date: '2026-11-14', commit: '55d35cccb5', job: 'c23dfa3ad17d'}
   "backend/tests/test_projects.py": {result: passed, date: '2026-11-10', commit: 'f953102fd7', job: '896321b41102'}
   "backend/tests/test_provider_tool_schema.py": {result: passed, date: '2026-11-11', commit: '0b4014770d', job: '21f0f57930ff'}
   "backend/tests/test_request_embed_authorization.py": {result: passed, date: '2026-11-13', commit: '36ca7228d8', job: '4208bb179c37'}
@@ -418,14 +430,17 @@ tests:
   "backend/tests/test_server_turn_dispatch.py": {result: passed, date: '2026-11-13', commit: 'fe37f12833', job: '99a2c92153a2'}
   "backend/tests/test_shopping_skill_timeout.py": {result: passed, date: '2026-11-12', commit: 'fb7aff687d', job: '669bb6ac520b'}
   "backend/tests/test_shopping_visual_ranking.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
+  "backend/tests/test_sightengine_safety_client.py": {result: passed, date: '2026-11-15', commit: '287a879c83', job: '0b4546a2d636'}
   "backend/tests/test_skill_internal_decisions_policy.py": {result: passed, date: '2026-11-13', commit: '78309db5d5', job: '5769accdda08'}
   "backend/tests/test_skill_preview_metadata.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_skill_progress.py": {result: passed, date: '2026-11-12', commit: 'fb7aff687d', job: '669bb6ac520b'}
-  "backend/tests/test_slides_markup.py": {result: passed, date: '2026-11-14', commit: 'f4712a199b', job: '4af87a515948'}
+  "backend/tests/test_slides_focus_fixture.py": {result: passed, date: '2026-11-15', commit: 'da2d93d041', job: 'c53f73c53286'}
+  "backend/tests/test_slides_focus_modes.py": {result: passed, date: '2026-11-15', commit: 'da2d93d041', job: 'c53f73c53286'}
+  "backend/tests/test_slides_markup.py": {result: passed, date: '2026-11-15', commit: 'f44cd3673f', job: '9afb19f3b0aa'}
   "backend/tests/test_slides_markup_core_fixed_points.py": {result: passed, date: '2026-11-10', commit: '4f619a6c80', job: 'b4f14de9a389'}
-  "backend/tests/test_slides_stream_consumer.py": {result: passed, date: '2026-11-14', commit: 'f4712a199b', job: '4af87a515948'}
+  "backend/tests/test_slides_stream_consumer.py": {result: passed, date: '2026-11-15', commit: 'f44cd3673f', job: '9afb19f3b0aa'}
   "backend/tests/test_standalone_embed_generator.py": {result: failed, date: '2026-11-11', commit: '76bbeb1858', job: 'b349cb493f06', failed: ["test_standalone_direct_generator_reaches_provider_without_chat_identity"]}
-  "backend/tests/test_stream_consumer_recovery.py": {result: passed, date: '2026-11-13', commit: '4d93ae3751', job: '1df65ae2d440'}
+  "backend/tests/test_stream_consumer_recovery.py": {result: passed, date: '2026-11-15', commit: '2d534bc1c4', job: '78dd150331a3'}
   "backend/tests/test_sub_chat_orchestration.py": {result: passed, date: '2026-11-13', commit: '704b47809f', job: 'aefd25d80e1c'}
   "backend/tests/test_summary_billing_bridge.py": {result: failed, date: '2026-11-14', commit: '1e3d835962', job: '7e028863b943', failed: ["test_cerebras_raw_usage_marker_controls_summary_billing"]}
   "backend/tests/test_supported_provider_availability.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
@@ -449,9 +464,12 @@ tests:
   "backend/tests/test_videos_routing_policy.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_videos_search_candidate_limit.py": {result: passed, date: '2026-11-13', commit: 'bf62960213', job: '3b408fa6ed81'}
   "backend/tests/test_voice_call_orchestration_gate.py": {result: passed, date: '2026-11-13', commit: 'ca13e7b89f', job: 'ca4bc6459004'}
-  "backend/tests/test_voice_realtime_turn.py": {result: passed, date: '2026-11-13', commit: '1646f07162', job: 'eb5cef65a26c'}
+  "backend/tests/test_voice_call_protocol.py": {result: passed, date: '2026-11-15', commit: '615861143b', job: '036f9e743ff7'}
+  "backend/tests/test_voice_realtime_turn.py": {result: passed, date: '2026-11-15', commit: '2d534bc1c4', job: '78dd150331a3'}
   "backend/tests/test_voice_status.py": {result: passed, date: '2026-11-13', commit: '5427369c65', job: 'ea930af361ba'}
+  "backend/tests/test_voice_turn_completion.py": {result: passed, date: '2026-11-15', commit: '2d534bc1c4', job: '78dd150331a3'}
   "backend/tests/test_voice_waiting.py": {result: passed, date: '2026-11-13', commit: '1646f07162', job: 'eb5cef65a26c'}
+  "backend/tests/test_voice_waiting_v4.py": {result: passed, date: '2026-11-15', commit: '2d534bc1c4', job: '78dd150331a3'}
   "backend/tests/test_web_browse_models.py": {result: passed, date: '2026-11-13', commit: 'a15797b68e', job: '844d935ed5db'}
   "backend/tests/test_web_browse_pool.py": {result: passed, date: '2026-11-12', commit: 'fd7bc69eda', job: '0b1e6f3dccef'}
   "backend/tests/test_web_browse_runtime_v2.py": {result: passed, date: '2026-11-13', commit: '6c87806fe6', job: 'fc137d6420b3'}
@@ -472,7 +490,7 @@ tests:
   "frontend/apps/web_app/tests/ai-model-settings.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'a35236312b31', failed: ["AI settings overview, tier, provider, and model detail match the approved hierarchy"]}
   "frontend/apps/web_app/tests/ai-response-language.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '73a195fb12f7', failed: ["AI responds in the same language as the user message (OPE-8)"]}
   "frontend/apps/web_app/tests/ai-settings-breadcrumb.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '8387e7661696', failed: ["model and provider detail pages use banner shell and back returns to AI settings"]}
-  "frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts": {result: passed, date: '2026-11-13', commit: '5b734face2', job: '612e59e6190c'}
+  "frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts": {result: passed, date: '2026-11-15', commit: '13b2fac9e8', job: 'ed7a0515b9d3'}
   "frontend/apps/web_app/tests/anonymous-usage-limit.spec.ts": {result: passed, date: '2026-11-14', commit: '5aae5de33f', job: 'e361d1b1a50d'}
   "frontend/apps/web_app/tests/api-keys-flow.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '4ee85c26b0e2', failed: ["creates an API key, verifies format, and deletes it"]}
   "frontend/apps/web_app/tests/app-load-no-error-logs.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '6bb2d7c1dc1b', failed: ["app root loads without console errors"]}
@@ -507,7 +525,7 @@ tests:
   "frontend/apps/web_app/tests/chat-key-wrapper-migration.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '136c2903d6a3'}
   "frontend/apps/web_app/tests/chat-management-flow.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '604de46fe126'}
   "frontend/apps/web_app/tests/chat-message-timeline.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: 'a5da308a20f7'}
-  "frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '8c6dd78b769d', failed: ["browser renders recovered initial title and summary before any assistant completion, then refines both after reconnect"]}
+  "frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts": {result: failed, date: '2026-11-15', commit: '615861143b', job: '47b805433c46', failed: ["browser renders recovered initial title and summary before any assistant completion, then refines both after reconnect"]}
   "frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '29d883c45f27', failed: ["server queues one encrypted turn, fences revisions and shares its state across connections"]}
   "frontend/apps/web_app/tests/chat-queued-followups.spec.ts": {result: failed, date: '2026-11-13', commit: 'd63fcca1cb', job: '876ba5b52cc5', failed: ["keeps one queued row through cancel, unchanged Send, changed Send, and steer fallback"]}
   "frontend/apps/web_app/tests/chat-reload-followup-send.spec.ts": {result: passed, date: '2026-11-13', commit: 'c17164fa5b', job: 'e143ec782d2d'}
@@ -708,6 +726,7 @@ tests:
   "frontend/apps/web_app/tests/components/project-chat-previews.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '1f79008dfc4a'}
   "frontend/apps/web_app/tests/components/project-file-references.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '3e52a3d7e2d0', failed: ["empty-chat welcome hydrates without a Project operation"]}
   "frontend/apps/web_app/tests/components/project-readme-figma.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '6c632e9b8c01'}
+  "frontend/apps/web_app/tests/components/project-timeline.spec.ts": {result: passed, date: '2026-11-15', commit: '443f1a2d80', job: '7d7b3a697485'}
   "frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '81828053ef6e', failed: ["a virtual file preview opens without an import action on the card", "an incomplete remote preview explains its limit and cannot be imported"]}
   "frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts": {result: passed, date: '2026-11-14', commit: 'de051a78ec', job: 'f7598237a5f8'}
   "frontend/apps/web_app/tests/components/public-newsletter.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '65a27725933d'}
@@ -746,6 +765,7 @@ tests:
   "frontend/apps/web_app/tests/components/slides-deck-embed.spec.ts": {result: passed, date: '2026-11-10', commit: '44a462aa65', job: 'cb9d1cedc49f'}
   "frontend/apps/web_app/tests/components/slides-editor.spec.ts": {result: passed, date: '2026-11-13', commit: 'b8f2395e76', job: '57659dc047b4'}
   "frontend/apps/web_app/tests/components/slides-presenter.spec.ts": {result: passed, date: '2026-11-10', commit: '44a462aa65', job: '8a34ea42c5c6'}
+  "frontend/apps/web_app/tests/components/slides-template-embed.spec.ts": {result: passed, date: '2026-11-15', commit: 'f44cd3673f', job: 'e7d8f20ef831'}
   "frontend/apps/web_app/tests/components/social-date-pill.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '09fa26652cf1', failed: ["Social publication date reuses the appointment time pill at 1100px in dark", "Social publication date reuses the appointment time pill at 1100px in light", "Social publication date reuses the appointment time pill at 390px in dark", "Social publication date reuses the appointment time pill at 390px in light"]}
   "frontend/apps/web_app/tests/components/specialized-preview-tools.spec.ts": {result: flaky, date: '2026-11-13', commit: '3ba8f1037b', job: '1ed55c37a1ee'}
   "frontend/apps/web_app/tests/components/specification-embed.spec.ts": {result: flaky, date: '2026-11-14', commit: '51091c6d07', job: 'f7535b4efb52'}
@@ -819,7 +839,7 @@ tests:
   "frontend/apps/web_app/tests/draft-only-chat-delete.spec.ts": {result: passed, date: '2026-11-10', commit: '756fab0399', job: 'df225fb5de23'}
   "frontend/apps/web_app/tests/embed-canonical-replay.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '5cdb4dde864f'}
   "frontend/apps/web_app/tests/embed-catalog-hyphen-roundtrip.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '74c3a8415a20'}
-  "frontend/apps/web_app/tests/embed-diff-editing.spec.ts": {result: failed, date: '2026-11-10', commit: '6ab10f7ca2', job: 'ba7f6a6ac0bf', failed: ["code embed is patched in-place when assistant outputs diff"]}
+  "frontend/apps/web_app/tests/embed-diff-editing.spec.ts": {result: failed, date: '2026-11-15', commit: 'e351b3db7d', job: '39e4a649feab', failed: ["code embed is patched in-place when assistant outputs diff"]}
   "frontend/apps/web_app/tests/embed-preview-backfill-replay.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'f28c4b35a954', failed: ["legacy web search preview backfill replays with canonical catalog context"]}
   "frontend/apps/web_app/tests/embed-showcase.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '8d7f5dd0f018', failed: ["audio: loads without errors, all embeds render, no artifacts", "docs: loads without errors, all embeds render, no artifacts", "images: loads without errors, all embeds render, no artifacts", "mail: loads without errors, all embeds render, no artifacts", "music: loads without errors, all embeds render, no artifacts", "news: loads without errors, all embeds render, no artifacts", "pdf: loads without errors, all embeds render, no artifacts", "sheets: loads without errors, all embeds render, no artifacts", "social_media: loads without errors, all embeds render, no artifacts", "travel: loads without errors, all embeds render, no artifacts", "videos: loads without errors, all embeds render, no artifacts", "web: loads without errors, all embeds render, no artifacts"]}
   "frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '9f60a77268d9', failed: ["renders the CLI-backed Berlin founder events map example without provider calls"]}
@@ -937,6 +957,7 @@ tests:
   "frontend/apps/web_app/tests/project-plans-flow.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '763dc7dc118f'}
   "frontend/apps/web_app/tests/project-specifications-web-flow.spec.ts": {result: passed, date: '2026-11-14', commit: '0fc8f96967', job: '6e7695a657da'}
   "frontend/apps/web_app/tests/project-task-sync.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '09b54aca2fab'}
+  "frontend/apps/web_app/tests/project-timeline-flow.spec.ts": {result: passed, date: '2026-11-15', commit: 'a1174eb203', job: '20d64ecbd1cf'}
   "frontend/apps/web_app/tests/projects-create-edit-files.spec.ts": {result: passed, date: '2026-11-14', commit: 'de051a78ec', job: 'c1a82468718c'}
   "frontend/apps/web_app/tests/projects-flow.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '8ee9616d289d'}
   "frontend/apps/web_app/tests/projects-remote-sources.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '5a4536817a9e', failed: ["browses nested connected files transiently and imports only after an explicit action", "offers a deliberate re-login when the browser device binding is unavailable"]}
@@ -996,6 +1017,8 @@ tests:
   "frontend/apps/web_app/tests/skill-shopping-images.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '72281362c259'}
   "frontend/apps/web_app/tests/skill-web-read.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'c89f10ba75cb', failed: ["Phase 2: CLI apps web read returns structured JSON", "Phase 4: Web chat triggers web read with embed"]}
   "frontend/apps/web_app/tests/skill-web-search.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '93a0ff6c30c4'}
+  "frontend/apps/web_app/tests/slides-focus-presentation-planner.spec.ts": {result: passed, date: '2026-11-15', commit: 'f44cd3673f', job: 'd8a6b5598bf5'}
+  "frontend/apps/web_app/tests/slides-focus-template-designer.spec.ts": {result: passed, date: '2026-11-15', commit: 'f44cd3673f', job: 'ccbf6f0486bb'}
   "frontend/apps/web_app/tests/slides-manual-edit.spec.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: '96b26c92d4f9'}
   "frontend/apps/web_app/tests/startup-sync-contract.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'cbe30f3d9dbf', failed: ["startup sync is bounded and older content hydrates on demand"]}
   "frontend/apps/web_app/tests/status-page.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '8552bf42b914'}
@@ -1021,8 +1044,8 @@ tests:
   "frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts": {result: passed, date: '2026-11-14', commit: '5aae5de33f', job: 'e2901760be92'}
   "frontend/apps/web_app/tests/unified-detail-header.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '8adb865a2337', failed: ["Task title and description expose hints, save, and undo semantics"]}
   "frontend/apps/web_app/tests/unified-detail-pages.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: 'ecdeff9f4544', failed: ["Plan cards open a canonical shared-header detail page", "Task cards open a canonical shared-header detail page"]}
-  "frontend/apps/web_app/tests/voice-call.spec.ts": {result: failed, date: '2026-11-13', commit: '68344cd7a7', job: '1ab0285b5b22', failed: ["keeps call audio ephemeral, caches later manual Speak once, and removes its audio access when the chat is deleted", "uses one canonical turn for voice and typed input, preserves rich replies and retains its chat across navigation and reload"]}
-  "frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '10eb26b1f5f9', failed: ["voice-first chat preflights before persisting its speech preference"]}
+  "frontend/apps/web_app/tests/voice-call.spec.ts": {result: failed, date: '2026-11-15', commit: 'e351b3db7d', job: '244bf99a721c', failed: ["attaches the exact encrypted camera source to the ordinary user request on laptop", "keeps call audio ephemeral, caches later manual Speak once, and removes its audio access when the chat is deleted", "keeps continuous playback progress conservative on interruption while retaining the complete rich answer", "keeps lifecycle-only calls neutral in another tab and removes their empty chat after hangup", "registers an unsent personal Project chat before opening its voice call", "removes and closes an empty call chat after the call is interrupted by a reload", "resumes the same call on a new connection after the page was in the background", "speaks one localized waiting confirmation for a slow German turn without creating a second assistant message", "uses one canonical turn for voice and typed input, preserves rich replies and retains its chat across navigation and reload"]}
+  "frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts": {result: failed, date: '2026-11-15', commit: '615861143b', job: 'a071f774dc0d', failed: ["voice-first chat preflights before persisting its speech preference"]}
   "frontend/apps/web_app/tests/web-browse-api.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '5bcf218921a8'}
   "frontend/apps/web_app/tests/web-lifecycle-notification-suppression.spec.ts": {result: failed, date: '2026-11-13', commit: '3ba8f1037b', job: '7cd43bf76405', failed: ["web tab visibility and focus send lifecycle state for notification suppression"]}
   "frontend/apps/web_app/tests/web-runtime-security.spec.ts": {result: passed, date: '2026-11-13', commit: '3ba8f1037b', job: '7da520f7104a'}
@@ -1083,8 +1106,10 @@ tests:
   "frontend/packages/ui/src/components/embeds/embedProgress.test.ts": {result: passed, date: '2026-11-12', commit: '52c21aa595', job: '3ac57cda0247'}
   "frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: 'b27b98d8a156'}
   "frontend/packages/ui/src/components/embeds/slides/slidesEditor.test.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: 'b27b98d8a156'}
-  "frontend/packages/ui/src/components/embeds/slides/slidesMarkup.test.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: 'b27b98d8a156'}
+  "frontend/packages/ui/src/components/embeds/slides/slidesMarkup.test.ts": {result: passed, date: '2026-11-15', commit: 'f44cd3673f', job: '7bfd1e30243f'}
   "frontend/packages/ui/src/components/embeds/slides/slidesPresentation.test.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: 'b27b98d8a156'}
+  "frontend/packages/ui/src/components/embeds/slides/slidesTemplatePicker.test.ts": {result: passed, date: '2026-11-15', commit: 'f44cd3673f', job: '7bfd1e30243f'}
+  "frontend/packages/ui/src/components/embeds/slides/slidesTemplates.test.ts": {result: passed, date: '2026-11-15', commit: 'f44cd3673f', job: '7bfd1e30243f'}
   "frontend/packages/ui/src/components/enter_message/__tests__/guestComposerState.test.ts": {result: passed, date: '2026-11-14', commit: '645f2dd498', job: 'ff96de267e02'}
   "frontend/packages/ui/src/components/enter_message/__tests__/sendReadiness.test.ts": {result: passed, date: '2026-11-14', commit: '645f2dd498', job: '9bb297b4f35c'}
   "frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/ImageRenderer.test.ts": {result: passed, date: '2026-11-12', commit: '1e41793d37', job: 'd28952bfd94f'}
@@ -1112,7 +1137,7 @@ tests:
   "frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts": {result: failed, date: '2026-11-10', commit: '1bc921484c', job: '89dc619d259b'}
   "frontend/packages/ui/src/services/__tests__/recoveryEmbedReceiptErrors.test.ts": {result: passed, date: '2026-11-13', commit: '264bb294db', job: 'ffadfec0c048'}
   "frontend/packages/ui/src/services/__tests__/ruleDocumentService.test.ts": {result: passed, date: '2026-11-13', commit: '1782a7ab67', job: '60a6758360e1'}
-  "frontend/packages/ui/src/services/__tests__/savedEmbedService.test.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: 'b27b98d8a156'}
+  "frontend/packages/ui/src/services/__tests__/savedEmbedService.test.ts": {result: passed, date: '2026-11-15', commit: 'f44cd3673f', job: '7bfd1e30243f'}
   "frontend/packages/ui/src/services/__tests__/voiceCallSpokenProgress.test.ts": {result: passed, date: '2026-11-13', commit: '043db201c3', job: 'fdfaaa0270d6'}
   "frontend/packages/ui/src/services/__tests__/websocketService.test.ts": {result: passed, date: '2026-11-13', commit: '043db201c3', job: 'ef10a504b863'}
   "frontend/packages/ui/src/services/db/__tests__/chatComponentVersionUpdate.test.ts": {result: passed, date: '2026-11-11', commit: 'c76e50ca64', job: 'd7ed46e8dfa2'}
@@ -1124,7 +1149,7 @@ tests:
   "frontend/packages/ui/src/services/rustCore/__tests__/composerVectors.test.ts": {result: passed, date: '2026-11-12', commit: '4ff6ce59a6', job: '6d723d7ec76c'}
   "frontend/packages/ui/src/services/rustCore/__tests__/cryptoUnit.test.ts": {result: passed, date: '2026-11-11', commit: '704fecb8ff', job: '3928ec634cea'}
   "frontend/packages/ui/src/services/rustCore/__tests__/deckDocumentSharedUnit.test.ts": {result: passed, date: '2026-11-10', commit: '46ad10fd42', job: 'f3b320b3a475'}
-  "frontend/packages/ui/src/services/rustCore/__tests__/deckDocumentWire.test.ts": {result: passed, date: '2026-11-14', commit: '3f0001decb', job: 'b27b98d8a156'}
+  "frontend/packages/ui/src/services/rustCore/__tests__/deckDocumentWire.test.ts": {result: passed, date: '2026-11-15', commit: 'f44cd3673f', job: '7bfd1e30243f'}
   "frontend/packages/ui/src/services/rustCore/__tests__/embedTransientWorker.test.ts": {result: passed, date: '2026-11-12', commit: 'b96743447d', job: 'f77c0712616e'}
   "frontend/packages/ui/src/services/rustCore/__tests__/languageUrlVectors.test.ts": {result: passed, date: '2026-11-12', commit: '4ff6ce59a6', job: '6d723d7ec76c'}
   "frontend/packages/ui/src/services/rustCore/__tests__/rustChatSearchPipeline.test.ts": {result: passed, date: '2026-11-12', commit: '1f3dba9806', job: '8e7c78f90682'}

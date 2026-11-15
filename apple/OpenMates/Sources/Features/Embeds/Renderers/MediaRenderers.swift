@@ -2913,7 +2913,7 @@ struct TranscriptRenderer: View {
             .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(AppStrings.openVideo)
+        // Web names this card from its content (title, channel); no extra label key.
         .accessibilityIdentifier("video-transcript-video-preview")
     }
 }

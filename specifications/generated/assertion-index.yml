@@ -41657,7 +41657,7 @@ assertions:
     supporting_tests:
     - &id5265
       path: apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
-      line: 1640
+      line: 1674
       name: testFullscreenParentChildRouteStackReturnsToParentBeforeClosing
       surface: gui.apple
     - &id5268
@@ -52801,7 +52801,7 @@ assertions:
       surface: gui.apple
     - &id6576
       path: apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
-      line: 1781
+      line: 1816
       name: testGroupedVideoTranscriptRendersPreviewAndFullscreenContent
       surface: gui.apple
     supporting_tests:
@@ -56901,7 +56901,7 @@ assertions:
       surface: gui.apple
     - &id7072
       path: apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
-      line: 1566
+      line: 1599
       name: testYouTubeWebSearchResultUsesVideoCardAndPlayer
       surface: gui.apple
     - &id7073
@@ -114078,7 +114078,7 @@ assertions:
       surface: gui.apple
     - &id14478
       path: apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
-      line: 1598
+      line: 1631
       name: testTaskWorkflowAndModelEmbedsUseSpecificNativeChrome
       surface: gui.apple
     - &id14479
@@ -121895,12 +121895,12 @@ assertions:
       surface: gui.apple
     - &id15678
       path: apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
-      line: 1692
+      line: 1726
       name: testModels3DChildCloseRestoresInteractiveParentSurface
       surface: gui.apple
     - &id15679
       path: apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
-      line: 1741
+      line: 1776
       name: testNewsSearchCentersPreviewAndOpensRegularArticleCardsWithImages
       surface: gui.apple
     - &id15680

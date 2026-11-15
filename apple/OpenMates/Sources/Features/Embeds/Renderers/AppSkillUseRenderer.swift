@@ -20,6 +20,7 @@
 //          frontend/packages/ui/src/components/embeds/travel/TravelFlightDetailsEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/reminder/ReminderEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/reminder/ReminderEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
 //          frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedPreview.svelte
@@ -977,40 +978,47 @@ struct TaskWorkflowEmbedRenderer: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
+    // Web: TaskEmbedFullscreen/WorkflowEmbedFullscreen embed WorkspaceDetailHeader
+    // (embedded, alignment="start"): a left-aligned column with a 38px icon, an h3
+    // bold title, a small description and "status · assignee" metadata at xs/0.78.
     private var fullscreen: some View {
-        VStack(alignment: .leading, spacing: .spacing8) {
-            HStack(alignment: .top, spacing: .spacing6) {
-                iconShell.frame(width: 72, height: 72)
-                VStack(alignment: .leading, spacing: .spacing3) {
-                    if let subtitle = kind.subtitle(from: raw) {
-                        Text(subtitle)
-                            .font(.omSmall)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(Color.fontSecondary)
-                    }
-                    Text(kind.title(from: raw))
-                        .font(.omH1)
-                        .foregroundStyle(Color.fontPrimary)
-                        .lineLimit(3)
-                    if let description = kind.description(from: raw) {
-                        Text(description)
-                            .font(.omP)
-                            .foregroundStyle(Color.fontSecondary)
-                    }
-                }
+        VStack(alignment: .leading, spacing: .spacing5) {
+            Icon(kind.iconName, size: 38)
+                .foregroundStyle(Color.fontPrimary)
+                .accessibilityHidden(true)
+            Text(kind.title(from: raw))
+                .font(.omH3)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let description = kind.description(from: raw) {
+                Text(description)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-
-            HStack(spacing: .spacing3) {
-                pill(kind.statusLabel(from: raw))
-                if let assignee = kind.secondaryPill(from: raw), !assignee.isEmpty { pill(assignee) }
-            }
+            Text(fullscreenMetadata)
+                .font(.omXs)
+                .foregroundStyle(Color.fontPrimary)
+                .opacity(0.78)
+                .padding(.top, .spacing3)
         }
-        .padding(.spacing8)
         .frame(maxWidth: 860, alignment: .leading)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, .spacing12)
+        .padding(.horizontal, .spacing8)
+        .padding(.top, .spacing12)
         .padding(.bottom, 120)
         .accessibilityIdentifier(kind.fullscreenIdentifier)
+    }
+
+    private var fullscreenMetadata: String {
+        let status = kind.statusLabel(from: raw)
+        guard let assignee = kind.secondaryPill(from: raw), !assignee.isEmpty else { return status }
+        // taskEmbedData.ts taskAssigneeLabel: brand id keeps its casing, others title-case.
+        let label = assignee == "openmates"
+            ? "OpenMates"
+            : assignee.replacingOccurrences(of: "_", with: " ").capitalized
+        return "\(status) · \(label)"
     }
 
     private var iconShell: some View {

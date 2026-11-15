@@ -1257,7 +1257,6 @@ enum AppStrings {
     static var play: String { L("audio.play") }
     static var pause: String { L("audio.pause") }
     static var locationNearby: String { L("embeds.maps_location.nearby") }
-    static var openVideo: String { L("embed.open_video") }
     static var openInBrowser: String { L("embed.open_in_browser") }
     static var loadPDF: String { L("embed.load_pdf") }
     static var decryptingPDF: String { L("embed.decrypting_pdf") }
