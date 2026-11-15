@@ -1,0 +1,19 @@
+# Nightly encrypted production backup (deployment/prod_server/backup/README.md).
+[Unit]
+Description=OpenMates nightly production backup (encrypted, uploaded to object storage)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=superdev
+Group=superdev
+EnvironmentFile=/home/superdev/.config/openmates-backup/backup.env
+ExecStart=/home/superdev/openmates-backup/openmates-prod-backup.sh run
+# Runs after success, failure, kill and timeout: unpauses Vault, alerts on failure.
+ExecStopPost=/home/superdev/openmates-backup/openmates-prod-backup.sh after-run
+TimeoutStartSec=90min
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

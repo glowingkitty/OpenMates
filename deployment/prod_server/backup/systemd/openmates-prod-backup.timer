@@ -1,0 +1,11 @@
+[Unit]
+Description=Schedule the OpenMates nightly production backup
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 UTC
+RandomizedDelaySec=10min
+Persistent=true
+Unit=openmates-prod-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly check that the OpenMates production backup is fresh
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5min
+Persistent=true
+Unit=openmates-prod-backup-watchdog.service
+
+[Install]
+WantedBy=timers.target
