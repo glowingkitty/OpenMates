@@ -350,17 +350,3 @@ async def prepare_focus_continuation_authority(cache, pending_context: dict, req
         raise RuntimeError("Focus continuation authority mapping could not be stored")
     return child_id
 
-
-async def claim_focus_continuation_ownership(cache, chat_id: str, source_task_id: Any, child_task_id: str) -> bool:
-    """Hand the chat's active-task marker to the continuation before it is dispatched.
-
-    Project file and remote command operations pause the delivery that owns the chat, so an
-    unowned continuation cannot offer them ("Async recovery source no longer owns the chat").
-    A finished source left the marker free; a running source hands it over atomically. A
-    marker held by a newer turn is never taken, and that continuation runs unowned.
-    """
-    if await cache.try_claim_active_ai_task(chat_id, child_task_id):
-        return True
-    if isinstance(source_task_id, str) and source_task_id:
-        return bool(await cache.transfer_active_ai_task(chat_id, source_task_id, child_task_id))
-    return False
