@@ -193,6 +193,13 @@ class ConnectionManager:
         ] = {}
         # Structure: {(user_id, device_fingerprint_hash): asyncio.Task} for disconnect grace period tasks
         self.grace_period_tasks: Dict[Tuple[str, str], asyncio.Task] = {}
+        # Replaced sockets of one route that were still open when replaced.
+        # Authentication latency varies, so an attempt the client already
+        # superseded can register after the socket the client keeps. When the
+        # registered socket then closes, the newest still-open standby takes
+        # over the route immediately instead of a 30 s grace-period gap.
+        self.standby_connections: Dict[Tuple[str, str], list[WebSocket]] = {}
+        self.standby_lookup: Dict[int, Tuple[str, str]] = {}
 
     def empty_call_cleanup_gate(self, user_id: str) -> asyncio.Lock:
         # Keep lock identity stable even when the final socket disconnects.
@@ -246,6 +253,9 @@ class ConnectionManager:
             if old_ws_id != new_ws_id and old_ws_id in self.reverse_lookup:
                 del self.reverse_lookup[old_ws_id]
                 logger.debug(f"Cleaned up reverse_lookup for old ws_id {old_ws_id} during connect.")
+                if _ws_is_live(old_websocket):
+                    self.standby_connections.setdefault(connection_key, []).append(old_websocket)
+                    self.standby_lookup[old_ws_id] = connection_key
         
         async with self.empty_call_cleanup_gate(user_id):
             if user_id not in self.active_connections:
@@ -339,6 +349,15 @@ class ConnectionManager:
             task = asyncio.create_task(revoker(nonce))
             task.add_done_callback(self._log_volatile_revoke_result)
         ws_id = id(websocket)
+        standby_key = self.standby_lookup.pop(ws_id, None)
+        if standby_key is not None:
+            remaining = [ws for ws in self.standby_connections.get(standby_key, []) if ws is not websocket]
+            if remaining:
+                self.standby_connections[standby_key] = remaining
+            else:
+                self.standby_connections.pop(standby_key, None)
+            logger.debug(f"Standby WebSocket {ws_id} closed (reason: {reason}); its route is unchanged.")
+            return
         if ws_id not in self.reverse_lookup:
             # This can happen if disconnect is called multiple times for the same ws_id after it's been processed by the first call
             # or if the websocket was never fully registered in reverse_lookup.
@@ -347,6 +366,8 @@ class ConnectionManager:
 
         user_id, device_fingerprint_hash = self.reverse_lookup[ws_id] # Don't pop yet, _finalize_disconnect will handle it
         connection_key = (user_id, device_fingerprint_hash)
+        if self._promote_standby(connection_key, websocket):
+            return
 
         if connection_key in self.grace_period_tasks and self.grace_period_tasks[connection_key].done() is False:
             logger.debug(f"Disconnect for {user_id}/{device_fingerprint_hash} (ws_id: {ws_id}, reason: {reason}) called while already in grace period. Timer will continue.")
@@ -358,6 +379,37 @@ class ConnectionManager:
         # Pass the original ws_id that initiated this disconnect sequence
         task = asyncio.create_task(self._schedule_finalize_disconnect(user_id, device_fingerprint_hash, ws_id, reason))
         self.grace_period_tasks[connection_key] = task
+
+    def _promote_standby(self, connection_key: Tuple[str, str], closing: WebSocket) -> bool:
+        """Hand the route to the newest still-open standby socket, if any.
+
+        Only the registered socket of a route can trigger this. Closed standby
+        entries are discarded. Route state (active chat, foreground, client
+        capabilities) belongs to the route and stays as it is.
+        """
+        user_id, device_fingerprint_hash = connection_key
+        if self.active_connections.get(user_id, {}).get(device_fingerprint_hash) is not closing:
+            return False
+        standby = self.standby_connections.pop(connection_key, [])
+        successor = None
+        while standby:
+            candidate = standby.pop()
+            self.standby_lookup.pop(id(candidate), None)
+            if _ws_is_live(candidate):
+                successor = candidate
+                break
+        if standby:
+            self.standby_connections[connection_key] = standby
+        if successor is None:
+            return False
+        self.reverse_lookup.pop(id(closing), None)
+        self.active_connections[user_id][device_fingerprint_hash] = successor
+        self.reverse_lookup[id(successor)] = connection_key
+        logger.info(
+            "WebSocket route %s/%s moved from closed ws_id %s to open standby ws_id %s",
+            user_id, device_fingerprint_hash[:8], id(closing), id(successor),
+        )
+        return True
 
     async def _schedule_finalize_disconnect(self, user_id: str, device_fingerprint_hash: str, original_ws_id: int, disconnect_reason: str):
         connection_key = (user_id, device_fingerprint_hash)

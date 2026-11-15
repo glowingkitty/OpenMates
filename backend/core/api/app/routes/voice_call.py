@@ -64,9 +64,6 @@ MAX_TEXT_IDENTITIES = 2048
 # Real TTS calls showed STT-punctuated pauses ("I would like to know.") judged
 # uncertain; 2.5s keeps ordinary ~2-3s thinking pauses in one turn.
 UNCERTAIN_SILENCE_FALLBACK_SECONDS = 2.5
-# An "incomplete" verdict (thinking pause) holds the turn at most this long; if no
-# new speech arrives the turn is sent. Never an unbounded hold.
-INCOMPLETE_HOLD_SECONDS = 1.5
 # Hard overall deadline of the "done talking?" check after turn.end. A miss or
 # provider outage counts as complete (logged), so the check cannot block a turn.
 COMPLETION_CHECK_DEADLINE_SECONDS = 0.6
@@ -218,6 +215,18 @@ def _start(message: str) -> tuple[str, str, list[dict[str, Any]], int]:
     # still supply bounded context, which is validated but never sent to STT.
     summary, messages = _context(event.get("context", {}))
     return chat_id, summary, messages, startup_audio_allowance_ms
+
+
+def _likely_end_hints(message: str) -> bool:
+    """Whether the client opted in to `turn.likely_end`/`turn.resumed` hints.
+
+    Older native clients reject unknown call frames, so the server sends these
+    preparation hints only to a client whose start frame asks for them.
+    """
+    value = json.loads(message).get("likely_end_hints", False)
+    if not isinstance(value, bool):
+        raise ValueError("Invalid likely end hint option")
+    return value
 
 
 class TranscriptLimitError(ValueError):
@@ -413,6 +422,8 @@ class _SpeechTurn:
     completion_retried: bool = False
     completion_started: float = 0.0
     submit_on_silence: bool = False
+    # A likely end was hinted to the browser, which may prepare the send for it.
+    likely_end_sent: bool = False
 
 
 async def _classify(text: str, assistant_text: str, websocket: WebSocket, language: str,
@@ -672,6 +683,13 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 turn.text, turn.assistant_text, assistant_speaking=turn.assistant_speaking):
             await interrupt(turn, "barge_in")
 
+    async def withdraw_likely_end(turn: _SpeechTurn) -> None:
+        # Continued speech withdraws the hint; the browser drops its prepared
+        # send without sending anything and may prepare again later.
+        if turn.likely_end_sent:
+            turn.likely_end_sent = False
+            await send({"type": "turn.resumed", "call_id": call_id, "message_id": turn.message_id})
+
     def invalidate_completion(turn: _SpeechTurn) -> None:
         # Cancel without waiting on network work: resumed speech must continue
         # to arrive. Retired checks remain tracked until they settle or hangup.
@@ -761,9 +779,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     verdict = "complete"
                 if verdict != "complete":
                     if verdict == "incomplete":
-                        # Bounded hold: send the turn if no new speech arrives.
-                        turn.submit_on_silence = True
-                        turn.deadline = now + INCOMPLETE_HOLD_SECONDS
+                        # A thinking pause stays held until new speech continues it.
+                        turn.deadline = None
                     else:
                         turn.submit_on_silence = True
                         turn.deadline = now + UNCERTAIN_SILENCE_FALLBACK_SECONDS
@@ -783,11 +800,18 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 current = None
 
     try:
+        accepted_at = time.monotonic()
         start_message = await asyncio.wait_for(websocket.receive_text(), 10)
+        # Stage timing: a start that never reaches ready shows where it waits.
+        logger.info("Voice call start stage=start_received call_id=%s elapsed_ms=%d",
+                    call_id, (time.monotonic() - accepted_at) * 1000)
         chat_id, _summary, _messages, startup_ms = _start(start_message)
+        likely_end_hints = _likely_end_hints(start_message)
         _context_options(json.loads(start_message).get("context", {}))
         allowance = startup_ms * PCM_INPUT_BYTES_PER_SECOND // 1000
         stage = "personal_chat"
+        logger.info("Voice call start stage=%s call_id=%s elapsed_ms=%d", stage, call_id,
+                    (time.monotonic() - accepted_at) * 1000)
         if not await _personal_chat(websocket, chat_id, user_id):
             raise ValueError("Chat unavailable")
         # Bind call admission before provider work under the same durable chat
@@ -802,12 +826,18 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         cleanup_tracking_started = True
         cleanup_eligible = cleanup_state.get("eligible") is True
         stage = "session"
+        logger.info("Voice call start stage=%s call_id=%s elapsed_ms=%d", stage, call_id,
+                    (time.monotonic() - accepted_at) * 1000)
         if not await _session_still_valid(websocket, auth_data):
             raise ValueError("Session unavailable")
         stage = "credits"
+        logger.info("Voice call start stage=%s call_id=%s elapsed_ms=%d", stage, call_id,
+                    (time.monotonic() - accepted_at) * 1000)
         if is_payment_enabled() and await _authoritative_credits(websocket, user_id) < REALTIME_CREDITS_PER_MINUTE:
             raise RuntimeError("Insufficient credits")
         stage = "lock"
+        logger.info("Voice call start stage=%s call_id=%s elapsed_ms=%d", stage, call_id,
+                    (time.monotonic() - accepted_at) * 1000)
         lock_client, lock_key, lock_token = await _acquire_lock(websocket, user_hash)
         lease_task = asyncio.create_task(_renew_lock(lock_client, lock_key, lock_token))
         await register_active_call(websocket.app.state.cache_service, user_id=user_id,
@@ -822,10 +852,14 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         await gate.bind(ACTIVE_TTL_SECONDS)
         registry_task = asyncio.create_task(registry_renewal())
         stage = "provider_open"
+        logger.info("Voice call start stage=%s call_id=%s elapsed_ms=%d", stage, call_id,
+                    (time.monotonic() - accepted_at) * 1000)
         prewarm_task = asyncio.create_task(_prewarm_completion())
         provider = await _provider(websocket)
         await provider.open()
         stage = "active"
+        logger.info("Voice call start stage=%s call_id=%s elapsed_ms=%d", stage, call_id,
+                    (time.monotonic() - accepted_at) * 1000)
         started = last_auth_check = time.monotonic()
         # Set before awaiting transport: a send failure/cancellation may still
         # have exposed Ready, so it must never grant null-ID cleanup authority.
@@ -939,6 +973,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     if current is not None:
                         # A provider can split a thinking pause into multiple
                         # turns. Retain the unfinished request and its identity.
+                        await withdraw_likely_end(current)
                         invalidate_completion(current)
                         current.deadline = None
                         current.separate_next_delta = bool(current.text)
@@ -980,9 +1015,18 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                             # Decide completion while trailing deltas are still
                             # collected; a later delta cancels this revision.
                             start_completion(current, text)
-                elif kind in {"turn.resume", "turn.eager_end"}:
-                    # Eager endpointing never authorizes chat or tools.
-                    if kind == "turn.resume" and current is not None:
+                elif kind == "turn.eager_end":
+                    # Eager endpointing never authorizes chat or tools. The
+                    # browser may only prepare the send (no model call) and
+                    # commits it on the final transcript.
+                    if (likely_end_hints and current is not None and current.text.strip()
+                            and not current.assistant_active and not current.likely_end_sent):
+                        current.likely_end_sent = True
+                        await send({"type": "turn.likely_end", "call_id": call_id,
+                                    "message_id": current.message_id})
+                elif kind == "turn.resume":
+                    if current is not None:
+                        await withdraw_likely_end(current)
                         invalidate_completion(current)
                         current.deadline = None
                 elif kind == "transcription.done":

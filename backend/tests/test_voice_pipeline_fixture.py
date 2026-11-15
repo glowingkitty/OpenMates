@@ -193,7 +193,6 @@ async def test_url_provider_substitutes_require_every_guard_and_exact_public_fix
             return SimpleNamespace(status_code=404)
 
     monkeypatch.setattr(url_validator.httpx, "AsyncClient", lambda **kwargs: HTTPClient())
-    monkeypatch.setattr(url_validator, "_generate_randomized_headers", lambda: {})
     client = GroqSafeguardClient()
     report = await client.report_malicious_urls(urls=[VOICE_RICH_SOURCE_URL], assistant_response="fixture")
     status = await url_validator.check_url_status(VOICE_RICH_SOURCE_URL)

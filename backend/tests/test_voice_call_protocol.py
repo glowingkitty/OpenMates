@@ -205,7 +205,8 @@ async def runtime(monkeypatch):
     # test_voice_call_orchestration_gate.py; these tests stub it to stay in memory.
     monkeypatch.setattr(route, "CallInterpretationGate", QuietInterpretationGate)
 
-    async def start(*, context=None, startup_ms=0, auth=None, wait_ready=True, transport=route.SPEECH_OUTPUT_TRANSPORT):
+    async def start(*, context=None, startup_ms=0, auth=None, wait_ready=True, transport=route.SPEECH_OUTPUT_TRANSPORT,
+                    likely_end_hints=None):
         socket, provider = Socket(), Provider()
         sockets.append(socket)
         providers.append(provider)
@@ -224,6 +225,8 @@ async def runtime(monkeypatch):
             start_event["speech_output_transport"] = transport
         if context is not None:
             start_event["context"] = context
+        if likely_end_hints is not None:
+            start_event["likely_end_hints"] = likely_end_hints
         socket.push(start_event)
         task = asyncio.create_task(route.voice_call(socket, auth or {"user_id": "owner", "session_hash": "session"}))
         tasks.append(task)
@@ -367,6 +370,53 @@ async def test_final_waits_for_trailing_negation_and_duplicate_end_never_resubmi
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
+async def test_eager_end_hints_likely_end_once_and_resume_withdraws_it_without_authority(runtime):
+    socket, provider, _ = await runtime.start(likely_end_hints=True)
+    provider.push("turn.start", time_s=0)
+    provider.push("transcription.text.delta", text="Book a table")
+    provider.push("turn.eager_end", time_s=0.6)
+    hint = await socket.event("turn.likely_end")
+    identity = hint["message_id"]
+    provider.push("turn.eager_end", time_s=0.7)
+    provider.push("turn.resume", time_s=0.9)
+    withdrawn = await socket.event("turn.resumed")
+    assert withdrawn["message_id"] == identity
+    # A hint is only a preparation cue: no final transcript, no chat authority.
+    assert not socket.finals() and not runtime.issued
+    assert [event["type"] for event in socket.sent].count("turn.likely_end") == 1
+    provider.push("transcription.text.delta", text=" for two")
+    provider.push("turn.eager_end", time_s=1.4)
+    await socket.until(lambda events: [e["type"] for e in events].count("turn.likely_end") == 2)
+    provider.push("turn.end", time_s=1.5, end_reason="threshold")
+    final = await socket.until(lambda _: socket.finals())
+    assert final[0]["message_id"] == identity and final[0]["text"] == "Book a table for two"
+    assert [event["type"] for event in socket.sent].count("turn.resumed") == 1
+    assert len(runtime.issued) == 1
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
+async def test_eager_end_sends_no_hint_to_a_client_that_did_not_opt_in(runtime):
+    # Older native clients reject unknown call frames; they never receive hints.
+    socket, provider, _ = await runtime.start()
+    provider.push("turn.start", time_s=0)
+    provider.push("transcription.text.delta", text="Book a table")
+    provider.push("turn.eager_end", time_s=0.6)
+    provider.push("turn.resume", time_s=0.9)
+    provider.push("turn.end", time_s=1.5, end_reason="threshold")
+    await socket.until(lambda _: socket.finals())
+    assert not {"turn.likely_end", "turn.resumed"} & {event["type"] for event in socket.sent}
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
+def test_likely_end_hint_option_must_be_boolean():
+    base = {"type": "start", "speech_output_transport": route.SPEECH_OUTPUT_TRANSPORT, "chat_id": str(uuid.uuid4())}
+    assert route._likely_end_hints(json.dumps(base)) is False
+    assert route._likely_end_hints(json.dumps({**base, "likely_end_hints": True})) is True
+    with pytest.raises(ValueError):
+        route._likely_end_hints(json.dumps({**base, "likely_end_hints": "yes"}))
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
 async def test_resume_and_new_provider_start_retain_one_unsubmitted_request(runtime):
     socket, provider, _ = await runtime.start()
     for kind, kwargs in [("turn.start", {}), ("transcription.text.delta", {"text": "First"}),
@@ -484,19 +534,19 @@ async def test_unavailable_decision_fails_open_and_submits_without_retry(runtime
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
-async def test_incomplete_thinking_pause_is_held_only_for_the_bounded_hold(runtime, monkeypatch):
+async def test_incomplete_thinking_pause_is_held_beyond_the_silence_fallback(runtime, monkeypatch):
     async def complete(text, _socket):
         return "incomplete"
 
     monkeypatch.setattr(route, "_complete", complete)
-    monkeypatch.setattr(route, "INCOMPLETE_HOLD_SECONDS", 0.3)
+    monkeypatch.setattr(route, "UNCERTAIN_SILENCE_FALLBACK_SECONDS", 0.1)
     socket, provider, _ = await runtime.start()
     provider.push("turn.start")
     provider.push("transcription.text.delta", text="Let me think")
     provider.push("turn.end")
     assert (await socket.event("transcript.pending"))["reason"] == "incomplete"
-    final = await socket.until(lambda _: socket.finals())
-    assert [event["text"] for event in final] == ["Let me think"] and len(runtime.issued) == 1
+    await asyncio.sleep(0.5)
+    assert not socket.finals() and not runtime.issued
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
@@ -986,7 +1036,7 @@ async def test_isolated_fixture_needs_all_four_guards_and_has_no_assistant_respo
     await fixture.send_audio(base64.b64encode(bytes(3200)).decode())
     assert fixture._events.empty()
     await fixture.send_audio(base64.b64encode(b"\x00\x01" * 1600).decode())
-    assert [(await fixture.receive())["type"] for _ in range(3)] == ["turn.start", "transcription.text.delta", "turn.end"]
+    assert [(await fixture.receive())["type"] for _ in range(4)] == ["turn.start", "transcription.text.delta", "turn.eager_end", "turn.end"]
     assert not fixture.capabilities.audio_output and not fixture.capabilities.tools
     for key, value in guards.items():
         monkeypatch.delenv(key)

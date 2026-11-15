@@ -1400,7 +1400,7 @@ features:
       - backend/tests/test_auth_session_security_isolation.py
       - backend/tests/test_password_v2.py
       - backend/tests/test_session_refresh_coordination.py
-      unit_test_files: 36
+      unit_test_files: 37
     sdk_npm:
       status: not_run
       source: tests
@@ -9899,10 +9899,10 @@ features:
       intent: implemented
       assertions:
         passing: 22
-        failing: 11
+        failing: 12
         not_run: 5
         missing: 11
-        counted: 49
+        counted: 50
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
         fetch failure
@@ -9916,9 +9916,11 @@ features:
         actions while saving
       - frontend/apps/web_app/tests/components/voice-call-privacy.spec.ts › uses the shared global notification and cancels
         without saving
+      - frontend/apps/web_app/tests/voice-call.spec.ts
       - frontend/apps/web_app/tests/voice-call.spec.ts › uses one canonical turn for voice and typed input, preserves rich
         replies and retains its chat across navigation and reload
-      key_tests: []
+      key_tests:
+      - frontend/apps/web_app/tests/voice-call.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/assistant-speech-player.spec.ts
       - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
@@ -10069,6 +10071,8 @@ features:
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0
+  notes: Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server;
+    no client opts in yet. The voice-call web spec is the key end-to-end test.
 - id: webhooks
   name: Webhooks
   kind: core
