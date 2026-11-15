@@ -117,7 +117,9 @@ def totp(secret: str, offset: int = 0) -> str:
 def native_login(importer: str, login_env: dict[str, str]) -> None:
     """Admit a password-login session into the fresh native state; never prints credentials."""
     for offset in (0, -1, 1):
-        env = dict(login_env, OPENMATES_APP_URL=APP_URL,
+        # The importer refuses to start without OPENMATES_API_URL
+        # (missing_openmates_api_url); the account environment does not carry it.
+        env = dict(login_env, OPENMATES_APP_URL=APP_URL, OPENMATES_API_URL=API_URL,
                    OPENMATES_TEST_ACCOUNT_TOTP=totp(login_env["OPENMATES_TEST_ACCOUNT_OTP_KEY"], offset))
         done = subprocess.run([importer], cwd=ROOT, env=env, capture_output=True, text=True,
                               check=False, timeout=180)

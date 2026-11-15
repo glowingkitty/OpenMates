@@ -434,7 +434,12 @@ for (const tfaCode of JSON.parse(process.env.OPENMATES_LOGIN_TOTP_CODES)) {
   });
   if (login.status === 'authenticated') break;
 }
-if (login?.status !== 'authenticated') throw new Error('CLI client password login did not authenticate');
+if (login?.status !== 'authenticated') {
+  // Name the outcome (status and server code only, never credentials) so callers can tell
+  // a wrong password, a 2FA mismatch and a device check apart.
+  const code = login?.error?.code ?? login?.code ?? login?.reason ?? '';
+  throw new Error('CLI client password login did not authenticate: status=' + String(login?.status) + (code ? ' code=' + String(code) : ''));
+}
 process.stdout.write(JSON.stringify({ credentialVersion: login.credentialVersion ?? null }));
 `;
 
@@ -452,6 +457,20 @@ function cliSourceRoot() {
   const shared = common.status === 0 ? dirname(common.stdout.trim()) : "";
   if (shared && hasDeps(shared)) return shared;
   throw new Error("CLI client login needs installed openmates-cli dependencies");
+}
+
+/**
+ * The error line of a crashed login child. An uncaught Node exception ends its
+ * stderr with the "Node.js vX" banner, so the last line never names the cause;
+ * prefer the thrown error's own line and skip warnings and stack frames.
+ */
+function loginFailureReason(result) {
+  const lines = (result.stderr || "").split("\n").map((line) => line.trim()).filter(Boolean);
+  const error = lines.find((line) => /^(\w+)?Error\b|^\w+Error:|^Uncaught /.test(line));
+  const meaningful = lines.filter(
+    (line) => !/^at |^Node\.js v|^\(node:\d+\)|^\(Use `node|Warning:|^--import |^Reparsing |^To eliminate |^\^+$/.test(line),
+  );
+  return error || meaningful.pop() || (result.error ? String(result.error.message) : `exit ${result.status}`);
 }
 
 function loginWithCliClient(account, options) {
@@ -474,8 +493,7 @@ function loginWithCliClient(account, options) {
     },
   );
   if (result.status !== 0) {
-    const lastLine = (result.stderr || "").trim().split("\n").filter(Boolean).pop() || `exit ${result.status}`;
-    throw new Error(`CLI client login failed: ${lastLine.replace(/[\w.%+-]+@[\w.-]+/g, "<email>").slice(0, 200)}`);
+    throw new Error(`CLI client login failed: ${loginFailureReason(result).replace(/[\w.%+-]+@[\w.-]+/g, "<email>").slice(0, 200)}`);
   }
   const { credentialVersion } = parseCliJson(result.stdout);
   return { success: true, apiUrl: options.apiUrl, slot: account.slot, credentialVersion, cookies: [] };
