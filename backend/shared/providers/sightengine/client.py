@@ -7,6 +7,10 @@
 #   nudity-2.0, face-attributes, minor, deepfake, celebrities,
 #   offensive, gore, weapon, genai
 #
+# Response shapes (checked against the live API): `gore` answers {"prob": p};
+# `weapon` answers {"classes": {"firearm": p, "knife": p, ...}}; `offensive`
+# carries no weapon score.
+#
 # The extended models cover the gaps that let the upload pipeline through:
 #   - minor age estimation (CSAM defense, see policy §S1)
 #   - celebrity identification (public figure block, see policy §S6)
@@ -29,7 +33,7 @@ SIGHTENGINE_SECRET_PATH = "kv/data/providers/sightengine"
 
 # Model list used for every safety pipeline call (both input and output).
 # Keep as a single combined request — one round-trip covers all signals.
-SAFETY_MODELS = "nudity-2.0,face-attributes,offensive,gore,genai,celebrities"
+SAFETY_MODELS = "nudity-2.0,face-attributes,offensive,gore,weapon,genai,celebrities"
 
 # Input-stage thresholds — see docs/architecture/image-safety-pipeline.md §1a
 # "Hard-block thresholds (input)" table.
@@ -40,8 +44,6 @@ INPUT_THRESHOLDS = {
     "sextoy": 0.3,
     "suggestive": 0.6,
     "gore": 0.5,
-    "blood": 0.6,
-    "weapon": 0.7,
     "deepfake_with_celebrity": 0.9,
 }
 
@@ -75,9 +77,8 @@ class SightengineFindings:
     erotica: float = 0.0
     sextoy: float = 0.0
     suggestive: float = 0.0
-    weapon: float = 0.0
+    weapon: float = 0.0  # soft signal: sends the image to the safeguard review
     gore: float = 0.0
-    blood: float = 0.0
 
     # Face / identity signals
     face_count: int = 0
@@ -110,7 +111,6 @@ class SightengineFindings:
                 "suggestive": round(self.suggestive, 3),
                 "weapon": round(self.weapon, 3),
                 "gore": round(self.gore, 3),
-                "blood": round(self.blood, 3),
                 "deepfake": round(self.deepfake_score, 3),
                 "ai_generated": round(self.ai_generated, 3),
             },
@@ -251,8 +251,8 @@ class SightengineSafetyClient:
     def _parse_response(data: Dict[str, Any]) -> SightengineFindings:
         """Parse Sightengine JSON into structured findings."""
         nudity = data.get("nudity", {}) or {}
-        offensive = data.get("offensive", {}) or {}
         gore = data.get("gore", {}) or {}
+        weapon_classes = (data.get("weapon", {}) or {}).get("classes", {}) or {}
         faces = data.get("faces", []) or []
         # "faces" may also appear under "face" or "face-attributes"; normalize
         if not faces and isinstance(data.get("face"), dict):
@@ -264,9 +264,8 @@ class SightengineSafetyClient:
             erotica=float(nudity.get("erotica", 0.0)),
             sextoy=float(nudity.get("sextoy", 0.0)),
             suggestive=float(nudity.get("suggestive", 0.0)),
-            weapon=float(offensive.get("weapon", 0.0)),
-            gore=float(gore.get("gore", 0.0)),
-            blood=float(gore.get("blood", 0.0)),
+            weapon=max(float(weapon_classes.get("firearm", 0.0)), float(weapon_classes.get("knife", 0.0))),
+            gore=float(gore.get("prob", 0.0)),
             ai_generated=float((data.get("type") or {}).get("ai_generated", 0.0)),
             raw=data,
         )
@@ -366,11 +365,6 @@ class SightengineSafetyClient:
         if f.gore > thresholds["gore"]:
             f.hard_block = True
             f.hard_block_reason = f"gore={f.gore:.2f}"
-            f.category_hint = "S4_violent_recontextualization"
-            return
-        if f.blood > thresholds["blood"]:
-            f.hard_block = True
-            f.hard_block_reason = f"blood={f.blood:.2f}"
             f.category_hint = "S4_violent_recontextualization"
             return
 

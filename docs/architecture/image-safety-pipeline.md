@@ -190,7 +190,7 @@ Plan: `docs/plans/jev-image-safety/plan.yml`. Code: `backend/shared/python_utils
   - photorealistic public figure ≥ 0.8 → S6.
   Lower values are soft signals that send the image to Step 2 with the VLM findings. When Jev fails, or the image cannot be prepared for it, the Sightengine call below runs as before.
 - **Why:** a labelled benchmark (149 prompts including adversarial and tricky-benign ones; 53 openly licensed images; two repeats) found Jev at least as accurate in every measured category, with no critical misses, about 3× faster and 2–20× cheaper. Explicit adult content was not part of it, so the VLM and Step 2 stay in place.
-- **Sightengine response parsing:** the `gore` model answers `{"prob": …}`, and `weapon` is not among the requested models. Sightengine's gore and weapon scores therefore stay 0 on the fallback path. TASK 5a780ad9 tracks this.
+- **Sightengine response parsing:** the `gore` model answers `{"prob": …}`, and the `weapon` model answers `{"classes": {"firearm": …, "knife": …}}`. The fallback client reads both, so gore blocks and weapons send the image to Step 2. The upload scanner still reads the old fields; its rules wait for an owner decision (TASK 5a780ad9).
 
 ### Step 1 — Input image analysis (parallel: image classifier + Gemini)
 
@@ -200,7 +200,7 @@ Run both classifiers concurrently via `asyncio.gather()`. Either can veto. The i
 
 Single combined API call (like our current upload flow) with models:
 ```
-nudity-2.0 + face-attributes + minor + deepfake + celebrities + offensive + gore + genai
+nudity-2.0 + face-attributes + minor + deepfake + celebrities + offensive + gore + weapon + genai
 ```
 
 **Hard-block thresholds (input):**
@@ -213,9 +213,8 @@ nudity-2.0 + face-attributes + minor + deepfake + celebrities + offensive + gore
 | `nudity.sextoy` | > 0.3 | reject |
 | `minor detected` + any `nudity.*` | > 0.05 | reject + CSAM audit trail (one strike) |
 | `minor detected` + any `suggestive` | > 0.2 | reject |
-| `gore` | > 0.5 | reject |
-| `blood` | > 0.6 | reject |
-| `weapon` + `violence context` | > 0.7 | reject |
+| `gore.prob` | > 0.5 | reject |
+| `weapon.classes` firearm or knife | > 0.3 | Step 2 review (no reject) |
 | `hate_symbol` (any) | detected | reject |
 | `deepfake_score` + celebrity match | > 0.9 | reject |
 

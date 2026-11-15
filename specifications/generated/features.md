@@ -2560,7 +2560,7 @@ Strikes, warnings, suspension and appeal when safety checks reject image or vide
 | Apple | planned | 0 pass · 0 fail · 0 not run · 14 no test | — |
 | CLI | — | 0 pass · 0 fail · 0 not run · 14 no test | — |
 | TUI | — | — | — |
-| REST API | partial 8/14 | 8 pass · 0 fail · 0 not run · 6 no test | 5 unit test file(s), e.g. [test_image_safety_pipeline.py](../../backend/tests/test_image_safety_pipeline.py), [test_safety_strikes.py](../../backend/tests/test_safety_strikes.py) |
+| REST API | partial 8/14 | 8 pass · 0 fail · 0 not run · 6 no test | 6 unit test file(s), e.g. [test_image_safety_pipeline.py](../../backend/tests/test_image_safety_pipeline.py), [test_safety_strikes.py](../../backend/tests/test_safety_strikes.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 
