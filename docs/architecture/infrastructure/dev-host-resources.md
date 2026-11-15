@@ -249,3 +249,15 @@ send_message `held=auto` replaces typed text older than 30 min (age from
 choose `replace` or `send_first`. host_status lists the typed entries as the queue
 of unsent messages.
 
+Unconfirmed deliveries (2026-11-15, 76c8264a: a send to a busy chat sat in its box for
+2 h): a busy chat either takes a typed message into its queue, which Claude Code writes
+to the transcript only when the current step ends, or leaves it in the box (Enter not
+taken; long text shows as `[Pasted text #N]`). The connector presses Enter again at
+once while its text is still in the box, and lists every delivery it could not confirm
+in `logs/claude-chat-lifecycle/connector-deliveries.json`. Its broker re-checks them
+every 30 s: delivered once the transcript shows them, Enter again while they sit in
+the box, otherwise `undelivered` (shown in host_status and chat_changes, never
+dropped). `watch` reads that file and records a chat whose box shows such a delivery
+as `typed` (source `connector`, age from when it was typed) even while the chat is
+busy, without probing it.
+

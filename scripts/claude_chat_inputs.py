@@ -15,6 +15,13 @@ event); since commit 1661195 it never refuses and releases after at most 9 minut
 shows only that letter; typed text stays and gets the letter appended. The letter is
 deleted again either way.
 
+Busy chats are not probed (their box is in use), except for text the dev connector typed
+itself: the connector lists its unconfirmed deliveries in connector-deliveries.json in
+the same folder (its broker re-presses Enter and flags them undelivered), and `watch`
+records a busy chat whose box still shows such a delivery as `typed` with source
+`connector` and the time it was typed, so a send that sat in a busy chat's box for two
+hours (76c8264a, 2026-11-15) shows up at once.
+
 `watch` (every minute from scripts/host_resources.py) writes
 logs/claude-chat-lifecycle/inputs.json: per running pane chat whose box shows text,
 {text, since (first seen), verdict, checked_at, title}. Text that stays the same for
@@ -47,6 +54,8 @@ PROBE_AFTER_SECONDS = 10 * 60  # text unchanged this long in an idle chat is che
 PROBE_POLLS = 10
 PROBE_PAUSE = 0.3
 INPUTS_FILE = "inputs.json"
+DELIVERIES_FILE = "connector-deliveries.json"  # written by the dev connector's broker
+PASTE_MARK = "[Pasted text"  # how Claude Code shows long typed text
 RULE_CHARS = set("▔─━")
 
 Zellij = Callable[..., "object"]  # lifecycle.zellij signature: (session, *action args) -> CompletedProcess
@@ -108,11 +117,30 @@ def save(directory: Path, entries: dict[str, dict]) -> None:
     tmp.replace(directory / INPUTS_FILE)
 
 
+def connector_pending(directory: Path) -> dict[str, dict]:
+    """The connector's pending deliveries by chat id ({} when the connector wrote none)."""
+    try:
+        data = json.loads((directory / DELIVERIES_FILE).read_text())
+    except FileNotFoundError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {cid: entry for cid, entry in data.items() if isinstance(entry, dict) and entry.get("state") == "pending"}
+
+
+def connector_typed(shown: str, delivery: dict) -> bool:
+    """Whether the box shows the message the connector typed (same rule as its deliveries.ours)."""
+    head = str(delivery.get("head", ""))[:40]
+    return bool(shown) and ((bool(head) and shown.startswith(head))
+                            or (bool(delivery.get("long")) and shown.startswith(PASTE_MARK)))
+
+
 def watch(live: list, directory: Path, now: float, zellij: Zellij | None = None,
           sleep: Callable[[float], None] | None = None) -> dict[str, dict]:
     """Refresh inputs.json from the live chats (lifecycle.Chat); returns the new entries."""
     zellij = zellij or lifecycle.zellij
     previous = load(directory)
+    pending = connector_pending(directory)
     entries: dict[str, dict] = {}
     for chat in live:
         if chat.kind != "pane" or not chat.zellij_session or not chat.pane_id:
@@ -124,6 +152,17 @@ def watch(live: list, directory: Path, now: float, zellij: Zellij | None = None,
         old = previous.get(chat.session_id, {})
         entry = old if old.get("text") == shown else {"text": shown, "since": now, "verdict": "unchecked"}
         entry["title"] = chat.title or chat.name
+        delivery = pending.get(chat.session_id)
+        if delivery and connector_typed(shown, delivery):
+            # Our own text, busy or idle: no probe needed, age from when it was typed.
+            if entry.get("source") != "connector":
+                lifecycle.log_event(directory, {"event": "unsent_input", "session_id": chat.session_id,
+                                                "title": entry["title"], "source": "connector",
+                                                "status": chat.status, "text": shown[:200]})
+            entry.update(verdict="typed", source="connector", since=float(delivery.get("typed_at", now)),
+                         checked_at=now, status=chat.status)
+            entries[chat.session_id] = entry
+            continue
         quiet = chat.status == "idle" and not chat.waiting_for
         if entry["verdict"] == "unchecked" and quiet and now - float(entry["since"]) >= PROBE_AFTER_SECONDS:
             verdict = probe(zellij, chat.zellij_session, pane, sleep)

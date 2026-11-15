@@ -120,6 +120,32 @@ def test_watch_drops_chats_with_an_empty_box_and_non_pane_chats(tmp_path):
     assert entries == {}
 
 
+def test_watch_covers_a_busy_chat_for_text_the_connector_typed(tmp_path, monkeypatch):
+    """2026-11-15, 76c8264a: a send to a busy chat sat in its box for 2 h and nothing noticed."""
+    events = []
+    monkeypatch.setattr(inputs.lifecycle, "log_event", lambda directory, event: events.append(event))
+    (tmp_path / inputs.DELIVERIES_FILE).write_text(json.dumps({
+        "busy-long": {"state": "pending", "head": "[From Marco (owner) via the owner's", "long": True,
+                      "typed_at": NOW - 7200},
+        "busy-short": {"state": "pending", "head": "From Marco: go ahead", "long": False, "typed_at": NOW - 60},
+        "busy-other": {"state": "pending", "head": "From Marco: go ahead", "long": False, "typed_at": NOW - 60},
+        "done": {"state": "undelivered", "head": "From Marco: old", "long": False, "typed_at": NOW - 9000}}))
+    panes = Panes({"terminal_1": {"typed": "[Pasted text #1]"}, "terminal_2": {"typed": "From Marco: go ahead now"},
+                   "terminal_3": {"typed": "my own draft"}, "terminal_4": {"typed": "From Marco: old"}})
+    live = [FakeChat("busy-long", "1", status="busy"), FakeChat("busy-short", "2", status="busy"),
+            FakeChat("busy-other", "3", status="busy"), FakeChat("done", "4", status="busy")]
+    entries = inputs.watch(live, tmp_path, NOW, panes, no_sleep)
+    assert entries["busy-long"]["verdict"] == "typed" and entries["busy-long"]["source"] == "connector"
+    assert entries["busy-long"]["since"] == NOW - 7200  # age from when the connector typed it
+    assert entries["busy-short"]["verdict"] == "typed"
+    assert entries["busy-other"]["verdict"] == "unchecked"  # not ours, and busy chats are not probed
+    assert entries["done"]["verdict"] == "unchecked"  # already flagged undelivered by the connector
+    assert not any(call[0].startswith("write") for call in panes.calls)  # nothing typed into busy chats
+    assert [event["session_id"] for event in events] == ["busy-long", "busy-short"]
+    inputs.watch(live, tmp_path, NOW + 60, panes, no_sleep)
+    assert len(events) == 2  # logged once, not every minute
+
+
 @pytest.mark.parametrize("payload", ["[]", "{}"])
 def test_load_tolerates_an_empty_or_odd_file(tmp_path, payload):
     (tmp_path / inputs.INPUTS_FILE).write_text(payload)
