@@ -8,13 +8,19 @@ use crate::remote_command_review::request_digest;
 use serde_json::Value;
 
 fn fixture() -> (Vec<u8>, Vec<Value>) {
-    let raw: Value = serde_json::from_str(include_str!("../../../tests/fixtures/remote_command_portable_vectors.json")).unwrap();
+    let raw: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/remote_command_portable_vectors.json"
+    ))
+    .unwrap();
     let key = hex(raw["project_key_hex"].as_str().unwrap());
     (key, raw["vectors"].as_array().unwrap().clone())
 }
 
 fn hex(s: &str) -> Vec<u8> {
-    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap()).collect()
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+        .collect()
 }
 
 fn claimed(request: &PortableRequest, key: &[u8; 32], canonical: &str) -> ClaimedRequest {
@@ -46,7 +52,10 @@ fn canonical_form_and_digest_match_node_vectors() {
         let canonical = vector["canonical"].as_str().unwrap();
         let parsed = parse_portable_request(canonical).expect("vector parses");
         assert_eq!(canonical_request(&parsed), canonical);
-        assert_eq!(request_digest(canonical, &key).unwrap(), vector["request_digest"].as_str().unwrap());
+        assert_eq!(
+            request_digest(canonical, &key).unwrap(),
+            vector["request_digest"].as_str().unwrap()
+        );
     }
 }
 
@@ -69,17 +78,29 @@ fn opens_claimed_request_and_rejects_tampering() {
 
     let mut bad_digest = good.clone();
     bad_digest.request_digest = request_digest("{}", &key).unwrap();
-    assert_eq!(open_claimed_request(&bad_digest, &key), Err(PortableError::DigestMismatch));
+    assert_eq!(
+        open_claimed_request(&bad_digest, &key),
+        Err(PortableError::DigestMismatch)
+    );
 
     let mut other_exec = good.clone();
     other_exec.execution_id = "exec-2".into();
-    assert_eq!(open_claimed_request(&other_exec, &key), Err(PortableError::ClaimMismatch));
+    assert_eq!(
+        open_claimed_request(&other_exec, &key),
+        Err(PortableError::ClaimMismatch)
+    );
 
     let mut other_approval = good.clone();
     other_approval.approval = Approval::OneRun;
-    assert_eq!(open_claimed_request(&other_approval, &key), Err(PortableError::ClaimMismatch));
+    assert_eq!(
+        open_claimed_request(&other_approval, &key),
+        Err(PortableError::ClaimMismatch)
+    );
 
-    assert_eq!(open_claimed_request(&good, &[7u8; 32]), Err(PortableError::Decrypt));
+    assert_eq!(
+        open_claimed_request(&good, &[7u8; 32]),
+        Err(PortableError::Decrypt)
+    );
 }
 
 #[test]
@@ -87,9 +108,15 @@ fn rejects_non_canonical_and_unknown_keys() {
     let (_, vectors) = fixture();
     let canonical = vectors[0]["canonical"].as_str().unwrap();
     let spaced = canonical.replacen(',', ", ", 1);
-    assert_eq!(parse_portable_request(&spaced), Err(PortableError::NotCanonical));
+    assert_eq!(
+        parse_portable_request(&spaced),
+        Err(PortableError::NotCanonical)
+    );
     let extra = canonical.replacen("\"policy\"", "\"extra\":1,\"policy\"", 1);
-    assert!(matches!(parse_portable_request(&extra), Err(PortableError::Invalid(_))));
+    assert!(matches!(
+        parse_portable_request(&extra),
+        Err(PortableError::Invalid(_))
+    ));
 }
 
 #[test]
@@ -110,5 +137,10 @@ fn rejects_policy_limits() {
     assert!(with(&|p| p["deadline_ms"] = 86_400_001.into()).is_err());
     assert!(with(&|p| p["mode"] = "daemon".into()).is_err());
     assert!(with(&|p| p["network_profile"] = 5.into()).is_err());
-    assert!(with(&|p| { p.as_object_mut().unwrap().remove("cwd"); }).is_err());
+    assert!(
+        with(&|p| {
+            p.as_object_mut().unwrap().remove("cwd");
+        })
+        .is_err()
+    );
 }

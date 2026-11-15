@@ -136,7 +136,10 @@ impl RemoteCommandErrorCode {
 
 fn identifier_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$").expect("static identifier regex is valid"))
+    RE.get_or_init(|| {
+        Regex::new(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+            .expect("static identifier regex is valid")
+    })
 }
 
 /// Whether `value` matches the shared identifier grammar (`IDENTIFIER` in TS).
@@ -144,7 +147,10 @@ pub(crate) fn is_identifier(value: &str) -> bool {
     identifier_re().is_match(value)
 }
 
-pub(crate) fn record<'a>(value: &'a Value, rule: &'static str) -> Result<&'a Map<String, Value>, WireError> {
+pub(crate) fn record<'a>(
+    value: &'a Value,
+    rule: &'static str,
+) -> Result<&'a Map<String, Value>, WireError> {
     value.as_object().ok_or(WireError::Invalid(rule))
 }
 
@@ -166,7 +172,11 @@ pub(crate) fn identifier(value: Option<&Value>, rule: &'static str) -> Result<St
 /// Non-empty string without NUL, at most 1 MiB in UTF-16 units (TS `text`).
 pub(crate) fn text(value: Option<&Value>, rule: &'static str) -> Result<String, WireError> {
     match value.and_then(Value::as_str) {
-        Some(s) if !s.is_empty() && s.encode_utf16().count() <= MAX_CIPHERTEXT_CHARS && !s.contains('\0') => {
+        Some(s)
+            if !s.is_empty()
+                && s.encode_utf16().count() <= MAX_CIPHERTEXT_CHARS
+                && !s.contains('\0') =>
+        {
             Ok(s.to_owned())
         }
         _ => Err(WireError::Invalid(rule)),
@@ -174,7 +184,11 @@ pub(crate) fn text(value: Option<&Value>, rule: &'static str) -> Result<String, 
 }
 
 /// Safe integer at least `minimum` (TS `integer`); floats are refused.
-pub(crate) fn integer(value: Option<&Value>, minimum: i64, rule: &'static str) -> Result<i64, WireError> {
+pub(crate) fn integer(
+    value: Option<&Value>,
+    minimum: i64,
+    rule: &'static str,
+) -> Result<i64, WireError> {
     match value.and_then(Value::as_i64) {
         Some(n) if (minimum..=MAX_SAFE_INTEGER).contains(&n) => Ok(n),
         _ => Err(WireError::Invalid(rule)),
@@ -182,7 +196,12 @@ pub(crate) fn integer(value: Option<&Value>, minimum: i64, rule: &'static str) -
 }
 
 /// Like TS `item.x ?? default`: absent or null uses `default`.
-fn integer_or(value: Option<&Value>, default: i64, minimum: i64, rule: &'static str) -> Result<i64, WireError> {
+fn integer_or(
+    value: Option<&Value>,
+    default: i64,
+    minimum: i64,
+    rule: &'static str,
+) -> Result<i64, WireError> {
     match value {
         None | Some(Value::Null) => Ok(default),
         some => integer(some, minimum, rule),
@@ -243,7 +262,10 @@ pub(crate) fn validate_summary(value: &Value) -> Result<CommandSummary, WireErro
 /// # Errors
 /// `WireError::Invalid` when `jobs` is not an array or a summary is invalid.
 pub(crate) fn validate_jobs(value: &Value) -> Result<Vec<CommandSummary>, WireError> {
-    let jobs = record(value, "jobs reply")?.get("jobs").and_then(Value::as_array).ok_or(WireError::Invalid("jobs"))?;
+    let jobs = record(value, "jobs reply")?
+        .get("jobs")
+        .and_then(Value::as_array)
+        .ok_or(WireError::Invalid("jobs"))?;
     jobs.iter().map(validate_summary).collect()
 }
 
@@ -276,10 +298,12 @@ pub(crate) fn parse_approval(value: &Value) -> Result<Approval, WireError> {
             exact_keys(approval, &["kind", "preset_id", "definition_digest"])?;
             let digest = approval.get("definition_digest").and_then(Value::as_str);
             match digest {
-                Some(d) if d.len() == 64 && d.bytes().all(|b| b.is_ascii_hexdigit()) => Ok(Approval::Preset {
-                    preset_id: identifier(approval.get("preset_id"), "preset_id")?,
-                    definition_digest: d.to_owned(),
-                }),
+                Some(d) if d.len() == 64 && d.bytes().all(|b| b.is_ascii_hexdigit()) => {
+                    Ok(Approval::Preset {
+                        preset_id: identifier(approval.get("preset_id"), "preset_id")?,
+                        definition_digest: d.to_owned(),
+                    })
+                }
                 _ => Err(WireError::Invalid("preset approval")),
             }
         }
@@ -401,7 +425,10 @@ pub(crate) fn validate_claimed_request(
 ///
 /// # Errors
 /// `BindingMismatch` for another execution; `Invalid` for malformed fields.
-pub(crate) fn validate_lease_response(value: &Value, execution_id: &str) -> Result<LeaseResponse, WireError> {
+pub(crate) fn validate_lease_response(
+    value: &Value,
+    execution_id: &str,
+) -> Result<LeaseResponse, WireError> {
     let item = record(value, "recovery")?;
     if item.get("execution_id").and_then(Value::as_str) != Some(execution_id) {
         return Err(WireError::BindingMismatch);
@@ -452,7 +479,11 @@ pub(crate) fn validate_authority_reply(
 ///
 /// # Errors
 /// `BindingMismatch` for another execution; `Invalid` when not acknowledged.
-pub(crate) fn validate_event_ack(value: &Value, execution_id: &str, sent_sequence: i64) -> Result<CommandSummary, WireError> {
+pub(crate) fn validate_event_ack(
+    value: &Value,
+    execution_id: &str,
+    sent_sequence: i64,
+) -> Result<CommandSummary, WireError> {
     let summary = validate_summary(value)?;
     if summary.execution_id != execution_id {
         return Err(WireError::BindingMismatch);
@@ -495,7 +526,10 @@ impl EventStatus {
 
     /// Whether the status ends the execution.
     pub(crate) fn is_terminal(self) -> bool {
-        matches!(self, Self::Succeeded | Self::Failed | Self::Stopped | Self::TimedOut)
+        matches!(
+            self,
+            Self::Succeeded | Self::Failed | Self::Stopped | Self::TimedOut
+        )
     }
 }
 
@@ -543,7 +577,13 @@ pub(crate) struct LeaseIdentity {
     pub(crate) lease_generation: i64,
 }
 
-fn base_payload(execution_id: &str, project_id: &str, source_id: &str, session: &str, team: Option<&str>) -> Map<String, Value> {
+fn base_payload(
+    execution_id: &str,
+    project_id: &str,
+    source_id: &str,
+    session: &str,
+    team: Option<&str>,
+) -> Map<String, Value> {
     let mut map = Map::new();
     map.insert("protocol_version".into(), json!(1));
     map.insert("execution_id".into(), json!(execution_id));
@@ -557,7 +597,12 @@ fn base_payload(execution_id: &str, project_id: &str, source_id: &str, session: 
 }
 
 /// `remote_command_discover` payload.
-pub(crate) fn discover_payload(project_id: &str, source_id: &str, session: &str, team: Option<&str>) -> Value {
+pub(crate) fn discover_payload(
+    project_id: &str,
+    source_id: &str,
+    session: &str,
+    team: Option<&str>,
+) -> Value {
     let mut map = base_payload("", project_id, source_id, session, team);
     // Discovery is per binding, not per execution.
     map.remove("execution_id");
@@ -566,20 +611,42 @@ pub(crate) fn discover_payload(project_id: &str, source_id: &str, session: &str,
 
 /// `remote_command_claim` payload.
 pub(crate) fn claim_payload(summary: &CommandSummary, session: &str, team: Option<&str>) -> Value {
-    Value::Object(base_payload(&summary.execution_id, &summary.project_id, &summary.source_id, session, team))
+    Value::Object(base_payload(
+        &summary.execution_id,
+        &summary.project_id,
+        &summary.source_id,
+        session,
+        team,
+    ))
 }
 
 /// `remote_command_recover` payload; `runtime_status` is `running`, `stopping`
 /// or `terminal_pending`.
-pub(crate) fn recover_payload(id: &LeaseIdentity, last_sequence: i64, runtime_status: &'static str) -> Value {
-    let mut map = base_payload(&id.execution_id, &id.project_id, &id.source_id, &id.source_session_id, id.team_id.as_deref());
+pub(crate) fn recover_payload(
+    id: &LeaseIdentity,
+    last_sequence: i64,
+    runtime_status: &'static str,
+) -> Value {
+    let mut map = base_payload(
+        &id.execution_id,
+        &id.project_id,
+        &id.source_id,
+        &id.source_session_id,
+        id.team_id.as_deref(),
+    );
     map.insert("last_sequence".into(), json!(last_sequence));
     map.insert("runtime_status".into(), json!(runtime_status));
     Value::Object(map)
 }
 
 fn lease_payload(id: &LeaseIdentity) -> Map<String, Value> {
-    let mut map = base_payload(&id.execution_id, &id.project_id, &id.source_id, &id.source_session_id, id.team_id.as_deref());
+    let mut map = base_payload(
+        &id.execution_id,
+        &id.project_id,
+        &id.source_id,
+        &id.source_session_id,
+        id.team_id.as_deref(),
+    );
     map.insert("lease_token".into(), json!(id.lease_token));
     map.insert("lease_generation".into(), json!(id.lease_generation));
     map
@@ -603,7 +670,9 @@ pub(crate) fn event_payload(
     encrypted_event: &str,
 ) -> Result<Value, WireError> {
     if kind == EventKind::Terminal || status.is_terminal() {
-        return Err(WireError::Invalid("terminal event must be a source completion"));
+        return Err(WireError::Invalid(
+            "terminal event must be a source completion",
+        ));
     }
     check_event_fields(sequence, encrypted_event)?;
     let mut map = lease_payload(id);
@@ -654,7 +723,9 @@ pub(crate) fn completion_payload(
         return Err(WireError::Invalid("model_text"));
     }
     if !truncation.upstream_truncated && truncation.omitted_chars.is_some_and(|n| n != 0) {
-        return Err(WireError::Invalid("omitted_chars requires upstream_truncated"));
+        return Err(WireError::Invalid(
+            "omitted_chars requires upstream_truncated",
+        ));
     }
     let mut map = lease_payload(id);
     map.insert("sequence".into(), json!(sequence));
@@ -694,7 +765,9 @@ pub(crate) fn event_plaintext(
     map.insert("status".into(), json!(status.as_str()));
     for (key, value) in extra {
         if map.insert(key, value).is_some() {
-            return Err(WireError::Invalid("event payload collides with a fixed field"));
+            return Err(WireError::Invalid(
+                "event payload collides with a fixed field",
+            ));
         }
     }
     serde_json::to_string(&Value::Object(map)).map_err(|_| WireError::Invalid("event payload"))

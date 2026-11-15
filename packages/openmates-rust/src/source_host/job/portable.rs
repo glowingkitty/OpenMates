@@ -8,7 +8,9 @@
 //! (vectors: `tests/fixtures/remote_command_portable_vectors.json`).
 //! spec: specifications/features/app-skills/code-run code-run.remote.*
 
-use super::wire::{self, Approval, ClaimedRequest, WireError, exact_keys, identifier, parse_approval, record, text};
+use super::wire::{
+    self, Approval, ClaimedRequest, WireError, exact_keys, identifier, parse_approval, record, text,
+};
 use crate::crypto;
 use crate::remote_command_review::request_digest;
 use serde_json::Value;
@@ -113,7 +115,11 @@ fn string_list(value: Option<&Value>, rule: &'static str) -> Result<Vec<String>,
         .and_then(Value::as_array)
         .ok_or(WireError::Invalid(rule))?
         .iter()
-        .map(|v| v.as_str().map(str::to_owned).ok_or(WireError::Invalid(rule)))
+        .map(|v| {
+            v.as_str()
+                .map(str::to_owned)
+                .ok_or(WireError::Invalid(rule))
+        })
         .collect()
 }
 
@@ -125,13 +131,24 @@ pub(crate) fn parse_policy(value: &Value) -> Result<Policy, WireError> {
     let policy = record(value, "policy")?;
     exact_keys(
         policy,
-        &["argv", "cwd", "mode", "source_access", "deadline_ms", "writable_profiles", "network_profile", "credential_profiles"],
+        &[
+            "argv",
+            "cwd",
+            "mode",
+            "source_access",
+            "deadline_ms",
+            "writable_profiles",
+            "network_profile",
+            "credential_profiles",
+        ],
     )?;
     let argv = string_list(policy.get("argv"), "argv")?;
     // Server schema: 1..=128 non-empty entries, no NUL, <= 16 KiB each.
     if argv.is_empty()
         || argv.len() > MAX_ARGV_ITEMS
-        || argv.iter().any(|a| a.is_empty() || a.contains('\0') || a.len() > MAX_ARGV_ITEM_BYTES)
+        || argv
+            .iter()
+            .any(|a| a.is_empty() || a.contains('\0') || a.len() > MAX_ARGV_ITEM_BYTES)
     {
         return Err(WireError::Invalid("argv"));
     }
@@ -201,7 +218,10 @@ pub(crate) fn canonical_request(request: &PortableRequest) -> String {
 fn approval_json(approval: &Approval) -> String {
     match approval {
         Approval::OneRun => "{\"kind\":\"one_run\"}".to_owned(),
-        Approval::Preset { preset_id, definition_digest } => format!(
+        Approval::Preset {
+            preset_id,
+            definition_digest,
+        } => format!(
             "{{\"kind\":\"preset\",\"preset_id\":{},\"definition_digest\":{}}}",
             serde_json::to_string(preset_id).expect("string serializes"),
             serde_json::to_string(definition_digest).expect("string serializes"),
@@ -226,9 +246,21 @@ mod erased {
 /// # Errors
 /// `Invalid` for malformed content, `NotCanonical` when re-serializing differs.
 pub(crate) fn parse_portable_request(plaintext: &str) -> Result<PortableRequest, PortableError> {
-    let parsed: Value = serde_json::from_str(plaintext).map_err(|_| WireError::Invalid("portable request json"))?;
+    let parsed: Value =
+        serde_json::from_str(plaintext).map_err(|_| WireError::Invalid("portable request json"))?;
     let item = record(&parsed, "portable request")?;
-    exact_keys(item, &["protocol_version", "execution_id", "chat_id", "project_id", "source_id", "policy", "approval"])?;
+    exact_keys(
+        item,
+        &[
+            "protocol_version",
+            "execution_id",
+            "chat_id",
+            "project_id",
+            "source_id",
+            "policy",
+            "approval",
+        ],
+    )?;
     if item.get("protocol_version") != Some(&serde_json::json!(1)) {
         return Err(WireError::Invalid("protocol_version").into());
     }
@@ -259,8 +291,12 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 ///
 /// # Errors
 /// See [`PortableError`]; every error means "do not launch".
-pub(crate) fn open_claimed_request(claimed: &ClaimedRequest, project_key: &[u8; 32]) -> Result<PortableRequest, PortableError> {
-    let plaintext = crypto::decrypt_combined(&claimed.encrypted_request, project_key).map_err(|_| PortableError::Decrypt)?;
+pub(crate) fn open_claimed_request(
+    claimed: &ClaimedRequest,
+    project_key: &[u8; 32],
+) -> Result<PortableRequest, PortableError> {
+    let plaintext = crypto::decrypt_combined(&claimed.encrypted_request, project_key)
+        .map_err(|_| PortableError::Decrypt)?;
     let request = parse_portable_request(&plaintext)?;
     if request.execution_id != claimed.execution_id
         || request.chat_id != claimed.chat_id
@@ -270,7 +306,8 @@ pub(crate) fn open_claimed_request(claimed: &ClaimedRequest, project_key: &[u8; 
     {
         return Err(PortableError::ClaimMismatch);
     }
-    let digest = request_digest(&plaintext, project_key).map_err(|_| PortableError::DigestMismatch)?;
+    let digest =
+        request_digest(&plaintext, project_key).map_err(|_| PortableError::DigestMismatch)?;
     if !constant_time_eq(digest.as_bytes(), claimed.request_digest.as_bytes()) {
         return Err(PortableError::DigestMismatch);
     }

@@ -244,8 +244,17 @@ test.describe('Flow 2 from the web app: spec to commit on a connected machine (r
     await send(page, `${FEATURE} Please help me write the Specification for this, with its Checks.`,
       '@focus:code:write_specification', 'project-chat');
     await waitForTurn(page, testInfo);
+    await shot(page, testInfo, 'laptop-01-specification-questions');
+    // The Project file tools stay available while a named focus is active (focus continuation keeps them).
+    await expect(lastAssistant(page)).not.toContainText(/tools?[^.]{0,80}not (currently )?available/i);
+    // The Specification focus asks clarifying questions with recommendations first; a user accepts them.
+    const specEmbed = page.locator('[data-testid="message-assistant"] [data-testid="specification-embed-card"], [data-testid="embed-preview"][data-app-id="plans"]');
+    for (let answer = 0; answer < 2 && await specEmbed.count() === 0; answer += 1) {
+      await send(page, 'Go with your recommendations for all open questions and write the Specification with its Checks now.');
+      await waitForTurn(page, testInfo);
+    }
     await shot(page, testInfo, 'laptop-01-specification');
-    await proof.assert('flow2.specification', () => expect(page.locator('[data-testid="message-assistant"] [data-testid="specification-embed-card"], [data-testid="embed-preview"][data-app-id="plans"]').first(),
+    await proof.assert('flow2.specification', () => expect(specEmbed.first(),
       'a Specification embed in the chat').toBeVisible({ timeout: 120_000 }));
     await proof.checkpoint('flow2-specification');
 

@@ -397,7 +397,12 @@ impl<'a> Collector<'a> {
         let mut boundary = if flush {
             sanitized.len()
         } else {
-            floor_boundary(&sanitized, sanitized.len().saturating_sub(self.max_secret.saturating_sub(1)))
+            floor_boundary(
+                &sanitized,
+                sanitized
+                    .len()
+                    .saturating_sub(self.max_secret.saturating_sub(1)),
+            )
         };
         // Never cut through a secret occurrence that straddles the boundary.
         loop {

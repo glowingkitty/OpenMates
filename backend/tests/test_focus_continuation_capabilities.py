@@ -7,6 +7,7 @@ assistant said it could not read the Project's files.
 """
 
 import hashlib
+import importlib
 import inspect
 import json
 
@@ -36,7 +37,8 @@ def test_pending_focus_context_keeps_client_capabilities_json_safe():
 
 # contract-test: supporting surface=rest_api assertions=focus-modes.project-specialist-composition
 def test_both_focus_continuation_paths_forward_the_capabilities():
-    from backend.apps.ai.tasks import focus_mode_auto_confirm_task as auto
+    # The tasks package re-exports the Celery task under the module's name, so import the module itself.
+    auto = importlib.import_module("backend.apps.ai.tasks.focus_mode_auto_confirm_task")
     from backend.core.api.app.routes.handlers.websocket_handlers import focus_mode_rejected_handler as rejected
     forwarded = '"client_capabilities": list(pending_context.get("client_capabilities") or [])'
     assert forwarded in inspect.getsource(auto)
@@ -45,3 +47,42 @@ def test_both_focus_continuation_paths_forward_the_capabilities():
         **_request().model_dump(), "client_capabilities": CAPABILITIES, "is_focus_mode_continuation": True,
     })
     assert "project_file_jobs" in child.client_capabilities
+
+
+class _ActiveTaskCache:
+    """In-memory stand-in for the chat's active-task marker (claim and atomic transfer)."""
+
+    def __init__(self, active=None):
+        self.active = active
+
+    async def try_claim_active_ai_task(self, chat_id, task_id):
+        if self.active is not None:
+            return False
+        self.active = task_id
+        return True
+
+    async def transfer_active_ai_task(self, chat_id, prior, nxt):
+        if self.active != prior:
+            return False
+        self.active = nxt
+        return True
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-specialist-composition
+def test_focus_continuation_owns_the_chat_so_project_operations_can_pause_it():
+    import asyncio
+    from backend.shared.python_utils.focus_continuation_history import claim_focus_continuation_ownership
+
+    finished_source = _ActiveTaskCache()
+    assert asyncio.run(claim_focus_continuation_ownership(finished_source, "chat", "source", "child"))
+    assert finished_source.active == "child"
+    running_source = _ActiveTaskCache("source")
+    assert asyncio.run(claim_focus_continuation_ownership(running_source, "chat", "source", "child"))
+    assert running_source.active == "child"
+    newer_turn = _ActiveTaskCache("newer")
+    assert not asyncio.run(claim_focus_continuation_ownership(newer_turn, "chat", "source", "child"))
+    assert newer_turn.active == "newer"
+    claim = "claim_focus_continuation_ownership("
+    from backend.core.api.app.routes.handlers.websocket_handlers import focus_mode_rejected_handler as rejected
+    auto = importlib.import_module("backend.apps.ai.tasks.focus_mode_auto_confirm_task")
+    assert claim in inspect.getsource(auto) and claim in inspect.getsource(rejected)

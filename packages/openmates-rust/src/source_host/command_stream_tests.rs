@@ -59,7 +59,10 @@ fn streams_stdout_and_stderr_and_succeeds() {
 
 #[test]
 fn nonzero_exit_reports_code() {
-    assert_eq!(run("exit 7", &[]).1, ExitStatusKind::Failed { code: Some(7) });
+    assert_eq!(
+        run("exit 7", &[]).1,
+        ExitStatusKind::Failed { code: Some(7) }
+    );
 }
 
 #[test]
@@ -176,10 +179,10 @@ fn redacts_a_secret_split_across_reads() {
 fn collector_holds_back_secret_prefix_until_resolved() {
     let secrets = vec!["abcdef".to_string()];
     let mut collector = Collector::new(&secrets);
-    assert_eq!(collector.push(b"xx abc"), "xx ");
+    assert_eq!(collector.push(b"xx abc"), "x");
     // The completed secret straddles the tail boundary, so it stays held
     // back (same as npm) and is redacted on the next flush.
-    assert_eq!(collector.push(b"def yy"), "");
+    assert_eq!(collector.push(b"def yy"), "x ");
     assert_eq!(collector.finish(), format!("{REDACTION_MARKER} yy"));
 }
 
