@@ -31,6 +31,7 @@ activation:
   action: Let the countdown finish without any user action, or cancel before it ends.
   expect: When the countdown finishes, Deep research becomes active and the answer continues with it; cancelling continues
     without its instruction and cannot later auto-activate the same consumed request.
+activation_authority:
 - id: accepted-and-rejected-internal-answer-authority
   given: A current user turn owns the chat authority and its live Focus activation pauses before an answer.
   action: Accept or reject the activation and start its internal answer execution.

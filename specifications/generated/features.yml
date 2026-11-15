@@ -4846,7 +4846,7 @@ features:
     display for all focus modes.
   specifications:
   - id: feature.focus-modes
-    status: draft
+    status: approved
     path: specifications/features/focus-modes
   apps: []
   product_features: []
@@ -4855,7 +4855,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 25
+  assertions: 26
   surfaces:
     web:
       status: failing
@@ -4865,8 +4865,8 @@ features:
         passing: 9
         failing: 1
         not_run: 6
-        missing: 9
-        counted: 25
+        missing: 10
+        counted: 26
       failing_tests:
       - frontend/apps/web_app/tests/focus-mode-settings.spec.ts › OpenMates app does not offer the retired Welcome focus mode
       key_tests: []
@@ -4897,8 +4897,8 @@ features:
         passing: 8
         failing: 0
         not_run: 1
-        missing: 16
-        counted: 25
+        missing: 17
+        counted: 26
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/FocusPhaseNativeUITests.swift
@@ -4922,8 +4922,8 @@ features:
         passing: 3
         failing: 0
         not_run: 9
-        missing: 13
-        counted: 25
+        missing: 14
+        counted: 26
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -4956,8 +4956,8 @@ features:
         passing: 14
         failing: 0
         not_run: 4
-        missing: 7
-        counted: 25
+        missing: 8
+        counted: 26
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/jev-project-context-api.spec.ts
@@ -4976,8 +4976,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 25
-        counted: 25
+        missing: 26
+        counted: 26
       key_tests: []
       evidence: focusMode option sdk.ts; focus_mode param sdk.py ask
       e2e_tests: []
@@ -4991,8 +4991,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 25
-        counted: 25
+        missing: 26
+        counted: 26
       key_tests: []
       evidence: focusMode option sdk.ts; focus_mode param sdk.py ask
       e2e_tests: []

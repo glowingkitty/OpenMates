@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.focus-modes
 version: 2
-status: draft
+status: approved
 title: Focus Modes — Shared Operation and Display
 summary: Shared lifecycle, full system instruction application, system history, controls, restoration and historical display
   for all focus modes.
@@ -47,6 +47,12 @@ assertions:
     instructions.
   depends_on:
   - examples.activation
+- id: focus-modes.activation-authority
+  type: invariant
+  must: A focus activation pause and its continuation keep the original chat and source-turn authority. Cancelling, expiring
+    or completing it releases only its own turn and never clears accepted queued follow-ups, a newer owner or a newer pause.
+  depends_on:
+  - examples.activation_authority
 - id: focus-modes.explicit-activation
   type: behavior
   must: When the user explicitly names a focus mode, by an @focus mention or a direct request such as "turn on Deep research",
@@ -264,6 +270,7 @@ examples:
   - project_write_gate
   - project_off_read
   - activation
+  - activation_authority
   - explicit_activation
   - full_instruction
   - off_instruction

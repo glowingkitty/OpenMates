@@ -128551,7 +128551,7 @@ assertions:
     current_direct_proof: false
   focus-modes.activation:
     specification: feature.focus-modes@2
-    fingerprint: 3c06f90aefcb337a2ff81c1310fc068e1013cee194c7c5e3bc7a88c25e980bb1
+    fingerprint: 672448b3048de53c7b6874f0e68914e92f63129bae2d18f4aedb2adf6644b0a0
     direct_tests:
     - &id16394
       path: scripts/workflow_clarification_real_test.py
@@ -128653,6 +128653,14 @@ assertions:
         - *id16394
         supporting_tests:
         - *id16383
+    current_direct_proof: false
+  focus-modes.activation-authority:
+    specification: feature.focus-modes@2
+    fingerprint: 4222a82e0901a80118e5bf1ae4678f4d5af2e4f6b75d73a8d2efd6faef919170
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
     current_direct_proof: false
   focus-modes.explicit-activation:
     specification: feature.focus-modes@2

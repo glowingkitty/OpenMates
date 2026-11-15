@@ -759,9 +759,9 @@ specifications:
     - gui.apple
   feature.focus-modes:
     version: 2
-    status: draft
+    status: approved
     path: features/focus-modes
-    fingerprint: 95af0783aaa8fd647c56b58d39b1e3a9cf3caec95b4d9cab673af476b5cd3bc5
+    fingerprint: c761f01e93bf4bb04c8cb686b728a11a16b0ce35045a77cb966736c23a03a2c1
     required_applies_to:
     - rest_api
     - cli
@@ -9872,7 +9872,19 @@ assertions:
     specification: feature.focus-modes@2
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: 3c06f90aefcb337a2ff81c1310fc068e1013cee194c7c5e3bc7a88c25e980bb1
+    fingerprint: 672448b3048de53c7b6874f0e68914e92f63129bae2d18f4aedb2adf6644b0a0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.activation-authority:
+    specification: feature.focus-modes@2
+    specification_id: feature.focus-modes
+    type: invariant
+    fingerprint: 4222a82e0901a80118e5bf1ae4678f4d5af2e4f6b75d73a8d2efd6faef919170
     required_applies_to:
     - rest_api
     - cli
