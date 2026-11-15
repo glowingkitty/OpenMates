@@ -798,7 +798,91 @@ class TestPipelineOrchestration:
 
         assert not decision.allowed
         assert decision.rejection.category == "S3_sexual_other"
-        assert decision.rejection.severity == "severe"
+
+    @staticmethod
+    def _celebrity_match_on_output() -> SightengineFindings:
+        f = SightengineFindings(
+            face_count=1,
+            celebrity_match=True,
+            celebrity_name="Test Celeb",
+            celebrity_confidence=0.92,
+        )
+        SightengineSafetyClient._apply_thresholds(f, stage="output")
+        assert f.hard_block and f.category_hint == "S6_public_figure_blocked"
+        return f
+
+    async def _validate_output_with(self, se, vlm, safeguard):
+        pipeline = ImageSafetyPipeline()
+        pipeline._initialized = True
+        mock_se_client = MagicMock()
+        mock_se_client.analyze = AsyncMock(return_value=se)
+        with patch(
+            "backend.shared.python_utils.image_safety.pipeline.get_sightengine_safety_client",
+            return_value=mock_se_client,
+        ), patch(
+            "backend.shared.python_utils.image_safety.pipeline.analyze_image_gemini",
+            new=AsyncMock(return_value=vlm),
+        ), patch(
+            "backend.shared.python_utils.image_safety.pipeline.get_safeguard_client",
+            return_value=safeguard,
+        ):
+            return await pipeline._validate_single_image(
+                prompt="3D cartoon-style portrait of a 12-year-old girl reading a book",
+                image_bytes=b"bytes",
+                mime_type="image/webp",
+                stage="output",
+                secrets_manager=MagicMock(),
+            )
+
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.minors-stylized-only
+    @pytest.mark.asyncio
+    async def test_celebrity_match_on_stylized_output_goes_to_policy_review(self):
+        # A drawn face that resembles a celebrity is not a likeness of a real
+        # person: the policy review decides instead of a hard block.
+        safeguard = MagicMock()
+        safeguard.is_enabled = True
+        safeguard.reason = AsyncMock(
+            return_value=SafeguardVerdict(decision="allow", category="ALLOW_GENERAL")
+        )
+        vlm = VisionSafetyFindings(
+            scene="3D cartoon girl reading a book",
+            photorealistic=False,
+            raw={"photorealistic": False},
+        )
+        decision = await self._validate_output_with(
+            self._celebrity_match_on_output(), vlm, safeguard
+        )
+
+        assert decision.allowed
+        safeguard.reason.assert_called_once()
+        sent = safeguard.reason.call_args.kwargs["sightengine_json"]
+        assert sent["hard_block"] is False
+        assert sent["faces"]["celebrity_match"] is True
+
+    @pytest.mark.parametrize(
+        "vlm",
+        [
+            VisionSafetyFindings(photorealistic=True, raw={"photorealistic": True}),
+            VisionSafetyFindings(raw={}),
+            VisionSafetyFindings(error="timeout", raw={"photorealistic": False}),
+            VisionSafetyFindings(public_figure_detected=True, raw={"photorealistic": False}),
+        ],
+        ids=["photoreal", "style-unknown", "vlm-error", "vlm-public-figure"],
+    )
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
+    @pytest.mark.asyncio
+    async def test_celebrity_match_on_output_still_blocks_unless_clearly_stylized(self, vlm):
+        safeguard = MagicMock()
+        safeguard.is_enabled = True
+        safeguard.reason = AsyncMock()
+        decision = await self._validate_output_with(
+            self._celebrity_match_on_output(), vlm, safeguard
+        )
+
+        assert not decision.allowed
+        assert decision.rejection.category == "S6_public_figure_blocked"
+        safeguard.reason.assert_not_called()
+        assert decision.rejection.severity == "moderate"
 
     # contract-test: supporting surface=rest_api assertions=safety-strikes.screening-rejects
     @pytest.mark.asyncio

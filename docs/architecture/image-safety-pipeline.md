@@ -359,7 +359,7 @@ Same parallel Sightengine + Gemini call as Step 1, but with stricter thresholds:
 | All Step 1a thresholds | Same | reject + alert |
 | `minor detected` + **any** nudity/suggestive | > 0.02 (noise floor; a zero floor filed a harmless clothed portrait as S1) | reject as S1 + alert (one strike) |
 | `minor detected` not in input | detected | reject (provider invented a child) |
-| `celebrity match` not in input | detected | reject (provider invented celebrity) |
+| `celebrity match` not in input | detected on a photorealistic image | reject (provider invented celebrity); on an image the VLM reports as not photorealistic (and not a public figure) the match goes to the safeguard review instead, since a 3D cartoon of a child matched an actress at 0.92 |
 | `deepfake > 0.7` + face not in input | detected | reject |
 | Any hard-block that triggered at input | Same | reject + provider alert |
 

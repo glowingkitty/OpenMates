@@ -63,7 +63,8 @@ Rationale: minors cannot consent and we cannot verify the uploader's relationshi
 All detected public figures are blocked regardless of edit intent.
 
 **BLOCKED (absolute, any edit, any prompt):**
-- Any image where the Sightengine celebrity classifier returns a match (any confidence level)
+- Any photorealistic image where the Sightengine celebrity classifier returns a match (any confidence level)
+- On a clearly stylized image (3D render, cartoon, illustration, anime) a celebrity classifier match alone is a resemblance, not a likeness: allow it when the request names no public figure and the VLM does not report one. A stylized caricature of a named public figure stays blocked by the prompt rule below.
 - Any image where the Gemini VLM reports `appears_to_be_public_figure.likely: true` with confidence medium or high
 - Any prompt that names a specific public figure (politician, celebrity, athlete, CEO, religious leader, activist, historical figure) combined with generation or editing intent
 - Fuzzy-matched name variants and common misspellings (handled via the VLM's language understanding, not a regex blocklist)
