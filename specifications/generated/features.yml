@@ -757,7 +757,7 @@ features:
       - backend/tests/test_apps_workspace_results.py
       - backend/tests/test_apps_metadata_detail_contract.py
       - backend/tests/test_apps_workspace_recommendations.py
-      unit_test_files: 14
+      unit_test_files: 15
     sdk_npm:
       status: not_planned
       source: intent
