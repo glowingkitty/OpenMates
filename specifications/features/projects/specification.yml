@@ -690,8 +690,9 @@ assertions:
     shows a confirmation with the Project name and the target machine, and nothing is created on the machine before the
     user confirms that exact request. After confirmation the remote-access host creates a new folder for the Project
     inside the configured folder, initializes a Git repository on the branch main with a first commit, and serves it as
-    a connected source of the Project. The host never writes outside the configured folder and never into or over an
-    existing path; a machine without that setting does not offer creation. A refusal (creation_not_configured,
+    a connected source of the Project. While that folder is the Project's only remote source, an assistant Project file
+    operation that names no source goes to it, so the files land in the machine folder and not in hosted storage. The
+    host never writes outside the configured folder and never into or over an existing path; a machine without that setting does not offer creation. A refusal (creation_not_configured,
     invalid_project_name, creation_folder_unavailable, identity_missing, target_exists) creates nothing and consumes no
     confirmation, and the pending request can be retried or removed without the machine. Only the bound machine of the
     confirming user can complete the creation.

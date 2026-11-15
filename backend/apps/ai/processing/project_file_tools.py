@@ -146,6 +146,27 @@ def build_project_source_routing_context(
     return sorted(routing_sources, key=lambda source: source["source_id"])
 
 
+def default_operation_source_id(
+    sources: list[dict[str, Any]],
+    required_capability: str,
+) -> str | None:
+    """The source a Project file operation goes to when the model names none.
+
+    Tool contract (``source_id`` description below): omitting it selects hosted
+    storage, or the Project's only configured remote source. A Project created on
+    the user's machine has exactly that one source, so its files land in the
+    machine folder instead of hosted storage. With no or several remote sources,
+    or when the only one lacks the capability, the operation stays hosted.
+    ``sources`` is the routing context from ``build_project_source_routing_context``.
+    """
+    if len(sources) != 1:
+        return None
+    source = sources[0]
+    if required_capability not in set(source.get("capabilities") or []):
+        return None
+    return str(source["source_id"])
+
+
 def build_project_file_tools() -> list[dict[str, Any]]:
     path_property = {
         "type": "string",

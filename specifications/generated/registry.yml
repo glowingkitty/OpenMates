@@ -909,7 +909,7 @@ specifications:
     version: 2
     status: draft
     path: features/projects
-    fingerprint: c945f8cb7219296789bbcf5604d014e1bfb5edb346c88887eed70779fc410add
+    fingerprint: e29f21404030c4192c564cc28ee9d967d7965980657df0de3276001941c56ca7
     required_applies_to:
     - rest_api
     - cli
@@ -12363,7 +12363,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 1152baf30badf6826126903fbf65336f6b15a1023e795542589a03b92013b555
+    fingerprint: c0efb67793ef8a4495c84e3f4dee0031b08cd761a9a4750fb310b143ab2e5cc3
     required_applies_to:
     - rest_api
     - cli

@@ -170,6 +170,7 @@ from backend.apps.ai.processing.project_file_tools import (
     build_project_file_tools,
     build_project_focus_prompt,
     build_project_source_routing_context,
+    default_operation_source_id,
     requests_project_file_work,
     uniquely_named_project_focus_id,
     without_unscoped_project_search,
@@ -9606,6 +9607,14 @@ async def handle_main_processing(
                                         "files" if skill_id == "project_search_files" else "content"
                                     )
                                 dispatch_focus = dict(current_focus)
+                                if requested_source_id is None:
+                                    # Omitted source: the Project's only remote source, else hosted.
+                                    requested_source_id = default_operation_source_id(
+                                        active_project_sources,
+                                        "write_request"
+                                        if operation in PROJECT_FILE_MUTATIONS
+                                        else "search" if operation == "search" else "read",
+                                    )
                                 if requested_source_id is not None:
                                     source = await directus_service.project.get_source(
                                         str(current_focus["project_id"]),
