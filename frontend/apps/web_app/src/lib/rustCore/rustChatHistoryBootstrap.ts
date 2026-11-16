@@ -16,6 +16,7 @@ import type { SavedChatReadback, LocalChatReadback } from '@openmates/ui/src/ser
 import { createRustCoreWorker, createRustLocalSession, createRustSecondDeviceSession, preloadRustAdmissionModules, prewarmRustCoreWorker } from './rustCoreLoader';
 import { registerRustCoreWorkerFactory } from '@openmates/ui/src/services/rustCore/host/workerFactoryRegistry';
 import { backsOffServerCheck, keepsLocalSessionAfterServerCheckFailure, SERVER_CHECK_BACKOFF_MS } from '@openmates/ui/src/services/rustCore/serverCheckFailure';
+import { registerSocketFrameSink } from '@openmates/ui/src/services/rustCore/socketFrameForwarder';
 import { notifyServerCheckedSession, registerServerCheckedSession } from '@openmates/ui/src/services/rustCore/host/serverSessionRegistry';
 
 /** Measurement-only opt-out: lets one flag build record the TS baseline. */
@@ -253,6 +254,13 @@ export function installRustChatHistory(): () => void {
 	window.addEventListener('online', onOnline);
 	const unregisterServerSession = registerServerCheckedSession(() => ensureSession().then(() => undefined));
 
+	// Server frames go to the core only through a live server-checked session; the
+	// shared queue keeps them ordered behind reads (the Worker serves one request at a time).
+	const unregisterFrameSink = registerSocketFrameSink({
+		hasServerSession: () => !!session && !session.signal.aborted,
+		ingest: (frames) => enqueue(() => session && !session.signal.aborted ? session.ingestSocketFrames(frames) : Promise.reject(new Error('session_expired'))),
+		admit: (chatId, teamId) => enqueue(() => session && !session.signal.aborted ? session.admitChat(chatId, teamId) : Promise.reject(new Error('session_expired')))
+	});
 	const uninstall = installRustChatHistorySource({
 		readWindow: ({ chatId, anchorMessageId }) => enqueue(() => read(chatId, anchorMessageId)),
 		readPage: ({ chatId, selector }) => enqueue(() => pageRead(chatId, selector))
@@ -270,5 +278,5 @@ export function installRustChatHistory(): () => void {
 				.catch(() => undefined);
 		}
 	});
-	return () => { window.removeEventListener('online', onOnline); stopAuth(); uninstall(); unregisterServerSession(); lifetime.abort(); local?.close(); session?.close(); unregisterWorker(); };
+	return () => { window.removeEventListener('online', onOnline); stopAuth(); uninstall(); unregisterServerSession(); unregisterFrameSink(); lifetime.abort(); local?.close(); session?.close(); unregisterWorker(); };
 }

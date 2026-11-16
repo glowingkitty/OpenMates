@@ -2,6 +2,7 @@
 // State lives in workerRuntimeState.ts; requests in workerDispatch.ts. Inert unless a Worker entry calls it.
 import type { WorkerRuntimeState } from "./workerRuntimeState";
 import { dispose,receive } from "./workerRuntimeState";
+import { newSocketQueue } from "./workerSocketQueue";
 import { registerCoreClientBorrows } from "./drafts/coreClientBorrow";
 import type { BrowserCoreBinding,OwnedCacheSlot,ProfileCacheSlot,RustClient,RustInitialSyncStoreBootstrap,RustRecoveryBootstrap,RustRecoveryPort,WorkerConfiguration,WorkerEndpoint } from "./workerRuntimeTypes";
 export type { BrowserCoreBinding,CacheMonitorSlot,OwnedCacheRequest,OwnedCacheSlot,PreparedProfile,ProfileCacheSlot,RustCacheMonitor,RustCachePublication,RustClient,RustFirstSessionControl,RustFirstSessionDataHandle,RustFirstSessionReceipt,RustInitialSyncStoreBootstrap,RustOriginalRecovery,RustOriginalRecoveryControl,RustOwnedCacheControl,RustOwnedCacheHandle,RustOwnedCacheStep,RustOwnedCacheTerminal,RustOwnedMetadata,RustPhysicalDraftInventory,RustPreparedFirstSession,RustPreparedFirstSessionData,RustProfileCacheAbsence,RustProfileCacheReadiness,RustRecoveryBootstrap,RustRecoveryPort,RustRecoveryRestoredClient,RustStatus,WorkerConfiguration,WorkerEndpoint } from "./workerRuntimeTypes";
@@ -31,6 +32,7 @@ export function installBrowserCoreWorker(endpoint: WorkerEndpoint, binding: Brow
   rt.failedRecoveryPorts = new Set<RustRecoveryPort>();
   rt.reading = null;
   rt.sending = null;
+  rt.socketQueue = newSocketQueue();
   rt.casReply = null;
   rt.localRead = null;
   rt.lastLocalReadId = 0;

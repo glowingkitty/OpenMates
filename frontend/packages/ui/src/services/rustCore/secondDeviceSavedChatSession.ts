@@ -9,8 +9,9 @@ import { bindProductionCoreInvalidations } from "./productionInvalidationBridge"
 import type { ProductionCoreInvalidationRelease } from "./productionInvalidationBridge";
 import { publishSelectedOnlineCachedSavedChat, publishSelectedSavedChat, publishSelectedSavedChatPage } from "./selectedSavedChat";
 import type { PriorProfileLifecycle } from "./platformLifecycle";
-import type { BrowserPersistence, ExistingProfileEvidence, LocalCursorSelector, LocalReadPlan, SavedPageSelector, SessionStatus } from "./protocol";
+import type { BrowserPersistence, CoreResponse, ExistingProfileEvidence, LocalCursorSelector, LocalReadPlan, SavedPageSelector, SessionStatus } from "./protocol";
 import type { LocalChatReadback, SavedChatReadback } from "./savedReadProtocol";
+import type { ChatAdmission, SocketFrameSummary } from "./socketFramesProtocol";
 import type { SavedChatSelection } from "./selectedSavedChat";
 import type { SendEvent } from "./sendProtocol";
 import type { BrowserCoreWorkerHost } from "./workerHost";
@@ -49,6 +50,10 @@ export interface ProductionSavedChatSession {
    * keeps the session; the caller then reconciles with `publishPage`. */
   publishCachedPage(selector: LocalCursorSelector, publish: (page: LocalChatReadback) => void): Promise<void>;
   startSend(text: string): Promise<ProductionSavedChatSend>;
+  /** Applies server chat frames in the shared core. One Worker request at a time: a busy session (read or send in flight) rejects `unavailable`; the caller serializes and retries. Rejects with the core's fixed failure code. */
+  ingestSocketFrames(frames: Record<string, unknown>[]): Promise<SocketFrameSummary>;
+  /** Loads one page-created chat into the same core client. */
+  admitChat(chatId: string, teamId: string | null): Promise<ChatAdmission>;
   close(): void;
 }
 
@@ -229,11 +234,29 @@ export async function admitSecondDeviceSavedChatSession(input: AdmissionInput): 
           publish: (page: LocalChatReadback) => { current(); publish(page); } });
       } finally { busy = false; }
     };
+    /** One fixed-code Worker request under the session's single-request fence. */
+    const frameOp = async <T>(body: { operation: "ingest_socket_frames"; frames: Record<string, unknown>[] } | { operation: "admit_chat"; chatId: string; teamId: string | null },
+      pick: (response: Extract<CoreResponse, { ok: true }>) => T | undefined): Promise<T> => {
+      if (busy) throw new Error("unavailable");
+      busy = true;
+      try {
+        current();
+        const response = await owned.host.request({ ...body, handle: status.handle, generation: status.generation }, lifetime.signal);
+        current();
+        // The non-strict tsconfig does not narrow the union on `ok`; narrow explicitly.
+        if (!response.ok) throw new Error((response as Extract<CoreResponse, { ok: false }>).error);
+        const reply = pick(response as Extract<CoreResponse, { ok: true }>);
+        if (!response.status || response.status.handle !== status.handle || response.status.generation !== status.generation || reply === undefined) throw new Error("session_expired");
+        return reply;
+      } finally { busy = false; }
+    };
+    const ingestSocketFrames = (frames: Record<string, unknown>[]) => frameOp({ operation: "ingest_socket_frames", frames }, response => response.socketIngest);
+    const admitChat = (chatId: string, teamId: string | null) => frameOp({ operation: "admit_chat", chatId, teamId }, response => response.chatAdmission);
     const sender = createOriginalSavedChatSender({ host: owned.host, status, signal: lifetime.signal, current, closed: () => closed,
       profile: () => witness, assertProfile: prior => input.sources.assertCurrent(prior), currentSelection: input.currentSelection,
       busy: () => busy, setBusy: value => { busy = value; }, close });
     invalidateSender = () => sender.invalidate();
-    return Object.freeze({ status, signal: lifetime.signal, publishPage, publishCachedPage,
+    return Object.freeze({ status, signal: lifetime.signal, publishPage, publishCachedPage, ingestSocketFrames, admitChat,
       currentSelection: () => input.currentSelection(), assertCurrent: current,
       publish: (publish: (page: SavedChatReadback | LocalChatReadback) => void) => publishPage({ direction: "latest" }, publish),
       startSend: (text: string) => sender.startSend(text), close });

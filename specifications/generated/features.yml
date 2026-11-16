@@ -24286,7 +24286,7 @@ features:
       - frontend/packages/ui/src/message_parsing/__tests__/streamingBlocksVectors.test.ts
       - frontend/packages/ui/src/message_parsing/__tests__/voiceCuesVectors.test.ts
       - frontend/packages/ui/src/services/__tests__/applicationProjectZip.test.ts
-      unit_test_files: 48
+      unit_test_files: 49
     apple:
       status: implemented
       source: intent

@@ -14,7 +14,7 @@ capabilities:
     status: rust-only
     old: []
     unit: ws
-    note: WebSocket lifecycle decisions (online, connection change, resume, close, pong timeout, periodic retry) run only in the Worker ws unit; the TypeScript reconnect branches, flag and opt-out are deleted. The socket itself stays in the shell.
+    note: WebSocket lifecycle decisions (online, connection change, resume, close, pong timeout, periodic retry) run only in the Worker ws unit; the TypeScript reconnect branches, flag and opt-out are deleted. The socket itself stays in the shell. Received chat frames are also forwarded in order to the shared core (Worker ops ingest_socket_frames and admit_chat via the server-checked session); the TypeScript chat handlers still run beside it until their deletion lane.
     last_commit: c17164fa5b
   apple:
     status: rust-twin

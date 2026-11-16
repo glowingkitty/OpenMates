@@ -61,6 +61,19 @@ function draftRowShape(chatId: string): Promise<Record<string, string> | null> {
 }
 
 /** Committed chats_db draft fields of one chat (ciphertext presence and version only). */
+function chatIds(): Promise<string[]> {
+	return new Promise((resolve) => {
+		const open = indexedDB.open('chats_db');
+		open.onerror = () => resolve([]);
+		open.onsuccess = () => {
+			const db = open.result;
+			const request = db.transaction('chats', 'readonly').objectStore('chats').getAllKeys();
+			request.onsuccess = () => { db.close(); resolve((request.result as IDBValidKey[]).map(String)); };
+			request.onerror = () => { db.close(); resolve([]); };
+		};
+	});
+}
+
 function draftRow(chatId: string): Promise<{ draftV: number; hasCiphertext: boolean } | null> {
 	return new Promise((resolve) => {
 		const open = indexedDB.open('chats_db');
@@ -218,6 +231,7 @@ test('Rust core saves a draft written offline locally and publishes its queued i
 	await expect.poll(() => page.evaluate(() => document.documentElement.dataset.rustCoreHistory ?? null),
 		{ message: 'Rust supplied the chat history while online', timeout: 60000 }).toMatch(/^rust:\d+$/);
 	const onlineVersion = (await page.evaluate(draftRow, chatId))?.draftV ?? 0;
+	const chatsBeforeOffline = new Set(await page.evaluate(chatIds));
 
 	// Cold offline boot: the app shell still loads (as from a cache), but every API
 	// request and WebSocket fails, so the browser restore cannot validate the session
@@ -235,7 +249,17 @@ test('Rust core saves a draft written offline locally and publishes its queued i
 		if (apiOffline) await socket.close({ code: 3001, reason: 'API unreachable in test' });
 		else socket.connectToServer();
 	});
+	// ActiveChat records its draft-restore decisions in this trace when a page opts in.
+	await page.addInitScript(() => { (window as any).__savedComposerInputTrace = []; });
 	await page.reload();
+	// A person types into the chat they see: wait until the deep-linked chat is open
+	// from the local cache and its (empty) draft restore has settled. Text typed
+	// before that lands in the blank new-chat composer the page mounts first.
+	await expect(page.getByTestId('active-chat-container'), 'the deep-linked chat opened offline')
+		.toHaveAttribute('data-current-chat-id', chatId, { timeout: 60000 });
+	await expect.poll(() => page.evaluate((id: string) => ((window as any).__savedComposerInputTrace ?? [])
+		.some((entry: { kind?: string; chat?: string }) => entry.kind === 'noDraftRestoreDecision' && entry.chat === id), chatId),
+		{ message: 'the open chat finished its draft restore', timeout: 30000 }).toBe(true);
 	const visibleEditor = () => page.getByTestId('message-editor').filter({ visible: true }).first();
 	await visibleEditor().locator('.ProseMirror').click({ timeout: 60000 });
 	let offlineSaveState = 'none';
@@ -255,6 +279,8 @@ test('Rust core saves a draft written offline locally and publishes its queued i
 	expect((await page.evaluate(draftRow, chatId))?.hasCiphertext, 'encrypted draft stored in chats_db').toBe(true);
 	expect(await page.evaluate(() => document.documentElement.dataset.rustCoreDraft ?? null), 'no TS writer fallback').toMatch(/^rust-(local|synced)$/);
 	expect(await page.evaluate(queuedIntentCount, chatId), 'an encrypted update is queued offline').toBeGreaterThan(0);
+	// The offline draft belongs to the open chat: no new draft-only chat was minted for it.
+	expect((await page.evaluate(chatIds)).filter((id: string) => !chatsBeforeOffline.has(id)), 'no extra chat created offline').toEqual([]);
 	await screenshot(page, 'rust-draft-offline-saved');
 
 	// Back online: the next boot validates the session, and the queued encrypted

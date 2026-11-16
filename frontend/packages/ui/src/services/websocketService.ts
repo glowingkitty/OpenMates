@@ -6,6 +6,7 @@
  * It also provides a mechanism for other parts of the application to listen to generic
  * WebSocket events like 'open', 'close', 'error', and 'message'.
  */
+import { forwardSocketFrame } from "./rustCore/socketFrameForwarder";
 import { getWebSocketUrl } from "../config/api";
 import { getWebSocketRoutingId } from "../utils/websocketRoutingId";
 import { getWebSocketToken } from "../utils/cookies"; // Use getWebSocketToken instead of getAuthRefreshToken
@@ -761,6 +762,10 @@ class WebSocketService extends EventTarget {
               );
               return;
             }
+
+            // Rust build: hand the frame to the shared core first (fire-and-forget,
+            // never throws); the page handlers below run exactly as before.
+            forwardSocketFrame(rawMessage);
 
             if (messageType !== "ping" && messageType !== "pong") {
               console.debug(

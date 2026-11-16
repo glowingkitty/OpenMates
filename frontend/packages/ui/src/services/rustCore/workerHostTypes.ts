@@ -36,5 +36,6 @@ export interface Pending {
   expectedLocal?: {handle:string;generation:number;principal:string;chatId:string;saved:boolean;online?:true};
   expectedInitialSync?:{handle:string;generation:number;owner:string;stopReason?:'cancelled'|'deadline'};
   expectedMonitor?:{handle:string;generation:number;owner:string;operation:'start_cache_monitor'|'wait_cache_monitor'|'stop_cache_monitor';id?:string};
+  expectedFrames?: { handle: string; generation: number; kind: "socketIngest" | "chatAdmission"; chatId?: string };
   expectedChat?: { handle: string; generation: number; chatId: string; kind: "chat" | "savedRead" };
 }

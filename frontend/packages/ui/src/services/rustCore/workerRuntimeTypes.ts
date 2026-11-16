@@ -79,6 +79,8 @@ export interface RustClient extends SendClient {
   read_online_cached_saved_chat?(handle:string,generation:number,expectedPrincipal:string,chatId:string,selector:string,hostEffect:(plan:string)=>Promise<string>):Promise<string>;
   read_local_checkpoint_summary?(handle:string,generation:number,principal:string,chatId:string,checkpointId:string,hostEffect:(plan:string)=>Promise<string>):Promise<string>;
   read_saved_chat_page?(handle:string,generation:number,chatId:string,selector:string):Promise<string>;
+  ingest_socket_frames?(handle:string,generation:number,framesJson:string):Promise<string>;
+  admit_chat?(handle:string,generation:number,chatId:string,teamId:string|undefined):Promise<string>;
   read_saved_chat(handle: string, generation: number, chatId: string): Promise<string>;
   open_chat(handle: string, generation: number, chatId: string): Promise<unknown>;
   invalidate(): void;

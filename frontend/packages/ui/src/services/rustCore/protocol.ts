@@ -9,6 +9,8 @@ import { validBrowserSealedCredentials } from "./browserCredentialStorage";
 import type { BrowserSealedCredentials } from "./browserCredentialStorage";
 import { validSendReply } from "./sendProtocol";
 import type { SendReply } from "./sendProtocol";
+import type { SocketFrameFailure, SocketFrameSummary, ChatAdmission } from "./socketFramesProtocol";
+import { SOCKET_FRAME_FAILURES, validSocketFrames, validAdmitChatTarget, validSocketFrameSummary, validChatAdmission } from "./socketFramesProtocol";
 import { validSavedRead, validLocalRead, validReadMessageId, boundedJson } from "./savedReadProtocol";
 import type { SavedReadCursor, SavedChatReadback, LocalChatReadback } from "./savedReadProtocol";
 /** Inactive browser-core transport contract. Never carry native sessions or raw keys. */
@@ -24,7 +26,7 @@ export const MAX_PASSWORD_BYTES = 16 * 1024;
 export const MAX_PASSWORD_RPC_BYTES = MAX_PASSWORD_BYTES + 2048;
 
 export type BrowserPersistence = "memory_only" | "persisted";
-export type CoreFailure = "invalid_request" | "unavailable" | "cancelled" | "deadline" | "session_expired" | "reauthentication_required" | "chat_unavailable" | "credential_conflict" | "authentication_failed" | "two_factor_required";
+export type CoreFailure = "invalid_request" | "unavailable" | "cancelled" | "deadline" | "session_expired" | "reauthentication_required" | "chat_unavailable" | "credential_conflict" | "authentication_failed" | "two_factor_required" | SocketFrameFailure;
 
 export const MAX_CHAT_MESSAGES = 20;
 export const MAX_CHAT_UTF8_BYTES = 256 * 1024;
@@ -72,6 +74,10 @@ export type CoreRequest = Envelope & (
   | { operation: "read_local_checkpoint_summary"; handle:string; generation:number; chatId:string; expectedPrincipal:string; checkpointId:string }
   | { operation: "read_saved_chat_page"; handle: string; generation: number; chatId: string; selector: SavedPageSelector }
   | { operation: "read_saved_chat"; handle: string; generation: number; chatId: string }
+  /** Applies server chat frames in the shared core (FIFO on one Worker client; the page serializes calls). */
+  | { operation: "ingest_socket_frames"; handle: string; generation: number; frames: Record<string, unknown>[] }
+  /** Loads one page-created chat into the same core client. */
+  | { operation: "admit_chat"; handle: string; generation: number; chatId: string; teamId: string | null }
   | { operation: "start_new_send"; handle: string; generation: number; text: string }
   | { operation: "start_send"; handle: string; generation: number; chatId: string; text: string }
   | { operation:'store_selected_main_code_embed';handle:string;generation:number;recoveryRequestId:number;embedId:string }
@@ -92,7 +98,7 @@ export type CoreRequest = Envelope & (
   | { operation: "cancel"; requestId: number }
 );
 export type CoreResponse = Envelope & (
-  | { ok: true; status: SessionStatus | null; firstSession?:{httpStatus:number|null;data:Record<string,unknown>|null}; chat?: ChatReadback; savedRead?: SavedChatReadback; localRead?: LocalChatReadback; onlineCachedRead?: LocalChatReadback; checkpointRead?:CheckpointPresentation; cachedMetadata?:BrowserCachedMetadataRead; retainedRead?:BrowserRetainedRead;cacheSourceEvidence?:BrowserCacheSourceEvidence; cacheMonitor?:{id:string;state:'started'|'ready'|'idle'|'closed'}; cacheMonitorId?:string; initialSync?:{receivedMetadataCount:number;storedMetadataCount:number}; cacheUpdate?:BrowserIncomingCacheUpdate; send?: SendReply; snapshot?: BrowserSealedCredentials; credentialCas?:CredentialCasValidation }
+  | { ok: true; status: SessionStatus | null; firstSession?:{httpStatus:number|null;data:Record<string,unknown>|null}; chat?: ChatReadback; savedRead?: SavedChatReadback; socketIngest?: SocketFrameSummary; chatAdmission?: ChatAdmission; localRead?: LocalChatReadback; onlineCachedRead?: LocalChatReadback; checkpointRead?:CheckpointPresentation; cachedMetadata?:BrowserCachedMetadataRead; retainedRead?:BrowserRetainedRead;cacheSourceEvidence?:BrowserCacheSourceEvidence; cacheMonitor?:{id:string;state:'started'|'ready'|'idle'|'closed'}; cacheMonitorId?:string; initialSync?:{receivedMetadataCount:number;storedMetadataCount:number}; cacheUpdate?:BrowserIncomingCacheUpdate; send?: SendReply; snapshot?: BrowserSealedCredentials; credentialCas?:CredentialCasValidation }
   | { ok: false; error: CoreFailure;profileCacheAbsent?:true }
 );
 
@@ -261,6 +267,10 @@ export function validRequest(value: unknown): value is CoreRequest {
     case "read_retained_saved_chat":
       return closedData(value,[...base,'handle','generation','expectedPrincipal','chatId','scope','selector'])&&identifier(value.handle)&&integer(value.generation)
         &&localCursorUuid(value.expectedPrincipal)&&localCursorUuid(value.chatId)&&validBrowserCacheScope(value.scope)&&validSavedPageSelector(value.selector,value.chatId)&&boundedJson(value);
+    case "ingest_socket_frames":
+      return closedData(value,[...base,"handle","generation","frames"])&&identifier(value.handle)&&integer(value.generation)&&validSocketFrames(value.frames);
+    case "admit_chat":
+      return closedData(value,[...base,"handle","generation","chatId","teamId"])&&identifier(value.handle)&&integer(value.generation)&&validAdmitChatTarget(value.chatId,value.teamId);
     case "read_saved_chat_page":
       return closedData(value,[...base,"handle","generation","chatId","selector"])&&identifier(value.handle)&&integer(value.generation)
         &&typeof value.chatId==="string"&&value.chatId.length===36&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value.chatId)
@@ -324,6 +334,8 @@ export function validResponse(value: unknown): value is CoreResponse {
   if(value.ok===true&&'cacheUpdate' in value)return exact(value,['version','id','ok','status','cacheMonitorId','cacheUpdate'])&&validStatus(value.status)&&value.status.localReadOnly!==true&&localCursorUuid(value.cacheMonitorId)&&validBrowserIncomingCacheUpdate(value.cacheUpdate);
   if(value.ok===true&&'cachedMetadata' in value)return exact(value,['version','id','ok','status','cachedMetadata'])&&validStatus(value.status)&&validBrowserCachedMetadataRead(value.cachedMetadata);
   if(value.ok===true&&'retainedRead' in value)return (exact(value,['version','id','ok','status','retainedRead'])||exact(value,['version','id','ok','status','retainedRead','cacheSourceEvidence'])&&validBrowserCacheSourceEvidence(value.cacheSourceEvidence))&&validStatus(value.status)&&value.status.localReadOnly!==true&&validBrowserRetainedRead(value.retainedRead)&&(value.cacheSourceEvidence===undefined||value.retainedRead.cacheReadKind==='cold');
+  if(value.ok===true&&"socketIngest" in value)return exact(value,["version","id","ok","status","socketIngest"])&&validStatus(value.status)&&value.status.localReadOnly!==true&&validSocketFrameSummary(value.socketIngest);
+  if(value.ok===true&&"chatAdmission" in value)return exact(value,["version","id","ok","status","chatAdmission"])&&validStatus(value.status)&&value.status.localReadOnly!==true&&validChatAdmission(value.chatAdmission);
   if(value.ok===true&&"credentialCas" in value)return exact(value,["version","id","ok","status","credentialCas"])&&validStatus(value.status)&&validCredentialCasValidation(value.credentialCas);
   if (value.ok === true && "snapshot" in value) return exact(value,["version","id","ok","status","snapshot"]) && validStatus(value.status) && validBrowserSealedCredentials(value.snapshot) && value.snapshot.owner===value.status.principal && value.snapshot.generation===value.status.generation;
   if (value.ok === true && "send" in value) return exact(value, ["version", "id", "ok", "status", "send"]) && validSendReply(value.send)
@@ -345,7 +357,7 @@ export function validResponse(value: unknown): value is CoreResponse {
     : exact(value, ["version", "id", "ok", "status"]) && (value.status === null || validStatus(value.status));
   if(value.ok===false&&Object.hasOwn(value,'profileCacheAbsent'))return exact(value,["version","id","ok","error","profileCacheAbsent"])&&value.error==='chat_unavailable'&&value.profileCacheAbsent===true;
   return value.ok === false && exact(value, ["version", "id", "ok", "error"])
-    && ["invalid_request", "unavailable", "cancelled", "deadline", "session_expired", "reauthentication_required", "chat_unavailable", "credential_conflict", "authentication_failed", "two_factor_required"].includes(value.error as string);
+    && ["invalid_request", "unavailable", "cancelled", "deadline", "session_expired", "reauthentication_required", "chat_unavailable", "credential_conflict", "authentication_failed", "two_factor_required", ...SOCKET_FRAME_FAILURES].includes(value.error as string);
 }
 
 /** Request-scoped typed Rust local IO callbacks, within the existing RPC lane. */
