@@ -73,11 +73,11 @@ WEB_SOURCE_HINTS: Dict[tuple, str] = {
     ("events", "search"): "Prefer this over web search for any question about upcoming events or conferences, "
                           "anywhere: in a city, a country, a region such as Europe, or worldwide. Results also "
                           "come from public web pages; without a city give only a topic query.",
-    ("shopping", "search_products"): "Select this, not only web or image search, for any question about where "
-                                     "to buy a product, its price, the cheapest offer or the best deal, also "
-                                     "when the product is only shown in a photo (identify brand and model from "
-                                     "the photo, then search). Results come from the listed shops and from "
-                                     "public shop pages.",
+    # Stage-one app routing reads only the first ~100 characters of the first sentence.
+    ("shopping", "search_products"): "Where to buy a product, its price, cheapest offer or best deal, also for "
+                                     "a product in a photo. Select this, not only web or image search: "
+                                     "identify brand and model from the photo, then search. Results come "
+                                     "from the listed shops and from public shop pages.",
 }
 
 
