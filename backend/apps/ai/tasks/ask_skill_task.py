@@ -5069,8 +5069,10 @@ async def _async_process_ai_skill_ask_task(
             # - user_system_language: the user's UI/system language from their profile (for new chat suggestions)
             # This ensures new chat suggestions are always in the user's system language,
             # preventing a mixed-language welcome screen for multilingual users.
-            chat_output_language = preprocessing_result.output_language if preprocessing_result else "en"
             user_system_language = request_data.user_preferences.get("language", "en") if request_data.user_preferences else "en"
+            # The conversation language is also the chat metadata language; without a
+            # preprocessing detection it falls back to the displayed UI / account language.
+            chat_output_language = preprocessing_result.output_language if preprocessing_result else user_system_language
             follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
             recommendations_enabled = (request_data.user_preferences or {}).get("recommendations_enabled", True) is not False
             effective_learning_mode_context = (

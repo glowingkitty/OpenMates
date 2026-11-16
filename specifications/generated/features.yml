@@ -5785,8 +5785,8 @@ features:
       - backend/tests/test_daily_inspiration_language.py
       - backend/tests/test_daily_inspiration_search_locales.py
       - backend/tests/test_daily_inspiration_static_localization.py
-      - backend/tests/test_message_received_ui_language.py
-      unit_test_files: 5
+      - backend/tests/test_early_chat_metadata.py
+      unit_test_files: 8
     sdk_npm:
       status: not_planned
       source: intent

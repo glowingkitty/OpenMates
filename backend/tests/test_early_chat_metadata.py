@@ -25,7 +25,8 @@ def test_projection_is_bounded_and_excludes_tool_private_context():
         {"role": "user", "content": "b" * 10000 + " important final constraint"},
         {"role": "user", "sender_name": "async_tool_result", "content": "private tool reply"},
     ], "fr")
-    assert "UI language: fr" in messages[0]["content"]
+    assert "language the user writes in" in messages[0]["content"]
+    assert "French (fr), the user's interface language" in messages[0]["content"]
     context = json.loads(messages[1]["content"])["conversation"]
     assert len(context) == 2 and len(context[0]["content"]) == 800
     assert context[-1]["content"].endswith("important final constraint")
@@ -132,3 +133,24 @@ async def test_greeting_can_decline_and_total_outage_is_nonfatal(monkeypatch):
     call.side_effect = RuntimeError("provider unavailable")
     assert await metadata.generate_early_chat_metadata(task_id="task", message_history=[
         {"role": "user", "content": "Dinner options"}], user_system_language="en", secrets_manager=None) is None
+
+
+# contract-test: supporting surface=rest_api assertions=language-preferences.chat-metadata-language
+@pytest.mark.asyncio
+async def test_english_interface_german_request_asks_for_german_metadata(monkeypatch):
+    """The model writes in the request language; the UI language is only the fallback."""
+    from backend.apps.ai.utils import llm_utils
+    call = AsyncMock(return_value=result({"title": "Vegetarische Abendessen planen",
+                                          "summary": "Plant fünf schnelle vegetarische Abendessen für zwei Personen."}))
+    monkeypatch.setattr(llm_utils, "call_preprocessing_llm", call)
+    generated = await metadata.generate_early_chat_metadata(task_id="task", message_history=[
+        {"role": "user", "content": "Plane fünf vegetarische Abendessen für zwei."}],
+        user_system_language="en", secrets_manager=None)
+    assert generated.title == "Vegetarische Abendessen planen"
+    kwargs = call.call_args.kwargs
+    system = kwargs["message_history"][0]["content"]
+    fields = kwargs["tool_definition"]["function"]["parameters"]["properties"]
+    for text in (system, fields["title"]["description"], fields["summary"]["description"]):
+        assert "Write in the language the user writes in" in text
+        assert "very short or mixed message, use English (en)" in text
+        assert "even if the request is in another language" not in text

@@ -29,7 +29,9 @@ async def test_voice_metadata_uses_shared_model_and_title_policy(monkeypatch):
     assert set(calls[0]["tool_definition"]["function"]["parameters"]["properties"]) == {"updated_chat_title", "chat_summary"}
     prompt = calls[0]["message_history"][0]["content"]
     assert module.chat_title_instruction(None) in prompt
-    assert "UI language: de" in prompt
+    assert "Write in the language the user writes in" in prompt
+    assert "use German (de), the user's interface language" in prompt
+    assert "system/UI language" not in module.chat_title_instruction(None)
     assert "greetings" in prompt and "call_turn=true" in prompt
 
 
@@ -371,6 +373,7 @@ async def test_postprocessing_batches_metadata_translation_when_output_language_
     }
     assert len(translation_calls) == 1
     assert translation_calls[0]["target_language"] == "en"
+    assert translation_calls[0]["metadata_language"] == "en"
     assert translation_calls[0]["chat_summary"] == "Nutzer erstellt deutsche Bewerbungsunterlagen."
     assert translation_calls[0]["updated_chat_title"] == "Bewerbungsunterlagen erstellen"
 
@@ -540,3 +543,77 @@ async def test_new_chat_title_is_deferred_and_bounded_fields_use_jev(monkeypatch
     assert result.updated_chat_title == "A Useful First Answer"
     assert result.harmful_response == 0.2
     assert result.top_recommended_apps_for_user == ["web"]
+
+
+# contract-test: supporting surface=rest_api assertions=language-preferences.chat-metadata-language
+@pytest.mark.anyio
+async def test_german_chat_in_english_interface_keeps_german_summary_tags_and_title(monkeypatch):
+    """Summary, tags and title follow the conversation; new-chat suggestions stay in the UI language."""
+    captured = {}
+
+    async def fake_llm(**kwargs):
+        captured["messages"] = kwargs["message_history"]
+        return LLMPreprocessingCallResult(arguments={
+            "follow_up_app_skill_suggestions": [], "follow_up_general_suggestions": [],
+            "new_chat_app_skill_suggestions": ["Find current reports about this topic"],
+            "new_chat_general_suggestions": ["Explore a related concept in depth"],
+            "harmful_response": 0.0, "top_recommended_apps_for_user": ["ai"],
+            "chat_summary": "Plant vegetarische Abendessen für zwei Personen.",
+            "chat_tags": ["Kochen", "Vegetarisch"],
+            "updated_chat_title": "Vegetarische Abendessen planen",
+            "daily_inspiration_topic_suggestions": ["cooking", "meal planning", "vegetarian food"],
+        })
+
+    translations = []
+
+    async def fake_translate(**kwargs):
+        translations.append(kwargs)
+        return {key: kwargs[key] for key in ("chat_summary", "share_cta_text", "updated_chat_title", "new_chat_suggestions")}
+
+    monkeypatch.setattr("backend.apps.ai.processing.postprocessor.call_preprocessing_llm", fake_llm)
+    monkeypatch.setattr("backend.apps.ai.processing.postprocessor.resolve_fallback_servers_from_provider_config", lambda _m: [])
+    monkeypatch.setattr("backend.apps.ai.processing.postprocessor.translate_postprocessing_metadata", fake_translate)
+    result = await handle_postprocessing(
+        task_id="german-chat", user_message="Plane fünf vegetarische Abendessen für zwei.",
+        assistant_response="Hier ist dein Plan.", chat_summary=None, chat_tags=[],
+        message_history=[{"role": "user", "content": "Plane fünf vegetarische Abendessen für zwei."}],
+        base_instructions={"postprocess_response_tool": {"type": "function", "function": {"name": "postprocess"}}},
+        secrets_manager=None, cache_service=None, available_app_ids=["ai"],
+        output_language="de", user_system_language="en", current_chat_title=None,
+    )
+    system = captured["messages"][0]["content"]
+    assert "**chat_summary**: Generate in 'de' (the conversation language)" in system
+    assert "**chat_tags**: Generate in 'de' (the conversation language)" in system
+    assert "**updated_chat_title**: Generate in 'de' (the conversation language)" in system
+    assert "**new_chat_app_skill_suggestions** and **new_chat_general_suggestions**: Generate in 'en'" in system
+    assert translations[0]["metadata_language"] == "de" and translations[0]["target_language"] == "en"
+    assert result.chat_summary == "Plant vegetarische Abendessen für zwei Personen."
+    assert result.chat_tags == ["Kochen", "Vegetarisch"]
+
+
+# contract-test: supporting surface=rest_api assertions=language-preferences.chat-metadata-language
+@pytest.mark.anyio
+async def test_metadata_translation_targets_conversation_and_ui_languages_per_field(monkeypatch):
+    from backend.apps.ai.processing import postprocessor as module
+    calls = []
+
+    async def fake_llm(**kwargs):
+        calls.append(kwargs)
+        return LLMPreprocessingCallResult(arguments={
+            "chat_summary": "Plant vegetarische Abendessen.", "share_cta_text": "See the plan",
+            "updated_chat_title": "Vegetarische Abendessen", "new_chat_suggestions": ["Plan a relaxed picnic for the weekend"],
+        })
+
+    monkeypatch.setattr(module, "call_preprocessing_llm", fake_llm)
+    monkeypatch.setattr(module, "resolve_fallback_servers_from_provider_config", lambda _m: [])
+    translated = await module.translate_postprocessing_metadata(
+        task_id="t", chat_summary="Plans vegetarian dinners.", share_cta_text="Sieh den Plan",
+        updated_chat_title="Vegetarian dinners", new_chat_suggestions=["Plane ein entspanntes Picknick am Wochenende"],
+        target_language="en", metadata_language="de", secrets_manager=None,
+    )
+    system = calls[0]["message_history"][0]["content"]
+    assert "chat_summary and updated_chat_title values to German (de)" in system
+    assert "share_cta_text and new_chat_suggestions values to English (en)" in system
+    assert translated["chat_summary"] == "Plant vegetarische Abendessen."
+    assert translated["updated_chat_title"] == "Vegetarische Abendessen"
+    assert translated["new_chat_suggestions"] == ["Plan a relaxed picnic for the weekend"]

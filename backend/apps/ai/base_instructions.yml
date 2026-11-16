@@ -39,8 +39,8 @@ fast_preprocess_request_tool:
           - If the user writes in German but quotes English text, the output_language is "de" (German).
           - If the user writes in English but includes Chinese characters as data, the output_language is "en" (English).
           - Use ISO 639-1 two-letter codes: "en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv".
-          - Default to "en" if the language cannot be determined.
-      6.  **title**: Generate a concise, relevant title for the user's first request (max 5-7 words). IMPORTANT: Always write the title in the user's UI language ({USER_SYSTEM_LANGUAGE}), even if the user wrote their message in a different language. The title language MUST match the UI language code, not the conversation language.
+          - If the last message is too short or mixed to tell, use the language of the user's earlier messages; if that is still unclear, use the UI language ({USER_SYSTEM_LANGUAGE}).
+      6.  **title**: Generate a concise, relevant title for the user's first request (max 5-7 words). Write the title in the language the user writes in (the output_language), not in the UI language. Only when that language is unclear, use the UI language ({USER_SYSTEM_LANGUAGE}).
       7.  **icon_names**: Choose 1-3 Lucide icon names that best represent the topic of the conversation.
           - Choose from common Lucide icons like 'code', 'heart', 'book', 'lightbulb', 'shield', 'globe', 'cpu', 'flask', 'music', 'camera', 'map', 'calculator', 'briefcase', 'leaf', 'film', 'plane', etc.
           - MUST provide at least one icon name — never return an empty array.
@@ -62,10 +62,10 @@ fast_preprocess_request_tool:
           description: "Risk of request being used for scams/hacking (0-10). High scores may be auto-rejected. Consider intent."
         output_language:
           type: "string"
-          description: "ISO 639-1 two-letter language code of the user's core request/instruction (e.g., 'en', 'de', 'zh', 'es', 'fr', 'ja'). Detect from the user's last message. Default to 'en' if uncertain."
+          description: "ISO 639-1 two-letter language code of the user's core request/instruction (e.g., 'en', 'de', 'zh', 'es', 'fr', 'ja'). Detect from the user's last message; if too short or mixed, from their earlier messages; if still unclear, use the UI language '{USER_SYSTEM_LANGUAGE}'."
         title:
           type: "string"
-          description: "A concise, relevant title for the user's request (max 5-7 words). MUST be written in UI language '{USER_SYSTEM_LANGUAGE}', regardless of what language the user wrote in."
+          description: "A concise, relevant title for the user's request (max 5-7 words). Written in the language the user writes in (output_language); the UI language '{USER_SYSTEM_LANGUAGE}' only when that is unclear."
         icon_names:
           type: "array"
           description: "List of 1-3 relevant Lucide icon names that best represent the request topic. MUST provide at least one icon name - never return an empty array."
@@ -168,8 +168,10 @@ preprocess_request_tool:
         A sensitive subject alone is not misuse; only clear material enablement belongs at
         or above the rejection threshold, and doubt stays below it.
       - output_language is the ISO 639-1 language of the latest user's instruction, ignoring
-        quoted text/code/data; default en.
-      - On new chats, return a 3-7 word title in the UI language and 1-3 common Lucide icons.
+        quoted text/code/data. If that message is too short or mixed to tell, use the language
+        of the user's earlier messages; if still unclear, the UI language.
+      - On new chats, return a 3-7 word title in output_language (the language the user
+        writes in, not the UI language) and 1-3 common Lucide icons.
     parameters:
       type: "object"
       properties:
@@ -243,10 +245,10 @@ preprocess_request_tool:
           description: "Malicious scam/hacking facilitation risk from 0 to 10."
         output_language:
           type: "string"
-          description: "ISO 639-1 language of the latest user's instruction."
+          description: "ISO 639-1 language of the latest user's instruction; earlier user messages, then the UI language, when unclear."
         title:
           type: "string"
-          description: "New chat only: concise 3-7 word title in the UI language."
+          description: "New chat only: concise 3-7 word title in output_language (the language the user writes in)."
         icon_names:
           type: "array"
           description: "New chat only: 1-3 common Lucide icon names."

@@ -2998,7 +2998,7 @@ Website and web app open in the selected or best-supported browser language.
 | Apple | impl | — | — |
 | CLI | impl | — | — |
 | TUI | impl | — | — |
-| REST API | partial 1/5 | 1 pass · 0 fail · 1 not run · 3 no test | 5 unit test file(s), e.g. [test_daily_inspiration_decisions.py](../../backend/tests/test_daily_inspiration_decisions.py), [test_daily_inspiration_language.py](../../backend/tests/test_daily_inspiration_language.py) |
+| REST API | partial 1/5 | 1 pass · 0 fail · 1 not run · 3 no test | 8 unit test file(s), e.g. [test_daily_inspiration_decisions.py](../../backend/tests/test_daily_inspiration_decisions.py), [test_daily_inspiration_language.py](../../backend/tests/test_daily_inspiration_language.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 

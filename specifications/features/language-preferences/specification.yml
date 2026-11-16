@@ -31,7 +31,7 @@ assertions:
     depends_on: [examples.content]
   - id: language-preferences.chat-metadata-language
     type: behavior
-    must: Generated chat titles, summaries, tags and new-chat suggestions use the interface language the web app is displaying when the message is sent, including Automatic browser language and a URL language that never rewrote the saved account language. The client sends that displayed language with each message; the saved account language applies only when no valid displayed language arrives.
+    must: Generated chat titles, summaries and tags use the language the user writes in, ignoring quoted text, code and data, even when the interface shows another language. Only when that language is unclear, such as a very short or mixed message, they use the language the web app is displaying when the message is sent (including Automatic browser language and a URL language that never rewrote the saved account language), and the saved account language when no valid displayed language arrives. The client sends the displayed language with each message. New-chat suggestions stay in the displayed interface language.
     depends_on: [examples.chat-metadata]
 applies_to:
   rest_api: {required: true, role: Public default-inspiration locale response semantics.}

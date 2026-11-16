@@ -18,6 +18,7 @@ from backend.core.api.app.services.cache import CacheService # Corrected import 
 from backend.core.api.app.services.directus.directus import DirectusService # Added for type hinting and reuse
 from backend.core.api.app.utils.encryption import EncryptionService # Added for type hinting and reuse
 from backend.core.api.app.services.translations import TranslationService # For loading translations
+from backend.apps.ai.processing.metadata_language import resolve_metadata_language
 
 # Import the new LLM utility
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult
@@ -3787,9 +3788,9 @@ async def handle_preprocessing(
                 f"reason={rejection_reason}, category={confirmation.category}, "
                 f"evidence_count={confirmation.evidence_count}"
             )
-            detected_language = llm_analysis_args.get("output_language", "en")
+            detected_language = llm_analysis_args.get("output_language", user_system_language)
             if not isinstance(detected_language, str):
-                detected_language = "en"
+                detected_language = user_system_language
             return PreprocessingResult(
                 can_proceed=False,
                 rejection_reason=rejection_reason,
@@ -4127,13 +4128,15 @@ async def handle_preprocessing(
     # --- Validate output_language field (ISO 639-1 two-letter code) ---
     # This is used for loading disclaimers and other user-facing messages in the correct language
     SUPPORTED_LANGUAGES = {"en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv"}
-    output_language_val = llm_analysis_args.get("output_language", "en")
-    if not isinstance(output_language_val, str) or output_language_val not in SUPPORTED_LANGUAGES:
+    # It is also the chat metadata language (language-preferences.chat-metadata-language):
+    # an unclear or invalid detection falls back to the displayed UI / account language.
+    raw_output_language = llm_analysis_args.get("output_language")
+    output_language_val = resolve_metadata_language(raw_output_language, user_system_language, SUPPORTED_LANGUAGES)
+    if output_language_val != raw_output_language:
         logger.warning(
-            f"{log_prefix} LLM returned invalid output_language '{output_language_val}'. "
-            f"Valid values are: {sorted(SUPPORTED_LANGUAGES)}. Defaulting to 'en'."
+            f"{log_prefix} LLM returned invalid output_language '{raw_output_language}'. "
+            f"Valid values are: {sorted(SUPPORTED_LANGUAGES)}. Using UI language '{output_language_val}'."
         )
-        output_language_val = "en"
         llm_analysis_args["output_language"] = output_language_val
     else:
         logger.info(f"{log_prefix} Detected output language: '{output_language_val}'")
@@ -4774,22 +4777,14 @@ async def handle_preprocessing(
         error_message=None
     )
 
-    # Do not translate metadata in the critical preprocessing path. The main processor
-    # can start as soon as routing/safety/model metadata is ready; translated title or
-    # summary cleanup must be asynchronous and non-blocking. Same-language metadata is
-    # already correct, and cross-language cleanup can happen after main processing starts.
+    # The title is generated in the conversation language (output_language), so the
+    # critical preprocessing path never translates metadata.
     user_id_uuid_for_events = request_data.user_id
     chat_id_for_events = request_data.chat_id
-    if final_result.output_language == user_system_language:
-        logger.info(
-            f"{log_prefix} Skipping metadata translation: output_language matches UI language "
-            f"('{user_system_language}')."
-        )
-    else:
-        logger.info(
-            f"{log_prefix} Deferring metadata translation out of preprocessing critical path "
-            f"(chat_lang='{final_result.output_language}', ui_lang='{user_system_language}')."
-        )
+    logger.info(
+        f"{log_prefix} Metadata language: '{final_result.output_language}' "
+        f"(UI fallback '{user_system_language}')."
+    )
 
     # Emit title_generated immediately with the core preprocessing title. The frontend
     # listens to this event to display the chat title banner.

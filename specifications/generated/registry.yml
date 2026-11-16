@@ -806,7 +806,7 @@ specifications:
     version: 1
     status: draft
     path: features/language-preferences
-    fingerprint: 4fc6c78d96cb1c004b5415d65fa84584de76ca12b7a457868c536cbe7232293c
+    fingerprint: 3062bc2f5d04ee6b82377d76eba060d4b02b620a014e9f33722a009b50a2f192
     required_applies_to:
     - rest_api
     - gui.web
@@ -10508,7 +10508,7 @@ assertions:
     specification: feature.language-preferences@1
     specification_id: feature.language-preferences
     type: behavior
-    fingerprint: ddf34c5484d4a30880931a521052452ed3163eba6e0b86bc2faf52a917e2cbe7
+    fingerprint: 67adad6ecea7bc02d1c4c9f5aeb21a1e3b4f483d3533328c6480eb2f2ddf7d92
     required_applies_to:
     - rest_api
     - gui.web
