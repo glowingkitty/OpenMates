@@ -4,7 +4,9 @@ export {};
 
 /**
  * Slides focus modes (real inference, dev server only): "Design a template" and
- * "Plan a presentation" run with Gemini 3.8 Flash and the real Jev phase gates.
+ * "Plan a presentation" run with Gemini 3.8 Flash and the real Jev phase gates. A third
+ * case presents a real Gemini deck on a laptop and steers it from a phone remote (same
+ * account, relayed encrypted presenter state).
  * Replies are scripted short answers sent in a bounded loop until the expected
  * element (template cards, deck embed) appears.
  *
@@ -29,6 +31,7 @@ const {
 } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { openFullscreen, closeFullscreen, showCarouselCard } = require('./helpers/embed-test-helpers');
+const { openChatAfterContextSync, waitForContextSyncComplete } = require('./helpers/chat-hydration');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
 
@@ -302,6 +305,70 @@ test('presentation planner focus takes a beginner from idea to a deck with speak
 		await expect(last()).not.toBeEmpty();
 		await screenshot(page, 'planner-review-reply');
 	} finally {
+		await cleanUp(page, log);
+	}
+});
+
+const REMOTE_PROMPT =
+	'Create a three-slide deck for our school robotics club season: goals, highlights, next steps. Add short speaker notes.';
+
+// contract-test: direct surface=gui.web assertions=slides.present.remote-control
+test('a phone remote steers the laptop presentation of a real deck (real inference)', async ({ page, browser }: { page: any; browser: any }, testInfo: any) => {
+	const { log, screenshot } = await begin(page, 'slides-remote-real');
+	const { decks } = locators(page);
+	const phoneContext = await browser.newContext({
+		baseURL: testInfo.project.use.baseURL, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
+		deviceScaleFactor: 2, recordVideo: { dir: testInfo.outputPath('phone-video'), size: { width: 390, height: 844 } }
+	});
+	const phone = await phoneContext.newPage();
+	attachConsoleListeners(phone);
+	const audience = () => page.getByTestId('slides-audience');
+	try {
+		await waitForReply(page, log, await sendWithGemini(page, REMOTE_PROMPT, log, screenshot, 'remote-deck'));
+		await expect(decks().first()).toBeVisible({ timeout: ANSWER_TIMEOUT });
+		const chatId = new URL(page.url()).hash.match(/chat-id=([a-zA-Z0-9-]+)/)?.[1]
+			?? new URL(page.url()).searchParams.get('chat-id');
+		expect(chatId, 'the chat id is in the URL').toBeTruthy();
+		const laptopOverlay = await openFullscreen(page, decks().first());
+		await expect(laptopOverlay.getByTestId('slides-deck-fullscreen')).toBeVisible({ timeout: 20_000 });
+		const slideCount = await laptopOverlay.getByTestId('slide-strip-item').count();
+		log(`deck slides: ${slideCount}`);
+		expect(slideCount).toBeGreaterThanOrEqual(2);
+		await laptopOverlay.getByTestId('slides-present').click();
+		await expect(audience()).toHaveAttribute('data-slide-index', '0', { timeout: 20_000 });
+		await screenshot(page, 'remote-laptop-presenting');
+
+		// Phone: same account in a fresh TOTP window, same chat and deck, open the remote.
+		await page.waitForTimeout(30_000 - (Date.now() % 30_000) + 500);
+		await loginToTestAccount(phone, log, screenshot);
+		await openChatAfterContextSync(phone, chatId, testInfo);
+		await waitForContextSyncComplete(phone, testInfo);
+		const phoneDeck = phone.locator(FINISHED).filter({ hasNot: phone.getByTestId('slides-template-card') }).first();
+		await expect(phoneDeck).toBeVisible({ timeout: 90_000 });
+		await openFullscreen(phone, phoneDeck);
+		await expect(phone.getByTestId('slides-presenting-elsewhere')).toBeVisible({ timeout: 30_000 });
+		await phone.getByTestId('slides-remote-open').tap();
+		await expect(phone.getByTestId('slides-remote-position')).toHaveText(`1 / ${slideCount}`, { timeout: 15_000 });
+		await screenshot(phone, 'remote-phone-panel');
+
+		// Phone next and jump steer the laptop; laptop keys move the phone; notes on demand.
+		await phone.getByTestId('slides-remote-next').tap();
+		await expect(audience()).toHaveAttribute('data-slide-index', '1', { timeout: 10_000 });
+		await screenshot(page, 'remote-laptop-slide-2');
+		await phone.getByTestId(`slides-remote-slide-${slideCount}`).tap();
+		await expect(audience()).toHaveAttribute('data-slide-index', String(slideCount - 1), { timeout: 10_000 });
+		await phone.getByTestId('slides-remote-slide-1').tap();
+		await expect(audience()).toHaveAttribute('data-slide-index', '0', { timeout: 10_000 });
+		await phone.getByTestId('slides-remote-notes-toggle').tap();
+		await expect(phone.getByTestId('slides-remote-notes')).toBeVisible();
+		await screenshot(phone, 'remote-phone-notes');
+		await page.keyboard.press('ArrowRight');
+		await expect(phone.getByTestId('slides-remote-position')).toHaveText(`2 / ${slideCount}`, { timeout: 10_000 });
+		await page.getByTestId('slides-audience-exit').click();
+		await expect(phone.getByTestId('slides-remote-not-presenting')).toBeVisible({ timeout: 30_000 });
+		await screenshot(phone, 'remote-phone-not-presenting');
+	} finally {
+		await phoneContext.close().catch(() => undefined);
 		await cleanUp(page, log);
 	}
 });

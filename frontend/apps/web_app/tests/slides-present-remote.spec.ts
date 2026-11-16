@@ -117,6 +117,16 @@ test('a phone remote steps and jumps the laptop presentation and relays only enc
 		await expect(phone.getByTestId('slides-remote-panel')).toBeVisible();
 		await expect(phone.getByTestId('slides-remote-position')).toHaveText('1 / 2', { timeout: 15_000 });
 		await expect(phone.getByTestId('slides-remote-not-presenting')).toHaveCount(0);
+		// Nothing (e.g. the fullscreen top bar) paints over the remote's controls.
+		for (const control of ['slides-remote-prev', 'slides-remote-next', 'slides-remote-notes-toggle']) {
+			const covering = await phone.getByTestId(control).evaluate((button: HTMLElement) => {
+				const box = button.getBoundingClientRect();
+				const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+				if (hit !== null && button.contains(hit)) return '';
+				return hit ? `${hit.tagName.toLowerCase()}.${[...hit.classList].join('.')}[${hit.getAttribute('data-testid') ?? ''}]` : 'nothing';
+			});
+			expect(covering, `${control} is the topmost element at its centre`).toBe('');
+		}
 		await attach('phone-remote-panel', phone);
 
 		// 3. Phone next -> laptop slide 2; jump back to slide 1; notes toggle.

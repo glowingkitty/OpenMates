@@ -188,7 +188,8 @@
   .presenter {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    /* Above the main content, which rises to 10001 while a fullscreen embed is in overlay mode (web_app +page.svelte). */
+    z-index: 10002;
     display: flex;
     flex-direction: column;
     gap: var(--spacing-6);

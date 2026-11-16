@@ -20,6 +20,7 @@
   import {
     applyAction,
     clampPosition,
+    portalToBody,
     isPresentMessage,
     presentChannelName,
     type PresentAction,
@@ -135,14 +136,9 @@
     };
   });
 
-  /** Moves the node to document.body for the lifetime of the component. */
-  function portal(node: HTMLElement) {
-    document.body.appendChild(node);
-    return { destroy: () => node.remove() };
-  }
 </script>
 
-<div use:portal data-testid="slides-presentation" data-mode={mode}>
+<div use:portalToBody data-testid="slides-presentation" data-mode={mode}>
   {#if parsed.ok && slides.length > 0}
     {#if mode === 'presenter'}
       <SlidesPresenterView deck={parsed.deck} {position} {onAction} {onExit} {onGoto} {notice} />

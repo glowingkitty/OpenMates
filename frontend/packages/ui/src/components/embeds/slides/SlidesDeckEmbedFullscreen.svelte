@@ -22,7 +22,7 @@
   import SlidesPresentRemote from './SlidesPresentRemote.svelte';
   import { createPresentRemotePublisher, watchPresenter, type PresentRemotePublisher } from './slidesPresentRemote';
   import { authStore } from '../../../stores/authStore';
-  import { applyAction, clampPosition, newPresentSessionId, openAudienceWindow } from './slidesPresentation';
+  import { applyAction, clampPosition, newPresentSessionId, openAudienceWindow, portalToBody } from './slidesPresentation';
   import { inlineToPlainText, maxStep, parseSlidesMarkup } from './slidesMarkup';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -457,7 +457,7 @@
         </div>
       {/if}
       {#if remoteOpen && !presenting}
-        <div class="remote-overlay">
+        <div class="remote-overlay" use:portalToBody>
           <SlidesPresentRemote
             {markup}
             position={remotePosition}
@@ -592,7 +592,9 @@
   .remote-overlay {
     position: fixed;
     inset: 0;
-    z-index: var(--z-index-modal, 1000);
+    /* Moved to document.body (portalToBody); above the main content, which rises to 10001
+       while a fullscreen embed is in overlay mode (web_app +page.svelte). */
+    z-index: 10002;
     overflow-y: auto;
     background: var(--color-grey-0);
   }
