@@ -92,6 +92,21 @@ def test_provider_correction_keeps_preceding_activity_and_provider_brand():
     assert "Activity Network" in jev_preprocessing._app_catalogue(["fitness"], [candidate])[0]
 
 
+# contract-test: supporting surface=rest_api assertions=shopping-search.answer.identify-then-compare
+def test_routing_view_shows_upload_marker_instead_of_upload_metadata():
+    upload = ("```toon\napp_id: images\nskill_id: upload\ntype: image\nstatus: finished\n"
+              "filename: desk_item.jpg\nembed_ref: desk_item.jpg\ncontent_hash: 3b1f0c5a\n"
+              "s3_base_url: https://files.example.org\nfiles:\n  original:\n    s3_key: uploads/u1/original.bin\n"
+              "    width: 1500\nai_detection: null\n```\nWhere is this cheapest?")
+    search = "```toon\napp_id: web\nskill_id: search\nquery: desk\n```\n"
+    messages = jev_preprocessing._messages([
+        {"role": "user", "content": search + upload},
+        {"role": "user", "content": "```toon\napp_id: pdf\nskill_id: upload\nfilename: \"Offer.pdf\"\n```\nSummarize"},
+    ])
+    assert messages[0]["content"] == search + "[Attached image: desk_item.jpg]\nWhere is this cheapest?"
+    assert messages[1]["content"] == "[Attached pdf: Offer.pdf]\nSummarize"
+
+
 # contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way,ai-model-routing.defaults.google-tier-profiles
 @pytest.mark.asyncio
 @pytest.mark.parametrize("explicit_model", [False, True])

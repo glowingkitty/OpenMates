@@ -163,7 +163,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Project Timeline tab | partial 1/2 | ? |  | tested 2/2 | ? | tested 2/2 | ? | ? | | | |
 | &nbsp;&nbsp;↳ Access, memories and parity | **FAIL** 1/4 | **FAIL** 1/4 |  | partial 1/4 | **FAIL** 0/1 | partial 2/4 | not run 0/4 | not run 0/4 | | | |
 | [Reminder](#reminder) | **FAIL** 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
-| [Shopping](#shopping) | partial 1/9 | impl |  | impl | impl | partial 3/8 | impl | impl | on | on | v0.5.0-alpha |
+| [Shopping](#shopping) | partial 1/9 | impl |  | impl | impl | partial 4/8 | impl | impl | on | on | v0.5.0-alpha |
 | [Slides](#slides) | partial 15/24 | tested 3/3 |  | — | wip | partial 11/24 | impl | — | on | on | untagged-main |
 | &nbsp;&nbsp;↳ Presentation remote | **live** 3/3 | tested 2/2 |  | — | ? | partial 1/3 | ? | — | | | |
 | &nbsp;&nbsp;↳ Animated SVG images | **live** 1/1 | ? |  | — | ? | **live** 1/1 | ? | — | | | |
@@ -2657,7 +2657,7 @@ Product search through operator-installed providers: identify a product from a p
 | Apple | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
 | CLI | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
 | TUI | impl | — | — |
-| REST API | partial 3/8 | 3 pass · 0 fail · 4 not run · 1 no test | 4 unit test file(s), e.g. [test_app_packages_price_comparison.py](../../backend/tests/test_app_packages_price_comparison.py), [test_shopping_visual_ranking.py](../../backend/tests/test_shopping_visual_ranking.py) |
+| REST API | partial 4/8 | 4 pass · 0 fail · 4 not run · 0 no test | 5 unit test file(s), e.g. [test_app_packages_price_comparison.py](../../backend/tests/test_app_packages_price_comparison.py), [test_shopping_visual_ranking.py](../../backend/tests/test_shopping_visual_ranking.py) |
 | npm SDK | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
 | PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
 

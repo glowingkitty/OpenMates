@@ -16969,10 +16969,10 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 3
+        passing: 4
         failing: 0
         not_run: 4
-        missing: 1
+        missing: 0
         counted: 8
       key_tests: []
       e2e_tests: []
@@ -16981,7 +16981,8 @@ features:
       - backend/tests/test_shopping_visual_ranking.py
       - backend/tests/test_shopping_visual_metadata.py
       - backend/tests/test_main_processor_invalid_tool_calls.py
-      unit_test_files: 4
+      - backend/tests/test_preprocessor_jev.py
+      unit_test_files: 5
     sdk_npm:
       status: implemented
       source: intent

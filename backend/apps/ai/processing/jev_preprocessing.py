@@ -191,6 +191,28 @@ def _latest_user_text(message_history: list[Any]) -> str:
     return next((row["content"] for row in reversed(_messages(message_history)) if row["role"] == "user"), "")
 
 
+# A resolved upload embed in the user's message: a TOON block with app_id and
+# skill_id: upload. Its storage keys, hashes and sizes say nothing about the
+# request, and in a long decision prompt they outweigh a short question such as
+# "where is this cheapest?" about the attached photo.
+_UPLOAD_BLOCK = re.compile(r"```toon\n(?P<body>(?:(?!```)[\s\S])*?\bskill_id: upload\b[\s\S]*?)\n```")
+_TOON_FIELD = r"^{}: *(?P<value>[^\n]+)$"
+
+
+def _compact_uploads(content: str) -> str:
+    """Show the decision model an attachment marker instead of upload embed metadata."""
+    def marker(match: re.Match[str]) -> str:
+        body = match.group("body")
+        def field(name: str) -> str:
+            found = re.search(_TOON_FIELD.format(name), body, re.MULTILINE)
+            value = found.group("value").strip().strip('"') if found else ""
+            return "" if value == "null" else value
+        kind = field("type") or field("app_id") or "file"
+        name = field("filename") or field("embed_ref")
+        return f"[Attached {kind}: {name}]" if name else f"[Attached {kind}]"
+    return _UPLOAD_BLOCK.sub(marker, content)
+
+
 def _messages(message_history: list[Any]) -> list[dict[str, str]]:
     result: list[dict[str, str]] = []
     for message in message_history:
@@ -201,6 +223,8 @@ def _messages(message_history: list[Any]) -> list[dict[str, str]]:
             sender_name = getattr(message, "sender_name", None)
         if role == "user" and sender_name == "async_tool_result":
             continue
+        if role == "user" and isinstance(content, str):
+            content = _compact_uploads(content)
         if role in {"user", "assistant"} and isinstance(content, str) and content.strip():
             result.append({"role": role, "content": content.strip()})
     latest_user = next((index for index in reversed(range(len(result)))
@@ -539,6 +563,12 @@ async def decide_app_and_project_routing_with_jev(
     selected = ([app_id for question, app_id in app_map.items()
                  if response is not None and noul_value(response, question) >= .65]
                 if selected_app_ids is None else [app for app in selected_app_ids if app in valid_apps])
+    if response is not None and selected_app_ids is None:
+        # Content-free: app ids and scores only, to explain a missed or extra app.
+        scored = sorted(((noul_value(response, question), app_id) for question, app_id in app_map.items()),
+                        reverse=True)
+        logger.info("Stage-one app scores task=%s threshold=0.65 top=%s", telemetry_task_id,
+                    ", ".join(f"{app_id}={score:.2f}" for score, app_id in scored[:6]))
     selected.extend(app for app in (forced_app_ids or []) if app in valid_apps)
     result: dict[str, Any] = {"selected_app_ids": list(dict.fromkeys(selected)),
                               "project_target_outcome": "no_eligible_candidate"}
