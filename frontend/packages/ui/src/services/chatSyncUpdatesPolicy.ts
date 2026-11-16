@@ -6,9 +6,7 @@
 // bundled into default builds). There is no TypeScript fallback with the flag on.
 export { messagePreview, recoveredThinkingFields } from "./chatSyncUpdatesLogic";
 
-// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
-export const RUST_UPDATES_POLICY: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+export const RUST_UPDATES_POLICY: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 
 export function rustUpdatesPolicy() {
   return import("./rustCore/sync/rustChatUpdatesPolicy");

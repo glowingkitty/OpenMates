@@ -8,7 +8,7 @@ import { getApiEndpoint } from '../config/api';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { getCachedChatVersionMap } from "./db/chatKeyManagement";
-import { webSocketService } from "./websocketService";
+import { isWebSocketConnectionChanged, webSocketService } from "./websocketService";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
 import { aiTypingStore } from "../stores/aiTypingStore";
@@ -111,9 +111,8 @@ import {
 
 // All payload interface definitions are now expected to be in types/chat.ts
 
-/** Rust core build: the sync unit decides the reconnect stale-draft probe (same opt-out as the Phase 2 handlers). */
-const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+/** Rust core build: the sync unit decides the reconnect stale-draft probe. */
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 
 const CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS = 8_000;
 
@@ -2913,6 +2912,11 @@ export class ChatSynchronizationService extends EventTarget {
         {} as RequestCacheStatusPayload,
       );
     } catch (error) {
+      if (isWebSocketConnectionChanged(error)) {
+        // The replacement socket's connect handler requests cache status again.
+        console.warn("[ChatSyncService] 'request_cache_status' superseded by a reconnect:", error);
+        return;
+      }
       console.error(
         "[ChatSyncService] Error sending 'request_cache_status':",
         error,

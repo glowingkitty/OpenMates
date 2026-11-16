@@ -1,6 +1,5 @@
 // Opt-in shared Rust core build: the retained-frame check runs in the Worker `sync` unit.
-const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 
 export type AdmissionContextPhase = 'routing' | 'details';
 

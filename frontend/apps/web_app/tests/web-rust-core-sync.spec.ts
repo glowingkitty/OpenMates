@@ -5,14 +5,12 @@
  * Worker `sync` unit, VITE_OPENMATES_RUST_CORE=1 build.
  *
  * Engineering migration check (web lane: sync policy). A logged-in account sends
- * one message (new chat), then alternating reloads run phased sync on the
- * TypeScript policy (measurement opt-out `openmates_rust_core_sync=ts`) and on
- * the Rust unit. Every reload must list the chat in the sidebar and render the
- * decrypted user and assistant messages (existing chats keep decrypting and
- * syncing). The Rust arm must route its sync decisions (merge, key admission)
- * through the unit with zero failures, one shared Worker and no WASM on the
- * page; the TS arm must never load the adapter. Records reload -> rendered chat
- * latency per arm (paired medians, approved not-noticeable budget, soft gate).
+ * one message (new chat), then repeated reloads run phased sync. Every reload
+ * must list the chat in the sidebar and render the decrypted user and assistant
+ * messages (existing chats keep decrypting and syncing). Each reload must route
+ * its merge decisions through the Rust unit with no failed unit call, one shared
+ * Worker and no WASM on the page; there is no TypeScript arm.
+ * Records the reload -> rendered chat latency of the Rust path.
  * Finally a fresh second device signs in: the Rust unit plans the storage of
  * the synced encrypted messages (messagePrep) and their messages_v advance
  * (messagesVersion), and the user message renders there.
@@ -27,8 +25,7 @@ const { loginToTestAccount, sendMessage, deleteActiveChat, setChatSidebarOpen } 
 const { rustCoreInstances } = require('./helpers/rust-core-instances');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const SYNC_OPT_OUT_KEY = 'openmates_rust_core_sync';
-const PAIRS = 3;
+const RELOADS = 3;
 
 async function reloadAndRender(page: any, chatId: string): Promise<number> {
 	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
@@ -50,6 +47,8 @@ test('phased sync decisions run on the shared Rust sync unit and existing chats 
 	const syncErrors: string[] = [];
 	page.on('console', (msg: any) => {
 		const text = msg.text();
+		// A request superseded by a reconnect is re-sent on the new socket (warning, not a sync failure).
+		if (/superseded by a reconnect/.test(text)) return;
 		if (/\[ChatSyncService\].*(Error|Failed)|sync_merge_unsettled|UnitPortError|DataCloneError/.test(text)) syncErrors.push(text.slice(0, 300));
 	});
 	// A request the page cannot post to the shared Worker (for example reactive state passed
@@ -100,40 +99,32 @@ test('phased sync decisions run on the shared Rust sync unit and existing chats 
 	});
 	expect(retiredAfterAdmission, 'the shared core is not shut down after the account was admitted').toBe(0);
 
-	const samples: Record<'ts' | 'rust', Record<string, unknown>[]> = { ts: [], rust: [] };
+	const samples: Record<string, unknown>[] = [];
 	try {
-		for (let i = 0; i < PAIRS * 2; i++) {
-			const path = i % 2 === 0 ? 'ts' : 'rust';
-			await page.evaluate(([key, ts]: [string, boolean]) => { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); },
-				[SYNC_OPT_OUT_KEY, path === 'ts']);
+		for (let i = 0; i < RELOADS; i++) {
 			const renderMs = await reloadAndRender(page, chatId);
 			await setChatSidebarOpen(page, true);
 			await expect(page.getByTestId('chat-item-wrapper').first())
 				.toBeVisible({ timeout: 30000 });
 			const readStats = () => page.evaluate(() => (window as any).__openmatesRustSyncStats?.() ?? null);
-			if (path === 'rust') {
-				await expect.poll(async () => (await readStats())?.calls ?? 0, { timeout: 45000 }).toBeGreaterThan(0);
-			}
+			await expect.poll(async () => (await readStats())?.calls ?? 0, { timeout: 45000 }).toBeGreaterThan(0);
 			const stats = await readStats();
-			if (path === 'rust') {
-				const decisions = (stats.ops.merge ?? 0) + (stats.ops.admission ?? 0) + (stats.ops.messageKeyPlan ?? 0);
-				expect(decisions, 'Rust arm routed sync decisions (merge/admission/message keys) through the unit').toBeGreaterThan(0);
-				expect(stats.failures, 'no sync unit call failed').toBe(0);
-			} else {
-				expect(stats, 'TS arm never loaded the Rust sync adapter').toBeNull();
-			}
+			// Sync decisions are made only by the unit: a refusal is a visible failure, never a TypeScript fallback.
+			// A reload with cached chat keys merges but admits no new key, so only merge is required here.
+			expect(stats.ops.merge ?? 0, 'merge decided by the Rust sync unit').toBeGreaterThan(0);
+			expect(stats.failures, 'no sync unit call failed').toBe(0);
 			const instances = await rustCoreInstances(page);
-			expect(instances.wasmMainThreadInstantiations, `${path}: no WASM on the page realm`).toBe(0);
-			expect(instances.workers.filter((worker: { name: string }) => worker.name === 'shared.worker').length, `${path}: one shared Rust core Worker`).toBe(1);
-			samples[path].push({ renderMs, stats, ...instances });
+			expect(instances.wasmMainThreadInstantiations, 'no WASM on the page realm').toBe(0);
+			expect(instances.workers.filter((worker: { name: string }) => worker.name === 'shared.worker').length, 'one shared Rust core Worker').toBe(1);
+			samples.push({ renderMs, stats, ...instances });
 		}
-		expect(syncErrors, 'no chat-sync errors in either arm').toEqual([]);
+		expect(syncErrors, 'no chat-sync errors').toEqual([]);
 
 		// Synced-message storage plans: a fresh device (empty IndexedDB) receives the chat's encrypted
 		// messages through startup/on-demand sync; the Rust unit plans their normalization and the
 		// chat still renders decrypted on that device.
 		// Only the user message is asserted: on a fresh device the mocked assistant reply is not reliably
-		// restored in either arm (the same reload-render gap this spec's TS arm hits on device A).
+		// restored (a reload-render gap seen on device A as well).
 		const deviceB = await browser.newContext();
 		const pageB = await deviceB.newPage();
 		try {
@@ -153,16 +144,9 @@ test('phased sync decisions run on the shared Rust sync unit and existing chats 
 			await deviceB.close();
 		}
 	} finally {
-		await page.evaluate((key: string) => localStorage.removeItem(key), SYNC_OPT_OUT_KEY);
 		await deleteActiveChat(page, log, screenshot, 'sync-cleanup');
 	}
-	const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
-	const rust = median(samples.rust.map((row) => Number(row.renderMs)));
-	const ts = median(samples.ts.map((row) => Number(row.renderMs)));
-	const limit = Math.max(ts * 1.1, ts + 50);
-	const metrics = { pairs: PAIRS, rustMedianMs: rust, tsMedianMs: ts, verdict: rust <= limit ? 'rust_not_worse' : 'rust_worse', samples };
-	console.log(`[web-rust-core-sync] ${JSON.stringify({ rustMedianMs: rust, tsMedianMs: ts, verdict: metrics.verdict })}`);
+	const metrics = { reloads: RELOADS, renderMs: samples.map((row) => Number(row.renderMs)), samples };
+	console.log(`[web-rust-core-sync] ${JSON.stringify({ renderMs: metrics.renderMs })}`);
 	await testInfo.attach('sync-reload-latency.json', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' });
-	// Advisory budget (.claude/rules/cli-sdk.md, 2026-11-07): the verdict is recorded; only a gross regression blocks.
-	expect.soft(rust > ts * 1.25 && rust - ts > 100, `reload-to-rendered chat gross regression: Rust ${rust} ms vs TS ${ts} ms (advisory limit ${limit})`).toBe(false);
 });

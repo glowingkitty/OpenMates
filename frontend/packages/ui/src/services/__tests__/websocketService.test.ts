@@ -5,7 +5,7 @@
 // encrypted completion recovery does not lose an availability announcement.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { webSocketService } from "../websocketService";
+import { isWebSocketConnectionChanged, WEBSOCKET_CONNECTION_CHANGED, webSocketService } from "../websocketService";
 import * as wsTracing from "../tracing/wsSpans";
 import { authStore } from "../../stores/authState";
 import { notificationStore } from "../../stores/notificationStore";
@@ -375,6 +375,43 @@ describe("webSocketService message dispatch", () => {
       "WebSocket changed before message dispatch",
     );
     expect(socket.send).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
+  it("tags a send lost to a socket replacement and logs it as a warning, not an error", async () => {
+    const service = webSocketService as unknown as {
+      ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null;
+    };
+    const socket = { readyState: WebSocket.OPEN, send: vi.fn() };
+    service.ws = socket;
+    vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => {
+      service.ws = null;
+      return callback();
+    });
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const sent = webSocketService.sendMessage("chat_turn_preflight", {});
+    await expect(sent).rejects.toSatisfy(isWebSocketConnectionChanged);
+    expect(socket.send).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalledWith("[WebSocketService] Error sending message:", expect.anything());
+    expect(warn).toHaveBeenCalledWith("[WebSocketService] Error sending message:", expect.anything());
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
+  it("tags a send whose pending connect is replaced by a forced reconnect", async () => {
+    const service = webSocketService as unknown as { isConnected: () => boolean; connect: () => Promise<void> };
+    vi.spyOn(service, "isConnected").mockReturnValue(false);
+    vi.spyOn(service, "connect").mockRejectedValue(
+      Object.assign(new Error("auth upgrade"), { code: WEBSOCKET_CONNECTION_CHANGED }),
+    );
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(webSocketService.sendMessage("get_chat_model_preference", { chat_id: "c" })).rejects.toSatisfy(
+      isWebSocketConnectionChanged,
+    );
+    expect(error).not.toHaveBeenCalled();
   });
 });
 

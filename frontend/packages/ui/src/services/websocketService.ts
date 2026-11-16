@@ -191,6 +191,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+/**
+ * Error code of a send whose socket was replaced (reconnect, auth upgrade)
+ * between connect and dispatch. The frame was not sent; callers that need it
+ * request again on the new connection, so this is a warning, not an error.
+ */
+export const WEBSOCKET_CONNECTION_CHANGED = "websocket_connection_changed";
+
+export function isWebSocketConnectionChanged(error: unknown): boolean {
+  return isRecord(error) && error.code === WEBSOCKET_CONNECTION_CHANGED;
+}
+
+function connectionChangedError(): Error {
+  return Object.assign(new Error("WebSocket changed before message dispatch"), { code: WEBSOCKET_CONNECTION_CHANGED });
+}
+
 function isRetryableRecoveryProtocolError(payload: unknown): boolean {
   if (!isRecord(payload)) return false;
   return (
@@ -1159,7 +1174,8 @@ class WebSocketService extends EventTarget {
     }
 
     if (this.rejectConnectionPromise && this.connectionPromise) {
-      this.rejectConnectionPromise(new Error(reason));
+      // Sends waiting on the replaced attempt were superseded, not failed.
+      this.rejectConnectionPromise(Object.assign(new Error(reason), { code: WEBSOCKET_CONNECTION_CHANGED }));
       this.connectionPromise = null;
     }
 
@@ -1244,6 +1260,11 @@ class WebSocketService extends EventTarget {
       try {
         await this.connect(); // Wait for connection
       } catch (_error) {
+        if (isWebSocketConnectionChanged(_error)) {
+          // A forced reconnect replaced the attempt this send waited on.
+          if (type !== "ping") console.warn("[WebSocketService] Connection replaced before send:", logMessage);
+          throw connectionChangedError();
+        }
         if (type !== "ping") {
           // Downgrade to warn when user is simply not authenticated — this is
           // expected on public pages (embed showcase, demo chats) and should
@@ -1283,7 +1304,7 @@ class WebSocketService extends EventTarget {
                 tracing.injectTraceparent(message.payload as Record<string, unknown>);
               }
               if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-                throw new Error("WebSocket changed before message dispatch");
+                throw connectionChangedError();
               }
               assertExpectedConnection();
               this.ws.send(JSON.stringify(message));
@@ -1293,13 +1314,15 @@ class WebSocketService extends EventTarget {
           console.warn("[WebSocketService] Tracing unavailable for WebSocket send.");
         }
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-          throw new Error("WebSocket changed before message dispatch");
+          throw connectionChangedError();
         }
         assertExpectedConnection();
         this.ws.send(JSON.stringify(message));
       } catch (error) {
         if (type !== "ping") {
-          console.error("[WebSocketService] Error sending message:", error);
+          // A replaced socket is an expected reconnect race, not a failure of this client.
+          const logFn = isWebSocketConnectionChanged(error) ? console.warn : console.error;
+          logFn("[WebSocketService] Error sending message:", error);
         }
         throw error; // Re-throw error after logging
       }
