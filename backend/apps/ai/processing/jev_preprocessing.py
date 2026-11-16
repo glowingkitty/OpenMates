@@ -213,6 +213,25 @@ def _compact_uploads(content: str) -> str:
     return _UPLOAD_BLOCK.sub(marker, content)
 
 
+APP_SELECTION_THRESHOLD = 0.65
+# The decision model reads text only. When the latest request carries an upload,
+# "where is this cheapest?" names nothing and the app that fits the file's content
+# lands just under the usual threshold, so a lower one keeps it available; the main
+# model, which sees the file, still decides whether to call it.
+APP_SELECTION_THRESHOLD_WITH_UPLOAD = 0.5
+
+
+def _latest_request_has_upload(message_history: list[Any]) -> bool:
+    for message in reversed(message_history):
+        role = message.get("role") if isinstance(message, dict) else getattr(message, "role", None)
+        sender = message.get("sender_name") if isinstance(message, dict) else getattr(message, "sender_name", None)
+        if role != "user" or sender == "async_tool_result":
+            continue
+        content = message.get("content") if isinstance(message, dict) else getattr(message, "content", None)
+        return isinstance(content, str) and _UPLOAD_BLOCK.search(content) is not None
+    return False
+
+
 def _messages(message_history: list[Any]) -> list[dict[str, str]]:
     result: list[dict[str, str]] = []
     for message in message_history:
@@ -560,14 +579,16 @@ async def decide_app_and_project_routing_with_jev(
         state=state, questions=questions, secrets_manager=secrets_manager,
         model_id=model_id, telemetry_task_id=telemetry_task_id,
     ) if questions and project_routing_focus_id is None and precomputed_stage_one is None else None
+    threshold = (APP_SELECTION_THRESHOLD_WITH_UPLOAD if _latest_request_has_upload(message_history)
+                 else APP_SELECTION_THRESHOLD)
     selected = ([app_id for question, app_id in app_map.items()
-                 if response is not None and noul_value(response, question) >= .65]
+                 if response is not None and noul_value(response, question) >= threshold]
                 if selected_app_ids is None else [app for app in selected_app_ids if app in valid_apps])
     if response is not None and selected_app_ids is None:
         # Content-free: app ids and scores only, to explain a missed or extra app.
         scored = sorted(((noul_value(response, question), app_id) for question, app_id in app_map.items()),
                         reverse=True)
-        logger.info("Stage-one app scores task=%s threshold=0.65 top=%s", telemetry_task_id,
+        logger.info("Stage-one app scores task=%s threshold=%.2f top=%s", telemetry_task_id, threshold,
                     ", ".join(f"{app_id}={score:.2f}" for score, app_id in scored[:6]))
     selected.extend(app for app in (forced_app_ids or []) if app in valid_apps)
     result: dict[str, Any] = {"selected_app_ids": list(dict.fromkeys(selected)),

@@ -107,6 +107,25 @@ def test_routing_view_shows_upload_marker_instead_of_upload_metadata():
     assert messages[1]["content"] == "[Attached pdf: Offer.pdf]\nSummarize"
 
 
+# contract-test: supporting surface=rest_api assertions=shopping-search.answer.identify-then-compare
+@pytest.mark.asyncio
+async def test_upload_turn_keeps_near_threshold_app_the_text_only_router_cannot_confirm(monkeypatch):
+    async def evaluate(**kwargs):
+        scores = {"shopping": .55, "web": .3}
+        return DecisionResponse(model="jev", answers={
+            question: {"type": "noul", "noul": scores[question_row["instructions"]["candidate_id"]]}
+            for question, question_row in kwargs["questions"].items()})
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    upload = "```toon\napp_id: images\nskill_id: upload\ntype: image\nfilename: desk_item.jpg\n```\n"
+    async def route(content):
+        return (await jev_preprocessing.decide_app_and_project_routing_with_jev(
+            model_id="jev", secrets_manager=None, message_history=[{"role": "user", "content": content}],
+            available_apps=["shopping", "web"], available_skills=[], available_focus_modes=[],
+        ))["selected_app_ids"]
+    assert await route(upload + "Where is this cheapest?") == ["shopping"]
+    assert await route("Where is this cheapest?") == []
+
+
 # contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way,ai-model-routing.defaults.google-tier-profiles
 @pytest.mark.asyncio
 @pytest.mark.parametrize("explicit_model", [False, True])
