@@ -93,7 +93,15 @@ for (const [label, viewport] of Object.entries(VIEWPORTS)) {
 				await expect(cards.first()).toBeVisible({ timeout: 60_000 });
 				const count = Math.min(await cards.count(), 4);
 				for (let index = 0; index < count; index += 1) {
-					await cards.nth(index).scrollIntoViewIfNeeded();
+					// Center the card clear of the composer and wait until it stops moving: a layout
+					// shift between press and release turns the tap into a text-selection drag.
+					await cards.nth(index).evaluate(element => element.scrollIntoView({ block: 'center' }));
+					await expect.poll(async () => {
+						const before = await cards.nth(index).boundingBox();
+						await page.waitForTimeout(400);
+						const after = await cards.nth(index).boundingBox();
+						return Boolean(before && after && Math.abs(before.y - after.y) < 1);
+					}, { timeout: 15_000 }).toBe(true);
 					await cards.nth(index).click();
 					const overlay = page.getByTestId('embed-fullscreen-overlay');
 					await expect(overlay).toBeVisible({ timeout: 20_000 });

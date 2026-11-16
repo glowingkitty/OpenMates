@@ -121,7 +121,7 @@ export function parseDeepLink(
     if (settingsParamPath === "settings_memories") {
       return { type: "apps", data: { hash: "#apps/all&filter=settings_memories" } };
     }
-    if (settingsParamPath === "apps" || settingsParamPath.startsWith("apps/")) {
+    if (forwardsToAppsWorkspace(settingsParamPath)) {
       return { type: "apps", data: { hash: buildAppsWorkspaceHash(settingsParamPath) } };
     }
     return {
@@ -138,7 +138,7 @@ export function parseDeepLink(
     if (settingsPath === "settings_memories") {
       return { type: "apps", data: { hash: "#apps/all&filter=settings_memories" } };
     }
-    if (settingsPath === "apps" || settingsPath.startsWith("apps/")) {
+    if (forwardsToAppsWorkspace(settingsPath)) {
       return { type: "apps", data: { hash: buildAppsWorkspaceHash(settingsPath) } };
     }
     return {
@@ -571,6 +571,16 @@ export function processSettingsDeepLink(
 function hasOAuthHandoffQueryParam(): boolean {
   if (typeof window === "undefined" || !window.location) return false;
   return new URLSearchParams(window.location.search).has("oauth_handoff_id");
+}
+
+/**
+ * Legacy `#settings/apps/...` links open the Apps workspace, except an OAuth
+ * return (`?oauth_handoff_id=`): the app's settings view claims that handoff,
+ * so it must open there or the connected account is never saved.
+ */
+function forwardsToAppsWorkspace(settingsPath: string): boolean {
+  if (settingsPath !== "apps" && !settingsPath.startsWith("apps/")) return false;
+  return !(settingsPath.startsWith("apps/") && hasOAuthHandoffQueryParam());
 }
 
 function stripE2EDebugHashParams(path: string): string {

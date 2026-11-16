@@ -575,9 +575,9 @@ specifications:
     - gui.apple
   feature.assistant-authored-result-embeds:
     version: 1
-    status: draft
+    status: approved
     path: features/assistant-authored-result-embeds
-    fingerprint: 7692d65f948096a6ad9c69d1d504f19f7a8d5d1af4b32e837807bccd7766f06e
+    fingerprint: 1dbf4cb46ceca5388f4cf45b5f91e5b5baf3155581db0f09ed24c2c08621b68d
     required_applies_to:
     - rest_api
     - cli

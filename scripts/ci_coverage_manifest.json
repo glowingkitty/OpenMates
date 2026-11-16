@@ -265,9 +265,6 @@
         "skill-music-generate.spec.ts",
         "skill-shopping-search.spec.ts",
         "skill-social-media.spec.ts",
-        "skill-travel-connections.spec.ts",
-        "skill-travel-stays.spec.ts",
-        "skill-travel-train-connections.spec.ts",
         "skill-videos-search.spec.ts",
         "skill-videos-transcript.spec.ts",
         "skill-weather-forecast.spec.ts"
@@ -1178,7 +1175,10 @@
         "provider-boundary.spec.ts",
         "skill-events-search.spec.ts",
         "skill-shopping-images.spec.ts",
-        "skill-fitness-unavailable.spec.ts"
+        "skill-fitness-unavailable.spec.ts",
+        "skill-travel-connections.spec.ts",
+        "skill-travel-stays.spec.ts",
+        "skill-travel-train-connections.spec.ts"
       ]
     },
     "rust_core_session_harness": {
@@ -1939,33 +1939,6 @@
         "social_media_get_posts_web": 0,
         "social_media_search_web": 0
       }
-    },
-    "skill-travel-connections.spec.ts": {
-      "dependency": "current_capability_verification",
-      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
-      "user_input_required": false,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ]
-    },
-    "skill-travel-stays.spec.ts": {
-      "dependency": "current_capability_verification",
-      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
-      "user_input_required": false,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ]
-    },
-    "skill-travel-train-connections.spec.ts": {
-      "dependency": "current_capability_verification",
-      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
-      "user_input_required": false,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ]
     },
     "skill-videos-search.spec.ts": {
       "dependency": "original_direct_cli_provider_credentials",

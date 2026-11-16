@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.assistant-authored-result-embeds
 version: 1
-status: draft
+status: approved
 title: Assistant-Authored Rich Result Embeds
 summary: >
   Turn researched, supplied, or explicitly requested draft information into

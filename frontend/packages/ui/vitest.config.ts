@@ -36,6 +36,7 @@ export default defineConfig({
       '$app/paths': resolve(testMocksDir, 'app-paths.ts'),
       '$app/state': resolve(testMocksDir, 'app-state.ts'),
       '$app/stores': resolve(testMocksDir, 'app-stores.ts'),
+      '$env/dynamic/public': resolve(testMocksDir, 'env-dynamic-public.ts'),
     },
   },
 });
