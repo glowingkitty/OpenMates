@@ -368,3 +368,16 @@ def test_batch_stop_and_settle_decisions():
     assert not rt.settle_ready(1, 5, 5)
     assert not rt.settle_ready(0, 0.1, 5)
     assert not rt.settle_ready(0, 5, 0.1)
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop
+def test_snapshot_describes_form_state_for_custom_radios_and_wrapped_checkboxes():
+    assert "[role=radio],[role=option],[role=switch]" in rt.SNAPSHOT
+    assert "e.closest('label')?.innerText" in rt.SNAPSHOT.split("const signature")[0]
+    for attr in ("aria-checked", "aria-selected", "aria-pressed"):
+        assert f"'{attr}'" in rt.SNAPSHOT
+    assert "checked:checkedOf(e)" in rt.SNAPSHOT and "group:groupOf(e)" in rt.SNAPSHOT
+    assert "legend" in rt.SNAPSHOT and "[role=radiogroup],[role=group]" in rt.SNAPSHOT
+    assert "aria-required" in rt.SNAPSHOT and "slice(0,120)" in rt.SNAPSHOT
+    # A toggled control must not match the signature of its earlier state.
+    assert "e.checked,e.getAttribute('aria-checked')" in rt.SNAPSHOT

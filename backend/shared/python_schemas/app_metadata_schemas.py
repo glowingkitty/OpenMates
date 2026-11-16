@@ -380,6 +380,12 @@ class AppInstructionDefinition(BaseModel):
                     "When the preprocessor's relevant_embedded_previews matches any of these, the instruction "
                     "is injected regardless of skill preselection. When None, standard skill gating applies."
     )
+    for_skills: Optional[List[str]] = Field(
+        default=None,
+        description="Skill IDs of this app (e.g. ['browse']). When set, the instruction is injected only "
+                    "when one of these skills is preselected for the turn, so detailed operating guidance "
+                    "for one skill does not load for every use of the app.",
+    )
 
 class AppYAML(BaseModel):
     """

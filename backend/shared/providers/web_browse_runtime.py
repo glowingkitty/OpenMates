@@ -204,7 +204,7 @@ PRIVATE_FIELD_JS = r"""e => {
 
 SNAPSHOT = (
     r"""() => {
-  const SEL='a[href],button,input,select,textarea,[contenteditable=true],[role=button],[role=tab],[role=checkbox],[role=combobox]';
+  const SEL='a[href],button,input,select,textarea,[contenteditable=true],[role=button],[role=tab],[role=checkbox],[role=radio],[role=option],[role=switch],[role=combobox]';
   const win=e=>e.ownerDocument.defaultView;
   const rect=e=>{const r=e.getBoundingClientRect();let x=r.x,y=r.y,w=win(e);
     while(w&&w.frameElement){const f=w.frameElement.getBoundingClientRect();x+=f.x;y+=f.y;w=w.parent;}
@@ -241,11 +241,22 @@ SNAPSHOT = (
   const seenLinks=new Set();
   const buttonLike=e=>e.tagName==='INPUT'&&/^(submit|button|reset|image|checkbox|radio)$/i.test(e.type||'');
   const label=e=>(e.getAttribute('aria-label') || e.ownerDocument.querySelector(`label[for="${CSS.escape(e.id||'__none__')}"]`)?.innerText ||
-    e.innerText || (buttonLike(e)&&!/^(checkbox|radio)$/i.test(e.type)?e.value:'') || e.placeholder || e.name || e.tagName).trim().slice(0,180);
-  const signature=e=>JSON.stringify([e.tagName,label(e),e.getAttribute('href'),e.value,e.checked,e.getAttribute('aria-expanded'),e.form?.action,e.form?.method]);
+    e.closest('label')?.innerText || e.innerText || (buttonLike(e)&&!/^(checkbox|radio)$/i.test(e.type)?e.value:'') || e.placeholder || e.name || e.tagName).trim().slice(0,180);
+  const signature=e=>JSON.stringify([e.tagName,label(e),e.getAttribute('href'),e.value,e.checked,e.getAttribute('aria-checked'),e.getAttribute('aria-expanded'),e.form?.action,e.form?.method]);
+  const checkedOf=e=>{
+    if(e.tagName==='INPUT'&&/^(checkbox|radio)$/i.test(e.type))return e.checked;
+    for(const a of ['aria-checked','aria-selected','aria-pressed']){const v=e.getAttribute(a);if(v!==null)return v==='true';}
+    return undefined;};
+  const groupOf=e=>{
+    const lg=e.closest('fieldset')?.querySelector(':scope > legend')?.innerText;
+    if(lg&&lg.trim())return lg.trim().slice(0,120);
+    const g=e.closest('[role=radiogroup],[role=group]');if(!g)return undefined;
+    const ref=(g.getAttribute('aria-labelledby')||'').split(/\s+/).map(id=>id&&g.ownerDocument.getElementById(id)?.innerText).filter(Boolean).join(' ');
+    const t=(g.getAttribute('aria-label')||ref||'').trim();return t?t.slice(0,120):undefined;};
   const controls=nodes.map((e,i)=>({id:String(i),role:e.getAttribute('role')||e.tagName.toLowerCase(),label:label(e),
     kind:e.tagName==='SELECT'?'select':buttonLike(e)?'click':e.matches('input,textarea,[contenteditable=true]')?'type':'click',
     value:(e.value||'').slice(0,300),href:e.tagName==='A'?e.href:undefined,in_viewport:inView(e),
+    checked:checkedOf(e),group:groupOf(e),required:(e.required||e.getAttribute('aria-required')==='true')?true:undefined,
     options:e.tagName==='SELECT'?[...e.options].filter(o=>!o.disabled).slice(0,40).map(o=>({value:o.value,label:o.text})):undefined}));
   const tables=[...document.querySelectorAll('table')].slice(0,8).map(t=>[...t.rows].slice(0,100)
     .map(r=>[...r.cells].slice(0,20).map(c=>c.innerText.trim().slice(0,500))));

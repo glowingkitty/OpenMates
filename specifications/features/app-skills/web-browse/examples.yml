@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.app-skill.web-browse@1
+specification: feature.app-skill.web-browse@2
 structured_data:
   - id: workshop-records
     given: The user requests beginner workshops as records containing title, start time and source URL, and the assistant supplies that output schema.
@@ -53,6 +53,39 @@ typing:
     given: A field needs a birth date or payment detail restricted by Together's terms, or personal information the user never supplied.
     when: The worker requests the field value.
     then: Restricted content is not sent to Together; a permitted fallback or manual entry is requested, and missing facts are never invented.
+form_with_user:
+  - id: start-without-asking
+    given: 'A user writes "Can we fill out this form together? I''m unsure about some of the questions:" followed by a link to a co-founder matching form that only renders in a real browser.'
+    when: The assistant answers.
+    then: It opens the form with Browse on its own, reads the first page without entering anything and asks only the first question, quoting it and explaining it where useful.
+  - id: one-answer-one-field
+    given: The assistant asked for the email address and the user replies "alex.rivera.demo@example.org".
+    when: The assistant continues.
+    then: Browse types that address into the email field of the same session, the reply says the email is filled, shows the browser embed and asks the next question; nothing is entered that the user did not give.
+  - id: unclear-question
+    given: The next question asks whether the user wants to bring their own idea or join someone else's, and the user says they are unsure.
+    when: The assistant replies.
+    then: It explains both options in plain words, suggests one when earlier answers support it and waits for the user's choice before ticking anything.
+  - id: next-page-same-session
+    given: Every field on the first page is answered.
+    when: The user's last answer for that page arrives.
+    then: Browse enters it and moves to the next form page in the same session; the earlier answers stay filled and the result lists the new page's fields.
+  - id: summary-before-submit
+    given: All pages are answered and only the final submit button remains.
+    when: The assistant reaches it.
+    then: It shows a summary of every answer and asks for explicit confirmation; without that confirmation Browse never presses submit, and the form is not sent.
+  - id: redacted-event-address
+    given: The form address carries an event value in its query, which observations show as redacted.
+    when: The assistant continues the form on a later turn.
+    then: It reuses the session without a new start address; the result shows the address the user gave, and a redacted address is never opened, so the form is not replaced by a not-found page.
+  - id: secret-field
+    given: A later page asks for a PIN or password.
+    when: The assistant reaches that field.
+    then: It asks the user to take control of the browser to enter it and never types or repeats the secret itself.
+  - id: voice-one-question
+    given: The same form is filled during a voice call.
+    when: The assistant speaks.
+    then: Each spoken turn asks one question, and each spoken answer is entered in the same browser session as in text chat.
 outcomes:
   - id: verified-results
     given: The requested day and beginner filter are visibly applied and matching workshops are shown.

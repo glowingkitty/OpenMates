@@ -44,6 +44,7 @@ from backend.core.api.app.services.web_browse_evidence import (
     coerce_numbers,
     drop_invalid,
     extraction_context,
+    form_view,
     json_type,
     page_text,
 )
@@ -225,7 +226,9 @@ class BrowseRun:
             for _ in range(self.request.max_steps):
                 if await self.step(driver):
                     break
-            if self.status in ("completed", "no_results"):
+            if self.status in ("completed", "no_results", "needs_user"):
+                # A run that hands back to the user still reports the scanned
+                # page and its form, so the assistant can ask the next question.
                 await self.scan()
 
     # Startup -----------------------------------------------------------------
@@ -660,6 +663,7 @@ class BrowseRun:
                         # link the runtime collected for source verification.
                         "links": (self.observation.get("links") or [])[:100],
                         "text": page_text(self.observation),
+                        "form": form_view(self.observation),
                     },
                 },
                 self.store.cache,

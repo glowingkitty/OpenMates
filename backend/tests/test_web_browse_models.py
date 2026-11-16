@@ -1025,3 +1025,17 @@ def test_planner_closes_covering_overlays_and_recovers_from_not_found_pages():
     assert "region or language chooser" in PLANNER_INSTRUCTIONS
     assert "not-found page" in PLANNER_INSTRUCTIONS
     assert "instead of guessing further URLs" in PLANNER_INSTRUCTIONS
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user
+def test_planner_control_view_passes_form_state_only_when_present():
+    from backend.shared.providers.browser_planner import _control_view
+
+    base = {"id": 1, "role": "radio", "label": "Yes", "kind": "click"}
+    view = _control_view(
+        {**base, "checked": False, "group": "g" * 200, "required": True}
+    )
+    assert view["checked"] is False and view["required"] is True
+    assert view["group"] == "g" * 120
+    plain = _control_view({**base, "required": None})
+    assert not {"checked", "group", "required"} & plain.keys()

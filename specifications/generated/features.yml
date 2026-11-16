@@ -18492,7 +18492,7 @@ features:
     status: draft
     path: specifications/features/app-skills/web-read
   - id: feature.app-skill.web-browse
-    status: approved
+    status: draft
     path: specifications/features/app-skills/web-browse
   apps:
   - web
@@ -18503,7 +18503,7 @@ features:
     - app:web
     dev: enabled
     prod: enabled
-  assertions: 36
+  assertions: 37
   surfaces:
     web:
       status: failing
@@ -18512,9 +18512,9 @@ features:
       assertions:
         passing: 10
         failing: 3
-        not_run: 5
+        not_run: 7
         missing: 19
-        counted: 37
+        counted: 39
       failing_tests:
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_baseline_searches_reach_provider_without_preprocessing_selection
       - frontend/apps/web_app/tests/embed-preview-backfill-replay.spec.ts › legacy web search preview backfill replays with
@@ -18529,6 +18529,7 @@ features:
       - frontend/apps/web_app/tests/skill-web-read.spec.ts
       key_tests:
       - frontend/apps/web_app/tests/skill-web-read.spec.ts
+      - frontend/apps/web_app/tests/web-browse-form-real.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/components/result-overview-design.spec.ts
       - frontend/apps/web_app/tests/components/web-browse-embeds.spec.ts
@@ -18536,6 +18537,7 @@ features:
       - frontend/apps/web_app/tests/example-chats-load.spec.ts
       - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
       - frontend/apps/web_app/tests/skill-web-search.spec.ts
+      - frontend/apps/web_app/tests/web-browse-form-real.spec.ts
       - frontend/apps/web_app/tests/web-browse-real.spec.ts
       - frontend/apps/web_app/tests/web-read-public-page.spec.ts
       key_unit_tests:
@@ -18578,8 +18580,8 @@ features:
         passing: 3
         failing: 0
         not_run: 9
-        missing: 24
-        counted: 36
+        missing: 25
+        counted: 37
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/skill-web-search.spec.ts
@@ -18610,11 +18612,11 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 27
+        passing: 28
         failing: 0
         not_run: 6
         missing: 3
-        counted: 36
+        counted: 37
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/web-browse-api.spec.ts
@@ -18625,7 +18627,7 @@ features:
       - backend/tests/test_web_browse_transport.py
       - backend/tests/test_web_search_contract.py
       - scripts/tests/test_web_search_live_contract_surfaces.py
-      unit_test_files: 25
+      unit_test_files: 27
     sdk_npm:
       status: not_run
       source: tests
@@ -18634,8 +18636,8 @@ features:
         passing: 0
         failing: 0
         not_run: 11
-        missing: 25
-        counted: 36
+        missing: 26
+        counted: 37
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/web-read-public-page.spec.ts
@@ -18651,8 +18653,8 @@ features:
         passing: 0
         failing: 0
         not_run: 11
-        missing: 25
-        counted: 36
+        missing: 26
+        counted: 37
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/web-read-public-page.spec.ts

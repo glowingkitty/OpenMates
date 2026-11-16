@@ -1386,7 +1386,7 @@ features:
     evidence:
       tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
     key_tests:
-      web: [frontend/apps/web_app/tests/skill-web-read.spec.ts]
+      web: [frontend/apps/web_app/tests/skill-web-read.spec.ts, frontend/apps/web_app/tests/web-browse-form-real.spec.ts]
   - id: workflows
     name: "Workflows"
     kind: app

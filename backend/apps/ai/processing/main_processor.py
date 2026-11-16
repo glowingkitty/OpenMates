@@ -4993,6 +4993,13 @@ async def handle_main_processing(
                     if (app_metadata.skills and not app_has_preselected_skill
                             and (selected_app_ids is not None or preselected_skills)):
                         continue
+                    for_skills = getattr(instruction_def, "for_skills", None)
+                    if for_skills and not any(
+                        f"{app_id}-{skill_id}" in (preselected_skills or ())
+                        for skill_id in for_skills
+                    ):
+                        # Skill-specific operating guidance loads only with that skill.
+                        continue
 
                 # Check if instruction has category filtering
                 if instruction_def.categories:

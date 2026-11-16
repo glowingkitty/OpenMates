@@ -82,6 +82,7 @@ from backend.apps.ai.processing.model_routing import (
     normalize_request_tier,
     tier_preference_key,
 )
+from backend.apps.ai.processing.browse_routing import resolve_browse_intent
 from backend.apps.ai.processing.routing_ledger import (
     RoutingLedgerSnapshot,
     build_preprocessing_history_projection,
@@ -3321,7 +3322,8 @@ async def handle_preprocessing(
                                           if focus in available_focus_mode_ids)
             explicit_skills = _resolve_explicit_skill_mentions_from_latest_user_text(
                 request_data.message_history, available_skill_ids,
-            ) + _resolve_explicit_natural_search_intent(request_data.message_history, available_skill_ids)
+            ) + _resolve_explicit_natural_search_intent(request_data.message_history, available_skill_ids
+            ) + resolve_browse_intent(request_data.message_history, available_skill_ids)
             forced_app_ids.extend(app_id for skill_id in explicit_skills
                                   for app_id in (discovered_apps_metadata or {})
                                   if skill_id.startswith(f"{app_id}-"))
@@ -3602,7 +3604,7 @@ async def handle_preprocessing(
                 request_data.message_history, available_skill_ids,
             ) + _resolve_explicit_natural_search_intent(
                 request_data.message_history, available_skill_ids,
-            )
+            ) + resolve_browse_intent(request_data.message_history, available_skill_ids)
             forced_app_ids.extend(
                 app_id for skill_id in explicit_skills for app_id in available_app_ids
                 if skill_id.startswith(f"{app_id}-")
@@ -4237,6 +4239,11 @@ async def handle_preprocessing(
             request_data.message_history,
             available_skill_ids,
         )
+        # A linked page to work through, or an answer inside a running Browse
+        # session (form filled together turn by turn), needs the real browser.
+        explicit_skill_mentions = list(dict.fromkeys(
+            explicit_skill_mentions + resolve_browse_intent(request_data.message_history, available_skill_ids)
+        ))
         natural_search_intents = _resolve_explicit_natural_search_intent(
             request_data.message_history,
             available_skill_ids,

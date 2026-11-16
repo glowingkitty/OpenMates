@@ -445,10 +445,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.app-skill.web-browse:
-    version: 1
-    status: approved
+    version: 2
+    status: draft
     path: features/app-skills/web-browse
-    fingerprint: 2abcc119b3a0e9eeefb1c6fd5b6f45571e4a9bfb68e8c36d108f783507a33477
+    fingerprint: 27597fa2544df82f983664a54af9f05c1de19584849bc57e6f364049e5f2c1f5
     required_applies_to:
     - rest_api
     - cli
@@ -6428,7 +6428,7 @@ assertions:
     - gui.web
     - gui.apple
   web-browse.structured-data:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: behavior
     fingerprint: 638ff49e87fea052b81d95442f033e20e01ca0237bc4a7c89391eca0243b3264
@@ -6440,7 +6440,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.dispatch-and-routing:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: behavior
     fingerprint: 6c71e373ffc486684f5dff0651e6f21502d0bffbba119b84b0d81e212b113a36
@@ -6452,7 +6452,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.session-and-run:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: security
     fingerprint: a34006fbc1d439b17028992074c070c8b7237b1d40ec9712729d451f44c8c71d
@@ -6464,7 +6464,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.control-loop:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: behavior
     fingerprint: f3aabef5d67f5e384107412e9cac2c60f036279b0336e741cd1df9351b1ebab8
@@ -6476,7 +6476,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.text-helper:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: privacy
     fingerprint: 5313767371a1a1995494beceef708f208422253d5912c8dacfdf600e2d0c0a67
@@ -6488,7 +6488,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.truthful-completion:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: behavior
     fingerprint: 0df07d78e6c3d3fcf4b9bee11a19c2f490e3874c1f9239bca990dc828aed2156
@@ -6500,7 +6500,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.embed-and-observation:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: parity
     fingerprint: 653b4efd8491645453f7af362669c86195a7474c6e85391fa6765c9ce82ee83c
@@ -6512,7 +6512,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.exclusive-takeover:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: security
     fingerprint: 116607b63411879e45895fbbdb3ccbcf38e89024a5bf7a9fe141092793145dc5
@@ -6524,7 +6524,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.sign-in:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: privacy
     fingerprint: 15ee5f260c84639068d9879f4db501888201cfae4e6bacb7abbb5b441728348b
@@ -6536,7 +6536,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.consequential-actions:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: security
     fingerprint: 87352faf563245f2b837b9299eeee423fb9f858375a556a6e3e6491aebe30977
@@ -6547,8 +6547,20 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  web-browse.form-with-user:
+    specification: feature.app-skill.web-browse@2
+    specification_id: feature.app-skill.web-browse
+    type: behavior
+    fingerprint: 97feec01e75577b7d99bafc898591c78c0a4b9549464ec44faf2069a39fbd78e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   web-browse.lifecycle:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: behavior
     fingerprint: 6b29ff3c73c22e03da9e9b13bfe0ae1f4980aa90cd67e7c1b1063cb99bafefeb
@@ -6560,7 +6572,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.budgets-and-stop:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: security
     fingerprint: aaae0325f45803fdaf2e8b601483d0d40ef46e6bd4fecc55c568e06ff788f064
@@ -6572,7 +6584,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.cost-accounting:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: invariant
     fingerprint: 9d33be5d883cde2be30e580cfa7b268f009dc455f489a3c1c19bda5bad924a45
@@ -6584,7 +6596,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.network-and-content:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: security
     fingerprint: fe538b5ec5411cc602752805048769536580914ede0fe208a62d9f976726cd7b
@@ -6596,7 +6608,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.private-storage-and-api:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: privacy
     fingerprint: 2af67a914a7c8507823619603186a6375a0da6f7b8f09756253dc12ed625d7b5
@@ -6608,7 +6620,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.workflow-parity:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: parity
     fingerprint: 36bcc1e3ce2793d001cb840a36bca4168b16b6e567bfd0e859505f930d031823
@@ -6620,7 +6632,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.delivery-and-evidence:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: parity
     fingerprint: 7bf08c9d88f846d8bf79c32671e331eb8b622aab36bf56ec4d56c7aba5b21bee

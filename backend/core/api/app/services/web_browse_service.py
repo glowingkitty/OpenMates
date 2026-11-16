@@ -11,6 +11,7 @@ import os
 import time
 from typing import Any, AsyncIterator, Awaitable, Callable
 import uuid
+from urllib.parse import unquote
 
 from fastapi import HTTPException
 
@@ -21,6 +22,7 @@ from backend.shared.providers.e2b_browser import (
     BrowserAdmissionRejected,
 )
 from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async
+from backend.shared.providers.web_browse_runtime import observation_url
 from backend.core.api.app.services.web_browse_pool import BrowsePool
 from backend.core.api.app.services.web_browse_run import (
     BrowseBudgetExceeded,
@@ -219,6 +221,18 @@ class BrowseStore:
                     409, "Browser state changed; refresh before continuing."
                 )
         record["_version"] = version + 1
+
+
+def user_given_url(observed: str, start_url: str | None) -> str:
+    """The user's own start address when the observation is its redacted form.
+
+    Observations redact private query values; reusing that redacted address
+    loses the page (an event id becomes "[redacted]"). The address the user gave
+    is theirs to see and keeps continuations on the right page.
+    """
+    if start_url and observed and observation_url(start_url) == observed:
+        return start_url
+    return observed
 
 
 class BrowseService:
@@ -560,6 +574,11 @@ class BrowseService:
                     raise
                 if not request.start_url:
                     raise HTTPException(422, "A new browser needs a starting URL.")
+                if "[redacted]" in unquote(request.start_url):
+                    raise HTTPException(
+                        422,
+                        "The starting URL contains a redacted value; use the address the user gave.",
+                    )
                 record = {
                     "session_id": session_id,
                     "user_id": user_id,
@@ -578,6 +597,9 @@ class BrowseService:
                     "provider": None,
                     "pending_calls": {},
                     "model_calls": [],
+                    # Results show this address instead of its redacted
+                    # observation, so a continuation can name the real page.
+                    "start_url": request.start_url,
                 }
                 await self.store.save(record, create=True)
             try:
@@ -828,6 +850,11 @@ class BrowseService:
             # Rejected extraction cannot expose proposed facts as observed data.
             missing = loop.missing if completed else []
             checked = loop.checked_observations if completed else {}
+            scanned_form = (loop.checked_observations or {}).get("form")
+            if status == "needs_user" and scanned_form:
+                # Only the scanned form fields, never unverified page facts, so the
+                # assistant can continue the form with the user (form-with-user).
+                checked = {"form": scanned_form}
             if loop.ledger and record["status"] not in ("closed", "expired"):
                 record["evidence"] = loop.ledger
             if status != "needs_user" and record["status"] not in (
@@ -855,9 +882,10 @@ class BrowseService:
                     for k, v in loop.metrics().items()
                 },
             }
+            shown_url = user_given_url(observation.get("url", ""), record.get("start_url"))
             current = (
-                {"url": observation["url"], "title": checked.get("title", "")}
-                if observation.get("url")
+                {"url": shown_url, "title": checked.get("title", "")}
+                if shown_url
                 else None
             )
             sources = (loop.sources if completed else []) or (
@@ -868,7 +896,7 @@ class BrowseService:
                 run_id=run_id,
                 status=status,
                 reason=reason,
-                url=observation.get("url", ""),
+                url=shown_url,
                 title=checked.get("title", "Browse"),
                 data=data,
                 missing=missing,
