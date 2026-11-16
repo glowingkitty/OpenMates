@@ -16,6 +16,7 @@
 import type { WorkerRuntimeState } from '../workerRuntimeState';
 import { retireOriginalClient } from '../workerRuntimeState';
 import type { RustClient } from '../workerRuntimeTypes';
+import { drainPendingSocketFrames } from '../workerSocketQueue';
 
 /** Admitted session identity of a borrowed client (read while idle). */
 export interface BorrowedCoreStatus { readonly handle: string; readonly generation: number; readonly principal: string }
@@ -112,17 +113,38 @@ function lend(rt: WorkerRuntimeState, client: RustClient): () => void {
  * Rust's local-only plans (the drafts unit: encrypted draft row + durable intent);
  * the core refuses publication and every server operation on such a client.
  */
-export interface BorrowOptions { readonly allowLocal?: boolean }
+export interface BorrowOptions {
+	readonly allowLocal?: boolean;
+	/**
+	 * Apply the socket frames the dispatcher queued while it was busy before lending
+	 * (see workerSocketQueue.ts). For borrowers whose next step depends on the latest
+	 * applied frame, such as the voice turn committing on the chat's messages_v.
+	 */
+	readonly drainSocketFrames?: boolean;
+}
+
+function matches(rt: WorkerRuntimeState, principal: string): boolean {
+	const expected = rt.configuration.expectedPrincipal;
+	return !rt.disposed && !!rt.client && rt.configuration.admission === 'existing_key' && !!expected
+		&& expected.toLowerCase() === principal.toLowerCase();
+}
+
+/** Applies queued frames on every idle dispatcher of the principal (each drain holds that dispatcher busy). */
+async function drainIdleSources(principal: string): Promise<void> {
+	for (const rt of [...sources]) {
+		if (matches(rt, principal) && busyReason(rt) === null && rt.socketQueue.frames.length > 0) await drainPendingSocketFrames(rt);
+	}
+}
 
 /** One attempt. Local-only (cache-read) admissions confer no server authority and are skipped unless `allowLocal`. */
 export function tryBorrowCoreClient(principal: string, observeBusy?: (reason: string) => void, options: BorrowOptions = {}): CoreClientBorrow | CoreBorrowRefusal {
 	let busy = false, local = false;
 	for (const rt of sources) {
-		const client = rt.client, expected = rt.configuration.expectedPrincipal;
-		if (rt.disposed || !client || rt.configuration.admission !== 'existing_key' || !expected
-			|| expected.toLowerCase() !== principal.toLowerCase()) continue;
+		const client = rt.client;
+		if (!client || !matches(rt, principal)) continue;
 		const reason = busyReason(rt);
 		if (reason !== null) { busy = true; observeBusy?.(reason); continue; }
+		if (options.drainSocketFrames === true && rt.socketQueue.frames.length > 0) { busy = true; observeBusy?.('socket_frames'); continue; }
 		const release = lend(rt, client);
 		const status = client.admitted_status();
 		let snapshot: BorrowedCoreStatus | null = null, statusLocal = false;
@@ -148,6 +170,10 @@ export async function borrowCoreClient(principal: string, signal: AbortSignal, t
 	observeBusy?: (reason: string) => void, options: BorrowOptions = {}): Promise<CoreClientBorrow | CoreBorrowRefusal> {
 	const deadline = Date.now() + timeoutMs;
 	for (;;) {
+		if (signal.aborted) throw new Error('cancelled');
+		// Drain first, then borrow with the same busy/admission checks; the borrow is
+		// refused while frames are still queued, so a lent client has applied them all.
+		if (options.drainSocketFrames === true) await drainIdleSources(principal);
 		if (signal.aborted) throw new Error('cancelled');
 		const outcome = tryBorrowCoreClient(principal, observeBusy, options);
 		if (outcome !== 'busy' || Date.now() >= deadline) return outcome;

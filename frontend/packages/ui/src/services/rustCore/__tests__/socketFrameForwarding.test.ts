@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { validRequest, validResponse } from '../protocol';
 import { onChatWindowChanged } from '../chatWindowEvents';
-import { admitChatInRustCore, forwardSocketFrame, isCoreAppliedFrame, registerSocketFrameSink, settleSocketFrameForwards } from '../socketFrameForwarder';
+import { ADMIT_SINK_WAIT_MS, admitChatInRustCore, admitChatInRustCoreDetailed, forwardSocketFrame, isCoreAppliedFrame, registerSocketFrameSink, settleSocketFrameForwards } from '../socketFrameForwarder';
 import type { SocketFrameSink } from '../socketFrameForwarder';
 import { dispatch } from '../workerDispatch';
 import { drainPendingSocketFrames, newSocketQueue } from '../workerSocketQueue';
@@ -52,6 +52,8 @@ describe('socket frame forwarding', () => {
 		live = true; batches.length = 0;
 		sink = {
 			hasServerSession: () => live,
+			hasLocalSession: () => false,
+			ensureServerSession: vi.fn(async () => { live = true; }),
 			ingest: vi.fn(async (frames) => { batches.push(frames); return { appliedSeq: batches.length, changedChats: [{ chatId: CHAT, messagesV: batches.length }], ignored: 0 }; }),
 			admit: vi.fn(async (chatId) => ({ chatId, messagesV: 5, historyRows: 2 }))
 		};
@@ -109,6 +111,44 @@ describe('socket frame forwarding', () => {
 		await admitChatInRustCore(CHAT, null);
 		expect(warn.mock.calls.filter((call) => call[1] === 'chat_unknown')).toHaveLength(1);
 		warn.mockRestore();
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('detailed admission requests the server session and types every refusal', async () => {
+		live = false;
+		expect(await admitChatInRustCoreDetailed(CHAT, null)).toEqual({ ok: true, admission: { chatId: CHAT, messagesV: 5, historyRows: 2 } });
+		expect(sink.ensureServerSession).toHaveBeenCalledTimes(1);
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+		live = false;
+		(sink.ensureServerSession as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('unavailable'));
+		expect(await admitChatInRustCoreDetailed(CHAT, null)).toEqual({ ok: false, reason: 'no_session' });
+		sink.hasLocalSession = () => true;
+		expect(await admitChatInRustCoreDetailed(CHAT, null)).toEqual({ ok: false, reason: 'local_only' });
+		live = true;
+		(sink.admit as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('forbidden'));
+		expect(await admitChatInRustCoreDetailed(CHAT, null)).toEqual({ ok: false, reason: 'forbidden' });
+		const aborted = new AbortController(); aborted.abort();
+		live = false;
+		(sink.ensureServerSession as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise(() => undefined));
+		expect(await admitChatInRustCoreDetailed(CHAT, null, aborted.signal)).toEqual({ ok: false, reason: 'cancelled' });
+		vi.stubEnv('VITE_OPENMATES_RUST_CORE', '0');
+		expect(await admitChatInRustCoreDetailed(CHAT, null)).toEqual({ ok: false, reason: 'flag_off' });
+		warn.mockRestore();
+	});
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('detailed admission waits a bounded time for the sink to register', async () => {
+		unregister();
+		const pending = admitChatInRustCoreDetailed(CHAT, null);
+		await Promise.resolve();
+		unregister = registerSocketFrameSink(sink);
+		expect(await pending).toMatchObject({ ok: true });
+		unregister();
+		vi.useFakeTimers();
+		try {
+			const late = admitChatInRustCoreDetailed(CHAT, null);
+			await vi.advanceTimersByTimeAsync(ADMIT_SINK_WAIT_MS);
+			expect(await late).toEqual({ ok: false, reason: 'no_sink' });
+		} finally { vi.useRealTimers(); unregister = registerSocketFrameSink(sink); }
 	});
 });
 
@@ -192,7 +232,7 @@ describe('forwarder against a busy core', () => {
 		vi.stubEnv('VITE_OPENMATES_RUST_CORE', '1');
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 		const ingest = vi.fn(async () => { throw new Error('unavailable'); });
-		const off = registerSocketFrameSink({ hasServerSession: () => true, ingest, admit: vi.fn() });
+		const off = registerSocketFrameSink({ hasServerSession: () => true, hasLocalSession: () => false, ensureServerSession: async () => undefined, ingest, admit: vi.fn() });
 		forwardSocketFrame({ type: 'chat_turn_preflight_ack', payload: {} });
 		await settleSocketFrameForwards();
 		expect(ingest).toHaveBeenCalledTimes(1);

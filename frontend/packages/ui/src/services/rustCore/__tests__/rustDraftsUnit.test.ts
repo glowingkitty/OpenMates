@@ -14,6 +14,19 @@ import type { WorkerRuntimeState } from '../workerRuntimeState';
 import type { CoreClientBorrow } from '../drafts/coreClientBorrow';
 import { draftProjection } from '../browserDraftProtocol';
 
+// Borrow-side drain ordering only: the real drain applies frames on the Rust client.
+const socketDrain = vi.hoisted(() => ({ calls: [] as string[] }));
+vi.mock('../workerSocketQueue', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../workerSocketQueue')>()),
+	drainPendingSocketFrames: vi.fn(async (rt: { socketQueue: { frames: unknown[] }; reading: unknown; client: unknown }) => {
+		socketDrain.calls.push(`drain:${rt.socketQueue.frames.length}:busy=${rt.reading !== null}`);
+		rt.reading = rt.client;
+		await Promise.resolve();
+		rt.socketQueue.frames = [];
+		rt.reading = null;
+	})
+}));
+
 const PRINCIPAL = '11111111-2222-3333-4444-555555555555';
 const CHAT = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 const RESOURCE = '99999999-8888-7777-6666-555555555555';
@@ -116,6 +129,33 @@ describe('core client borrow', () => {
 		expect(client.freed).toBe(false);
 		borrow.release();
 		expect(client.freed).toBe(true);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('applies queued socket frames before lending when the borrower asks for it', async () => {
+		socketDrain.calls.length = 0;
+		const frame = { handle: 'h', generation: 1, frame: { type: 'chat_turn_preflight_ack' }, bytes: 10 };
+		const rt = fakeRuntime(fakeClient(), { socketQueue: { frames: [frame, frame], bytes: 20, drainedChats: new Map(), drainedIgnored: 0 } });
+		cleanups.push(registerCoreClientBorrows(rt));
+		expect(tryBorrowCoreClient(PRINCIPAL, undefined, { drainSocketFrames: true }), 'never lent while frames are queued').toBe('busy');
+		expect(rt.busy).toBe(false);
+		const borrow = await borrowCoreClient(PRINCIPAL, new AbortController().signal, 1000, undefined, { drainSocketFrames: true }) as CoreClientBorrow;
+		expect(socketDrain.calls).toEqual(['drain:2:busy=false']);
+		expect(rt.socketQueue.frames).toHaveLength(0);
+		expect(borrow.client).toBe(rt.client);
+		borrow.release();
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('lends without draining by default (drafts) and leaves queued frames for the next op', async () => {
+		socketDrain.calls.length = 0;
+		const frame = { handle: 'h', generation: 1, frame: { type: 'chat_title_updated' }, bytes: 10 };
+		const rt = fakeRuntime(fakeClient(), { socketQueue: { frames: [frame], bytes: 10, drainedChats: new Map(), drainedIgnored: 0 } });
+		cleanups.push(registerCoreClientBorrows(rt));
+		const borrow = await borrowCoreClient(PRINCIPAL, new AbortController().signal, 1000) as CoreClientBorrow;
+		expect(socketDrain.calls).toEqual([]);
+		expect(rt.socketQueue.frames).toHaveLength(1);
+		borrow.release();
 	});
 
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative

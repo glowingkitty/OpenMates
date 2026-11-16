@@ -258,6 +258,8 @@ export function installRustChatHistory(): () => void {
 	// shared queue keeps them ordered behind reads (the Worker serves one request at a time).
 	const unregisterFrameSink = registerSocketFrameSink({
 		hasServerSession: () => !!session && !session.signal.aborted,
+		hasLocalSession: () => !!local && !local.signal.aborted,
+		ensureServerSession: () => ensureSession().then(() => undefined),
 		ingest: (frames) => enqueue(() => session && !session.signal.aborted ? session.ingestSocketFrames(frames) : Promise.reject(new Error('session_expired'))),
 		admit: (chatId, teamId) => enqueue(() => session && !session.signal.aborted ? session.admitChat(chatId, teamId) : Promise.reject(new Error('session_expired')))
 	});

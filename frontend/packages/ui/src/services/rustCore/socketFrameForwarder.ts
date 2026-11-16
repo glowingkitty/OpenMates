@@ -23,6 +23,10 @@ import { SOCKET_FRAME_MAX_COUNT } from './socketFramesProtocol';
 export interface SocketFrameSink {
 	/** True only while a server-checked (not local-read-only) session is live. */
 	hasServerSession(): boolean;
+	/** True while only a local-read-only session (cached reads, no server authority) is live. */
+	hasLocalSession(): boolean;
+	/** Requests the server-checked session (the bootstrap's own upgrade); rejects with its failure code. */
+	ensureServerSession(): Promise<void>;
 	ingest(frames: Record<string, unknown>[]): Promise<SocketFrameSummary>;
 	admit(chatId: string, teamId: string | null): Promise<ChatAdmission>;
 }
@@ -39,10 +43,12 @@ let queued: Record<string, unknown>[] = [];
 let scheduled = false;
 let tail: Promise<void> = Promise.resolve();
 const loggedCodes = new Set<string>();
+const sinkWaiters = new Set<() => void>();
 
 /** Registers the single sink; returns an unregister bound to this registration. */
 export function registerSocketFrameSink(next: SocketFrameSink): () => void {
 	sink = next;
+	for (const wake of [...sinkWaiters]) wake();
 	return () => { if (sink === next) { sink = null; queued = []; } };
 }
 
@@ -113,16 +119,79 @@ export function forwardSocketFrame(frame: unknown): void {
 	if (!scheduled) { scheduled = true; queueMicrotask(flush); }
 }
 
+/** Admission on the forward chain (behind every frame already queued); emits `chatWindowChanged`. */
+async function admitOnChain(chatId: string, teamId: string | null): Promise<ChatAdmission> {
+	const run = tail.then(() => admitWithRetry(chatId, teamId));
+	tail = run.then(() => undefined, () => undefined);
+	const admission = await run;
+	emitChatWindowChanged({ chatId: admission.chatId, messagesV: admission.messagesV });
+	return admission;
+}
+
 /** Loads a page-created chat into the core and emits `chatWindowChanged`; null without a server session. */
 export async function admitChatInRustCore(chatId: string, teamId: string | null): Promise<ChatAdmission | null> {
 	if (!rustBuild() || !sink || !sink.hasServerSession()) return null;
-	const run = tail.then(() => admitWithRetry(chatId, teamId));
-	tail = run.then(() => undefined, () => undefined);
-	try {
-		const admission = await run;
-		emitChatWindowChanged({ chatId: admission.chatId, messagesV: admission.messagesV });
-		return admission;
-	} catch (error) { logOnce(failureCode(error)); return null; }
+	try { return await admitOnChain(chatId, teamId); } catch (error) { logOnce(failureCode(error)); return null; }
+}
+
+/**
+ * Why a chat was not admitted. `flag_off`: not the Rust build; `no_sink`: no Rust
+ * history session registered within the wait; `local_only`: the server-checked
+ * session could not be reached and only the local-read-only one is live;
+ * `no_session`: no session at all; `server_session_timeout`; `cancelled`;
+ * otherwise the core's typed failure code (`chat_unknown`, `forbidden`, ...).
+ */
+export type ChatAdmissionOutcome = { ok: true; admission: ChatAdmission } | { ok: false; reason: string };
+
+export const ADMIT_SINK_WAIT_MS = 5_000;
+export const ADMIT_SERVER_SESSION_WAIT_MS = 10_000;
+
+/** Settles with `run`, or rejects `cancelled` on abort / `timeoutCode` past `ms`. */
+function bounded<T>(run: Promise<T>, signal: AbortSignal | undefined, ms: number, timeoutCode: string, cleanup: () => void = () => undefined): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		const finish = () => { clearTimeout(timer); signal?.removeEventListener('abort', onAbort); cleanup(); };
+		const onAbort = () => { finish(); reject(new Error('cancelled')); };
+		const timer = setTimeout(() => { finish(); reject(new Error(timeoutCode)); }, ms);
+		if (signal?.aborted) { onAbort(); return; }
+		signal?.addEventListener('abort', onAbort, { once: true });
+		run.then((value) => { finish(); resolve(value); }, (error: unknown) => { finish(); reject(error); });
+	});
+}
+
+function waitForSink(signal: AbortSignal | undefined): Promise<SocketFrameSink> {
+	if (sink) return Promise.resolve(sink);
+	let wake: () => void = () => undefined;
+	const registered = new Promise<void>((resolve) => { wake = resolve; sinkWaiters.add(wake); });
+	return bounded(registered, signal, ADMIT_SINK_WAIT_MS, 'no_sink', () => sinkWaiters.delete(wake))
+		.then(() => { if (!sink) throw new Error('no_sink'); return sink; });
+}
+
+/**
+ * Typed admission for callers that must refuse on failure (the voice call). Waits
+ * (bounded, abortable) for the history bootstrap's sink and its server-checked
+ * session, then admits on the forward chain. Never throws.
+ */
+export async function admitChatInRustCoreDetailed(chatId: string, teamId: string | null, signal?: AbortSignal): Promise<ChatAdmissionOutcome> {
+	if (!rustBuild()) return { ok: false, reason: 'flag_off' };
+	let active: SocketFrameSink;
+	try { active = await waitForSink(signal); } catch (error) { return { ok: false, reason: failureCode(error) }; }
+	if (!active.hasServerSession()) {
+		try {
+			await bounded(active.ensureServerSession(), signal, ADMIT_SERVER_SESSION_WAIT_MS, 'server_session_timeout');
+		} catch (error) {
+			const code = failureCode(error);
+			if (code === 'cancelled' || code === 'server_session_timeout') return { ok: false, reason: code };
+			logOnce(code);
+			return { ok: false, reason: active.hasLocalSession() ? 'local_only' : 'no_session' };
+		}
+		if (!active.hasServerSession()) return { ok: false, reason: active.hasLocalSession() ? 'local_only' : 'no_session' };
+	}
+	if (signal?.aborted) return { ok: false, reason: 'cancelled' };
+	try { return { ok: true, admission: await admitOnChain(chatId, teamId) }; } catch (error) {
+		const code = failureCode(error);
+		logOnce(code);
+		return { ok: false, reason: code };
+	}
 }
 
 /** Test hook: drains the forward chain. */
