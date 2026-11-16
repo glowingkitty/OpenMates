@@ -15,7 +15,9 @@
  * Each case starts a new chat, optionally attaches its image, sends the prompt and records the
  * answer text, the apps used, the shopping result cards and inline offers and a screenshot. With
  * SHOPPING_REAL_STRICT=1 a case passes only when the answer names the expected product, the
- * Shopping app ran, offers are shown as results, the answer carries links and a euro price, and a used request shows used offers.
+ * Shopping app ran, offers are shown as results, the answer carries clickable links (no raw markdown
+ * link text, e.g. inside a table) and a euro price, and a used request shows used offers. Every turn
+ * mentions @Gemini-3.8-Flash and the persisted model must be Gemini 3.8 Flash.
  * Without it the run only records (baseline). Never run in CI: it needs real providers.
  */
 import type { Page } from '@playwright/test';
@@ -26,7 +28,6 @@ const { expect, test } = require('./helpers/cookie-audit');
 const {
 	focusMessageEditor,
 	loginToTestAccount,
-	sendMessage,
 	setChatSidebarOpen,
 	startNewChat,
 	waitForAssistantMessage
@@ -84,21 +85,33 @@ async function attachImage(page: Page, file: string, log: any): Promise<void> {
 	log('Image attached.', { image: path.basename(file) });
 }
 
-async function sendWithImage(page: Page, prompt: string, file: string, log: any): Promise<void> {
-	await attachImage(page, file, log);
+/** Picks Gemini 3.8 Flash for this turn through the @-mention dropdown at the caret. */
+async function mentionModel(page: Page): Promise<void> {
+	await page.keyboard.insertText('@Gemini-3.8-Flash');
+	const dropdown = page.getByTestId('mention-dropdown');
+	await expect(dropdown.getByTestId('mention-result-name').filter({ hasText: /Gemini 3\.8 Flash/i }).first()).toBeVisible({ timeout: 10_000 });
+	await page.keyboard.press('Tab');
+	await expect(dropdown).toBeHidden({ timeout: 5_000 });
+}
+
+async function send(page: Page, prompt: string, file: string | null, log: any): Promise<void> {
+	if (file) await attachImage(page, file, log);
 	const editor = page.getByTestId('message-editor');
 	const editable = editor.locator('[contenteditable="true"]');
 	await focusMessageEditor(editor);
-	await editable.press('ControlOrMeta+End');
-	await editable.press('ArrowRight');
-	await editable.press('Enter');
+	if (file) {
+		await editable.press('ControlOrMeta+End');
+		await editable.press('ArrowRight');
+		await editable.press('Enter');
+	}
+	await mentionModel(page);
 	await page.keyboard.insertText(prompt);
 	await expect(editable).toContainText(prompt);
 	const users = page.getByTestId('message-user');
 	const before = await users.count().catch(() => 0);
-	const send = page.locator('[data-action="send-message"]');
-	await expect(send).toBeEnabled({ timeout: 15_000 });
-	await send.click();
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeEnabled({ timeout: 15_000 });
+	await sendButton.click();
 	await expect.poll(async () => users.count(), { timeout: 60_000 }).toBeGreaterThan(before);
 }
 
@@ -130,11 +143,7 @@ test.describe('shopping price comparison (real dev inference)', () => {
 		const records: any[] = [];
 		for (const item of cases) {
 			await startNewChat(page, log);
-			if (item.image) {
-				await sendWithImage(page, item.prompt, path.join(path.dirname(CASES_FILE), item.image), log);
-			} else {
-				await sendMessage(page, item.prompt, log, screenshot, item.name);
-			}
+			await send(page, item.prompt, item.image ? path.join(path.dirname(CASES_FILE), item.image) : null, log);
 			await waitForAssistantMessage(page, { which: 'last', timeout: ANSWER_TIMEOUT_MS, logCheckpoint: log });
 			await waitForIdle(page);
 			const answer = page.getByTestId('message-assistant').last();
@@ -147,7 +156,8 @@ test.describe('shopping price comparison (real dev inference)', () => {
 			const links = await answer.locator('a[href^="http"]').evaluateAll((nodes: any[]) =>
 				nodes.map((node) => node.href)
 			);
-			const record = { name: item.name, prompt: item.prompt, image: item.image || null, usedApps, text, cards, inlineOffers, links };
+			const generatedBy = ((await answer.getByTestId('generated-by').first().textContent({ timeout: 10_000 }).catch(() => '')) || '').trim();
+			const record = { name: item.name, prompt: item.prompt, image: item.image || null, usedApps, generatedBy, text, cards, inlineOffers, links };
 			records.push(record);
 			await testInfo.attach(`${item.name}.png`, { body: await page.screenshot({ fullPage: false }), contentType: 'image/png' });
 			await testInfo.attach(`${item.name}.json`, { body: JSON.stringify(record, null, 2), contentType: 'application/json' });
@@ -159,7 +169,10 @@ test.describe('shopping price comparison (real dev inference)', () => {
 				expect.soft(usedApps, `${item.name}: a shopping search ran`).toMatch(/Shopping/);
 				expect.soft(cards.length + inlineOffers, `${item.name}: offers are shown as results`).toBeGreaterThan(0);
 				expect.soft(text, `${item.name}: shows a euro price`).toMatch(/\d[\d.,]*\s?€|€\s?\d/);
-				expect.soft(links.length, `${item.name}: offers carry links`).toBeGreaterThan(0);
+				// Offer links render as inline embed links (role=link) or plain anchors; markdown that stayed text is not a link.
+				expect.soft(links.length + inlineOffers, `${item.name}: offers carry links`).toBeGreaterThan(0);
+				expect.soft(text, `${item.name}: no raw markdown links`).not.toMatch(/\]\(https?:\/\//);
+				expect.soft(generatedBy, `${item.name}: answered by Gemini 3.8 Flash`).toMatch(/Gemini 3\.8 Flash/i);
 				if (expected.used) expect.soft(text, `${item.name}: shows used offers`).toMatch(/used|gebraucht/i);
 			}
 		}

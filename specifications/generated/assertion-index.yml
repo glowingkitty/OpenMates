@@ -50150,7 +50150,7 @@ assertions:
     direct_tests:
     - &id6242
       path: frontend/apps/web_app/tests/shopping-price-compare-real.spec.ts
-      line: 117
+      line: 130
       name: product questions with and without a photo find where to buy and the cheapest
         offer
       surface: gui.web
@@ -50193,7 +50193,7 @@ assertions:
     direct_tests:
     - &id6245
       path: frontend/apps/web_app/tests/shopping-price-compare-real.spec.ts
-      line: 117
+      line: 130
       name: product questions with and without a photo find where to buy and the cheapest
         offer
       surface: gui.web
@@ -50229,7 +50229,7 @@ assertions:
     direct_tests:
     - &id6246
       path: frontend/apps/web_app/tests/shopping-price-compare-real.spec.ts
-      line: 117
+      line: 130
       name: product questions with and without a photo find where to buy and the cheapest
         offer
       surface: gui.web
