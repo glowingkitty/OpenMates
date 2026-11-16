@@ -35,18 +35,29 @@ const FIELDS: &[&str] = &[
     "encrypted_draft_preview",
     "updated_at",
 ];
+/// Plain, binding-friendly inputs of one browser draft write. `team_id` names the
+/// team the shell says this chat belongs to; Rust admits a team chat only when
+/// the stored row (or the row it creates) carries that same team. `create_chat`
+/// lets the write create the chats row when it is absent (a new, unsaved chat).
+/// The default is the personal, existing-row behavior.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct BrowserDraftOptions {
+    pub team_id: Option<String>,
+    pub create_chat: bool,
+}
 /// Sealed, ORIGINAL local-profile draft purpose only. No serialization, Clone,
 /// constructor or caller boolean can grant server/send or generic read access.
 pub struct BrowserDraftAdmission {
     owner: String,
     chat: String,
+    team: Option<String>,
     generation: u64,
     binding: MasterBinding,
     credential_context: String,
 }
 impl BrowserDraftAdmission {
     pub(in crate::client) fn check(&self, c: &Client) -> Result<()> {
-        c.validate_browser_draft_local(&self.owner, &self.chat)?;
+        c.validate_browser_draft_local(&self.owner, &self.chat, self.team.as_deref())?;
         if c.generation != self.generation || credential_context(c)? != self.credential_context {
             return Err(Error::Cancelled);
         }
@@ -163,7 +174,7 @@ pub struct BrowserDraftWrite {
     version: u64,
 }
 impl BrowserDraftWrite {
-    fn check(&self, c: &Client) -> Result<()> {
+    pub(in crate::client) fn check(&self, c: &Client) -> Result<()> {
         self.admission.check(c)?;
         self.operation.check(c)
     }
@@ -237,10 +248,14 @@ impl BrowserDraftWrite {
         {
             return Err(Error::Conflict);
         }
-        if ["team_id", "hashed_team_id"]
-            .iter()
-            .any(|field| r.get(*field).is_some_and(|v| !v.is_null() && v != ""))
-        {
+        let team = self.admission.team.as_deref();
+        if ["team_id", "hashed_team_id"].iter().any(|field| {
+            r.get(*field).is_some_and(|v| {
+                !v.is_null()
+                    && v != ""
+                    && !team.is_some_and(|t| v == &json!(t) || v == &json!(sha256(t)))
+            })
+        }) {
             return Err(Error::Forbidden);
         }
         self.remove_intent(c, &io).await
@@ -302,7 +317,12 @@ impl BrowserDraftWrite {
     }
 }
 impl Client {
-    fn validate_browser_draft_local(&self, owner: &str, id: &str) -> Result<()> {
+    fn validate_browser_draft_local(
+        &self,
+        owner: &str,
+        id: &str,
+        team: Option<&str>,
+    ) -> Result<()> {
         self.require_credentials()?;
         self.verify_private_operation()?;
         if !uuid::Uuid::parse_str(owner).is_ok_and(|x| x.to_string() == owner)
@@ -313,7 +333,8 @@ impl Client {
                 .as_ref()
                 .is_some_and(|a| a.principal == owner)
             || self.browser_credentials.is_none()
-            || self.team()?.is_some()
+            || (team.is_none() && self.team()?.is_some())
+            || team.is_some_and(str::is_empty)
             || self.is_ephemeral_chat(id)
         {
             return Err(Error::Forbidden);
@@ -331,10 +352,21 @@ impl Client {
         owner: &str,
         id: &str,
     ) -> Result<BrowserDraftAdmission> {
-        self.validate_browser_draft_local(owner, id)?;
+        self.prepare_browser_draft_admission_for_team(owner, id, None)
+    }
+    /// Admission of a draft purpose for one explicit team chat (`Some`) or a
+    /// personal chat (`None`).
+    pub fn prepare_browser_draft_admission_for_team(
+        &self,
+        owner: &str,
+        id: &str,
+        team: Option<&str>,
+    ) -> Result<BrowserDraftAdmission> {
+        self.validate_browser_draft_local(owner, id, team)?;
         Ok(BrowserDraftAdmission {
             owner: owner.into(),
             chat: id.into(),
+            team: team.map(str::to_owned),
             generation: self.generation,
             binding: self.master_binding()?,
             credential_context: credential_context(self)?,
@@ -396,6 +428,39 @@ impl Client {
         F: Fn(String) -> Fut,
         Fut: Future<Output = Result<String>>,
     {
+        self.prepare_browser_draft_with_options_io_json(
+            owner,
+            id,
+            markdown,
+            display_preview,
+            scope_json,
+            now,
+            &BrowserDraftOptions::default(),
+            io,
+        )
+        .await
+    }
+    /// The full draft write: personal or explicit team chat, existing row (also
+    /// a draft-only shell row without messages or chat key) or, with
+    /// `options.create_chat`, a new chats row created through the closed
+    /// `create_draft_chat` plan. Drafts of every chat kind use the master key.
+    #[allow(clippy::too_many_arguments)] // Mirrors the browser binding's positional ABI.
+    pub async fn prepare_browser_draft_with_options_io_json<F, Fut>(
+        &mut self,
+        owner: &str,
+        id: &str,
+        markdown: &str,
+        display_preview: Option<&str>,
+        scope_json: &str,
+        now: u64,
+        options: &BrowserDraftOptions,
+        io: F,
+    ) -> Result<BrowserDraftWrite>
+    where
+        F: Fn(String) -> Fut,
+        Fut: Future<Output = Result<String>>,
+    {
+        let team = options.team_id.as_deref();
         validate_draft_markdown(markdown)?;
         if display_preview.is_some_and(|p| p.trim().is_empty() || p.len() > MAX_DISPLAY_PREVIEW) {
             return Err(Error::Invalid(
@@ -412,7 +477,7 @@ impl Client {
             return Err(Error::Protocol);
         }
         safe(&scope["workspaceEpoch"])?;
-        let admission = self.prepare_browser_draft_admission(owner, id)?;
+        let admission = self.prepare_browser_draft_admission_for_team(owner, id, team)?;
         let operation = OwnedOperationScope::capture_local_draft(self, &admission)?;
         let check = |c: &Client| -> Result<()> {
             admission.check(c)?;
@@ -425,21 +490,27 @@ impl Client {
         check(self)?;
         let observed = packet(observed, "capture_draft", &operation_id, id)?;
         let expected = observed["row"].clone();
-        let mut row = decoded_projection(&expected)?;
+        let created = expected.is_null();
+        let mut row = if created {
+            if !options.create_chat {
+                return Err(Error::Unavailable {
+                    code: "existing_chat_required",
+                    reason: "Existing saved chat required.",
+                });
+            }
+            json!({"chat_id":id,"id":id})
+        } else {
+            decoded_projection(&expected)?
+        };
         if row["chat_id"] != id {
             return Err(Error::Forbidden);
         }
         if row.get("id").is_none() {
             row["id"] = json!(id)
         }
-        self.validate_draft_row_scope(&row, id)?;
-        // Initial supported slice is an EXISTING saved Personal chat. Unsupported
-        // draft-only/new/Team/Direct inputs retain the caller's editor document.
-        if optional_u64(&row["messages_v"])? == 0 || !row["encrypted_chat_key"].is_string() {
-            return Err(Error::Unavailable {
-                code: "browser_draft_existing_personal_required",
-                reason: "Existing saved Personal chat required.",
-            });
+        self.validate_draft_row_scope_for_team(&row, id, team)?;
+        if !created && team.is_some() && row["team_id"].as_str() != team {
+            return Err(Error::Forbidden);
         }
         let old = optional_u64(&row["draft_v"])?.max(optional_u64(&row["cleared_draft_v"])?);
         let version = old
@@ -458,23 +529,39 @@ impl Client {
                 .await?
         };
         check(self)?;
-        let updated = now.max(
-            optional_u64(&row["updated_at"])?
-                .checked_add(1)
-                .filter(|n| *n <= MAX_SAFE)
-                .ok_or(Error::Protocol)?,
-        );
+        let updated = if created {
+            now
+        } else {
+            now.max(
+                optional_u64(&row["updated_at"])?
+                    .checked_add(1)
+                    .filter(|n| *n <= MAX_SAFE)
+                    .ok_or(Error::Protocol)?,
+            )
+        };
         let patch = json!({"encrypted_draft_md":encrypted,"encrypted_draft_preview":preview,"draft_v":version,"updated_at":updated});
-        let change = json!({"change_id":uuid::Uuid::new_v4().to_string(),"chat_id":id,"type":"draft","value":encrypted,"encrypted_draft_preview":preview,"version_before_edit":old,"queue_order":order,"queue_token":uuid::Uuid::new_v4().to_string()});
-        let mut after_row = decoded_projection(&expected)?;
-        for (field, value) in patch.as_object().ok_or(Error::Protocol)? {
-            after_row[field] = value.clone();
+        let mut change = json!({"change_id":uuid::Uuid::new_v4().to_string(),"chat_id":id,"type":"draft","value":encrypted,"encrypted_draft_preview":preview,"version_before_edit":old,"queue_order":order,"queue_token":uuid::Uuid::new_v4().to_string()});
+        if let Some(team) = team {
+            change["team_id"] = json!(team);
         }
+        let (after_row, kind, new_row) = if created {
+            let new_row = json!({"chat_id":id,"team_id":team,"team_chat_pending_commit":team.is_some(),"user_id":owner,"encrypted_title":null,"messages_v":0,"title_v":0,"draft_v":version,"encrypted_draft_md":encrypted,"encrypted_draft_preview":preview,"last_edited_overall_timestamp":now,"unread_count":0,"created_at":now,"updated_at":now});
+            (new_row.clone(), "create_draft_chat", new_row)
+        } else {
+            let mut after_row = decoded_projection(&expected)?;
+            for (field, value) in patch.as_object().ok_or(Error::Protocol)? {
+                after_row[field] = value.clone();
+            }
+            (after_row, "store_draft", Value::Null)
+        };
         let after = projection(&after_row)?;
-        let store = json!({"version":1,"kind":"store_draft","operationId":operation_id,"owner":owner,"chatId":id,"scope":scope,"expected":expected,"queueMaximum":maximum,"patch":patch,"change":change});
+        let mut store = json!({"version":1,"kind":kind,"operationId":operation_id,"owner":owner,"chatId":id,"scope":scope,"expected":if created{after.clone()}else{expected},"queueMaximum":maximum,"patch":patch,"change":change});
+        if created {
+            store["row"] = new_row;
+        }
         let stored = io(serde_json::to_string(&store)?).await?;
         check(self)?;
-        let stored = packet(stored, "store_draft", &operation_id, id)?;
+        let stored = packet(stored, kind, &operation_id, id)?;
         if stored["row"] != after || stored["change"] != change {
             return Err(Error::Conflict);
         }
@@ -527,6 +614,12 @@ impl Client {
         operation.check(self)?;
         let observed = packet(observed, "capture_draft", &operation_id, id)?;
         let original_projection = observed["row"].clone();
+        if original_projection.is_null() {
+            return Err(Error::Unavailable {
+                code: "existing_chat_required",
+                reason: "Existing saved chat required.",
+            });
+        }
         let mut row = decoded_projection(&original_projection)?;
         if row.get("id").is_none() {
             row["id"] = json!(id)
@@ -584,4 +677,4 @@ impl Client {
 }
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "browser_draft_tests.rs"]
-mod tests;
+pub(in crate::client) mod tests;

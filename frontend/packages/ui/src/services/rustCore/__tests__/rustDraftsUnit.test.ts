@@ -79,6 +79,18 @@ describe('core client borrow', () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
+	it('lends a local-only client only when the borrower allows local plans', () => {
+		const rt = fakeRuntime(fakeClient({ local_read_only: true }));
+		cleanups.push(registerCoreClientBorrows(rt));
+		const borrow = tryBorrowCoreClient(PRINCIPAL, undefined, { allowLocal: true }) as CoreClientBorrow;
+		expect(borrow.status.principal).toBe(PRINCIPAL);
+		expect(rt.busy).toBe(true);
+		borrow.release();
+		expect(tryBorrowCoreClient(PRINCIPAL)).toBe('local');
+		expect(tryBorrowCoreClient(PRINCIPAL, undefined, { allowLocal: true })).toMatchObject({ status: { principal: PRINCIPAL } });
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
 	it('refuses other principals, local-only admissions and unregistered dispatchers', () => {
 		const local = fakeRuntime(fakeClient({ local_read_only: true }));
 		const other = fakeRuntime(fakeClient(), { configuration: { admission: 'existing_key', expectedPrincipal: CHAT } });
@@ -122,13 +134,14 @@ describe('core client borrow', () => {
 });
 
 interface FakeWrite { freed: boolean; acked: boolean }
-function draftsHarness(options: { prepare?: (effect: (plan: string) => Promise<string>) => Promise<void>; refuse?: string; borrow?: 'none' | 'local' | 'busy'; missingRow?: boolean; ackFails?: boolean; readbackFailures?: number } = {}) {
+function draftsHarness(options: { prepare?: (effect: (plan: string) => Promise<string>) => Promise<void>; refuse?: string; borrow?: 'none' | 'local' | 'busy'; seen?: { team: string | undefined; create: boolean }[]; ackFails?: boolean; readbackFailures?: number; offline?: boolean } = {}) {
 	let readbackFailures = options.readbackFailures ?? 0;
 	const writes: FakeWrite[] = [];
 	const plans: string[] = [];
 	let released = 0;
 	const client = {
-		async prepare_local_draft_with_preview(_h: string, _g: number, owner: string, chatId: string, markdown: string, preview: string, _scope: string, _now: number, effect: (plan: string) => Promise<string>) {
+		async prepare_local_draft_with_options(_h: string, _g: number, owner: string, chatId: string, markdown: string, preview: string, _scope: string, _now: number, team: string | undefined, create: boolean, effect: (plan: string) => Promise<string>) {
+			options.seen?.push({ team, create });
 			expect(owner).toBe(PRINCIPAL);
 			expect(markdown).toBe('Hello body');
 			expect(preview).toBe('Hello preview');
@@ -138,7 +151,7 @@ function draftsHarness(options: { prepare?: (effect: (plan: string) => Promise<s
 			writes.push(state);
 			return {
 				local_result: () => JSON.stringify({ version: 7 }),
-				remote_payload: () => JSON.stringify({ chat_id: chatId, encrypted_draft_md: 'ct-md', encrypted_draft_preview: 'ct-preview', draft_v: 7 }),
+				remote_payload: () => options.offline ? undefined : JSON.stringify({ chat_id: chatId, encrypted_draft_md: 'ct-md', encrypted_draft_preview: 'ct-preview', draft_v: 7 }),
 				async acknowledge_transport() { if (options.ackFails) throw 'unavailable'; state.acked = true; return { take: () => JSON.stringify({ version: 7, remoteSynced: true }), free() {} }; },
 				free() { state.freed = true; }
 			};
@@ -154,7 +167,6 @@ function draftsHarness(options: { prepare?: (effect: (plan: string) => Promise<s
 			async execute(plan: string) {
 				const kind = JSON.parse(plan).kind as string;
 				plans.push(kind);
-				if (kind === 'capture_draft' && options.missingRow) throw new Error('existing_chat_required');
 				if (kind === 'readback_draft' && readbackFailures > 0) { readbackFailures -= 1; throw new Error('draft_conflict'); }
 				return '{}';
 			},
@@ -180,7 +192,7 @@ function installUnit(deps: DraftsUnitDeps) {
 	return { port: createUnitPort<DraftsProtocol>(channel.port1), dispose, controller };
 }
 
-const saveRequest = () => ({ chatId: CHAT, markdown: new TextEncoder().encode('Hello body'), preview: 'Hello preview', scope: SCOPE, nowSeconds: 10 });
+const saveRequest = () => ({ chatId: CHAT, markdown: new TextEncoder().encode('Hello body'), preview: 'Hello preview', scope: SCOPE, nowSeconds: 10, teamId: null, createChat: false });
 
 describe('drafts unit', () => {
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
@@ -200,12 +212,38 @@ describe('drafts unit', () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
+	it('offline save writes locally, returns no payload and keeps no acknowledgeable resource', async () => {
+		const h = draftsHarness({ offline: true });
+		const { port, dispose } = installUnit(h.deps);
+		const saved = await port.request('save', saveRequest());
+		expect(saved).toMatchObject({ version: 7, payload: null });
+		expect(h.writes[0].freed).toBe(true);
+		await expect(port.request('acknowledge', { resourceId: RESOURCE })).rejects.toMatchObject({ code: 'draft_resource_unknown' });
+		dispose();
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
+	it('passes the explicit team and create-chat inputs to Rust and validates them', async () => {
+		const seen: { team: string | undefined; create: boolean }[] = [];
+		const { port, dispose } = installUnit(draftsHarness({ seen }).deps);
+		const TEAM = '33333333-3333-4333-8333-333333333333';
+		await port.request('save', { ...saveRequest(), teamId: TEAM, createChat: true });
+		await port.request('save', saveRequest());
+		expect(seen).toEqual([{ team: TEAM, create: true }, { team: undefined, create: false }]);
+		await expect(port.request('save', { ...saveRequest(), teamId: '' })).rejects.toMatchObject({ code: 'invalid_request' });
+		await expect(port.request('save', { ...saveRequest(), createChat: 'yes' } as never)).rejects.toMatchObject({ code: 'invalid_request' });
+		const { teamId: _teamId, ...withoutTeam } = saveRequest();
+		await expect(port.request('save', withoutTeam as never)).rejects.toMatchObject({ code: 'invalid_request' });
+		dispose();
+	});
+
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
 	it('routes shape refusals decided before any write and fails refusals after a write', async () => {
 		const shape = installUnit(draftsHarness({ refuse: 'browser_draft_existing_personal_required' }).deps);
 		await expect(shape.port.request('save', saveRequest())).rejects.toMatchObject({ code: 'browser_draft_existing_personal_required' });
 		const written = installUnit(draftsHarness({ refuse: 'browser_draft_forbidden', prepare: async (effect) => { await effect(plan('store_draft')); } }).deps);
 		await expect(written.port.request('save', saveRequest())).rejects.toMatchObject({ code: 'draft_prepare_browser_draft_forbidden_after_store_draft' });
-		const missing = installUnit(draftsHarness({ missingRow: true, refuse: 'unavailable', prepare: async (effect) => { await expect(effect(plan('capture_draft'))).rejects.toThrow('existing_chat_required'); } }).deps);
+		const missing = installUnit(draftsHarness({ refuse: 'existing_chat_required' }).deps);
 		await expect(missing.port.request('save', saveRequest())).rejects.toMatchObject({ code: 'existing_chat_required' });
 		const internal = installUnit(draftsHarness({ refuse: 'unavailable' }).deps);
 		await expect(internal.port.request('save', saveRequest())).rejects.toMatchObject({ code: 'draft_prepare_unavailable_after_none' });
@@ -266,14 +304,14 @@ function fakeWorker(installers: UnitInstallers) {
 describe('rust draft route', () => {
 	let unregister: (() => void) | null = null;
 	afterEach(() => { unregister?.(); unregister = null; resetRustDraftRouteForTests(); delete document.documentElement.dataset.rustCoreDraft; });
-	const input = (send: () => Promise<void>) => ({ chatId: CHAT, markdown: 'Hello body', preview: 'Hello preview', workspaceEpoch: 0, send });
+	const input = (send: () => Promise<void>) => ({ chatId: CHAT, markdown: 'Hello body', preview: 'Hello preview', workspaceEpoch: 0, teamId: null, createChat: false, send });
 
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
-	it('routes to the TS writer, marked, when no shared core is registered or bound', async () => {
-		await expect(saveDraftWithRustCore(input(async () => {}))).resolves.toEqual({ kind: 'legacy', code: 'rust_core_not_enabled' });
-		expect(document.documentElement.dataset.rustCoreDraft).toBe('ts-rust_core_not_enabled');
+	it('fails marked, with nothing written, when no shared core is registered or bound', async () => {
+		await expect(saveDraftWithRustCore(input(async () => {}))).resolves.toEqual({ kind: 'failed', code: 'rust_core_not_enabled' });
+		expect(document.documentElement.dataset.rustCoreDraft).toBe('rust-failed-rust_core_not_enabled');
 		unregister = registerSharedRustCore(createSharedCoreClient(() => fakeWorker({})));
-		await expect(saveDraftWithRustCore(input(async () => {}))).resolves.toEqual({ kind: 'legacy', code: 'not_bound' });
+		await expect(saveDraftWithRustCore(input(async () => {}))).resolves.toEqual({ kind: 'failed', code: 'core_unbound' });
 	});
 
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
@@ -303,7 +341,7 @@ describe('rust draft route', () => {
 		const core = createSharedCoreClient(() => fakeWorker({ drafts: (context) => installDraftsUnit(context, deps) }));
 		unregister = registerSharedRustCore(core);
 		await core.bind(PRINCIPAL);
-		await expect(saveDraftWithRustCore(input(async () => {}))).resolves.toEqual({ kind: 'legacy', code: 'browser_draft_existing_personal_required' });
+		await expect(saveDraftWithRustCore(input(async () => {}))).resolves.toEqual({ kind: 'failed', code: 'browser_draft_existing_personal_required' });
 		resetRustDraftRouteForTests();
 		const sendFails = draftsHarness();
 		deps = sendFails.deps;

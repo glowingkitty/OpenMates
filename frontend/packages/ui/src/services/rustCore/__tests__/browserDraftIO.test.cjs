@@ -12,16 +12,32 @@ const base=()=>({chat_id:CHAT,user_id:OWNER,encrypted_chat_key:'wrapped-original
 function plan(kind='capture_draft'){const patch={encrypted_draft_md:'new-cipher',encrypted_draft_preview:'new-preview',draft_v:5,updated_at:11},change={change_id:CHANGE,chat_id:CHAT,type:'draft',value:'new-cipher',encrypted_draft_preview:'new-preview',version_before_edit:4,queue_order:1,queue_token:TOKEN};return{version:1,kind,operationId:OP,owner:OWNER,chatId:CHAT,scope:{lifecycleGeneration:1,workspaceEpoch:2},expected:kind==='capture_draft'?null:draftProjection(base()),queueMaximum:kind==='capture_draft'?null:0,patch:kind==='capture_draft'?null:patch,change:kind==='capture_draft'?null:change};}
 const tick=()=>new Promise(r=>setImmediate(r));
 function fixture(p=plan(),options={}){
- const state={row:base(),queue:new Map(),transactions:[],writes:[],opens:0,current:true};const root=new AbortController();
+ const state={row:options.absent?undefined:base(),queue:new Map(),transactions:[],writes:[],opens:0,current:true};const root=new AbortController();
  const db={objectStoreNames:{contains:n=>['chats','pending_sync_changes'].includes(n)},close(){},transaction(stores,mode){assert.deepEqual(stores,['chats','pending_sync_changes']);const oldRow=structuredClone(state.row),oldQueue=structuredClone(state.queue);const tx={mode,aborted:false,abort(){this.aborted=true;},abortTerminal(){state.row=oldRow;state.queue=oldQueue;this.onabort?.({native:true,target:this});},complete(){assert.equal(this.aborted,false);this.oncomplete?.({native:true,target:this});},objectStore(name){const operation=(kind,key,value)=>{const req={};queueMicrotask(()=>{if(tx.aborted)return;try{
  if(kind==='get'){req.result=structuredClone(name==='chats'?state.row:state.queue.get(key));if(options.badReadback&&state.writes.length&&name==='chats')req.result.encrypted_draft_md='foreign';}
  else if(kind==='put'){state.row=structuredClone(value);state.writes.push(['chat',key]);req.result=key;}
+ else if(kind==='add'&&name==='chats'){if(state.row){req.error=Error('ConstraintError');req.onerror?.();return;}state.row=structuredClone(value);state.writes.push(['chat',key]);req.result=key;}
  else if(kind==='add'){if(state.queue.has(key)){req.error=Error('duplicate');req.onerror?.();return;}state.queue.set(key,structuredClone(value));state.writes.push(['queue',key]);}
  else{state.queue.delete(key);state.writes.push(['delete',key]);}req.onsuccess?.({native:true,target:req});}catch(error){req.error=error;req.onerror?.();}});return req;};
- return {keyPath:name==='chats'?'chat_id':'change_id',get:key=>operation('get',key),put:value=>operation('put',value.chat_id,value),add:value=>operation('add',value.change_id,value),delete:key=>operation('delete',key),openCursor(){const req={},rows=[...state.queue.values()];let at=0;const next=()=>queueMicrotask(()=>{if(tx.aborted)return;req.result=at<rows.length?{value:structuredClone(rows[at++]),continue:next}:null;req.onsuccess?.({native:true,target:req});});next();return req;}};}};state.transactions.push(tx);return tx;}};
+ return {keyPath:name==='chats'?'chat_id':'change_id',get:key=>operation('get',key),put:value=>operation('put',value.chat_id,value),add:value=>operation('add',name==='chats'?value.chat_id:value.change_id,value),delete:key=>operation('delete',key),openCursor(){const req={},rows=[...state.queue.values()];let at=0;const next=()=>queueMicrotask(()=>{if(tx.aborted)return;req.result=at<rows.length?{value:structuredClone(rows[at++]),continue:next}:null;req.onsuccess?.({native:true,target:req});});next();return req;}};}};state.transactions.push(tx);return tx;}};
  const ports=brand({current(){if(!state.current)throw Error('root_revoked');},open(){state.opens++;const req={};queueMicrotask(()=>{req.result=db;req.onsuccess?.({native:true,target:req});});return req;},transaction:(...args)=>db.transaction(...args.slice(1))});
  const handler=createBrowserDraftEffectHandler(ports,ports.current),pending=handler.execute(JSON.stringify(p),root.signal);void pending.catch(()=>undefined);return{state,handler,pending,root,ports,p};
 }
+function createPlan(){const row={chat_id:CHAT,team_id:OP,team_chat_pending_commit:true,user_id:OWNER,encrypted_title:null,messages_v:0,title_v:0,draft_v:1,encrypted_draft_md:'new-cipher',encrypted_draft_preview:'new-preview',last_edited_overall_timestamp:11,unread_count:0,created_at:11,updated_at:11};const p=plan('store_draft');return{...p,kind:'create_draft_chat',row,expected:draftProjection(row),patch:{...p.patch,draft_v:1},change:{...p.change,version_before_edit:0,team_id:OP}};}
+test('capture of an absent chats row reports row null (new chat) instead of failing',async()=>{
+ const f=fixture(plan(),{absent:true});await tick();f.state.transactions[0].complete();const packet=JSON.parse(await f.pending);assert.equal(packet.row,null);assert.equal(f.state.writes.length,0);
+});
+test('create_draft_chat adds the absent row and its team intent atomically with readback',async()=>{
+ const p=createPlan();assert.equal(parseBrowserDraftPlan(JSON.stringify(p)).kind,'create_draft_chat');
+ const f=fixture(p,{absent:true});await tick();assert.deepEqual(f.state.writes.map(w=>w[0]),['chat','queue']);assert.equal(f.state.row.team_chat_pending_commit,true);assert.equal(f.state.row.messages_v,0);
+ f.state.transactions[0].complete();const out=JSON.parse(await f.pending);assert.equal(out.row.team_id.value,OP);assert.deepEqual(out.change,p.change);
+});
+test('create_draft_chat refuses an existing row and a plan without the row',async()=>{
+ const f=fixture(createPlan());await tick();assert.equal(f.state.transactions[0].aborted,true);assert.equal(f.state.writes.length,0);f.state.transactions[0].abortTerminal();await assert.rejects(f.pending,/aborted/);
+ const {row,...noRow}=createPlan();assert.throws(()=>parseBrowserDraftPlan(JSON.stringify(noRow)),/invalid_draft_plan/);
+ const bad=createPlan();bad.change.team_id='';assert.throws(()=>parseBrowserDraftPlan(JSON.stringify(bad)),/invalid_draft_plan/);
+ const extra=plan('store_draft');extra.row={};assert.throws(()=>parseBrowserDraftPlan(JSON.stringify(extra)),/invalid_draft_plan/);
+});
 test('requires ORIGINAL branded ports and validates closed plan before opening database',async()=>{
  assert.throws(()=>createBrowserDraftEffectHandler({open(){assert.fail();},transaction(){assert.fail();},current(){}},()=>{}),/original_ports/);
  const p=plan();p.rawKey='forbidden';const f=fixture(p);await assert.rejects(f.pending,/invalid_draft_plan/);assert.equal(f.state.opens,0);

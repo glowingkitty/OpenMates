@@ -8,8 +8,8 @@ use std::{
     rc::Rc,
     sync::Arc,
 };
-const OWNER: &str = "11111111-1111-4111-8111-111111111111";
-const CHAT: &str = "22222222-2222-4222-8222-222222222222";
+pub(in crate::client) const OWNER: &str = "11111111-1111-4111-8111-111111111111";
+pub(in crate::client) const CHAT: &str = "22222222-2222-4222-8222-222222222222";
 struct Port;
 impl MasterCrypto for Port {
     fn encrypt<'a>(&'a self, iv: &'a [u8; 12], plain: &'a [u8]) -> MasterCryptoFuture<'a> {
@@ -19,7 +19,7 @@ impl MasterCrypto for Port {
         Box::pin(async move { crypto::decrypt_aead(cipher, &[7; 32], iv, &[]) })
     }
 }
-fn client() -> Client {
+pub(in crate::client) fn client() -> Client {
     let mut c = Client::new("http://127.0.0.1:9", None).unwrap();
     c.browser_transport = true;
     c.browser_local_read_only = true;
@@ -47,21 +47,27 @@ fn client() -> Client {
 fn row() -> Value {
     json!({"chat_id":CHAT,"user_id":OWNER,"messages_v":7,"encrypted_chat_key":"original-wrapper","draft_v":3,"cleared_draft_v":9,"updated_at":10,"pinned":true,"extension":{"keep":true}})
 }
-struct Store {
-    row: Value,
-    change: Value,
-    maximum: u64,
-    plans: Vec<String>,
-    mutate_on_final_capture: bool,
+pub(in crate::client) struct Store {
+    pub(in crate::client) row: Value,
+    pub(in crate::client) change: Value,
+    pub(in crate::client) maximum: u64,
+    pub(in crate::client) plans: Vec<String>,
+    pub(in crate::client) mutate_on_final_capture: bool,
 }
-fn io(state: Rc<RefCell<Store>>) -> impl Fn(String) -> Ready<Result<String>> {
+pub(in crate::client) fn io(state: Rc<RefCell<Store>>) -> impl Fn(String) -> Ready<Result<String>> {
     move |encoded| {
         let p: Value = serde_json::from_str(&encoded).unwrap();
         let mut s = state.borrow_mut();
         let kind = p["kind"].as_str().unwrap().to_owned();
         s.plans.push(kind.clone());
         let result = (|| -> Result<String> {
-            if kind == "store_draft" {
+            if kind == "create_draft_chat" {
+                if !s.row.is_null() {
+                    return Err(Error::Conflict);
+                }
+                s.row = p["row"].clone();
+                s.change = p["change"].clone();
+            } else if kind == "store_draft" {
                 if projection(&s.row)? != p["expected"] {
                     return Err(Error::Conflict);
                 }
@@ -79,13 +85,13 @@ fn io(state: Rc<RefCell<Store>>) -> impl Fn(String) -> Ready<Result<String>> {
                 s.row["cleared_draft_v"] = json!(100);
             }
             Ok(serde_json::to_string(
-                &json!({"version":1,"kind":kind,"operationId":p["operationId"],"chatId":CHAT,"row":projection(&s.row)?,"queueMaximum":s.maximum,"change":if kind=="capture_draft"{Value::Null}else{s.change.clone()},"transactionCommitted":true}),
+                &json!({"version":1,"kind":kind,"operationId":p["operationId"],"chatId":CHAT,"row":if s.row.is_null(){Value::Null}else{projection(&s.row)?},"queueMaximum":s.maximum,"change":if kind=="capture_draft"{Value::Null}else{s.change.clone()},"transactionCommitted":true}),
             )?)
         })();
         ready(result)
     }
 }
-fn store() -> Rc<RefCell<Store>> {
+pub(in crate::client) fn store() -> Rc<RefCell<Store>> {
     Rc::new(RefCell::new(Store {
         row: row(),
         change: Value::Null,
@@ -94,7 +100,7 @@ fn store() -> Rc<RefCell<Store>> {
         mutate_on_final_capture: false,
     }))
 }
-const SCOPE: &str = r#"{"lifecycleGeneration":1,"workspaceEpoch":2}"#;
+pub(in crate::client) const SCOPE: &str = r#"{"lifecycleGeneration":1,"workspaceEpoch":2}"#;
 // contract-test: supporting surface=sdks.rust assertions=drafts.persistence.local-first-encrypted,sync.client.shared-rust-policy
 #[tokio::test]
 async fn offline_local_draft_uses_opaque_master_existing_format_and_durable_encrypted_intent() {
@@ -207,11 +213,10 @@ async fn final_row_tombstone_race_or_root_change_refuses_already_decrypted_publi
 }
 // contract-test: supporting surface=sdks.rust assertions=drafts.access.first-party-encrypted,sync.phase2.drafts.authoritative-encrypted
 #[tokio::test]
-async fn foreign_owner_team_and_draft_only_rows_refuse_before_any_write() {
+async fn foreign_owner_and_unrequested_team_rows_refuse_before_any_write() {
     for (field, value) in [
         ("user_id", json!(CHAT)),
         ("team_id", json!(CHAT)),
-        ("messages_v", json!(0)),
     ] {
         let mut c = client();
         let s = store();
@@ -390,4 +395,111 @@ async fn empty_or_oversized_display_preview_refuses_before_any_io() {
         ));
         assert!(s.borrow().plans.is_empty());
     }
+}
+
+pub(in crate::client) const TEAM: &str = "33333333-3333-4333-8333-333333333333";
+pub(in crate::client) fn options(team: Option<&str>, create_chat: bool) -> BrowserDraftOptions {
+    BrowserDraftOptions {
+        team_id: team.map(str::to_owned),
+        create_chat,
+    }
+}
+pub(in crate::client) async fn write_with(
+    c: &mut Client,
+    s: &Rc<RefCell<Store>>,
+    o: &BrowserDraftOptions,
+) -> Result<BrowserDraftWrite> {
+    c.prepare_browser_draft_with_options_io_json(
+        OWNER,
+        CHAT,
+        "Synthetic option draft",
+        None,
+        SCOPE,
+        20,
+        o,
+        io(s.clone()),
+    )
+    .await
+}
+#[tokio::test]
+async fn new_chat_draft_creates_the_row_through_the_closed_create_plan() {
+    let mut c = client();
+    let s = store();
+    s.borrow_mut().row = Value::Null;
+    let w = write_with(&mut c, &s, &options(None, true)).await.unwrap();
+    assert_eq!(
+        s.borrow().plans,
+        ["capture_draft", "create_draft_chat", "readback_draft"]
+    );
+    let row = s.borrow().row.clone();
+    assert_eq!(row["draft_v"], 1);
+    assert_eq!(row["messages_v"], 0);
+    assert_eq!(row["team_chat_pending_commit"], false);
+    assert_eq!(row["created_at"], 20);
+    assert!(row["encrypted_chat_key"].is_null());
+    assert_eq!(row["user_id"], OWNER);
+    assert!(s.borrow().change.get("team_id").is_none());
+    assert_eq!(
+        serde_json::from_str::<Value>(&w.local_result(&c).unwrap()).unwrap()["version"],
+        1
+    );
+}
+#[tokio::test]
+async fn missing_row_without_create_option_is_the_existing_chat_refusal() {
+    let mut c = client();
+    let s = store();
+    s.borrow_mut().row = Value::Null;
+    let error = write_with(&mut c, &s, &options(None, false)).await.err();
+    assert!(matches!(
+        error,
+        Some(Error::Unavailable {
+            code: "existing_chat_required",
+            ..
+        })
+    ));
+    assert_eq!(s.borrow().plans, ["capture_draft"]);
+}
+#[tokio::test]
+async fn draft_only_shell_row_without_messages_or_chat_key_updates() {
+    let mut c = client();
+    let s = store();
+    s.borrow_mut().row = json!({"chat_id":CHAT,"user_id":OWNER,"messages_v":0,"draft_v":1,"updated_at":5});
+    let w = write_with(&mut c, &s, &options(None, false)).await.unwrap();
+    assert_eq!(s.borrow().row["draft_v"], 2);
+    assert_eq!(
+        serde_json::from_str::<Value>(&w.local_result(&c).unwrap()).unwrap()["version"],
+        2
+    );
+}
+#[tokio::test]
+async fn team_chat_draft_requires_the_matching_explicit_team() {
+    let mut c = client();
+    let s = store();
+    s.borrow_mut().row = Value::Null;
+    write_with(&mut c, &s, &options(Some(TEAM), true)).await.unwrap();
+    let row = s.borrow().row.clone();
+    assert_eq!(row["team_id"], TEAM);
+    assert_eq!(row["team_chat_pending_commit"], true);
+    assert_eq!(s.borrow().change["team_id"], TEAM);
+    // Existing team row: matching team updates, no team or another team refuses.
+    s.borrow_mut().row = json!({"chat_id":CHAT,"user_id":OWNER,"team_id":TEAM,"messages_v":3,"draft_v":1,"updated_at":5});
+    write_with(&mut c, &s, &options(Some(TEAM), false)).await.unwrap();
+    s.borrow_mut().row = json!({"chat_id":CHAT,"user_id":OWNER,"team_id":TEAM,"messages_v":3,"draft_v":1,"updated_at":5});
+    assert!(matches!(
+        write_with(&mut c, &s, &options(None, false)).await.err(),
+        Some(Error::Forbidden)
+    ));
+    let other = "44444444-4444-4444-8444-444444444444";
+    assert!(matches!(
+        write_with(&mut c, &s, &options(Some(other), false)).await.err(),
+        Some(Error::Forbidden)
+    ));
+    s.borrow_mut().row = row_personal();
+    assert!(matches!(
+        write_with(&mut c, &s, &options(Some(TEAM), false)).await.err(),
+        Some(Error::Forbidden)
+    ));
+}
+fn row_personal() -> Value {
+    row()
 }

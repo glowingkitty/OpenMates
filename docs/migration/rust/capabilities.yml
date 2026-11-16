@@ -212,8 +212,10 @@ capabilities:
     status: rust-default
     old: []
     unit: drafts
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
-      drafts unit
+    note: Every draft save runs in the Rust drafts unit (personal, team, new/unsaved and draft-only chats, and offline
+      boots with a local-read-only client); the TypeScript draft writer is deleted. Still TypeScript, so not rust-only
+      yet - draft deletion and clearing (chatSyncService.sendDeleteDraft, chatDB.deleteDraftOnlyChat) and the offline
+      queue replay (sendersSync.sendOfflineChanges)
     last_commit: 06da1b2448
   apple:
     status: rust-default

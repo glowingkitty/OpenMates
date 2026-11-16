@@ -111,6 +111,16 @@ export function installRustChatHistory(): () => void {
 					const code = rustFailureCode(error);
 					markRustStage(`session-failed-${code}`);
 					console.warn('[RustCore] session admission failed:', code);
+					// A failed upgrade (offline, server unreachable) closed the local session's Worker.
+					// Re-admit a local one from the cache so the offline-capable units (drafts) keep an
+					// admitted client; the next read retries the server check.
+					if (code !== 'cancelled' && !lifetime.signal.aborted) {
+						setTimeout(() => {
+							if (lifetime.signal.aborted || session || pending) return;
+							local = null; localPending = null; localAttempted = false;
+							void ensureLocal();
+						}, 0);
+					}
 					throw error;
 				})
 			.finally(() => { pending = null; });

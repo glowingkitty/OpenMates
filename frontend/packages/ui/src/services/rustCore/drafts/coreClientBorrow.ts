@@ -107,8 +107,15 @@ function lend(rt: WorkerRuntimeState, client: RustClient): () => void {
 	};
 }
 
-/** One attempt. Local-only (cache-read) admissions confer no server authority and are skipped. */
-export function tryBorrowCoreClient(principal: string, observeBusy?: (reason: string) => void): CoreClientBorrow | CoreBorrowRefusal {
+/**
+ * `allowLocal`: lend a local-read-only client too. Only for borrowers that run
+ * Rust's local-only plans (the drafts unit: encrypted draft row + durable intent);
+ * the core refuses publication and every server operation on such a client.
+ */
+export interface BorrowOptions { readonly allowLocal?: boolean }
+
+/** One attempt. Local-only (cache-read) admissions confer no server authority and are skipped unless `allowLocal`. */
+export function tryBorrowCoreClient(principal: string, observeBusy?: (reason: string) => void, options: BorrowOptions = {}): CoreClientBorrow | CoreBorrowRefusal {
 	let busy = false, local = false;
 	for (const rt of sources) {
 		const client = rt.client, expected = rt.configuration.expectedPrincipal;
@@ -121,7 +128,7 @@ export function tryBorrowCoreClient(principal: string, observeBusy?: (reason: st
 		let snapshot: BorrowedCoreStatus | null = null, statusLocal = false;
 		try {
 			statusLocal = status.local_read_only === true;
-			if (status.local_read_only !== true && status.principal.toLowerCase() === principal.toLowerCase()) {
+			if ((options.allowLocal === true || status.local_read_only !== true) && status.principal.toLowerCase() === principal.toLowerCase()) {
 				snapshot = Object.freeze({ handle: status.handle, generation: status.generation, principal: status.principal });
 			}
 		} finally { status.free(); }
@@ -138,11 +145,11 @@ const RETRY_MS = 20;
  * `observeBusy` is told, per refused attempt, which dispatcher state was busy.
  */
 export async function borrowCoreClient(principal: string, signal: AbortSignal, timeoutMs: number,
-	observeBusy?: (reason: string) => void): Promise<CoreClientBorrow | CoreBorrowRefusal> {
+	observeBusy?: (reason: string) => void, options: BorrowOptions = {}): Promise<CoreClientBorrow | CoreBorrowRefusal> {
 	const deadline = Date.now() + timeoutMs;
 	for (;;) {
 		if (signal.aborted) throw new Error('cancelled');
-		const outcome = tryBorrowCoreClient(principal, observeBusy);
+		const outcome = tryBorrowCoreClient(principal, observeBusy, options);
 		if (outcome !== 'busy' || Date.now() >= deadline) return outcome;
 		await new Promise((resolve) => setTimeout(resolve, RETRY_MS));
 	}

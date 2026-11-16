@@ -250,7 +250,7 @@ units:
   pre_bind: false
   installer: frontend/packages/ui/src/services/rustCore/drafts/draftsUnit.ts
   what_moved: 'Draft policy (encryption, versioning, closed IndexedDB predicates, durable encrypted sync intent,
-    readback) is shared Rust (`prepare_local_draft_with_preview`, `remote_payload`, `acknowledge_transport`). This
+    readback) is shared Rust (`prepare_local_draft_with_options`, `remote_payload`, `acknowledge_transport`). This
     unit only marshals: it runs the Rust calls on the ADMITTED client of the bound history `core` lease (borrowed
     via core...'
   typescript_fallback: not declared in unit sources

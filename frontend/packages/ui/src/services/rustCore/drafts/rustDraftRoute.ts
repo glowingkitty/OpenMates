@@ -1,31 +1,25 @@
 /**
- * Page side of the shared Rust core Worker's `drafts` unit (Rust-core build only;
- * draftSave.ts imports it dynamically behind VITE_OPENMATES_RUST_CORE).
- *
- * Routing is explicit and marked, never silent: a save goes to Rust when the
- * shared core is bound and the unit accepts the chat shape (existing saved
- * Personal chat on the admitted history client). Every refusal decided before
- * any Rust write returns `legacy` with its code, and the caller runs the
- * existing TS writer for that save. A failure after Rust started writing is
- * `failed`: the editor stays unsaved and no TS rewrite happens. The one
- * exception retried (once, through Rust) is a post-commit readback conflict.
+ * Page side of the shared Rust core Worker's `drafts` unit (draftSave.ts imports it
+ * dynamically). Rust is the only draft writer: it creates the chat row for a new
+ * chat (and a new team chat), updates draft-only shells and admits a team chat only
+ * for the matching team. Any refusal or failure returns `failed` with its code: the
+ * editor stays unsaved and nothing is rewritten elsewhere. The one exception
+ * retried (once, through Rust) is a post-commit readback conflict.
  *
  * Marker: `document.documentElement.dataset.rustCoreDraft` is `rust-local`,
- * `rust-synced`, `rust-ack-failed-<code>`, `ts-<code>` or `rust-failed-<code>`
- * (E2E and bench read it).
+ * `rust-synced`, `rust-ack-failed-<code>` or `rust-failed-<code>` (E2E and bench read it).
  */
 import { isSharedRustCoreRegistered, requireSharedRustCore, SharedCoreError } from '../host/sharedCoreRegistry';
 import type { SharedRustCore } from '../host/sharedCoreRegistry';
 import { createUnitPort, UnitPortError } from '../host/unitPort';
 import type { UnitPort } from '../host/unitPort';
 import { browserProfileLifecycle } from '../platformLifecycle';
-import { isDraftRoutingCode, validDraftSaveResponse } from './draftsProtocol';
+import { validDraftSaveResponse } from './draftsProtocol';
 import type { DraftRemotePayload, DraftsProtocol } from './draftsProtocol';
 
 export type RustDraftSaveOutcome =
-	| { kind: 'legacy'; code: string }
 	| { kind: 'failed'; code: string }
-	| { kind: 'saved'; version: number; synced: Promise<void> };
+	| { kind: 'saved'; version: number; synced: Promise<void>; /** Offline: saved locally, encrypted intent queued; the existing offline replay publishes it. */ localOnly: boolean };
 
 export interface RustDraftSaveInput {
 	chatId: string;
@@ -34,6 +28,10 @@ export interface RustDraftSaveInput {
 	preview: string;
 	/** Personal workspace epoch captured when the save started. */
 	workspaceEpoch: number;
+	/** Active team id of a team chat, else null. */
+	teamId: string | null;
+	/** True when no chats row exists yet for chatId (Rust creates it). */
+	createChat: boolean;
 	/** Sends the ciphertext `update_draft` on the existing socket; resolves on receipt or after it queued its own replay. */
 	send(payload: DraftRemotePayload): Promise<void>;
 }
@@ -93,10 +91,10 @@ function errorCode(error: unknown): string {
 	return error instanceof UnitPortError || error instanceof SharedCoreError ? error.code : 'unavailable';
 }
 
-function legacy(code: string): RustDraftSaveOutcome {
-	mark(`ts-${code}`);
-	console.info(`[DraftService] Draft save routed to the TypeScript writer (rust core: ${code}).`);
-	return { kind: 'legacy', code };
+function failedBefore(code: string): RustDraftSaveOutcome {
+	mark(`rust-failed-${code}`);
+	console.warn(`[DraftService] Rust draft save failed (${code}); the draft stays unsaved.`);
+	return { kind: 'failed', code };
 }
 
 type SaveAttempt =
@@ -109,7 +107,8 @@ async function requestSave(drafts: OpenedUnit, input: RustDraftSaveInput, scope:
 	const requested = performance.now();
 	try {
 		const reply = await drafts.port.request('save', {
-			chatId: input.chatId, markdown, preview: input.preview, scope, nowSeconds: Math.floor(Date.now() / 1000)
+			chatId: input.chatId, markdown, preview: input.preview, scope, nowSeconds: Math.floor(Date.now() / 1000),
+			teamId: input.teamId, createChat: input.createChat
 		}, { transfer: [markdown.buffer] });
 		if (!validDraftSaveResponse(reply, input.chatId)) throw new UnitPortError('unit_bad_reply');
 		return { kind: 'saved', reply, requestMs: performance.now() - requested };
@@ -118,17 +117,17 @@ async function requestSave(drafts: OpenedUnit, input: RustDraftSaveInput, scope:
 	}
 }
 
-/** Saves one editor draft through Rust, or names why this save stays on the TS writer. */
+/** Saves one editor draft through Rust. */
 export async function saveDraftWithRustCore(input: RustDraftSaveInput): Promise<RustDraftSaveOutcome> {
-	if (!isSharedRustCoreRegistered()) return legacy('rust_core_not_enabled');
+	if (!isSharedRustCoreRegistered()) return failedBefore('rust_core_not_enabled');
 	const core = requireSharedRustCore();
 	const generation = core.generation;
-	if (generation === null) return legacy('not_bound');
+	if (generation === null) return failedBefore('core_unbound');
 	let lifecycleGeneration: number;
 	try {
 		lifecycleGeneration = browserProfileLifecycle.current();
 	} catch {
-		return legacy('profile_mutation');
+		return failedBefore('profile_mutation');
 	}
 	const entered = performance.now();
 	const firstOnUnit = !opened || opened.core !== core || opened.generation !== generation || opened.port.closed;
@@ -136,7 +135,7 @@ export async function saveDraftWithRustCore(input: RustDraftSaveInput): Promise<
 	try {
 		drafts = await unit(core, generation);
 	} catch (error) {
-		return legacy(`open_${errorCode(error)}`);
+		return failedBefore(`open_${errorCode(error)}`);
 	}
 	const unitOpenMs = performance.now() - entered;
 	const release = core.hold();
@@ -152,7 +151,6 @@ export async function saveDraftWithRustCore(input: RustDraftSaveInput): Promise<
 		}
 		if (outcome.kind === 'refused') {
 			// Only the first attempt may route to TS: a retry follows a committed Rust write.
-			if (attempt === 1 && isDraftRoutingCode(outcome.code)) return legacy(outcome.code);
 			mark(`rust-failed-${outcome.code}`);
 			console.warn(`[DraftService] Rust draft save failed (${outcome.code}); the draft stays unsaved.`);
 			return { kind: 'failed', code: outcome.code };
@@ -163,9 +161,11 @@ export async function saveDraftWithRustCore(input: RustDraftSaveInput): Promise<
 		release();
 	}
 	mark('rust-local');
+	const payload = saved.payload;
+	if (payload === null) return { kind: 'saved', version: saved.version, synced: Promise.resolve(), localOnly: true };
 	const synced = (async () => {
 		try {
-			await input.send(saved.payload);
+			await input.send(payload);
 		} catch (error) {
 			// The encrypted intent stays durable in pending_sync_changes for offline replay;
 			// only the in-memory handle is freed. A refused release means the unit already
@@ -190,7 +190,7 @@ export async function saveDraftWithRustCore(input: RustDraftSaveInput): Promise<
 		}
 		mark('rust-synced');
 	})();
-	return { kind: 'saved', version: saved.version, synced };
+	return { kind: 'saved', version: saved.version, synced, localOnly: false };
 }
 
 /** Test seam: forget the cached unit port. */

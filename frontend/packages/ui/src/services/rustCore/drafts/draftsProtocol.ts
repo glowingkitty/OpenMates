@@ -2,7 +2,8 @@
  * Unit protocol of the shared Rust core Worker's `drafts` namespace (unitPort v1
  * envelope, one port per bound generation).
  *
- * The page sends editor markdown and its rendered chat-list preview; Rust (on the
+ * The page sends editor markdown and its rendered chat-list preview, the explicit team id
+ * of a team chat (or null) and whether Rust may create the chats row of a new chat; Rust (on the
  * history admission's client) encrypts, versions, stores the row and the durable
  * encrypted intent in the existing chats_db, and returns only the version plus
  * the ciphertext `update_draft` payload for the page's existing socket. After
@@ -10,7 +11,7 @@
  *
  * Refusal codes (UnitRefusal):
  * - routing, decided before any draft write (page uses its TS writer):
- *   `not_admitted`, `local_session` (history client is local-only), `core_busy`, `existing_chat_required` (no chats_db row), `browser_draft_existing_personal_required`,
+ *   `not_admitted`, `core_busy`, `existing_chat_required` (no chats_db row), `browser_draft_existing_personal_required`,
  *   `browser_draft_forbidden`, `invalid_request`;
  * - failures (the editor stays unsaved; never a TS rewrite): `draft_effect_<plan>`,
  *   `draft_prepare_<code>_after_<last plan|none>`, `draft_result_<code>`, `draft_payload_<code|shape>`, `draft_write_failed` (cancelled),
@@ -38,8 +39,9 @@ export interface DraftSaveTiming { borrowWaitMs: number; borrowBusy: Record<stri
 
 export type DraftsProtocol = {
 	save: {
-		request: { chatId: string; markdown: Uint8Array; preview: string; scope: DraftScope; nowSeconds: number };
-		response: { resourceId: string; version: number; payload: DraftRemotePayload; timing: DraftSaveTiming };
+		request: { chatId: string; markdown: Uint8Array; preview: string; scope: DraftScope; nowSeconds: number; teamId: string | null; createChat: boolean };
+		/** `payload` is null for an offline (local-only) client: saved locally with its encrypted intent queued, nothing to publish or acknowledge. */
+			response: { resourceId: string; version: number; payload: DraftRemotePayload | null; timing: DraftSaveTiming };
 	};
 	acknowledge: { request: { resourceId: string }; response: { version: number; remoteSynced: true } };
 	release: { request: { resourceId: string }; response: { released: boolean } };
@@ -58,13 +60,14 @@ export function isDraftRoutingCode(code: string): code is DraftRoutingCode {
 }
 
 export function validDraftSaveRequest(v: unknown): v is DraftsProtocol['save']['request'] {
-	if (!record(v) || !exact(v, ['chatId', 'markdown', 'preview', 'scope', 'nowSeconds'])) return false;
+	if (!record(v) || !exact(v, ['chatId', 'markdown', 'preview', 'scope', 'nowSeconds', 'teamId', 'createChat'])) return false;
 	const scope = v.scope;
 	return typeof v.chatId === 'string' && UUID.test(v.chatId) && bytes(v.markdown)
 		&& v.markdown.byteLength > 0 && v.markdown.byteLength <= MAX_DRAFT_MARKDOWN_BYTES
 		&& typeof v.preview === 'string' && v.preview.trim() !== '' && new TextEncoder().encode(v.preview).byteLength <= MAX_DRAFT_PREVIEW_BYTES
 		&& record(scope) && exact(scope, ['lifecycleGeneration', 'workspaceEpoch'])
-		&& counter(scope.lifecycleGeneration, 1) && counter(scope.workspaceEpoch, 0) && counter(v.nowSeconds, 0);
+		&& counter(scope.lifecycleGeneration, 1) && counter(scope.workspaceEpoch, 0) && counter(v.nowSeconds, 0)
+		&& (v.teamId === null || (typeof v.teamId === 'string' && v.teamId !== '' && v.teamId.length <= 128)) && typeof v.createChat === 'boolean';
 }
 
 export function validDraftResourceRequest(v: unknown): v is { resourceId: string } {
@@ -90,5 +93,5 @@ function validDraftSaveTiming(v: unknown): v is DraftSaveTiming {
 export function validDraftSaveResponse(v: unknown, chatId: string): v is DraftsProtocol['save']['response'] {
 	return record(v) && exact(v, ['resourceId', 'version', 'payload', 'timing']) && validDraftSaveTiming(v.timing)
 		&& typeof v.resourceId === 'string' && UUID.test(v.resourceId)
-		&& counter(v.version, 1) && validDraftRemotePayload(v.payload, chatId) && v.payload.draft_v === v.version;
+		&& counter(v.version, 1) && (v.payload === null || (validDraftRemotePayload(v.payload, chatId) && v.payload.draft_v === v.version));
 }
