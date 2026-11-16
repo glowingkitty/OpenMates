@@ -283,6 +283,43 @@ async def test_baseten_health_only_uses_nonbillable_catalog(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_unkeyed_baseten_is_not_configured_without_error_logs(monkeypatch, caplog):
+    from backend.shared.providers import baseten
+
+    async def missing_key(_manager):
+        raise baseten.BasetenError("Baseten API key is not configured")
+
+    class Secrets:
+        async def initialize(self):
+            return None
+
+    monkeypatch.setattr(baseten, "resolve_api_key", missing_key)
+    monkeypatch.setattr(hct, "SecretsManager", Secrets)
+    with caplog.at_level("DEBUG"):
+        result = await hct._check_provider_health("baseten")
+    assert result["status"] == "not_configured"
+    assert not [r for r in caplog.records if r.levelname in {"ERROR", "CRITICAL"}]
+
+
+def test_degraded_report_has_no_baseten_rows_when_not_configured():
+    from backend.core.api.app.services.degraded_services_report import build_degraded_issue_report
+
+    rows = [{"message": '{"name":"x","message":"Health check: Checking provider \'baseten\'"}', "level": "INFO", "service": "core-worker"}] * 5
+    assert not [r for r in build_degraded_issue_report(rows, min_occurrences=1) if "baseten" in str(r).lower()]
+
+
+def test_deepseek_yaml_has_no_direct_baseten_server():
+    from pathlib import Path
+    import yaml
+
+    text = (Path(__file__).parents[1] / "providers/deepseek.yml").read_text()
+    provider = yaml.safe_load(text)
+    for model in provider["models"]:
+        assert "baseten" not in [s["id"] for s in model.get("servers", [])]
+    assert "SECRET__BASETEN__API_KEY" not in text
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("delegated,expected_calls", [("true", 0), ("false", 2), ("", 2)])
 async def test_dispatch_health_status_alerts_respects_delegation_flag(
     monkeypatch: pytest.MonkeyPatch, delegated: str, expected_calls: int

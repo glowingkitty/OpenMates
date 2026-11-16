@@ -12,6 +12,7 @@ function message(number, bytes = 2, chatId = 'chat-1') {
 
 function fakeTransaction(seed) {
   const limitsSeen = [];
+  const sqlSeen = [];
   const trx = (table) => {
     const predicates = [];
     const ordering = [];
@@ -37,7 +38,8 @@ function fakeTransaction(seed) {
       whereIn(field, values) { predicates.push(row => values.includes(row[field])); return query; },
       whereNull(field) { predicates.push(row => row[field] == null); return query; },
       whereRaw(sql, args = []) {
-        if (sql.startsWith('(created_at, client_message_id)')) {
+        if (sql.startsWith('(created_at, client_message_id')) {
+          sqlSeen.push(sql);
           predicates.push(row => {
             const left = [row.created_at, row.client_message_id];
             const compare = left[0] - args[0] || left[1].localeCompare(args[1]);
@@ -60,7 +62,11 @@ function fakeTransaction(seed) {
       },
       select(...fields) { projection = fields.flat(); return query; },
       count() { count = true; return query; },
-      orderBy(field, direction = 'asc') { ordering.push([field, direction]); return query; },
+      orderBy(field, direction = 'asc') {
+        if (field?.sql) sqlSeen.push(field.sql);
+        ordering.push([field?.sql ? field.sql.split(' ')[0] : field, direction]);
+        return query;
+      },
       limit(value) { limitsSeen.push({ table, value }); query._limit = value; return query; },
       first() { return Promise.resolve(evaluate()[0]); },
       then(resolve, reject) { return Promise.resolve(evaluate()).then(resolve, reject); },
@@ -93,7 +99,8 @@ function fakeTransaction(seed) {
     return query;
   };
   trx.raw = (sql) => ({ sql });
-  return { trx, limitsSeen };
+  trx.sqlSeen = sqlSeen;
+  return { trx, limitsSeen, sqlSeen };
 }
 
 function seed(messages, chat = {}) {
@@ -274,4 +281,29 @@ test('candidate sweep advances by scanned keyset and caps SQL batch', async () =
   assert.match(observed.sql, /SELECT id FROM page ORDER BY id DESC LIMIT 1/);
   assert.doesNotMatch(observed.sql, /SELECT m\.encrypted_content/);
   assert.match(observed.sql, /p\.hashed_team_id IS NOT NULL AND newer\.hashed_team_id = p\.hashed_team_id/);
+});
+
+// Regression: the candidate prefix is ordered and bounded bytewise so the strict
+// ascending check agrees with the JS comparison under a linguistic DB collation
+// (same created_at, ids such as "x-a-1" vs "x-ab" sort differently per collation).
+// contract-test: supporting surface=rest_api assertions=storage.warm.bounded-chat-tail
+test('same-second message ids are ordered and bounded with the bytewise C collation', async () => {
+  const rows = seed([
+    { ...message(1), client_message_id: 'abc-ab-0001', created_at: 5 },
+    { ...message(2), client_message_id: 'abc-a-b-0002', created_at: 5 },
+    { ...message(3), client_message_id: 'abc-A-0003', created_at: 5 },
+  ]);
+  const original = process.env.CHAT_WARM_MESSAGES_PER_CHAT;
+  process.env.CHAT_WARM_MESSAGES_PER_CHAT = '2';
+  try {
+    const { trx, sqlSeen } = fakeTransaction(rows);
+    const decision = await policyBoundary(trx, rows.chats[0], {}, 40 * 86400);
+    assert.equal(decision.eligible, true);
+    assert.deepEqual(decision.source_message_ids, ['abc-A-0003']);
+    assert.ok(sqlSeen.some(sql => sql.includes('client_message_id COLLATE "C"')));
+    assert.ok(sqlSeen.filter(sql => sql.includes('<=')).every(sql => sql.includes('COLLATE "C"')));
+  } finally {
+    if (original === undefined) delete process.env.CHAT_WARM_MESSAGES_PER_CHAT;
+    else process.env.CHAT_WARM_MESSAGES_PER_CHAT = original;
+  }
 });

@@ -172,7 +172,7 @@ class HealthEventMethods:
             if since_timestamp:
                 # Convert Unix timestamp to ISO format for Directus
                 since_dt = datetime.fromtimestamp(since_timestamp, tz=timezone.utc)
-                filters.append(f'filter[created_at][_gte]={since_dt.isoformat()}')
+                filters.append(f'filter[created_at][_gte]={since_dt.strftime("%Y-%m-%dT%H:%M:%SZ")}')
             
             # Clamp limit
             limit = min(max(1, limit), 1000)
@@ -225,7 +225,7 @@ class HealthEventMethods:
                 filters.append(f'filter[service_type][_eq]={service_type}')
             if since_timestamp:
                 since_dt = datetime.fromtimestamp(since_timestamp, tz=timezone.utc)
-                filters.append(f'filter[created_at][_gte]={since_dt.isoformat()}')
+                filters.append(f'filter[created_at][_gte]={since_dt.strftime("%Y-%m-%dT%H:%M:%SZ")}')
             
             query_parts = [
                 'limit=1000',
@@ -299,7 +299,7 @@ class HealthEventMethods:
             from datetime import timedelta
             
             cutoff_dt = datetime.now(timezone.utc) - timedelta(days=retention_days)
-            cutoff_iso = cutoff_dt.isoformat()
+            cutoff_iso = cutoff_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
             
             # First, get the IDs of events to delete
             url = f"{self.ds.base_url}/items/health_events?filter[created_at][_lt]={cutoff_iso}&limit=1000&fields=id"

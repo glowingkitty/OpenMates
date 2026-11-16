@@ -132,6 +132,8 @@ from backend.shared.python_utils.saved_chat_turn_authority import (
 from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 
 
+from backend.core.api.app.utils.chat_id import is_valid_uuid
+
 logger = logging.getLogger(__name__)
 
 
@@ -3526,7 +3528,7 @@ async def _async_process_ai_skill_ask_task(
                 encrypted_chat_key = getattr(item, "encrypted_chat_key", None)
             except Exception as exc:
                 logger.warning("[Task ID: %s] Early typing key cache unavailable (%s)", task_id, type(exc).__name__)
-            if not encrypted_chat_key:
+            if not encrypted_chat_key and is_valid_uuid(request_data.chat_id):
                 try:
                     chats = await directus_service_instance.get_items("chats", {
                         "filter[id][_eq]": request_data.chat_id,
@@ -4123,7 +4125,7 @@ async def _async_process_ai_skill_ask_task(
                             logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from cache for typing event: {e_key}")
 
                         # Fallback: If cache miss (common for new chats), try Directus directly
-                        if not encrypted_chat_key_for_typing:
+                        if not encrypted_chat_key_for_typing and is_valid_uuid(request_data.chat_id):
                             try:
                                 ds = DirectusService()
                                 chat_data = await time_pre_main("late_key_directus", ds.get_items('chats', {

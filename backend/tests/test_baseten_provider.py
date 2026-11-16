@@ -48,23 +48,20 @@ def test_mistral_is_default_with_us_fallbacks_and_baseten_retained(monkeypatch):
     )
     model = next(m for m in provider["models"] if m["id"] == "deepseek-v4.1-flash")
     assert model["default_server"] == "mistral"
-    assert [s["id"] for s in model["servers"]] == ["mistral", "together", "openrouter", "baseten"]
+    assert [s["id"] for s in model["servers"]] == ["mistral", "together", "openrouter"]
     assert model["servers"][0]["model_id"] == "deepseek-v4-1-flash-1017"
     assert model["servers"][0]["region"] == "EU"
     assert model["servers"][1]["model_id"] == "deepseek-ai/DeepSeek-V4.1-Flash-1017"
     assert model["provider_overrides"]["only"] == ["baseten"]
     assert model["provider_overrides"]["allow_fallbacks"] is False
-    assert set(model["cache_pricing"]["eligible_hosts"]) == {"together", "openrouter", "baseten"}
+    assert set(model["cache_pricing"]["eligible_hosts"]) == {"together", "openrouter"}
     monkeypatch.setattr(
         llm_utils.config_manager, "get_provider_configs", lambda: {"deepseek": provider}
     )
     monkeypatch.setattr(
         llm_utils.config_manager, "_provider_configs", {"deepseek": provider}
     )
-    assert (
-        llm_utils._build_provider_registry()["baseten"]
-        is adapter.invoke_baseten_chat_completions
-    )
+    assert "baseten" not in llm_utils._build_provider_registry()
 
 
 def _install_transport(monkeypatch, handler):
@@ -281,7 +278,7 @@ def test_incurred_usage_survives_truncated_transport():
     asyncio.run(run())
 
 
-@pytest.mark.parametrize("direct_host", ["baseten", "together"])
+@pytest.mark.parametrize("direct_host", ["together"])
 @pytest.mark.parametrize("unavailable", ["missing_key", 403, 429, "transport"])
 def test_direct_unavailability_falls_back_with_pinned_host_and_reported_cache_usage(
     monkeypatch,
@@ -390,10 +387,13 @@ def test_direct_unavailability_falls_back_with_pinned_host_and_reported_cache_us
     chunks = asyncio.run(run())
     assert "OK" in chunks and len(captured) == 1
     assert captured[0]["model"] == "deepseek/deepseek-v4.1-flash-20261017"
+    from backend.shared.python_utils.server_policy import OPENROUTER_BLOCKED_PROVIDERS
+
     assert captured[0]["provider"] == {
         "only": ["baseten"],
         "allow_fallbacks": False,
         "require_parameters": True,
+        "ignore": list(OPENROUTER_BLOCKED_PROVIDERS),
     }
     assert captured[0]["session_id"] == "opaque-root"
     usage = next(chunk for chunk in chunks if isinstance(chunk, OpenAIUsageMetadata))

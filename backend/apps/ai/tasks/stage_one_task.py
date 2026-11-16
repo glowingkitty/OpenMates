@@ -21,6 +21,8 @@ from backend.apps.ai.processing.stage_one_handoff import (
     request_fingerprint, routing_turn_is_current, routing_admission_is_current, store_stage_one,
 )
 
+from backend.core.api.app.utils.chat_id import is_valid_uuid
+
 logger = logging.getLogger(__name__)
 EARLY_ACTIVE_SUMMARY_BUDGET_SECONDS = 0.5
 _SOURCE_ROOT = Path(__file__).resolve().parents[4]
@@ -255,6 +257,8 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
             encrypted_key = None
         if encrypted_key:
             return encrypted_key
+        if not is_valid_uuid(request.chat_id):
+            return None
         try:
             rows = await directus.get_items("chats", {
                 "filter[id][_eq]": request.chat_id,

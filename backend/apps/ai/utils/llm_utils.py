@@ -1628,7 +1628,7 @@ async def call_preprocessing_llm(
                         health_data_json = health_data_json.decode('utf-8')
                     health_data = json.loads(health_data_json)
                     status = health_data.get("status", "unknown")
-                    return status == "unhealthy"
+                    return status in {"unhealthy", "not_configured"}
         except Exception as e:
             logger.debug(f"[{task_id}] LLM Utils: Could not check health status for '{provider_id}': {e}. Proceeding with attempt.")
         return False  # If cache miss or error, proceed (don't block on missing health data)
@@ -2523,7 +2523,7 @@ async def call_main_llm_stream(
                         health_data_json = health_data_json.decode('utf-8')
                     health_data = json.loads(health_data_json)
                     status = health_data.get("status", "unknown")
-                    return status == "unhealthy"
+                    return status in {"unhealthy", "not_configured"}
         except Exception as e:
             logger.debug(f"{log_prefix} Could not check health status for '{provider_id}': {e}. Proceeding with attempt.")
         return False  # If cache miss or error, proceed (don't block on missing health data)

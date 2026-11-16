@@ -27,15 +27,17 @@ export function stable(value) {
 export const checksum = (value) => createHash('sha256').update(stable(value), 'utf8').digest('hex');
 const position = (timestamp, id) => [Number(timestamp), String(id)];
 const compare = (a, b) => a[0] - b[0] || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0);
+// Directus orders with the database collation; the archive contract is bytewise (matches JS compare).
+const C = 'COLLATE "C"';
 function prefix(query, segment) {
   query.where('chat_id', segment.chat_id).andWhere(function () {
     this.where('created_at', '<', segment.end_timestamp).orWhere(function () {
-      this.where('created_at', segment.end_timestamp).where('client_message_id', '<=', segment.end_message_id);
+      this.where('created_at', segment.end_timestamp).whereRaw(`client_message_id ${C} <= ?::text ${C}`, [segment.end_message_id]);
     });
   });
   if (segment.start_message_id) query.andWhere(function () {
     this.where('created_at', '>', segment.start_timestamp).orWhere(function () {
-      this.where('created_at', segment.start_timestamp).where('client_message_id', '>', segment.start_message_id);
+      this.where('created_at', segment.start_timestamp).whereRaw(`client_message_id ${C} > ?::text ${C}`, [segment.start_message_id]);
     });
   });
   return query;
@@ -59,7 +61,7 @@ async function sourceMatches(trx, page) {
   requireState(Array.isArray(page.source_fields) && page.source_fields.includes('encrypted_content') && page.source_fields.includes('id'), 'invalid_source_projection', 400);
   const rows = await trx('messages').select(page.source_fields)
     .where('chat_id', page.chat_id).whereIn('client_message_id', page.message_ids)
-    .orderBy('created_at').orderBy('client_message_id').forUpdate();
+    .orderBy('created_at').orderByRaw(`client_message_id ${C}`).forUpdate();
   requireState(rows.length === page.message_count && checksum(rows) === page.source_checksum, 'archive_source_changed');
   requireState(rows.every(r => typeof r.encrypted_content === 'string' && r.encrypted_content && !r.encrypted_content.startsWith('vault:')), 'archive_source_not_canonical');
   requireState(stable(rows.map(r => r.client_message_id)) === stable(page.message_ids) && rows[0].created_at === page.first_timestamp && rows[0].client_message_id === page.first_message_id && rows.at(-1).created_at === page.last_timestamp && rows.at(-1).client_message_id === page.last_message_id && compare(position(page.first_timestamp, page.first_message_id), position(page.last_timestamp, page.last_message_id)) <= 0, 'archive_page_order_invalid');
@@ -271,10 +273,10 @@ export async function archiveOperation(database, body) {
       if (segment.source_message_ids) query.whereIn('client_message_id', segment.source_message_ids);
       if (data.after_message_id != null) query.andWhere(function () {
         this.where('created_at', '>', integer(data.after_timestamp)).orWhere(function () {
-          this.where('created_at', data.after_timestamp).where('client_message_id', '>', text(data.after_message_id));
+          this.where('created_at', data.after_timestamp).whereRaw(`client_message_id ${C} > ?::text ${C}`, [text(data.after_message_id)]);
         });
       });
-      return { messages: await query.orderBy('created_at').orderBy('client_message_id').limit(MAX_PAGE_MESSAGES) };
+      return { messages: await query.orderBy('created_at').orderByRaw(`client_message_id ${C}`).limit(MAX_PAGE_MESSAGES) };
     }
     if (operation === 'prepare_page' || operation === 'publish_page') {
       const page = data.page;

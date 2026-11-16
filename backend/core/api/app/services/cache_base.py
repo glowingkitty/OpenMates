@@ -222,7 +222,11 @@ class CacheServiceBase:
                 serialized_value = value  # Already a string, bytes, int, or float
 
             logger.debug(f"Cache SET for key: '{key}', TTL: {final_ttl}s")
-            result = await client.setex(key, final_ttl, serialized_value)
+            if final_ttl <= 0:
+                # ttl=0 means "no expiry" (e.g. software_update:config); SETEX rejects it.
+                result = await client.set(key, serialized_value)
+            else:
+                result = await client.setex(key, final_ttl, serialized_value)
             logger.debug(f"Cache SET result for key '{key}': {result}")
             return result
         except Exception as e:

@@ -79,8 +79,7 @@ async def _async_process_webhook_rate_limit_digest() -> bool:
         encryption_service = EncryptionService()
         await encryption_service.initialize()
 
-        cache_service = CacheService()
-        await cache_service.initialize()
+        cache_service = CacheService()  # no async initialize(); connects lazily via .client
 
         directus_service = DirectusService()
         await directus_service.initialize()

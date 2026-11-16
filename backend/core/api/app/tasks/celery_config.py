@@ -239,6 +239,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_archive_task'},  # Tasks V1 completed-task archival
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.project_file_operation_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.remote_command_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.bank_transfer_expiry_task'},  # beat: expire-stale-bank-transfers
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
     {'name': 'email',       'module': 'backend.core.api.app.tasks.operational_monitoring_tasks'},  # Daily operational report
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.newsletter_campaign_task'},  # Scheduled newsletter campaign sender

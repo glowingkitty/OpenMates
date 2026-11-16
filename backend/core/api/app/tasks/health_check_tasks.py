@@ -966,6 +966,24 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
         return False, str(e), None
 
 
+# Direct servers that need an operator-supplied key; absence is not a failure.
+KEY_GATED_SERVER_IDS = frozenset({"baseten"})
+
+
+async def _missing_server_credentials(provider_id: str) -> Optional[str]:
+    """Return a reason when the server's API key is not configured, else None."""
+    if provider_id == "baseten":
+        from backend.shared.providers.baseten import BasetenError, resolve_api_key
+
+        secrets_manager = SecretsManager()
+        try:
+            await secrets_manager.initialize()
+            await resolve_api_key(secrets_manager)
+        except BasetenError:
+            return "Baseten API key is not configured on this host"
+    return None
+
+
 async def _check_provider_health(provider_id: str, health_endpoint: Optional[str] = None) -> Dict[str, Any]:
     """
     Check health of a single provider with a single attempt.
@@ -999,6 +1017,19 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
                 "status": "not_configured",
                 "last_check": int(time.time()),
                 "last_error": "Google Application Default Credentials not configured on this host",
+                "response_times_ms": {},
+            }
+
+    # Servers whose API key is absent on this host are "not_configured": no ERROR
+    # logs, not counted as degraded, and skipped by routing (see llm_utils).
+    if provider_id in KEY_GATED_SERVER_IDS:
+        missing_reason = await _missing_server_credentials(provider_id)
+        if missing_reason:
+            logger.debug("Health check: Skipping provider '%s' - %s", provider_id, missing_reason)
+            return {
+                "status": "not_configured",
+                "last_check": int(time.time()),
+                "last_error": missing_reason,
                 "response_times_ms": {},
             }
 
