@@ -32,6 +32,14 @@ class Calls:
         self.scripts: list[tuple[str, ...]] = []
         self.alerts: list[str] = []
         self.watches = 0  # claude_chat_inputs.py watch runs
+        self.zellij: list[tuple[str, ...]] = []  # zellij actions (never the real server)
+        self.panes = [  # list-panes --json --all of a chat session with bars
+            {"id": 0, "is_plugin": True, "plugin_url": "zellij:link"},
+            {"id": 1, "is_plugin": True, "plugin_url": "compact-bar"},
+            {"id": 0, "is_plugin": False, "plugin_url": None},
+            {"id": 2, "is_plugin": True, "plugin_url": "compact-bar"},
+            {"id": 1, "is_plugin": False, "plugin_url": None},
+        ]
 
 
 @pytest.fixture
@@ -54,7 +62,16 @@ def calls(monkeypatch) -> Calls:
     monkeypatch.setattr(res, "alert", fake_alert)
     monkeypatch.setattr(res, "disk_problem", lambda path: None)
     monkeypatch.setattr(res, "_service_active", lambda unit: True)
+    def fake_zellij(session, *args):
+        record.zellij.append((session, *args))
+        if args[0] == "list-panes":
+            return type("Result", (), {"returncode": 0, "stdout": json.dumps(record.panes), "stderr": ""})()
+        if args[0] == "close-pane":
+            record.panes = [p for p in record.panes if not (p["is_plugin"] and f"plugin_{p['id']}" == args[2])]
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
     monkeypatch.setattr(res, "zellij_servers", lambda: {})
+    monkeypatch.setattr(res, "_zellij_action", fake_zellij)
     return record
 
 
@@ -147,11 +164,38 @@ def test_zellij_over_limit_alerts_once_after_five_minutes(tmp_path, calls, monke
     for minute in range(0, 12):
         res.tick(sample(8), HEALTHY, tmp_path, tmp_path, now=NOW + minute * 60)
     assert len(calls.alerts) == 1 and "3.0 GiB RAM" in calls.alerts[0]
-    assert "zellij is only watched" in calls.alerts[0]
+    # healing ran first: the two bars closed on the first tick, nothing left later
+    assert "no bar plugins left in `claude`" in calls.alerts[0]
     monkeypatch.setattr(res, "zellij_servers", lambda: zellij(0.4, 0))
     res.tick(sample(8), HEALTHY, tmp_path, tmp_path, now=NOW + 13 * 60)
     events = (tmp_path / "events.jsonl").read_text()
     assert '"event": "zellij_over_limit"' in events and '"kind": "zellij"' in events
+
+
+def test_zellij_over_limit_closes_bar_plugins_but_never_a_terminal_pane(tmp_path, calls, monkeypatch):
+    """TASK-6763: the per-tab compact-bar plugins fell behind on events and drove the server to
+    1,400% CPU; closing them is the safe self-healing step. Chats are terminal panes."""
+    monkeypatch.setattr(res, "zellij_servers", lambda: zellij(0.3, 0))
+    res.tick(sample(8), HEALTHY, tmp_path, tmp_path, now=NOW)
+    assert calls.zellij == []  # first sample: no CPU baseline, healthy, nothing touched
+    monkeypatch.setattr(res, "zellij_servers", lambda: zellij(0.3, 30_000))  # 500% CPU at 100 ticks/s
+    res.tick(sample(8), HEALTHY, tmp_path, tmp_path, now=NOW + 60)
+    closes = [c for c in calls.zellij if c[1] == "close-pane"]
+    assert closes == [("claude", "close-pane", "--pane-id", "plugin_1"),
+                      ("claude", "close-pane", "--pane-id", "plugin_2")]
+    assert all(not c[-1].startswith("terminal_") for c in closes)
+    assert [p["plugin_url"] for p in calls.panes if p["is_plugin"]] == ["zellij:link"]
+    assert sum(not p["is_plugin"] for p in calls.panes) == 2
+    events = (tmp_path / "events.jsonl").read_text()
+    assert '"event": "zellij_bars_closed"' in events and "plugin_2" in events
+    assert calls.alerts == []  # healing runs at once; the push waits ZELLIJ_ALERT_AFTER_SECONDS
+
+
+def test_zellij_healing_leaves_healthy_sessions_alone(tmp_path, calls, monkeypatch):
+    monkeypatch.setattr(res, "zellij_servers", lambda: zellij(0.3, 0))
+    for minute in range(0, 5):
+        res.tick(sample(8), HEALTHY, tmp_path, tmp_path, now=NOW + minute * 60)
+    assert calls.zellij == []
 
 
 def test_zellij_servers_reads_session_name_rss_and_cpu_from_proc(tmp_path):

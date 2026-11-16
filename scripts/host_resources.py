@@ -19,7 +19,10 @@ calls `tick()`. Each tick:
    all pane chats) is checked for RSS over ZELLIJ_RSS_LIMIT_BYTES and CPU over
    ZELLIJ_CPU_LIMIT_PERCENT since the previous tick. Over a limit for
    ZELLIJ_ALERT_AFTER_SECONDS sends one push (TASK-2369: the server grew to 8.5 GiB
-   and was OOM-killed with every chat pane in it).
+   and was OOM-killed with every chat pane in it). Self-healing first: an over-limit
+   session's bar plugin panes (compact-bar, tab-bar, status-bar) are closed. Their
+   event backlog drove the server to 1,400% CPU and 10 GiB (TASK-6763); closing them
+   brought it to 4% within a minute. Terminal panes, and so chats, are never touched.
 
 State and events: logs/host-load-guard/resources.json and events.jsonl.
 """
@@ -28,6 +31,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -48,10 +52,16 @@ SCRIPTS = Path(__file__).resolve().parent
 ZELLIJ_RSS_LIMIT_BYTES = 2 * guard.GIB
 ZELLIJ_CPU_LIMIT_PERCENT = 200.0
 ZELLIJ_ALERT_AFTER_SECONDS = 5 * 60
+ZELLIJ_BIN = os.getenv("ZELLIJ_BIN") or shutil.which("zellij") or "/usr/local/bin/zellij"
+# Plugins that only draw bars for an attached client. Headless chat sessions need none;
+# scripts/zellij/chat-session.kdl starts new servers without them.
+ZELLIJ_BAR_PLUGINS = frozenset({"compact-bar", "tab-bar", "status-bar",
+                                "zellij:compact-bar", "zellij:tab-bar", "zellij:status-bar"})
 ZELLIJ_RECOMMENDATION = (
-    "Archive finished chats so their tabs close (claude_idle_chats.py list), check that "
-    "~/.config/zellij/config.kdl keeps scroll_buffer_size 2000, and restart the session only after "
-    "every chat in it can be resumed (claude --resume) and the remote-control bridge is restarted.")
+    "Find the plugin or pane that still loads the server (zellij -s <session> action list-panes -a; "
+    "per-thread CPU in /proc/<pid>/task/*/stat), archive finished chats so their tabs close "
+    "(claude_idle_chats.py list), and restart the session only after every chat in it can be resumed "
+    "(claude --resume) and the remote-control bridge is restarted.")
 DEFAULT_RECOMMENDATION = (
     "Look at the idle-but-kept chats (claude_idle_chats.py list) and archive the "
     "finished ones, or stop the biggest process listed in logs/host-load-guard/events.jsonl.")
@@ -114,12 +124,13 @@ def zellij_servers(proc: Path = Path("/proc")) -> dict[str, dict]:
     return servers
 
 
-def zellij_problem(state: dict, now: float, servers: dict[str, dict],
-                   clock_ticks: int = os.sysconf("SC_CLK_TCK")) -> str | None:
-    """A zellij server over the RAM or CPU limit, or None; keeps this tick's sample in `state`."""
+def zellij_over_limit(state: dict, now: float, servers: dict[str, dict],
+                      clock_ticks: int = os.sysconf("SC_CLK_TCK")) -> dict[str, str]:
+    """zellij sessions over the RAM or CPU limit with their problem text; keeps this
+    tick's sample in `state`."""
     previous = state.get("zellij_sample") or {}
     elapsed = now - float(previous.get("at", now))
-    problems = []
+    problems: dict[str, str] = {}
     for name, current in sorted(servers.items()):
         over = []
         if current["rss_bytes"] > ZELLIJ_RSS_LIMIT_BYTES:
@@ -130,9 +141,61 @@ def zellij_problem(state: dict, now: float, servers: dict[str, dict],
             if cpu > ZELLIJ_CPU_LIMIT_PERCENT:
                 over.append(f"{cpu:.0f}% CPU (limit {ZELLIJ_CPU_LIMIT_PERCENT:.0f}%)")
         if over:
-            problems.append(f"zellij session `{name}` (pid {current['pid']}) uses {' and '.join(over)}")
+            problems[name] = f"zellij session `{name}` (pid {current['pid']}) uses {' and '.join(over)}"
     state["zellij_sample"] = {"at": now, "servers": servers}
-    return "; ".join(problems) or None
+    return problems
+
+
+def zellij_problem(state: dict, now: float, servers: dict[str, dict],
+                   clock_ticks: int = os.sysconf("SC_CLK_TCK")) -> str | None:
+    """All over-limit zellij sessions in one line, or None (see zellij_over_limit)."""
+    return "; ".join(zellij_over_limit(state, now, servers, clock_ticks).values()) or None
+
+
+def _zellij_action(session: str, *args: str) -> subprocess.CompletedProcess[str]:
+    # Never inherit a caller's zellij session (a guard run by hand inside a pane).
+    env = {key: value for key, value in os.environ.items() if not key.startswith("ZELLIJ")}
+    return subprocess.run([ZELLIJ_BIN, "--session", session, "action", *args], capture_output=True,
+                          text=True, timeout=60, env=env, check=False)
+
+
+def close_bar_plugins(session: str) -> tuple[list[str], str]:
+    """Close the bar plugin panes of a zellij session; returns (closed pane ids, error).
+
+    Only plugin panes whose plugin is in ZELLIJ_BAR_PLUGINS are closed; terminal panes
+    (the chats) and background plugins are never touched, so no chat stops.
+    """
+    listing = _zellij_action(session, "list-panes", "--json", "--all")
+    if listing.returncode:
+        return [], f"list-panes exited {listing.returncode}: {listing.stderr.strip()[-200:]}"
+    try:
+        panes = json.loads(listing.stdout)
+    except json.JSONDecodeError as err:
+        return [], f"list-panes printed no JSON: {err}"
+    closed, errors = [], []
+    for pane in panes:
+        if not pane.get("is_plugin") or pane.get("plugin_url") not in ZELLIJ_BAR_PLUGINS:
+            continue
+        pane_id = f"plugin_{pane['id']}"
+        result = _zellij_action(session, "close-pane", "--pane-id", pane_id)
+        if result.returncode:
+            errors.append(f"{pane_id}: {result.stderr.strip()[-120:]}")
+        else:
+            closed.append(pane_id)
+    return closed, "; ".join(errors)
+
+
+def heal_zellij(sessions: list[str], directory: Path) -> str:
+    """Self-healing for over-limit zellij sessions; returns what it did, for the alert."""
+    done = []
+    for session in sessions:
+        closed, error = close_bar_plugins(session)
+        if closed or error:
+            guard.append_event(directory, "zellij_bars_closed", {"session": session, "closed": closed,
+                                                                 "error": error})
+        done.append(f"closed {len(closed)} bar plugins in `{session}`" if closed
+                    else f"no bar plugins left in `{session}`" + (f" ({error})" if error else ""))
+    return ", ".join(done)
 
 
 def track(state: dict, key: str, problem: str | None, now: float,
@@ -200,9 +263,11 @@ def tick(sample: guard.Sample, decision: guard.Decision, directory: Path | None 
     if disk:
         healed.append("disk cleanup is left to the disk coordinator")
 
-    zellij = zellij_problem(state, now, zellij_servers())
+    zellij_over = zellij_over_limit(state, now, zellij_servers())
+    zellij = "; ".join(zellij_over.values()) or None
     if zellij:
         guard.append_event(directory, "zellij_over_limit", {"problem": zellij})
+        state["zellij_healed"] = heal_zellij(list(zellij_over), directory)
 
     if healed:
         state["healed"] = healed
@@ -215,7 +280,8 @@ def tick(sample: guard.Sample, decision: guard.Decision, directory: Path | None 
         if was and problem is None:
             guard.append_event(directory, "resources_recovered", {"kind": key, "since": was["since"]})
         if due:
-            healed_text = "nothing (zellij is only watched)" if key == "zellij" else ", ".join(state.get("healed") or ["nothing"])
+            healed_text = (state.get("zellij_healed") or "nothing") if key == "zellij" \
+                else ", ".join(state.get("healed") or ["nothing"])
             state[key]["alerted"] = alert(problem, healed_text, directory, after, recommendation)
     save(directory, state)
     return 0

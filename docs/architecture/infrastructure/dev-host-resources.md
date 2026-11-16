@@ -8,6 +8,7 @@ key_files:
 - scripts/claude_chat_waiters.py
 - scripts/disk_coordinator.py
 - scripts/claude_dispatch.py
+- scripts/zellij/chat-session.kdl
 - scripts/heavy_slot.py
 - .claude/hooks/host-load-gate.sh
 ---
@@ -161,7 +162,10 @@ split between words so links are never cut.
    `resources_recovered` is logged when it ends.
 5. zellij: each zellij server (the `claude` session holds every pane chat) is
    checked for more than 2 GiB RSS or more than 200% CPU since the previous
-   tick (`zellij_over_limit` event). Over a limit for 5 min sends one push.
+   tick (`zellij_over_limit` event). Self-healing runs on that tick: the
+   session's bar plugin panes (compact-bar, tab-bar, status-bar) are closed
+   (`zellij_bars_closed` event). Terminal panes, so chats, are never touched.
+   Still over a limit after 5 min sends one push naming what healing did.
    Nothing is restarted automatically: a restart kills every chat pane in it.
 
 ## zellij session
@@ -176,6 +180,13 @@ lived in the broker's cgroup (`KillMode=control-group`). `claude_dispatch.ensure
 now starts a new server with `systemd-run --user --scope`
 (`openmates-zellij-claude-<epoch>.scope`). Panes are the server's children and
 stay in that scope, so restarting the broker or a timer no longer kills chats.
+The server starts with `scripts/zellij/chat-session.kdl`: one terminal pane per
+tab and no bar plugins, and tabs created later inherit it. On 2026-11-16 the
+server ran at up to 1,400% CPU and again reached 10 GiB before an OOM kill, with
+every chat idle. All of that CPU was in zellij's `plugin-exec` threads: the 18
+per-tab compact-bar plugins fell behind on events in a session no client
+watches. Closing them brought the server to 4% CPU and 890 MB → 241 MB within a
+minute. Pane polling was not a factor (one `zellij action` call per minute).
 The owner's `~/.config/zellij/config.kdl`
 therefore sets `scroll_buffer_size 2000`, `default_layout "compact"` (one bar
 plugin per tab) and `session_serialization false` (nothing resurrects sessions;

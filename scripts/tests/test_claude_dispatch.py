@@ -306,6 +306,17 @@ def test_new_zellij_server_starts_in_its_own_systemd_scope(monkeypatch):
     assert any(arg.startswith("--unit=openmates-zellij-claude-") for arg in start)
     assert start[-3:] == ["attach", "--create-background", "claude"]
     assert not any(cmd[:3] == ["zellij", "attach", "--create-background"] for cmd in calls)
+    # TASK-6763: the server (and every later tab) uses the bar-less chat layout
+    layout = start[start.index("--layout") + 1]
+    assert layout == str(dispatch.ZELLIJ_CHAT_LAYOUT)
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_chat_layout_has_one_terminal_pane_and_no_plugins():
+    """The per-tab compact-bar plugins drove zellij to 1,400% CPU and 10 GiB (TASK-6763)."""
+    text = dispatch.ZELLIJ_CHAT_LAYOUT.read_text()
+    code = "\n".join(line.split("//", 1)[0] for line in text.splitlines())
+    assert "plugin" not in code and "children" in code and "pane" in code
 
 
 # contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat

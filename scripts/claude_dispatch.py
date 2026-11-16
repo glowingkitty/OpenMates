@@ -73,6 +73,9 @@ def resolve_claude_bin() -> str:
 CLAUDE_BIN = resolve_claude_bin()
 ZELLIJ_BIN = os.getenv("ZELLIJ_BIN") or shutil.which("zellij") or "/usr/local/bin/zellij"
 ZELLIJ_SESSION = os.getenv("CLAUDE_DISPATCH_ZELLIJ_SESSION", "claude")
+# One terminal pane per tab, no bar plugins (TASK-6763: with ~20 tabs the per-tab
+# compact-bar plugins drove the server to 14 cores and 10 GiB). New tabs inherit it.
+ZELLIJ_CHAT_LAYOUT = Path(__file__).resolve().parent / "zellij" / "chat-session.kdl"
 
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 SHORT_ID_RE = re.compile(r"^[A-HJ-NP-Z2-9]{5}$")
@@ -150,13 +153,14 @@ def _start_zellij_server(session: str) -> None:
     as their child stays in their cgroup, and `systemctl --user restart` of that
     unit then kills the server and every chat pane in it (TASK-2369: two restarts of
     the dev connector broker took down ~15 chats). A transient scope of its own keeps
-    the server and its panes alive across those restarts.
+    the server and its panes alive across those restarts. The chat layout keeps
+    bar plugins out of the session and out of every tab created in it later.
     """
     env = _zellij_env()
     result = subprocess.run(
         ["systemd-run", "--user", "--scope", "--collect", f"--unit={zellij_scope_unit(session, time.time())}",
          f"--description=zellij session {session} (Claude pane chats)",
-         ZELLIJ_BIN, "attach", "--create-background", session],
+         ZELLIJ_BIN, "--layout", str(ZELLIJ_CHAT_LAYOUT), "attach", "--create-background", session],
         cwd=REPO_ROOT, env=env, capture_output=True, text=True, timeout=60,
     )
     if result.returncode != 0:
