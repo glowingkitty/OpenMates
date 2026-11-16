@@ -57,7 +57,8 @@ async fn fresh_team_safe_projection_attached_by_label_is_required_for_host_not_r
                         vec![binding.unwrap()],
                         SourceHostOptions {
                             source_session_id: "source-session".into(),
-                            confirmed_takeover: false
+                            confirmed_takeover: false,
+                            remote_command_jobs: false,
                         },
                         tokio_util::sync::CancellationToken::new()
                     )

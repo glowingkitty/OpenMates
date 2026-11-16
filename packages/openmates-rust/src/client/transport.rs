@@ -1779,6 +1779,11 @@ fn prepared_socket_grant_current(authority:&project_task_watch::WatchAuthority,e
 }
 impl Client {
     pub(super) fn prepare_task_socket(&self) -> Result<TaskSocketRequest> {
+        self.prepare_task_socket_with("")
+    }
+    /// [`Self::prepare_task_socket`] with an explicit `client_capabilities`
+    /// value; only the source host passes one (`remote_command_jobs`).
+    fn prepare_task_socket_with(&self, client_capabilities: &str) -> Result<TaskSocketRequest> {
         if self.is_local_browser_profile(){return Err(Error::Unavailable{code:"browser_offline_read_only",reason:"LOCAL_PROFILE_DOES_NOT_GRANT_SERVER_OR_STREAM_AUTHORITY"});}
         self.require_browser_owner_guards()?;
         self.invalidate_chat_inventory_proofs();
@@ -1791,7 +1796,7 @@ impl Client {
         })
         .map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         url.query_pairs_mut()
-            .append_pair("client_capabilities", "")
+            .append_pair("client_capabilities", client_capabilities)
             .append_pair("sessionId", &uuid::Uuid::new_v4().to_string())
             .append_pair(
                 "token",
@@ -1857,8 +1862,21 @@ pub(super) async fn connect_task_socket(prepared: TaskSocketRequest) -> Result<S
 pub(super) struct SourceHostSocketRequest(TaskSocketRequest);
 impl Client {
     pub(super) fn prepare_source_host_socket(&self) -> Result<SourceHostSocketRequest> {
-        // Same Cookie/Origin/token/SDK header preparation, empty generic jobs.
-        Ok(SourceHostSocketRequest(self.prepare_task_socket()?))
+        self.prepare_source_host_socket_for(false)
+    }
+    /// Source host socket; `remote_command_jobs` declares the job capability
+    /// the server requires before it routes `remote_command_*` frames (the npm
+    /// host's `remoteCommandJobs` option). No other generic job is declared.
+    pub(super) fn prepare_source_host_socket_for(
+        &self,
+        remote_command_jobs: bool,
+    ) -> Result<SourceHostSocketRequest> {
+        let capabilities = if remote_command_jobs {
+            super::remote_command_jobs::REMOTE_COMMAND_JOBS_CAPABILITY
+        } else {
+            ""
+        };
+        Ok(SourceHostSocketRequest(self.prepare_task_socket_with(capabilities)?))
     }
 }
 pub(super) async fn connect_source_host_socket(
@@ -1890,6 +1908,10 @@ pub(super) async fn connect_source_host_socket(
     })
     .await
     .map_err(|_| crate::client::send::refusal_trace::offline_at!())?
+}
+#[cfg(test)]
+pub(super) fn source_socket_uri_for_test(prepared: &SourceHostSocketRequest) -> String {
+    prepared.0.request.uri().to_string()
 }
 #[cfg(test)]
 pub(super) fn expire_prepared_socket_for_test(prepared:&mut TaskSocketRequest){prepared.expires_at=Some(0);}

@@ -116,6 +116,7 @@ fn run_with(sources: Vec<SourceHostRunSource>) -> SourceHostRun {
         confirmed_takeover: false,
         state_dir: PathBuf::from("/state"),
         credential_sync: None,
+        enable_commands: false,
     }
 }
 

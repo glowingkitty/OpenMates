@@ -11,6 +11,8 @@
 
 use super::creation_host::{self, HostState};
 use super::dispatch::{self, Handled, HostedSource};
+use super::job::driver::{DriverSource, JobDriver};
+use super::job::transport::admit;
 use crate::client::{Client, SourceHostOptions, SourceHostPoll, SourceHostSession};
 use crate::error::{Error, Result};
 use crate::session::Session;
@@ -46,6 +48,9 @@ pub struct SourceHostRun {
     /// since this host last loaded or saved them, called before every
     /// reconnect so a stale rotated refresh cookie is never reused.
     pub credential_sync: Option<CredentialSync>,
+    /// Serve the server's remote-command job protocol (`--enable-commands`).
+    /// Off: the host never reads or sends `remote_command_*` frames.
+    pub enable_commands: bool,
 }
 
 /// Future returned by a [`CredentialSync`] call.
@@ -140,13 +145,18 @@ async fn bind(
             client
                 .projects()
                 .with_filters(filters)
-                .source_host_binding(&source.project_id, &source.source_id, state.adapter(&source.source_id))
+                .source_host_binding(
+                    &source.project_id,
+                    &source.source_id,
+                    state.adapter(&source.source_id),
+                )
                 .await?,
         );
     }
     let options = SourceHostOptions {
         source_session_id: run.source_session_id.clone(),
         confirmed_takeover: run.confirmed_takeover,
+        remote_command_jobs: run.enable_commands,
     };
     client
         .prepare_source_host(bindings, options, cancel.child_token())?
@@ -223,6 +233,7 @@ async fn step(
     host: &mut SourceHostSession,
     hosted: &mut Vec<HostedSource>,
     pending_scan: &mut bool,
+    driver: &mut Option<JobDriver>,
     cancel: &CancellationToken,
     on_event: &mut (dyn FnMut(SourceHostEvent) + Send),
 ) -> Result<bool> {
@@ -230,7 +241,17 @@ async fn step(
         rescan(client, run, state, host, hosted, cancel, on_event).await?;
     }
     let rescan_enabled = creation_host::creation_configured(&run.state_dir);
-    match serve(client, host, hosted, rescan_enabled, cancel, on_event).await? {
+    match serve(
+        client,
+        host,
+        hosted,
+        rescan_enabled,
+        driver,
+        cancel,
+        on_event,
+    )
+    .await?
+    {
         Served::Finished => Ok(true),
         Served::Created(source) => {
             state.adopt(&source);
@@ -276,8 +297,23 @@ pub async fn run_source_host(
     on_event(SourceHostEvent::Connected);
     let mut attempt = 0u32;
     let mut pending_scan = false;
+    let mut driver = run
+        .enable_commands
+        .then(|| JobDriver::new(&run.source_session_id, Vec::new()));
     loop {
-        let error = match step(client, &run, &mut state, &mut host, &mut hosted, &mut pending_scan, &cancel, on_event).await {
+        let error = match step(
+            client,
+            &run,
+            &mut state,
+            &mut host,
+            &mut hosted,
+            &mut pending_scan,
+            &mut driver,
+            &cancel,
+            on_event,
+        )
+        .await
+        {
             Ok(true) => return Ok(()),
             Ok(false) => continue,
             Err(error) => error,
@@ -317,7 +353,10 @@ pub async fn run_source_host(
             let next = if state.rebind_needed {
                 bind(client, &run, &state, &cancel).await
             } else {
-                match client.prepare_source_host_reconnect(&mut host, cancel.child_token()).await {
+                match client
+                    .prepare_source_host_reconnect(&mut host, cancel.child_token())
+                    .await
+                {
                     Ok(start) => start.connect().await,
                     Err(error) => Err(error),
                 }
@@ -328,6 +367,10 @@ pub async fn run_source_host(
                     state.rebind_needed = false;
                     attempt = 0;
                     pending_scan = true;
+                    if let Some(driver) = driver.as_mut() {
+                        // A new socket: open requests died, leases must be recovered.
+                        driver.on_connected();
+                    }
                     on_event(SourceHostEvent::Connected);
                     break;
                 }
@@ -348,10 +391,16 @@ async fn serve(
     host: &mut SourceHostSession,
     hosted: &[HostedSource],
     rescan: bool,
+    driver: &mut Option<JobDriver>,
     cancel: &CancellationToken,
     on_event: &mut (dyn FnMut(SourceHostEvent) + Send),
 ) -> Result<Served> {
     let started = std::time::Instant::now();
+    if let Some(driver) = driver.as_mut() {
+        if driver.sync_sources(driver_sources(host, hosted)) {
+            driver.on_connected();
+        }
+    }
     loop {
         if cancel.is_cancelled() {
             // One bounded best-effort disconnect; the server times the lease out otherwise.
@@ -361,7 +410,9 @@ async fn serve(
         }
         // Poll with a private token so cancellation is observed here, before
         // the session closes, and the disconnect frame can still be sent.
-        let read = match host.poll(&CancellationToken::new()).await? {
+        let polled = host.poll(&CancellationToken::new()).await?;
+        drive_jobs(driver, host, on_event).await?;
+        let read = match polled {
             SourceHostPoll::Idle => {
                 if rescan && started.elapsed() >= RESCAN_INTERVAL {
                     return Ok(Served::Rescan);
@@ -371,15 +422,77 @@ async fn serve(
             SourceHostPoll::Read(read) => read,
         };
         let request = client.finish_source_host_read(host, read)?;
-        let (summary, created) = match dispatch::handle(client, host, request, hosted, cancel).await? {
-            Handled::Answered(summary) => (summary, None),
-            Handled::Created { summary, source } => (summary, Some(source)),
-            Handled::Discovery => ("routing_discovery ok".to_owned(), None),
-            Handled::Dropped => ("request dropped".to_owned(), None),
-        };
+        let (summary, created) =
+            match dispatch::handle(client, host, request, hosted, cancel).await? {
+                Handled::Answered(summary) => (summary, None),
+                Handled::Created { summary, source } => (summary, Some(source)),
+                Handled::Discovery => ("routing_discovery ok".to_owned(), None),
+                Handled::Dropped => ("request dropped".to_owned(), None),
+            };
         on_event(SourceHostEvent::Request { summary });
         if let Some(source) = created {
             return Ok(Served::Created(source));
         }
     }
+}
+
+/// Join the session's binding keys with the hosted roots (sources without a
+/// hosted root, such as placeholders awaiting a folder, run no commands).
+fn driver_sources(host: &SourceHostSession, hosted: &[HostedSource]) -> Vec<DriverSource> {
+    host.job_bindings()
+        .into_iter()
+        .filter_map(|binding| {
+            let source = hosted
+                .iter()
+                .find(|h| h.project_id == binding.project_id && h.source_id == binding.source_id)?;
+            Some(DriverSource {
+                project_id: binding.project_id,
+                source_id: binding.source_id,
+                team_id: binding.team_id,
+                key_epoch: i64::try_from(binding.key_epoch).ok()?,
+                key: binding.key,
+                host: source.root.clone(),
+                target_branch: source.target_branch.clone(),
+            })
+        })
+        .collect()
+}
+
+/// Monotonic milliseconds for the job driver's timeouts and heartbeats.
+fn monotonic_ms() -> u64 {
+    static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    START
+        .get_or_init(std::time::Instant::now)
+        .elapsed()
+        .as_millis() as u64
+}
+
+/// One job-driver iteration: admit the queued `remote_command_*` frames, tick,
+/// and send what the driver produced. A send failure closes the session (the
+/// run loop reconnects and the driver rediscovers).
+async fn drive_jobs(
+    driver: &mut Option<JobDriver>,
+    host: &mut SourceHostSession,
+    on_event: &mut (dyn FnMut(SourceHostEvent) + Send),
+) -> Result<()> {
+    let Some(driver) = driver.as_mut() else {
+        return Ok(());
+    };
+    for (kind, payload) in host.take_job_frames() {
+        match admit(&kind, &payload) {
+            Ok(Some(frame)) => driver.handle_frame(frame),
+            Ok(None) => {}
+            Err(error) => on_event(SourceHostEvent::Request {
+                summary: format!("remote_command frame refused: {error}"),
+            }),
+        }
+    }
+    driver.tick(monotonic_ms());
+    for (kind, payload) in driver.take_outbox() {
+        host.send_job_frame(kind, payload).await?;
+    }
+    for summary in driver.take_notes() {
+        on_event(SourceHostEvent::Request { summary });
+    }
+    Ok(())
 }

@@ -115,6 +115,9 @@ pub(crate) struct ConfinementPlan {
     pub(crate) root: PathBuf,
     /// Working directory (the root or a directory inside it).
     pub(crate) cwd: PathBuf,
+    /// Mount the root read-only (remote-command jobs with `read_only` source
+    /// access); `false` keeps the general read-write root.
+    pub(crate) root_read_only: bool,
     /// Git admin access for a worktree or a root inside a larger repository.
     pub(crate) git: GitAccess,
     /// Private paths, `.git/config` files and state hidden from the command.
@@ -176,7 +179,11 @@ pub(crate) fn bwrap_argv(plan: &ConfinementPlan, argv: &[String]) -> Vec<OsStrin
         BWRAP_HOME.as_ref(),
     ]);
     push(&[
-        "--bind".as_ref(),
+        if plan.root_read_only {
+            "--ro-bind".as_ref()
+        } else {
+            "--bind".as_ref()
+        },
         plan.root.as_os_str(),
         plan.root.as_os_str(),
     ]);
@@ -244,11 +251,19 @@ pub(crate) fn seatbelt_profile(plan: &ConfinementPlan) -> Result<String, Unquota
             sbpl_string(&system.path)?
         ));
     }
-    out.push_str(&format!(
-        "(allow file-read* file-write* (subpath {}) (subpath {}))\n",
-        sbpl_string(&plan.root)?,
-        sbpl_string(&plan.scratch)?
-    ));
+    if plan.root_read_only {
+        out.push_str(&format!(
+            "(allow file-read* (subpath {}))\n(allow file-read* file-write* (subpath {}))\n",
+            sbpl_string(&plan.root)?,
+            sbpl_string(&plan.scratch)?
+        ));
+    } else {
+        out.push_str(&format!(
+            "(allow file-read* file-write* (subpath {}) (subpath {}))\n",
+            sbpl_string(&plan.root)?,
+            sbpl_string(&plan.scratch)?
+        ));
+    }
     for path in &plan.git.read_only {
         out.push_str(&format!(
             "(allow file-read* (subpath {}))\n",

@@ -23,9 +23,9 @@ fn code(result: Option<Result<crate::cli::CliOutput, CliError>>) -> String {
 }
 
 #[test]
-fn enable_commands_fails_explicitly_in_the_rust_host() {
+fn enable_commands_is_accepted_as_a_boolean_flag() {
     let result = preflight(&invocation(&[("enable-commands", json!(true))], &[]));
-    assert_eq!(code(result), "remote_commands_unsupported");
+    assert_eq!(code(result), "none");
     let valued = preflight(&invocation(&[("enable-commands", json!("yes"))], &[]));
     assert_eq!(code(valued), "invalid_enable_commands");
 }

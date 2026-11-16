@@ -48,6 +48,7 @@ pub(crate) fn plan(host: &HostRoot, inputs: PlanInputs<'_>) -> HostResult<Confin
     Ok(ConfinementPlan {
         root: inputs.root.to_path_buf(),
         cwd: inputs.cwd.to_path_buf(),
+        root_read_only: false,
         git,
         masked: normalize(masked),
         system: inputs.system,

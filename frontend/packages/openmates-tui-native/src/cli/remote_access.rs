@@ -3,7 +3,8 @@
 //! `openmates-cli/src/cli.ts`: flag checks, Personal/Team confirmation, Project
 //! and write-policy prompts, takeover confirmation and lifecycle output. Root
 //! discovery, attachment, the local store and the host loop live in the core.
-//! Not yet in the Rust host: `--enable-commands` and `--task-cache` (explicit errors).
+//! `--enable-commands` turns on the server's remote-command job protocol in the
+//! core host. Not yet in the Rust host: `--task-cache` (explicit error).
 use super::{CliError, CliOutput, Invocation};
 use crate::client::Client;
 use crate::error::Error;
@@ -83,14 +84,8 @@ fn check(i: &Invocation) -> Result<(), CliError> {
     if let Some(unknown) = i.flags.keys().find(|k| !FLAGS.contains(&k.as_str())) {
         return Err(CliError::Invalid(format!("Unknown option --{unknown} for remote-access.")));
     }
-    if i.has("enable-commands") {
-        if !i.boolean("enable-commands") {
-            return Err(contract("invalid_enable_commands", "--enable-commands does not accept a value."));
-        }
-        return Err(contract(
-            "remote_commands_unsupported",
-            "--enable-commands is not yet supported in the Rust host. Remote access without commands works; the npm CLI remains available for command execution.",
-        ));
+    if i.has("enable-commands") && !i.boolean("enable-commands") {
+        return Err(contract("invalid_enable_commands", "--enable-commands does not accept a value."));
     }
     if i.has("task-cache") {
         return Err(contract(
@@ -360,6 +355,7 @@ pub(super) async fn execute(
             confirmed_takeover,
             state_dir: state_dir.clone(),
             credential_sync: credential_sync.clone(),
+            enable_commands: i.boolean("enable-commands"),
         };
         let mut on_event = |event: SourceHostEvent| lifecycle(json_output, &event);
         match run_source_host(client, run, cancel.clone(), &mut on_event).await {

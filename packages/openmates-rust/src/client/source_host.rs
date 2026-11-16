@@ -8,6 +8,8 @@ use std::{
     sync::Arc,
 };
 const MAX_REQUESTS: usize = 4;
+/// Most job frames held for the driver between drains.
+const MAX_JOB_FRAMES: usize = 512;
 const MAX_ENVELOPE: usize = 256 * 1024;
 const ACK_TIMEOUT: Duration = Duration::from_secs(20);
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
@@ -83,6 +85,8 @@ pub struct SourceHostBinding {
 pub struct SourceHostOptions {
     pub source_session_id: String,
     pub confirmed_takeover: bool,
+    /// Declare `remote_command_jobs` on the host socket (`--enable-commands`).
+    pub remote_command_jobs: bool,
 }
 pub struct SourceHostStart {
     socket: transport::SourceHostSocketRequest,
@@ -101,6 +105,8 @@ pub struct SourceHostSession {
     heartbeat_sent: Instant,
     pending: BTreeMap<String, Arc<()>>,
     queued: VecDeque<SourceHostRequestFrame>,
+    /// Admitted `remote_command_*` server frames waiting for the job driver.
+    job_frames: VecDeque<(String, Value)>,
     terminal: bool,
 }
 #[derive(Clone, Deserialize)]
@@ -138,6 +144,14 @@ pub struct SourceHostRequestFrame {
 pub enum SourceHostPoll {
     Idle,
     Read(SourceHostRead),
+}
+/// Binding facts for the remote-command job driver (key stays in memory only).
+pub(crate) struct JobBindingKey {
+    pub(crate) project_id: String,
+    pub(crate) source_id: String,
+    pub(crate) team_id: Option<String>,
+    pub(crate) key_epoch: u64,
+    pub(crate) key: crate::crypto::Key,
 }
 /// No plaintext or permission getter before current Client authority fencing.
 pub struct SourceHostRead {
@@ -320,7 +334,7 @@ impl Client {
             }
         }
         Ok(SourceHostStart {
-            socket: self.prepare_source_host_socket()?,
+            socket: self.prepare_source_host_socket_for(options.remote_command_jobs)?,
             bindings,
             options,
             lifetime: cancel.child_token(),
@@ -365,6 +379,7 @@ impl Client {
         let options = SourceHostOptions {
             source_session_id: host.options.source_session_id.clone(),
             confirmed_takeover: host.options.confirmed_takeover,
+            remote_command_jobs: host.options.remote_command_jobs,
         };
         host.close();
         let mut bindings = Vec::new();
@@ -499,6 +514,7 @@ impl SourceHostStart {
             heartbeat_sent: Instant::now(),
             pending: BTreeMap::new(),
             queued: VecDeque::new(),
+            job_frames: VecDeque::new(),
             terminal: false,
         };
         let payload = host.registration();
@@ -660,6 +676,57 @@ impl SourceHostSession {
         self.queued.push_back(frame);
         Ok(())
     }
+    /// Keep one `remote_command_*` server frame for the job driver. Only the
+    /// nine job-protocol kinds reach here (`is_server_frame`); every other
+    /// frame family keeps its existing handling. The queue is bounded so a
+    /// host that never drains it fails loudly instead of growing.
+    fn stash_job_frame(&mut self, kind: String, value: Value) -> Result<()> {
+        if self.job_frames.len() >= MAX_JOB_FRAMES {
+            return Err(Error::Protocol);
+        }
+        self.job_frames.push_back((kind, value));
+        Ok(())
+    }
+    /// Drain the job-protocol frames received since the last call.
+    pub(crate) fn take_job_frames(&mut self) -> Vec<(String, Value)> {
+        self.job_frames.drain(..).collect()
+    }
+    /// Source session id of this registration (stable across reconnects).
+    pub(crate) fn source_session_id(&self) -> &str {
+        &self.options.source_session_id
+    }
+    /// Per-binding facts the job driver needs: ids, team, key epoch and the
+    /// Project key that seals events and opens claimed requests.
+    pub(crate) fn job_bindings(&self) -> Vec<JobBindingKey> {
+        self.bindings
+            .iter()
+            .map(|b| JobBindingKey {
+                project_id: b.scope.project.clone(),
+                source_id: b.scope.source.clone(),
+                team_id: b.scope.team.clone(),
+                key_epoch: b.scope.key_epoch,
+                key: b.key.clone(),
+            })
+            .collect()
+    }
+    /// Send one `remote_command_*` source frame. Bounded by the ack budget
+    /// like every other host write; a failure closes the session so the
+    /// runner reconnects (the driver then rediscovers).
+    pub(crate) async fn send_job_frame(&mut self, kind: &str, payload: Value) -> Result<()> {
+        self.check()?;
+        let lifetime = self.lifetime.clone();
+        let owner = self.bindings[0].authority.cancel.clone();
+        let expires_at = self.bindings.iter().filter_map(|b| b.expires_at).min();
+        let lease = self.lease;
+        let result = bounded_host_io(ACK_TIMEOUT, &CancellationToken::new(), &owner, &lifetime, expires_at, lease, async {
+            transport::send(self.socket.as_mut().ok_or(Error::Offline)?, kind, payload).await
+        })
+        .await;
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
     async fn read_wire(&mut self, cancel: &CancellationToken) -> Result<Option<(String, Value)>> {
         self.check()?;
         let socket = self.socket.as_mut().ok_or(Error::Offline)?;
@@ -682,6 +749,7 @@ impl SourceHostSession {
             loop {
                 let Some((received,value))=self.read_wire(cancel).await? else{continue};
                 if received=="project_remote_access_request" {self.queue_request(value)?;continue}
+                if is_job_frame(&received) {self.stash_job_frame(received,value)?;continue}
                 if received=="error" {return Err(error_code(value["code"].as_str().unwrap_or("")))}
                 if received!=ack {if received.starts_with("project_remote_access_"){return Err(Error::Protocol)}continue}
                 match ack {
@@ -712,6 +780,14 @@ impl SourceHostSession {
         match self.read_wire(cancel).await {
             Ok(Some((kind, value))) if kind == "project_remote_access_request" => {
                 if let Err(error) = self.queue_request(value) {
+                    self.close();
+                    return Err(error);
+                }
+            }
+            Ok(Some((kind, value)))
+                if is_job_frame(&kind) =>
+            {
+                if let Err(error) = self.stash_job_frame(kind, value) {
                     self.close();
                     return Err(error);
                 }
@@ -928,3 +1004,18 @@ impl Drop for SourceHostSession {
 
 #[cfg(test)]
 mod tests;
+
+/// `remote_command_*` server frames the native source host's job driver
+/// consumes; without the native host (`workflow-yaml`, unix) none exist, so
+/// such frames keep being skipped exactly as before.
+fn is_job_frame(kind: &str) -> bool {
+    #[cfg(all(feature = "workflow-yaml", unix))]
+    {
+        crate::source_host::job::transport::is_server_frame(kind)
+    }
+    #[cfg(not(all(feature = "workflow-yaml", unix)))]
+    {
+        let _ = kind;
+        false
+    }
+}

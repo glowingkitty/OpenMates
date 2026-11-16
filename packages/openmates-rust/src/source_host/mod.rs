@@ -20,7 +20,7 @@ pub(crate) mod create_source;
 mod creation_host;
 mod dispatch;
 mod fs_safe;
-mod job;
+pub(crate) mod job;
 pub(crate) mod git_ops;
 pub(crate) mod ignore_rules;
 mod patch;

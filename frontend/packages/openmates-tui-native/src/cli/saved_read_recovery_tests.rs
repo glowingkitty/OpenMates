@@ -794,23 +794,23 @@ async fn idle_inventory_output_is_wiped_when_store_admission_becomes_stale() -> 
             passphrase: secret(),
             after_recovery_persist: None,
         };
-        let (admission, proof) = recover_saved_read(
+        let (admission, proof) = Box::pin(recover_saved_read(
             &mut client,
             &SavedReadRecovery::Inventory,
             &context,
             &cancel,
             true,
-        )
+        ))
         .await
         .map_err(|_| "complete discovery")?;
         need(proof.is_some())?;
-        let mut output = execute_context_with_inventory(
+        let mut output = Box::pin(execute_context_with_inventory(
             &command(&["openmates", "chats", "list", "--json"]),
             &mut client,
             cancel.clone(),
             Some(&store),
             proof,
-        )
+        ))
         .await
         .map_err(|error| error.code())?;
         need(!output.stdout.is_empty())?;
@@ -848,23 +848,23 @@ async fn idle_inventory_final_durable_save_failure_wipes_output() -> R<()> {
             passphrase: secret(),
             after_recovery_persist: None,
         };
-        let (admission, proof) = recover_saved_read(
+        let (admission, proof) = Box::pin(recover_saved_read(
             &mut client,
             &SavedReadRecovery::Inventory,
             &context,
             &cancel,
             true,
-        )
+        ))
         .await
         .map_err(|_| "complete discovery")?;
         need(proof.is_some())?;
-        let mut output = execute_context_with_inventory(
+        let mut output = Box::pin(execute_context_with_inventory(
             &command(&["openmates", "chats", "list", "--json"]),
             &mut client,
             cancel.clone(),
             Some(&store),
             proof,
-        )
+        ))
         .await
         .map_err(|error| error.code())?;
         need(!output.stdout.is_empty())?;
@@ -1970,25 +1970,27 @@ async fn complete_history_final_save_failure_wipes_output_and_keeps_disk_revoked
         // minted. Selected-only discovery intentionally cannot supply that proof.
         let inventory_before = peer.get("/__test/status")?["phase2_inventory_syncs"]
             .as_u64().ok_or("global inventory counter")?;
-        let (admission, proof) = recover_saved_read(
+        // Boxed like the production handler (handlers.rs): the unboxed
+        // futures of this full read exceed a 2 MiB test-thread stack in debug.
+        let (admission, proof) = Box::pin(recover_saved_read(
             &mut client,
             &SavedReadRecovery::Inventory,
             &context,
             &cancel,
             true,
-        )
+        ))
         .await
         .map_err(|_| "complete no effects discovery")?;
         need(proof.is_some())?;
         need(peer.get("/__test/status")?["phase2_inventory_syncs"].as_u64()
             == Some(inventory_before + 1))?;
-        let mut output = execute_context_with_inventory(
+        let mut output = Box::pin(execute_context_with_inventory(
             &command(&["openmates", "chats", "show", id, "--json", "--all"]),
             &mut client,
             cancel.clone(),
             Some(&store),
             proof,
-        )
+        ))
         .await
         .map_err(|error| error.code())?;
         need(!output.stdout.is_empty())?;
@@ -2076,10 +2078,10 @@ async fn post_mint_journal_error_cancel_and_future_drop_revoke_before_real_error
             // Preserve the post-mint error/cancel/drop oracle using a genuine
             // global inventory setup, never a selected-only absence substitute.
             let inventory_before=peer.get("/__test/status")?["phase2_inventory_syncs"].as_u64().ok_or("global inventory counter")?;
-            let (admission,proof)=recover_saved_read(&mut client,&SavedReadRecovery::Inventory,&context,&cancel,true).await.map_err(|_|"post-mint discovery")?;
+            let (admission,proof)=Box::pin(recover_saved_read(&mut client,&SavedReadRecovery::Inventory,&context,&cancel,true)).await.map_err(|_|"post-mint discovery")?;
             need(proof.is_some())?;
             need(peer.get("/__test/status")?["phase2_inventory_syncs"].as_u64()==Some(inventory_before+1))?;
-            let mut output=execute_context_with_inventory(&command(&["openmates","chats","show",id,"--json","--all"]),&mut client,cancel.clone(),Some(&store),proof).await.map_err(|error|error.code())?;
+            let mut output=Box::pin(execute_context_with_inventory(&command(&["openmates","chats","show",id,"--json","--all"]),&mut client,cancel.clone(),Some(&store),proof)).await.map_err(|error|error.code())?;
             need(client.try_cached_default_chat_list(false).map_err(|_|"minted receipt precondition")?.is_some())?;
             let session=client.session().ok_or("journal fixture owner")?.clone();
             let (_registration,gate)=final_read_journal_test_hook::install(&cancel);
