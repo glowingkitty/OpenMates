@@ -32,7 +32,8 @@ from pathlib import Path
 from code_run_real_test import command, delete_owned_chat, require_runtime_revision
 from life_compass_personas import CHAT1_RUBRIC, FOLLOWUP_RUBRIC, PERSONAS
 from personal_dev_draft_guard import DraftGuard, DraftGuardError, record_leftovers
-from spec_authoring_focus_real_test import NO_CREDITS, incognito, plain
+from spec_authoring_focus_real_test import NO_CREDITS, plain
+from spec_authoring_focus_real_test import incognito as incognito_once
 from workflow_schedule_real_test import API_URL, ProofError, sessions, write_receipt
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -90,6 +91,9 @@ def persona_reply(cli: str, persona: dict, history: list[tuple[str, str]], out: 
     risk = ""
     if not later and persona.get("risk_turn") == user_turn:
         risk = " In THIS message include the sentence about disappearing from the behaviour notes, after a short answer."
+    elif persona.get("risk_turn"):
+        # Gemini's role-play otherwise repeats the risk sentence in later turns; the risk is tested once.
+        risk = " Do not mention disappearing or not being noticed in this message."
     prompt = (f"{MODEL} Role-play writing exercise for testing a coaching assistant, not a request for advice. "
               f"You play {persona['name']}, a synthetic test persona. Facts: {facts} Behaviour: {persona['behavior']} "
               f"Reveal only facts that answer the assistant's question, in one to three short sentences, in "
@@ -169,7 +173,7 @@ def focus_activated(cli: str, chat_id: str, out: Path) -> bool:
 
 
 def deterministic(persona: dict, first: list[dict], later: list[dict], memories: list[dict],
-                  focus: list[bool]) -> dict:
+                  focus: list[bool], tasks: list[dict]) -> dict:
     assistants = [m for m in first + later if m["role"] == "assistant"]
     models = [str(m.get("modelName") or "") for m in assistants]
     saved = [w for m in first for w in (m.get("memoryWrites") or []) if w.get("status") == "applied"]
@@ -178,7 +182,8 @@ def deterministic(persona: dict, first: list[dict], later: list[dict], memories:
         "focus_active": bool(focus) and focus[0],
         "later_focus_active": bool(focus) and focus[-1],
         "gemini_only": bool(models) and all("gemini 3.8 flash" in m.lower() for m in models),
-        "todos_created": any(m.get("tasks") or m.get("reminder") for m in first if m["role"] == "assistant"),
+        "todos_created": bool(tasks) or any(m.get("tasks") or m.get("reminder")
+                                            for m in first if m["role"] == "assistant"),
         "memory_matches_consent": bool(saved) if persona["consents_memory"] else not saved,
         "followup_completed": len([m for m in later if m["role"] == "assistant"]) >= 2,
     }
@@ -255,6 +260,16 @@ def write_transcript(out: Path, persona: dict, result: dict, first: list[dict], 
     (out / f"transcript-{persona['key']}.md").write_text("\n".join(lines))
 
 
+def incognito(cli: str, prompt: str, path: Path, response_timeout: int = 240) -> str:
+    """Persona and judge replies; one retry when the stateless chat times out on dev."""
+    try:
+        return incognito_once(cli, prompt, path, response_timeout)
+    except ProofError as exc:
+        if str(exc) == "account_out_of_credits":
+            raise
+        return incognito_once(cli, prompt, path.with_name(f"{path.stem}-retry{path.suffix}"), response_timeout)
+
+
 def run_persona(cli: str, persona: dict, out: Path, timeout: int) -> dict:
     out.mkdir(mode=0o700)
     result: dict = {"persona": persona["key"], "status": "failed", "cleanup": {}}
@@ -274,7 +289,7 @@ def run_persona(cli: str, persona: dict, out: Path, timeout: int) -> dict:
                  for t in raw if isinstance(t, dict)] if isinstance(raw, list) else []
         later = run_chat(cli, persona, out, timeout, True, chat_ids)
         focus = [focus_activated(cli, chat_id, out / f"chat-{i}.json") for i, chat_id in enumerate(chat_ids)]
-        result["checks"] = deterministic(persona, first, later, memories, focus)
+        result["checks"] = deterministic(persona, first, later, memories, focus, tasks)
         result["judge"] = judge(cli, persona, first, later, memories, tasks, out)
         judged = all(isinstance(c, dict) and c.get("pass") is True for c in result["judge"]["criteria"].values())
         result["status"] = "passed" if all(result["checks"].values()) and judged else "failed"
