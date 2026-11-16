@@ -24283,6 +24283,7 @@ features:
       - frontend/apps/web_app/tests/web-rust-core-drafts.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-embeds.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-search.spec.ts
+      - frontend/apps/web_app/tests/web-rust-core-send-prep.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-sync.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-transfer.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-ws.spec.ts
@@ -24292,7 +24293,7 @@ features:
       - frontend/packages/ui/src/message_parsing/__tests__/streamingBlocksVectors.test.ts
       - frontend/packages/ui/src/message_parsing/__tests__/voiceCuesVectors.test.ts
       - frontend/packages/ui/src/services/__tests__/applicationProjectZip.test.ts
-      unit_test_files: 45
+      unit_test_files: 46
     apple:
       status: implemented
       source: intent

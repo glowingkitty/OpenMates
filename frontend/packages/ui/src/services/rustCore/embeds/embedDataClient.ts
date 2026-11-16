@@ -4,8 +4,7 @@
  * and drops this module).
  *
  * `rustEmbedData()` is available exactly when the Rust crypto unit client is
- * (same registration, same measurement opt-out `openmates_rust_core_crypto`):
- * embed field decryption is part of the Rust crypto arm. Calls made in the
+ * (same registration): embed field decryption is part of the Rust crypto arm. Calls made in the
  * same task are coalesced into one `openFields` request. The port opens lazily
  * (pre-bind, outside any generation); a Worker crash or realm retirement drops
  * it and the next call reopens. In-flight calls hold the realm so idle

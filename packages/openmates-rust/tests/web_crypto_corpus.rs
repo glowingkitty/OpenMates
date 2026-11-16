@@ -1,4 +1,4 @@
-//! Web crypto vector corpus: every vector was produced by the deployed web
+//! Web crypto vector corpus (share links: web_share_links_corpus.rs): every vector was produced by the deployed web
 //! TypeScript modules (ts_web_formats/generate.cjs, ts_web_policy/generate.cjs)
 //! plus the shared legacy layouts. The browser WASM binding runs the same
 //! files in frontend/packages/ui/src/services/rustCore/crypto/__tests__.

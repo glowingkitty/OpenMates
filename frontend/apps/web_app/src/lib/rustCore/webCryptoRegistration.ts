@@ -18,18 +18,10 @@ declare global {
 	}
 }
 
-/**
- * Measurement-only opt-out (like `openmates_rust_core_history`): with `'ts'` the
- * legacy TypeScript crypto stays in place, so one flag build can record the pure
- * TS baseline of the chat/embed flow specs.
- */
-export const RUST_CRYPTO_OPT_OUT_KEY = 'openmates_rust_core_crypto';
-
 let installed: WebCryptoClient | null = null;
 
 export function installRustWebCrypto(core: SharedRustCore): WebCryptoClient | null {
 	if (installed) return installed;
-	if (localStorage.getItem(RUST_CRYPTO_OPT_OUT_KEY) === 'ts') return null;
 	const client = registerRustWebCrypto(() => createSharedCryptoEndpoint(core));
 	installed = client;
 	window.__openmatesRustCryptoStats = () => structuredClone(client.stats);

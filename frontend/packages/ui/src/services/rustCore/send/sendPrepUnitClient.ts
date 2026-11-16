@@ -11,11 +11,11 @@ import { createUnitPort, type UnitPort, type UnitRequestOptions } from '../host/
 import type { SendPrepUnitProtocol } from './sendPrepProtocol';
 
 /** Read-only diagnostics (E2E asserts the unit served the flow). */
-export const rustSendPrepStats = { calls: 0, failures: 0, opens: 0 };
+export const rustSendPrepStats: { calls: number; failures: number; opens: number; ops: Record<string, number> } = { calls: 0, failures: 0, opens: 0, ops: {} };
 // Test-only read hook: installed only under browser automation (Playwright sets
 // navigator.webdriver), so user sessions never expose it.
 if (typeof navigator !== 'undefined' && navigator.webdriver) {
-	(globalThis as { __openmatesRustSendPrepStats?: () => typeof rustSendPrepStats }).__openmatesRustSendPrepStats = () => ({ ...rustSendPrepStats });
+	(globalThis as { __openmatesRustSendPrepStats?: () => typeof rustSendPrepStats }).__openmatesRustSendPrepStats = () => ({ ...rustSendPrepStats, ops: { ...rustSendPrepStats.ops } });
 }
 
 let port: UnitPort<SendPrepUnitProtocol> | null = null;
@@ -46,6 +46,7 @@ export async function sendPrepCall<K extends keyof SendPrepUnitProtocol & string
 	const core = await whenSharedRustCore();
 	const release = core.hold();
 	rustSendPrepStats.calls++;
+	rustSendPrepStats.ops[op] = (rustSendPrepStats.ops[op] ?? 0) + 1;
 	try {
 		return await (await unit(core)).request(op, payload, options);
 	} catch (error) {
